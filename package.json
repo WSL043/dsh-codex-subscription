@@ -1,6 +1,6 @@
 {
   "name": "@wsl043/dsh-codex-subscription",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "packageManager": "pnpm@11.19.0",
   "description": "Cache-aware ChatGPT subscription integration for DeepSeek Harness",
   "type": "module",

@@ -31,7 +31,7 @@
 把带预构建产物的正式标签安装到 Web profile：
 
 ```sh
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.1.0
+dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.1.1
 dsh --profile web --dump-config
 dsh web
 ```

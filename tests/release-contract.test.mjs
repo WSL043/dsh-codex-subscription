@@ -36,3 +36,16 @@ test('public docs state the cache boundary and paid-fallback policy', () => {
   assert.match(docs, /not.*98%|不.*98%/iu)
   assert.match(docs, /developer preview|开发者预览/iu)
 })
+
+test('release-age exceptions are pinned to the audited DeepSeek preview graph', () => {
+  const workspace = text('pnpm-workspace.yaml')
+  const lockfile = text('pnpm-lock.yaml')
+  const packagesBlock = lockfile.slice(lockfile.indexOf('\npackages:\n'), lockfile.indexOf('\nsnapshots:\n'))
+  const deepseekPackages = [...packagesBlock.matchAll(/^  '(@deepseek-ai\/[^']+@[^']+)':$/gmu)].map(match => match[1])
+  assert.equal(deepseekPackages.length, 58)
+  assert.match(workspace, /minimumReleaseAge:\s*1440/u)
+  assert.doesNotMatch(workspace, /@deepseek-ai\/\*/u)
+  for (const selector of deepseekPackages) {
+    assert.equal(workspace.includes(`- '${selector}'`), true, `missing exact release-age exception for ${selector}`)
+  }
+})

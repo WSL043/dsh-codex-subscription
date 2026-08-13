@@ -9,7 +9,7 @@ import { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinato
 import {
   createModels,
   getOpenAICodexWebSocketDebugStats,
-  openaiCodexProvider,
+  openaiCodexSubscriptionProvider,
 } from './pi-ai-runtime.js'
 import { createCodexUsageReader } from './usage.js'
 
@@ -91,7 +91,7 @@ export function apply(ctx) {
 
   const telemetry = new CodexCacheTelemetry()
   const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF)
-  const provider = openaiCodexProvider()
+  const provider = openaiCodexSubscriptionProvider()
   const authModels = createModels({ credentials: store })
   authModels.setProvider(provider)
   const profile = Object.freeze({
