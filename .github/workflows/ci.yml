@@ -33,9 +33,14 @@ jobs:
       - name: Verify committed build output
         run: git diff --exit-code -- lib
       - name: Pack release artifact
-        run: pnpm pack --pack-destination .artifacts
+        run: |
+          pnpm pack --pack-destination .artifacts
+          artifact="$(find .artifacts -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          test -n "$artifact"
+          test -s "$artifact"
       - uses: actions/upload-artifact@v4
         with:
           name: dsh-codex-subscription-${{ github.sha }}
           path: .artifacts/*.tgz
           if-no-files-found: error
+          include-hidden-files: true

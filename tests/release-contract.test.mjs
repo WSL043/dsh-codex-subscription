@@ -49,3 +49,11 @@ test('release-age exceptions are pinned to the audited DeepSeek preview graph', 
     assert.equal(workspace.includes(`- '${selector}'`), true, `missing exact release-age exception for ${selector}`)
   }
 })
+
+test('CI uploads the hidden release artifact only after asserting it exists', () => {
+  const workflow = text('.github/workflows/ci.yml')
+  assert.match(workflow, /find \.artifacts[^\n]*-name '\*\.tgz'/u)
+  assert.match(workflow, /test -s "\$artifact"/u)
+  assert.match(workflow, /path:\s*\.artifacts\/\*\.tgz/u)
+  assert.match(workflow, /include-hidden-files:\s*true/u)
+})
