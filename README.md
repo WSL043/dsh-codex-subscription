@@ -41,8 +41,15 @@ dsh --profile web --dump-config
 配置中应只出现一个 `wsl043-codex-subscription` 条目。随后打开
 **设置 -> Codex 订阅** 完成登录，再从 DSH 的模型选择器选择 Codex 模型。
 
-使用 Agent 安装、更新或卸载时，只需让 Agent 打开本仓库并读取
-[AGENTS.md](AGENTS.md)；其中已经包含完整操作和验收规则。
+## 让 Agent 操作
+
+把下面这个文档链接直接发给 Agent。文档中已经包含安装、更新、卸载和验收规则：
+
+```text
+https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
+```
+
+也可以直接打开 [AGENTS.md](AGENTS.md) 查看。
 
 ## 额度说明
 
