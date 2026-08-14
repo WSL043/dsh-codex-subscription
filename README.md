@@ -28,7 +28,7 @@ _截图使用示例额度，不含真实账户或凭据信息。_
 以及当前具有 Codex 使用资格的 ChatGPT 账户。
 
 ```sh
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.2
+dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
 ```
 
 安装后检查：
@@ -54,10 +54,10 @@ dsh --profile web --dump-config
 ## 更新
 
 升级固定标签安装的插件时，使用新版本标签重新执行 `add`；它会更新现有插件，
-不会安装第二份。更新到 `v0.2.2`：
+不会安装第二份。更新到 `v0.2.1`：
 
 ```sh
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.2
+dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
 dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
