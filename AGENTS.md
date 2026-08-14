@@ -24,10 +24,10 @@ dsh --profile web --dump-config
 
 ## Install
 
-Confirm that `v0.2.2` exists, then run:
+Confirm that `v0.2.1` exists, then run:
 
 ```sh
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.2
+dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
 ```
 
 ## Update
@@ -36,7 +36,7 @@ Record the installed version, then update the pinned Git tag explicitly:
 
 ```sh
 dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.2
+dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
 ```
 
 The `add` command updates the existing package entry. It preserves the profile

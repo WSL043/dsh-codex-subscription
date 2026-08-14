@@ -28,7 +28,7 @@ Requirements: Node.js `^22.19.0` or `>=24.0.0`, DeepSeek Harness `0.1.0-rc.6`,
 and a ChatGPT account that currently has Codex access.
 
 ```sh
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.2
+dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
 ```
 
 Verify the installation:
@@ -56,10 +56,10 @@ and verification rules.
 
 For an installation pinned to a release tag, run `add` again with the new tag.
 It updates the existing plugin instead of installing a second copy. To update to
-`v0.2.2`:
+`v0.2.1`:
 
 ```sh
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.2
+dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
 dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```

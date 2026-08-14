@@ -1,6 +1,6 @@
 {
   "name": "@wsl043/dsh-codex-subscription",
-  "version": "0.2.2",
+  "version": "0.2.1",
   "packageManager": "pnpm@11.19.0",
   "description": "Native ChatGPT and Codex subscription route with quota for DeepSeek Harness",
   "type": "module",

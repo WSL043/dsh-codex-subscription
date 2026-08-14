@@ -18,7 +18,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'THIRD_PARTY_NOTICES.md',
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
-  assert.equal(pkg.version, '0.2.2')
+  assert.equal(pkg.version, '0.2.1')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
   assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-llm-pi-ai'], '0.1.0-rc.6')
@@ -46,8 +46,8 @@ test('public docs contain only user-facing product and operation information', (
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.match(guide, /## Install[\s\S]*dsh plugin --profile web add github:WSL043\/dsh-codex-subscription#v0\.2\.2/u)
-  assert.match(guide, /## Update[\s\S]*dsh plugin --profile web add github:WSL043\/dsh-codex-subscription#v0\.2\.2/u)
+  assert.match(guide, /## Install[\s\S]*dsh plugin --profile web add github:WSL043\/dsh-codex-subscription#v0\.2\.1/u)
+  assert.match(guide, /## Update[\s\S]*dsh plugin --profile web add github:WSL043\/dsh-codex-subscription#v0\.2\.1/u)
   assert.match(guide, /dsh plugin --profile web list @wsl043\/dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
   assert.match(guide, /dsh plugin --profile web remove @wsl043\/dsh-codex-subscription/u)
@@ -65,8 +65,8 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
 test('public readmes provide explicit update commands and verification', () => {
   const readmeZh = text('README.md')
   const readmeEn = text('README.en.md')
-  assert.match(readmeZh, /## 更新[\s\S]*dsh plugin --profile web add github:WSL043\/dsh-codex-subscription#v0\.2\.2[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config/u)
-  assert.match(readmeEn, /## Update[\s\S]*dsh plugin --profile web add github:WSL043\/dsh-codex-subscription#v0\.2\.2[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config/u)
+  assert.match(readmeZh, /## 更新[\s\S]*dsh plugin --profile web add github:WSL043\/dsh-codex-subscription#v0\.2\.1[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config/u)
+  assert.match(readmeEn, /## Update[\s\S]*dsh plugin --profile web add github:WSL043\/dsh-codex-subscription#v0\.2\.1[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config/u)
 })
 
 test('docs explain dynamic quota buckets without exposing maintenance internals', () => {
