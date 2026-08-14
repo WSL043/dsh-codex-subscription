@@ -58,7 +58,7 @@ test('shipped agent guide owns install, pinned update, verification, and uninsta
 test('GitHub defaults to concise Chinese and directs Agents to their own guide', () => {
   const readme = text('README.md')
   assert.match(readme, /^# DSH Codex Subscription[\s\S]*\[English\]\(README\.en\.md\)/u)
-  assert.match(readme, /使用 Agent 安装、更新或卸载时[\s\S]*读取[\s\S]*AGENTS\.md/u)
+  assert.match(readme, /## 让 Agent 操作[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md/u)
   assert.doesNotMatch(readme, /复制下面|提示词/u)
 })
 

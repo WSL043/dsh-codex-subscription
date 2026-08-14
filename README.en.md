@@ -41,9 +41,16 @@ dsh --profile web --dump-config
 The config should contain one `wsl043-codex-subscription` entry. Then open
 **Settings -> Codex subscription**, sign in, and choose a Codex model in DSH.
 
-For Agent-assisted installation, update, or removal, ask the Agent to open this
-repository and read [AGENTS.md](AGENTS.md). It contains the complete procedure
-and verification rules.
+## Let an Agent handle it
+
+Send this documentation URL directly to an Agent. It contains the install,
+update, uninstall, and verification procedures:
+
+```text
+https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
+```
+
+You can also open [AGENTS.md](AGENTS.md) directly.
 
 ## Quota notes
 
