@@ -16,10 +16,9 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'LICENSE',
     'SECURITY.md',
     'THIRD_PARTY_NOTICES.md',
-    'docs/*.md',
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
-  assert.equal(pkg.version, '0.2.0')
+  assert.equal(pkg.version, '0.2.1')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
   assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-llm-pi-ai'], '0.1.0-rc.6')
@@ -29,55 +28,48 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(existsSync(new URL('../lib/client.js', import.meta.url)), true)
   assert.equal(existsSync(new URL('../lib/boundary.js', import.meta.url)), false)
   assert.equal(existsSync(new URL('../CHANGELOG.md', import.meta.url)), false)
+  assert.equal(existsSync(new URL('../docs/ARCHITECTURE.md', import.meta.url)), false)
   assert.equal(existsSync(new URL('../.github/workflows/ci.yml', import.meta.url)), true)
 })
 
-test('public docs state the runtime and paid-fallback policy', () => {
-  const docs = `${text('README.md')}\n${text('README.en.md')}\n${text('docs/ARCHITECTURE.md')}`
-  assert.match(docs, /prompt_cache_key/u)
-  assert.match(docs, /previous_response_id/u)
-  assert.match(docs, /store:\s*false/u)
-  assert.match(docs, /no paid fallback|不.*付费.*回退/iu)
-  assert.match(docs, /does not:[\s\S]*promise.*98%|不会：[\s\S]*承诺.*98%/iu)
-  assert.match(docs, /developer preview|开发者预览/iu)
+test('public docs contain only user-facing product and operation information', () => {
+  const docs = `${text('README.md')}\n${text('README.en.md')}`
+  assert.match(docs, /silent fallback[\s\S]*paid route|不会静默切换[\s\S]*付费路由/iu)
   assert.match(docs, /reset time|重置时间/iu)
   assert.match(docs, /AGENTS\.md/u)
+  assert.doesNotMatch(docs, /prompt_cache_key|previous_response_id|backend-api|autoInstallPeers|profiles\/node_modules/iu)
+  assert.doesNotMatch(docs, /github\.com\/WSL043\/(?!dsh-codex-subscription(?:[\/)#]|$))[\w.-]+/iu)
+  assert.doesNotMatch(docs, /安装提示词|更新提示词|卸载提示词|install prompt|update prompt|uninstall prompt/iu)
+  assert.doesNotMatch(docs, /开发与验收|development and verification|pnpm test|pnpm run build|测试覆盖|release-contract|28 项/iu)
   assert.equal(existsSync(new URL('../docs/CACHE.md', import.meta.url)), false)
 })
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.match(guide, /dsh plugin --profile web add github:WSL043\/dsh-codex-subscription#v0\.2\.0/u)
+  assert.match(guide, /dsh plugin --profile web add github:WSL043\/dsh-codex-subscription#v0\.2\.1/u)
   assert.match(guide, /dsh plugin --profile web list @wsl043\/dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
   assert.match(guide, /dsh plugin --profile web remove @wsl043\/dsh-codex-subscription/u)
-  assert.match(guide, /do not.*delete.*profile|不要.*删除.*profile/iu)
-  assert.match(guide, /beginner request|小白请求/iu)
-  assert.match(guide, /plain-language|通俗/iu)
+  assert.match(guide, /do not.*delete.*profile|never delete.*profile|不要.*删除.*profile/iu)
+  assert.doesNotMatch(guide, /autoInstallPeers|profiles\/node_modules|checked-out development|pnpm install/iu)
 })
 
-test('GitHub defaults to Chinese and gives beginners copy-paste DSH Agent flows', () => {
+test('GitHub defaults to concise Chinese and directs Agents to their own guide', () => {
   const readme = text('README.md')
   assert.match(readme, /^# DSH Codex Subscription[\s\S]*\[English\]\(README\.en\.md\)/u)
-  assert.match(readme, /让 DSH Agent 代装/u)
-  assert.match(readme, /安装提示词/u)
-  assert.match(readme, /更新提示词/u)
-  assert.match(readme, /卸载提示词/u)
-  assert.match(readme, /严格读取.*AGENTS\.md/u)
+  assert.match(readme, /使用 Agent 安装、更新或卸载时[\s\S]*读取[\s\S]*AGENTS\.md/u)
+  assert.doesNotMatch(readme, /复制下面|提示词/u)
 })
 
-test('docs explain dynamic quota buckets and DSH host-peer verification', () => {
+test('docs explain dynamic quota buckets without exposing maintenance internals', () => {
   const agent = readFileSync(new URL('../AGENTS.md', import.meta.url), 'utf8')
-  const architecture = readFileSync(new URL('../docs/ARCHITECTURE.md', import.meta.url), 'utf8')
   const readmeZh = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
   const readmeEn = readFileSync(new URL('../README.en.md', import.meta.url), 'utf8')
   for (const text of [readmeZh, readmeEn]) {
     assert.match(text, /Spark/u)
-    assert.match(text, /dynamic|动态/u)
+    assert.match(text, /backend-provided|actual.*returned|服务端实际返回/iu)
   }
-  assert.match(agent, /autoInstallPeers:\s*false/u)
   assert.match(agent, /peers check/u)
-  assert.match(architecture, /profiles\/node_modules/u)
 })
 
 test('release-age exceptions are pinned to the audited DeepSeek preview graph', () => {
