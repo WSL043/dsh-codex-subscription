@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 
 export const inject = ['slots', 'locale', 'connection']
@@ -9,65 +9,75 @@ const CHANNEL = '/wsl043-codex-subscription'
 const zh = {
   nav: 'Codex 订阅',
   title: 'ChatGPT / Codex 订阅',
-  intro: '将 ChatGPT 订阅作为 DSH 的一个独立模型路由。凭据只保存在 DSH 主机，不会返回网页端。',
-  preview: '预览', connected: '已登录', disconnected: '未登录',
+  intro: '在 DSH 原生模型路由中使用你的 ChatGPT 订阅，并直接查看 Codex 返回的额度窗口。凭据只留在 DSH 主机。',
+  preview: '预览', connected: '已登录', disconnected: '未登录', accountLoading: '正在读取账户状态…',
   expires: '访问凭据到期时间：{value}。主机会在请求前自动刷新。',
   browserLogin: '浏览器登录', deviceLogin: '设备代码登录', logout: '退出登录',
   cancel: '取消', submit: '提交授权码', openLogin: '打开登录页',
   manualCode: '若浏览器回调没有自动完成，请粘贴授权码或完整重定向地址。',
   deviceHint: '在登录页输入此设备代码：', waiting: '正在等待登录完成…',
   failed: '登录失败，请重试。', loadFailed: '无法读取 Codex 状态。',
-  noFallback: '不会静默切换到 OpenAI API 或其他付费路由。',
-  usage: '订阅额度', refresh: '刷新', noUsage: '登录后可读取 ChatGPT 返回的额度窗口。',
-  remaining: '剩余 {value}%', window: '{value} 小时窗口', credits: '可用余额', unlimited: '不限额',
-  cache: '缓存与续接', cacheIntro: '以下数据自本次 DSH 主机启动后累计；三项含义不同，不合并成一个“命中率”。',
-  serverCache: '服务端 Token 缓存', transport: 'WebSocket 增量续接', prefix: '稳定前缀',
-  cacheRead: '读取 {read} · 写入 {write} · 未缓存 {input}',
-  deltaDetail: '增量 {delta} · 完整上下文 {full} · 连接复用 {reused}',
-  prefixStable: '未检测到前缀变化', prefixChanged: '前缀变化 {value} 次', prefixUnseen: '等待首个模型请求',
-  measured: '实测', unavailable: '暂无数据',
+  routePolicy: '路由策略', noFallback: '不会静默切换到 OpenAI API 或其他付费路由。',
+  usage: '订阅额度', usageIntro: '按 ChatGPT Codex 当前返回的额度组和窗口展示；百分比不是 API 账单。',
+  refresh: '刷新', refreshing: '刷新中…', noUsage: '登录后可读取 ChatGPT 返回的额度窗口。',
+  usageLoading: '正在读取额度…', usageEmpty: '当前账户没有返回可显示的额度窗口。请稍后刷新；这不代表额度为零。',
+  usageUpdated: '更新于 {value}', remaining: '剩余 {value}%', used: '已用 {value}%',
+  windowFiveHours: '5 小时额度', windowDaily: '每日额度', windowWeekly: '每周额度', windowMonthly: '每月额度', windowAnnual: '年度额度',
+  windowHours: '{value} 小时额度', windowDays: '{value} 天额度', resets: '重置于 {value}', resetUnknown: '重置时间未提供',
+  creditsBalance: '额外 Credits 余额', creditsUnit: 'credits', unlimited: '不限额', monthlyCreditLimit: 'Credits 月度消费上限',
+  creditsNote: '仅在 Codex 为此账户或工作区实际返回时显示；它们不是订阅周额度之外固定赠送的另一份额度。',
+  creditsUsed: '已用 {used} / {limit} credits', spendReached: 'Credits 月度消费上限已用尽。', unavailable: '暂无数据',
 }
 
 const en = {
   nav: 'Codex subscription',
   title: 'ChatGPT / Codex subscription',
-  intro: 'Add a ChatGPT subscription as an independent DSH model route. Credentials stay in the DSH host and are never returned to this page.',
-  preview: 'Preview', connected: 'Signed in', disconnected: 'Not signed in',
+  intro: 'Use your ChatGPT subscription as a native DSH model route and see the quota windows Codex reports. Credentials stay in the DSH host.',
+  preview: 'Preview', connected: 'Signed in', disconnected: 'Not signed in', accountLoading: 'Reading account status…',
   expires: 'Access credential expires at {value}. The host refreshes it before a request.',
   browserLogin: 'Browser sign-in', deviceLogin: 'Device-code sign-in', logout: 'Sign out',
   cancel: 'Cancel', submit: 'Submit authorization code', openLogin: 'Open sign-in page',
   manualCode: 'If the browser callback did not finish automatically, paste the code or full redirect URL.',
   deviceHint: 'Enter this device code on the sign-in page:', waiting: 'Waiting for sign-in to finish…',
   failed: 'Sign-in failed. Try again.', loadFailed: 'Could not read Codex state.',
-  noFallback: 'Never silently falls back to the OpenAI API or another paid route.',
-  usage: 'Subscription quota', refresh: 'Refresh', noUsage: 'Sign in to read quota windows reported by ChatGPT.',
-  remaining: '{value}% remaining', window: '{value}-hour window', credits: 'Available balance', unlimited: 'Unlimited',
-  cache: 'Cache and continuation', cacheIntro: 'Measured since this DSH host start. These are three different signals and are not merged into one “hit rate”.',
-  serverCache: 'Server token cache', transport: 'WebSocket delta continuation', prefix: 'Stable prefix',
-  cacheRead: 'read {read} · write {write} · uncached {input}',
-  deltaDetail: 'delta {delta} · full context {full} · connections reused {reused}',
-  prefixStable: 'No prefix changes detected', prefixChanged: '{value} prefix changes', prefixUnseen: 'Waiting for the first model request',
-  measured: 'Measured', unavailable: 'No data yet',
+  routePolicy: 'Routing policy', noFallback: 'Never silently falls back to the OpenAI API or another paid route.',
+  usage: 'Subscription quota', usageIntro: 'Shows the quota buckets and windows ChatGPT Codex currently returns. These percentages are not an API bill.',
+  refresh: 'Refresh', refreshing: 'Refreshing…', noUsage: 'Sign in to read quota windows reported by ChatGPT.',
+  usageLoading: 'Reading quota…', usageEmpty: 'This account returned no displayable quota windows. Refresh later; this does not mean zero quota.',
+  usageUpdated: 'Updated {value}', remaining: '{value}% remaining', used: '{value}% used',
+  windowFiveHours: '5-hour quota', windowDaily: 'Daily quota', windowWeekly: 'Weekly quota', windowMonthly: 'Monthly quota', windowAnnual: 'Annual quota',
+  windowHours: '{value}-hour quota', windowDays: '{value}-day quota', resets: 'Resets {value}', resetUnknown: 'Reset time not provided',
+  creditsBalance: 'Extra Credits balance', creditsUnit: 'credits', unlimited: 'Unlimited', monthlyCreditLimit: 'Monthly Credits spending cap',
+  creditsNote: 'Shown only when Codex reports these fields for this account or workspace; they are not a standard second allowance beyond the subscription quota.',
+  creditsUsed: '{used} / {limit} credits used', spendReached: 'The monthly Credits spending cap has been reached.', unavailable: 'No data yet',
 }
 
 const STYLE = `
-.wslCodex{display:flex;flex-direction:column;gap:20px;max-width:760px;color:var(--dsw-alias-label-primary);container-type:inline-size}
+.wslCodex{display:flex;flex-direction:column;gap:12px;max-width:720px;color:var(--dsw-alias-label-primary);container-type:inline-size}
 .wslCodex h2,.wslCodex h3,.wslCodex p{margin:0}.wslCodexHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.wslCodex h2{font-size:18px;line-height:26px;font-weight:600}.wslCodex h3{font-size:14px;line-height:22px;font-weight:600}
-.wslCodexTag{border:1px solid var(--dsw-alias-border-l3);border-radius:999px;padding:1px 7px;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}
-.wslCodexIntro,.wslCodexNote{font-size:13px;line-height:21px;color:var(--dsw-alias-label-tertiary)}
-.wslCodexCard{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-1);padding:16px;display:flex;flex-direction:column;gap:14px}
-.wslCodexStatus{display:flex;align-items:center;gap:9px;font-size:14px;line-height:22px;font-weight:600}
-.wslCodexDot{width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-state-error-primary)}.wslCodexDot[data-on=true]{background:var(--dsw-alias-state-success-primary)}
-.wslCodexActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wslCodexFlow{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:9px;background:var(--dsw-alias-bg-module-platform)}
+.wslCodex h2{font-size:16px;line-height:24px;font-weight:500}.wslCodex h3{font-size:14px;line-height:22px;font-weight:500}
+.wslCodexTag{border:1px solid var(--dsw-alias-border-l3);border-radius:4px;padding:1px 6px;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}
+.wslCodexIntro,.wslCodexNote{font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}.wslCodexIntro{margin-top:4px!important}
+.wslCodexCard{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-1);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.wslCodexAccountRow,.wslCodexSectionHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.wslCodexStatus{display:flex;align-items:center;gap:8px;font-size:14px;line-height:22px;font-weight:500}
+.wslCodexDot{width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-label-dimmed)}.wslCodexDot[data-state=connected]{background:var(--dsw-alias-state-success-primary)}.wslCodexDot[data-state=disconnected]{background:var(--dsw-alias-state-error-primary)}
+.wslCodexActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wslCodexFlow{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
 .wslCodexFlow p{font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}.wslCodexCode{width:max-content;max-width:100%;font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;overflow-wrap:anywhere}
 .wslCodexError{font-size:13px;line-height:20px;color:var(--dsw-alias-state-error-primary)}.wslCodexInput{width:100%;box-sizing:border-box}
-.wslCodexSectionHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.wslCodexMetrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.wslCodexMetric{min-width:0;border:1px solid var(--dsw-alias-border-l3);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px}
-.wslCodexMetric strong{font:600 20px/28px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.wslCodexMetric span{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
-.wslCodexMetric small{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary);overflow-wrap:anywhere}.wslCodexLimits{display:flex;flex-direction:column;gap:8px}
-.wslCodexLimit{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:center}.wslCodexLimit progress{grid-column:1/-1;width:100%;height:6px;accent-color:var(--dsw-alias-brand-primary)}
-@container (max-width:560px){.wslCodexMetrics{grid-template-columns:1fr}}
+.wslCodexSectionTitle{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.wslCodexFreshness{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
+.wslCodexRefresh{flex:0 0 auto;min-width:72px;width:max-content;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;writing-mode:horizontal-tb!important}.wslCodexRefresh *{white-space:nowrap!important;word-break:keep-all!important;writing-mode:horizontal-tb!important}
+.wslCodexEmpty{padding:18px;border:1px dashed var(--dsw-alias-border-l3);border-radius:10px;text-align:center;font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}
+.wslCodexLimits{display:flex;flex-direction:column;gap:12px}.wslCodexLimitGroup{display:flex;flex-direction:column;gap:8px}.wslCodexLimitName{font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary)}
+.wslCodexQuotaGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}.wslCodexLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform);display:flex;flex-direction:column;gap:8px}
+.wslCodexLimitTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.wslCodexLimitLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.wslCodexLimit strong{font:600 22px/28px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}
+.wslCodexLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}
+.wslCodexLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.wslCodexLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.wslCodexLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.wslCodexLimitMeta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
+.wslCodexCreditSection{display:flex;flex-direction:column;gap:7px}.wslCodexCreditNote{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.wslCodexCreditRows{display:grid;grid-template-columns:minmax(150px,.65fr) minmax(260px,1.35fr);gap:8px}.wslCodexCreditBalance,.wslCodexSpendLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform)}
+.wslCodexCreditBalance{display:flex;flex-direction:column;gap:6px}.wslCodexCreditBalance span,.wslCodexCreditLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.wslCodexCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.wslCodexSpendLimit{display:flex;flex-direction:column;gap:8px}.wslCodexSpendTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.wslCodexSpendTop strong{font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.wslCodexSpendLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}.wslCodexSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.wslCodexSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.wslCodexSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
+.wslCodexRoutePolicy{display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2);font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}.wslCodexRoutePolicy span{flex:0 0 auto;font-weight:500;color:var(--dsw-alias-label-secondary)}
+@container (max-width:560px){.wslCodexCreditRows{grid-template-columns:1fr}}
+@container (max-width:480px){.wslCodexAccountRow,.wslCodexSectionHead{align-items:flex-start;flex-direction:column}.wslCodexActions{width:100%}}
 @media(max-width:640px){.wslCodexCard{padding:14px}}
 `
 
@@ -76,11 +86,22 @@ const unwrap = response => {
   return response.value
 }
 const fill = (text, values) => Object.entries(values).reduce((next, [key, value]) => next.replace(`{${key}}`, String(value)), text)
-const number = value => Number(value ?? 0).toLocaleString()
 const hours = seconds => Math.round((seconds / 3600) * 10) / 10
-
-function Metric({ label, value, detail }) {
-  return <div className="wslCodexMetric"><span>{label}</span><strong>{value}</strong><small>{detail}</small></div>
+const percent = value => Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })
+const isApproximateWindow = (seconds, expected) => seconds >= expected * 0.95 && seconds <= expected * 1.05
+const windowLabel = (seconds, t) => {
+  if (isApproximateWindow(seconds, 18_000)) return t('windowFiveHours')
+  if (isApproximateWindow(seconds, 86_400)) return t('windowDaily')
+  if (isApproximateWindow(seconds, 604_800)) return t('windowWeekly')
+  if (isApproximateWindow(seconds, 2_592_000)) return t('windowMonthly')
+  if (isApproximateWindow(seconds, 31_536_000)) return t('windowAnnual')
+  return seconds >= 86_400 && seconds % 86_400 === 0
+    ? fill(t('windowDays'), { value: seconds / 86_400 })
+    : fill(t('windowHours'), { value: hours(seconds) })
+}
+const validDate = value => {
+  const date = new Date(value)
+  return Number.isFinite(date.getTime()) ? date : undefined
 }
 
 function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
@@ -126,57 +147,81 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
     }).catch(() => setError(t('failed'))).finally(() => setBusy(false))
   }
   const signedIn = account?.authenticated === true
+  const accountReady = account !== undefined
 
   return <div className="wslCodexCard">
-    <div className="wslCodexStatus" role="status" aria-live="polite"><span className="wslCodexDot" data-on={signedIn} aria-hidden="true" />{signedIn ? t('connected') : t('disconnected')}</div>
+    <div className="wslCodexAccountRow">
+      <div className="wslCodexStatus" role="status" aria-live="polite"><span className="wslCodexDot" data-state={accountReady ? signedIn ? 'connected' : 'disconnected' : 'loading'} aria-hidden="true" />{accountReady ? signedIn ? t('connected') : t('disconnected') : t('accountLoading')}</div>
+      <div className="wslCodexActions">{signedIn ? <Button type="button" variant="outline" disabled={busy} onClick={logout}>{t('logout')}</Button> : accountReady && (flow === undefined || ['failed', 'cancelled'].includes(flow.phase)) ? <><Button type="button" variant="primary" disabled={busy} onClick={() => begin('browser')}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => begin('device_code')}>{t('deviceLogin')}</Button></> : null}</div>
+    </div>
     {signedIn && typeof account.expiresAt === 'number' ? <p className="wslCodexNote">{fill(t('expires'), { value: new Date(account.expiresAt).toLocaleString() })}</p> : null}
     {!signedIn && flow?.phase === 'waiting_device' ? <div className="wslCodexFlow"><p>{t('deviceHint')}</p><code className="wslCodexCode">{flow.deviceCode?.userCode}</code><a href={flow.deviceCode?.verificationUri} target="_blank" rel="noreferrer">{t('openLogin')}</a><p>{t('waiting')}</p></div> : null}
     {!signedIn && flow?.phase === 'waiting_input' ? <form className="wslCodexFlow" onSubmit={submit}><p>{t('manualCode')}</p><Input className="wslCodexInput" value={manualCode} onChange={event => setManualCode(event.currentTarget.value)} autoComplete="off" spellCheck={false} /><div className="wslCodexActions"><Button type="submit" variant="primary" disabled={busy || manualCode.trim() === ''}>{t('submit')}</Button><Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div></form> : null}
     {!signedIn && flow !== undefined && ['starting', 'waiting_browser'].includes(flow.phase) ? <div className="wslCodexFlow"><p>{t('waiting')}</p>{flow.authUrl === undefined ? null : <a href={flow.authUrl} target="_blank" rel="noreferrer">{t('openLogin')}</a>}<Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div> : null}
     {flow?.phase === 'failed' || error !== undefined ? <p className="wslCodexError" role="alert">{error ?? t('failed')}</p> : null}
-    <div className="wslCodexActions">{signedIn ? <Button type="button" variant="outline" disabled={busy} onClick={logout}>{t('logout')}</Button> : flow === undefined || ['failed', 'cancelled'].includes(flow.phase) ? <><Button type="button" variant="primary" disabled={busy} onClick={() => begin('browser')}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => begin('device_code')}>{t('deviceLogin')}</Button></> : null}</div>
+    <p className="wslCodexRoutePolicy"><span>{t('routePolicy')}</span>{t('noFallback')}</p>
   </div>
+}
+
+function ResetTime({ resetsAt, t }) {
+  const date = Number.isSafeInteger(resetsAt) ? validDate(resetsAt * 1_000) : undefined
+  if (date === undefined) return <span>{t('resetUnknown')}</span>
+  return <time dateTime={date.toISOString()}>{fill(t('resets'), { value: date.toLocaleString() })}</time>
 }
 
 function UsageCard({ rpc, t, signedIn, resetKey }) {
   const [usage, setUsage] = useState()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState()
+  const request = useRef(0)
   const load = force => {
     if (!signedIn) return
+    const id = ++request.current
     setBusy(true); setError(undefined)
-    void rpc.call(CHANNEL, 'usage', { force }).then(unwrap).then(setUsage)
-      .catch(error => setError(error.message)).finally(() => setBusy(false))
+    void rpc.call(CHANNEL, 'usage', { force }).then(unwrap)
+      .then(next => { if (request.current === id) setUsage(next) })
+      .catch(error => { if (request.current === id) setError(error.message) })
+      .finally(() => { if (request.current === id) setBusy(false) })
   }
-  useEffect(() => { if (signedIn) load(false); else { setUsage(undefined); setError(undefined) } }, [signedIn, resetKey])
-  return <div className="wslCodexCard">
-    <div className="wslCodexSectionHead"><h3>{t('usage')}</h3><Button type="button" variant="outline" disabled={!signedIn || busy} onClick={() => load(true)}>{t('refresh')}</Button></div>
-    {!signedIn ? <p className="wslCodexNote">{t('noUsage')}</p> : null}
-    {error === undefined ? null : <p className="wslCodexError" role="alert">{error}</p>}
-    {usage?.rateLimits?.map(limit => <div className="wslCodexLimits" key={limit.id}>{limit.windows.map((window, index) => <div className="wslCodexLimit" key={`${limit.id}-${window.windowSeconds}`}><span>{limit.name ?? limit.id} · {fill(t('window'), { value: hours(window.windowSeconds) })}</span><strong>{fill(t('remaining'), { value: window.remainingPercent })}</strong><progress max="100" value={window.remainingPercent} aria-label={`${limit.name ?? limit.id} ${fill(t('remaining'), { value: window.remainingPercent })}`} /></div>)}</div>)}
-    {usage?.credits ? <p className="wslCodexNote">{t('credits')}：{usage.credits.unlimited ? t('unlimited') : usage.credits.balance ?? t('unavailable')}</p> : null}
-  </div>
-}
-
-function CacheCard({ rpc, t }) {
-  const [cache, setCache] = useState()
   useEffect(() => {
-    let live = true
-    const load = () => void rpc.call(CHANNEL, 'cache', {}).then(unwrap).then(next => { if (live) setCache(next) }).catch(() => {})
-    load(); const timer = window.setInterval(load, 5_000)
-    return () => { live = false; window.clearInterval(timer) }
-  }, [])
-  const serverCache = cache?.serverCache
-  const transport = cache?.transport
-  const prefix = cache?.prefix
-  const prefixDetail = prefix?.state === 'stable' ? t('prefixStable') : prefix?.state === 'changed' ? fill(t('prefixChanged'), { value: prefix.changes }) : t('prefixUnseen')
+    if (signedIn) load(false)
+    else { request.current += 1; setUsage(undefined); setError(undefined); setBusy(false) }
+    return () => { request.current += 1 }
+  }, [signedIn, resetKey])
+  const visibleUsage = signedIn ? usage : undefined
+  const limits = visibleUsage?.rateLimits ?? []
+  const fetchedAt = typeof visibleUsage?.fetchedAt === 'number' ? validDate(visibleUsage.fetchedAt) : undefined
   return <div className="wslCodexCard">
-    <h3>{t('cache')}</h3><p className="wslCodexNote">{t('cacheIntro')}</p>
-    <div className="wslCodexMetrics">
-      <Metric label={t('serverCache')} value={serverCache ? `${serverCache.hitPercent}%` : '—'} detail={serverCache ? fill(t('cacheRead'), { read: number(serverCache.readTokens), write: number(serverCache.writeTokens), input: number(serverCache.uncachedInputTokens) }) : t('unavailable')} />
-      <Metric label={t('transport')} value={transport ? `${transport.deltaPercent}%` : '—'} detail={transport ? fill(t('deltaDetail'), { delta: number(transport.deltaRequests), full: number(transport.fullContextRequests), reused: number(transport.connectionsReused) }) : t('unavailable')} />
-      <Metric label={t('prefix')} value={prefix?.state === 'stable' ? t('measured') : prefix?.state === 'changed' ? number(prefix.changes) : '—'} detail={prefixDetail} />
+    <div className="wslCodexSectionHead">
+      <div className="wslCodexSectionTitle"><h3>{t('usage')}</h3><p className="wslCodexNote">{t('usageIntro')}</p>{fetchedAt === undefined ? null : <time className="wslCodexFreshness" dateTime={fetchedAt.toISOString()}>{fill(t('usageUpdated'), { value: fetchedAt.toLocaleString() })}</time>}</div>
+      <Button className="wslCodexRefresh" type="button" variant="outline" disabled={!signedIn || busy} aria-busy={busy} onClick={() => load(true)}>{busy ? t('refreshing') : t('refresh')}</Button>
     </div>
+    <div aria-live="polite">
+      {!signedIn ? <p className="wslCodexEmpty">{t('noUsage')}</p> : null}
+      {signedIn && busy && usage === undefined ? <p className="wslCodexEmpty" role="status">{t('usageLoading')}</p> : null}
+      {signedIn && !busy && error === undefined && usage !== undefined && limits.length === 0 ? <p className="wslCodexEmpty" role="status">{t('usageEmpty')}</p> : null}
+    </div>
+    {error === undefined ? null : <p className="wslCodexError" role="alert">{error}</p>}
+    {visibleUsage?.spendControlReached === true ? <p className="wslCodexError" role="alert">{t('spendReached')}</p> : null}
+    {limits.length === 0 ? null : <div className="wslCodexLimits">{limits.map(limit => <div className="wslCodexLimitGroup" key={limit.id}>
+      <div className="wslCodexLimitName">{limit.name ?? limit.id}</div>
+      <div className="wslCodexQuotaGrid">{limit.windows.map((window, index) => <div className="wslCodexLimit" key={`${limit.id}-${window.windowSeconds}-${index}`}>
+        <div className="wslCodexLimitTop"><span className="wslCodexLimitLabel">{windowLabel(window.windowSeconds, t)}</span><strong>{percent(window.remainingPercent)}%</strong></div>
+        <progress max="100" value={window.remainingPercent} aria-label={`${limit.name ?? limit.id} ${fill(t('remaining'), { value: percent(window.remainingPercent) })}`} />
+        <div className="wslCodexLimitMeta"><span>{fill(t('used'), { value: percent(window.usedPercent) })}</span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
+      </div>)}</div>
+    </div>)}</div>}
+    {visibleUsage?.credits === undefined && visibleUsage?.individualLimit === undefined ? null : <div className="wslCodexCreditSection">
+      <p className="wslCodexCreditNote">{t('creditsNote')}</p>
+      <div className="wslCodexCreditRows">
+        {visibleUsage?.credits ? <div className="wslCodexCreditBalance"><span>{t('creditsBalance')}</span><strong>{visibleUsage.credits.unlimited ? t('unlimited') : `${visibleUsage.credits.balance ?? t('unavailable')} ${t('creditsUnit')}`}</strong></div> : null}
+        {visibleUsage?.individualLimit ? <div className="wslCodexSpendLimit">
+          <div className="wslCodexSpendTop"><span className="wslCodexCreditLabel">{t('monthlyCreditLimit')}</span><strong>{fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}</strong></div>
+          <progress max="100" value={visibleUsage.individualLimit.remainingPercent} aria-label={`${t('monthlyCreditLimit')} ${fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}`} />
+          <div className="wslCodexLimitMeta"><span>{fill(t('creditsUsed'), { used: visibleUsage.individualLimit.used, limit: visibleUsage.individualLimit.limit })}</span><ResetTime resetsAt={visibleUsage.individualLimit.resetsAt} t={t} /></div>
+        </div> : null}
+      </div>
+    </div>}
   </div>
 }
 
@@ -194,8 +239,6 @@ function CodexSection({ rpc, t }) {
     {error === undefined ? null : <p className="wslCodexError" role="alert">{error}</p>}
     <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={() => setResetKey(value => value + 1)} />
     <UsageCard rpc={rpc} t={t} signedIn={account?.authenticated === true} resetKey={resetKey} />
-    <CacheCard rpc={rpc} t={t} />
-    <p className="wslCodexNote">{t('noFallback')}</p>
   </section>
 }
 

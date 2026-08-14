@@ -4,7 +4,6 @@
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 
 export { createModels } from '@earendil-works/pi-ai'
-export { getOpenAICodexWebSocketDebugStats } from '@earendil-works/pi-ai/api/openai-codex-responses'
 export { createOpenAICodexProvider as openaiCodexProvider }
 
 /**

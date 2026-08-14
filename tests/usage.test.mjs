@@ -6,31 +6,132 @@ import { createCodexUsageReader, parseCodexUsage } from '../src/usage.js'
 test('usage parser returns secret-free remaining quota windows and exact disclosed balances', () => {
   const parsed = parseCodexUsage({
     rate_limit: {
-      primary_window: { used_percent: 25, limit_window_seconds: 18_000 },
-      secondary_window: { used_percent: 80, limit_window_seconds: 604_800 },
+      primary_window: {
+        used_percent: 25,
+        limit_window_seconds: 18_000,
+        reset_after_seconds: 3_600,
+        reset_at: 1_800_003_600,
+      },
+      secondary_window: {
+        used_percent: 80,
+        limit_window_seconds: 604_800,
+        reset_after_seconds: 86_400,
+        reset_at: 1_800_086_400,
+      },
     },
     additional_rate_limits: [{
       metered_feature: 'code_review',
       limit_name: 'Code review',
-      rate_limit: { primary_window: { used_percent: 10, limit_window_seconds: 86_400 } },
+      rate_limit: {
+        primary_window: {
+          used_percent: 10,
+          limit_window_seconds: 86_400,
+          reset_after_seconds: 7_200,
+          reset_at: 1_800_007_200,
+        },
+      },
     }],
     credits: { has_credits: true, unlimited: false, balance: '12.50' },
     spend_control: {
-      individual_limit: { limit: '100', used: '35', remaining: '65', remaining_percent: 65 },
+      reached: false,
+      individual_limit: {
+        limit: '100',
+        used: '35',
+        remaining: '65',
+        remaining_percent: 65,
+        reset_at: 1_802_592_000,
+      },
     },
     access_token: 'must-not-leak',
   })
-  assert.deepEqual(parsed.rateLimits[0].windows.map(window => window.remainingPercent), [75, 20])
+  assert.deepEqual(parsed.rateLimits[0].windows, [
+    {
+      usedPercent: 25,
+      remainingPercent: 75,
+      windowSeconds: 18_000,
+      resetsAt: 1_800_003_600,
+    },
+    {
+      usedPercent: 80,
+      remainingPercent: 20,
+      windowSeconds: 604_800,
+      resetsAt: 1_800_086_400,
+    },
+  ])
   assert.equal(parsed.rateLimits[1].id, 'code_review')
   assert.deepEqual(parsed.credits, { unlimited: false, balance: '12.50' })
-  assert.equal(parsed.individualLimit.remainingPercent, 65)
+  assert.deepEqual(parsed.individualLimit, {
+    limit: '100',
+    used: '35',
+    remainingPercent: 65,
+    resetsAt: 1_802_592_000,
+  })
+  assert.equal(parsed.spendControlReached, false)
   assert.doesNotMatch(JSON.stringify(parsed), /must-not-leak|access_token/)
+})
+
+test('usage parser keeps current weekly-only Codex and Spark buckets without inventing a short window', () => {
+  const parsed = parseCodexUsage({
+    rate_limit: {
+      primary_window: {
+        used_percent: 34,
+        limit_window_seconds: 604_800,
+        reset_at: 1_800_086_400,
+      },
+    },
+    additional_rate_limits: [{
+      metered_feature: 'codex_bengalfox',
+      limit_name: 'GPT-5.3-Codex-Spark',
+      rate_limit: {
+        primary_window: {
+          used_percent: 12,
+          limit_window_seconds: 604_800,
+          reset_at: 1_800_172_800,
+        },
+      },
+    }],
+  })
+
+  assert.deepEqual(parsed.rateLimits, [
+    {
+      id: 'codex',
+      name: 'Codex',
+      windows: [{
+        usedPercent: 34,
+        remainingPercent: 66,
+        windowSeconds: 604_800,
+        resetsAt: 1_800_086_400,
+      }],
+    },
+    {
+      id: 'codex_bengalfox',
+      name: 'GPT-5.3-Codex-Spark',
+      windows: [{
+        usedPercent: 12,
+        remainingPercent: 88,
+        windowSeconds: 604_800,
+        resetsAt: 1_800_172_800,
+      }],
+    },
+  ])
+})
+
+test('usage parser automatically exposes a short window when the backend returns it again', () => {
+  const parsed = parseCodexUsage({
+    rate_limit: {
+      primary_window: { used_percent: 5, limit_window_seconds: 18_000 },
+      secondary_window: { used_percent: 20, limit_window_seconds: 604_800 },
+    },
+  })
+  assert.deepEqual(parsed.rateLimits[0].windows.map(window => window.windowSeconds), [18_000, 604_800])
 })
 
 test('usage parser fails closed on malformed provider values', () => {
   assert.throws(() => parseCodexUsage({ rate_limit: { primary_window: { used_percent: 101, limit_window_seconds: 1 } } }), /percentage/i)
+  assert.throws(() => parseCodexUsage({ rate_limit: { primary_window: { used_percent: 1, limit_window_seconds: 1, reset_at: 'soon' } } }), /reset time/i)
   assert.throws(() => parseCodexUsage({ additional_rate_limits: {} }), /additional/i)
   assert.throws(() => parseCodexUsage({ credits: { has_credits: true, unlimited: false, balance: 'NaN' } }), /balance/i)
+  assert.throws(() => parseCodexUsage({ spend_control: { reached: 'yes' } }), /spend-control/i)
 })
 
 test('usage reader is single-flight, short cached, and never exposes bearer or account id', async () => {
