@@ -28,7 +28,12 @@ _截图使用示例额度，不含真实账户或凭据信息。_
 以及当前具有 Codex 使用资格的 ChatGPT 账户。
 
 ```sh
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
+dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.2
+```
+
+安装后检查：
+
+```sh
 dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
@@ -46,12 +51,21 @@ dsh --profile web --dump-config
 - Credits 不是每个订阅账户固定获得的第二份额度，也不是 OpenAI API 余额；
 - 页面百分比是使用状态，不是账单金额或计费承诺。
 
-## 更新与卸载
+## 更新
 
-更新到指定版本时，重新执行对应发布标签的 `add` 命令，再运行上面的两条验收命令。
-不要使用 `main` 等移动分支代替正式版本。
+升级固定标签安装的插件时，使用新版本标签重新执行 `add`；它会更新现有插件，
+不会安装第二份。更新到 `v0.2.2`：
 
-卸载：
+```sh
+dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.2
+dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
+dsh --profile web --dump-config
+```
+
+更新会保留现有 DSH profile 和已保存的 OAuth 凭据。不要使用 `main` 等移动分支
+代替正式版本。
+
+## 卸载
 
 ```sh
 dsh plugin --profile web remove @wsl043/dsh-codex-subscription
