@@ -1,7 +1,5 @@
-# Additive community bundle: it contributes one trusted provider route and its
-# settings surface. It never replaces DSH's default model or fallback policy.
+# Additive community bundle: one plugin owns the provider route, host-only
+# account RPC, and settings surface. It never changes DSH's default model.
 - insert:
-    - id: wsl043-codex-boundary
-      name: '@wsl043/dsh-codex-subscription/boundary'
     - id: wsl043-codex-subscription
       name: '@wsl043/dsh-codex-subscription'

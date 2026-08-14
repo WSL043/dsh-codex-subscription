@@ -1,13 +1,12 @@
 {
   "name": "@wsl043/dsh-codex-subscription",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "packageManager": "pnpm@11.19.0",
-  "description": "Cache-aware ChatGPT subscription integration for DeepSeek Harness",
+  "description": "Native ChatGPT and Codex subscription route with quota for DeepSeek Harness",
   "type": "module",
   "main": "./lib/index.js",
   "exports": {
     ".": "./lib/index.js",
-    "./boundary": "./lib/boundary.js",
     "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
     "./package.json": "./package.json"
@@ -16,11 +15,13 @@
     "lib/*.js",
     "cordis.patch.yml",
     "README.md",
-    "README.zh-CN.md",
+    "README.en.md",
+    "AGENTS.md",
     "LICENSE",
     "SECURITY.md",
     "THIRD_PARTY_NOTICES.md",
-    "docs/*.md"
+    "docs/*.md",
+    "docs/assets/*.png"
   ],
   "dsh": {
     "bundle": {
@@ -46,8 +47,9 @@
     "deepseek-harness",
     "openai-codex",
     "chatgpt",
-    "oauth",
-    "prompt-cache"
+    "quota",
+    "usage",
+    "oauth"
   ],
   "author": "WSL043",
   "license": "MIT",

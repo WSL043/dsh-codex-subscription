@@ -19,7 +19,7 @@ const clientExternal = [
 export default defineConfig([
   {
     name: id,
-    entry: { index: 'src/index.js', boundary: 'src/boundary.js' },
+    entry: { index: 'src/index.js' },
     outDir: 'lib', format: ['esm'], platform: 'node', target: 'es2024',
     fixedExtension: false, dts: false, clean: true,
     deps: { neverBundle: hostExternal },

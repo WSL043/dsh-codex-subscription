@@ -11,7 +11,13 @@ function windowOf(value) {
   const seconds = value.limit_window_seconds
   if (!Number.isFinite(used) || used < 0 || used > 100) throw new Error('Codex returned an invalid used percentage')
   if (!Number.isInteger(seconds) || seconds <= 0) throw new Error('Codex returned an invalid window duration')
-  return { remainingPercent: 100 - used, windowSeconds: seconds }
+  const resetsAt = epochSeconds(value.reset_at, 'rate-limit reset time')
+  return {
+    usedPercent: used,
+    remainingPercent: 100 - used,
+    windowSeconds: seconds,
+    ...(resetsAt === undefined ? {} : { resetsAt }),
+  }
 }
 
 function limitOf(id, name, value) {
@@ -25,6 +31,12 @@ function decimal(value, label) {
   if (typeof value !== 'string' || value.length === 0 || value.length > 64 || !/^-?\d+(?:\.\d+)?$/u.test(value)) {
     throw new Error(`Codex returned an invalid ${label}`)
   }
+  return value
+}
+
+function epochSeconds(value, label) {
+  if (value === undefined || value === null || value === 0) return undefined
+  if (!Number.isSafeInteger(value) || value < 0) throw new Error(`Codex returned an invalid ${label}`)
   return value
 }
 
@@ -49,12 +61,21 @@ function individualOf(value) {
     || item.remaining_percent < 0 || item.remaining_percent > 100) {
     throw new Error('Codex returned an invalid individual-limit percentage')
   }
+  const resetsAt = epochSeconds(item.reset_at, 'individual-limit reset time')
   return {
     limit: decimal(item.limit, 'individual limit'),
     used: decimal(item.used, 'individual usage'),
-    remaining: decimal(item.remaining, 'individual remaining balance'),
     remainingPercent: item.remaining_percent,
+    ...(resetsAt === undefined ? {} : { resetsAt }),
   }
+}
+
+function spendControlReachedOf(value) {
+  if (value === undefined || value === null) return undefined
+  if (!record(value)) throw new Error('Codex returned malformed spend control')
+  if (value.reached === undefined || value.reached === null) return undefined
+  if (typeof value.reached !== 'boolean') throw new Error('Codex returned an invalid spend-control state')
+  return value.reached
 }
 
 /** Reduce the provider payload to a browser-safe quota projection. */
@@ -79,10 +100,12 @@ export function parseCodexUsage(value) {
   }
   const credits = creditsOf(value.credits)
   const individualLimit = individualOf(value.spend_control)
+  const spendControlReached = spendControlReachedOf(value.spend_control)
   return {
     rateLimits,
     ...(credits === undefined ? {} : { credits }),
     ...(individualLimit === undefined ? {} : { individualLimit }),
+    ...(spendControlReached === undefined ? {} : { spendControlReached }),
   }
 }
 
