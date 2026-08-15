@@ -7,6 +7,7 @@ import { once } from 'node:events'
 import test from 'node:test'
 
 const script = new URL('../dsh-codex.ps1', import.meta.url)
+const windowsTest = process.platform === 'win32' ? test : test.skip
 
 function portableFixture(root, installedStateRoot) {
   for (const directory of [
@@ -59,7 +60,7 @@ function autoDryRun(action = 'Install', extraEnv = {}) {
   return JSON.parse(result.stdout.trim())
 }
 
-test('portable install uses the bundled CLI and portable DSH_HOME', () => {
+windowsTest('portable install uses the bundled CLI and portable DSH_HOME', () => {
   const root = mkdtempSync(join(tmpdir(), 'dsh-codex-portable-'))
   try {
     portableFixture(root)
@@ -83,7 +84,7 @@ test('portable install uses the bundled CLI and portable DSH_HOME', () => {
   }
 })
 
-test('installed portable mode expands its external state root', () => {
+windowsTest('installed portable mode expands its external state root', () => {
   const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-installed-'))
   const root = join(sandbox, 'Programs', 'DeepSeek-Herness')
   const localAppData = join(sandbox, 'LocalAppData')
@@ -98,7 +99,7 @@ test('installed portable mode expands its external state root', () => {
   }
 })
 
-test('portable uninstall removes the package without deleting the profile', () => {
+windowsTest('portable uninstall removes the package without deleting the profile', () => {
   const root = mkdtempSync(join(tmpdir(), 'dsh-codex-uninstall-'))
   try {
     portableFixture(root)
@@ -115,7 +116,7 @@ test('portable uninstall removes the package without deleting the profile', () =
   }
 })
 
-test('auto-discovery finds a running portable root with spaces in its path', async () => {
+windowsTest('auto-discovery finds a running portable root with spaces in its path', async () => {
   const sandbox = mkdtempSync(join(tmpdir(), 'dsh codex running '))
   const root = join(sandbox, 'Renamed Portable Folder')
   const dshBin = join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
@@ -142,7 +143,7 @@ test('auto-discovery finds a running portable root with spaces in its path', asy
   }
 })
 
-test('auto-discovery still supports an existing global dsh command', () => {
+windowsTest('auto-discovery still supports an existing global dsh command', () => {
   const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-global-'))
   const bin = join(sandbox, 'bin')
   const localAppData = join(sandbox, 'LocalAppData')
@@ -164,7 +165,7 @@ test('auto-discovery still supports an existing global dsh command', () => {
   }
 })
 
-test('auto-discovery stops instead of choosing between two running portable roots', async () => {
+windowsTest('auto-discovery stops instead of choosing between two running portable roots', async () => {
   const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-ambiguous-'))
   const roots = [join(sandbox, 'Portable A'), join(sandbox, 'Portable B')]
   for (const root of roots) {
@@ -192,7 +193,7 @@ test('auto-discovery stops instead of choosing between two running portable root
   }
 })
 
-test('auto-discovery stops when global and portable installations are both plausible', () => {
+windowsTest('auto-discovery stops when global and portable installations are both plausible', () => {
   const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-global-portable-'))
   const userProfile = join(sandbox, 'user')
   const root = join(userProfile, 'Downloads', 'DSH-Portable')
