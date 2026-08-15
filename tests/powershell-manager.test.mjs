@@ -13,6 +13,12 @@ test('package discovery tolerates an empty pnpm dependency object in strict mode
   const source = await import('node:fs/promises').then(fs => fs.readFile(script, 'utf8'))
   assert.match(source, /PSObject\.Properties\['dependencies'\]/u)
   assert.doesNotMatch(source, /\$project\.dependencies/u)
+  const discovery = source.slice(
+    source.indexOf('function Get-InstalledPackageNames'),
+    source.indexOf('$target = Get-ManagerTarget'),
+  )
+  assert.doesNotMatch(discovery, /System\.Collections\.Generic\.List\[string\]/u)
+  assert.match(discovery, /Write-Output \(\[string\] \$property\.Name\)/u)
 })
 
 function portableFixture(root, installedStateRoot) {
