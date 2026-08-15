@@ -4,10 +4,20 @@ const isDisplayableWindow = window => Number.isFinite(window?.remainingPercent)
   && Number.isFinite(window?.windowSeconds)
   && window.windowSeconds > 0
 
-export function selectSidebarQuota(usage) {
+const normalized = value => String(value ?? '').toLocaleLowerCase('en-US')
+  .replaceAll(/[^a-z0-9]+/gu, '-')
+
+const limitMatchesModel = (limit, model) => {
+  if (/\bspark\b/u.test(normalized(model))) {
+    return /\bspark\b/u.test(normalized(`${limit?.id ?? ''} ${limit?.name ?? ''}`))
+  }
+  return limit?.id === 'codex'
+}
+
+export function selectModelQuota(usage, model) {
   const windows = Array.isArray(usage?.rateLimits)
     ? usage.rateLimits
-      .filter(limit => limit?.id === 'codex' && Array.isArray(limit.windows))
+      .filter(limit => limitMatchesModel(limit, model) && Array.isArray(limit.windows))
       .flatMap(limit => limit.windows)
       .filter(isDisplayableWindow)
     : []

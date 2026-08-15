@@ -20,7 +20,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.equal(pkg.version, '0.2.6')
+  assert.equal(pkg.version, '0.2.7')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
   assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-llm-pi-ai'], '0.1.0-rc.6')
@@ -48,12 +48,12 @@ test('public docs contain only user-facing product and operation information', (
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.match(guide, /releases\/download\/v0\.2\.6\/dsh-codex\.ps1/u)
+  assert.match(guide, /releases\/download\/v0\.2\.7\/dsh-codex\.ps1/u)
   assert.match(guide, /dsh-codex\.ps1" Install/u)
   assert.match(guide, /dsh-codex update/u)
   assert.match(guide, /dsh-codex uninstall/u)
   assert.match(guide, /DSH-Portable[\s\S]*system Node\.js or pnpm[\s\S]*per-user[\s\S]*never modifies[\s\S]*machine PATH/iu)
-  assert.match(guide, /dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.6\/dsh-codex-subscription\.tgz/u)
+  assert.match(guide, /dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.7\/dsh-codex-subscription\.tgz/u)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
   assert.match(guide, /dsh plugin --profile web remove dsh-codex-subscription/u)
@@ -76,19 +76,23 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
   assert.match(readmeEn, /paste these two lines in order/u)
   assert.doesNotMatch(`${readme}\n${readmeEn}`, /下面三行|three lines/iu)
   assert.doesNotMatch(readme, /复制下面|提示词/u)
-  assert.match(readme, /docs\/assets\/sidebar\.png[\s\S]*docs\/assets\/settings\.png/u)
-  assert.match(readmeEn, /docs\/assets\/sidebar-en\.png[\s\S]*docs\/assets\/settings-en\.png/u)
-  for (const asset of ['sidebar.png', 'settings.png', 'sidebar-en.png', 'settings-en.png']) {
+  assert.match(readme, /docs\/assets\/settings\.png/u)
+  assert.match(readmeEn, /docs\/assets\/settings-en\.png/u)
+  assert.doesNotMatch(readme, /docs\/assets\/sidebar\.png/u)
+  assert.doesNotMatch(readmeEn, /docs\/assets\/sidebar-en\.png/u)
+  for (const asset of ['settings.png', 'settings-en.png']) {
     const png = readFileSync(new URL(`../docs/assets/${asset}`, import.meta.url))
     assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
   }
+  assert.equal(existsSync(new URL('../docs/assets/sidebar.png', import.meta.url)), false)
+  assert.equal(existsSync(new URL('../docs/assets/sidebar-en.png', import.meta.url)), false)
 })
 
 test('public readmes provide explicit update commands and verification', () => {
   const readmeZh = text('README.md')
   const readmeEn = text('README.en.md')
-  assert.match(readmeZh, /## 更新与卸载[\s\S]*dsh-codex update[\s\S]*dsh-codex uninstall[\s\S]*dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.6\/[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
-  assert.match(readmeEn, /## Update and uninstall[\s\S]*dsh-codex update[\s\S]*dsh-codex uninstall[\s\S]*dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.6\/[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
+  assert.match(readmeZh, /## 更新与卸载[\s\S]*dsh-codex update[\s\S]*dsh-codex uninstall[\s\S]*dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.7\/[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
+  assert.match(readmeEn, /## Update and uninstall[\s\S]*dsh-codex update[\s\S]*dsh-codex uninstall[\s\S]*dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.7\/[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
   for (const readme of [readmeZh, readmeEn]) {
     assert.match(readme, /releases\/latest\/download\/dsh-codex\.ps1/u)
     assert.doesNotMatch(readme, /dsh-codex\.ps1\?/u)
@@ -141,7 +145,7 @@ test('release-age exceptions are pinned to the audited DeepSeek preview graph', 
   const lockfile = text('pnpm-lock.yaml')
   const packagesBlock = lockfile.slice(lockfile.indexOf('\npackages:\n'), lockfile.indexOf('\nsnapshots:\n'))
   const deepseekPackages = [...packagesBlock.matchAll(/^  '(@deepseek-ai\/[^']+@[^']+)':$/gmu)].map(match => match[1])
-  assert.equal(deepseekPackages.length, 59)
+  assert.equal(deepseekPackages.length, 67)
   assert.match(workspace, /minimumReleaseAge:\s*1440/u)
   assert.doesNotMatch(workspace, /@deepseek-ai\/\*/u)
   for (const selector of deepseekPackages) {

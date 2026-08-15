@@ -11,20 +11,27 @@ import {
   createModels,
   openaiCodexSubscriptionProvider,
 } from './pi-ai-runtime.js'
+import { CODEX_SEARCH_PROVIDER_ID, createCodexSearchProvider } from './codex-search.js'
 import {
-  DEFAULT_SIDEBAR_QUOTA_VISIBLE,
+  DEFAULT_QUICK_QUOTA_VISIBLE,
+  DEFAULT_SEARCH_PROVIDER,
+  QUICK_QUOTA_FIELD,
+  SEARCH_PROVIDER_CODEX,
+  SEARCH_PROVIDER_DSH,
+  SEARCH_PROVIDER_FIELD,
   SETTINGS_NAMESPACE,
-  SIDEBAR_QUOTA_FIELD,
 } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 
 export const name = 'codex-subscription'
-export const inject = ['llm', 'credentials', 'connection', 'settings']
+export const inject = ['llm', 'credentials', 'connection', 'settings', 'web', 'loader']
 
 const PROVIDER = 'openai-codex'
 const CREDENTIAL_REF = credentialRef('OPENAI_CODEX_SUBSCRIPTION_OAUTH')
 const LEGACY_CREDENTIAL_REF = credentialRef('WSL043_OPENAI_CODEX_OAUTH')
 const CHANNEL = '/codex-subscription'
+const WEB_ENTRY_ID = 'web'
+const DSH_SEARCH_PROVIDER_FALLBACK = 'deepseek-official'
 
 const publicError = (code, message) => ({
   ok: false,
@@ -37,15 +44,28 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, prefere
       try {
         signal.throwIfAborted()
         if (endpoint === 'preferences/update') {
-          if (typeof payload?.sidebarQuotaVisible !== 'boolean') {
-            return publicError('internal', 'Invalid sidebar quota preference')
+          const patch = {}
+          if (Object.hasOwn(payload ?? {}, QUICK_QUOTA_FIELD)) {
+            if (typeof payload[QUICK_QUOTA_FIELD] !== 'boolean') {
+              return publicError('internal', 'Invalid quick quota preference')
+            }
+            patch[QUICK_QUOTA_FIELD] = payload[QUICK_QUOTA_FIELD]
           }
-          await preferences.update(payload.sidebarQuotaVisible)
+          if (Object.hasOwn(payload ?? {}, SEARCH_PROVIDER_FIELD)) {
+            if (![SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX].includes(payload[SEARCH_PROVIDER_FIELD])) {
+              return publicError('internal', 'Invalid search provider preference')
+            }
+            patch[SEARCH_PROVIDER_FIELD] = payload[SEARCH_PROVIDER_FIELD]
+          }
+          if (Object.keys(patch).length === 0) {
+            return publicError('internal', 'Invalid preference update')
+          }
+          await preferences.update(patch)
         }
         return { ok: true, value: preferences.status() }
       } catch (error) {
         if (signal.aborted) throw error
-        return publicError('internal', 'Could not update sidebar quota preference')
+        return publicError('internal', 'Could not update preferences')
       }
     }
     if (endpoint === 'usage') {
@@ -70,19 +90,53 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, prefere
   }
 }
 
+export function createSearchProviderSwitcher(loader) {
+  const webEntry = () => [...loader.entries()].find(entry => entry.options?.id === WEB_ENTRY_ID)
+  return Object.freeze({
+    async select(selection) {
+      const entry = webEntry()
+      const fiber = entry?.fiber
+      if (entry === undefined || fiber === undefined || typeof fiber.update !== 'function') {
+        throw new Error('DSH web runtime is unavailable')
+      }
+      const baseConfig = entry.options?.config ?? {}
+      const currentConfig = fiber.config ?? baseConfig
+      const dshProvider = typeof baseConfig.searchProvider === 'string' && baseConfig.searchProvider.length > 0
+        ? baseConfig.searchProvider
+        : DSH_SEARCH_PROVIDER_FALLBACK
+      const provider = selection === SEARCH_PROVIDER_CODEX ? CODEX_SEARCH_PROVIDER_ID : dshProvider
+      if (currentConfig.searchProvider === provider) return
+      await fiber.update({ ...currentConfig, searchProvider: provider }, true)
+    },
+  })
+}
+
 export function apply(ctx) {
   const settings = ctx.settings.register(settingsNamespace(SETTINGS_NAMESPACE), z.object({
-    [SIDEBAR_QUOTA_FIELD]: z.boolean().default(DEFAULT_SIDEBAR_QUOTA_VISIBLE),
+    [QUICK_QUOTA_FIELD]: z.boolean().default(DEFAULT_QUICK_QUOTA_VISIBLE),
+    [SEARCH_PROVIDER_FIELD]: z.union([SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX]).default(DEFAULT_SEARCH_PROVIDER),
   }))
   // DSH rc.6 exposes only a fixed allowlist of settings namespaces through
   // its generic browser API. Keep storage in ctx.settings, and carry this
   // plugin-owned preference over the existing loopback-only plugin channel.
+  const searchProvider = createSearchProviderSwitcher(ctx.loader)
   const preferences = {
     status: () => ({
-      [SIDEBAR_QUOTA_FIELD]: settings.get()[SIDEBAR_QUOTA_FIELD],
+      [QUICK_QUOTA_FIELD]: settings.get()[QUICK_QUOTA_FIELD],
+      [SEARCH_PROVIDER_FIELD]: settings.get()[SEARCH_PROVIDER_FIELD],
       writable: ctx.settings.writable,
     }),
-    update: visible => settings.update({ [SIDEBAR_QUOTA_FIELD]: visible }),
+    update: async patch => {
+      const previousSearchProvider = settings.get()[SEARCH_PROVIDER_FIELD]
+      await settings.update(patch)
+      if (patch[SEARCH_PROVIDER_FIELD] === undefined) return
+      try {
+        await searchProvider.select(patch[SEARCH_PROVIDER_FIELD])
+      } catch (error) {
+        await settings.update({ [SEARCH_PROVIDER_FIELD]: previousSearchProvider })
+        throw error
+      }
+    },
   }
 
   const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF])
@@ -121,6 +175,21 @@ export function apply(ctx) {
     resolveAttachments: () => ctx.get?.('attachments'),
   })
   ctx.llm.registerAdapter([PROVIDER], adapter)
+  const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
+  ctx.web.registerSearchProvider(createCodexSearchProvider({
+    getAuth: resolveAuth,
+    readCredential: options => store.read(PROVIDER, options),
+    resolveModel: () => {
+      const request = currentAgent()?.session.requestContext?.()
+      return request?.provider === PROVIDER ? request.model : undefined
+    },
+    resolveSessionId: () => currentAgent()?.session.id,
+  }))
+  ctx.effect(() => {
+    void searchProvider.select(settings.get()[SEARCH_PROVIDER_FIELD]).catch(error => {
+      ctx.logger?.warn?.('could not select the configured web search provider: %s', error.message)
+    })
+  }, 'codex-subscription: search provider selection')
 
   const auth = createCodexAuthService(authModels, store)
   const coordinator = new CodexLoginCoordinator(auth)
