@@ -53,7 +53,7 @@ test('shipped agent guide owns install, pinned update, verification, and uninsta
   assert.match(guide, /-Action Update/u)
   assert.match(guide, /-Action Uninstall/u)
   assert.match(guide, /DSH-Portable[\s\S]*system Node\.js or pnpm[\s\S]*system PATH/iu)
-  assert.match(guide, /dsh plugin --profile web add 'https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.2\/dsh-codex-subscription-0\.2\.2\.tgz\?build=20260815\.1'/u)
+  assert.match(guide, /dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.2\/dsh-codex-subscription-v0\.2\.2\.tgz/u)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
   assert.match(guide, /dsh plugin --profile web remove dsh-codex-subscription/u)
@@ -73,8 +73,8 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
 test('public readmes provide explicit update commands and verification', () => {
   const readmeZh = text('README.md')
   const readmeEn = text('README.en.md')
-  assert.match(readmeZh, /## 更新[\s\S]*-Action Update[\s\S]*dsh plugin --profile web add 'https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.2\/[^']+\?build=20260815\.1'[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config/u)
-  assert.match(readmeEn, /## Update[\s\S]*-Action Update[\s\S]*dsh plugin --profile web add 'https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.2\/[^']+\?build=20260815\.1'[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config/u)
+  assert.match(readmeZh, /## 更新[\s\S]*-Action Update[\s\S]*dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.2\/[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config/u)
+  assert.match(readmeEn, /## Update[\s\S]*-Action Update[\s\S]*dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.2\/[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config/u)
   assert.match(readmeZh, /## 卸载[\s\S]*-Action Uninstall/u)
   assert.match(readmeEn, /## Uninstall[\s\S]*-Action Uninstall/u)
   for (const readme of [readmeZh, readmeEn]) {
