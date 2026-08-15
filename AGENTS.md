@@ -39,7 +39,7 @@ Download the fixed release asset to a visible file, then invoke the requested ac
 
 ```powershell
 $installer = Join-Path $env:TEMP 'dsh-codex.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1' -OutFile $installer
+Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1?build=20260815.2' -OutFile $installer
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Install
 ```
 
