@@ -292,8 +292,9 @@ function Get-InstalledPackageNames {
 
     $names = New-Object System.Collections.Generic.List[string]
     foreach ($project in $projects) {
-        if ($null -eq $project.dependencies) { continue }
-        foreach ($property in $project.dependencies.PSObject.Properties) {
+        $dependenciesProperty = $project.PSObject.Properties['dependencies']
+        if ($null -eq $dependenciesProperty -or $null -eq $dependenciesProperty.Value) { continue }
+        foreach ($property in $dependenciesProperty.Value.PSObject.Properties) {
             $names.Add([string] $property.Name)
         }
     }
