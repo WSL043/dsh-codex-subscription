@@ -17,6 +17,9 @@ test('package discovery tolerates an empty pnpm dependency object in strict mode
     source.indexOf('function Get-InstalledPackageNames'),
     source.indexOf('$target = Get-ManagerTarget'),
   )
+  assert.match(discovery, /\$parsedProjects = \$json \| ConvertFrom-Json/u)
+  assert.match(discovery, /\$projects = @\(\$parsedProjects\)/u)
+  assert.doesNotMatch(discovery, /@\(\$json \| ConvertFrom-Json\)/u)
   assert.doesNotMatch(discovery, /System\.Collections\.Generic\.List\[string\]/u)
   assert.match(discovery, /Write-Output \(\[string\] \$property\.Name\)/u)
 })
