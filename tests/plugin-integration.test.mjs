@@ -2,16 +2,33 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import * as plugin from '../src/index.js'
+import {
+  normalizeSearchProvider,
+  SEARCH_PROVIDER_CODEX,
+  SEARCH_PROVIDER_DSH,
+} from '../src/settings-contract.js'
 
 const { apply: applyPlugin } = plugin
 
 function fakeContext() {
   const registered = []
   const handled = []
+  const searchProviders = []
   const settings = []
+  const webUpdates = []
   const provided = new Map()
-  let preference = { sidebarQuotaVisible: true }
+  let preference = { quickQuotaVisible: false, searchProvider: 'dsh' }
   let credential
+  const webEntry = {
+    options: { id: 'web', config: { searchProvider: 'deepseek-official', fetchProvider: 'local' } },
+    fiber: {
+      config: { searchProvider: 'deepseek-official', fetchProvider: 'local' },
+      async update(config, noSave) {
+        webUpdates.push({ config, noSave })
+        this.config = config
+      },
+    },
+  }
   const ctx = {
     credentials: {
       async resolve() { return credential === undefined ? undefined : { value: credential } },
@@ -21,6 +38,12 @@ function fakeContext() {
     llm: {
       registerAdapter(providers, adapter) {
         registered.push({ providers, adapter })
+        return () => {}
+      },
+    },
+    web: {
+      registerSearchProvider(provider) {
+        searchProviders.push(provider)
         return () => {}
       },
     },
@@ -42,12 +65,15 @@ function fakeContext() {
         }
       },
     },
+    loader: {
+      * entries() { yield webEntry },
+    },
     inject(_services, callback) { callback(ctx) },
     get(name) { return provided.get(name) },
     provide(name, value) { provided.set(name, value) },
     effect(register) { return register() },
   }
-  return { ctx, registered, handled, provided, settings }
+  return { ctx, registered, handled, provided, searchProviders, settings, webUpdates }
 }
 
 test('plugin registers one Codex route and one loopback-only redacted RPC', async () => {
@@ -56,6 +82,7 @@ test('plugin registers one Codex route and one loopback-only redacted RPC', asyn
 
   assert.equal('CODEX_PROVIDER_POLICY' in plugin, false, 'do not replace the removed boundary with cosmetic metadata')
   assert.deepEqual(host.registered.map(item => item.providers), [['openai-codex']])
+  assert.deepEqual(host.searchProviders.map(provider => provider.id), ['codex-subscription'])
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
   assert.equal(host.handled.length, 1)
   assert.equal(host.handled[0].channel, '/codex-subscription')
@@ -75,15 +102,27 @@ test('plugin registers one Codex route and one loopback-only redacted RPC', asyn
   const preferenceStatus = await host.handled[0].handler('preferences/status', {}, signal)
   assert.deepEqual(preferenceStatus, {
     ok: true,
-    value: { sidebarQuotaVisible: true, writable: true },
+    value: { quickQuotaVisible: false, searchProvider: 'dsh', writable: true },
   })
   const preferenceUpdate = await host.handled[0].handler('preferences/update', {
-    sidebarQuotaVisible: false,
+    quickQuotaVisible: true,
   }, signal)
   assert.deepEqual(preferenceUpdate, {
     ok: true,
-    value: { sidebarQuotaVisible: false, writable: true },
+    value: { quickQuotaVisible: true, searchProvider: 'dsh', writable: true },
   })
+
+  const searchUpdate = await host.handled[0].handler('preferences/update', {
+    searchProvider: 'codex',
+  }, signal)
+  assert.deepEqual(searchUpdate, {
+    ok: true,
+    value: { quickQuotaVisible: true, searchProvider: 'codex', writable: true },
+  })
+  assert.deepEqual(host.webUpdates, [{
+    config: { searchProvider: 'codex-subscription', fetchProvider: 'local' },
+    noSave: true,
+  }])
 })
 
 test('usage failures use a DSH-supported bounded RPC error', async () => {
@@ -97,4 +136,11 @@ test('usage failures use a DSH-supported bounded RPC error', async () => {
     error: { code: 'internal', message: 'Could not read ChatGPT usage', details: { issues: [] } },
   })
   assert.doesNotMatch(JSON.stringify(result), /host secret/)
+})
+
+test('unknown browser search preferences fail safe to the DSH default', () => {
+  assert.equal(normalizeSearchProvider(SEARCH_PROVIDER_DSH), SEARCH_PROVIDER_DSH)
+  assert.equal(normalizeSearchProvider(SEARCH_PROVIDER_CODEX), SEARCH_PROVIDER_CODEX)
+  assert.equal(normalizeSearchProvider(undefined), SEARCH_PROVIDER_DSH)
+  assert.equal(normalizeSearchProvider('unexpected-provider'), SEARCH_PROVIDER_DSH)
 })

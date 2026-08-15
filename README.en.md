@@ -6,19 +6,19 @@
 [简体中文](README.md)
 
 Use a ChatGPT / Codex subscription directly in DeepSeek Harness while keeping
-DSH conversations, tools, permissions, and quota status in one place.
+DSH conversations, tools, permissions, search choice, and quota status in one place.
 
-![Codex remaining quota in the DeepSeek Harness sidebar](docs/assets/sidebar-en.png)
+![Codex subscription settings in DeepSeek Harness](docs/assets/settings-en.png)
 
-_The screenshot uses sample quota values and contains no real account data or credentials._
+_Captured in an isolated preview with no real account, quota, or credential data._
 
 ## What it does
 
 - Uses your ChatGPT / Codex subscription directly inside DSH, without opening Codex CLI;
 - Signs in to ChatGPT from Settings and keeps credentials on the host;
+- Switches between DSH's default search and Codex subscription search;
 - Shows the quota, reset time, and freshness actually returned by the backend;
-- Shows standard Codex quota at the bottom of the DSH sidebar, including its collapsed state;
-- Lets you turn the sidebar quota on or off under **Settings -> Codex subscription**;
+- Can show the selected Codex model's remaining quota before the model name (Beta, off by default);
 - Keeps Codex-Spark, Credits, and other independent limits separate;
 - Fails visibly when subscription routing is unavailable instead of silently using another paid route.
 
@@ -72,7 +72,7 @@ once and install again. Restart DSH manually after installation.
 <summary>macOS, Linux, or an existing <code>dsh</code> command</summary>
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.6/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.7/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
@@ -86,18 +86,26 @@ contain one `codex-subscription` entry.
 
 1. Open **Settings -> Codex subscription** in DSH.
 2. Sign in with a ChatGPT account that has Codex access.
-3. Choose a Codex model from the model selector.
+3. Choose DSH default search or Codex subscription search.
+4. Choose a Codex model from the model selector.
+
+Codex subscription search reuses the same ChatGPT sign-in and does not need an
+OpenAI API key. Changing the search source does not change the conversation
+model, and a failed source never silently falls back to another paid service.
+Existing DSH search remains the default after an upgrade; opt in to Codex
+subscription search when wanted.
 
 ## How quota is shown
 
-- The sidebar uses the lowest remaining standard Codex window, avoiding an overly optimistic number;
+- Settings always shows the detailed quota returned by the backend. The compact percentage is Beta and off by default;
+- When enabled, it appears inside the composer before the model name and only while a Codex model is selected;
+- Standard Codex models use the lowest remaining standard Codex window, avoiding an overly optimistic number;
+- A selected Spark model uses the separate Spark quota returned by the backend;
 - Only windows actually returned by the backend are shown; there is no hard-coded “5-hour + weekly” layout;
 - If the account currently reports only weekly usage, no 5-hour window is invented; it appears automatically if the backend restores it;
 - Independent Codex-Spark limits are not merged into standard Codex quota;
 - Credits and monthly spending caps appear only when the account or workspace actually returns them;
 - Percentages describe usage status, not billing amounts or billing guarantees.
-
-![Codex subscription settings, sidebar toggle, and compact quota cards](docs/assets/settings-en.png)
 
 ## Update and uninstall
 
@@ -119,7 +127,7 @@ the two Windows first-install commands above once.
 Update and verify:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.6/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.7/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
