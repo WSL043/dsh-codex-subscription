@@ -28,6 +28,11 @@ _The screenshot uses sample quota values and contains no real account data or cr
 Requirements: DeepSeek Harness `0.1.0-rc.6` and a ChatGPT account that currently
 has Codex access.
 
+Do not have DSH yet? Windows and macOS users who do not want to configure
+Node.js can use the [community DSH-Portable package](https://github.com/WSL043/DSH-Portable).
+For the official `npx` route, see the
+[DeepSeek Harness run guide](https://github.com/deepseek-ai/deepseek-harness#run).
+
 ### Let an Agent install it (recommended if you do not use the command line)
 
 Send the following URL directly to your Agent. The guide contains install,
