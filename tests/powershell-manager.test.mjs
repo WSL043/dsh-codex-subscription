@@ -434,23 +434,43 @@ windowsTest('managed update runs only a checksum-matching immutable release mana
   }
 })
 
-function autoDryRunResult(action = 'Install', extraEnv = {}) {
+function autoDryRunResult(action = 'Install', extraEnv = {}, visibleProcesses = []) {
+  const source = String.raw`
+function Get-CimInstance {
+  [CmdletBinding()]
+  param(
+    [Parameter(Position = 0)] [string] $ClassName,
+    [string] $Filter
+  )
+  $encoded = [string] $env:DSH_CODEX_TEST_PROCESSES
+  if ($encoded) {
+    $json = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($encoded))
+    @($json | ConvertFrom-Json)
+  }
+}
+& $env:DSH_CODEX_TEST_SCRIPT -Action $env:DSH_CODEX_TEST_ACTION -DryRun
+`
+  const encoded = Buffer.from(source, 'utf16le').toString('base64')
   return spawnSync('powershell.exe', [
     '-NoLogo',
     '-NoProfile',
     '-NonInteractive',
     '-ExecutionPolicy', 'Bypass',
-    '-File', script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
-    '-Action', action,
-    '-DryRun',
+    '-EncodedCommand', encoded,
   ], {
     encoding: 'utf8',
-    env: { ...process.env, ...extraEnv },
+    env: {
+      ...process.env,
+      ...extraEnv,
+      DSH_CODEX_TEST_ACTION: action,
+      DSH_CODEX_TEST_PROCESSES: Buffer.from(JSON.stringify(visibleProcesses), 'utf8').toString('base64'),
+      DSH_CODEX_TEST_SCRIPT: script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
+    },
   })
 }
 
-function autoDryRun(action = 'Install', extraEnv = {}) {
-  const result = autoDryRunResult(action, extraEnv)
+function autoDryRun(action = 'Install', extraEnv = {}, visibleProcesses = []) {
+  const result = autoDryRunResult(action, extraEnv, visibleProcesses)
   assert.equal(result.status, 0, result.stderr || result.stdout)
   return JSON.parse(result.stdout.trim())
 }
@@ -539,30 +559,25 @@ windowsTest('portable uninstall removes the package without deleting the profile
   }
 })
 
-windowsTest('auto-discovery finds a running portable root with spaces in its path', async () => {
+windowsTest('auto-discovery finds a running portable root with spaces in its path', () => {
   const sandbox = mkdtempSync(join(tmpdir(), 'dsh codex running '))
   const root = join(sandbox, 'Renamed Portable Folder')
   const dshBin = join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
   portableFixture(root)
   const portableNode = join(root, 'runtime', 'node', 'node.exe')
-  copyFileSync(process.execPath, portableNode)
-  const sleeper = spawn(portableNode, ['-e', 'setTimeout(() => {}, 15000)', dshBin], {
-    stdio: 'ignore',
-  })
   try {
-    await new Promise(resolve => setTimeout(resolve, 300))
     const expectedRoot = realpathSync.native(root)
     const plan = autoDryRun('Install', {
       USERPROFILE: join(sandbox, 'unused-user'),
       LOCALAPPDATA: join(sandbox, 'unused-local-app-data'),
-    })
+    }, [{
+      ExecutablePath: portableNode,
+      CommandLine: `"${portableNode}" "${dshBin}"`,
+    }])
     assert.equal(plan.mode, 'portable')
     assert.equal(plan.executable, join(expectedRoot, 'runtime', 'node', 'node.exe'))
     assert.equal(plan.dshHome, join(expectedRoot, 'data', 'dsh-home'))
   } finally {
-    const exit = once(sleeper, 'exit')
-    sleeper.kill()
-    await exit
     rmSync(sandbox, { recursive: true, force: true })
   }
 })
@@ -589,30 +604,28 @@ windowsTest('auto-discovery still supports an existing global dsh command', () =
   }
 })
 
-windowsTest('auto-discovery stops instead of choosing between two running portable roots', async () => {
+windowsTest('auto-discovery stops instead of choosing between two running portable roots', () => {
   const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-ambiguous-'))
   const roots = [join(sandbox, 'Portable A'), join(sandbox, 'Portable B')]
   for (const root of roots) {
     portableFixture(root)
-    copyFileSync(process.execPath, join(root, 'runtime', 'node', 'node.exe'))
   }
-  const sleepers = roots.map(root => spawn(join(root, 'runtime', 'node', 'node.exe'), [
-    '-e', 'setTimeout(() => {}, 15000)',
-    join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
-  ], { stdio: 'ignore' }))
   try {
-    await new Promise(resolve => setTimeout(resolve, 300))
     const result = autoDryRunResult('Install', {
       USERPROFILE: join(sandbox, 'unused-user'),
       LOCALAPPDATA: join(sandbox, 'unused-local-app-data'),
-    })
+    }, roots.map(root => {
+      const portableNode = join(root, 'runtime', 'node', 'node.exe')
+      const dshBin = join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+      return {
+        ExecutablePath: portableNode,
+        CommandLine: `"${portableNode}" "${dshBin}"`,
+      }
+    }))
     assert.notEqual(result.status, 0)
     assert.match(result.stderr, /more than one running DSH-Portable/iu)
     for (const root of roots) assert.equal(result.stderr.includes(realpathSync.native(root)), true)
   } finally {
-    const exits = sleepers.map(sleeper => once(sleeper, 'exit'))
-    for (const sleeper of sleepers) sleeper.kill()
-    await Promise.all(exits)
     rmSync(sandbox, { recursive: true, force: true })
   }
 })
