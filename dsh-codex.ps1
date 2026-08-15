@@ -290,15 +290,13 @@ function Get-InstalledPackageNames {
         throw 'DSH returned an unreadable plugin list.'
     }
 
-    $names = New-Object System.Collections.Generic.List[string]
     foreach ($project in $projects) {
         $dependenciesProperty = $project.PSObject.Properties['dependencies']
         if ($null -eq $dependenciesProperty -or $null -eq $dependenciesProperty.Value) { continue }
         foreach ($property in $dependenciesProperty.Value.PSObject.Properties) {
-            $names.Add([string] $property.Name)
+            Write-Output ([string] $property.Name)
         }
     }
-    return @($names)
 }
 
 $target = Get-ManagerTarget
