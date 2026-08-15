@@ -151,6 +151,8 @@ If DSH is running, restart it manually after installation or update.
 - This is a community project with no affiliation or endorsement from DeepSeek or OpenAI.
 
 Use [GitHub Issues](https://github.com/WSL043/dsh-codex-subscription/issues) for
-support. Read [SECURITY.md](SECURITY.md) before reporting sensitive issues.
+project feedback. For general DSH plugin discussion, visit
+[DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
+Read [SECURITY.md](SECURITY.md) before reporting sensitive issues.
 
 [MIT](LICENSE)

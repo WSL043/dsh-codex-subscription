@@ -70,6 +70,8 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
   assert.match(readme, /^# DSH Codex Subscription[\s\S]*\[English\]\(README\.en\.md\)/u)
   assert.match(readme, /## 准备 DSH[\s\S]*DSH-Portable（社区便携包）[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## 安装[\s\S]*### 交给 Agent（推荐）[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md[\s\S]*### Windows 手动安装/u)
   assert.match(readmeEn, /## Prepare DSH[\s\S]*community DSH-Portable package[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## Install[\s\S]*### Let an Agent install it \(recommended\)[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md[\s\S]*### Manual Windows install/u)
+  assert.match(readme, /本项目的问题反馈[\s\S]*github\.com\/WSL043\/dsh-codex-subscription\/issues[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
+  assert.match(readmeEn, /project feedback[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
   assert.match(readme, /依次粘贴下面两行/u)
   assert.match(readmeEn, /paste these two lines in order/u)
   assert.doesNotMatch(`${readme}\n${readmeEn}`, /下面三行|three lines/iu)
