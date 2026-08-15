@@ -9,6 +9,12 @@ import test from 'node:test'
 const script = new URL('../dsh-codex.ps1', import.meta.url)
 const windowsTest = process.platform === 'win32' ? test : test.skip
 
+test('package discovery tolerates an empty pnpm dependency object in strict mode', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(script, 'utf8'))
+  assert.match(source, /PSObject\.Properties\['dependencies'\]/u)
+  assert.doesNotMatch(source, /\$project\.dependencies/u)
+})
+
 function portableFixture(root, installedStateRoot) {
   for (const directory of [
     join(root, 'runtime', 'node'),
