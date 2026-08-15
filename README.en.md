@@ -20,6 +20,7 @@ _The screenshot uses sample quota values and contains no real account data or cr
 - Separate display for backend-provided Codex-Spark and other independent limits;
 - No invented 5-hour window when the account currently reports only weekly usage;
 - Credits and monthly spending caps shown only when the account or workspace returns them;
+- Available quota resets shown only when returned, and never redeemed automatically;
 - Visible failure instead of silent fallback to the OpenAI API or another paid route.
 
 ## Install
@@ -29,12 +30,17 @@ has Codex access.
 
 ### Windows (recommended)
 
-Paste this complete line into PowerShell. It supports both a normal DSH install
+Run these three lines in PowerShell. They support both a normal DSH install
 and DSH-Portable. Portable users do not need a system Node.js, pnpm, or PATH setup.
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'))) -Action Install
+$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
+Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1' -OutFile $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Install
 ```
+
+`Bypass` applies only to this child process and does not change the system
+PowerShell execution policy.
 
 The helper finds a running or commonly located DSH-Portable folder and writes to
 its own data directory. If the portable folder was renamed or moved elsewhere,
@@ -46,18 +52,18 @@ install; the helper never restarts it on its own.
 On macOS, Linux, or a system where Node.js, pnpm, and `dsh` are already available:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-0.2.2.tgz
 ```
 
 Verify the installation:
 
 ```sh
-dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
+dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
 The Windows helper runs both checks automatically. The config should contain one
-`wsl043-codex-subscription` entry. Then open
+`codex-subscription` entry. Then open
 **Settings -> Codex subscription**, sign in, and choose a Codex model in DSH.
 
 ## Let an Agent handle it
@@ -83,32 +89,43 @@ You can also open [AGENTS.md](AGENTS.md) directly.
 Windows:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'))) -Action Update
+$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
+Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1' -OutFile $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Update
 ```
 
 With an existing `dsh` command:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz
-dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-0.2.2.tgz
+dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-Both methods update the existing entry, preserve the DSH profile and stored OAuth
-credential, and do not install a second copy. Restart DSH manually if it is running.
+The Windows helper removes the v0.2.1 package name and migrates the saved login
+automatically. When updating v0.2.1 manually, run this after the `add` succeeds:
+
+```sh
+dsh plugin --profile web remove @wsl043/dsh-codex-subscription
+```
+
+Both methods preserve the DSH profile and stored OAuth credential. Restart DSH
+manually if it is running.
 
 ## Uninstall
 
 Windows:
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'))) -Action Uninstall
+$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
+Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1' -OutFile $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Uninstall
 ```
 
 With an existing `dsh` command:
 
 ```sh
-dsh plugin --profile web remove @wsl043/dsh-codex-subscription
+dsh plugin --profile web remove dsh-codex-subscription
 ```
 
 Removing the package does not delete the DSH profile or unrelated plugins. Sign

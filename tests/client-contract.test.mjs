@@ -8,7 +8,8 @@ test('client is one removable DSH settings section, not a second application she
   const source = await text('src/client.jsx')
   assert.match(source, /slots\.inject\(['"]settings\.section['"]/)
   assert.match(source, /id:\s*['"]codex-subscription['"]/)
-  assert.match(source, /['"]\/wsl043-codex-subscription['"]/)
+  assert.match(source, /['"]\/codex-subscription['"]/) // RPC channel
+  assert.doesNotMatch(source, /wsl043/iu)
   assert.match(source, /login\/start/)
   assert.match(source, /login\/status/)
   assert.match(source, /['"]usage['"]/)
@@ -18,7 +19,7 @@ test('client is one removable DSH settings section, not a second application she
 
 test('quota is the primary surface with reset, freshness, loading, and empty-state semantics', async () => {
   const source = await text('src/client.jsx')
-  for (const token of ['resetsAt', 'fetchedAt', 'usageLoading', 'usageEmpty', 'usageUpdated']) {
+  for (const token of ['resetsAt', 'fetchedAt', 'usageLoading', 'usageEmpty', 'usageUpdated', 'resetCredits']) {
     assert.match(source, new RegExp(token))
   }
   assert.match(source, /<time\b[^>]*dateTime=/u)
@@ -33,8 +34,8 @@ test('quota is the primary surface with reset, freshness, loading, and empty-sta
   assert.match(source, /isApproximateWindow/u)
   assert.doesNotMatch(source, /codex_bengalfox|GPT-5\.3-Codex-Spark/u, 'model quota labels must come from the backend')
   assert.match(source, /refreshing/u)
-  assert.match(source, /className=['"]wslCodexRefresh['"]/u)
-  assert.match(source, /\.wslCodexRefresh\{[^}]*white-space:\s*nowrap/u)
+  assert.match(source, /className=['"]codexSubscriptionRefresh['"]/u)
+  assert.match(source, /\.codexSubscriptionRefresh\{[^}]*white-space:\s*nowrap/u)
   assert.match(source, /monthlyCreditLimit/u)
   assert.match(source, /creditsBalance/u)
   assert.match(source, /creditsNote/u)
@@ -47,9 +48,9 @@ test('quota is the primary surface with reset, freshness, loading, and empty-sta
 
 test('settings omit nonessential cache diagnostics and render route policy as neutral copy', async () => {
   const source = await text('src/client.jsx')
-  assert.doesNotMatch(source, /CacheDiagnostics|Technical diagnostics|技术诊断|wslCodexDiagnostics|wslCodexSafety/u)
-  assert.match(source, /wslCodexRoutePolicy/u)
-  assert.doesNotMatch(source, /\.wslCodexRoutePolicy\{[^}]*state-success/u)
+  assert.doesNotMatch(source, /CacheDiagnostics|Technical diagnostics|技术诊断|codexSubscriptionDiagnostics|codexSubscriptionSafety/u)
+  assert.match(source, /codexSubscriptionRoutePolicy/u)
+  assert.doesNotMatch(source, /\.codexSubscriptionRoutePolicy\{[^}]*state-success/u)
 })
 
 test('build emits host entries and a DSH module-loader client', async () => {
@@ -58,5 +59,6 @@ test('build emits host entries and a DSH module-loader client', async () => {
   assert.doesNotMatch(config, /src\/boundary\.js/)
   assert.match(config, /src\/client\.jsx/)
   assert.match(config, /window\.__ModuleLoader__\.load/)
-  assert.match(config, /@wsl043\/dsh-codex-subscription/)
+  assert.match(config, /['"]dsh-codex-subscription['"]/)
+  assert.doesNotMatch(config, /wsl043/iu)
 })

@@ -45,7 +45,7 @@ test('plugin registers one Codex route and one loopback-only redacted RPC', asyn
   assert.deepEqual(host.registered.map(item => item.providers), [['openai-codex']])
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
   assert.equal(host.handled.length, 1)
-  assert.equal(host.handled[0].channel, '/wsl043-codex-subscription')
+  assert.equal(host.handled[0].channel, '/codex-subscription')
   assert.deepEqual(host.handled[0].options, { authority: 'loopback' })
   assert.equal(host.provided.size, 0, 'the plugin should not publish undocumented host services')
   assert.equal('CodexCacheTelemetry' in plugin, false, 'cache diagnostics are outside the subscription route boundary')
@@ -57,4 +57,17 @@ test('plugin registers one Codex route and one loopback-only redacted RPC', asyn
     value: { authenticated: false, provider: 'openai-codex' },
   })
   assert.doesNotMatch(JSON.stringify(status), /access|refresh|accountId/)
+})
+
+test('usage failures use a DSH-supported bounded RPC error', async () => {
+  const handler = plugin.createSubscriptionRpcHandler({
+    async authHandler() { throw new Error('not used') },
+    usageReader: { async read() { throw new Error('host secret') }, clear() {} },
+  })
+  const result = await handler('usage', {}, new AbortController().signal)
+  assert.deepEqual(result, {
+    ok: false,
+    error: { code: 'internal', message: 'Could not read ChatGPT usage', details: { issues: [] } },
+  })
+  assert.doesNotMatch(JSON.stringify(result), /host secret/)
 })

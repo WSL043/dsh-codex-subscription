@@ -17,9 +17,10 @@ $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [Console]::OutputEncoding = $Utf8NoBom
 $OutputEncoding = $Utf8NoBom
 
-$PackageName = '@wsl043/dsh-codex-subscription'
-$PackageVersion = '0.2.1'
-$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz'
+$PackageName = 'dsh-codex-subscription'
+$LegacyPackageName = '@wsl043/dsh-codex-subscription'
+$PackageVersion = '0.2.2'
+$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-0.2.2.tgz'
 $PnpmVersion = '11.19.0'
 $PnpmUrl = 'https://registry.npmjs.org/pnpm/-/pnpm-11.19.0.tgz'
 $PnpmSha512 = '7881F3ED590D472C4A955E2B88B2121791116066DCC88CBCA3849EC9B60F1BBAA6D2CCB221FA91DA4E1C65BEF2BCBE379365AEA7AC539C7BF86DEDC3A1B22DCE'
@@ -247,10 +248,11 @@ function Install-PnpmTool {
 function Get-ActionArguments {
     param(
         [Parameter(Mandatory = $true)][string] $SelectedAction,
-        [AllowNull()][string] $Store
+        [AllowNull()][string] $Store,
+        [string] $SelectedPackage = $PackageName
     )
     if ($SelectedAction -eq 'Uninstall') {
-        $arguments = @('plugin', '--profile', $Profile, 'remove', $PackageName)
+        $arguments = @('plugin', '--profile', $Profile, 'remove', $SelectedPackage)
     } else {
         $arguments = @('plugin', '--profile', $Profile, 'add', $PackageSpec)
     }
@@ -276,6 +278,28 @@ function Invoke-DshCommand {
     if ($LASTEXITCODE -ne 0) { throw "dsh failed with exit code $LASTEXITCODE." }
 }
 
+function Get-InstalledPackageNames {
+    param([Parameter(Mandatory = $true)] $Target)
+
+    $json = Invoke-DshCommand -Target $Target -Arguments @(
+        'plugin', '--profile', $Profile, 'list', '--depth', '0', '--json', '--loglevel', 'error'
+    ) -Capture
+    try {
+        $projects = @($json | ConvertFrom-Json)
+    } catch {
+        throw 'DSH returned an unreadable plugin list.'
+    }
+
+    $names = New-Object System.Collections.Generic.List[string]
+    foreach ($project in $projects) {
+        if ($null -eq $project.dependencies) { continue }
+        foreach ($property in $project.dependencies.PSObject.Properties) {
+            $names.Add([string] $property.Name)
+        }
+    }
+    return @($names)
+}
+
 $target = Get-ManagerTarget
 $pnpmDirectory = Get-PnpmDirectory $target
 $pnpmStore = Get-PnpmStore $target
@@ -292,6 +316,8 @@ if ($DryRun) {
         pnpmVersion = $PnpmVersion
         pnpmDirectory = $pnpmDirectory
         pnpmStore = $pnpmStore
+        packageName = $PackageName
+        legacyPackageName = $LegacyPackageName
         packageVersion = $PackageVersion
         packageSpec = $PackageSpec
         removesProfile = $false
@@ -319,17 +345,60 @@ try {
         $env:npm_config_store_dir = $pnpmStore
     }
 
-    Invoke-DshCommand -Target $target -Arguments $actionArguments
+    $installedBefore = @(Get-InstalledPackageNames -Target $target)
+    $hadPackage = $installedBefore -contains $PackageName
+    $hadLegacyPackage = $installedBefore -contains $LegacyPackageName
+
+    if ($Action -eq 'Uninstall') {
+        if ($hadPackage) {
+            Invoke-DshCommand -Target $target -Arguments (
+                Get-ActionArguments -SelectedAction 'Uninstall' -Store $pnpmStore -SelectedPackage $PackageName
+            )
+        }
+        if ($hadLegacyPackage) {
+            Invoke-DshCommand -Target $target -Arguments (
+                Get-ActionArguments -SelectedAction 'Uninstall' -Store $pnpmStore -SelectedPackage $LegacyPackageName
+            )
+        }
+    } else {
+        Invoke-DshCommand -Target $target -Arguments $actionArguments
+        if ($hadLegacyPackage) {
+            try {
+                Invoke-DshCommand -Target $target -Arguments (
+                    Get-ActionArguments -SelectedAction 'Uninstall' -Store $pnpmStore -SelectedPackage $LegacyPackageName
+                )
+            } catch {
+                if (-not $hadPackage) {
+                    try {
+                        Invoke-DshCommand -Target $target -Arguments (
+                            Get-ActionArguments -SelectedAction 'Uninstall' -Store $pnpmStore -SelectedPackage $PackageName
+                        )
+                    } catch {
+                        # Preserve the original migration error.
+                    }
+                }
+                throw
+            }
+        }
+    }
 
     $config = Invoke-DshCommand -Target $target -Arguments @('--profile', $Profile, '--dump-config') -Capture
-    $entryCount = ([regex]::Matches($config, [regex]::Escape('wsl043-codex-subscription'))).Count
+    $entryCount = ([regex]::Matches($config, '(?<![A-Za-z0-9_-])codex-subscription(?![A-Za-z0-9_-])')).Count
+    $legacyEntryCount = ([regex]::Matches($config, '(?<![A-Za-z0-9_-])wsl043-codex-subscription(?![A-Za-z0-9_-])')).Count
+    $installedAfter = @(Get-InstalledPackageNames -Target $target)
     if ($Action -eq 'Uninstall') {
-        if ($entryCount -ne 0) { throw 'The plugin package was removed, but its profile entry is still present.' }
+        if (($installedAfter -contains $PackageName) -or ($installedAfter -contains $LegacyPackageName)) {
+            throw 'The plugin package is still present after uninstall.'
+        }
+        if ($entryCount -ne 0 -or $legacyEntryCount -ne 0) {
+            throw 'The plugin package was removed, but its profile entry is still present.'
+        }
         Write-Host 'Uninstalled. The DSH profile and saved credentials were kept.'
     } else {
-        $list = Invoke-DshCommand -Target $target -Arguments @('plugin', '--profile', $Profile, 'list', $PackageName, '--depth', '0') -Capture
-        if ($list -notmatch [regex]::Escape($PackageName)) { throw 'The installed package did not appear in the DSH plugin list.' }
+        if (-not ($installedAfter -contains $PackageName)) { throw 'The installed package did not appear in the DSH plugin list.' }
+        if ($installedAfter -contains $LegacyPackageName) { throw 'The legacy package is still present after migration.' }
         if ($entryCount -ne 1) { throw "Expected one plugin profile entry, found $entryCount." }
+        if ($legacyEntryCount -ne 0) { throw 'The legacy plugin profile entry is still present after migration.' }
         $verb = if ($Action -eq 'Update') { 'Updated.' } else { 'Installed.' }
         Write-Host "$verb Restart DSH manually to load the change if it is currently running."
     }

@@ -78,12 +78,26 @@ function spendControlReachedOf(value) {
   return value.reached
 }
 
+function resetCreditsOf(value) {
+  if (value === undefined || value === null) return undefined
+  if (!record(value) || !Number.isSafeInteger(value.available_count) || value.available_count < 0) {
+    throw new Error('Codex returned malformed reset credit details')
+  }
+  return { availableCount: value.available_count }
+}
+
 /** Reduce the provider payload to a browser-safe quota projection. */
 export function parseCodexUsage(value) {
   if (!record(value)) throw new Error('Codex returned a malformed usage response')
   const rateLimits = []
+  const seenLimitIds = new Set()
+  const addLimit = limit => {
+    if (limit === undefined || seenLimitIds.has(limit.id)) return
+    seenLimitIds.add(limit.id)
+    rateLimits.push(limit)
+  }
   const primary = limitOf('codex', 'Codex', value.rate_limit)
-  if (primary) rateLimits.push(primary)
+  addLimit(primary)
   if (value.additional_rate_limits !== undefined && value.additional_rate_limits !== null
     && !Array.isArray(value.additional_rate_limits)) {
     throw new Error('Codex returned malformed additional rate limits')
@@ -95,17 +109,19 @@ export function parseCodexUsage(value) {
     if (entry.limit_name !== undefined && entry.limit_name !== null && typeof entry.limit_name !== 'string') {
       throw new Error('Codex returned an invalid additional rate-limit name')
     }
-    const next = limitOf(entry.metered_feature, entry.limit_name || undefined, entry.rate_limit)
-    if (next) rateLimits.push(next)
+    addLimit(limitOf(entry.metered_feature, entry.limit_name || undefined, entry.rate_limit))
   }
+  addLimit(limitOf('code_review', 'Code review', value.code_review_rate_limit))
   const credits = creditsOf(value.credits)
   const individualLimit = individualOf(value.spend_control)
   const spendControlReached = spendControlReachedOf(value.spend_control)
+  const resetCredits = resetCreditsOf(value.rate_limit_reset_credits)
   return {
     rateLimits,
     ...(credits === undefined ? {} : { credits }),
     ...(individualLimit === undefined ? {} : { individualLimit }),
     ...(spendControlReached === undefined ? {} : { spendControlReached }),
+    ...(resetCredits === undefined ? {} : { resetCredits }),
   }
 }
 
@@ -146,7 +162,7 @@ export function createCodexUsageReader(options) {
         'chatgpt-account-id': accountId,
         accept: 'application/json',
         'cache-control': 'no-store',
-        'user-agent': '@wsl043/dsh-codex-subscription',
+        'user-agent': 'dsh-codex-subscription/0.2.2',
       },
       signal: requestSignal(signal, timeoutMs),
     })

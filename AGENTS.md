@@ -1,12 +1,12 @@
 # Agent installation guide
 
 Use this guide when a user asks an Agent to install, update, verify, or remove
-`@wsl043/dsh-codex-subscription`.
+`dsh-codex-subscription`.
 
 ## Safety
 
 - Confirm the target DSH profile; use `web` only when it is the user's target.
-- Use the pinned `v0.2.1` release assets, never a moving branch.
+- Use the pinned `v0.2.2` release assets, never a moving branch.
 - Never print OAuth credentials, account IDs, authorization callbacks, or the
   credential store.
 - Do not start, stop, or restart DSH without explicit permission.
@@ -35,17 +35,21 @@ app\node_modules\@deepseek-ai\dsh\lib\bin.js
 
 ## Windows manager
 
-Load the fixed release asset, then invoke the requested action:
+Download the fixed release asset to a visible file, then invoke the requested action:
 
 ```powershell
-$manager = Invoke-RestMethod 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'
-& ([scriptblock]::Create($manager)) -Action Install
+$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
+Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1' -OutFile $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Install
 ```
+
+The process-scoped `Bypass` is for this child process only; do not change the
+machine or user execution policy.
 
 For a custom portable location:
 
 ```powershell
-& ([scriptblock]::Create($manager)) -Action Install -PortableRoot 'C:\path\to\DSH-Portable'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Install -PortableRoot 'C:\path\to\DSH-Portable'
 ```
 
 Use `-Action Update` to update and `-Action Uninstall` to remove the plugin.
@@ -58,13 +62,16 @@ When `dsh`, Node.js, and pnpm are already available, install the fixed package
 asset directly:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-0.2.2.tgz
 ```
 
-Update by running the same `add` command again. Uninstall with:
+Update by running the same `add` command again. When migrating from v0.2.1 by
+hand, remove `@wsl043/dsh-codex-subscription` only after the new package passes
+verification. The Windows manager performs this migration automatically and
+preserves the stored login. Uninstall the current package with:
 
 ```sh
-dsh plugin --profile web remove @wsl043/dsh-codex-subscription
+dsh plugin --profile web remove dsh-codex-subscription
 ```
 
 ## Verify
@@ -72,14 +79,14 @@ dsh plugin --profile web remove @wsl043/dsh-codex-subscription
 For the existing CLI path, run:
 
 ```sh
-dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
+dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
 Success requires:
 
 1. The requested package version appears once.
-2. `wsl043-codex-subscription` appears once in the composed config after install
+2. `codex-subscription` appears once in the composed config after install
    or update, and is absent after uninstall.
 3. No unrelated profile or plugin changed.
 4. A running DSH process was not restarted by the operation.

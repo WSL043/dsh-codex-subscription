@@ -1,5 +1,5 @@
 # Additive community bundle: one plugin owns the provider route, host-only
 # account RPC, and settings surface. It never changes DSH's default model.
 - insert:
-    - id: wsl043-codex-subscription
-      name: '@wsl043/dsh-codex-subscription'
+    - id: codex-subscription
+      name: 'dsh-codex-subscription'

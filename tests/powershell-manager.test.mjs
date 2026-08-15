@@ -76,7 +76,7 @@ windowsTest('portable install uses the bundled CLI and portable DSH_HOME', () =>
     assert.deepEqual(plan.arguments, [
       join(expectedRoot, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
       'plugin', '--profile', 'web', 'add',
-      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz',
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-0.2.2.tgz',
       '--store-dir', join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'),
       '--loglevel', 'error',
     ])
@@ -95,7 +95,9 @@ windowsTest('installed portable mode expands its external state root', () => {
     const plan = dryRun(root, 'Update', { LOCALAPPDATA: localAppData })
     assert.equal(plan.action, 'Update')
     assert.equal(plan.dshHome, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'dsh-home'))
-    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz'), true)
+    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-0.2.2.tgz'), true)
+    assert.equal(plan.packageName, 'dsh-codex-subscription')
+    assert.equal(plan.legacyPackageName, '@wsl043/dsh-codex-subscription')
   } finally {
     rmSync(sandbox, { recursive: true, force: true })
   }
@@ -109,11 +111,12 @@ windowsTest('portable uninstall removes the package without deleting the profile
     const plan = dryRun(root, 'Uninstall')
     assert.deepEqual(plan.arguments.slice(-9), [
       'plugin', '--profile', 'web', 'remove',
-      '@wsl043/dsh-codex-subscription',
+      'dsh-codex-subscription',
       '--store-dir', join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'),
       '--loglevel', 'error',
     ])
     assert.equal(plan.removesProfile, false)
+    assert.equal(plan.legacyPackageName, '@wsl043/dsh-codex-subscription')
   } finally {
     rmSync(root, { recursive: true, force: true })
   }

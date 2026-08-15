@@ -1,6 +1,6 @@
 import { defineConfig } from 'tsdown'
 
-const id = '@wsl043/dsh-codex-subscription'
+const id = 'dsh-codex-subscription'
 const hostExternal = [
   '@deepseek-ai/cordis',
   '@deepseek-ai/dsh-credentials',

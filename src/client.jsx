@@ -3,8 +3,8 @@ import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 
 export const inject = ['slots', 'locale', 'connection']
 
-const NS = 'settings.wsl043CodexSubscription'
-const CHANNEL = '/wsl043-codex-subscription'
+const NS = 'settings.codexSubscription'
+const CHANNEL = '/codex-subscription'
 
 const zh = {
   nav: 'Codex 订阅',
@@ -25,7 +25,8 @@ const zh = {
   windowFiveHours: '5 小时额度', windowDaily: '每日额度', windowWeekly: '每周额度', windowMonthly: '每月额度', windowAnnual: '年度额度',
   windowHours: '{value} 小时额度', windowDays: '{value} 天额度', resets: '重置于 {value}', resetUnknown: '重置时间未提供',
   creditsBalance: '额外 Credits 余额', creditsUnit: 'credits', unlimited: '不限额', monthlyCreditLimit: 'Credits 月度消费上限',
-  creditsNote: '仅在 Codex 为此账户或工作区实际返回时显示；它们不是订阅周额度之外固定赠送的另一份额度。',
+  resetCredits: '可用额度重置次数', resetCreditsValue: '{count} 次',
+  creditsNote: '仅显示 Codex 为此账户或工作区实际返回的额外 Credits、消费上限或额度重置次数；三者不是同一项。',
   creditsUsed: '已用 {used} / {limit} credits', spendReached: 'Credits 月度消费上限已用尽。', unavailable: '暂无数据',
 }
 
@@ -48,37 +49,38 @@ const en = {
   windowFiveHours: '5-hour quota', windowDaily: 'Daily quota', windowWeekly: 'Weekly quota', windowMonthly: 'Monthly quota', windowAnnual: 'Annual quota',
   windowHours: '{value}-hour quota', windowDays: '{value}-day quota', resets: 'Resets {value}', resetUnknown: 'Reset time not provided',
   creditsBalance: 'Extra Credits balance', creditsUnit: 'credits', unlimited: 'Unlimited', monthlyCreditLimit: 'Monthly Credits spending cap',
-  creditsNote: 'Shown only when Codex reports these fields for this account or workspace; they are not a standard second allowance beyond the subscription quota.',
+  resetCredits: 'Available quota resets', resetCreditsValue: '{count} available',
+  creditsNote: 'Shows only extra Credits, spending caps, or quota resets returned for this account or workspace; these are separate items.',
   creditsUsed: '{used} / {limit} credits used', spendReached: 'The monthly Credits spending cap has been reached.', unavailable: 'No data yet',
 }
 
 const STYLE = `
-.wslCodex{display:flex;flex-direction:column;gap:12px;max-width:720px;color:var(--dsw-alias-label-primary);container-type:inline-size}
-.wslCodex h2,.wslCodex h3,.wslCodex p{margin:0}.wslCodexHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.wslCodex h2{font-size:16px;line-height:24px;font-weight:500}.wslCodex h3{font-size:14px;line-height:22px;font-weight:500}
-.wslCodexTag{border:1px solid var(--dsw-alias-border-l3);border-radius:4px;padding:1px 6px;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}
-.wslCodexIntro,.wslCodexNote{font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}.wslCodexIntro{margin-top:4px!important}
-.wslCodexCard{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-1);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
-.wslCodexAccountRow,.wslCodexSectionHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.wslCodexStatus{display:flex;align-items:center;gap:8px;font-size:14px;line-height:22px;font-weight:500}
-.wslCodexDot{width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-label-dimmed)}.wslCodexDot[data-state=connected]{background:var(--dsw-alias-state-success-primary)}.wslCodexDot[data-state=disconnected]{background:var(--dsw-alias-state-error-primary)}
-.wslCodexActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.wslCodexFlow{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
-.wslCodexFlow p{font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}.wslCodexCode{width:max-content;max-width:100%;font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;overflow-wrap:anywhere}
-.wslCodexError{font-size:13px;line-height:20px;color:var(--dsw-alias-state-error-primary)}.wslCodexInput{width:100%;box-sizing:border-box}
-.wslCodexSectionTitle{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.wslCodexFreshness{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
-.wslCodexRefresh{flex:0 0 auto;min-width:72px;width:max-content;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;writing-mode:horizontal-tb!important}.wslCodexRefresh *{white-space:nowrap!important;word-break:keep-all!important;writing-mode:horizontal-tb!important}
-.wslCodexEmpty{padding:18px;border:1px dashed var(--dsw-alias-border-l3);border-radius:10px;text-align:center;font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}
-.wslCodexLimits{display:flex;flex-direction:column;gap:12px}.wslCodexLimitGroup{display:flex;flex-direction:column;gap:8px}.wslCodexLimitName{font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary)}
-.wslCodexQuotaGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}.wslCodexLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform);display:flex;flex-direction:column;gap:8px}
-.wslCodexLimitTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.wslCodexLimitLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.wslCodexLimit strong{font:600 22px/28px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}
-.wslCodexLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}
-.wslCodexLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.wslCodexLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.wslCodexLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.wslCodexLimitMeta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
-.wslCodexCreditSection{display:flex;flex-direction:column;gap:7px}.wslCodexCreditNote{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.wslCodexCreditRows{display:grid;grid-template-columns:minmax(150px,.65fr) minmax(260px,1.35fr);gap:8px}.wslCodexCreditBalance,.wslCodexSpendLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform)}
-.wslCodexCreditBalance{display:flex;flex-direction:column;gap:6px}.wslCodexCreditBalance span,.wslCodexCreditLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.wslCodexCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.wslCodexSpendLimit{display:flex;flex-direction:column;gap:8px}.wslCodexSpendTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.wslCodexSpendTop strong{font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.wslCodexSpendLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}.wslCodexSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.wslCodexSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.wslCodexSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
-.wslCodexRoutePolicy{display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2);font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}.wslCodexRoutePolicy span{flex:0 0 auto;font-weight:500;color:var(--dsw-alias-label-secondary)}
-@container (max-width:560px){.wslCodexCreditRows{grid-template-columns:1fr}}
-@container (max-width:480px){.wslCodexAccountRow,.wslCodexSectionHead{align-items:flex-start;flex-direction:column}.wslCodexActions{width:100%}}
-@media(max-width:640px){.wslCodexCard{padding:14px}}
+.codexSubscription{display:flex;flex-direction:column;gap:12px;max-width:720px;color:var(--dsw-alias-label-primary);container-type:inline-size}
+.codexSubscription h2,.codexSubscription h3,.codexSubscription p{margin:0}.codexSubscriptionHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.codexSubscription h2{font-size:16px;line-height:24px;font-weight:500}.codexSubscription h3{font-size:14px;line-height:22px;font-weight:500}
+.codexSubscriptionTag{border:1px solid var(--dsw-alias-border-l3);border-radius:4px;padding:1px 6px;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionIntro,.codexSubscriptionNote{font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionIntro{margin-top:4px!important}
+.codexSubscriptionCard{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-1);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.codexSubscriptionAccountRow,.codexSubscriptionSectionHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.codexSubscriptionStatus{display:flex;align-items:center;gap:8px;font-size:14px;line-height:22px;font-weight:500}
+.codexSubscriptionDot{width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-label-dimmed)}.codexSubscriptionDot[data-state=connected]{background:var(--dsw-alias-state-success-primary)}.codexSubscriptionDot[data-state=disconnected]{background:var(--dsw-alias-state-error-primary)}
+.codexSubscriptionActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.codexSubscriptionFlow{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
+.codexSubscriptionFlow p{font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCode{width:max-content;max-width:100%;font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;overflow-wrap:anywhere}
+.codexSubscriptionError{font-size:13px;line-height:20px;color:var(--dsw-alias-state-error-primary)}.codexSubscriptionInput{width:100%;box-sizing:border-box}
+.codexSubscriptionSectionTitle{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.codexSubscriptionFreshness{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionRefresh{flex:0 0 auto;min-width:72px;width:max-content;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;writing-mode:horizontal-tb!important}.codexSubscriptionRefresh *{white-space:nowrap!important;word-break:keep-all!important;writing-mode:horizontal-tb!important}
+.codexSubscriptionEmpty{padding:18px;border:1px dashed var(--dsw-alias-border-l3);border-radius:10px;text-align:center;font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionLimits{display:flex;flex-direction:column;gap:12px}.codexSubscriptionLimitGroup{display:flex;flex-direction:column;gap:8px}.codexSubscriptionLimitName{font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionQuotaGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}.codexSubscriptionLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform);display:flex;flex-direction:column;gap:8px}
+.codexSubscriptionLimitTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionLimitLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionLimit strong{font:600 22px/28px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}
+.codexSubscriptionLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}
+.codexSubscriptionLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionLimitMeta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionCreditSection{display:flex;flex-direction:column;gap:7px}.codexSubscriptionCreditNote{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionCreditRows{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.codexSubscriptionCreditBalance,.codexSubscriptionSpendLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform)}
+.codexSubscriptionCreditBalance{display:flex;flex-direction:column;gap:6px}.codexSubscriptionCreditBalance span,.codexSubscriptionCreditLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.codexSubscriptionSpendLimit{display:flex;flex-direction:column;gap:8px}.codexSubscriptionSpendTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionSpendTop strong{font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.codexSubscriptionSpendLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}.codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
+.codexSubscriptionRoutePolicy{display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2);font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionRoutePolicy span{flex:0 0 auto;font-weight:500;color:var(--dsw-alias-label-secondary)}
+@container (max-width:560px){.codexSubscriptionCreditRows{grid-template-columns:1fr}}
+@container (max-width:480px){.codexSubscriptionAccountRow,.codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column}.codexSubscriptionActions{width:100%}}
+@media(max-width:640px){.codexSubscriptionCard{padding:14px}}
 `
 
 const unwrap = response => {
@@ -149,17 +151,17 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   const signedIn = account?.authenticated === true
   const accountReady = account !== undefined
 
-  return <div className="wslCodexCard">
-    <div className="wslCodexAccountRow">
-      <div className="wslCodexStatus" role="status" aria-live="polite"><span className="wslCodexDot" data-state={accountReady ? signedIn ? 'connected' : 'disconnected' : 'loading'} aria-hidden="true" />{accountReady ? signedIn ? t('connected') : t('disconnected') : t('accountLoading')}</div>
-      <div className="wslCodexActions">{signedIn ? <Button type="button" variant="outline" disabled={busy} onClick={logout}>{t('logout')}</Button> : accountReady && (flow === undefined || ['failed', 'cancelled'].includes(flow.phase)) ? <><Button type="button" variant="primary" disabled={busy} onClick={() => begin('browser')}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => begin('device_code')}>{t('deviceLogin')}</Button></> : null}</div>
+  return <div className="codexSubscriptionCard">
+    <div className="codexSubscriptionAccountRow">
+      <div className="codexSubscriptionStatus" role="status" aria-live="polite"><span className="codexSubscriptionDot" data-state={accountReady ? signedIn ? 'connected' : 'disconnected' : 'loading'} aria-hidden="true" />{accountReady ? signedIn ? t('connected') : t('disconnected') : t('accountLoading')}</div>
+      <div className="codexSubscriptionActions">{signedIn ? <Button type="button" variant="outline" disabled={busy} onClick={logout}>{t('logout')}</Button> : accountReady && (flow === undefined || ['failed', 'cancelled'].includes(flow.phase)) ? <><Button type="button" variant="primary" disabled={busy} onClick={() => begin('browser')}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => begin('device_code')}>{t('deviceLogin')}</Button></> : null}</div>
     </div>
-    {signedIn && typeof account.expiresAt === 'number' ? <p className="wslCodexNote">{fill(t('expires'), { value: new Date(account.expiresAt).toLocaleString() })}</p> : null}
-    {!signedIn && flow?.phase === 'waiting_device' ? <div className="wslCodexFlow"><p>{t('deviceHint')}</p><code className="wslCodexCode">{flow.deviceCode?.userCode}</code><a href={flow.deviceCode?.verificationUri} target="_blank" rel="noreferrer">{t('openLogin')}</a><p>{t('waiting')}</p></div> : null}
-    {!signedIn && flow?.phase === 'waiting_input' ? <form className="wslCodexFlow" onSubmit={submit}><p>{t('manualCode')}</p><Input className="wslCodexInput" value={manualCode} onChange={event => setManualCode(event.currentTarget.value)} autoComplete="off" spellCheck={false} /><div className="wslCodexActions"><Button type="submit" variant="primary" disabled={busy || manualCode.trim() === ''}>{t('submit')}</Button><Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div></form> : null}
-    {!signedIn && flow !== undefined && ['starting', 'waiting_browser'].includes(flow.phase) ? <div className="wslCodexFlow"><p>{t('waiting')}</p>{flow.authUrl === undefined ? null : <a href={flow.authUrl} target="_blank" rel="noreferrer">{t('openLogin')}</a>}<Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div> : null}
-    {flow?.phase === 'failed' || error !== undefined ? <p className="wslCodexError" role="alert">{error ?? t('failed')}</p> : null}
-    <p className="wslCodexRoutePolicy"><span>{t('routePolicy')}</span>{t('noFallback')}</p>
+    {signedIn && typeof account.expiresAt === 'number' ? <p className="codexSubscriptionNote">{fill(t('expires'), { value: new Date(account.expiresAt).toLocaleString() })}</p> : null}
+    {!signedIn && flow?.phase === 'waiting_device' ? <div className="codexSubscriptionFlow"><p>{t('deviceHint')}</p><code className="codexSubscriptionCode">{flow.deviceCode?.userCode}</code><a href={flow.deviceCode?.verificationUri} target="_blank" rel="noreferrer">{t('openLogin')}</a><p>{t('waiting')}</p></div> : null}
+    {!signedIn && flow?.phase === 'waiting_input' ? <form className="codexSubscriptionFlow" onSubmit={submit}><p>{t('manualCode')}</p><Input className="codexSubscriptionInput" value={manualCode} onChange={event => setManualCode(event.currentTarget.value)} autoComplete="off" spellCheck={false} /><div className="codexSubscriptionActions"><Button type="submit" variant="primary" disabled={busy || manualCode.trim() === ''}>{t('submit')}</Button><Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div></form> : null}
+    {!signedIn && flow !== undefined && ['starting', 'waiting_browser'].includes(flow.phase) ? <div className="codexSubscriptionFlow"><p>{t('waiting')}</p>{flow.authUrl === undefined ? null : <a href={flow.authUrl} target="_blank" rel="noreferrer">{t('openLogin')}</a>}<Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div> : null}
+    {flow?.phase === 'failed' || error !== undefined ? <p className="codexSubscriptionError" role="alert">{error ?? t('failed')}</p> : null}
+    <p className="codexSubscriptionRoutePolicy"><span>{t('routePolicy')}</span>{t('noFallback')}</p>
   </div>
 }
 
@@ -190,35 +192,38 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
   }, [signedIn, resetKey])
   const visibleUsage = signedIn ? usage : undefined
   const limits = visibleUsage?.rateLimits ?? []
+  const hasUsageDetails = limits.length > 0 || visibleUsage?.credits !== undefined
+    || visibleUsage?.individualLimit !== undefined || visibleUsage?.resetCredits !== undefined
   const fetchedAt = typeof visibleUsage?.fetchedAt === 'number' ? validDate(visibleUsage.fetchedAt) : undefined
-  return <div className="wslCodexCard">
-    <div className="wslCodexSectionHead">
-      <div className="wslCodexSectionTitle"><h3>{t('usage')}</h3><p className="wslCodexNote">{t('usageIntro')}</p>{fetchedAt === undefined ? null : <time className="wslCodexFreshness" dateTime={fetchedAt.toISOString()}>{fill(t('usageUpdated'), { value: fetchedAt.toLocaleString() })}</time>}</div>
-      <Button className="wslCodexRefresh" type="button" variant="outline" disabled={!signedIn || busy} aria-busy={busy} onClick={() => load(true)}>{busy ? t('refreshing') : t('refresh')}</Button>
+  return <div className="codexSubscriptionCard">
+    <div className="codexSubscriptionSectionHead">
+      <div className="codexSubscriptionSectionTitle"><h3>{t('usage')}</h3><p className="codexSubscriptionNote">{t('usageIntro')}</p>{fetchedAt === undefined ? null : <time className="codexSubscriptionFreshness" dateTime={fetchedAt.toISOString()}>{fill(t('usageUpdated'), { value: fetchedAt.toLocaleString() })}</time>}</div>
+      <Button className="codexSubscriptionRefresh" type="button" variant="outline" disabled={!signedIn || busy} aria-busy={busy} onClick={() => load(true)}>{busy ? t('refreshing') : t('refresh')}</Button>
     </div>
     <div aria-live="polite">
-      {!signedIn ? <p className="wslCodexEmpty">{t('noUsage')}</p> : null}
-      {signedIn && busy && usage === undefined ? <p className="wslCodexEmpty" role="status">{t('usageLoading')}</p> : null}
-      {signedIn && !busy && error === undefined && usage !== undefined && limits.length === 0 ? <p className="wslCodexEmpty" role="status">{t('usageEmpty')}</p> : null}
+      {!signedIn ? <p className="codexSubscriptionEmpty">{t('noUsage')}</p> : null}
+      {signedIn && busy && usage === undefined ? <p className="codexSubscriptionEmpty" role="status">{t('usageLoading')}</p> : null}
+      {signedIn && !busy && error === undefined && usage !== undefined && !hasUsageDetails ? <p className="codexSubscriptionEmpty" role="status">{t('usageEmpty')}</p> : null}
     </div>
-    {error === undefined ? null : <p className="wslCodexError" role="alert">{error}</p>}
-    {visibleUsage?.spendControlReached === true ? <p className="wslCodexError" role="alert">{t('spendReached')}</p> : null}
-    {limits.length === 0 ? null : <div className="wslCodexLimits">{limits.map(limit => <div className="wslCodexLimitGroup" key={limit.id}>
-      <div className="wslCodexLimitName">{limit.name ?? limit.id}</div>
-      <div className="wslCodexQuotaGrid">{limit.windows.map((window, index) => <div className="wslCodexLimit" key={`${limit.id}-${window.windowSeconds}-${index}`}>
-        <div className="wslCodexLimitTop"><span className="wslCodexLimitLabel">{windowLabel(window.windowSeconds, t)}</span><strong>{percent(window.remainingPercent)}%</strong></div>
+    {error === undefined ? null : <p className="codexSubscriptionError" role="alert">{error}</p>}
+    {visibleUsage?.spendControlReached === true ? <p className="codexSubscriptionError" role="alert">{t('spendReached')}</p> : null}
+    {limits.length === 0 ? null : <div className="codexSubscriptionLimits">{limits.map(limit => <div className="codexSubscriptionLimitGroup" key={limit.id}>
+      <div className="codexSubscriptionLimitName">{limit.name ?? limit.id}</div>
+      <div className="codexSubscriptionQuotaGrid">{limit.windows.map((window, index) => <div className="codexSubscriptionLimit" key={`${limit.id}-${window.windowSeconds}-${index}`}>
+        <div className="codexSubscriptionLimitTop"><span className="codexSubscriptionLimitLabel">{windowLabel(window.windowSeconds, t)}</span><strong>{percent(window.remainingPercent)}%</strong></div>
         <progress max="100" value={window.remainingPercent} aria-label={`${limit.name ?? limit.id} ${fill(t('remaining'), { value: percent(window.remainingPercent) })}`} />
-        <div className="wslCodexLimitMeta"><span>{fill(t('used'), { value: percent(window.usedPercent) })}</span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
+        <div className="codexSubscriptionLimitMeta"><span>{fill(t('used'), { value: percent(window.usedPercent) })}</span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
       </div>)}</div>
     </div>)}</div>}
-    {visibleUsage?.credits === undefined && visibleUsage?.individualLimit === undefined ? null : <div className="wslCodexCreditSection">
-      <p className="wslCodexCreditNote">{t('creditsNote')}</p>
-      <div className="wslCodexCreditRows">
-        {visibleUsage?.credits ? <div className="wslCodexCreditBalance"><span>{t('creditsBalance')}</span><strong>{visibleUsage.credits.unlimited ? t('unlimited') : `${visibleUsage.credits.balance ?? t('unavailable')} ${t('creditsUnit')}`}</strong></div> : null}
-        {visibleUsage?.individualLimit ? <div className="wslCodexSpendLimit">
-          <div className="wslCodexSpendTop"><span className="wslCodexCreditLabel">{t('monthlyCreditLimit')}</span><strong>{fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}</strong></div>
+    {visibleUsage?.credits === undefined && visibleUsage?.individualLimit === undefined && visibleUsage?.resetCredits === undefined ? null : <div className="codexSubscriptionCreditSection">
+      <p className="codexSubscriptionCreditNote">{t('creditsNote')}</p>
+      <div className="codexSubscriptionCreditRows">
+        {visibleUsage?.credits ? <div className="codexSubscriptionCreditBalance"><span>{t('creditsBalance')}</span><strong>{visibleUsage.credits.unlimited ? t('unlimited') : `${visibleUsage.credits.balance ?? t('unavailable')} ${t('creditsUnit')}`}</strong></div> : null}
+        {visibleUsage?.resetCredits ? <div className="codexSubscriptionCreditBalance"><span>{t('resetCredits')}</span><strong>{fill(t('resetCreditsValue'), { count: visibleUsage.resetCredits.availableCount })}</strong></div> : null}
+        {visibleUsage?.individualLimit ? <div className="codexSubscriptionSpendLimit">
+          <div className="codexSubscriptionSpendTop"><span className="codexSubscriptionCreditLabel">{t('monthlyCreditLimit')}</span><strong>{fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}</strong></div>
           <progress max="100" value={visibleUsage.individualLimit.remainingPercent} aria-label={`${t('monthlyCreditLimit')} ${fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}`} />
-          <div className="wslCodexLimitMeta"><span>{fill(t('creditsUsed'), { used: visibleUsage.individualLimit.used, limit: visibleUsage.individualLimit.limit })}</span><ResetTime resetsAt={visibleUsage.individualLimit.resetsAt} t={t} /></div>
+          <div className="codexSubscriptionLimitMeta"><span>{fill(t('creditsUsed'), { used: visibleUsage.individualLimit.used, limit: visibleUsage.individualLimit.limit })}</span><ResetTime resetsAt={visibleUsage.individualLimit.resetsAt} t={t} /></div>
         </div> : null}
       </div>
     </div>}
@@ -234,23 +239,23 @@ function CodexSection({ rpc, t }) {
     void rpc.call(CHANNEL, 'status', {}).then(unwrap).then(next => { if (live) setAccount(next) }).catch(() => { if (live) setError(t('loadFailed')) })
     return () => { live = false }
   }, [])
-  return <section className="wslCodex">
-    <div><div className="wslCodexHead"><h2>{t('title')}</h2><span className="wslCodexTag">{t('preview')}</span></div><p className="wslCodexIntro">{t('intro')}</p></div>
-    {error === undefined ? null : <p className="wslCodexError" role="alert">{error}</p>}
+  return <section className="codexSubscription">
+    <div><div className="codexSubscriptionHead"><h2>{t('title')}</h2><span className="codexSubscriptionTag">{t('preview')}</span></div><p className="codexSubscriptionIntro">{t('intro')}</p></div>
+    {error === undefined ? null : <p className="codexSubscriptionError" role="alert">{error}</p>}
     <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={() => setResetKey(value => value + 1)} />
     <UsageCard rpc={rpc} t={t} signedIn={account?.authenticated === true} resetKey={resetKey} />
   </section>
 }
 
 export function apply(ctx) {
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'wsl043-codex-subscription: copy')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'codex-subscription: copy')
   ctx.effect(() => {
     const tag = document.createElement('style')
-    tag.dataset.plugin = '@wsl043/dsh-codex-subscription'
+    tag.dataset.plugin = 'dsh-codex-subscription'
     tag.textContent = STYLE
     document.head.append(tag)
     return () => tag.remove()
-  }, 'wsl043-codex-subscription: style')
+  }, 'codex-subscription: style')
   const connection = ctx.get('connection')
   const t = ctx.locale.bind(NS)
   ctx.slots.inject('settings.section', () => ctx.slots.register({

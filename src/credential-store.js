@@ -21,6 +21,15 @@ function assertOAuthCredential(value) {
   return clone(value)
 }
 
+function parseOAuthCredential(value) {
+  try {
+    return assertOAuthCredential(JSON.parse(value))
+  } catch (error) {
+    if (error?.message === 'Codex credential store received a malformed OAuth credential') throw error
+    throw new Error('Codex credential store contains malformed OAuth JSON', { cause: error })
+  }
+}
+
 /**
  * Adapt DSH's managed string credential service to pi-ai's typed OAuth store.
  * Refresh/login/logout operations are serialized so an older refresh response
@@ -29,12 +38,13 @@ function assertOAuthCredential(value) {
 export class DshOAuthCredentialStore {
   #chains = new Map()
 
-  constructor(credentials, ref) {
+  constructor(credentials, ref, legacyRefs = []) {
     if (credentials === undefined || credentials === null) {
       throw new Error('Codex OAuth requires the DSH credentials service')
     }
     this.credentials = credentials
     this.ref = ref
+    this.legacyRefs = Object.freeze([...legacyRefs])
   }
 
   #enqueue(providerId, operation, options) {
@@ -57,16 +67,21 @@ export class DshOAuthCredentialStore {
   async read(providerId, options) {
     assertProvider(providerId)
     abortIfNeeded(options)
-    const hit = await this.credentials.resolve(this.ref)
+    let hit = await this.credentials.resolve(this.ref)
+    if (hit?.value === undefined || hit.value === '') {
+      for (const legacyRef of this.legacyRefs) {
+        const legacy = await this.credentials.resolve(legacyRef)
+        if (legacy?.value === undefined || legacy.value === '') continue
+        const migrated = parseOAuthCredential(legacy.value)
+        await this.credentials.set(this.ref, JSON.stringify(migrated))
+        await this.credentials.unset(legacyRef)
+        hit = { value: JSON.stringify(migrated) }
+        break
+      }
+    }
     abortIfNeeded(options)
     if (hit?.value === undefined || hit.value === '') return undefined
-    let parsed
-    try {
-      parsed = JSON.parse(hit.value)
-    } catch (error) {
-      throw new Error('Codex credential store contains malformed OAuth JSON', { cause: error })
-    }
-    return assertOAuthCredential(parsed)
+    return parseOAuthCredential(hit.value)
   }
 
   async list(options) {
@@ -83,6 +98,7 @@ export class DshOAuthCredentialStore {
       if (next === undefined) return current
       const validated = assertOAuthCredential(next)
       await this.credentials.set(this.ref, JSON.stringify(validated))
+      for (const legacyRef of this.legacyRefs) await this.credentials.unset(legacyRef)
       abortIfNeeded(options)
       return clone(validated)
     }, options)
@@ -91,6 +107,7 @@ export class DshOAuthCredentialStore {
   delete(providerId, options) {
     return this.#enqueue(providerId, async () => {
       await this.credentials.unset(this.ref)
+      for (const legacyRef of this.legacyRefs) await this.credentials.unset(legacyRef)
       abortIfNeeded(options)
     }, options)
   }
