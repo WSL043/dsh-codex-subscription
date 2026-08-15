@@ -34,9 +34,8 @@ _截图使用示例额度，不含真实账户或凭据信息。_
 另外安装 Node.js、pnpm，也不需要配置系统 PATH。
 
 ```powershell
-$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1' -OutFile $installer
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Install
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
 ```
 
 `Bypass` 只用于这一次子进程，不会修改系统的 PowerShell 执行策略。
@@ -86,9 +85,8 @@ https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
 Windows：
 
 ```powershell
-$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1' -OutFile $installer
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Update
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Update
 ```
 
 已有 `dsh` 命令：
@@ -114,9 +112,8 @@ dsh plugin --profile web remove @wsl043/dsh-codex-subscription
 Windows：
 
 ```powershell
-$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1' -OutFile $installer
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Uninstall
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Uninstall
 ```
 
 已有 `dsh` 命令：
