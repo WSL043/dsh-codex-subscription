@@ -35,7 +35,7 @@ _截图使用示例额度，不含真实账户或凭据信息。_
 
 ```powershell
 $installer = Join-Path $env:TEMP 'dsh-codex.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1?build=20260815.2' -OutFile $installer
+Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1' -OutFile $installer
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Install
 ```
 
@@ -50,7 +50,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Insta
 macOS、Linux，或已经安装 Node.js、pnpm 并能直接运行 `dsh` 的用户，可以使用：
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-v0.2.2.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex-subscription.tgz
 ```
 
 安装后检查：
@@ -87,14 +87,14 @@ Windows：
 
 ```powershell
 $installer = Join-Path $env:TEMP 'dsh-codex.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1?build=20260815.2' -OutFile $installer
+Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1' -OutFile $installer
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Update
 ```
 
 已有 `dsh` 命令：
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-v0.2.2.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
@@ -115,7 +115,7 @@ Windows：
 
 ```powershell
 $installer = Join-Path $env:TEMP 'dsh-codex.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1?build=20260815.2' -OutFile $installer
+Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1' -OutFile $installer
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Uninstall
 ```
 

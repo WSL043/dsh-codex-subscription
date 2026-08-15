@@ -6,7 +6,7 @@ Use this guide when a user asks an Agent to install, update, verify, or remove
 ## Safety
 
 - Confirm the target DSH profile; use `web` only when it is the user's target.
-- Use the pinned `v0.2.2` release assets, never a moving branch.
+- Use the pinned `v0.2.3` release assets, never a moving branch.
 - Never print OAuth credentials, account IDs, authorization callbacks, or the
   credential store.
 - Do not start, stop, or restart DSH without explicit permission.
@@ -39,7 +39,7 @@ Download the fixed release asset to a visible file, then invoke the requested ac
 
 ```powershell
 $installer = Join-Path $env:TEMP 'dsh-codex.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1?build=20260815.2' -OutFile $installer
+Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex.ps1' -OutFile $installer
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Install
 ```
 
@@ -62,7 +62,7 @@ When `dsh`, Node.js, and pnpm are already available, install the fixed package
 asset directly:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-v0.2.2.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex-subscription.tgz
 ```
 
 Update by running the same `add` command again. When migrating from v0.2.1 by
