@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
@@ -64,19 +64,20 @@ windowsTest('portable install uses the bundled CLI and portable DSH_HOME', () =>
   const root = mkdtempSync(join(tmpdir(), 'dsh-codex-portable-'))
   try {
     portableFixture(root)
+    const expectedRoot = realpathSync.native(root)
     const plan = dryRun(root)
     assert.equal(plan.mode, 'portable')
     assert.equal(plan.action, 'Install')
-    assert.equal(plan.executable, join(root, 'runtime', 'node', 'node.exe'))
-    assert.equal(plan.dshHome, join(root, 'data', 'dsh-home'))
+    assert.equal(plan.executable, join(expectedRoot, 'runtime', 'node', 'node.exe'))
+    assert.equal(plan.dshHome, join(expectedRoot, 'data', 'dsh-home'))
     assert.equal(plan.pnpmVersion, '11.19.0')
-    assert.equal(plan.pnpmDirectory, join(root, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-11.19.0'))
-    assert.equal(plan.pnpmStore, join(root, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'))
+    assert.equal(plan.pnpmDirectory, join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-11.19.0'))
+    assert.equal(plan.pnpmStore, join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'))
     assert.deepEqual(plan.arguments, [
-      join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
+      join(expectedRoot, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
       'plugin', '--profile', 'web', 'add',
       'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz',
-      '--store-dir', join(root, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'),
+      '--store-dir', join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'),
       '--loglevel', 'error',
     ])
   } finally {
@@ -90,9 +91,10 @@ windowsTest('installed portable mode expands its external state root', () => {
   const localAppData = join(sandbox, 'LocalAppData')
   try {
     portableFixture(root, '%LOCALAPPDATA%\\DeepSeek-Herness')
+    mkdirSync(localAppData, { recursive: true })
     const plan = dryRun(root, 'Update', { LOCALAPPDATA: localAppData })
     assert.equal(plan.action, 'Update')
-    assert.equal(plan.dshHome, join(localAppData, 'DeepSeek-Herness', 'data', 'dsh-home'))
+    assert.equal(plan.dshHome, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'dsh-home'))
     assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz'), true)
   } finally {
     rmSync(sandbox, { recursive: true, force: true })
@@ -103,11 +105,12 @@ windowsTest('portable uninstall removes the package without deleting the profile
   const root = mkdtempSync(join(tmpdir(), 'dsh-codex-uninstall-'))
   try {
     portableFixture(root)
+    const expectedRoot = realpathSync.native(root)
     const plan = dryRun(root, 'Uninstall')
     assert.deepEqual(plan.arguments.slice(-9), [
       'plugin', '--profile', 'web', 'remove',
       '@wsl043/dsh-codex-subscription',
-      '--store-dir', join(root, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'),
+      '--store-dir', join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'),
       '--loglevel', 'error',
     ])
     assert.equal(plan.removesProfile, false)
@@ -128,13 +131,14 @@ windowsTest('auto-discovery finds a running portable root with spaces in its pat
   })
   try {
     await new Promise(resolve => setTimeout(resolve, 300))
+    const expectedRoot = realpathSync.native(root)
     const plan = autoDryRun('Install', {
       USERPROFILE: join(sandbox, 'unused-user'),
       LOCALAPPDATA: join(sandbox, 'unused-local-app-data'),
     })
     assert.equal(plan.mode, 'portable')
-    assert.equal(plan.executable, join(root, 'runtime', 'node', 'node.exe'))
-    assert.equal(plan.dshHome, join(root, 'data', 'dsh-home'))
+    assert.equal(plan.executable, join(expectedRoot, 'runtime', 'node', 'node.exe'))
+    assert.equal(plan.dshHome, join(expectedRoot, 'data', 'dsh-home'))
   } finally {
     const exit = once(sleeper, 'exit')
     sleeper.kill()
@@ -184,7 +188,7 @@ windowsTest('auto-discovery stops instead of choosing between two running portab
     })
     assert.notEqual(result.status, 0)
     assert.match(result.stderr, /more than one running DSH-Portable/iu)
-    for (const root of roots) assert.equal(result.stderr.includes(root), true)
+    for (const root of roots) assert.equal(result.stderr.includes(realpathSync.native(root)), true)
   } finally {
     const exits = sleepers.map(sleeper => once(sleeper, 'exit'))
     for (const sleeper of sleepers) sleeper.kill()

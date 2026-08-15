@@ -84,7 +84,7 @@ function Find-RunningPortables {
                 [System.StringComparison]::OrdinalIgnoreCase
             )) { continue }
             $commandLine = [string] $process.CommandLine
-            if ($commandLine.IndexOf($layout.Dsh, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) {
+            if ($commandLine -match '(?i)@deepseek-ai[\\/]dsh[\\/]lib[\\/]bin\.js') {
                 Write-Output $layout
             }
         }
