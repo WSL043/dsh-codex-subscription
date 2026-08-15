@@ -42,7 +42,7 @@ https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
 ### Windows 手动安装
 
 打开 PowerShell，依次粘贴下面两行。普通安装版和 DSH-Portable 都可以使用；便携版不需要
-另外安装 Node.js、pnpm，也不需要配置系统 PATH。
+另外安装 Node.js 或 pnpm。
 
 ```powershell
 curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
@@ -50,6 +50,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1
 ```
 
 `Bypass` 只用于这一次子进程，不会修改系统的 PowerShell 执行策略。
+
+这两行只在第一次安装时使用。安装成功后会添加当前用户的 `dsh-codex` 命令，不需要
+管理员权限；以后打开新的 PowerShell，更新和卸载都只需要一条短命令。
 
 脚本会自动寻找正在运行或位于常用目录的 DSH-Portable，并把插件写入它自己的数据
 目录。如果便携文件夹改过名字或位置，先启动一次 DSH-Portable，再执行上面的命令。
@@ -60,7 +63,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1
 macOS、Linux，或已经安装 Node.js、pnpm 并能直接运行 `dsh` 的用户，可以使用：
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz
 ```
 
 安装后检查：
@@ -86,14 +89,16 @@ Windows 脚本已经自动执行这两项检查。配置中应只出现一个
 Windows：
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Update
+dsh-codex update
 ```
+
+命令会读取最新的 GitHub Release，校验管理脚本的 SHA-256 后再更新插件。如果旧版本还没有
+`dsh-codex` 命令，重新执行一次上面的首次安装两行命令即可。
 
 已有 `dsh` 命令：
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
@@ -113,8 +118,7 @@ dsh plugin --profile web remove @wsl043/dsh-codex-subscription
 Windows：
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Uninstall
+dsh-codex uninstall
 ```
 
 已有 `dsh` 命令：
@@ -123,8 +127,8 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1
 dsh plugin --profile web remove dsh-codex-subscription
 ```
 
-移除包不会删除 DSH profile 或其他插件。只有同时希望删除已保存的 OAuth 凭据时，
-才先在设置页退出登录。
+Windows 命令同时移除 `dsh-codex` 管理命令，但不会删除 DSH profile、其他插件或已保存的
+OAuth 凭据。只有同时希望删除登录信息时，才先在设置页退出登录。
 
 ## 使用边界
 
