@@ -17,6 +17,11 @@ test('client is one removable DSH settings section, not a second application she
   assert.doesNotMatch(source, /createRoot|ReactDOM|index\.html|localStorage|sessionStorage|accessToken|refreshToken/)
 })
 
+test('the English settings navigation label fits the DSH sidebar', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /const en = \{[\s\S]*?nav:\s*['"]Codex['"][\s\S]*?title:\s*['"]Codex subscription['"]/u)
+})
+
 test('beta quota badge uses the public composer slot before the model selector', async () => {
   const [client, host, contract] = await Promise.all([
     text('src/client.jsx'), text('src/index.js'), text('src/settings-contract.js'),

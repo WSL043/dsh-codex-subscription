@@ -6,7 +6,7 @@ Use this guide when a user asks an Agent to install, update, verify, or remove
 ## Safety
 
 - Confirm the target DSH profile; use `web` only when it is the user's target.
-- Use the pinned `v0.2.7` release assets for a first install, never a moving branch.
+- Use the pinned `v0.2.8` release assets for a first install, never a moving branch.
 - Never print OAuth credentials, account IDs, authorization callbacks, or the
   credential store.
 - Do not start, stop, or restart DSH without explicit permission.
@@ -51,7 +51,7 @@ the user which installation is the target.
 Download the fixed release asset to a visible file, then invoke the requested action:
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.7/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
 ```
 
@@ -59,7 +59,7 @@ If `curl.exe` is unavailable, download the same pinned asset without executing
 remote text in memory:
 
 ```powershell
-Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.7/dsh-codex.ps1' -OutFile "$env:TEMP\dsh-codex.ps1"
+Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex.ps1' -OutFile "$env:TEMP\dsh-codex.ps1"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
 ```
 
@@ -93,7 +93,7 @@ When `dsh`, Node.js, and pnpm are already available, install the fixed package
 asset directly:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.7/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz
 ```
 
 Update by running the same `add` command again. When migrating from v0.2.1 by
@@ -124,7 +124,7 @@ Success requires:
 
 Do not treat `dsh plugin --profile web peers check` as the completion test.
 If the user authorizes a live check, restart DSH manually, open
-**Settings -> Codex subscription**, and verify the page loads. Confirm that Web
+**Settings -> Codex**, and verify the page loads. Confirm that Web
 search offers both **DSH default** and **Codex subscription**, and that the Beta
 composer quota switch starts off. Weekly-only usage is valid; Spark remains a
 separate bucket. Do not run a quota-consuming model turn unless the user

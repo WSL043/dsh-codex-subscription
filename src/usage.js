@@ -162,7 +162,7 @@ export function createCodexUsageReader(options) {
         'chatgpt-account-id': accountId,
         accept: 'application/json',
         'cache-control': 'no-store',
-        'user-agent': 'dsh-codex-subscription/0.2.7',
+        'user-agent': 'dsh-codex-subscription/0.2.8',
       },
       signal: requestSignal(signal, timeoutMs),
     })
