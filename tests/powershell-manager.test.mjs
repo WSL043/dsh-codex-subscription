@@ -131,7 +131,7 @@ const command = args[3]
 if (command === 'list') {
   process.stdout.write(JSON.stringify([{ dependencies: packages }]))
 } else if (command === 'add') {
-  packages['dsh-codex-subscription'] = { version: '0.2.5' }
+  packages['dsh-codex-subscription'] = { version: '0.2.6' }
   fs.writeFileSync(stateFile, JSON.stringify(packages))
 } else if (command === 'remove') {
   delete packages[args[4]]
@@ -439,7 +439,7 @@ windowsTest('portable install uses the bundled CLI and portable DSH_HOME', () =>
     assert.deepEqual(plan.arguments, [
       join(expectedRoot, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
       'plugin', '--profile', 'web', 'add',
-      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz',
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.6/dsh-codex-subscription.tgz',
       '--store-dir', join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'),
       '--loglevel', 'error',
     ])
@@ -458,7 +458,7 @@ windowsTest('installed portable mode expands its external state root', () => {
     const plan = dryRun(root, 'Update', { LOCALAPPDATA: localAppData })
     assert.equal(plan.action, 'Update')
     assert.equal(plan.dshHome, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'dsh-home'))
-    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz'), true)
+    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.6/dsh-codex-subscription.tgz'), true)
     assert.equal(plan.packageName, 'dsh-codex-subscription')
     assert.equal(plan.legacyPackageName, '@wsl043/dsh-codex-subscription')
   } finally {

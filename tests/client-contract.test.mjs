@@ -17,6 +17,40 @@ test('client is one removable DSH settings section, not a second application she
   assert.doesNotMatch(source, /createRoot|ReactDOM|index\.html|localStorage|sessionStorage|accessToken|refreshToken/)
 })
 
+test('sidebar quota uses the public DSH footer slot and host-backed preference', async () => {
+  const [client, host, contract] = await Promise.all([
+    text('src/client.jsx'), text('src/index.js'), text('src/settings-contract.js'),
+  ])
+  assert.match(client, /slots\.inject\(['"]sidebar\.footer\.action['"]/u)
+  assert.match(client, /name:\s*['"]sidebar\.footer\.action['"]/u)
+  assert.match(client, /id:\s*['"]codex-subscription-quota['"]/u)
+  assert.match(client, /preferences\/status/u)
+  assert.match(client, /preferences\/update/u)
+  assert.match(client, /SIDEBAR_QUOTA_FIELD/u)
+  assert.match(client, /role=['"]switch['"]/u)
+  assert.match(client, /aria-checked=/u)
+  assert.match(client, /role=['"]status['"]/u)
+  assert.match(client, /preferenceSnapshot\.status === ['"]ready['"] && preferenceSnapshot\.visible/u)
+  assert.doesNotMatch(client, /onPointerDown|onMouseDown|onContextMenu/u)
+  assert.doesNotMatch(client, /localStorage|sessionStorage/u)
+  assert.match(host, /export const inject = \[[^\]]*['"]settings['"]/u)
+  assert.match(host, /ctx\.settings\.register/u)
+  assert.match(host, /settings\.update/u)
+  assert.match(host, /SIDEBAR_QUOTA_FIELD/u)
+  assert.match(contract, /sidebarQuotaVisible/u)
+})
+
+test('sidebar quota is neutral and the detailed quota card is compact', async () => {
+  const source = await text('src/client.jsx')
+  const sidebarRule = source.match(/\.codexSidebarQuota\{[^}]+\}/u)?.[0]
+  assert.ok(sidebarRule, 'missing sidebar quota base rule')
+  assert.match(sidebarRule, /var\(--dsw-alias-label-/u)
+  assert.doesNotMatch(sidebarRule, /brand|success|error|#[0-9a-f]{3,8}|rgb\(/iu)
+  assert.match(source, /\.codexSubscriptionUsageCard\{[^}]*padding:\s*12px 14px[^}]*gap:\s*9px/u)
+  assert.match(source, /\.codexSubscriptionLimit\{[^}]*padding:\s*9px 12px[^}]*gap:\s*6px/u)
+  assert.match(source, /\.codexSubscriptionLimit progress\{[^}]*height:\s*4px/u)
+})
+
 test('quota is the primary surface with reset, freshness, loading, and empty-state semantics', async () => {
   const source = await text('src/client.jsx')
   for (const token of ['resetsAt', 'fetchedAt', 'usageLoading', 'usageEmpty', 'usageUpdated', 'resetCredits']) {

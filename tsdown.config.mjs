@@ -6,6 +6,8 @@ const hostExternal = [
   '@deepseek-ai/dsh-credentials',
   '@deepseek-ai/dsh-llm',
   '@deepseek-ai/dsh-llm-pi-ai',
+  '@deepseek-ai/dsh-settings',
+  '@deepseek-ai/schemastery',
   '@earendil-works/pi-ai',
   '@earendil-works/pi-ai/api/openai-codex-responses',
   '@earendil-works/pi-ai/providers/openai-codex',
