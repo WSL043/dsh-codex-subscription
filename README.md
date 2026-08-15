@@ -24,11 +24,28 @@ _截图使用示例额度，不含真实账户或凭据信息。_
 
 ## 安装
 
-要求：Node.js `^22.19.0` 或 `>=24.0.0`、DeepSeek Harness `0.1.0-rc.6`，
-以及当前具有 Codex 使用资格的 ChatGPT 账户。
+要求：DeepSeek Harness `0.1.0-rc.6`，以及当前具有 Codex 使用资格的 ChatGPT
+账户。
+
+### Windows（推荐）
+
+把下面整行复制到 PowerShell。普通安装版和 DSH-Portable 都可以使用；便携版不需要
+另外安装 Node.js、pnpm，也不需要配置系统 PATH。
+
+```powershell
+& ([scriptblock]::Create((irm 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'))) -Action Install
+```
+
+脚本会自动寻找正在运行或位于常用目录的 DSH-Portable，并把插件写入它自己的数据
+目录。如果便携文件夹改过名字或位置，先启动一次 DSH-Portable，再执行上面的命令。
+安装完成后，手动关闭并重新打开 DSH，让新插件生效；脚本不会擅自重启程序。
+
+### 已有 `dsh` 命令
+
+macOS、Linux，或已经安装 Node.js、pnpm 并能直接运行 `dsh` 的用户，可以使用：
 
 ```sh
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz
 ```
 
 安装后检查：
@@ -38,7 +55,8 @@ dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-配置中应只出现一个 `wsl043-codex-subscription` 条目。随后打开
+Windows 脚本已经自动执行这两项检查。配置中应只出现一个
+`wsl043-codex-subscription` 条目。随后打开
 **设置 -> Codex 订阅** 完成登录，再从 DSH 的模型选择器选择 Codex 模型。
 
 ## 让 Agent 操作
@@ -60,19 +78,32 @@ https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
 
 ## 更新
 
-升级固定标签安装的插件时，使用新版本标签重新执行 `add`；它会更新现有插件，
-不会安装第二份。更新到 `v0.2.1`：
+Windows：
+
+```powershell
+& ([scriptblock]::Create((irm 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'))) -Action Update
+```
+
+已有 `dsh` 命令：
 
 ```sh
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz
 dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-更新会保留现有 DSH profile 和已保存的 OAuth 凭据。不要使用 `main` 等移动分支
-代替正式版本。
+两种方式都会更新现有条目，不会安装第二份，并保留 DSH profile 和 OAuth 凭据。
+如果 DSH 正在运行，更新后手动重启它。
 
 ## 卸载
+
+Windows：
+
+```powershell
+& ([scriptblock]::Create((irm 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'))) -Action Uninstall
+```
+
+已有 `dsh` 命令：
 
 ```sh
 dsh plugin --profile web remove @wsl043/dsh-codex-subscription

@@ -24,11 +24,29 @@ _The screenshot uses sample quota values and contains no real account data or cr
 
 ## Install
 
-Requirements: Node.js `^22.19.0` or `>=24.0.0`, DeepSeek Harness `0.1.0-rc.6`,
-and a ChatGPT account that currently has Codex access.
+Requirements: DeepSeek Harness `0.1.0-rc.6` and a ChatGPT account that currently
+has Codex access.
+
+### Windows (recommended)
+
+Paste this complete line into PowerShell. It supports both a normal DSH install
+and DSH-Portable. Portable users do not need a system Node.js, pnpm, or PATH setup.
+
+```powershell
+& ([scriptblock]::Create((irm 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'))) -Action Install
+```
+
+The helper finds a running or commonly located DSH-Portable folder and writes to
+its own data directory. If the portable folder was renamed or moved elsewhere,
+start DSH-Portable once and run the command again. Restart DSH manually after the
+install; the helper never restarts it on its own.
+
+### Existing `dsh` command
+
+On macOS, Linux, or a system where Node.js, pnpm, and `dsh` are already available:
 
 ```sh
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz
 ```
 
 Verify the installation:
@@ -38,7 +56,8 @@ dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-The config should contain one `wsl043-codex-subscription` entry. Then open
+The Windows helper runs both checks automatically. The config should contain one
+`wsl043-codex-subscription` entry. Then open
 **Settings -> Codex subscription**, sign in, and choose a Codex model in DSH.
 
 ## Let an Agent handle it
@@ -61,20 +80,32 @@ You can also open [AGENTS.md](AGENTS.md) directly.
 
 ## Update
 
-For an installation pinned to a release tag, run `add` again with the new tag.
-It updates the existing plugin instead of installing a second copy. To update to
-`v0.2.1`:
+Windows:
+
+```powershell
+& ([scriptblock]::Create((irm 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'))) -Action Update
+```
+
+With an existing `dsh` command:
 
 ```sh
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz
 dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-The DSH profile and stored OAuth credential are preserved. Do not use a moving
-branch such as `main` as a release.
+Both methods update the existing entry, preserve the DSH profile and stored OAuth
+credential, and do not install a second copy. Restart DSH manually if it is running.
 
 ## Uninstall
+
+Windows:
+
+```powershell
+& ([scriptblock]::Create((irm 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'))) -Action Uninstall
+```
+
+With an existing `dsh` command:
 
 ```sh
 dsh plugin --profile web remove @wsl043/dsh-codex-subscription
