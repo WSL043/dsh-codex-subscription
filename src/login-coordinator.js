@@ -47,6 +47,7 @@ export class CodexLoginCoordinator {
     if (active !== undefined && !TERMINAL_PHASES.has(active.view.phase)) {
       throw new Error('a Codex login is already active')
     }
+    if (active !== undefined) this.#sessions.delete(active.view.id)
 
     const id = this.createId()
     const ready = deferred()

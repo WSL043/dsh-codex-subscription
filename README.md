@@ -20,6 +20,7 @@ _截图使用示例额度，不含真实账户或凭据信息。_
 - 单独展示账户返回的 Codex-Spark 等独立额度；
 - 当前只有每周额度时不虚构 5 小时窗口，以后服务端恢复时自动显示；
 - Credits 余额和月度消费上限仅在账户或工作区真实返回时显示；
+- 可用额度重置次数仅在服务端返回时显示，不会自动兑换；
 - 订阅路由不可用时明确报错，不会静默切换到 OpenAI API 或其他付费路由。
 
 ## 安装
@@ -29,12 +30,16 @@ _截图使用示例额度，不含真实账户或凭据信息。_
 
 ### Windows（推荐）
 
-把下面整行复制到 PowerShell。普通安装版和 DSH-Portable 都可以使用；便携版不需要
+依次运行下面三行。普通安装版和 DSH-Portable 都可以使用；便携版不需要
 另外安装 Node.js、pnpm，也不需要配置系统 PATH。
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'))) -Action Install
+$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
+Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1' -OutFile $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Install
 ```
+
+`Bypass` 只用于这一次子进程，不会修改系统的 PowerShell 执行策略。
 
 脚本会自动寻找正在运行或位于常用目录的 DSH-Portable，并把插件写入它自己的数据
 目录。如果便携文件夹改过名字或位置，先启动一次 DSH-Portable，再执行上面的命令。
@@ -45,18 +50,18 @@ _截图使用示例额度，不含真实账户或凭据信息。_
 macOS、Linux，或已经安装 Node.js、pnpm 并能直接运行 `dsh` 的用户，可以使用：
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-0.2.2.tgz
 ```
 
 安装后检查：
 
 ```sh
-dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
+dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
 Windows 脚本已经自动执行这两项检查。配置中应只出现一个
-`wsl043-codex-subscription` 条目。随后打开
+`codex-subscription` 条目。随后打开
 **设置 -> Codex 订阅** 完成登录，再从 DSH 的模型选择器选择 Codex 模型。
 
 ## 让 Agent 操作
@@ -81,18 +86,27 @@ https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
 Windows：
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'))) -Action Update
+$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
+Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1' -OutFile $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Update
 ```
 
 已有 `dsh` 命令：
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz
-dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-0.2.2.tgz
+dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-两种方式都会更新现有条目，不会安装第二份，并保留 DSH profile 和 OAuth 凭据。
+Windows 脚本会自动清理 v0.2.1 的旧包名并迁移登录凭据，不会留下第二份插件。
+如果从 v0.2.1 使用 `dsh` 命令手动更新，在上面的 `add` 成功后再运行：
+
+```sh
+dsh plugin --profile web remove @wsl043/dsh-codex-subscription
+```
+
+两种方式都会保留 DSH profile 和 OAuth 凭据。
 如果 DSH 正在运行，更新后手动重启它。
 
 ## 卸载
@@ -100,13 +114,15 @@ dsh --profile web --dump-config
 Windows：
 
 ```powershell
-& ([scriptblock]::Create((irm 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'))) -Action Uninstall
+$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
+Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex.ps1' -OutFile $installer
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Uninstall
 ```
 
 已有 `dsh` 命令：
 
 ```sh
-dsh plugin --profile web remove @wsl043/dsh-codex-subscription
+dsh plugin --profile web remove dsh-codex-subscription
 ```
 
 移除包不会删除 DSH profile 或其他插件。只有同时希望删除已保存的 OAuth 凭据时，

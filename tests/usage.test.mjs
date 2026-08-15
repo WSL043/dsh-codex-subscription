@@ -42,6 +42,7 @@ test('usage parser returns secret-free remaining quota windows and exact disclos
         reset_at: 1_802_592_000,
       },
     },
+    rate_limit_reset_credits: { available_count: 2 },
     access_token: 'must-not-leak',
   })
   assert.deepEqual(parsed.rateLimits[0].windows, [
@@ -67,7 +68,21 @@ test('usage parser returns secret-free remaining quota windows and exact disclos
     resetsAt: 1_802_592_000,
   })
   assert.equal(parsed.spendControlReached, false)
+  assert.deepEqual(parsed.resetCredits, { availableCount: 2 })
   assert.doesNotMatch(JSON.stringify(parsed), /must-not-leak|access_token/)
+})
+
+test('usage parser preserves the legacy standalone code-review bucket', () => {
+  const parsed = parseCodexUsage({
+    code_review_rate_limit: {
+      primary_window: { used_percent: 20, limit_window_seconds: 604_800 },
+    },
+  })
+  assert.deepEqual(parsed.rateLimits, [{
+    id: 'code_review',
+    name: 'Code review',
+    windows: [{ usedPercent: 20, remainingPercent: 80, windowSeconds: 604_800 }],
+  }])
 })
 
 test('usage parser keeps current weekly-only Codex and Spark buckets without inventing a short window', () => {
@@ -132,6 +147,7 @@ test('usage parser fails closed on malformed provider values', () => {
   assert.throws(() => parseCodexUsage({ additional_rate_limits: {} }), /additional/i)
   assert.throws(() => parseCodexUsage({ credits: { has_credits: true, unlimited: false, balance: 'NaN' } }), /balance/i)
   assert.throws(() => parseCodexUsage({ spend_control: { reached: 'yes' } }), /spend-control/i)
+  assert.throws(() => parseCodexUsage({ rate_limit_reset_credits: { available_count: -1 } }), /reset credit/i)
 })
 
 test('usage reader is single-flight, short cached, and never exposes bearer or account id', async () => {

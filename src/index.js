@@ -11,12 +11,13 @@ import {
 } from './pi-ai-runtime.js'
 import { createCodexUsageReader } from './usage.js'
 
-export const name = 'wsl043-codex-subscription'
+export const name = 'codex-subscription'
 export const inject = ['llm', 'credentials', 'connection']
 
 const PROVIDER = 'openai-codex'
-const CREDENTIAL_REF = credentialRef('WSL043_OPENAI_CODEX_OAUTH')
-const CHANNEL = '/wsl043-codex-subscription'
+const CREDENTIAL_REF = credentialRef('OPENAI_CODEX_SUBSCRIPTION_OAUTH')
+const LEGACY_CREDENTIAL_REF = credentialRef('WSL043_OPENAI_CODEX_OAUTH')
+const CHANNEL = '/codex-subscription'
 
 const publicError = (code, message) => ({
   ok: false,
@@ -38,7 +39,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader }) {
         const message = error instanceof Error && known.has(error.message)
           ? error.message
           : 'Could not read ChatGPT usage'
-        return publicError('usage-unavailable', message)
+        return publicError('internal', message)
       }
     }
     const result = await authHandler(endpoint, payload, signal)
@@ -48,7 +49,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader }) {
 }
 
 export function apply(ctx) {
-  const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF)
+  const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF])
   const provider = openaiCodexSubscriptionProvider()
   const authModels = createModels({ credentials: store })
   authModels.setProvider(provider)
@@ -61,7 +62,9 @@ export function apply(ctx) {
     // pi-ai owns prompt_cache_key and encrypted reasoning replay. The explicit
     // profile values make the subscription cache contract auditable.
     cacheRetention: 'short',
-    transport: 'auto',
+    // DSH rc.6 resolves pi-ai 0.82.x, whose cached WebSocket pool is keyed by
+    // session only. SSE avoids cross-account connection reuse after sign-out.
+    transport: 'sse',
   })
   const profiles = new Map([[PROVIDER, profile]])
   const resolveAuth = () => authModels.getAuth(PROVIDER)
@@ -96,7 +99,7 @@ export function apply(ctx) {
 
   ctx.effect(
     () => ctx.connection.rpc.handle(CHANNEL, handler, { authority: 'loopback' }),
-    'wsl043-codex-subscription: loopback account RPC',
+    'codex-subscription: loopback account RPC',
   )
 }
 

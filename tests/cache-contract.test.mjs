@@ -2,10 +2,10 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-test('Codex profile explicitly enables stable session cache routing and websocket continuation', async () => {
+test('Codex profile keeps prompt caching but avoids credential-unsafe cached WebSockets', async () => {
   const source = await readFile(new URL('../src/index.js', import.meta.url), 'utf8')
   assert.match(source, /cacheRetention:\s*['"]short['"]/)
-  assert.match(source, /transport:\s*['"]auto['"]/)
+  assert.match(source, /transport:\s*['"]sse['"]/)
   assert.match(source, /prompt_cache_key|pi-ai owns prompt_cache_key/)
   assert.doesNotMatch(source, /providerRetryPolicy\s*\(/, 'inherit DSH/pi-ai retry policy instead of adding a no-op override')
 })
@@ -17,6 +17,6 @@ test('bundle is additive and never changes the default model or installs paid fa
   assert.doesNotMatch(rows, /boundary/)
   assert.deepEqual(
     [...rows.matchAll(/^\s+name:\s+'([^']+)'$/gmu)].map(match => match[1]),
-    ['@wsl043/dsh-codex-subscription'],
+    ['dsh-codex-subscription'],
   )
 })
