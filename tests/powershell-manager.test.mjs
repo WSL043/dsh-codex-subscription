@@ -103,7 +103,7 @@ windowsTest('portable install uses the bundled CLI and portable DSH_HOME', () =>
     assert.deepEqual(plan.arguments, [
       join(expectedRoot, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
       'plugin', '--profile', 'web', 'add',
-      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-v0.2.2.tgz',
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex-subscription.tgz',
       '--store-dir', join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'),
       '--loglevel', 'error',
     ])
@@ -122,7 +122,7 @@ windowsTest('installed portable mode expands its external state root', () => {
     const plan = dryRun(root, 'Update', { LOCALAPPDATA: localAppData })
     assert.equal(plan.action, 'Update')
     assert.equal(plan.dshHome, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'dsh-home'))
-    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-v0.2.2.tgz'), true)
+    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex-subscription.tgz'), true)
     assert.equal(plan.packageName, 'dsh-codex-subscription')
     assert.equal(plan.legacyPackageName, '@wsl043/dsh-codex-subscription')
   } finally {
