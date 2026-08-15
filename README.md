@@ -5,16 +5,18 @@
 
 [English](README.en.md)
 
-在 DeepSeek Harness 中直接使用 ChatGPT / Codex 订阅：保留 DSH 原有的会话、
-工具和权限，还能选择联网搜索来源并查看 Codex 额度。
+在 DeepSeek Harness 中直接登录 ChatGPT 并使用 Codex 订阅，不需要 OpenAI API Key，
+也不依赖 Codex CLI。保留 DSH 原有的会话、工具和权限，还能切换联网搜索来源并查看额度。
+
+[交给 Agent 安装](#交给-agent推荐) · [Windows 手动安装](#windows-手动安装) · [更新与卸载](#更新与卸载)
 
 ![DeepSeek Harness 的 Codex 订阅设置](docs/assets/settings.png)
 
-_截图来自隔离预览环境，不含真实账户、额度或凭据信息。_
+设置页会显示登录状态、搜索来源，以及服务端实际返回的普通 Codex 与 Spark 独立额度。
 
 ## 能做什么
 
-- 在 DSH 中直接使用 ChatGPT / Codex 订阅，不需要另开 Codex CLI；
+- 在 DSH 中直接使用 ChatGPT / Codex 订阅，不需要 OpenAI API Key 或 Codex CLI；
 - 在设置页登录 ChatGPT，凭据保留在本机；
 - 可在 DSH 默认搜索与 Codex 订阅搜索之间切换；
 - 展示服务端实际返回的额度、重置时间和更新时间；

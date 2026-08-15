@@ -5,16 +5,20 @@
 
 [简体中文](README.md)
 
-Use a ChatGPT / Codex subscription directly in DeepSeek Harness while keeping
-DSH conversations, tools, permissions, search choice, and quota status in one place.
+Sign in to ChatGPT and use a Codex subscription directly in DeepSeek Harness.
+No OpenAI API key or Codex CLI installation is required. DSH conversations,
+tools, permissions, search choice, and quota stay in one place.
+
+[Agent install](#let-an-agent-install-it-recommended) · [Windows install](#manual-windows-install) · [Update or uninstall](#update-and-uninstall)
 
 ![Codex subscription settings in DeepSeek Harness](docs/assets/settings-en.png)
 
-_Captured in an isolated preview with no real account, quota, or credential data._
+Settings shows sign-in, search source, and the separate standard Codex and Spark
+quota returned by the service.
 
 ## What it does
 
-- Uses your ChatGPT / Codex subscription directly inside DSH, without opening Codex CLI;
+- Uses your ChatGPT / Codex subscription directly inside DSH, with no OpenAI API key or Codex CLI required;
 - Signs in to ChatGPT from Settings and keeps credentials on the host;
 - Switches between DSH's default search and Codex subscription search;
 - Shows the quota, reset time, and freshness actually returned by the backend;

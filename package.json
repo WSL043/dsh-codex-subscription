@@ -2,7 +2,7 @@
   "name": "dsh-codex-subscription",
   "version": "0.2.8",
   "packageManager": "pnpm@11.19.0",
-  "description": "Native ChatGPT and Codex subscription route with quota for DeepSeek Harness",
+  "description": "ChatGPT and Codex subscriptions for DeepSeek Harness with OAuth login, quota, and subscription web search",
   "type": "module",
   "main": "./lib/index.js",
   "exports": {
@@ -46,12 +46,18 @@
   },
   "keywords": [
     "dsh-plugin",
+    "deepseek",
     "deepseek-harness",
+    "dsh",
     "openai-codex",
+    "codex-cli",
     "chatgpt",
+    "chatgpt-plus",
+    "subscription",
     "quota",
     "usage",
-    "oauth"
+    "oauth",
+    "web-search"
   ],
   "author": "WSL043",
   "license": "MIT",
