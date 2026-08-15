@@ -8,7 +8,7 @@
 Use a ChatGPT / Codex subscription directly in DeepSeek Harness while keeping
 DSH conversations, tools, permissions, and quota status in one place.
 
-![Codex subscription settings inside DeepSeek Harness](docs/assets/settings.png)
+![Codex remaining quota in the DeepSeek Harness sidebar](docs/assets/sidebar-en.png)
 
 _The screenshot uses sample quota values and contains no real account data or credentials._
 
@@ -17,6 +17,8 @@ _The screenshot uses sample quota values and contains no real account data or cr
 - Uses your ChatGPT / Codex subscription directly inside DSH, without opening Codex CLI;
 - Signs in to ChatGPT from Settings and keeps credentials on the host;
 - Shows the quota, reset time, and freshness actually returned by the backend;
+- Shows standard Codex quota at the bottom of the DSH sidebar, including its collapsed state;
+- Lets you turn the sidebar quota on or off under **Settings -> Codex subscription**;
 - Keeps Codex-Spark, Credits, and other independent limits separate;
 - Fails visibly when subscription routing is unavailable instead of silently using another paid route.
 
@@ -70,7 +72,7 @@ once and install again. Restart DSH manually after installation.
 <summary>macOS, Linux, or an existing <code>dsh</code> command</summary>
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.6/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
@@ -88,11 +90,14 @@ contain one `codex-subscription` entry.
 
 ## How quota is shown
 
+- The sidebar uses the lowest remaining standard Codex window, avoiding an overly optimistic number;
 - Only windows actually returned by the backend are shown; there is no hard-coded “5-hour + weekly” layout;
 - If the account currently reports only weekly usage, no 5-hour window is invented; it appears automatically if the backend restores it;
 - Independent Codex-Spark limits are not merged into standard Codex quota;
 - Credits and monthly spending caps appear only when the account or workspace actually returns them;
 - Percentages describe usage status, not billing amounts or billing guarantees.
+
+![Codex subscription settings, sidebar toggle, and compact quota cards](docs/assets/settings-en.png)
 
 ## Update and uninstall
 
@@ -114,7 +119,7 @@ the two Windows first-install commands above once.
 Update and verify:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.6/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```

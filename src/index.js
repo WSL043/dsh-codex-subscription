@@ -1,6 +1,8 @@
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
+import { settingsNamespace } from '@deepseek-ai/dsh-settings'
+import z from '@deepseek-ai/schemastery'
 
 import { createCodexAuthService, DshOAuthCredentialStore } from './credential-store.js'
 import { openCodexAuthUrl } from './external-url.js'
@@ -9,10 +11,15 @@ import {
   createModels,
   openaiCodexSubscriptionProvider,
 } from './pi-ai-runtime.js'
+import {
+  DEFAULT_SIDEBAR_QUOTA_VISIBLE,
+  SETTINGS_NAMESPACE,
+  SIDEBAR_QUOTA_FIELD,
+} from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 
 export const name = 'codex-subscription'
-export const inject = ['llm', 'credentials', 'connection']
+export const inject = ['llm', 'credentials', 'connection', 'settings']
 
 const PROVIDER = 'openai-codex'
 const CREDENTIAL_REF = credentialRef('OPENAI_CODEX_SUBSCRIPTION_OAUTH')
@@ -24,8 +31,23 @@ const publicError = (code, message) => ({
   error: { code, message, details: { issues: [] } },
 })
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, preferences }) {
   return async (endpoint, payload, signal) => {
+    if (endpoint === 'preferences/status' || endpoint === 'preferences/update') {
+      try {
+        signal.throwIfAborted()
+        if (endpoint === 'preferences/update') {
+          if (typeof payload?.sidebarQuotaVisible !== 'boolean') {
+            return publicError('internal', 'Invalid sidebar quota preference')
+          }
+          await preferences.update(payload.sidebarQuotaVisible)
+        }
+        return { ok: true, value: preferences.status() }
+      } catch (error) {
+        if (signal.aborted) throw error
+        return publicError('internal', 'Could not update sidebar quota preference')
+      }
+    }
     if (endpoint === 'usage') {
       try {
         signal.throwIfAborted()
@@ -49,6 +71,20 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader }) {
 }
 
 export function apply(ctx) {
+  const settings = ctx.settings.register(settingsNamespace(SETTINGS_NAMESPACE), z.object({
+    [SIDEBAR_QUOTA_FIELD]: z.boolean().default(DEFAULT_SIDEBAR_QUOTA_VISIBLE),
+  }))
+  // DSH rc.6 exposes only a fixed allowlist of settings namespaces through
+  // its generic browser API. Keep storage in ctx.settings, and carry this
+  // plugin-owned preference over the existing loopback-only plugin channel.
+  const preferences = {
+    status: () => ({
+      [SIDEBAR_QUOTA_FIELD]: settings.get()[SIDEBAR_QUOTA_FIELD],
+      writable: ctx.settings.writable,
+    }),
+    update: visible => settings.update({ [SIDEBAR_QUOTA_FIELD]: visible }),
+  }
+
   const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF])
   const provider = openaiCodexSubscriptionProvider()
   const authModels = createModels({ credentials: store })
@@ -95,6 +131,7 @@ export function apply(ctx) {
   const handler = createSubscriptionRpcHandler({
     authHandler: createCodexRpcHandler(coordinator, { openExternal: openCodexAuthUrl }),
     usageReader,
+    preferences,
   })
 
   ctx.effect(

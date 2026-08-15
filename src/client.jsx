@@ -1,10 +1,17 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  DEFAULT_SIDEBAR_QUOTA_VISIBLE,
+  SIDEBAR_QUOTA_FIELD,
+} from './settings-contract.js'
+import { selectSidebarQuota } from './sidebar-quota.js'
 
 export const inject = ['slots', 'locale', 'connection']
 
 const NS = 'settings.codexSubscription'
 const CHANNEL = '/codex-subscription'
+const SIDEBAR_REFRESH_EVENT = 'dsh-codex-subscription:refresh-sidebar-quota'
+const SIDEBAR_REFRESH_MS = 60_000
 
 const zh = {
   nav: 'Codex 订阅',
@@ -28,6 +35,7 @@ const zh = {
   resetCredits: '可用额度重置次数', resetCreditsValue: '{count} 次',
   creditsNote: '仅显示 Codex 为此账户或工作区实际返回的额外 Credits、消费上限或额度重置次数；三者不是同一项。',
   creditsUsed: '已用 {used} / {limit} credits', spendReached: 'Credits 月度消费上限已用尽。', unavailable: '暂无数据',
+  sidebarQuotaSetting: '在侧边栏显示额度', sidebarQuotaStatus: 'Codex 剩余额度 {value}%',
 }
 
 const en = {
@@ -52,6 +60,7 @@ const en = {
   resetCredits: 'Available quota resets', resetCreditsValue: '{count} available',
   creditsNote: 'Shows only extra Credits, spending caps, or quota resets returned for this account or workspace; these are separate items.',
   creditsUsed: '{used} / {limit} credits used', spendReached: 'The monthly Credits spending cap has been reached.', unavailable: 'No data yet',
+  sidebarQuotaSetting: 'Show quota in sidebar', sidebarQuotaStatus: 'Codex quota: {value}% remaining',
 }
 
 const STYLE = `
@@ -61,6 +70,8 @@ const STYLE = `
 .codexSubscriptionTag{border:1px solid var(--dsw-alias-border-l3);border-radius:4px;padding:1px 6px;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}
 .codexSubscriptionIntro,.codexSubscriptionNote{font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionIntro{margin-top:4px!important}
 .codexSubscriptionCard{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-1);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.codexSubscriptionUsageCard{padding:12px 14px;gap:9px}.codexSubscriptionPreference{min-height:40px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:2px 4px;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.codexSubscriptionSwitch{position:relative;flex:0 0 auto;width:32px;height:18px;padding:0;border:1px solid var(--dsw-alias-border-l3);border-radius:999px;background:var(--dsw-alias-bg-module-platform);cursor:pointer}.codexSubscriptionSwitch:disabled{cursor:not-allowed;opacity:.5}.codexSubscriptionSwitch[aria-checked=true]{background:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-label-secondary)}.codexSubscriptionSwitchKnob{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--dsw-alias-bg-layer-1);transition:transform 120ms var(--ds-ease-in-out)}.codexSubscriptionSwitch[aria-checked=true] .codexSubscriptionSwitchKnob{transform:translateX(14px)}
 .codexSubscriptionAccountRow,.codexSubscriptionSectionHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.codexSubscriptionStatus{display:flex;align-items:center;gap:8px;font-size:14px;line-height:22px;font-weight:500}
 .codexSubscriptionDot{width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-label-dimmed)}.codexSubscriptionDot[data-state=connected]{background:var(--dsw-alias-state-success-primary)}.codexSubscriptionDot[data-state=disconnected]{background:var(--dsw-alias-state-error-primary)}
 .codexSubscriptionActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.codexSubscriptionFlow{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
@@ -69,15 +80,16 @@ const STYLE = `
 .codexSubscriptionSectionTitle{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.codexSubscriptionFreshness{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionRefresh{flex:0 0 auto;min-width:72px;width:max-content;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;writing-mode:horizontal-tb!important}.codexSubscriptionRefresh *{white-space:nowrap!important;word-break:keep-all!important;writing-mode:horizontal-tb!important}
 .codexSubscriptionEmpty{padding:18px;border:1px dashed var(--dsw-alias-border-l3);border-radius:10px;text-align:center;font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}
-.codexSubscriptionLimits{display:flex;flex-direction:column;gap:12px}.codexSubscriptionLimitGroup{display:flex;flex-direction:column;gap:8px}.codexSubscriptionLimitName{font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary)}
-.codexSubscriptionQuotaGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}.codexSubscriptionLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform);display:flex;flex-direction:column;gap:8px}
-.codexSubscriptionLimitTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionLimitLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionLimit strong{font:600 22px/28px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}
-.codexSubscriptionLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}
+.codexSubscriptionLimits{display:flex;flex-direction:column;gap:8px}.codexSubscriptionLimitGroup{display:flex;flex-direction:column;gap:6px}.codexSubscriptionLimitName{font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionQuotaGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:6px}.codexSubscriptionLimit{min-width:0;border-radius:10px;padding:9px 12px;background:var(--dsw-alias-bg-module-platform);display:flex;flex-direction:column;gap:6px}
+.codexSubscriptionLimitTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionLimitLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionLimit strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}
+.codexSubscriptionLimit progress{width:100%;height:4px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}
 .codexSubscriptionLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionLimitMeta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionCreditSection{display:flex;flex-direction:column;gap:7px}.codexSubscriptionCreditNote{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionCreditRows{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.codexSubscriptionCreditBalance,.codexSubscriptionSpendLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionCreditBalance{display:flex;flex-direction:column;gap:6px}.codexSubscriptionCreditBalance span,.codexSubscriptionCreditLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .codexSubscriptionSpendLimit{display:flex;flex-direction:column;gap:8px}.codexSubscriptionSpendTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionSpendTop strong{font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.codexSubscriptionSpendLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}.codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexSubscriptionRoutePolicy{display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2);font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionRoutePolicy span{flex:0 0 auto;font-weight:500;color:var(--dsw-alias-label-secondary)}
+.codexSidebarQuota{width:100%;height:34px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;border-radius:12px;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;overflow:hidden;user-select:none}.codexSidebarQuotaLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-secondary)}.codexSidebarQuotaValue{flex:0 0 auto;font:600 12px/18px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.codexSidebarQuotaRail{width:36px;height:36px;padding:0;justify-content:center;border-radius:50%}.codexSidebarQuotaRailValue{display:flex;align-items:baseline;justify-content:center;letter-spacing:-.03em;font:600 10px/12px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.codexSidebarQuotaRailValue small{font:500 7px/9px ui-monospace,SFMono-Regular,Consolas,monospace}
 @container (max-width:560px){.codexSubscriptionCreditRows{grid-template-columns:1fr}}
 @container (max-width:480px){.codexSubscriptionAccountRow,.codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column}.codexSubscriptionActions{width:100%}}
 @media(max-width:640px){.codexSubscriptionCard{padding:14px}}
@@ -106,6 +118,127 @@ const validDate = value => {
   return Number.isFinite(date.getTime()) ? date : undefined
 }
 
+function createPreferenceController(rpc) {
+  let snapshot = Object.freeze({
+    status: 'loading', visible: DEFAULT_SIDEBAR_QUOTA_VISIBLE, writable: false,
+  })
+  let generation = 0
+  const listeners = new Set()
+  const publish = next => {
+    snapshot = Object.freeze(next)
+    for (const listener of listeners) listener()
+  }
+  const accept = value => publish({
+    status: 'ready',
+    visible: value?.[SIDEBAR_QUOTA_FIELD] !== false,
+    writable: value?.writable === true,
+  })
+  const load = async () => {
+    const current = ++generation
+    try {
+      const value = unwrap(await rpc.call(CHANNEL, 'preferences/status', {}))
+      if (current === generation) accept(value)
+    } catch {
+      if (current === generation) publish({
+        status: 'unavailable', visible: DEFAULT_SIDEBAR_QUOTA_VISIBLE, writable: false,
+      })
+    }
+  }
+  const set = async visible => {
+    if (snapshot.status !== 'ready' || snapshot.writable !== true) return
+    const current = ++generation
+    publish({ status: 'updating', visible, writable: false })
+    try {
+      const value = unwrap(await rpc.call(CHANNEL, 'preferences/update', {
+        [SIDEBAR_QUOTA_FIELD]: visible,
+      }))
+      if (current === generation) accept(value)
+    } catch {
+      if (current === generation) await load()
+    }
+  }
+  return {
+    getSnapshot: () => snapshot,
+    subscribe: listener => {
+      listeners.add(listener)
+      return () => listeners.delete(listener)
+    },
+    load,
+    set,
+  }
+}
+
+const usePreferenceSnapshot = preference => useSyncExternalStore(
+  preference.subscribe,
+  preference.getSnapshot,
+)
+
+const notifySidebarQuota = () => window.dispatchEvent(new Event(SIDEBAR_REFRESH_EVENT))
+
+function useSidebarQuota(rpc, enabled) {
+  const [quota, setQuota] = useState()
+  useEffect(() => {
+    if (!enabled) {
+      setQuota(undefined)
+      return undefined
+    }
+    let live = true
+    let loading = false
+    const load = async () => {
+      if (loading) return
+      loading = true
+      try {
+        const account = unwrap(await rpc.call(CHANNEL, 'status', {}))
+        if (!live) return
+        if (account?.authenticated !== true) {
+          setQuota(undefined)
+          return
+        }
+        const usage = unwrap(await rpc.call(CHANNEL, 'usage', { force: false }))
+        if (live) setQuota(selectSidebarQuota(usage))
+      } catch {
+        if (live) setQuota(undefined)
+      } finally {
+        loading = false
+      }
+    }
+    const refresh = () => { void load() }
+    void load()
+    const timer = window.setInterval(refresh, SIDEBAR_REFRESH_MS)
+    window.addEventListener(SIDEBAR_REFRESH_EVENT, refresh)
+    return () => {
+      live = false
+      window.clearInterval(timer)
+      window.removeEventListener(SIDEBAR_REFRESH_EVENT, refresh)
+    }
+  }, [rpc, enabled])
+  return quota
+}
+
+function SidebarQuotaPreference({ preference, t }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  const visible = snapshot.visible
+  const writable = snapshot.status === 'ready' && snapshot.writable === true
+  return <div className="codexSubscriptionPreference">
+    <span>{t('sidebarQuotaSetting')}</span>
+    <button className="codexSubscriptionSwitch" type="button" role="switch" aria-checked={visible} aria-label={t('sidebarQuotaSetting')} disabled={!writable} onClick={() => { void preference.set(!visible) }}>
+      <span className="codexSubscriptionSwitchKnob" aria-hidden="true" />
+    </button>
+  </div>
+}
+
+function CodexSidebarQuota({ preference, rpc, t, wide }) {
+  const preferenceSnapshot = usePreferenceSnapshot(preference)
+  const enabled = preferenceSnapshot.status === 'ready' && preferenceSnapshot.visible
+  const quota = useSidebarQuota(rpc, enabled)
+  if (!enabled || quota === undefined) return null
+  const value = percent(quota.remainingPercent)
+  const label = fill(t('sidebarQuotaStatus'), { value })
+  return <div className={`codexSidebarQuota${wide ? '' : ' codexSidebarQuotaRail'}`} role="status" aria-label={label} title={label}>
+    {wide ? <><span className="codexSidebarQuotaLabel">Codex</span><span className="codexSidebarQuotaValue">{value}%</span></> : <span className="codexSidebarQuotaRailValue">{value}<small>%</small></span>}
+  </div>
+}
+
 function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   const [flow, setFlow] = useState()
   const [manualCode, setManualCode] = useState('')
@@ -118,7 +251,10 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
     const timer = window.setInterval(() => {
       void call('login/status', { id: flow.id }).then(next => {
         setFlow(next)
-        if (next.phase === 'authenticated') void call('status').then(setAccount)
+        if (next.phase === 'authenticated') void call('status').then(account => {
+          setAccount(account)
+          notifySidebarQuota()
+        })
       }).catch(() => setError(t('failed')))
     }, 800)
     return () => window.clearInterval(timer)
@@ -145,7 +281,7 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   const logout = () => {
     setBusy(true); setError(undefined)
     void call('logout').then(next => {
-      setAccount(next); setFlow(undefined); onSignedOut()
+      setAccount(next); setFlow(undefined); onSignedOut(); notifySidebarQuota()
     }).catch(() => setError(t('failed'))).finally(() => setBusy(false))
   }
   const signedIn = account?.authenticated === true
@@ -181,7 +317,12 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
     const id = ++request.current
     setBusy(true); setError(undefined)
     void rpc.call(CHANNEL, 'usage', { force }).then(unwrap)
-      .then(next => { if (request.current === id) setUsage(next) })
+      .then(next => {
+        if (request.current === id) {
+          setUsage(next)
+          if (force) notifySidebarQuota()
+        }
+      })
       .catch(error => { if (request.current === id) setError(error.message) })
       .finally(() => { if (request.current === id) setBusy(false) })
   }
@@ -195,7 +336,7 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
   const hasUsageDetails = limits.length > 0 || visibleUsage?.credits !== undefined
     || visibleUsage?.individualLimit !== undefined || visibleUsage?.resetCredits !== undefined
   const fetchedAt = typeof visibleUsage?.fetchedAt === 'number' ? validDate(visibleUsage.fetchedAt) : undefined
-  return <div className="codexSubscriptionCard">
+  return <div className="codexSubscriptionCard codexSubscriptionUsageCard">
     <div className="codexSubscriptionSectionHead">
       <div className="codexSubscriptionSectionTitle"><h3>{t('usage')}</h3><p className="codexSubscriptionNote">{t('usageIntro')}</p>{fetchedAt === undefined ? null : <time className="codexSubscriptionFreshness" dateTime={fetchedAt.toISOString()}>{fill(t('usageUpdated'), { value: fetchedAt.toLocaleString() })}</time>}</div>
       <Button className="codexSubscriptionRefresh" type="button" variant="outline" disabled={!signedIn || busy} aria-busy={busy} onClick={() => load(true)}>{busy ? t('refreshing') : t('refresh')}</Button>
@@ -230,7 +371,7 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
   </div>
 }
 
-function CodexSection({ rpc, t }) {
+function CodexSection({ preference, rpc, t }) {
   const [account, setAccount] = useState()
   const [error, setError] = useState()
   const [resetKey, setResetKey] = useState(0)
@@ -243,6 +384,7 @@ function CodexSection({ rpc, t }) {
     <div><div className="codexSubscriptionHead"><h2>{t('title')}</h2><span className="codexSubscriptionTag">{t('preview')}</span></div><p className="codexSubscriptionIntro">{t('intro')}</p></div>
     {error === undefined ? null : <p className="codexSubscriptionError" role="alert">{error}</p>}
     <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={() => setResetKey(value => value + 1)} />
+    <SidebarQuotaPreference preference={preference} t={t} />
     <UsageCard rpc={rpc} t={t} signedIn={account?.authenticated === true} resetKey={resetKey} />
   </section>
 }
@@ -257,9 +399,18 @@ export function apply(ctx) {
     return () => tag.remove()
   }, 'codex-subscription: style')
   const connection = ctx.get('connection')
+  const preference = createPreferenceController(connection.rpc)
+  ctx.effect(() => {
+    void preference.load()
+    return ctx.on('connection/reset', () => { void preference.load() })
+  }, 'codex-subscription: sidebar preference')
   const t = ctx.locale.bind(NS)
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'codex-subscription', order: 15,
-    label: () => t('nav'), locale: NS, inject: () => ({ rpc: connection.rpc, t }),
+    label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: connection.rpc, t }),
   }, CodexSection))
+  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
+    name: 'sidebar.footer.action', id: 'codex-subscription-quota', order: 15,
+    locale: NS, inject: () => ({ preference, rpc: connection.rpc, t }),
+  }, CodexSidebarQuota))
 }

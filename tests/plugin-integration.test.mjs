@@ -8,7 +8,9 @@ const { apply: applyPlugin } = plugin
 function fakeContext() {
   const registered = []
   const handled = []
+  const settings = []
   const provided = new Map()
+  let preference = { sidebarQuotaVisible: true }
   let credential
   const ctx = {
     credentials: {
@@ -30,11 +32,22 @@ function fakeContext() {
         },
       },
     },
+    settings: {
+      writable: true,
+      register(namespace, schema) {
+        settings.push({ namespace, schema })
+        return {
+          get: () => preference,
+          async update(patch) { preference = { ...preference, ...patch } },
+        }
+      },
+    },
+    inject(_services, callback) { callback(ctx) },
     get(name) { return provided.get(name) },
     provide(name, value) { provided.set(name, value) },
     effect(register) { return register() },
   }
-  return { ctx, registered, handled, provided }
+  return { ctx, registered, handled, provided, settings }
 }
 
 test('plugin registers one Codex route and one loopback-only redacted RPC', async () => {
@@ -47,6 +60,7 @@ test('plugin registers one Codex route and one loopback-only redacted RPC', asyn
   assert.equal(host.handled.length, 1)
   assert.equal(host.handled[0].channel, '/codex-subscription')
   assert.deepEqual(host.handled[0].options, { authority: 'loopback' })
+  assert.equal(host.settings.length, 1)
   assert.equal(host.provided.size, 0, 'the plugin should not publish undocumented host services')
   assert.equal('CodexCacheTelemetry' in plugin, false, 'cache diagnostics are outside the subscription route boundary')
 
@@ -57,6 +71,19 @@ test('plugin registers one Codex route and one loopback-only redacted RPC', asyn
     value: { authenticated: false, provider: 'openai-codex' },
   })
   assert.doesNotMatch(JSON.stringify(status), /access|refresh|accountId/)
+
+  const preferenceStatus = await host.handled[0].handler('preferences/status', {}, signal)
+  assert.deepEqual(preferenceStatus, {
+    ok: true,
+    value: { sidebarQuotaVisible: true, writable: true },
+  })
+  const preferenceUpdate = await host.handled[0].handler('preferences/update', {
+    sidebarQuotaVisible: false,
+  }, signal)
+  assert.deepEqual(preferenceUpdate, {
+    ok: true,
+    value: { sidebarQuotaVisible: false, writable: true },
+  })
 })
 
 test('usage failures use a DSH-supported bounded RPC error', async () => {

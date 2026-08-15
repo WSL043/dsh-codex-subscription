@@ -8,7 +8,7 @@
 在 DeepSeek Harness 中直接使用 ChatGPT / Codex 订阅：保留 DSH 原有的会话、
 工具和权限，并在设置页查看 Codex 额度。
 
-![DeepSeek Harness 中的 Codex 订阅设置](docs/assets/settings.png)
+![DeepSeek Harness 左下角的 Codex 剩余额度](docs/assets/sidebar.png)
 
 _截图使用示例额度，不含真实账户或凭据信息。_
 
@@ -17,6 +17,8 @@ _截图使用示例额度，不含真实账户或凭据信息。_
 - 在 DSH 中直接使用 ChatGPT / Codex 订阅，不需要另开 Codex CLI；
 - 在设置页登录 ChatGPT，凭据保留在本机；
 - 展示服务端实际返回的额度、重置时间和更新时间；
+- 在 DSH 左下角显示标准 Codex 剩余额度，侧栏收起时也能查看；
+- 可在 **设置 -> Codex 订阅** 中关闭或开启侧栏额度；
 - 单独显示 Codex-Spark、Credits 等独立额度，不把它们混在一起；
 - 订阅路由不可用时明确报错，不会静默切换到其他付费路由。
 
@@ -63,7 +65,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1
 <summary>macOS、Linux，或已有 <code>dsh</code> 命令</summary>
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.6/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
@@ -81,11 +83,14 @@ dsh --profile web --dump-config
 
 ## 额度如何显示
 
+- 左下角只显示标准 Codex 窗口中剩余最少的一项，避免给出过于乐观的数字；
 - 只显示服务端实际返回的窗口，不写死“5 小时 + 每周”；
 - 当前只有每周额度时不虚构 5 小时窗口，以后服务端恢复时会自动显示；
 - Codex-Spark 等独立额度不会与普通 Codex 额度合并；
 - Credits 和月度消费上限仅在账户或工作区真实返回时显示；
 - 百分比表示使用状态，不是账单金额或计费承诺。
+
+![Codex 订阅设置、侧栏开关和紧凑额度卡](docs/assets/settings.png)
 
 ## 更新与卸载
 
@@ -106,7 +111,7 @@ Windows 首次安装命令即可。
 更新并检查：
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.6/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
