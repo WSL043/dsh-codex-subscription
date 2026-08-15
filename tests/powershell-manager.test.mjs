@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
@@ -10,6 +10,68 @@ import test from 'node:test'
 
 const script = new URL('../dsh-codex.ps1', import.meta.url)
 const windowsTest = process.platform === 'win32' ? test : test.skip
+const userPathTest = process.platform === 'win32' && process.env.DSH_CODEX_TEST_USER_PATH === '1'
+  ? test
+  : test.skip
+
+function runWindowsPowerShell(source) {
+  const encoded = Buffer.from(source, 'utf16le').toString('base64')
+  return spawnSync('powershell.exe', [
+    '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded,
+  ], { encoding: 'utf8' })
+}
+
+function readWindowsUserPath() {
+  const result = runWindowsPowerShell("[Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes([string][Environment]::GetEnvironmentVariable('Path', 'User')))")
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  return Buffer.from(result.stdout.trim(), 'base64').toString('utf16le')
+}
+
+function writeWindowsUserPath(value) {
+  const result = spawnSync('powershell.exe', [
+    '-NoLogo', '-NoProfile', '-NonInteractive', '-Command',
+    "[Environment]::SetEnvironmentVariable('Path', [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($env:DSH_CODEX_TEST_PATH)), 'User')",
+  ], {
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      DSH_CODEX_TEST_PATH: Buffer.from(value, 'utf16le').toString('base64'),
+    },
+  })
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+}
+
+windowsTest('manager executes on Windows PowerShell 5.1', () => {
+  const result = runWindowsPowerShell('$PSVersionTable.PSVersion.ToString()')
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.match(result.stdout.trim(), /^5\.1(?:\.|$)/u)
+})
+
+windowsTest('user PATH lifecycle preserves the existing text exactly', () => {
+  const manager = readFileSync(script, 'utf8')
+  const pathFunctions = manager.slice(
+    manager.indexOf('function Test-SamePath'),
+    manager.indexOf('function Publish-UserPathChange'),
+  )
+  const result = runWindowsPowerShell(String.raw`
+${pathFunctions}
+$before = 'C:\Existing Tools;;C:\More Tools;'
+$directory = 'C:\命令 管理'
+$afterInstall = Add-UserPathEntry -UserPath $before -Directory $directory
+$afterUninstall = Remove-UserPathEntry -UserPath $afterInstall -Directory $directory
+[ordered]@{
+  afterInstall = $afterInstall
+  afterUninstall = $afterUninstall
+  duplicateInstall = Add-UserPathEntry -UserPath $afterInstall -Directory $directory
+} | ConvertTo-Json -Compress
+`)
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.deepEqual(JSON.parse(result.stdout.trim()), {
+    afterInstall: 'C:\\Existing Tools;;C:\\More Tools;;C:\\命令 管理',
+    afterUninstall: 'C:\\Existing Tools;;C:\\More Tools;',
+    duplicateInstall: 'C:\\Existing Tools;;C:\\More Tools;;C:\\命令 管理',
+  })
+})
 
 test('package discovery tolerates an empty pnpm dependency object in strict mode', async () => {
   const source = await import('node:fs/promises').then(fs => fs.readFile(script, 'utf8'))
@@ -69,7 +131,7 @@ const command = args[3]
 if (command === 'list') {
   process.stdout.write(JSON.stringify([{ dependencies: packages }]))
 } else if (command === 'add') {
-  packages['dsh-codex-subscription'] = { version: '0.2.4' }
+  packages['dsh-codex-subscription'] = { version: '0.2.5' }
   fs.writeFileSync(stateFile, JSON.stringify(packages))
 } else if (command === 'remove') {
   delete packages[args[4]]
@@ -153,6 +215,66 @@ windowsTest('reusable command uninstalls the portable plugin and removes itself'
     }
     assert.equal(existsSync(commandRoot), false)
   } finally {
+    rmSync(sandbox, { recursive: true, force: true })
+  }
+})
+
+windowsTest('reusable command works from Unicode paths containing spaces', () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-unicode-'))
+  const root = join(sandbox, 'DSH 便携版 日本語')
+  const commandRoot = join(sandbox, '命令 管理')
+  try {
+    functionalPortableFixture(root)
+    const install = spawnSync('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
+      '-Action', 'Install', '-PortableRoot', root,
+      '-CommandRoot', commandRoot, '-NoModifyPath',
+    ], { encoding: 'utf8' })
+    assert.equal(install.status, 0, install.stderr || install.stdout)
+
+    const managerCommand = join(commandRoot, 'dsh-codex.cmd')
+    const uninstall = spawnSync('cmd.exe', [
+      '/d', '/s', '/c', 'call', managerCommand,
+      'Uninstall', '-PortableRoot', root,
+      '-CommandRoot', commandRoot, '-NoModifyPath',
+    ], { cwd: root, encoding: 'utf8' })
+    assert.equal(uninstall.status, 0, uninstall.stderr || uninstall.stdout)
+    for (let attempt = 0; attempt < 30 && existsSync(commandRoot); attempt += 1) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100)
+    }
+    assert.equal(existsSync(commandRoot), false)
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true })
+  }
+})
+
+userPathTest('installer adds and removes only its entry in the real user PATH', () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-user-path-'))
+  const root = join(sandbox, 'DSH Portable')
+  const commandRoot = join(sandbox, '命令 管理')
+  const originalPath = readWindowsUserPath()
+  const seededPath = 'C:\\Existing Tools;;C:\\More Tools;'
+  try {
+    writeWindowsUserPath(seededPath)
+    functionalPortableFixture(root)
+    const install = spawnSync('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
+      '-Action', 'Install', '-PortableRoot', root, '-CommandRoot', commandRoot,
+    ], { encoding: 'utf8' })
+    assert.equal(install.status, 0, install.stderr || install.stdout)
+    assert.equal(readWindowsUserPath(), `${seededPath};${commandRoot}`)
+
+    const uninstall = spawnSync('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
+      '-Action', 'Uninstall', '-PortableRoot', root, '-CommandRoot', commandRoot,
+    ], { encoding: 'utf8' })
+    assert.equal(uninstall.status, 0, uninstall.stderr || uninstall.stdout)
+    assert.equal(readWindowsUserPath(), seededPath)
+  } finally {
+    writeWindowsUserPath(originalPath)
     rmSync(sandbox, { recursive: true, force: true })
   }
 })
@@ -316,7 +438,7 @@ windowsTest('portable install uses the bundled CLI and portable DSH_HOME', () =>
     assert.deepEqual(plan.arguments, [
       join(expectedRoot, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
       'plugin', '--profile', 'web', 'add',
-      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz',
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz',
       '--store-dir', join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'),
       '--loglevel', 'error',
     ])
@@ -335,7 +457,7 @@ windowsTest('installed portable mode expands its external state root', () => {
     const plan = dryRun(root, 'Update', { LOCALAPPDATA: localAppData })
     assert.equal(plan.action, 'Update')
     assert.equal(plan.dshHome, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'dsh-home'))
-    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz'), true)
+    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz'), true)
     assert.equal(plan.packageName, 'dsh-codex-subscription')
     assert.equal(plan.legacyPackageName, '@wsl043/dsh-codex-subscription')
   } finally {

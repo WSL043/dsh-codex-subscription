@@ -53,7 +53,12 @@ jobs:
           include-hidden-files: true
 
   windows-powershell:
-    runs-on: windows-latest
+    name: Windows PowerShell (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -66,4 +71,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: node --test tests/powershell-manager.test.mjs
+      - name: Verify Windows installer lifecycle
+        run: node --test tests/powershell-manager.test.mjs
+        env:
+          DSH_CODEX_TEST_USER_PATH: '1'

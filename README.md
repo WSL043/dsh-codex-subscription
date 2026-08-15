@@ -63,7 +63,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1
 macOS、Linux，或已经安装 Node.js、pnpm 并能直接运行 `dsh` 的用户，可以使用：
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz
 ```
 
 安装后检查：
@@ -98,7 +98,7 @@ dsh-codex update
 已有 `dsh` 命令：
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
@@ -129,6 +129,13 @@ dsh plugin --profile web remove dsh-codex-subscription
 
 Windows 命令同时移除 `dsh-codex` 管理命令，但不会删除 DSH profile、其他插件或已保存的
 OAuth 凭据。只有同时希望删除登录信息时，才先在设置页退出登录。
+
+## 遇到问题
+
+- 安装成功但提示找不到 `dsh-codex`：关闭并重新打开 PowerShell 后再试；
+- 提示找不到 DSH-Portable：先启动一次正确的便携版，再重新安装；
+- 没有 `curl.exe`、存在多个 DSH，或仍然失败：把上面的 Agent 文档链接发给 Agent，
+  让它先诊断电脑环境，不要自行改系统 PATH、执行策略或删除 profile。
 
 ## 使用边界
 
