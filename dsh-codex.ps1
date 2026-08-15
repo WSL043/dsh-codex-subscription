@@ -363,6 +363,11 @@ try {
             )
         }
     } else {
+        if ($hadPackage) {
+            Invoke-DshCommand -Target $target -Arguments (
+                Get-ActionArguments -SelectedAction 'Uninstall' -Store $pnpmStore -SelectedPackage $PackageName
+            )
+        }
         Invoke-DshCommand -Target $target -Arguments $actionArguments
         if ($hadLegacyPackage) {
             try {
