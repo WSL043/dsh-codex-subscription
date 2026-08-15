@@ -32,8 +32,8 @@ if ($Managed -and -not $PSBoundParameters.ContainsKey('Action')) {
 
 $PackageName = 'dsh-codex-subscription'
 $LegacyPackageName = '@wsl043/dsh-codex-subscription'
-$PackageVersion = '0.2.7'
-$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.7/dsh-codex-subscription.tgz'
+$PackageVersion = '0.2.8'
+$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz'
 $PnpmVersion = '11.19.0'
 $PnpmUrl = 'https://registry.npmjs.org/pnpm/-/pnpm-11.19.0.tgz'
 $PnpmSha512 = '7881F3ED590D472C4A955E2B88B2121791116066DCC88CBCA3849EC9B60F1BBAA6D2CCB221FA91DA4E1C65BEF2BCBE379365AEA7AC539C7BF86DEDC3A1B22DCE'
@@ -338,6 +338,7 @@ function Get-PortableLayout {
     $resolvedRoot = Resolve-FullPath $Root
     $node = Join-Path $resolvedRoot 'runtime\node\node.exe'
     $dsh = Join-Path $resolvedRoot 'app\node_modules\@deepseek-ai\dsh\lib\bin.js'
+    $portableCli = Join-Path $resolvedRoot 'dsh.exe'
     if (-not (Test-Path -LiteralPath $node -PathType Leaf) -or
         -not (Test-Path -LiteralPath $dsh -PathType Leaf)) {
         return $null
@@ -356,7 +357,20 @@ function Get-PortableLayout {
         StateRoot = $stateRoot
         Node = $node
         Dsh = $dsh
+        PortableCli = if (Test-Path -LiteralPath $portableCli -PathType Leaf) { $portableCli } else { $null }
         DshHome = Join-Path $stateRoot 'data\dsh-home'
+    }
+}
+
+function New-PortableTarget {
+    param([Parameter(Mandatory = $true)] $Layout)
+    $usesPortableCli = $null -ne $Layout.PortableCli
+    return [pscustomobject]@{
+        Mode = 'portable'
+        Layout = $Layout
+        Executable = if ($usesPortableCli) { $Layout.PortableCli } else { $Layout.Node }
+        Node = $Layout.Node
+        UsesPortableCli = $usesPortableCli
     }
 }
 
@@ -429,12 +443,12 @@ function Get-ManagerTarget {
         if ($null -eq $layout) {
             throw "The selected DSH-Portable folder is incomplete: $PortableRoot"
         }
-        return [pscustomobject]@{ Mode = 'portable'; Layout = $layout; Executable = $layout.Node; Node = $layout.Node }
+        return New-PortableTarget $layout
     }
 
     $layout = Find-PortableFromCurrentDirectory
     if ($null -ne $layout) {
-        return [pscustomobject]@{ Mode = 'portable'; Layout = $layout; Executable = $layout.Node; Node = $layout.Node }
+        return New-PortableTarget $layout
     }
 
     $runningLayouts = @(Find-RunningPortables | Sort-Object -Property Root -Unique)
@@ -444,7 +458,7 @@ function Get-ManagerTarget {
     }
     if ($runningLayouts.Count -eq 1) {
         $layout = $runningLayouts[0]
-        return [pscustomobject]@{ Mode = 'portable'; Layout = $layout; Executable = $layout.Node; Node = $layout.Node }
+        return New-PortableTarget $layout
     }
 
     $globalDsh = Get-Command dsh -ErrorAction SilentlyContinue
@@ -458,12 +472,12 @@ function Get-ManagerTarget {
     }
     if ($commonLayouts.Count -eq 1) {
         $layout = $commonLayouts[0]
-        return [pscustomobject]@{ Mode = 'portable'; Layout = $layout; Executable = $layout.Node; Node = $layout.Node }
+        return New-PortableTarget $layout
     }
     if ($null -ne $globalDsh) {
         $globalNode = Get-Command node -ErrorAction SilentlyContinue
         if ($null -eq $globalNode) { throw 'The dsh command exists, but Node.js is not available on PATH.' }
-        return [pscustomobject]@{ Mode = 'global'; Layout = $null; Executable = $globalDsh.Source; Node = $globalNode.Source }
+        return [pscustomobject]@{ Mode = 'global'; Layout = $null; Executable = $globalDsh.Source; Node = $globalNode.Source; UsesPortableCli = $false }
     }
 
     throw @'
@@ -476,6 +490,7 @@ folder. You can also pass -PortableRoot "C:\path\to\DSH-Portable".
 
 function Get-PnpmDirectory {
     param([Parameter(Mandatory = $true)] $Target)
+    if ($Target.UsesPortableCli) { return $null }
     if ($Target.Mode -eq 'portable') {
         return Join-Path $Target.Layout.StateRoot "data\runtime\dsh-codex-tools\pnpm-$PnpmVersion"
     }
@@ -486,7 +501,7 @@ function Get-PnpmDirectory {
 function Get-PnpmStore {
     param([Parameter(Mandatory = $true)] $Target)
     if ($Target.Mode -eq 'portable') {
-        return Join-Path $Target.Layout.StateRoot 'data\runtime\dsh-codex-tools\pnpm-store-v11'
+        return Join-Path $Target.Layout.StateRoot 'data\pnpm-store'
     }
     return $null
 }
@@ -569,7 +584,11 @@ function Invoke-DshCommand {
         [Parameter(Mandatory = $true)][string[]] $Arguments,
         [switch] $Capture
     )
-    $allArguments = if ($Target.Mode -eq 'portable') { @($Target.Layout.Dsh) + $Arguments } else { $Arguments }
+    $allArguments = if ($Target.Mode -eq 'portable' -and -not $Target.UsesPortableCli) {
+        @($Target.Layout.Dsh) + $Arguments
+    } else {
+        $Arguments
+    }
     if ($Capture) {
         $output = & $Target.Executable @allArguments 2>&1
         $exitCode = $LASTEXITCODE
@@ -615,7 +634,11 @@ $managerCommand = Join-Path $managerCommandRoot 'dsh-codex.cmd'
 $pnpmDirectory = Get-PnpmDirectory $target
 $pnpmStore = Get-PnpmStore $target
 $actionArguments = Get-ActionArguments -SelectedAction $Action -Store $pnpmStore
-$arguments = if ($target.Mode -eq 'portable') { @($target.Layout.Dsh) + $actionArguments } else { $actionArguments }
+$arguments = if ($target.Mode -eq 'portable' -and -not $target.UsesPortableCli) {
+    @($target.Layout.Dsh) + $actionArguments
+} else {
+    $actionArguments
+}
 
 if ($DryRun) {
     [ordered]@{
@@ -647,9 +670,13 @@ $oldManagerNode = $env:DSH_CODEX_NODE
 $oldPnpmStore = $env:npm_config_store_dir
 $oldPnpmNotifier = $env:npm_config_update_notifier
 try {
-    Install-PnpmTool -Directory $pnpmDirectory -Node $target.Node
+    if (-not $target.UsesPortableCli) {
+        Install-PnpmTool -Directory $pnpmDirectory -Node $target.Node
+    }
     $env:DSH_CODEX_NODE = $target.Node
-    $env:PATH = $pnpmDirectory + [System.IO.Path]::PathSeparator + (Split-Path -Parent $target.Node) + [System.IO.Path]::PathSeparator + $oldPath
+    if (-not $target.UsesPortableCli) {
+        $env:PATH = $pnpmDirectory + [System.IO.Path]::PathSeparator + (Split-Path -Parent $target.Node) + [System.IO.Path]::PathSeparator + $oldPath
+    }
     $env:npm_config_update_notifier = 'false'
     if ($target.Mode -eq 'portable') {
         New-Item -ItemType Directory -Force -Path $target.Layout.DshHome | Out-Null
@@ -675,11 +702,6 @@ try {
             )
         }
     } else {
-        if ($hadPackage) {
-            Invoke-DshCommand -Target $target -Arguments (
-                Get-ActionArguments -SelectedAction 'Uninstall' -Store $pnpmStore -SelectedPackage $PackageName
-            )
-        }
         Invoke-DshCommand -Target $target -Arguments $actionArguments
         if ($hadLegacyPackage) {
             try {

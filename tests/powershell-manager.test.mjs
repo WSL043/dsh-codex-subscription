@@ -88,16 +88,16 @@ test('package discovery tolerates an empty pnpm dependency object in strict mode
   assert.match(discovery, /Write-Output \(\[string\] \$property\.Name\)/u)
 })
 
-test('install and update replace an existing package through DSH before adding the pinned asset', async () => {
+test('install and update add the pinned asset without removing the current package first', async () => {
   const source = await import('node:fs/promises').then(fs => fs.readFile(script, 'utf8'))
   const actionFlow = source.slice(
     source.indexOf('$hadLegacyPackage = $installedBefore -contains $LegacyPackageName'),
     source.indexOf('$config = Invoke-DshCommand'),
   )
   const updateBranch = actionFlow.slice(actionFlow.indexOf('    } else {'))
-  assert.match(updateBranch, /if \(\$hadPackage\)[\s\S]*-SelectedAction 'Uninstall'[\s\S]*\$PackageName/u)
   assert.match(updateBranch, /Invoke-DshCommand -Target \$target -Arguments \$actionArguments/u)
-  assert.ok(updateBranch.indexOf("-SelectedAction 'Uninstall'") < updateBranch.indexOf('Invoke-DshCommand -Target $target -Arguments $actionArguments'))
+  const beforeLegacyMigration = updateBranch.slice(0, updateBranch.indexOf('if ($hadLegacyPackage)'))
+  assert.doesNotMatch(beforeLegacyMigration, /-SelectedAction 'Uninstall'[\s\S]*\$PackageName/u)
 })
 
 function portableFixture(root, installedStateRoot) {
@@ -131,7 +131,8 @@ const command = args[3]
 if (command === 'list') {
   process.stdout.write(JSON.stringify([{ dependencies: packages }]))
 } else if (command === 'add') {
-  packages['dsh-codex-subscription'] = { version: '0.2.7' }
+  if (process.env.DSH_CODEX_TEST_FAIL_ADD === '1') process.exit(9)
+  packages['dsh-codex-subscription'] = { version: '0.2.8' }
   fs.writeFileSync(stateFile, JSON.stringify(packages))
 } else if (command === 'remove') {
   delete packages[args[4]]
@@ -164,6 +165,37 @@ function dryRun(root, action = 'Install', extraEnv = {}, extraArgs = []) {
   assert.equal(result.status, 0, result.stderr || result.stdout)
   return JSON.parse(result.stdout.trim())
 }
+
+windowsTest('a failed update preserves the currently installed plugin', () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-update-rollback-'))
+  const root = join(sandbox, 'DSH Portable')
+  const commandRoot = join(sandbox, 'command')
+  const stateFile = join(root, 'data', 'dsh-home', 'fake-packages.json')
+  try {
+    functionalPortableFixture(root)
+    mkdirSync(join(root, 'data', 'dsh-home'), { recursive: true })
+    writeFileSync(stateFile, JSON.stringify({
+      'dsh-codex-subscription': { version: '0.2.6' },
+      'another-plugin': { version: '1.0.0' },
+    }))
+    const result = spawnSync('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
+      '-Action', 'Update', '-PortableRoot', root,
+      '-CommandRoot', commandRoot, '-NoModifyPath',
+    ], {
+      encoding: 'utf8',
+      env: { ...process.env, DSH_CODEX_TEST_FAIL_ADD: '1' },
+    })
+    assert.notEqual(result.status, 0)
+    assert.deepEqual(JSON.parse(readFileSync(stateFile, 'utf8')), {
+      'dsh-codex-subscription': { version: '0.2.6' },
+      'another-plugin': { version: '1.0.0' },
+    })
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true })
+  }
+})
 
 windowsTest('first install plans a reusable dsh-codex command without requiring administrator access', () => {
   const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-command-'))
@@ -423,7 +455,7 @@ function autoDryRun(action = 'Install', extraEnv = {}) {
   return JSON.parse(result.stdout.trim())
 }
 
-windowsTest('portable install uses the bundled CLI and portable DSH_HOME', () => {
+windowsTest('portable install uses the bundled CLI, DSH_HOME, and package store', () => {
   const root = mkdtempSync(join(tmpdir(), 'dsh-codex-portable-'))
   try {
     portableFixture(root)
@@ -435,12 +467,33 @@ windowsTest('portable install uses the bundled CLI and portable DSH_HOME', () =>
     assert.equal(plan.dshHome, join(expectedRoot, 'data', 'dsh-home'))
     assert.equal(plan.pnpmVersion, '11.19.0')
     assert.equal(plan.pnpmDirectory, join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-11.19.0'))
-    assert.equal(plan.pnpmStore, join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'))
+    assert.equal(plan.pnpmStore, join(expectedRoot, 'data', 'pnpm-store'))
     assert.deepEqual(plan.arguments, [
       join(expectedRoot, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
       'plugin', '--profile', 'web', 'add',
-      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.7/dsh-codex-subscription.tgz',
-      '--store-dir', join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'),
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz',
+      '--store-dir', join(expectedRoot, 'data', 'pnpm-store'),
+      '--loglevel', 'error',
+    ])
+  } finally {
+    rmSync(root, { recursive: true, force: true })
+  }
+})
+
+windowsTest('portable install prefers the DSH-Portable command shim when available', () => {
+  const root = mkdtempSync(join(tmpdir(), 'dsh-codex-portable-shim-'))
+  try {
+    portableFixture(root)
+    writeFileSync(join(root, 'dsh.exe'), '')
+    const expectedRoot = realpathSync.native(root)
+    const plan = dryRun(root)
+    assert.equal(plan.mode, 'portable')
+    assert.equal(plan.executable, join(expectedRoot, 'dsh.exe'))
+    assert.equal(plan.pnpmDirectory, null)
+    assert.deepEqual(plan.arguments, [
+      'plugin', '--profile', 'web', 'add',
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz',
+      '--store-dir', join(expectedRoot, 'data', 'pnpm-store'),
       '--loglevel', 'error',
     ])
   } finally {
@@ -458,7 +511,8 @@ windowsTest('installed portable mode expands its external state root', () => {
     const plan = dryRun(root, 'Update', { LOCALAPPDATA: localAppData })
     assert.equal(plan.action, 'Update')
     assert.equal(plan.dshHome, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'dsh-home'))
-    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.7/dsh-codex-subscription.tgz'), true)
+    assert.equal(plan.pnpmStore, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'pnpm-store'))
+    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz'), true)
     assert.equal(plan.packageName, 'dsh-codex-subscription')
     assert.equal(plan.legacyPackageName, '@wsl043/dsh-codex-subscription')
   } finally {
@@ -475,7 +529,7 @@ windowsTest('portable uninstall removes the package without deleting the profile
     assert.deepEqual(plan.arguments.slice(-9), [
       'plugin', '--profile', 'web', 'remove',
       'dsh-codex-subscription',
-      '--store-dir', join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'),
+      '--store-dir', join(expectedRoot, 'data', 'pnpm-store'),
       '--loglevel', 'error',
     ])
     assert.equal(plan.removesProfile, false)

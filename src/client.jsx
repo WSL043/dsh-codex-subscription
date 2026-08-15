@@ -46,7 +46,7 @@ const zh = {
 }
 
 const en = {
-  nav: 'Codex subscription',
+  nav: 'Codex',
   title: 'Codex subscription',
   connected: 'Signed in', disconnected: 'Not signed in', accountLoading: 'Reading account status…',
   browserLogin: 'Browser sign-in', deviceLogin: 'Device-code sign-in', logout: 'Sign out',

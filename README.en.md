@@ -72,7 +72,7 @@ once and install again. Restart DSH manually after installation.
 <summary>macOS, Linux, or an existing <code>dsh</code> command</summary>
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.7/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
@@ -84,7 +84,7 @@ contain one `codex-subscription` entry.
 
 ## Sign in and use
 
-1. Open **Settings -> Codex subscription** in DSH.
+1. Open **Settings -> Codex** in DSH.
 2. Sign in with a ChatGPT account that has Codex access.
 3. Choose DSH default search or Codex subscription search.
 4. Choose a Codex model from the model selector.
@@ -127,7 +127,7 @@ the two Windows first-install commands above once.
 Update and verify:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.7/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
