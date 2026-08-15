@@ -145,6 +145,10 @@ test('release-age exceptions are pinned to the audited DeepSeek preview graph', 
 
 test('CI uploads the hidden release artifact only after asserting it exists', () => {
   const workflow = text('.github/workflows/ci.yml')
+  assert.match(workflow, /actions\/checkout@v6/u)
+  assert.match(workflow, /pnpm\/action-setup@v5/u)
+  assert.match(workflow, /actions\/setup-node@v6/u)
+  assert.match(workflow, /actions\/upload-artifact@v6/u)
   assert.match(workflow, /find \.artifacts[^\n]*-name '\*\.tgz'/u)
   assert.match(workflow, /test -s "\$artifact"/u)
   assert.match(workflow, /path:\s*\|[\s\S]*\.artifacts\/\*\.tgz/u)
