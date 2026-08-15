@@ -28,6 +28,10 @@ _截图使用示例额度，不含真实账户或凭据信息。_
 要求：DeepSeek Harness `0.1.0-rc.6`，以及当前具有 Codex 使用资格的 ChatGPT
 账户。
 
+还没有 DSH？不想配置 Node.js 的 Windows / macOS 用户可以使用
+[DSH-Portable（社区便携包）](https://github.com/WSL043/DSH-Portable)；想按官方方式运行，
+请看 [DeepSeek Harness 官方说明](https://github.com/deepseek-ai/deepseek-harness#run)。
+
 ### 让 Agent 安装（不熟悉命令行时推荐）
 
 把下面的链接直接发给你正在使用的 Agent。文档已经写好安装、更新、卸载和验收
