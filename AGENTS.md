@@ -6,43 +6,70 @@ Use this guide when a user asks an Agent to install, update, verify, or remove
 ## Safety
 
 - Confirm the target DSH profile; use `web` only when it is the user's target.
-- Install an exact release tag, never a moving branch.
+- Use the pinned `v0.2.1` release assets, never a moving branch.
 - Never print OAuth credentials, account IDs, authorization callbacks, or the
   credential store.
 - Do not start, stop, or restart DSH without explicit permission.
-- Preserve the DSH profile, unrelated plugins, and stored OAuth credentials by
-  default. Signing out requires explicit permission.
+- Preserve the DSH profile, unrelated plugins, and stored OAuth credentials.
+  Signing out requires explicit permission.
 
-## Prerequisites
+## Detect the installation
 
-Verify Node.js `^22.19.0` or `>=24.0.0`, DSH `0.1.0-rc.6`, and the current state:
+On Windows, prefer the release manager below. It supports both a normal DSH
+installation and DSH-Portable. It discovers a running portable instance, the
+current folder and its parents, the default installed location, and common
+Downloads or Desktop locations.
 
-```sh
-dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
-dsh --profile web --dump-config
+Do not require a DSH-Portable user to install system Node.js or pnpm, and do not
+modify the system PATH. The manager uses the portable runtime, sets its isolated
+`DSH_HOME`, and keeps its verified pnpm tool and store inside the portable data
+directory.
+
+If automatic discovery fails, locate the portable root with read-only checks and
+pass it explicitly as `-PortableRoot`. A valid root contains both:
+
+```text
+runtime\node\node.exe
+app\node_modules\@deepseek-ai\dsh\lib\bin.js
 ```
 
-## Install
+## Windows manager
 
-Confirm that `v0.2.1` exists, then run:
+Load the fixed release asset, then invoke the requested action:
 
-```sh
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
+```powershell
+$manager = Invoke-RestMethod 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/dsh-codex.ps1'
+& ([scriptblock]::Create($manager)) -Action Install
 ```
 
-## Update
+For a custom portable location:
 
-Record the installed version, then update the pinned Git tag explicitly:
-
-```sh
-dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
-dsh plugin --profile web add github:WSL043/dsh-codex-subscription#v0.2.1
+```powershell
+& ([scriptblock]::Create($manager)) -Action Install -PortableRoot 'C:\path\to\DSH-Portable'
 ```
 
-The `add` command updates the existing package entry. It preserves the profile
-and stored OAuth credential.
+Use `-Action Update` to update and `-Action Uninstall` to remove the plugin.
+The manager verifies the package list and composed config. It never restarts DSH
+and never deletes a profile.
+
+## Existing DSH CLI
+
+When `dsh`, Node.js, and pnpm are already available, install the fixed package
+asset directly:
+
+```sh
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.1/wsl043-dsh-codex-subscription-0.2.1.tgz
+```
+
+Update by running the same `add` command again. Uninstall with:
+
+```sh
+dsh plugin --profile web remove @wsl043/dsh-codex-subscription
+```
 
 ## Verify
+
+For the existing CLI path, run:
 
 ```sh
 dsh plugin --profile web list @wsl043/dsh-codex-subscription --depth 0
@@ -52,30 +79,20 @@ dsh --profile web --dump-config
 Success requires:
 
 1. The requested package version appears once.
-2. `wsl043-codex-subscription` appears once in the composed config.
+2. `wsl043-codex-subscription` appears once in the composed config after install
+   or update, and is absent after uninstall.
 3. No unrelated profile or plugin changed.
+4. A running DSH process was not restarted by the operation.
 
 Do not treat `dsh plugin --profile web peers check` as the completion test.
-Use the package list, composed config, and an authorized live Settings check.
-
-If the user authorizes a live check, open **Settings -> Codex subscription** and
-verify sign-in state and the quota windows returned by the account. Weekly-only
-usage is valid; Spark remains a separate bucket. Do not run a quota-consuming
-model turn unless the user explicitly asks.
-
-## Uninstall
-
-Preserve the stored OAuth credential unless the user explicitly asks to remove it.
-
-```sh
-dsh plugin --profile web remove @wsl043/dsh-codex-subscription
-```
-
-Repeat the package-list and config checks. The package and
-`wsl043-codex-subscription` entry should be absent. Never delete the profile.
+If the user authorizes a live check, restart DSH manually, open
+**Settings -> Codex subscription**, and verify the page loads. Weekly-only usage
+is valid; Spark remains a separate bucket. Do not run a quota-consuming model
+turn unless the user explicitly asks.
 
 ## Failure handling
 
-On failure, stop and report the sanitized command error, DSH version, Node.js
-version, selected profile, requested tag, what changed, and what remains
-unverified. Do not patch DSH, switch to another paid route, or wipe credentials.
+On failure, stop and report the sanitized command error, DSH version, selected
+profile, requested release, installation mode, what changed, and what remains
+unverified. Do not patch DSH, switch to another paid route, wipe credentials, or
+delete the profile.
