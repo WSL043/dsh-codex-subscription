@@ -12,28 +12,27 @@ DSH conversations, tools, permissions, and quota status in one place.
 
 _The screenshot uses sample quota values and contains no real account data or credentials._
 
-## Features
+## What it does
 
-- Native Codex model routing inside DSH, without a second Agent or Codex CLI;
-- ChatGPT sign-in from DSH Settings, with credentials kept on the host;
-- Quota windows, remaining and used percentages, reset time, and freshness;
-- Separate display for backend-provided Codex-Spark and other independent limits;
-- No invented 5-hour window when the account currently reports only weekly usage;
-- Credits and monthly spending caps shown only when the account or workspace returns them;
-- Available quota resets shown only when returned, and never redeemed automatically;
-- Visible failure instead of silent fallback to the OpenAI API or another paid route.
+- Uses your ChatGPT / Codex subscription directly inside DSH, without opening Codex CLI;
+- Signs in to ChatGPT from Settings and keeps credentials on the host;
+- Shows the quota, reset time, and freshness actually returned by the backend;
+- Keeps Codex-Spark, Credits, and other independent limits separate;
+- Fails visibly when subscription routing is unavailable instead of silently using another paid route.
+
+## Prepare DSH
+
+This plugin supports DeepSeek Harness `0.1.0-rc.6` and requires a ChatGPT account
+that currently has Codex access.
+
+- Do not want to configure Node.js? Use the [community DSH-Portable package](https://github.com/WSL043/DSH-Portable).
+- Prefer the official route? Follow the [DeepSeek Harness run guide](https://github.com/deepseek-ai/deepseek-harness#run).
+
+If DSH already opens normally, continue with the plugin installation below.
 
 ## Install
 
-Requirements: DeepSeek Harness `0.1.0-rc.6` and a ChatGPT account that currently
-has Codex access.
-
-Do not have DSH yet? Windows and macOS users who do not want to configure
-Node.js can use the [community DSH-Portable package](https://github.com/WSL043/DSH-Portable).
-For the official `npx` route, see the
-[DeepSeek Harness run guide](https://github.com/deepseek-ai/deepseek-harness#run).
-
-### Let an Agent install it (recommended if you do not use the command line)
+### Let an Agent install it (recommended)
 
 Send the following URL directly to your Agent. The guide contains install,
 update, uninstall, and verification steps. It preserves the DSH profile and
@@ -58,54 +57,61 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1
 `Bypass` applies only to this child process and does not change the system
 PowerShell execution policy.
 
-These two lines are needed only for the first install. A successful install adds
-the per-user `dsh-codex` command without administrator access. In a new
-PowerShell window, later updates and uninstall each use one short command.
+The commands support both a normal DSH installation and DSH-Portable. Portable
+users do not need a separate Node.js or pnpm installation, and no administrator
+access is required. The installer finds DSH, verifies the result, and adds the
+per-user `dsh-codex` command. It does not change the system execution policy or
+restart DSH on its own.
 
-The helper finds a running or commonly located DSH-Portable folder and writes to
-its own data directory. If the portable folder was renamed or moved elsewhere,
-start DSH-Portable once and run the command again. Restart DSH manually after the
-install; the helper never restarts it on its own.
+If the portable folder was renamed or moved, start the intended DSH-Portable copy
+once and install again. Restart DSH manually after installation.
 
-### Existing `dsh` command
-
-On macOS, Linux, or a system where Node.js, pnpm, and `dsh` are already available:
+<details>
+<summary>macOS, Linux, or an existing <code>dsh</code> command</summary>
 
 ```sh
 dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz
-```
-
-Verify the installation:
-
-```sh
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-The Windows helper runs both checks automatically. The config should contain one
-`codex-subscription` entry. Then open
-**Settings -> Codex subscription**, sign in, and choose a Codex model in DSH.
+The plugin list should contain one `dsh-codex-subscription`, and the config should
+contain one `codex-subscription` entry.
 
-## Quota notes
+</details>
 
-- Only windows returned by the backend are shown;
+## Sign in and use
+
+1. Open **Settings -> Codex subscription** in DSH.
+2. Sign in with a ChatGPT account that has Codex access.
+3. Choose a Codex model from the model selector.
+
+## How quota is shown
+
+- Only windows actually returned by the backend are shown; there is no hard-coded “5-hour + weekly” layout;
+- If the account currently reports only weekly usage, no 5-hour window is invented; it appears automatically if the backend restores it;
 - Independent Codex-Spark limits are not merged into standard Codex quota;
-- Credits are not a standard second allowance and are not an OpenAI API balance;
-- Percentages describe usage status, not billing amounts or guarantees.
+- Credits and monthly spending caps appear only when the account or workspace actually returns them;
+- Percentages describe usage status, not billing amounts or billing guarantees.
 
-## Update
+## Update and uninstall
 
-Windows:
+Windows installer users only need these short commands:
 
-```powershell
-dsh-codex update
-```
+| Action | PowerShell command |
+| --- | --- |
+| Update | `dsh-codex update` |
+| Uninstall | `dsh-codex uninstall` |
 
-The command resolves the latest GitHub Release and verifies the manager's
-SHA-256 before updating the plugin. If an older install does not have the
-`dsh-codex` command, run the two first-install lines once.
+Update verifies the latest Release manager script with SHA-256. Uninstall removes
+the plugin and `dsh-codex` command while preserving the DSH profile, unrelated
+plugins, and saved sign-in. If an older installation has no short command, run
+the two Windows first-install commands above once.
 
-With an existing `dsh` command:
+<details>
+<summary>Update or uninstall with an existing <code>dsh</code> command</summary>
+
+Update and verify:
 
 ```sh
 dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz
@@ -113,33 +119,22 @@ dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-The Windows helper removes the v0.2.1 package name and migrates the saved login
-automatically. When updating v0.2.1 manually, run this after the `add` succeeds:
-
-```sh
-dsh plugin --profile web remove @wsl043/dsh-codex-subscription
-```
-
-Both methods preserve the DSH profile and stored OAuth credential. Restart DSH
-manually if it is running.
-
-## Uninstall
-
-Windows:
-
-```powershell
-dsh-codex uninstall
-```
-
-With an existing `dsh` command:
+Uninstall:
 
 ```sh
 dsh plugin --profile web remove dsh-codex-subscription
 ```
 
-On Windows this also removes the `dsh-codex` manager command. It does not delete
-the DSH profile, unrelated plugins, or the saved OAuth credential. Sign out first
-only if the saved login should also be removed.
+When updating manually from v0.2.1, remove the old package name only after the new
+package installs successfully:
+
+```sh
+dsh plugin --profile web remove @wsl043/dsh-codex-subscription
+```
+
+</details>
+
+If DSH is running, restart it manually after installation or update.
 
 ## Troubleshooting
 
@@ -149,7 +144,7 @@ only if the saved login should also be removed.
   fails, send the Agent guide URL above to an Agent. Do not change the machine
   PATH or execution policy, and do not delete a profile to force an install.
 
-## Boundaries
+## Boundaries and support
 
 - This package connects a ChatGPT subscription; it does not create an OpenAI API key;
 - The ChatGPT Codex backend and DeepSeek Harness can change independently;
