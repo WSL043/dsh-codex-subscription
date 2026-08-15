@@ -38,9 +38,8 @@ app\node_modules\@deepseek-ai\dsh\lib\bin.js
 Download the fixed release asset to a visible file, then invoke the requested action:
 
 ```powershell
-$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex.ps1' -OutFile $installer
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Install
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
 ```
 
 The process-scoped `Bypass` is for this child process only; do not change the
@@ -49,10 +48,10 @@ machine or user execution policy.
 For a custom portable location:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Install -PortableRoot 'C:\path\to\DSH-Portable'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install -PortableRoot 'C:\path\to\DSH-Portable'
 ```
 
-Use `-Action Update` to update and `-Action Uninstall` to remove the plugin.
+Replace the final `Install` argument with `Update` to update or `Uninstall` to remove the plugin.
 The manager verifies the package list and composed config. It never restarts DSH
 and never deletes a profile.
 

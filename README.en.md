@@ -34,9 +34,8 @@ Run these three lines in PowerShell. They support both a normal DSH install
 and DSH-Portable. Portable users do not need a system Node.js, pnpm, or PATH setup.
 
 ```powershell
-$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1' -OutFile $installer
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Install
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
 ```
 
 `Bypass` applies only to this child process and does not change the system
@@ -89,9 +88,8 @@ You can also open [AGENTS.md](AGENTS.md) directly.
 Windows:
 
 ```powershell
-$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1' -OutFile $installer
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Update
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Update
 ```
 
 With an existing `dsh` command:
@@ -117,9 +115,8 @@ manually if it is running.
 Windows:
 
 ```powershell
-$installer = Join-Path $env:TEMP 'dsh-codex.ps1'
-Invoke-WebRequest -UseBasicParsing 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1' -OutFile $installer
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Uninstall
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Uninstall
 ```
 
 With an existing `dsh` command:
