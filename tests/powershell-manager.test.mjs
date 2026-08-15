@@ -24,6 +24,18 @@ test('package discovery tolerates an empty pnpm dependency object in strict mode
   assert.match(discovery, /Write-Output \(\[string\] \$property\.Name\)/u)
 })
 
+test('install and update replace an existing package through DSH before adding the pinned asset', async () => {
+  const source = await import('node:fs/promises').then(fs => fs.readFile(script, 'utf8'))
+  const actionFlow = source.slice(
+    source.indexOf('$hadLegacyPackage = $installedBefore -contains $LegacyPackageName'),
+    source.indexOf('$config = Invoke-DshCommand'),
+  )
+  const updateBranch = actionFlow.slice(actionFlow.indexOf('    } else {'))
+  assert.match(updateBranch, /if \(\$hadPackage\)[\s\S]*-SelectedAction 'Uninstall'[\s\S]*\$PackageName/u)
+  assert.match(updateBranch, /Invoke-DshCommand -Target \$target -Arguments \$actionArguments/u)
+  assert.ok(updateBranch.indexOf("-SelectedAction 'Uninstall'") < updateBranch.indexOf('Invoke-DshCommand -Target $target -Arguments $actionArguments'))
+})
+
 function portableFixture(root, installedStateRoot) {
   for (const directory of [
     join(root, 'runtime', 'node'),
