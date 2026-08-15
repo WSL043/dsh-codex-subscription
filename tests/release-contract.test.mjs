@@ -20,7 +20,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.equal(pkg.version, '0.2.3')
+  assert.equal(pkg.version, '0.2.4')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
   assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-llm-pi-ai'], '0.1.0-rc.6')
@@ -48,12 +48,12 @@ test('public docs contain only user-facing product and operation information', (
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.match(guide, /releases\/download\/v0\.2\.3\/dsh-codex\.ps1/u)
+  assert.match(guide, /releases\/download\/v0\.2\.4\/dsh-codex\.ps1/u)
   assert.match(guide, /dsh-codex\.ps1" Install/u)
-  assert.match(guide, /with `Update` to update/u)
-  assert.match(guide, /or `Uninstall` to remove/u)
-  assert.match(guide, /DSH-Portable[\s\S]*system Node\.js or pnpm[\s\S]*system PATH/iu)
-  assert.match(guide, /dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.3\/dsh-codex-subscription\.tgz/u)
+  assert.match(guide, /dsh-codex update/u)
+  assert.match(guide, /dsh-codex uninstall/u)
+  assert.match(guide, /DSH-Portable[\s\S]*system Node\.js or pnpm[\s\S]*per-user[\s\S]*never modifies[\s\S]*machine PATH/iu)
+  assert.match(guide, /dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.4\/dsh-codex-subscription\.tgz/u)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
   assert.match(guide, /dsh plugin --profile web remove dsh-codex-subscription/u)
@@ -79,10 +79,10 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
 test('public readmes provide explicit update commands and verification', () => {
   const readmeZh = text('README.md')
   const readmeEn = text('README.en.md')
-  assert.match(readmeZh, /## 更新[\s\S]*dsh-codex\.ps1" Update[\s\S]*dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.3\/[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config/u)
-  assert.match(readmeEn, /## Update[\s\S]*dsh-codex\.ps1" Update[\s\S]*dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.3\/[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config/u)
-  assert.match(readmeZh, /## 卸载[\s\S]*dsh-codex\.ps1" Uninstall/u)
-  assert.match(readmeEn, /## Uninstall[\s\S]*dsh-codex\.ps1" Uninstall/u)
+  assert.match(readmeZh, /## 更新[\s\S]*dsh-codex update[\s\S]*dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.4\/[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config/u)
+  assert.match(readmeEn, /## Update[\s\S]*dsh-codex update[\s\S]*dsh plugin --profile web add https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/download\/v0\.2\.4\/[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config/u)
+  assert.match(readmeZh, /## 卸载[\s\S]*dsh-codex uninstall/u)
+  assert.match(readmeEn, /## Uninstall[\s\S]*dsh-codex uninstall/u)
   for (const readme of [readmeZh, readmeEn]) {
     assert.match(readme, /releases\/latest\/download\/dsh-codex\.ps1/u)
     assert.doesNotMatch(readme, /dsh-codex\.ps1\?/u)
@@ -90,6 +90,30 @@ test('public readmes provide explicit update commands and verification', () => {
     assert.doesNotMatch(readme, /Invoke-WebRequest/iu)
     assert.doesNotMatch(readme, /scriptblock|Invoke-Expression|\biex\b/iu)
   }
+})
+
+test('Windows manager updates from a checksum-verified immutable release asset', () => {
+  const manager = text('dsh-codex.ps1')
+  assert.match(manager, /api\.github\.com\/repos\/WSL043\/dsh-codex-subscription\/releases\/latest/u)
+  assert.match(manager, /dsh-codex\.ps1\.sha256/u)
+  assert.match(manager, /Get-FileDigest -Algorithm SHA256/u)
+  assert.doesNotMatch(manager, /Invoke-Expression|\biex\b/iu)
+})
+
+test('per-user command PATH changes notify the Windows shell', () => {
+  const manager = text('dsh-codex.ps1')
+  assert.match(manager, /SetEnvironmentVariable\('Path',[\s\S]*'User'\)/u)
+  assert.match(manager, /SendMessageTimeout/u)
+  assert.match(manager, /WM_SETTINGCHANGE|0x001A/u)
+})
+
+test('uninstall never recursively deletes a caller-selected command directory', () => {
+  const manager = text('dsh-codex.ps1')
+  const removal = manager.slice(
+    manager.indexOf('function Remove-ManagerCommand'),
+    manager.indexOf('function Install-ManagerCommand'),
+  )
+  assert.doesNotMatch(removal, /Remove-Item -LiteralPath \$Directory -Recurse/u)
 })
 
 test('docs explain dynamic quota buckets without exposing maintenance internals', () => {
@@ -120,6 +144,8 @@ test('CI uploads the hidden release artifact only after asserting it exists', ()
   const workflow = text('.github/workflows/ci.yml')
   assert.match(workflow, /find \.artifacts[^\n]*-name '\*\.tgz'/u)
   assert.match(workflow, /test -s "\$artifact"/u)
-  assert.match(workflow, /path:\s*\.artifacts\/\*\.tgz/u)
+  assert.match(workflow, /path:\s*\|[\s\S]*\.artifacts\/\*\.tgz/u)
   assert.match(workflow, /include-hidden-files:\s*true/u)
+  assert.match(workflow, /sha256sum dsh-codex\.ps1/u)
+  assert.match(workflow, /\.artifacts\/dsh-codex\.ps1\.sha256/u)
 })

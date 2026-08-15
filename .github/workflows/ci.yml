@@ -35,13 +35,20 @@ jobs:
       - name: Pack release artifact
         run: |
           pnpm pack --pack-destination .artifacts
+          cp dsh-codex.ps1 .artifacts/dsh-codex.ps1
+          (cd .artifacts && sha256sum dsh-codex.ps1 > dsh-codex.ps1.sha256)
           artifact="$(find .artifacts -maxdepth 1 -type f -name '*.tgz' -print -quit)"
           test -n "$artifact"
           test -s "$artifact"
+          test -s .artifacts/dsh-codex.ps1
+          test -s .artifacts/dsh-codex.ps1.sha256
       - uses: actions/upload-artifact@v4
         with:
           name: dsh-codex-subscription-${{ github.sha }}
-          path: .artifacts/*.tgz
+          path: |
+            .artifacts/*.tgz
+            .artifacts/dsh-codex.ps1
+            .artifacts/dsh-codex.ps1.sha256
           if-no-files-found: error
           include-hidden-files: true
 

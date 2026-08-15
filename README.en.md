@@ -43,7 +43,7 @@ https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
 ### Manual Windows install
 
 Open PowerShell and paste these two lines in order. They support both a normal DSH install
-and DSH-Portable. Portable users do not need a system Node.js, pnpm, or PATH setup.
+and DSH-Portable. Portable users do not need a system Node.js or pnpm.
 
 ```powershell
 curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
@@ -52,6 +52,10 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1
 
 `Bypass` applies only to this child process and does not change the system
 PowerShell execution policy.
+
+These two lines are needed only for the first install. A successful install adds
+the per-user `dsh-codex` command without administrator access. In a new
+PowerShell window, later updates and uninstall each use one short command.
 
 The helper finds a running or commonly located DSH-Portable folder and writes to
 its own data directory. If the portable folder was renamed or moved elsewhere,
@@ -63,7 +67,7 @@ install; the helper never restarts it on its own.
 On macOS, Linux, or a system where Node.js, pnpm, and `dsh` are already available:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz
 ```
 
 Verify the installation:
@@ -89,14 +93,17 @@ The Windows helper runs both checks automatically. The config should contain one
 Windows:
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Update
+dsh-codex update
 ```
+
+The command resolves the latest GitHub Release and verifies the manager's
+SHA-256 before updating the plugin. If an older install does not have the
+`dsh-codex` command, run the two first-install lines once.
 
 With an existing `dsh` command:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
@@ -116,8 +123,7 @@ manually if it is running.
 Windows:
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Uninstall
+dsh-codex uninstall
 ```
 
 With an existing `dsh` command:
@@ -126,8 +132,9 @@ With an existing `dsh` command:
 dsh plugin --profile web remove dsh-codex-subscription
 ```
 
-Removing the package does not delete the DSH profile or unrelated plugins. Sign
-out first only if the stored OAuth credential should also be removed.
+On Windows this also removes the `dsh-codex` manager command. It does not delete
+the DSH profile, unrelated plugins, or the saved OAuth credential. Sign out first
+only if the saved login should also be removed.
 
 ## Boundaries
 

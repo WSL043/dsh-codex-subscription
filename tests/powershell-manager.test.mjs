@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict'
-import { copyFileSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
 import { once } from 'node:events'
+import { createHash } from 'node:crypto'
+import { createServer } from 'node:http'
 import test from 'node:test'
 
 const script = new URL('../dsh-codex.ps1', import.meta.url)
@@ -48,7 +50,41 @@ function portableFixture(root, installedStateRoot) {
   }
 }
 
-function dryRun(root, action = 'Install', extraEnv = {}) {
+function functionalPortableFixture(root) {
+  portableFixture(root)
+  copyFileSync(process.execPath, join(root, 'runtime', 'node', 'node.exe'))
+  const dsh = String.raw`
+const fs = require('node:fs')
+const path = require('node:path')
+const args = process.argv.slice(2)
+const stateFile = path.join(process.env.DSH_HOME, 'fake-packages.json')
+fs.mkdirSync(path.dirname(stateFile), { recursive: true })
+const packages = fs.existsSync(stateFile) ? JSON.parse(fs.readFileSync(stateFile, 'utf8')) : {}
+if (args.includes('--dump-config')) {
+  if (packages['dsh-codex-subscription']) process.stdout.write('codex-subscription\n')
+  process.exit(0)
+}
+if (args[0] !== 'plugin') process.exit(2)
+const command = args[3]
+if (command === 'list') {
+  process.stdout.write(JSON.stringify([{ dependencies: packages }]))
+} else if (command === 'add') {
+  packages['dsh-codex-subscription'] = { version: '0.2.4' }
+  fs.writeFileSync(stateFile, JSON.stringify(packages))
+} else if (command === 'remove') {
+  delete packages[args[4]]
+  fs.writeFileSync(stateFile, JSON.stringify(packages))
+} else {
+  process.exit(3)
+}
+`
+  writeFileSync(join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'), dsh)
+  const pnpm = join(root, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-11.19.0', 'package', 'bin')
+  mkdirSync(pnpm, { recursive: true })
+  writeFileSync(join(pnpm, 'pnpm.cjs'), "console.log('11.19.0')\n")
+}
+
+function dryRun(root, action = 'Install', extraEnv = {}, extraArgs = []) {
   const result = spawnSync('powershell.exe', [
     '-NoLogo',
     '-NoProfile',
@@ -58,6 +94,7 @@ function dryRun(root, action = 'Install', extraEnv = {}) {
     '-Action', action,
     '-PortableRoot', root,
     '-DryRun',
+    ...extraArgs,
   ], {
     encoding: 'utf8',
     env: { ...process.env, ...extraEnv },
@@ -65,6 +102,180 @@ function dryRun(root, action = 'Install', extraEnv = {}) {
   assert.equal(result.status, 0, result.stderr || result.stdout)
   return JSON.parse(result.stdout.trim())
 }
+
+windowsTest('first install plans a reusable dsh-codex command without requiring administrator access', () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-command-'))
+  const root = join(sandbox, 'DSH Portable')
+  const commandRoot = join(sandbox, 'LocalAppData', 'Programs', 'dsh-codex')
+  try {
+    portableFixture(root)
+    const plan = dryRun(root, 'Install', {}, [
+      '-CommandRoot', commandRoot,
+      '-NoModifyPath',
+    ])
+    assert.equal(plan.managerCommand, join(commandRoot, 'dsh-codex.cmd'))
+    assert.equal(plan.installsManagerCommand, true)
+    assert.equal(plan.modifiesUserPath, false)
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true })
+  }
+})
+
+windowsTest('reusable command uninstalls the portable plugin and removes itself', () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-command-install-'))
+  const root = join(sandbox, 'DSH Portable')
+  const commandRoot = join(sandbox, 'LocalAppData', 'Programs', 'dsh-codex')
+  try {
+    functionalPortableFixture(root)
+    const result = spawnSync('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
+      '-Action', 'Install', '-PortableRoot', root,
+      '-CommandRoot', commandRoot, '-NoModifyPath',
+    ], { encoding: 'utf8' })
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    assert.equal(existsSync(join(commandRoot, 'dsh-codex.ps1')), true)
+    assert.equal(existsSync(join(commandRoot, 'dsh-codex.cmd')), true)
+    const managerCommand = join(commandRoot, 'dsh-codex.cmd')
+    const help = spawnSync('cmd.exe', ['/d', '/s', '/c', managerCommand], {
+      cwd: root, encoding: 'utf8',
+    })
+    assert.equal(help.status, 0, help.stderr || help.stdout)
+    assert.match(help.stdout, /dsh-codex <install\|update\|uninstall>/iu)
+    const uninstall = spawnSync('cmd.exe', [
+      '/d', '/s', '/c',
+      `${managerCommand} Uninstall -CommandRoot ${commandRoot} -NoModifyPath`,
+    ], { cwd: root, encoding: 'utf8' })
+    assert.equal(uninstall.status, 0, uninstall.stderr || uninstall.stdout)
+    for (let attempt = 0; attempt < 30 && existsSync(commandRoot); attempt += 1) {
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100)
+    }
+    assert.equal(existsSync(commandRoot), false)
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true })
+  }
+})
+
+windowsTest('direct uninstall removes only manager-owned files from a custom command directory', () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-bounded-uninstall-'))
+  const root = join(sandbox, 'DSH Portable')
+  const commandRoot = join(sandbox, 'shared-command-directory')
+  const sentinel = join(commandRoot, 'keep-me.txt')
+  try {
+    functionalPortableFixture(root)
+    const install = spawnSync('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
+      '-Action', 'Install', '-PortableRoot', root,
+      '-CommandRoot', commandRoot, '-NoModifyPath',
+    ], { encoding: 'utf8' })
+    assert.equal(install.status, 0, install.stderr || install.stdout)
+    writeFileSync(sentinel, 'preserve')
+    const uninstall = spawnSync('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
+      '-Action', 'Uninstall', '-PortableRoot', root,
+      '-CommandRoot', commandRoot, '-NoModifyPath',
+    ], { encoding: 'utf8' })
+    assert.equal(uninstall.status, 0, uninstall.stderr || uninstall.stdout)
+    assert.equal(existsSync(sentinel), true)
+    assert.equal(existsSync(join(commandRoot, 'dsh-codex.ps1')), false)
+    assert.equal(existsSync(join(commandRoot, 'dsh-codex.cmd')), false)
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true })
+  }
+})
+
+windowsTest('managed update runs only a checksum-matching immutable release manager', async () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-self-update-'))
+  const root = join(sandbox, 'DSH Portable')
+  const commandRoot = join(sandbox, 'command')
+  const marker = join(sandbox, 'latest-manager.json')
+  const latestScript = String.raw`param(
+  [string] $Action,
+  [string] $Profile,
+  [string] $PortableRoot,
+  [string] $CommandRoot,
+  [switch] $Managed,
+  [switch] $SkipSelfUpdate,
+  [switch] $NoModifyPath
+)
+[IO.File]::WriteAllText($env:DSH_CODEX_TEST_MARKER, (@{
+  action = $Action
+  profile = $Profile
+  portableRoot = $PortableRoot
+  commandRoot = $CommandRoot
+  managed = [bool] $Managed
+  skipSelfUpdate = [bool] $SkipSelfUpdate
+  noModifyPath = [bool] $NoModifyPath
+} | ConvertTo-Json -Compress))
+`
+  const checksum = createHash('sha256').update(latestScript).digest('hex').toUpperCase()
+  let servedChecksum = checksum
+  const server = createServer((request, response) => {
+    if (request.url === '/latest') {
+      response.setHeader('content-type', 'application/json')
+      response.end(JSON.stringify({ tag_name: 'v9.9.9' }))
+    } else if (request.url === '/releases/download/v9.9.9/dsh-codex.ps1') {
+      response.end(latestScript)
+    } else if (request.url === '/releases/download/v9.9.9/dsh-codex.ps1.sha256') {
+      response.end(`${servedChecksum}  dsh-codex.ps1\n`)
+    } else {
+      response.statusCode = 404
+      response.end('not found')
+    }
+  })
+  try {
+    functionalPortableFixture(root)
+    server.listen(0, '127.0.0.1')
+    await once(server, 'listening')
+    const { port } = server.address()
+    const runManagedUpdate = async () => {
+      const child = spawn('powershell.exe', [
+        '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+        '-File', script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
+        '-Managed', '-Action', 'Update', '-Profile', 'web',
+        '-PortableRoot', root, '-CommandRoot', commandRoot, '-NoModifyPath',
+      ], {
+        env: {
+          ...process.env,
+          DSH_CODEX_RELEASE_API: `http://127.0.0.1:${port}/latest`,
+          DSH_CODEX_RELEASE_BASE: `http://127.0.0.1:${port}/releases/download`,
+          DSH_CODEX_TEST_MARKER: marker,
+        },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      })
+      let stdout = ''
+      let stderr = ''
+      child.stdout.setEncoding('utf8').on('data', chunk => { stdout += chunk })
+      child.stderr.setEncoding('utf8').on('data', chunk => { stderr += chunk })
+      const [exitCode] = await once(child, 'exit')
+      return { exitCode, stderr, stdout }
+    }
+    const accepted = await runManagedUpdate()
+    assert.equal(accepted.exitCode, 0, accepted.stderr || accepted.stdout)
+    assert.equal(existsSync(marker), true)
+    const invocation = JSON.parse(await import('node:fs/promises').then(fs => fs.readFile(marker, 'utf8')))
+    assert.deepEqual(invocation, {
+      action: 'Update',
+      commandRoot,
+      managed: true,
+      noModifyPath: true,
+      portableRoot: root,
+      profile: 'web',
+      skipSelfUpdate: true,
+    })
+    rmSync(marker, { force: true })
+    servedChecksum = '0'.repeat(64)
+    const rejected = await runManagedUpdate()
+    assert.notEqual(rejected.exitCode, 0)
+    assert.match(rejected.stderr, /checksum mismatch/iu)
+    assert.equal(existsSync(marker), false)
+  } finally {
+    server.close()
+    rmSync(sandbox, { recursive: true, force: true })
+  }
+})
 
 function autoDryRunResult(action = 'Install', extraEnv = {}) {
   return spawnSync('powershell.exe', [
@@ -103,7 +314,7 @@ windowsTest('portable install uses the bundled CLI and portable DSH_HOME', () =>
     assert.deepEqual(plan.arguments, [
       join(expectedRoot, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
       'plugin', '--profile', 'web', 'add',
-      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex-subscription.tgz',
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz',
       '--store-dir', join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-store-v11'),
       '--loglevel', 'error',
     ])
@@ -122,7 +333,7 @@ windowsTest('installed portable mode expands its external state root', () => {
     const plan = dryRun(root, 'Update', { LOCALAPPDATA: localAppData })
     assert.equal(plan.action, 'Update')
     assert.equal(plan.dshHome, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'dsh-home'))
-    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex-subscription.tgz'), true)
+    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz'), true)
     assert.equal(plan.packageName, 'dsh-codex-subscription')
     assert.equal(plan.legacyPackageName, '@wsl043/dsh-codex-subscription')
   } finally {

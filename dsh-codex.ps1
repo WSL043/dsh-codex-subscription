@@ -8,6 +8,14 @@ param(
 
     [string] $PortableRoot,
 
+    [string] $CommandRoot,
+
+    [switch] $NoModifyPath,
+
+    [switch] $Managed,
+
+    [switch] $SkipSelfUpdate,
+
     [switch] $DryRun
 )
 
@@ -17,13 +25,267 @@ $Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
 [Console]::OutputEncoding = $Utf8NoBom
 $OutputEncoding = $Utf8NoBom
 
+if ($Managed -and -not $PSBoundParameters.ContainsKey('Action')) {
+    Write-Host 'Usage: dsh-codex <install|update|uninstall>'
+    exit 0
+}
+
 $PackageName = 'dsh-codex-subscription'
 $LegacyPackageName = '@wsl043/dsh-codex-subscription'
-$PackageVersion = '0.2.3'
-$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.3/dsh-codex-subscription.tgz'
+$PackageVersion = '0.2.4'
+$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz'
 $PnpmVersion = '11.19.0'
 $PnpmUrl = 'https://registry.npmjs.org/pnpm/-/pnpm-11.19.0.tgz'
 $PnpmSha512 = '7881F3ED590D472C4A955E2B88B2121791116066DCC88CBCA3849EC9B60F1BBAA6D2CCB221FA91DA4E1C65BEF2BCBE379365AEA7AC539C7BF86DEDC3A1B22DCE'
+$ReleaseApi = if ($env:DSH_CODEX_RELEASE_API) { $env:DSH_CODEX_RELEASE_API } else { 'https://api.github.com/repos/WSL043/dsh-codex-subscription/releases/latest' }
+$ReleaseBase = if ($env:DSH_CODEX_RELEASE_BASE) { $env:DSH_CODEX_RELEASE_BASE.TrimEnd('/') } else { 'https://github.com/WSL043/dsh-codex-subscription/releases/download' }
+
+function Get-FileDigest {
+    param(
+        [Parameter(Mandatory = $true)][string] $Path,
+        [ValidateSet('SHA256', 'SHA512')][string] $Algorithm
+    )
+
+    $hasher = if ($Algorithm -eq 'SHA512') {
+        [System.Security.Cryptography.SHA512]::Create()
+    } else {
+        [System.Security.Cryptography.SHA256]::Create()
+    }
+    $stream = [System.IO.File]::OpenRead($Path)
+    try {
+        return ([System.BitConverter]::ToString($hasher.ComputeHash($stream))).Replace('-', '')
+    } finally {
+        $stream.Dispose()
+        $hasher.Dispose()
+    }
+}
+
+function Get-ManagerCommandRoot {
+    if ($CommandRoot) { return Resolve-FullPath $CommandRoot }
+    if ($Managed -and $PSCommandPath) { return Split-Path -Parent (Resolve-FullPath $PSCommandPath) }
+    if (-not $env:LOCALAPPDATA) { throw 'LOCALAPPDATA is required to install the dsh-codex command.' }
+    return Join-Path $env:LOCALAPPDATA 'Programs\dsh-codex'
+}
+
+function Invoke-LatestManager {
+    param([Parameter(Mandatory = $true)][string] $InstalledCommandRoot)
+
+    Write-Host 'Checking the latest immutable release...'
+    $releaseResponse = Invoke-WebRequest -UseBasicParsing -Uri $ReleaseApi -Headers @{
+        Accept = 'application/vnd.github+json'
+        'User-Agent' = 'dsh-codex'
+    }
+    try {
+        $release = $releaseResponse.Content | ConvertFrom-Json
+    } catch {
+        throw 'GitHub returned unreadable latest-release metadata.'
+    }
+    $tag = [string] $release.tag_name
+    if ($tag -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$') {
+        throw "GitHub returned an invalid release tag: $tag"
+    }
+
+    $stage = Join-Path ([System.IO.Path]::GetTempPath()) ('dsh-codex-update-' + [guid]::NewGuid().ToString('N'))
+    $latestScript = Join-Path $stage 'dsh-codex.ps1'
+    $checksumFile = Join-Path $stage 'dsh-codex.ps1.sha256'
+    New-Item -ItemType Directory -Path $stage | Out-Null
+    try {
+        $assetBase = "$ReleaseBase/$tag"
+        Invoke-WebRequest -UseBasicParsing -Uri "$assetBase/dsh-codex.ps1" -OutFile $latestScript
+        Invoke-WebRequest -UseBasicParsing -Uri "$assetBase/dsh-codex.ps1.sha256" -OutFile $checksumFile
+        $checksumText = Get-Content -LiteralPath $checksumFile -Raw
+        $match = [regex]::Match($checksumText, '(?im)^\s*([a-f0-9]{64})\s+\*?dsh-codex\.ps1\s*$')
+        if (-not $match.Success) { throw 'The release manager checksum file is invalid.' }
+        $expectedHash = $match.Groups[1].Value.ToUpperInvariant()
+        $actualHash = Get-FileDigest -Algorithm SHA256 -Path $latestScript
+        if ($actualHash -ne $expectedHash) {
+            throw "Release manager checksum mismatch. Expected $expectedHash, received $actualHash."
+        }
+
+        $arguments = @(
+            '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+            '-File', $latestScript,
+            '-Managed', '-SkipSelfUpdate', '-Action', $Action,
+            '-Profile', $Profile,
+            '-CommandRoot', $InstalledCommandRoot
+        )
+        if ($PortableRoot) { $arguments += @('-PortableRoot', $PortableRoot) }
+        if ($NoModifyPath) { $arguments += '-NoModifyPath' }
+        & powershell.exe @arguments
+        if ($LASTEXITCODE -ne 0) { throw "The latest release manager failed with exit code $LASTEXITCODE." }
+    } finally {
+        if (Test-Path -LiteralPath $stage) {
+            Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Test-SamePath {
+    param(
+        [Parameter(Mandatory = $true)][string] $Left,
+        [Parameter(Mandatory = $true)][string] $Right
+    )
+    try {
+        $leftPath = (Resolve-FullPath $Left).TrimEnd('\')
+        $rightPath = (Resolve-FullPath $Right).TrimEnd('\')
+        return [string]::Equals($leftPath, $rightPath, [System.StringComparison]::OrdinalIgnoreCase)
+    } catch {
+        return [string]::Equals($Left.Trim(), $Right.Trim(), [System.StringComparison]::OrdinalIgnoreCase)
+    }
+}
+
+function Publish-UserPathChange {
+    try {
+        if (-not ('DshCodex.NativeMethods' -as [type])) {
+            Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+namespace DshCodex {
+    public static class NativeMethods {
+        [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public static extern IntPtr SendMessageTimeout(
+            IntPtr hWnd,
+            uint message,
+            UIntPtr wParam,
+            string lParam,
+            uint flags,
+            uint timeout,
+            out UIntPtr result);
+    }
+}
+'@
+        }
+        [UIntPtr] $result = [UIntPtr]::Zero
+        # HWND_BROADCAST + WM_SETTINGCHANGE with SMTO_ABORTIFHUNG.
+        [void] [DshCodex.NativeMethods]::SendMessageTimeout(
+            [IntPtr] 0xffff,
+            0x001A,
+            [UIntPtr]::Zero,
+            'Environment',
+            0x0002,
+            2000,
+            [ref] $result
+        )
+    } catch {
+        Write-Warning 'The user PATH was updated, but Windows did not accept the environment refresh notification.'
+    }
+}
+
+function Add-ManagerToUserPath {
+    param([Parameter(Mandatory = $true)][string] $Directory)
+
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $entries = @([string] $userPath -split ';' | Where-Object { $_.Trim() })
+    foreach ($entry in $entries) {
+        if (Test-SamePath -Left $entry -Right $Directory) { return }
+    }
+    $updated = (@($entries) + $Directory) -join ';'
+    [Environment]::SetEnvironmentVariable('Path', $updated, 'User')
+    Publish-UserPathChange
+}
+
+function Remove-ManagerFromUserPath {
+    param([Parameter(Mandatory = $true)][string] $Directory)
+
+    $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    if (-not $userPath) { return }
+    $kept = @([string] $userPath -split ';' | Where-Object {
+        $_.Trim() -and -not (Test-SamePath -Left $_ -Right $Directory)
+    })
+    [Environment]::SetEnvironmentVariable('Path', ($kept -join ';'), 'User')
+    Publish-UserPathChange
+}
+
+function Start-ManagerCleanup {
+    param([Parameter(Mandatory = $true)][string] $Directory)
+
+    $installedScript = Join-Path $Directory 'dsh-codex.ps1'
+    $installedShim = Join-Path $Directory 'dsh-codex.cmd'
+    if (-not (Test-Path -LiteralPath $installedScript -PathType Leaf) -or
+        -not (Test-Path -LiteralPath $installedShim -PathType Leaf)) {
+        throw 'Refusing to clean an unrecognized manager command directory.'
+    }
+
+    $cleanupScript = Join-Path ([System.IO.Path]::GetTempPath()) ('dsh-codex-cleanup-' + [guid]::NewGuid().ToString('N') + '.ps1')
+    $cleanup = @'
+param(
+    [int] $ParentId,
+    [string] $DirectoryBase64,
+    [string] $CleanupBase64
+)
+$ErrorActionPreference = 'SilentlyContinue'
+$directory = [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($DirectoryBase64))
+$cleanupScript = [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String($CleanupBase64))
+try {
+    Wait-Process -Id $ParentId -ErrorAction SilentlyContinue
+    Start-Sleep -Milliseconds 300
+    Remove-Item -LiteralPath (Join-Path $directory 'dsh-codex.ps1') -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath (Join-Path $directory 'dsh-codex.cmd') -Force -ErrorAction SilentlyContinue
+    if ((Test-Path -LiteralPath $directory -PathType Container) -and
+        -not (Get-ChildItem -LiteralPath $directory -Force -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+        Remove-Item -LiteralPath $directory -Force -ErrorAction SilentlyContinue
+    }
+} finally {
+    Remove-Item -LiteralPath $cleanupScript -Force -ErrorAction SilentlyContinue
+}
+'@
+    [System.IO.File]::WriteAllText($cleanupScript, $cleanup, $Utf8NoBom)
+    $directoryBase64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($Directory))
+    $cleanupBase64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cleanupScript))
+    $argumentLine = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$cleanupScript`" -ParentId $PID -DirectoryBase64 $directoryBase64 -CleanupBase64 $cleanupBase64"
+    Start-Process -FilePath 'powershell.exe' -ArgumentList $argumentLine -WindowStyle Hidden | Out-Null
+}
+
+function Remove-ManagerCommand {
+    param([Parameter(Mandatory = $true)][string] $Directory)
+
+    if (-not $NoModifyPath) { Remove-ManagerFromUserPath -Directory $Directory }
+    if (Test-Path -LiteralPath $Directory -PathType Container) {
+        $installedScript = Join-Path $Directory 'dsh-codex.ps1'
+        if ($Managed -and $PSCommandPath -and (Test-SamePath -Left $PSCommandPath -Right $installedScript)) {
+            Start-ManagerCleanup -Directory $Directory
+            return
+        }
+        foreach ($ownedFile in @('dsh-codex.ps1', 'dsh-codex.cmd')) {
+            $ownedPath = Join-Path $Directory $ownedFile
+            if (Test-Path -LiteralPath $ownedPath -PathType Leaf) {
+                Remove-Item -LiteralPath $ownedPath -Force
+            }
+        }
+        if (-not (Get-ChildItem -LiteralPath $Directory -Force -ErrorAction SilentlyContinue | Select-Object -First 1)) {
+            Remove-Item -LiteralPath $Directory -Force
+        }
+    }
+}
+
+function Install-ManagerCommand {
+    param([Parameter(Mandatory = $true)][string] $Directory)
+
+    if (-not $PSCommandPath -or -not (Test-Path -LiteralPath $PSCommandPath -PathType Leaf)) {
+        throw 'The manager command can only be installed from a downloaded script file.'
+    }
+    New-Item -ItemType Directory -Force -Path $Directory | Out-Null
+    $installedScript = Join-Path $Directory 'dsh-codex.ps1'
+    if (-not (Test-SamePath -Left $PSCommandPath -Right $installedScript)) {
+        $stagedScript = Join-Path $Directory ('.dsh-codex-' + [guid]::NewGuid().ToString('N') + '.ps1')
+        try {
+            Copy-Item -LiteralPath $PSCommandPath -Destination $stagedScript
+            Move-Item -LiteralPath $stagedScript -Destination $installedScript -Force
+        } finally {
+            if (Test-Path -LiteralPath $stagedScript) {
+                Remove-Item -LiteralPath $stagedScript -Force -ErrorAction SilentlyContinue
+            }
+        }
+    }
+
+    $shim = @'
+@echo off
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0dsh-codex.ps1" -Managed %*
+exit /b %ERRORLEVEL%
+'@
+    [System.IO.File]::WriteAllText((Join-Path $Directory 'dsh-codex.cmd'), $shim, [System.Text.Encoding]::ASCII)
+    if (-not $NoModifyPath) { Add-ManagerToUserPath -Directory $Directory }
+}
 
 function Resolve-FullPath {
     param([Parameter(Mandatory = $true)][string] $Path)
@@ -220,7 +482,7 @@ function Install-PnpmTool {
     try {
         Write-Host "Preparing the bundled plugin manager (pnpm $PnpmVersion)..."
         Invoke-WebRequest -UseBasicParsing -Uri $PnpmUrl -OutFile $archive
-        $actualHash = (Get-FileHash -Algorithm SHA512 -LiteralPath $archive).Hash
+        $actualHash = Get-FileDigest -Algorithm SHA512 -Path $archive
         if ($actualHash -ne $PnpmSha512) {
             throw "pnpm download checksum mismatch. Expected $PnpmSha512, received $actualHash."
         }
@@ -302,7 +564,14 @@ function Get-InstalledPackageNames {
     }
 }
 
+$managerCommandRoot = Get-ManagerCommandRoot
+if ($Managed -and $Action -eq 'Update' -and -not $SkipSelfUpdate -and -not $DryRun) {
+    Invoke-LatestManager -InstalledCommandRoot $managerCommandRoot
+    exit 0
+}
+
 $target = Get-ManagerTarget
+$managerCommand = Join-Path $managerCommandRoot 'dsh-codex.cmd'
 $pnpmDirectory = Get-PnpmDirectory $target
 $pnpmStore = Get-PnpmStore $target
 $actionArguments = Get-ActionArguments -SelectedAction $Action -Store $pnpmStore
@@ -322,6 +591,9 @@ if ($DryRun) {
         legacyPackageName = $LegacyPackageName
         packageVersion = $PackageVersion
         packageSpec = $PackageSpec
+        managerCommand = $managerCommand
+        installsManagerCommand = $Action -ne 'Uninstall'
+        modifiesUserPath = ($Action -ne 'Uninstall') -and (-not $NoModifyPath)
         removesProfile = $false
     } | ConvertTo-Json -Depth 4 -Compress
     exit 0
@@ -400,12 +672,14 @@ try {
         if ($entryCount -ne 0 -or $legacyEntryCount -ne 0) {
             throw 'The plugin package was removed, but its profile entry is still present.'
         }
+        Remove-ManagerCommand -Directory $managerCommandRoot
         Write-Host 'Uninstalled. The DSH profile and saved credentials were kept.'
     } else {
         if (-not ($installedAfter -contains $PackageName)) { throw 'The installed package did not appear in the DSH plugin list.' }
         if ($installedAfter -contains $LegacyPackageName) { throw 'The legacy package is still present after migration.' }
         if ($entryCount -ne 1) { throw "Expected one plugin profile entry, found $entryCount." }
         if ($legacyEntryCount -ne 0) { throw 'The legacy plugin profile entry is still present after migration.' }
+        Install-ManagerCommand -Directory $managerCommandRoot
         $verb = if ($Action -eq 'Update') { 'Updated.' } else { 'Installed.' }
         Write-Host "$verb Restart DSH manually to load the change if it is currently running."
     }
