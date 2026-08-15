@@ -62,7 +62,7 @@ When `dsh`, Node.js, and pnpm are already available, install the fixed package
 asset directly:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-0.2.2.tgz
+dsh plugin --profile web add 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-0.2.2.tgz?build=20260815.1'
 ```
 
 Update by running the same `add` command again. When migrating from v0.2.1 by
