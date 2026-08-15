@@ -52,7 +52,7 @@ install; the helper never restarts it on its own.
 On macOS, Linux, or a system where Node.js, pnpm, and `dsh` are already available:
 
 ```sh
-dsh plugin --profile web add 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-0.2.2.tgz?build=20260815.1'
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-v0.2.2.tgz
 ```
 
 Verify the installation:
@@ -97,7 +97,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Action Updat
 With an existing `dsh` command:
 
 ```sh
-dsh plugin --profile web add 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-0.2.2.tgz?build=20260815.1'
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.2/dsh-codex-subscription-v0.2.2.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
