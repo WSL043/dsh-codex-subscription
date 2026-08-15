@@ -28,9 +28,21 @@ _The screenshot uses sample quota values and contains no real account data or cr
 Requirements: DeepSeek Harness `0.1.0-rc.6` and a ChatGPT account that currently
 has Codex access.
 
-### Windows (recommended)
+### Let an Agent install it (recommended if you do not use the command line)
 
-Run these three lines in PowerShell. They support both a normal DSH install
+Send the following URL directly to your Agent. The guide contains install,
+update, uninstall, and verification steps. It preserves the DSH profile and
+sign-in and never restarts DSH without permission:
+
+[Open the Agent installation guide](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md)
+
+```text
+https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
+```
+
+### Manual Windows install
+
+Open PowerShell and paste these two lines in order. They support both a normal DSH install
 and DSH-Portable. Portable users do not need a system Node.js, pnpm, or PATH setup.
 
 ```powershell
@@ -64,17 +76,6 @@ dsh --profile web --dump-config
 The Windows helper runs both checks automatically. The config should contain one
 `codex-subscription` entry. Then open
 **Settings -> Codex subscription**, sign in, and choose a Codex model in DSH.
-
-## Let an Agent handle it
-
-Send this documentation URL directly to an Agent. It contains the install,
-update, uninstall, and verification procedures:
-
-```text
-https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
-```
-
-You can also open [AGENTS.md](AGENTS.md) directly.
 
 ## Quota notes
 

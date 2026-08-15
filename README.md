@@ -28,9 +28,20 @@ _截图使用示例额度，不含真实账户或凭据信息。_
 要求：DeepSeek Harness `0.1.0-rc.6`，以及当前具有 Codex 使用资格的 ChatGPT
 账户。
 
-### Windows（推荐）
+### 让 Agent 安装（不熟悉命令行时推荐）
 
-依次运行下面三行。普通安装版和 DSH-Portable 都可以使用；便携版不需要
+把下面的链接直接发给你正在使用的 Agent。文档已经写好安装、更新、卸载和验收
+步骤，Agent 会保留 DSH profile 和登录信息，也不会擅自重启 DSH：
+
+[打开 Agent 安装文档](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md)
+
+```text
+https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
+```
+
+### Windows 手动安装
+
+打开 PowerShell，依次粘贴下面两行。普通安装版和 DSH-Portable 都可以使用；便携版不需要
 另外安装 Node.js、pnpm，也不需要配置系统 PATH。
 
 ```powershell
@@ -62,16 +73,6 @@ dsh --profile web --dump-config
 Windows 脚本已经自动执行这两项检查。配置中应只出现一个
 `codex-subscription` 条目。随后打开
 **设置 -> Codex 订阅** 完成登录，再从 DSH 的模型选择器选择 Codex 模型。
-
-## 让 Agent 操作
-
-把下面这个文档链接直接发给 Agent。文档中已经包含安装、更新、卸载和验收规则：
-
-```text
-https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
-```
-
-也可以直接打开 [AGENTS.md](AGENTS.md) 查看。
 
 ## 额度说明
 
