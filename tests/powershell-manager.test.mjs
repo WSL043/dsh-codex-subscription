@@ -264,7 +264,8 @@ userPathTest('installer adds and removes only its entry in the real user PATH', 
       '-Action', 'Install', '-PortableRoot', root, '-CommandRoot', commandRoot,
     ], { encoding: 'utf8' })
     assert.equal(install.status, 0, install.stderr || install.stdout)
-    assert.equal(readWindowsUserPath(), `${seededPath};${commandRoot}`)
+    const resolvedCommandRoot = realpathSync.native(commandRoot)
+    assert.equal(readWindowsUserPath(), `${seededPath};${resolvedCommandRoot}`)
 
     const uninstall = spawnSync('powershell.exe', [
       '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
