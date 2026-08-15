@@ -285,7 +285,10 @@ function Get-InstalledPackageNames {
         'plugin', '--profile', $Profile, 'list', '--depth', '0', '--json', '--loglevel', 'error'
     ) -Capture
     try {
-        $projects = @($json | ConvertFrom-Json)
+        # Windows PowerShell 5.1 preserves a top-level JSON array as one pipeline
+        # object. Assign first so @() expands the resulting Object[] correctly.
+        $parsedProjects = $json | ConvertFrom-Json
+        $projects = @($parsedProjects)
     } catch {
         throw 'DSH returned an unreadable plugin list.'
     }
