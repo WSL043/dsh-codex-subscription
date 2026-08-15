@@ -140,7 +140,9 @@ dsh plugin --profile web remove @wsl043/dsh-codex-subscription
 - ChatGPT Codex 后端和 DeepSeek Harness 都可能变化，兼容性以当前发布说明为准；
 - 本项目为社区项目，与 DeepSeek、OpenAI 无隶属或背书关系。
 
-问题反馈请使用 [GitHub Issues](https://github.com/WSL043/dsh-codex-subscription/issues)。
+本项目的问题反馈请使用 [GitHub Issues](https://github.com/WSL043/dsh-codex-subscription/issues)；
+DSH 插件相关交流也可以前往
+[DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)。
 敏感问题请先阅读 [SECURITY.md](SECURITY.md)。
 
 [MIT](LICENSE)
