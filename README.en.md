@@ -67,7 +67,7 @@ install; the helper never restarts it on its own.
 On macOS, Linux, or a system where Node.js, pnpm, and `dsh` are already available:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz
 ```
 
 Verify the installation:
@@ -103,7 +103,7 @@ SHA-256 before updating the plugin. If an older install does not have the
 With an existing `dsh` command:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
@@ -135,6 +135,14 @@ dsh plugin --profile web remove dsh-codex-subscription
 On Windows this also removes the `dsh-codex` manager command. It does not delete
 the DSH profile, unrelated plugins, or the saved OAuth credential. Sign out first
 only if the saved login should also be removed.
+
+## Troubleshooting
+
+- If `dsh-codex` is not found after installation, close and reopen PowerShell;
+- If DSH-Portable is not found, start the intended portable copy once and retry;
+- If `curl.exe` is missing, more than one DSH is present, or the command still
+  fails, send the Agent guide URL above to an Agent. Do not change the machine
+  PATH or execution policy, and do not delete a profile to force an install.
 
 ## Boundaries
 

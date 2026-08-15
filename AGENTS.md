@@ -6,7 +6,7 @@ Use this guide when a user asks an Agent to install, update, verify, or remove
 ## Safety
 
 - Confirm the target DSH profile; use `web` only when it is the user's target.
-- Use the pinned `v0.2.4` release assets for a first install, never a moving branch.
+- Use the pinned `v0.2.5` release assets for a first install, never a moving branch.
 - Never print OAuth credentials, account IDs, authorization callbacks, or the
   credential store.
 - Do not start, stop, or restart DSH without explicit permission.
@@ -39,12 +39,27 @@ runtime\node\node.exe
 app\node_modules\@deepseek-ai\dsh\lib\bin.js
 ```
 
+Before changing anything on an unfamiliar Windows computer, confirm that
+`powershell.exe` starts, note `$PSVersionTable.PSVersion`, and check
+`Get-Command curl.exe,dsh,node -ErrorAction SilentlyContinue`. Missing system
+Node.js or pnpm is normal for DSH-Portable and is not a reason to install either.
+If more than one DSH installation is present, stop automatic discovery and ask
+the user which installation is the target.
+
 ## Windows manager
 
 Download the fixed release asset to a visible file, then invoke the requested action:
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
+```
+
+If `curl.exe` is unavailable, download the same pinned asset without executing
+remote text in memory:
+
+```powershell
+Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex.ps1' -OutFile "$env:TEMP\dsh-codex.ps1"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
 ```
 
@@ -78,7 +93,7 @@ When `dsh`, Node.js, and pnpm are already available, install the fixed package
 asset directly:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz
+dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz
 ```
 
 Update by running the same `add` command again. When migrating from v0.2.1 by
@@ -115,7 +130,19 @@ turn unless the user explicitly asks.
 
 ## Failure handling
 
-On failure, stop and report the sanitized command error, DSH version, selected
-profile, requested release, installation mode, what changed, and what remains
-unverified. Do not patch DSH, switch to another paid route, wipe credentials, or
-delete the profile.
+If `dsh-codex` is not found immediately after a successful install, start a new
+PowerShell window and run `Get-Command dsh-codex`. If it is still missing, check
+the current user's PATH and
+`$env:LOCALAPPDATA\Programs\dsh-codex\dsh-codex.cmd`; do not edit the machine
+PATH. The full command path may be used for verification while the shell refresh
+is pending.
+
+If download fails, distinguish DNS, proxy, TLS/certificate, HTTP status, and
+checksum failures. Never disable certificate validation or skip a checksum. If
+`MachinePolicy` or `UserPolicy` blocks the child process, report the applicable
+`Get-ExecutionPolicy -List` result and stop; do not change organization policy.
+
+On any failure, report the sanitized command error, DSH version, selected
+profile, requested release, installation mode, what changed, cleanup status, and
+what remains unverified. Do not patch DSH, switch to another paid route, wipe
+credentials, delete a profile, or claim success from a partial check.

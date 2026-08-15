@@ -32,8 +32,8 @@ if ($Managed -and -not $PSBoundParameters.ContainsKey('Action')) {
 
 $PackageName = 'dsh-codex-subscription'
 $LegacyPackageName = '@wsl043/dsh-codex-subscription'
-$PackageVersion = '0.2.4'
-$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.4/dsh-codex-subscription.tgz'
+$PackageVersion = '0.2.5'
+$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.5/dsh-codex-subscription.tgz'
 $PnpmVersion = '11.19.0'
 $PnpmUrl = 'https://registry.npmjs.org/pnpm/-/pnpm-11.19.0.tgz'
 $PnpmSha512 = '7881F3ED590D472C4A955E2B88B2121791116066DCC88CBCA3849EC9B60F1BBAA6D2CCB221FA91DA4E1C65BEF2BCBE379365AEA7AC539C7BF86DEDC3A1B22DCE'
@@ -134,6 +134,50 @@ function Test-SamePath {
     }
 }
 
+function Add-UserPathEntry {
+    param(
+        [AllowNull()][AllowEmptyString()][string] $UserPath,
+        [Parameter(Mandatory = $true)][string] $Directory
+    )
+
+    foreach ($entry in @(([string] $UserPath).Split(';'))) {
+        if ($entry.Trim() -and (Test-SamePath -Left $entry -Right $Directory)) {
+            return [string] $UserPath
+        }
+    }
+    if (-not $UserPath) { return $Directory }
+
+    # Always add our own separator. If the existing value already ends in one,
+    # removing this suffix can still restore the original text byte-for-byte.
+    return $UserPath + ';' + $Directory
+}
+
+function Remove-UserPathEntry {
+    param(
+        [AllowNull()][AllowEmptyString()][string] $UserPath,
+        [Parameter(Mandatory = $true)][string] $Directory
+    )
+
+    if (-not $UserPath) { return [string] $UserPath }
+
+    $lastSeparator = $UserPath.LastIndexOf(';')
+    if ($lastSeparator -ge 0) {
+        $lastEntry = $UserPath.Substring($lastSeparator + 1)
+        if ($lastEntry.Trim() -and (Test-SamePath -Left $lastEntry -Right $Directory)) {
+            return $UserPath.Substring(0, $lastSeparator)
+        }
+    } elseif (Test-SamePath -Left $UserPath -Right $Directory) {
+        return ''
+    }
+
+    $kept = New-Object System.Collections.Generic.List[string]
+    foreach ($entry in $UserPath.Split(';')) {
+        if ($entry.Trim() -and (Test-SamePath -Left $entry -Right $Directory)) { continue }
+        $kept.Add($entry)
+    }
+    return $kept -join ';'
+}
+
 function Publish-UserPathChange {
     try {
         if (-not ('DshCodex.NativeMethods' -as [type])) {
@@ -175,11 +219,8 @@ function Add-ManagerToUserPath {
     param([Parameter(Mandatory = $true)][string] $Directory)
 
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
-    $entries = @([string] $userPath -split ';' | Where-Object { $_.Trim() })
-    foreach ($entry in $entries) {
-        if (Test-SamePath -Left $entry -Right $Directory) { return }
-    }
-    $updated = (@($entries) + $Directory) -join ';'
+    $updated = Add-UserPathEntry -UserPath $userPath -Directory $Directory
+    if ([string]::Equals([string] $updated, [string] $userPath, [System.StringComparison]::Ordinal)) { return }
     [Environment]::SetEnvironmentVariable('Path', $updated, 'User')
     Publish-UserPathChange
 }
@@ -189,10 +230,9 @@ function Remove-ManagerFromUserPath {
 
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     if (-not $userPath) { return }
-    $kept = @([string] $userPath -split ';' | Where-Object {
-        $_.Trim() -and -not (Test-SamePath -Left $_ -Right $Directory)
-    })
-    [Environment]::SetEnvironmentVariable('Path', ($kept -join ';'), 'User')
+    $updated = Remove-UserPathEntry -UserPath $userPath -Directory $Directory
+    if ([string]::Equals([string] $updated, [string] $userPath, [System.StringComparison]::Ordinal)) { return }
+    [Environment]::SetEnvironmentVariable('Path', $updated, 'User')
     Publish-UserPathChange
 }
 
