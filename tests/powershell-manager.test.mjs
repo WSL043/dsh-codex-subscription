@@ -113,7 +113,8 @@ windowsTest('first install plans a reusable dsh-codex command without requiring 
       '-CommandRoot', commandRoot,
       '-NoModifyPath',
     ])
-    assert.equal(plan.managerCommand, join(commandRoot, 'dsh-codex.cmd'))
+    const expectedCommandRoot = join(realpathSync.native(sandbox), 'LocalAppData', 'Programs', 'dsh-codex')
+    assert.equal(plan.managerCommand, join(expectedCommandRoot, 'dsh-codex.cmd'))
     assert.equal(plan.installsManagerCommand, true)
     assert.equal(plan.modifiesUserPath, false)
   } finally {
@@ -256,9 +257,10 @@ windowsTest('managed update runs only a checksum-matching immutable release mana
     assert.equal(accepted.exitCode, 0, accepted.stderr || accepted.stdout)
     assert.equal(existsSync(marker), true)
     const invocation = JSON.parse(await import('node:fs/promises').then(fs => fs.readFile(marker, 'utf8')))
+    const expectedCommandRoot = join(realpathSync.native(sandbox), 'command')
     assert.deepEqual(invocation, {
       action: 'Update',
-      commandRoot,
+      commandRoot: expectedCommandRoot,
       managed: true,
       noModifyPath: true,
       portableRoot: root,
