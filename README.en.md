@@ -1,6 +1,7 @@
 # DSH Codex Subscription
 
 [![CI](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml/badge.svg)](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/dsh-codex-subscription?logo=npm&label=npm)](https://www.npmjs.com/package/dsh-codex-subscription)
 [![License: MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=stars)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
