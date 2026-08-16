@@ -11,10 +11,10 @@ tools, permissions, search choice, and quota stay in one place.
 
 [Agent install](#let-an-agent-install-it-recommended) · [Windows install](#manual-windows-install) · [Update or uninstall](#update-and-uninstall)
 
-![Codex subscription settings in DeepSeek Harness](docs/assets/settings-en.png)
+![Using a Codex subscription in DeepSeek Harness](docs/assets/composer-en.png)
 
-Settings shows sign-in, search source, and the separate standard Codex and Spark
-quota returned by the service.
+Choose a Codex model and chat directly in DSH. When the Beta quota display is
+enabled, the composer shows the selected model's remaining quota.
 
 ## What it does
 
@@ -92,6 +92,8 @@ contain one `codex-subscription` entry.
 2. Sign in with a ChatGPT account that has Codex access.
 3. Choose DSH default search or Codex subscription search.
 4. Choose a Codex model from the model selector.
+
+![Codex subscription settings in DeepSeek Harness](docs/assets/settings-en.png)
 
 Codex subscription search reuses the same ChatGPT sign-in and does not need an
 OpenAI API key. Changing the search source does not change the conversation

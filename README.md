@@ -10,9 +10,9 @@
 
 [交给 Agent 安装](#交给-agent推荐) · [Windows 手动安装](#windows-手动安装) · [更新与卸载](#更新与卸载)
 
-![DeepSeek Harness 的 Codex 订阅设置](docs/assets/settings.png)
+![在 DeepSeek Harness 中使用 Codex 订阅](docs/assets/composer-en.png)
 
-设置页会显示登录状态、搜索来源，以及服务端实际返回的普通 Codex 与 Spark 独立额度。
+选择 Codex 模型后，可直接在 DSH 中对话；开启 Beta 额度显示后，输入框会显示当前模型的剩余额度。
 
 ## 能做什么
 
@@ -83,6 +83,8 @@ dsh --profile web --dump-config
 2. 登录具有 Codex 使用资格的 ChatGPT 账户；
 3. 选择使用 DSH 默认搜索，或使用 Codex 订阅搜索；
 4. 在模型选择器中选择 Codex 模型。
+
+![DeepSeek Harness 的 Codex 订阅设置](docs/assets/settings.png)
 
 Codex 订阅搜索复用同一份 ChatGPT 登录，不需要 OpenAI API Key。切换搜索来源不会改变
 当前对话模型，也不会在失败时自动改走另一个付费服务。升级后默认保留 DSH 原有搜索，
