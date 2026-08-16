@@ -1,0 +1,83 @@
+name: 安装或更新失败 / Install problem
+description: 安装、更新、登录、额度或卸载没有正常工作
+title: "[安装问题] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请勿提交 Token、Cookie、OAuth 链接或其他凭据。
+        Do not include tokens, cookies, OAuth URLs, or other credentials.
+
+  - type: dropdown
+    id: system
+    attributes:
+      label: 系统 / System
+      options:
+        - Windows
+        - macOS
+        - Linux
+        - 其他 / Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: dsh_mode
+    attributes:
+      label: DSH 运行方式 / DSH setup
+      options:
+        - DSH-Portable
+        - npm / npx
+        - 源码运行 / From source
+        - 不确定 / Not sure
+    validations:
+      required: true
+
+  - type: input
+    id: plugin_version
+    attributes:
+      label: 插件版本 / Plugin version
+      placeholder: 例如 v0.2.8 / e.g. v0.2.8
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: 出问题的步骤 / Failing step
+      options:
+        - 安装 / Install
+        - 更新 / Update
+        - 登录 / Sign in
+        - 模型或搜索 / Models or search
+        - 额度显示 / Quota display
+        - 卸载 / Uninstall
+        - 其他 / Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 发生了什么 / What happened
+      description: 写清操作步骤、预期结果和实际结果。
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: 错误输出 / Error output
+      description: 粘贴完整错误；先移除 Token、Cookie、OAuth 链接和其他凭据。
+      render: shell
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: 提交前确认 / Before submitting
+      options:
+        - label: 我已确认内容中没有 Token、Cookie、OAuth 链接或其他凭据。
+          required: true
