@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml/badge.svg)](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=stars)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
 [简体中文](README.md)
 
@@ -11,10 +12,12 @@ tools, permissions, search choice, and quota stay in one place.
 
 [Agent install](#let-an-agent-install-it-recommended) · [Windows install](#manual-windows-install) · [Update or uninstall](#update-and-uninstall)
 
-![Using a Codex subscription in DeepSeek Harness](docs/assets/composer-en.png)
+![Codex subscription settings in DeepSeek Harness](docs/assets/settings-en.png)
 
-Choose a Codex model and chat directly in DSH. When the Beta quota display is
-enabled, the composer shows the selected model's remaining quota.
+Settings shows sign-in, search source, and the separate standard Codex and Spark
+quota returned by the service.
+
+If this helps, open the [GitHub repository](https://github.com/WSL043/dsh-codex-subscription) and click **Star** in the upper-right corner so more DSH users can find it.
 
 ## What it does
 
@@ -93,8 +96,6 @@ contain one `codex-subscription` entry.
 3. Choose DSH default search or Codex subscription search.
 4. Choose a Codex model from the model selector.
 
-![Codex subscription settings in DeepSeek Harness](docs/assets/settings-en.png)
-
 Codex subscription search reuses the same ChatGPT sign-in and does not need an
 OpenAI API key. Changing the search source does not change the conversation
 model, and a failed source never silently falls back to another paid service.
@@ -102,6 +103,8 @@ Existing DSH search remains the default after an upgrade; opt in to Codex
 subscription search when wanted.
 
 ## How quota is shown
+
+![Codex quota inside the composer](docs/assets/composer-quota-en.png)
 
 - Settings always shows the detailed quota returned by the backend. The compact percentage is Beta and off by default;
 - When enabled, it appears inside the composer before the model name and only while a Codex model is selected;
