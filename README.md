@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml/badge.svg)](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=stars)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
 [English](README.en.md)
 
@@ -10,9 +11,11 @@
 
 [交给 Agent 安装](#交给-agent推荐) · [Windows 手动安装](#windows-手动安装) · [更新与卸载](#更新与卸载)
 
-![在 DeepSeek Harness 中使用 Codex 订阅](docs/assets/composer-en.png)
+![DeepSeek Harness 的 Codex 订阅设置](docs/assets/settings.png)
 
-选择 Codex 模型后，可直接在 DSH 中对话；开启 Beta 额度显示后，输入框会显示当前模型的剩余额度。
+设置页会显示登录状态、搜索来源，以及服务端实际返回的普通 Codex 与 Spark 独立额度。
+
+如果它帮到了你，欢迎在 [GitHub 仓库](https://github.com/WSL043/dsh-codex-subscription)的右上角点一下 **Star**，也方便其他 DSH 用户发现。
 
 ## 能做什么
 
@@ -84,13 +87,13 @@ dsh --profile web --dump-config
 3. 选择使用 DSH 默认搜索，或使用 Codex 订阅搜索；
 4. 在模型选择器中选择 Codex 模型。
 
-![DeepSeek Harness 的 Codex 订阅设置](docs/assets/settings.png)
-
 Codex 订阅搜索复用同一份 ChatGPT 登录，不需要 OpenAI API Key。切换搜索来源不会改变
 当前对话模型，也不会在失败时自动改走另一个付费服务。升级后默认保留 DSH 原有搜索，
 需要使用 Codex 订阅搜索时再主动切换。
 
 ## 额度如何显示
+
+![输入框内的 Codex 剩余额度](docs/assets/composer-quota-en.png)
 
 - 设置页始终展示服务端返回的详细额度；快捷百分比是 Beta 功能，默认关闭；
 - 开启后，百分比会显示在输入框内、模型名称左侧，只在选择 Codex 模型时出现；
