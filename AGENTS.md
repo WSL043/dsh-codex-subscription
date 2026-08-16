@@ -89,17 +89,18 @@ profile and saved login.
 
 ## Existing DSH CLI
 
-When `dsh`, Node.js, and pnpm are already available, install the fixed package
-asset directly:
+When `dsh`, Node.js, and pnpm are already available, install the pinned npm
+package directly:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz
+dsh plugin --profile web add dsh-codex-subscription@0.2.8
 ```
 
-Update by running the same `add` command again. When migrating from v0.2.1 by
-hand, remove `@wsl043/dsh-codex-subscription` only after the new package passes
-verification. The Windows manager performs this migration automatically and
-preserves the stored login. Uninstall the current package with:
+Update with `dsh plugin --profile web update dsh-codex-subscription`. When
+migrating from v0.2.1 by hand, remove `@wsl043/dsh-codex-subscription` only
+after the new package passes verification. The Windows manager performs this
+migration automatically and preserves the stored login. Uninstall the current
+package with:
 
 ```sh
 dsh plugin --profile web remove dsh-codex-subscription
