@@ -70,7 +70,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1
 <summary>macOS、Linux，或已有 <code>dsh</code> 命令</summary>
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz
+dsh plugin --profile web add dsh-codex-subscription
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
@@ -124,7 +124,7 @@ Windows 首次安装命令即可。
 更新并检查：
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz
+dsh plugin --profile web update dsh-codex-subscription
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```

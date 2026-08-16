@@ -79,7 +79,7 @@ once and install again. Restart DSH manually after installation.
 <summary>macOS, Linux, or an existing <code>dsh</code> command</summary>
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz
+dsh plugin --profile web add dsh-codex-subscription
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
@@ -136,7 +136,7 @@ the two Windows first-install commands above once.
 Update and verify:
 
 ```sh
-dsh plugin --profile web add https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz
+dsh plugin --profile web update dsh-codex-subscription
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
