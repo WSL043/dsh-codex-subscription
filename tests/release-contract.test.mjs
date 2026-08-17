@@ -194,3 +194,22 @@ test('CI uploads the hidden release artifact only after asserting it exists', ()
   assert.match(workflow, /sha256sum dsh-codex\.ps1/u)
   assert.match(workflow, /\.artifacts\/dsh-codex\.ps1\.sha256/u)
 })
+
+test('npm publishing is release-gated and uses OIDC without a stored npm token', () => {
+  const workflow = text('.github/workflows/publish.yml')
+  assert.match(workflow, /release:\s*[\s\S]*types:\s*\[published\]/u)
+  assert.match(workflow, /id-token:\s*write/u)
+  assert.match(workflow, /contents:\s*read/u)
+  assert.match(workflow, /npm@12\.0\.2/u)
+  assert.match(workflow, /release\.tag_name[\s\S]*package\.json[\s\S]*version/u)
+  for (const asset of [
+    'dsh-codex-subscription.tgz',
+    'dsh-codex.ps1',
+    'dsh-codex.ps1.sha256',
+    'settings.png',
+    'settings-en.png',
+    'composer-quota-en.png',
+  ]) assert.match(workflow, new RegExp(asset.replaceAll('.', '\\.')))
+  assert.match(workflow, /npm publish/u)
+  assert.doesNotMatch(workflow, /NODE_AUTH_TOKEN|NPM_TOKEN|secrets\.NPM/iu)
+})
