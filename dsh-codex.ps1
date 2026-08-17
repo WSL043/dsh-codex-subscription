@@ -32,8 +32,8 @@ if ($Managed -and -not $PSBoundParameters.ContainsKey('Action')) {
 
 $PackageName = 'dsh-codex-subscription'
 $LegacyPackageName = '@wsl043/dsh-codex-subscription'
-$PackageVersion = '0.3.0'
-$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.0/dsh-codex-subscription.tgz'
+$PackageVersion = '0.3.1'
+$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.1/dsh-codex-subscription.tgz'
 $PnpmVersion = '11.19.0'
 $PnpmUrl = 'https://registry.npmjs.org/pnpm/-/pnpm-11.19.0.tgz'
 $PnpmSha512 = '7881F3ED590D472C4A955E2B88B2121791116066DCC88CBCA3849EC9B60F1BBAA6D2CCB221FA91DA4E1C65BEF2BCBE379365AEA7AC539C7BF86DEDC3A1B22DCE'
@@ -71,8 +71,12 @@ function Invoke-LatestManager {
     param([Parameter(Mandatory = $true)][string] $InstalledCommandRoot)
 
     Write-Host 'Checking the latest immutable release...'
-    $releaseResponse = Invoke-WebRequest -UseBasicParsing -Uri $ReleaseApi -Headers @{
+    $releaseSeparator = if ($ReleaseApi.Contains('?')) { '&' } else { '?' }
+    $releaseUri = $ReleaseApi + $releaseSeparator + 'cache_bust=' + [DateTime]::UtcNow.Ticks
+    $releaseResponse = Invoke-WebRequest -UseBasicParsing -Uri $releaseUri -Headers @{
         Accept = 'application/vnd.github+json'
+        'Cache-Control' = 'no-cache'
+        Pragma = 'no-cache'
         'User-Agent' = 'dsh-codex'
     }
     try {
@@ -599,7 +603,7 @@ function Invoke-DshCommand {
     if ($LASTEXITCODE -ne 0) { throw "dsh failed with exit code $LASTEXITCODE." }
 }
 
-function Get-InstalledPackageNames {
+function Get-InstalledPackages {
     param([Parameter(Mandatory = $true)] $Target)
 
     $json = Invoke-DshCommand -Target $Target -Arguments @(
@@ -618,7 +622,17 @@ function Get-InstalledPackageNames {
         $dependenciesProperty = $project.PSObject.Properties['dependencies']
         if ($null -eq $dependenciesProperty -or $null -eq $dependenciesProperty.Value) { continue }
         foreach ($property in $dependenciesProperty.Value.PSObject.Properties) {
-            Write-Output ([string] $property.Name)
+            $version = $null
+            if ($null -ne $property.Value) {
+                $versionProperty = $property.Value.PSObject.Properties['version']
+                if ($null -ne $versionProperty -and $null -ne $versionProperty.Value) {
+                    $version = [string] $versionProperty.Value
+                }
+            }
+            Write-Output ([pscustomobject]@{
+                Name = [string] $property.Name
+                Version = $version
+            })
         }
     }
 }
@@ -686,9 +700,10 @@ try {
         $env:npm_config_store_dir = $pnpmStore
     }
 
-    $installedBefore = @(Get-InstalledPackageNames -Target $target)
-    $hadPackage = $installedBefore -contains $PackageName
-    $hadLegacyPackage = $installedBefore -contains $LegacyPackageName
+    $installedBefore = @(Get-InstalledPackages -Target $target)
+    $installedBeforeNames = @($installedBefore | ForEach-Object { $_.Name })
+    $hadPackage = $installedBeforeNames -contains $PackageName
+    $hadLegacyPackage = $installedBeforeNames -contains $LegacyPackageName
 
     if ($Action -eq 'Uninstall') {
         if ($hadPackage) {
@@ -726,9 +741,10 @@ try {
     $config = Invoke-DshCommand -Target $target -Arguments @('--profile', $Profile, '--dump-config') -Capture
     $entryCount = ([regex]::Matches($config, '(?<![A-Za-z0-9_-])codex-subscription(?![A-Za-z0-9_-])')).Count
     $legacyEntryCount = ([regex]::Matches($config, '(?<![A-Za-z0-9_-])wsl043-codex-subscription(?![A-Za-z0-9_-])')).Count
-    $installedAfter = @(Get-InstalledPackageNames -Target $target)
+    $installedAfter = @(Get-InstalledPackages -Target $target)
+    $installedAfterNames = @($installedAfter | ForEach-Object { $_.Name })
     if ($Action -eq 'Uninstall') {
-        if (($installedAfter -contains $PackageName) -or ($installedAfter -contains $LegacyPackageName)) {
+        if (($installedAfterNames -contains $PackageName) -or ($installedAfterNames -contains $LegacyPackageName)) {
             throw 'The plugin package is still present after uninstall.'
         }
         if ($entryCount -ne 0 -or $legacyEntryCount -ne 0) {
@@ -737,8 +753,13 @@ try {
         Remove-ManagerCommand -Directory $managerCommandRoot
         Write-Host 'Uninstalled. The DSH profile and saved credentials were kept.'
     } else {
-        if (-not ($installedAfter -contains $PackageName)) { throw 'The installed package did not appear in the DSH plugin list.' }
-        if ($installedAfter -contains $LegacyPackageName) { throw 'The legacy package is still present after migration.' }
+        $installedPackage = @($installedAfter | Where-Object { $_.Name -eq $PackageName } | Select-Object -First 1)
+        if ($installedPackage.Count -eq 0) { throw 'The installed package did not appear in the DSH plugin list.' }
+        if ($installedPackage[0].Version -ne $PackageVersion) {
+            $foundVersion = if ($installedPackage[0].Version) { $installedPackage[0].Version } else { 'unknown' }
+            throw "DSH did not install the requested package version: expected $PackageVersion, found $foundVersion."
+        }
+        if ($installedAfterNames -contains $LegacyPackageName) { throw 'The legacy package is still present after migration.' }
         if ($entryCount -ne 1) { throw "Expected one plugin profile entry, found $entryCount." }
         if ($legacyEntryCount -ne 0) { throw 'The legacy plugin profile entry is still present after migration.' }
         Install-ManagerCommand -Directory $managerCommandRoot
