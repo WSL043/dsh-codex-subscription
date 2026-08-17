@@ -20,7 +20,8 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.equal(pkg.version, '0.3.2')
+  assert.equal(pkg.version, '0.3.3')
+  assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
   assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-llm-pi-ai'], '0.1.0-rc.6')
@@ -48,12 +49,12 @@ test('public docs contain only user-facing product and operation information', (
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.match(guide, /releases\/download\/v0\.3\.2\/dsh-codex\.ps1/u)
+  assert.match(guide, /releases\/download\/v0\.3\.3\/dsh-codex\.ps1/u)
   assert.match(guide, /dsh-codex\.ps1" Install/u)
   assert.match(guide, /dsh-codex update/u)
   assert.match(guide, /dsh-codex uninstall/u)
   assert.match(guide, /DSH-Portable[\s\S]*system Node\.js or pnpm[\s\S]*per-user[\s\S]*never modifies[\s\S]*machine PATH/iu)
-  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@0\.3\.2/u)
+  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@0\.3\.3/u)
   assert.match(guide, /dsh plugin --profile web update dsh-codex-subscription/u)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
@@ -69,7 +70,7 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
   const readme = text('README.md')
   const readmeEn = text('README.en.md')
   assert.match(readme, /^# DSH Codex Subscription[\s\S]*在 DeepSeek Harness 中直接登录 ChatGPT/u)
-  assert.match(readme, /\[full English documentation\]\(https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/blob\/main\/README\.en\.md\)/u)
+  assert.match(readme, /\[English\]\(#english\)/u)
   for (const doc of [readme, readmeEn]) {
     assert.match(doc, /img\.shields\.io\/npm\/v\/dsh-codex-subscription/u)
     assert.match(doc, /npmjs\.com\/package\/dsh-codex-subscription/u)
@@ -82,8 +83,8 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
   assert.match(readmeEn, /paste these two lines in order/u)
   assert.doesNotMatch(`${readme}\n${readmeEn}`, /下面三行|three lines/iu)
   assert.doesNotMatch(readme, /复制下面|提示词/u)
-  assert.match(readme, /docs\/assets\/settings\.png/u)
-  assert.match(readmeEn, /docs\/assets\/settings-en\.png/u)
+  assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/settings\.png/u)
+  assert.match(readmeEn, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/settings-en\.png/u)
   assert.doesNotMatch(readme, /docs\/assets\/sidebar\.png/u)
   assert.doesNotMatch(readmeEn, /docs\/assets\/sidebar-en\.png/u)
   for (const asset of ['settings.png', 'settings-en.png']) {
@@ -94,13 +95,14 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
   assert.equal(existsSync(new URL('../docs/assets/sidebar-en.png', import.meta.url)), false)
 })
 
-test('npm README keeps Chinese first and includes a self-contained English quick start', () => {
+test('npm README keeps each language together and includes self-contained English instructions', () => {
   const readme = text('README.md')
   const chineseIntro = readme.indexOf('在 DeepSeek Harness 中直接登录 ChatGPT')
-  const englishStart = readme.indexOf('## English quick start')
-  assert.ok(chineseIntro >= 0 && englishStart > chineseIntro)
-  assert.match(readme, /## English quick start[\s\S]*ChatGPT \/ Codex subscription[\s\S]*Codex image generation/iu)
-  assert.match(readme, /## English quick start[\s\S]*curl\.exe -fL[\s\S]*dsh-codex update[\s\S]*dsh-codex uninstall/iu)
+  const chineseSupport = readme.indexOf('## 边界与支持')
+  const englishStart = readme.indexOf('## English')
+  assert.ok(chineseIntro >= 0 && chineseSupport > chineseIntro && englishStart > chineseSupport)
+  assert.match(readme, /## English[\s\S]*ChatGPT \/ Codex subscription[\s\S]*Codex image generation/iu)
+  assert.match(readme, /## English[\s\S]*curl\.exe -fL[\s\S]*dsh-codex update[\s\S]*dsh-codex uninstall/iu)
   assert.doesNotMatch(readme, /\[English\]\(README\.en\.md\)/u)
 })
 

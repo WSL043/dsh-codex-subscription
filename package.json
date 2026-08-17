@@ -1,6 +1,6 @@
 {
   "name": "dsh-codex-subscription",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "packageManager": "pnpm@11.19.0",
   "description": "ChatGPT and Codex subscriptions for DeepSeek Harness with OAuth login, image generation, quota, and subscription web search",
   "type": "module",
@@ -73,7 +73,7 @@
   "bugs": {
     "url": "https://github.com/WSL043/dsh-codex-subscription/issues"
   },
-  "homepage": "https://github.com/WSL043/dsh-codex-subscription#readme",
+  "homepage": "https://github.com/WSL043/dsh-codex-subscription",
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
   },

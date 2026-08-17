@@ -8,35 +8,13 @@
 在 DeepSeek Harness 中直接登录 ChatGPT 并使用 Codex 订阅，不需要 OpenAI API Key，
 也不依赖 Codex CLI。保留 DSH 原有的会话、工具和权限，还能生成图片、切换联网搜索来源并查看额度。
 
-[交给 Agent 安装](#交给-agent推荐) · [Windows 手动安装](#windows-手动安装) · [更新与卸载](#更新与卸载)
+[交给 Agent 安装](#交给-agent推荐) · [Windows 手动安装](#windows-手动安装) · [更新与卸载](#更新与卸载) · [English](#english)
 
-![DeepSeek Harness 的 Codex 订阅设置](docs/assets/settings.png)
+![DeepSeek Harness 的 Codex 订阅设置](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings.png)
 
 设置页会显示登录状态、搜索来源，以及服务端实际返回的普通 Codex 与 Spark 独立额度。
 
 如果它帮到了你，欢迎在 [GitHub 仓库](https://github.com/WSL043/dsh-codex-subscription)的右上角点一下 **Star**，也方便其他 DSH 用户发现。
-
-## English quick start
-
-Use your ChatGPT / Codex subscription directly in DeepSeek Harness without an
-OpenAI API key or Codex CLI. The plugin supports Codex image generation, lets
-you choose DSH or Codex subscription search, and shows the quota returned by the
-service.
-
-- **Let an Agent install it:** send the Agent this
-  [installation guide](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md).
-- **Windows:** open PowerShell and run these two lines:
-
-```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
-```
-
-After the first install, use `dsh-codex update` to update and
-`dsh-codex uninstall` to remove it. DSH-Portable is supported without a separate
-Node.js or pnpm installation. See the
-[full English documentation](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.en.md)
-for usage and troubleshooting.
 
 ## 能做什么
 
@@ -117,7 +95,7 @@ Codex 订阅搜索复用同一份 ChatGPT 登录，不需要 OpenAI API Key。�
 
 ## 额度如何显示
 
-![输入框内的 Codex 剩余额度](docs/assets/composer-quota-en.png)
+![输入框内的 Codex 剩余额度](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota-en.png)
 
 - 设置页始终展示服务端返回的详细额度；快捷百分比是 Beta 功能，默认关闭；
 - 开启后，百分比会显示在输入框内、模型名称左侧，只在选择 Codex 模型时出现；
@@ -186,5 +164,30 @@ dsh plugin --profile web remove @wsl043/dsh-codex-subscription
 DSH 插件相关交流也可以前往
 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)。
 敏感问题请先阅读 [SECURITY.md](SECURITY.md)。
+
+## English
+
+Use your ChatGPT / Codex subscription directly in DeepSeek Harness without an
+OpenAI API key or Codex CLI. The plugin supports Codex image generation, lets
+you choose DSH or Codex subscription search, and shows the quota returned by the
+service.
+
+**Agent install:** send this
+[installation guide](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md)
+to your Agent.
+
+**Windows install:** open PowerShell and run these two lines:
+
+```powershell
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
+```
+
+DSH-Portable is supported without a separate Node.js or pnpm installation.
+After the first install, use `dsh-codex update` to update and
+`dsh-codex uninstall` to remove it. Open **Settings -> Codex**, sign in with a
+ChatGPT account that has Codex access, choose a search source, and select a Codex
+model. For full usage and troubleshooting, see the
+[English documentation](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.en.md).
 
 [MIT](LICENSE)
