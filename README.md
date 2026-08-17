@@ -5,8 +5,6 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=stars)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[English](README.en.md)
-
 在 DeepSeek Harness 中直接登录 ChatGPT 并使用 Codex 订阅，不需要 OpenAI API Key，
 也不依赖 Codex CLI。保留 DSH 原有的会话、工具和权限，还能生成图片、切换联网搜索来源并查看额度。
 
@@ -17,6 +15,28 @@
 设置页会显示登录状态、搜索来源，以及服务端实际返回的普通 Codex 与 Spark 独立额度。
 
 如果它帮到了你，欢迎在 [GitHub 仓库](https://github.com/WSL043/dsh-codex-subscription)的右上角点一下 **Star**，也方便其他 DSH 用户发现。
+
+## English quick start
+
+Use your ChatGPT / Codex subscription directly in DeepSeek Harness without an
+OpenAI API key or Codex CLI. The plugin supports Codex image generation, lets
+you choose DSH or Codex subscription search, and shows the quota returned by the
+service.
+
+- **Let an Agent install it:** send the Agent this
+  [installation guide](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md).
+- **Windows:** open PowerShell and run these two lines:
+
+```powershell
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
+```
+
+After the first install, use `dsh-codex update` to update and
+`dsh-codex uninstall` to remove it. DSH-Portable is supported without a separate
+Node.js or pnpm installation. See the
+[full English documentation](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.en.md)
+for usage and troubleshooting.
 
 ## 能做什么
 
