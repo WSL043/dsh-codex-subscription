@@ -1,0 +1,80 @@
+name: Publish npm package
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.release.prerelease == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11.19.0
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Use an OIDC-capable npm CLI
+        run: npm install --global npm@12.0.2
+
+      - name: Verify release version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs'
+          const tag = process.env.RELEASE_TAG
+          const { version } = JSON.parse(readFileSync('package.json', 'utf8'))
+          if (!/^v\d+\.\d+\.\d+$/.test(tag) || tag !== `v${version}`) {
+            throw new Error(`Release tag ${tag} does not match package version ${version}.`)
+          }
+          NODE
+
+      - name: Verify immutable release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          assets="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+          for asset in \
+            dsh-codex-subscription.tgz \
+            dsh-codex.ps1 \
+            dsh-codex.ps1.sha256 \
+            settings.png \
+            settings-en.png \
+            composer-quota-en.png
+          do
+            grep -Fxq "$asset" <<<"$assets" || {
+              echo "Missing release asset: $asset" >&2
+              exit 1
+            }
+          done
+
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm test
+      - run: pnpm run build
+
+      - name: Verify committed build output
+        run: git diff --exit-code -- lib
+
+      - name: Publish with npm Trusted Publishing
+        run: npm publish --access public
