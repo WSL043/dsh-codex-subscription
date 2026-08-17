@@ -108,7 +108,7 @@ subscription search when wanted.
 
 ## How quota is shown
 
-![Codex quota inside the composer](https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/composer-quota.png)
+![Codex quota inside the composer](https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/composer-quota-en.png)
 
 - Settings always shows the detailed quota returned by the backend. The compact percentage is Beta and off by default;
 - When enabled, it appears inside the composer before the model name and only while a Codex model is selected;

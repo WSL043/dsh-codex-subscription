@@ -20,7 +20,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.equal(pkg.version, '0.3.5')
+  assert.equal(pkg.version, '0.3.6')
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
@@ -49,12 +49,12 @@ test('public docs contain only user-facing product and operation information', (
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.match(guide, /releases\/download\/v0\.3\.5\/dsh-codex\.ps1/u)
+  assert.match(guide, /releases\/download\/v0\.3\.6\/dsh-codex\.ps1/u)
   assert.match(guide, /dsh-codex\.ps1" Install/u)
   assert.match(guide, /dsh-codex update/u)
   assert.match(guide, /dsh-codex uninstall/u)
   assert.match(guide, /DSH-Portable[\s\S]*system Node\.js or pnpm[\s\S]*per-user[\s\S]*never modifies[\s\S]*machine PATH/iu)
-  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@0\.3\.5/u)
+  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@0\.3\.6/u)
   assert.match(guide, /dsh plugin --profile web update dsh-codex-subscription/u)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
@@ -85,7 +85,14 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
   assert.doesNotMatch(readme, /复制下面|提示词/u)
   assert.match(readme, /https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/latest\/download\/settings\.png/u)
   assert.match(readmeEn, /https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/latest\/download\/settings-en\.png/u)
-  assert.match(readme, /releases\/latest\/download\/composer-quota\.png/u)
+  assert.match(readme, /releases\/latest\/download\/composer-quota-en\.png/u)
+  for (const doc of [readme, readmeEn]) {
+    for (const match of doc.matchAll(/releases\/latest\/download\/([^\s)]+)/gu)) {
+      const asset = match[1]
+      if (!asset.endsWith('.png')) continue
+      assert.equal(existsSync(new URL(`../docs/assets/${asset}`, import.meta.url)), true, `documented release image must exist: ${asset}`)
+    }
+  }
   assert.doesNotMatch(readme, /docs\/assets\/sidebar\.png/u)
   assert.doesNotMatch(readmeEn, /docs\/assets\/sidebar-en\.png/u)
   for (const asset of ['settings.png', 'settings-en.png']) {
