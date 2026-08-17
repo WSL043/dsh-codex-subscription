@@ -95,7 +95,7 @@ Codex 订阅搜索复用同一份 ChatGPT 登录，不需要 OpenAI API Key。�
 
 ## 额度如何显示
 
-![输入框内的 Codex 剩余额度](https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/composer-quota.png)
+![输入框内的 Codex 剩余额度](https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/composer-quota-en.png)
 
 - 设置页始终展示服务端返回的详细额度；快捷百分比是 Beta 功能，默认关闭；
 - 开启后，百分比会显示在输入框内、模型名称左侧，只在选择 Codex 模型时出现；
