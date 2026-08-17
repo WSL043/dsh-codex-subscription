@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
+import { ImageGallery } from '@deepseek-ai/dsh-client-ui-attachment'
 import {
   DEFAULT_QUICK_QUOTA_VISIBLE,
   DEFAULT_SEARCH_PROVIDER,
@@ -11,7 +12,7 @@ import {
 } from './settings-contract.js'
 import { selectModelQuota } from './sidebar-quota.js'
 
-export const inject = ['slots', 'locale', 'connection', 'modelDirectories']
+export const inject = ['slots', 'locale', 'connection', 'modelDirectories', 'conversation']
 
 const NS = 'settings.codexSubscription'
 const CHANNEL = '/codex-subscription'
@@ -43,6 +44,8 @@ const zh = {
   creditsUsed: '已用 {used} / {limit} credits', spendReached: 'Credits 月度消费上限已用尽。', unavailable: '暂无数据',
   quickQuotaSetting: '输入框额度',
   quickQuotaBeta: 'Beta', quickQuotaStatus: 'Codex 剩余额度 {value}%',
+  imageGenerate: '生成图片', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
+  imageLabel: '生成的图片', imageOpen: '查看原图', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imageClosePreview: '关闭预览',
 }
 
 const en = {
@@ -70,6 +73,8 @@ const en = {
   creditsUsed: '{used} / {limit} credits used', spendReached: 'The monthly Credits spending cap has been reached.', unavailable: 'No data yet',
   quickQuotaSetting: 'Composer quota',
   quickQuotaBeta: 'Beta', quickQuotaStatus: 'Codex quota: {value}% remaining',
+  imageGenerate: 'Generate image', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
+  imageLabel: 'Generated image', imageOpen: 'View original', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imageClosePreview: 'Close preview',
 }
 
 const STYLE = `
@@ -98,6 +103,7 @@ const STYLE = `
 .codexSubscriptionCreditBalance{display:flex;flex-direction:column;gap:6px}.codexSubscriptionCreditBalance span,.codexSubscriptionCreditLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .codexSubscriptionSpendLimit{display:flex;flex-direction:column;gap:8px}.codexSubscriptionSpendTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionSpendTop strong{font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.codexSubscriptionSpendLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}.codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexComposerQuota{display:inline-flex;align-items:center;flex:0 0 auto;height:28px;box-sizing:border-box;margin-right:-4px;padding:0;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}
+.codexImageTool{display:flex;flex-direction:column;gap:8px;margin:4px 0;color:var(--dsw-alias-label-primary)}.codexImageToolRow{display:flex;align-items:center;min-height:24px;gap:8px;font-size:13px;line-height:20px}.codexImageToolIcon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}.codexImageToolIcon::before{content:'';width:8px;height:8px;border:1.5px solid currentColor;border-radius:3px}.codexImageTool[data-state=running] .codexImageToolIcon::before{border-radius:50%;border-right-color:transparent;animation:codexImageSpin 800ms linear infinite}.codexImageTool[data-state=error] .codexImageToolIcon::before{border-color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-state-error-primary)}.codexImageToolTitle{font-weight:500}.codexImageToolState{color:var(--dsw-alias-label-tertiary)}.codexImageToolError{margin:0 0 0 24px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary)}.codexImageToolGallery{margin-left:24px}@keyframes codexImageSpin{to{transform:rotate(360deg)}}
 @container (max-width:560px){.codexSubscriptionCreditRows{grid-template-columns:1fr}}
 @container (max-width:480px){.codexSubscriptionAccountRow,.codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column}.codexSubscriptionActions{width:100%}.codexSubscriptionSearchChoices{grid-template-columns:1fr}}
 @media(max-width:640px){.codexSubscriptionCard{padding:14px}}
@@ -124,6 +130,33 @@ const windowLabel = (seconds, t) => {
 const validDate = value => {
   const date = new Date(value)
   return Number.isFinite(date.getTime()) ? date : undefined
+}
+
+const imageGalleryLabels = t => ({
+  image: t('imageLabel'),
+  open: t('imageOpen'),
+  openNamed: value => fill(t('imageOpenNamed'), { value }),
+  loading: t('imageLoading'),
+  loadFailed: t('imageLoadFailed'),
+  lightbox: { dialog: t('imagePreview'), close: t('imageClosePreview') },
+})
+
+function CodexImageToolRow({ block, loadImage, t }) {
+  const settled = block?.kind === 'tool-result'
+  const image = settled
+    ? block.content.find(item => item?.type === 'image' && item.attachment !== undefined)
+    : undefined
+  const failed = settled && block.isError === true
+  const state = !settled ? 'running' : failed ? 'error' : 'done'
+  const status = !settled ? t('imageGenerating') : failed ? t('imageFailed') : t('imageGenerated')
+  const error = failed
+    ? block.content.find(item => item?.type === 'text' && typeof item.text === 'string')?.text
+    : undefined
+  return <div className="codexImageTool" data-state={state}>
+    <div className="codexImageToolRow"><span className="codexImageToolIcon" aria-hidden="true" /><span className="codexImageToolTitle">{t('imageGenerate')}</span><span className="codexImageToolState">{status}</span></div>
+    {image === undefined ? null : <div className="codexImageToolGallery"><ImageGallery images={[{ attachment: image.attachment }]} load={loadImage} align="start" labels={imageGalleryLabels(t)} /></div>}
+    {error === undefined ? null : <p className="codexImageToolError">{error}</p>}
+  </div>
 }
 
 function createPreferenceController(rpc) {
@@ -460,4 +493,12 @@ export function apply(ctx) {
       directory: ctx.modelDirectories.directoryFor(sessionId).store,
     }),
   }, CodexComposerQuota))
+  const conversation = ctx.get('conversation')
+  ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+    name: 'tool.call.toolview', key: 'codex_image_generate', locale: NS,
+    inject: sessionId => ({
+      t,
+      loadImage: attachment => conversation.resolveImage(sessionId, attachment),
+    }),
+  }, CodexImageToolRow))
 }

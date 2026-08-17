@@ -6,7 +6,7 @@ Use this guide when a user asks an Agent to install, update, verify, or remove
 ## Safety
 
 - Confirm the target DSH profile; use `web` only when it is the user's target.
-- Use the pinned `v0.2.8` release assets for a first install, never a moving branch.
+- Use the pinned `v0.3.0` release assets for a first install, never a moving branch.
 - Never print OAuth credentials, account IDs, authorization callbacks, or the
   credential store.
 - Do not start, stop, or restart DSH without explicit permission.
@@ -51,7 +51,7 @@ the user which installation is the target.
 Download the fixed release asset to a visible file, then invoke the requested action:
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.0/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
 ```
 
@@ -59,7 +59,7 @@ If `curl.exe` is unavailable, download the same pinned asset without executing
 remote text in memory:
 
 ```powershell
-Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex.ps1' -OutFile "$env:TEMP\dsh-codex.ps1"
+Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.0/dsh-codex.ps1' -OutFile "$env:TEMP\dsh-codex.ps1"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
 ```
 
@@ -93,7 +93,7 @@ When `dsh`, Node.js, and pnpm are already available, install the pinned npm
 package directly:
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@0.2.8
+dsh plugin --profile web add dsh-codex-subscription@0.3.0
 ```
 
 Update with `dsh plugin --profile web update dsh-codex-subscription`. When
@@ -128,8 +128,9 @@ If the user authorizes a live check, restart DSH manually, open
 **Settings -> Codex**, and verify the page loads. Confirm that Web
 search offers both **DSH default** and **Codex subscription**, and that the Beta
 composer quota switch starts off. Weekly-only usage is valid; Spark remains a
-separate bucket. Do not run a quota-consuming model turn unless the user
-explicitly asks.
+separate bucket. Confirm that `codex_image_generate` is available. Only when the
+user explicitly requests a quota-consuming live check, ask the Agent to generate
+one simple image and confirm that it appears in the conversation.
 
 ## Failure handling
 

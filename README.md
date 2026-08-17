@@ -8,7 +8,7 @@
 [English](README.en.md)
 
 在 DeepSeek Harness 中直接登录 ChatGPT 并使用 Codex 订阅，不需要 OpenAI API Key，
-也不依赖 Codex CLI。保留 DSH 原有的会话、工具和权限，还能切换联网搜索来源并查看额度。
+也不依赖 Codex CLI。保留 DSH 原有的会话、工具和权限，还能生成图片、切换联网搜索来源并查看额度。
 
 [交给 Agent 安装](#交给-agent推荐) · [Windows 手动安装](#windows-手动安装) · [更新与卸载](#更新与卸载)
 
@@ -22,6 +22,7 @@
 
 - 在 DSH 中直接使用 ChatGPT / Codex 订阅，不需要 OpenAI API Key 或 Codex CLI；
 - 在设置页登录 ChatGPT，凭据保留在本机；
+- 支持 Codex 图片生成，结果直接显示在 DSH 会话中；
 - 可在 DSH 默认搜索与 Codex 订阅搜索之间切换；
 - 展示服务端实际返回的额度、重置时间和更新时间；
 - 可在模型名称左侧显示当前 Codex 模型的剩余额度（Beta，默认关闭）；
@@ -87,6 +88,8 @@ dsh --profile web --dump-config
 2. 登录具有 Codex 使用资格的 ChatGPT 账户；
 3. 选择使用 DSH 默认搜索，或使用 Codex 订阅搜索；
 4. 在模型选择器中选择 Codex 模型。
+
+需要图片时直接描述想要的画面，Agent 会调用 Codex 图片生成并在会话中显示结果。
 
 Codex 订阅搜索复用同一份 ChatGPT 登录，不需要 OpenAI API Key。切换搜索来源不会改变
 当前对话模型，也不会在失败时自动改走另一个付费服务。升级后默认保留 DSH 原有搜索，

@@ -132,7 +132,7 @@ if (command === 'list') {
   process.stdout.write(JSON.stringify([{ dependencies: packages }]))
 } else if (command === 'add') {
   if (process.env.DSH_CODEX_TEST_FAIL_ADD === '1') process.exit(9)
-  packages['dsh-codex-subscription'] = { version: '0.2.8' }
+  packages['dsh-codex-subscription'] = { version: '0.3.0' }
   fs.writeFileSync(stateFile, JSON.stringify(packages))
 } else if (command === 'remove') {
   delete packages[args[4]]
@@ -491,7 +491,7 @@ windowsTest('portable install uses the bundled CLI, DSH_HOME, and package store'
     assert.deepEqual(plan.arguments, [
       join(expectedRoot, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
       'plugin', '--profile', 'web', 'add',
-      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz',
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.0/dsh-codex-subscription.tgz',
       '--store-dir', join(expectedRoot, 'data', 'pnpm-store'),
       '--loglevel', 'error',
     ])
@@ -512,7 +512,7 @@ windowsTest('portable install prefers the DSH-Portable command shim when availab
     assert.equal(plan.pnpmDirectory, null)
     assert.deepEqual(plan.arguments, [
       'plugin', '--profile', 'web', 'add',
-      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz',
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.0/dsh-codex-subscription.tgz',
       '--store-dir', join(expectedRoot, 'data', 'pnpm-store'),
       '--loglevel', 'error',
     ])
@@ -532,7 +532,7 @@ windowsTest('installed portable mode expands its external state root', () => {
     assert.equal(plan.action, 'Update')
     assert.equal(plan.dshHome, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'dsh-home'))
     assert.equal(plan.pnpmStore, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'pnpm-store'))
-    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.2.8/dsh-codex-subscription.tgz'), true)
+    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.0/dsh-codex-subscription.tgz'), true)
     assert.equal(plan.packageName, 'dsh-codex-subscription')
     assert.equal(plan.legacyPackageName, '@wsl043/dsh-codex-subscription')
   } finally {
