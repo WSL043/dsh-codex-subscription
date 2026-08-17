@@ -78,20 +78,21 @@ test('package discovery tolerates an empty pnpm dependency object in strict mode
   assert.match(source, /PSObject\.Properties\['dependencies'\]/u)
   assert.doesNotMatch(source, /\$project\.dependencies/u)
   const discovery = source.slice(
-    source.indexOf('function Get-InstalledPackageNames'),
+    source.indexOf('function Get-InstalledPackages'),
     source.indexOf('$target = Get-ManagerTarget'),
   )
   assert.match(discovery, /\$parsedProjects = \$json \| ConvertFrom-Json/u)
   assert.match(discovery, /\$projects = @\(\$parsedProjects\)/u)
   assert.doesNotMatch(discovery, /@\(\$json \| ConvertFrom-Json\)/u)
   assert.doesNotMatch(discovery, /System\.Collections\.Generic\.List\[string\]/u)
-  assert.match(discovery, /Write-Output \(\[string\] \$property\.Name\)/u)
+  assert.match(discovery, /Name\s*=\s*\[string\] \$property\.Name/u)
+  assert.match(discovery, /Version\s*=\s*\$version/u)
 })
 
 test('install and update add the pinned asset without removing the current package first', async () => {
   const source = await import('node:fs/promises').then(fs => fs.readFile(script, 'utf8'))
   const actionFlow = source.slice(
-    source.indexOf('$hadLegacyPackage = $installedBefore -contains $LegacyPackageName'),
+    source.indexOf('$hadLegacyPackage = $installedBeforeNames -contains $LegacyPackageName'),
     source.indexOf('$config = Invoke-DshCommand'),
   )
   const updateBranch = actionFlow.slice(actionFlow.indexOf('    } else {'))
@@ -132,7 +133,7 @@ if (command === 'list') {
   process.stdout.write(JSON.stringify([{ dependencies: packages }]))
 } else if (command === 'add') {
   if (process.env.DSH_CODEX_TEST_FAIL_ADD === '1') process.exit(9)
-  packages['dsh-codex-subscription'] = { version: '0.3.0' }
+  packages['dsh-codex-subscription'] = { version: process.env.DSH_CODEX_TEST_ADDED_VERSION || '0.3.1' }
   fs.writeFileSync(stateFile, JSON.stringify(packages))
 } else if (command === 'remove') {
   delete packages[args[4]]
@@ -192,6 +193,29 @@ windowsTest('a failed update preserves the currently installed plugin', () => {
       'dsh-codex-subscription': { version: '0.2.6' },
       'another-plugin': { version: '1.0.0' },
     })
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true })
+  }
+})
+
+windowsTest('update fails instead of reporting success when DSH keeps an older package version', () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-update-stale-version-'))
+  const root = join(sandbox, 'DSH Portable')
+  const commandRoot = join(sandbox, 'command')
+  try {
+    functionalPortableFixture(root)
+    const result = spawnSync('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
+      '-Action', 'Update', '-PortableRoot', root,
+      '-CommandRoot', commandRoot, '-NoModifyPath',
+    ], {
+      encoding: 'utf8',
+      env: { ...process.env, DSH_CODEX_TEST_ADDED_VERSION: '0.2.8' },
+    })
+    assert.notEqual(result.status, 0)
+    assert.match(result.stderr, /expected 0\.3\.1[^]*found 0\.2\.8/iu)
+    assert.doesNotMatch(result.stdout, /Updated\./u)
   } finally {
     rmSync(sandbox, { recursive: true, force: true })
   }
@@ -368,8 +392,10 @@ windowsTest('managed update runs only a checksum-matching immutable release mana
 `
   const checksum = createHash('sha256').update(latestScript).digest('hex').toUpperCase()
   let servedChecksum = checksum
+  const releaseRequests = []
   const server = createServer((request, response) => {
-    if (request.url === '/latest') {
+    if (request.url.startsWith('/latest?')) {
+      releaseRequests.push({ cacheControl: request.headers['cache-control'], pragma: request.headers.pragma, url: request.url })
       response.setHeader('content-type', 'application/json')
       response.end(JSON.stringify({ tag_name: 'v9.9.9' }))
     } else if (request.url === '/releases/download/v9.9.9/dsh-codex.ps1') {
@@ -410,6 +436,10 @@ windowsTest('managed update runs only a checksum-matching immutable release mana
     }
     const accepted = await runManagedUpdate()
     assert.equal(accepted.exitCode, 0, accepted.stderr || accepted.stdout)
+    assert.equal(releaseRequests.length, 1)
+    assert.match(releaseRequests[0].url, /^\/latest\?cache_bust=\d+$/u)
+    assert.equal(releaseRequests[0].cacheControl, 'no-cache')
+    assert.equal(releaseRequests[0].pragma, 'no-cache')
     assert.equal(existsSync(marker), true)
     const invocation = JSON.parse(await import('node:fs/promises').then(fs => fs.readFile(marker, 'utf8')))
     const expectedCommandRoot = join(realpathSync.native(sandbox), 'command')
@@ -491,7 +521,7 @@ windowsTest('portable install uses the bundled CLI, DSH_HOME, and package store'
     assert.deepEqual(plan.arguments, [
       join(expectedRoot, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
       'plugin', '--profile', 'web', 'add',
-      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.0/dsh-codex-subscription.tgz',
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.1/dsh-codex-subscription.tgz',
       '--store-dir', join(expectedRoot, 'data', 'pnpm-store'),
       '--loglevel', 'error',
     ])
@@ -512,7 +542,7 @@ windowsTest('portable install prefers the DSH-Portable command shim when availab
     assert.equal(plan.pnpmDirectory, null)
     assert.deepEqual(plan.arguments, [
       'plugin', '--profile', 'web', 'add',
-      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.0/dsh-codex-subscription.tgz',
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.1/dsh-codex-subscription.tgz',
       '--store-dir', join(expectedRoot, 'data', 'pnpm-store'),
       '--loglevel', 'error',
     ])
@@ -532,7 +562,7 @@ windowsTest('installed portable mode expands its external state root', () => {
     assert.equal(plan.action, 'Update')
     assert.equal(plan.dshHome, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'dsh-home'))
     assert.equal(plan.pnpmStore, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'pnpm-store'))
-    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.0/dsh-codex-subscription.tgz'), true)
+    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.1/dsh-codex-subscription.tgz'), true)
     assert.equal(plan.packageName, 'dsh-codex-subscription')
     assert.equal(plan.legacyPackageName, '@wsl043/dsh-codex-subscription')
   } finally {
