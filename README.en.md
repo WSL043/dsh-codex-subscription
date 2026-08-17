@@ -13,7 +13,7 @@ tools, permissions, image generation, search choice, and quota stay in one place
 
 [Agent install](#let-an-agent-install-it-recommended) · [Windows install](#manual-windows-install) · [Update or uninstall](#update-and-uninstall)
 
-![Codex subscription settings in DeepSeek Harness](https://cdn.jsdelivr.net/gh/WSL043/dsh-codex-subscription@main/docs/assets/settings-en.png)
+![Codex subscription settings in DeepSeek Harness](https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/settings-en.png)
 
 Settings shows sign-in, search source, and the separate standard Codex and Spark
 quota returned by the service.
@@ -108,7 +108,7 @@ subscription search when wanted.
 
 ## How quota is shown
 
-![Codex quota inside the composer](https://cdn.jsdelivr.net/gh/WSL043/dsh-codex-subscription@main/docs/assets/composer-quota-en.png)
+![Codex quota inside the composer](https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/composer-quota.png)
 
 - Settings always shows the detailed quota returned by the backend. The compact percentage is Beta and off by default;
 - When enabled, it appears inside the composer before the model name and only while a Codex model is selected;
