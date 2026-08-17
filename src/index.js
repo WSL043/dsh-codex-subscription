@@ -12,6 +12,7 @@ import {
   openaiCodexSubscriptionProvider,
 } from './pi-ai-runtime.js'
 import { CODEX_SEARCH_PROVIDER_ID, createCodexSearchProvider } from './codex-search.js'
+import { createCodexImageTool } from './codex-images.js'
 import {
   DEFAULT_QUICK_QUOTA_VISIBLE,
   DEFAULT_SEARCH_PROVIDER,
@@ -24,7 +25,7 @@ import {
 import { createCodexUsageReader } from './usage.js'
 
 export const name = 'codex-subscription'
-export const inject = ['llm', 'credentials', 'connection', 'settings', 'web', 'loader']
+export const inject = ['llm', 'credentials', 'connection', 'settings', 'web', 'loader', 'tools', 'attachments']
 
 const PROVIDER = 'openai-codex'
 const CREDENTIAL_REF = credentialRef('OPENAI_CODEX_SUBSCRIPTION_OAUTH')
@@ -158,6 +159,11 @@ export function apply(ctx) {
   })
   const profiles = new Map([[PROVIDER, profile]])
   const resolveAuth = () => authModels.getAuth(PROVIDER)
+  ctx.tools.register(createCodexImageTool({
+    getAuth: resolveAuth,
+    readCredential: options => store.read(PROVIDER, options),
+    attachments: ctx.attachments,
+  }))
   const adapter = new PiAiAdapter({
     profiles: () => profiles,
     resolveApiKey: async () => {
@@ -213,3 +219,9 @@ export { createCodexAuthService, DshOAuthCredentialStore } from './credential-st
 export { assertCodexAuthUrl, commandForCodexAuthUrl, openCodexAuthUrl } from './external-url.js'
 export { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinator.js'
 export { CODEX_USAGE_URL, createCodexUsageReader, parseCodexUsage } from './usage.js'
+export {
+  CODEX_IMAGE_GENERATION_URL,
+  CODEX_IMAGE_TOOL_NAME,
+  createCodexImageTool,
+  decodeCodexPng,
+} from './codex-images.js'

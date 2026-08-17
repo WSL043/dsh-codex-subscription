@@ -14,6 +14,7 @@ function fakeContext() {
   const registered = []
   const handled = []
   const searchProviders = []
+  const tools = []
   const settings = []
   const webUpdates = []
   const provided = new Map()
@@ -38,6 +39,20 @@ function fakeContext() {
     llm: {
       registerAdapter(providers, adapter) {
         registered.push({ providers, adapter })
+        return () => {}
+      },
+    },
+    attachments: {
+      imageLimits: {
+        maxImageBytes: 10 * 1024 * 1024,
+        maxMessageImageBytes: 10 * 1024 * 1024,
+        mediaTypes: ['image/png'],
+      },
+      async saveImage() { throw new Error('not used') },
+    },
+    tools: {
+      register(tool) {
+        tools.push(tool)
         return () => {}
       },
     },
@@ -73,16 +88,17 @@ function fakeContext() {
     provide(name, value) { provided.set(name, value) },
     effect(register) { return register() },
   }
-  return { ctx, registered, handled, provided, searchProviders, settings, webUpdates }
+  return { ctx, registered, handled, provided, searchProviders, settings, tools, webUpdates }
 }
 
-test('plugin registers one Codex route and one loopback-only redacted RPC', async () => {
+test('plugin registers one Codex route, subscription image tool, and loopback-only redacted RPC', async () => {
   const host = fakeContext()
   applyPlugin(host.ctx)
 
   assert.equal('CODEX_PROVIDER_POLICY' in plugin, false, 'do not replace the removed boundary with cosmetic metadata')
   assert.deepEqual(host.registered.map(item => item.providers), [['openai-codex']])
   assert.deepEqual(host.searchProviders.map(provider => provider.id), ['codex-subscription'])
+  assert.deepEqual(host.tools.map(tool => tool.name), ['codex_image_generate'])
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
   assert.equal(host.handled.length, 1)
   assert.equal(host.handled[0].channel, '/codex-subscription')
