@@ -19,6 +19,7 @@ function fakeContext() {
   const webUpdates = []
   const provided = new Map()
   let preference = { quickQuotaVisible: false, searchProvider: 'dsh' }
+  const preferenceWatchers = new Set()
   let credential
   const webEntry = {
     options: { id: 'web', config: { searchProvider: 'deepseek-official', fetchProvider: 'local' } },
@@ -74,10 +75,18 @@ function fakeContext() {
       writable: true,
       register(namespace, schema) {
         settings.push({ namespace, schema })
-        return {
-          get: () => preference,
-          async update(patch) { preference = { ...preference, ...patch } },
-        }
+         return {
+           get: () => preference,
+           async update(patch) {
+             const previous = preference
+             preference = { ...preference, ...patch }
+             await Promise.all([...preferenceWatchers].map(callback => callback(preference, previous)))
+           },
+           watch(callback) {
+             preferenceWatchers.add(callback)
+             return () => preferenceWatchers.delete(callback)
+           },
+         }
       },
     },
     loader: {
@@ -88,7 +97,14 @@ function fakeContext() {
     provide(name, value) { provided.set(name, value) },
     effect(register) { return register() },
   }
-  return { ctx, registered, handled, provided, searchProviders, settings, tools, webUpdates }
+  return {
+    ctx, registered, handled, provided, searchProviders, settings, tools, webUpdates,
+    async updateSettings(patch) {
+      const previous = preference
+      preference = { ...preference, ...patch }
+      await Promise.all([...preferenceWatchers].map(callback => callback(preference, previous)))
+    },
+  }
 }
 
 test('plugin registers one Codex route, subscription image tool, and loopback-only redacted RPC', async () => {
@@ -115,30 +131,31 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
   })
   assert.doesNotMatch(JSON.stringify(status), /access|refresh|accountId/)
 
-  const preferenceStatus = await host.handled[0].handler('preferences/status', {}, signal)
-  assert.deepEqual(preferenceStatus, {
-    ok: true,
-    value: { quickQuotaVisible: false, searchProvider: 'dsh', writable: true },
-  })
-  const preferenceUpdate = await host.handled[0].handler('preferences/update', {
-    quickQuotaVisible: true,
-  }, signal)
-  assert.deepEqual(preferenceUpdate, {
-    ok: true,
-    value: { quickQuotaVisible: true, searchProvider: 'dsh', writable: true },
-  })
-
-  const searchUpdate = await host.handled[0].handler('preferences/update', {
-    searchProvider: 'codex',
-  }, signal)
-  assert.deepEqual(searchUpdate, {
-    ok: true,
-    value: { quickQuotaVisible: true, searchProvider: 'codex', writable: true },
-  })
+  await host.updateSettings({ quickQuotaVisible: true })
+  assert.deepEqual(host.webUpdates, [], 'quota-only settings must not touch the web provider')
+  await host.updateSettings({ searchProvider: 'codex' })
   assert.deepEqual(host.webUpdates, [{
     config: { searchProvider: 'codex-subscription', fetchProvider: 'local' },
     noSave: true,
   }])
+
+  const preferenceStatus = await host.handled[0].handler('preferences/status', {}, signal)
+  assert.deepEqual(preferenceStatus, {
+    ok: true,
+    value: { quickQuotaVisible: true, searchProvider: 'codex', writable: true },
+  })
+  const preferenceUpdate = await host.handled[0].handler('preferences/update', {
+    quickQuotaVisible: false,
+    searchProvider: 'dsh',
+  }, signal)
+  assert.deepEqual(preferenceUpdate, {
+    ok: true,
+    value: { quickQuotaVisible: false, searchProvider: 'dsh', writable: true },
+  })
+  assert.deepEqual(host.webUpdates.at(-1), {
+    config: { searchProvider: 'deepseek-official', fetchProvider: 'local' },
+    noSave: true,
+  })
 })
 
 test('usage failures use a DSH-supported bounded RPC error', async () => {
