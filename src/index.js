@@ -117,9 +117,6 @@ export function apply(ctx) {
     [QUICK_QUOTA_FIELD]: z.boolean().default(DEFAULT_QUICK_QUOTA_VISIBLE),
     [SEARCH_PROVIDER_FIELD]: z.union([SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX]).default(DEFAULT_SEARCH_PROVIDER),
   }))
-  // DSH rc.6 exposes only a fixed allowlist of settings namespaces through
-  // its generic browser API. Keep storage in ctx.settings, and carry this
-  // plugin-owned preference over the existing loopback-only plugin channel.
   const searchProvider = createSearchProviderSwitcher(ctx.loader)
   const preferences = {
     status: () => ({
@@ -127,17 +124,7 @@ export function apply(ctx) {
       [SEARCH_PROVIDER_FIELD]: settings.get()[SEARCH_PROVIDER_FIELD],
       writable: ctx.settings.writable,
     }),
-    update: async patch => {
-      const previousSearchProvider = settings.get()[SEARCH_PROVIDER_FIELD]
-      await settings.update(patch)
-      if (patch[SEARCH_PROVIDER_FIELD] === undefined) return
-      try {
-        await searchProvider.select(patch[SEARCH_PROVIDER_FIELD])
-      } catch (error) {
-        await settings.update({ [SEARCH_PROVIDER_FIELD]: previousSearchProvider })
-        throw error
-      }
-    },
+    update: patch => settings.update(patch),
   }
 
   const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF])
@@ -192,9 +179,15 @@ export function apply(ctx) {
     resolveSessionId: () => currentAgent()?.session.id,
   }))
   ctx.effect(() => {
-    void searchProvider.select(settings.get()[SEARCH_PROVIDER_FIELD]).catch(error => {
-      ctx.logger?.warn?.('could not select the configured web search provider: %s', error.message)
-    })
+    const select = async value => {
+      try {
+        await searchProvider.select(value[SEARCH_PROVIDER_FIELD])
+      } catch (error) {
+        ctx.logger?.warn?.('could not select the configured web search provider: %s', error.message)
+      }
+    }
+    void select(settings.get())
+    return settings.watch(select)
   }, 'codex-subscription: search provider selection')
 
   const auth = createCodexAuthService(authModels, store)

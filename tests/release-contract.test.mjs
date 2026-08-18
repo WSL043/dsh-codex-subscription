@@ -20,11 +20,17 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.equal(pkg.version, '0.3.6')
+  assert.equal(pkg.version, '0.3.7')
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
-  assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-llm-pi-ai'], '0.1.0-rc.6')
+  const supportedDshReleases = '0.1.0-rc.6 || 0.1.0-rc.7'
+  for (const [name, version] of Object.entries(pkg.peerDependencies)) {
+    if (name.startsWith('@deepseek-ai/dsh-')) assert.equal(version, supportedDshReleases, name)
+  }
+  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-llm-pi-ai'], '0.1.0-rc.7')
+  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-api-remotes'], '0.1.0-rc.7')
+  assert.equal(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-api-remotes'), true)
   assert.equal(pkg.peerDependencies['@earendil-works/pi-ai'], '0.82.1')
   assert.equal(pkg.packageManager, 'pnpm@11.19.0')
   assert.equal(existsSync(new URL('../lib/index.js', import.meta.url)), true)
@@ -49,12 +55,12 @@ test('public docs contain only user-facing product and operation information', (
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.match(guide, /releases\/download\/v0\.3\.6\/dsh-codex\.ps1/u)
+  assert.match(guide, /releases\/download\/v0\.3\.7\/dsh-codex\.ps1/u)
   assert.match(guide, /dsh-codex\.ps1" Install/u)
   assert.match(guide, /dsh-codex update/u)
   assert.match(guide, /dsh-codex uninstall/u)
   assert.match(guide, /DSH-Portable[\s\S]*system Node\.js or pnpm[\s\S]*per-user[\s\S]*never modifies[\s\S]*machine PATH/iu)
-  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@0\.3\.6/u)
+  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@0\.3\.7/u)
   assert.match(guide, /dsh plugin --profile web update dsh-codex-subscription/u)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)

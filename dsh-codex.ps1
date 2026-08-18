@@ -32,8 +32,8 @@ if ($Managed -and -not $PSBoundParameters.ContainsKey('Action')) {
 
 $PackageName = 'dsh-codex-subscription'
 $LegacyPackageName = '@wsl043/dsh-codex-subscription'
-$PackageVersion = '0.3.6'
-$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.6/dsh-codex-subscription.tgz'
+$PackageVersion = '0.3.7'
+$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v0.3.7/dsh-codex-subscription.tgz'
 $PnpmVersion = '11.19.0'
 $PnpmUrl = 'https://registry.npmjs.org/pnpm/-/pnpm-11.19.0.tgz'
 $PnpmSha512 = '7881F3ED590D472C4A955E2B88B2121791116066DCC88CBCA3849EC9B60F1BBAA6D2CCB221FA91DA4E1C65BEF2BCBE379365AEA7AC539C7BF86DEDC3A1B22DCE'

@@ -2,17 +2,18 @@ import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import { ImageGallery } from '@deepseek-ai/dsh-client-ui-attachment'
 import {
-  DEFAULT_QUICK_QUOTA_VISIBLE,
-  DEFAULT_SEARCH_PROVIDER,
   normalizeSearchProvider,
   QUICK_QUOTA_FIELD,
   SEARCH_PROVIDER_CODEX,
   SEARCH_PROVIDER_DSH,
   SEARCH_PROVIDER_FIELD,
+  SETTINGS_NAMESPACE,
 } from './settings-contract.js'
 import { selectModelQuota } from './sidebar-quota.js'
 
-export const inject = ['slots', 'locale', 'connection', 'modelDirectories', 'conversation']
+export const inject = [
+  'slots', 'locale', 'connection', 'remote', 'settingsScope', 'modelDirectories', 'conversation',
+]
 
 const NS = 'settings.codexSubscription'
 const CHANNEL = '/codex-subscription'
@@ -159,51 +160,98 @@ function CodexImageToolRow({ block, loadImage, t }) {
   </div>
 }
 
-function createPreferenceController(rpc) {
-  let snapshot = Object.freeze({
-    status: 'loading', visible: DEFAULT_QUICK_QUOTA_VISIBLE,
-    searchProvider: DEFAULT_SEARCH_PROVIDER, writable: false, error: false,
-  })
+function createPreferenceController(scope, rpc) {
+  let updating = false
+  let error = false
+  let fallbackStatus = 'loading'
+  let fallback
   let generation = 0
+  const nativeSnapshot = () => scope.getSnapshot()
+  const read = () => {
+    const native = nativeSnapshot()
+    const current = native.status === 'ready'
+      ? native
+      : fallbackStatus === 'ready'
+        ? fallback
+        : native
+    return Object.freeze({
+      status: updating ? 'updating' : current.status,
+      visible: current.value?.[QUICK_QUOTA_FIELD] === true,
+      searchProvider: normalizeSearchProvider(current.value?.[SEARCH_PROVIDER_FIELD]),
+      writable: !updating && current.status === 'ready' && current.writable === true,
+      error,
+    })
+  }
+  let snapshot = read()
   const listeners = new Set()
-  const publish = next => {
-    snapshot = Object.freeze(next)
+  const publish = () => {
+    snapshot = read()
     for (const listener of listeners) listener()
   }
-  const accept = value => publish({
-    status: 'ready',
-    visible: value?.[QUICK_QUOTA_FIELD] === true,
-    searchProvider: normalizeSearchProvider(value?.[SEARCH_PROVIDER_FIELD]),
-    writable: value?.writable === true,
-    error: false,
+  const disposeScope = scope.subscribe(() => {
+    error = false
+    publish()
   })
+  const acceptFallback = value => {
+    fallbackStatus = 'ready'
+    fallback = {
+      status: 'ready',
+      value: {
+        [QUICK_QUOTA_FIELD]: value?.[QUICK_QUOTA_FIELD] === true,
+        [SEARCH_PROVIDER_FIELD]: normalizeSearchProvider(value?.[SEARCH_PROVIDER_FIELD]),
+      },
+      writable: value?.writable === true,
+    }
+  }
   const load = async () => {
     const current = ++generation
+    updating = false
+    fallbackStatus = 'loading'
+    fallback = undefined
+    error = false
+    publish()
+    const native = nativeSnapshot()
+    if (native.status === 'ready') return
     try {
       const value = unwrap(await rpc.call(CHANNEL, 'preferences/status', {}))
-      if (current === generation) accept(value)
+      if (current !== generation || nativeSnapshot().status === 'ready') return
+      acceptFallback(value)
+      publish()
     } catch {
-      if (current === generation) publish({
-        status: 'unavailable', visible: DEFAULT_QUICK_QUOTA_VISIBLE,
-        searchProvider: DEFAULT_SEARCH_PROVIDER, writable: false, error: false,
-      })
+      if (current !== generation || nativeSnapshot().status === 'ready') return
+      fallbackStatus = 'unavailable'
+      publish()
     }
   }
   const set = async patch => {
     if (snapshot.status !== 'ready' || snapshot.writable !== true) return
-    const previous = snapshot
     const current = ++generation
-    publish({
-      status: 'updating',
-      visible: patch[QUICK_QUOTA_FIELD] ?? snapshot.visible,
-      searchProvider: patch[SEARCH_PROVIDER_FIELD] ?? snapshot.searchProvider,
-      writable: false, error: false,
-    })
+    const entries = Object.entries(patch)
+    updating = true
+    error = false
+    publish()
     try {
-      const value = unwrap(await rpc.call(CHANNEL, 'preferences/update', patch))
-      if (current === generation) accept(value)
+      const native = nativeSnapshot()
+      if (native.status === 'ready') {
+        for (const [field, value] of entries) {
+          if (current !== generation) return
+          await scope.set(field, value)
+        }
+        if (current !== generation) return
+        const accepted = nativeSnapshot().value
+        error = entries.some(([field, value]) => accepted?.[field] !== value)
+      } else {
+        const value = unwrap(await rpc.call(CHANNEL, 'preferences/update', patch))
+        if (current !== generation) return
+        acceptFallback(value)
+      }
     } catch {
-      if (current === generation) publish({ ...previous, error: true })
+      if (current === generation) error = true
+    } finally {
+      if (current === generation) {
+        updating = false
+        publish()
+      }
     }
   }
   return {
@@ -214,6 +262,7 @@ function createPreferenceController(rpc) {
     },
     load,
     set,
+    dispose: disposeScope,
   }
 }
 
@@ -473,10 +522,15 @@ export function apply(ctx) {
     return () => tag.remove()
   }, 'codex-subscription: style')
   const connection = ctx.get('connection')
-  const preference = createPreferenceController(connection.rpc)
+  const scope = ctx.settingsScope.bind({ namespace: SETTINGS_NAMESPACE })
+  const preference = createPreferenceController(scope, connection.rpc)
   ctx.effect(() => {
     void preference.load()
-    return ctx.on('connection/reset', () => { void preference.load() })
+    const disposeReset = ctx.on('connection/reset', () => { void preference.load() })
+    return () => {
+      disposeReset?.()
+      preference.dispose()
+    }
   }, 'codex-subscription: preferences')
   const t = ctx.locale.bind(NS)
   ctx.slots.inject('settings.section', () => ctx.slots.register({
