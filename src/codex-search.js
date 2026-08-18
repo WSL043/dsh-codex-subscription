@@ -91,7 +91,7 @@ export function createCodexSearchProvider(options) {
             accept: 'application/json',
             'content-type': 'application/json',
             originator: 'pi',
-            'user-agent': 'dsh-codex-subscription/0.3.7',
+            'user-agent': 'dsh-codex-subscription/1.0.0',
           },
           body: JSON.stringify({
             id,
