@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![GitHub stars](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=stars)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[English](README.en.md)
+[English](#english)
 
 在 DeepSeek Harness 中直接登录 ChatGPT 并使用 Codex 订阅，不需要 OpenAI API Key，
 也不依赖 Codex CLI。保留 DSH 原有的会话、工具和权限，还能生成图片、切换联网搜索来源并查看额度。
