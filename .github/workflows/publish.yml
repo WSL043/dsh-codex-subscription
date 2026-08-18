@@ -59,9 +59,6 @@ jobs:
             dsh-codex-subscription.tgz \
             dsh-codex.ps1 \
             dsh-codex.ps1.sha256 \
-            settings.png \
-            settings-en.png \
-            composer-quota-en.png
           do
             grep -Fxq "$asset" <<<"$assets" || {
               echo "Missing release asset: $asset" >&2

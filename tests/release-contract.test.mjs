@@ -89,14 +89,14 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
   assert.match(readmeEn, /paste these two lines in order/u)
   assert.doesNotMatch(`${readme}\n${readmeEn}`, /下面三行|three lines/iu)
   assert.doesNotMatch(readme, /复制下面|提示词/u)
-  assert.match(readme, /https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/latest\/download\/settings\.png/u)
-  assert.match(readmeEn, /https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/releases\/latest\/download\/settings-en\.png/u)
-  assert.match(readme, /releases\/latest\/download\/composer-quota-en\.png/u)
+  assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/settings\.png/u)
+  assert.match(readmeEn, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/settings-en\.png/u)
+  assert.match(readme, /raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/composer-quota-en\.png/u)
   for (const doc of [readme, readmeEn]) {
-    for (const match of doc.matchAll(/releases\/latest\/download\/([^\s)]+)/gu)) {
+    for (const match of doc.matchAll(/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/([^\s)]+\.png)/gu)) {
       const asset = match[1]
-      if (!asset.endsWith('.png')) continue
       assert.equal(existsSync(new URL(`../docs/assets/${asset}`, import.meta.url)), true, `documented release image must exist: ${asset}`)
+      assert.doesNotMatch(doc, /releases\/latest\/download\/[^\s)]+\.png/u)
     }
   }
   assert.doesNotMatch(readme, /docs\/assets\/sidebar\.png/u)
@@ -212,10 +212,12 @@ test('npm publishing is release-gated and uses OIDC without a stored npm token',
     'dsh-codex-subscription.tgz',
     'dsh-codex.ps1',
     'dsh-codex.ps1.sha256',
+  ]) assert.match(workflow, new RegExp(asset.replaceAll('.', '\\.')))
+  for (const asset of [
     'settings.png',
     'settings-en.png',
     'composer-quota-en.png',
-  ]) assert.match(workflow, new RegExp(asset.replaceAll('.', '\\.')))
+  ]) assert.doesNotMatch(workflow, new RegExp(asset.replaceAll('.', '\\.')))
   assert.match(workflow, /npm publish/u)
   assert.doesNotMatch(workflow, /NODE_AUTH_TOKEN|NPM_TOKEN|secrets\.NPM/iu)
 })
