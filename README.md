@@ -10,7 +10,7 @@
 
 [交给 Agent 安装](#交给-agent推荐) · [Windows 手动安装](#windows-手动安装) · [更新与卸载](#更新与卸载) · [English](#english)
 
-![DeepSeek Harness 的 Codex 订阅设置](https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/settings.png)
+![DeepSeek Harness 的 Codex 订阅设置](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings.png)
 
 设置页会显示登录状态、搜索来源，以及服务端实际返回的普通 Codex 与 Spark 独立额度。
 
@@ -95,7 +95,7 @@ Codex 订阅搜索复用同一份 ChatGPT 登录，不需要 OpenAI API Key。�
 
 ## 额度如何显示
 
-![输入框内的 Codex 剩余额度](https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/composer-quota-en.png)
+![输入框内的 Codex 剩余额度](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota-en.png)
 
 - 设置页始终展示服务端返回的详细额度；快捷百分比是 Beta 功能，默认关闭；
 - 开启后，百分比会显示在输入框内、模型名称左侧，只在选择 Codex 模型时出现；
