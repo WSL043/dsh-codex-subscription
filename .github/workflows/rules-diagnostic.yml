@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Inspect effective rules and recent tag rule suites
+      - name: Inspect effective rules and immutable release state
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -26,20 +26,13 @@ jobs:
 
           gh api "${api_headers[@]}" "repos/$GITHUB_REPOSITORY/rulesets?includes_parents=true&targets=branch,tag,push" > rulesets.json 2>rulesets.err
           rulesets_status=$?
+          gh api "${api_headers[@]}" "repos/$GITHUB_REPOSITORY/immutable-releases" > immutable.json 2>immutable.err
+          immutable_status=$?
           gh api "${api_headers[@]}" "repos/$GITHUB_REPOSITORY/rulesets/rule-suites?per_page=100" > suites.json 2>suites.err
           suites_status=$?
 
-          : > suite-details.txt
-          if [[ $suites_status -eq 0 ]]; then
-            jq -r '.[] | select(.ref == "refs/tags/v1.0.1") | .id' suites.json | head -n 10 | while read -r id; do
-              echo "### rule suite $id" >> suite-details.txt
-              gh api "${api_headers[@]}" "repos/$GITHUB_REPOSITORY/rulesets/rule-suites/$id" >> suite-details.txt 2>&1
-              echo >> suite-details.txt
-            done
-          fi
-
           {
-            echo 'Rules diagnostic for v1.0.1'
+            echo 'Rules / immutable release diagnostic for v1.0.1'
             echo
             echo "rulesets API status: $rulesets_status"
             echo '```json'
@@ -47,23 +40,21 @@ jobs:
             echo
             echo '```'
             echo
-            echo "rule suites API status: $suites_status"
+            echo "immutable releases API status: $immutable_status"
             echo '```json'
+            if [[ $immutable_status -eq 0 ]]; then cat immutable.json; else cat immutable.err; fi
+            echo
+            echo '```'
+            echo
+            echo "rule suites API status: $suites_status"
+            echo '```text'
             if [[ $suites_status -eq 0 ]]; then
-              jq '[.[] | select(.ref == "refs/tags/v1.0.1") | {id, actor_name, ref, result, evaluation_result, pushed_at}]' suites.json
+              jq -c '[.[] | select(.ref == "refs/tags/v1.0.1") | {id, actor_name, ref, result, evaluation_result, pushed_at}]' suites.json
             else
               cat suites.err
             fi
             echo
             echo '```'
-            echo
-            echo '<details><summary>matching rule suite details</summary>'
-            echo
-            echo '```json'
-            cat suite-details.txt
-            echo
-            echo '```'
-            echo '</details>'
           } > rules-comment.md
 
           gh issue comment 5 --repo "$GITHUB_REPOSITORY" --body-file rules-comment.md
