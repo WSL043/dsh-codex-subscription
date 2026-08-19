@@ -1,0 +1,102 @@
+name: Release
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid package version: $version" >&2
+            exit 1
+          fi
+          tag="v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "$RELEASE_TAG already exists; nothing to publish."
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v5
+        if: steps.existing.outputs.needed == 'true'
+        with:
+          version: 11.19.0
+          run_install: false
+
+      - uses: actions/setup-node@v6
+        if: steps.existing.outputs.needed == 'true'
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Build immutable release assets
+        if: steps.existing.outputs.needed == 'true'
+        shell: bash
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm test
+          pnpm run build
+          git diff --exit-code -- lib
+          rm -rf .artifacts
+          mkdir -p .artifacts
+          pnpm pack --pack-destination .artifacts
+          package="$(find .artifacts -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          test -n "$package"
+          mv "$package" .artifacts/dsh-codex-subscription.tgz
+          cp dsh-codex.ps1 .artifacts/dsh-codex.ps1
+          cp dsh-codex-setup.ps1 .artifacts/dsh-codex-setup.ps1
+          (cd .artifacts && sha256sum dsh-codex.ps1 > dsh-codex.ps1.sha256)
+          test -s .artifacts/dsh-codex-subscription.tgz
+          test -s .artifacts/dsh-codex.ps1
+          test -s .artifacts/dsh-codex.ps1.sha256
+          test -s .artifacts/dsh-codex-setup.ps1
+
+      - name: Create GitHub Release
+        if: steps.existing.outputs.needed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          gh release create "$RELEASE_TAG" \
+            .artifacts/dsh-codex-subscription.tgz \
+            .artifacts/dsh-codex.ps1 \
+            .artifacts/dsh-codex.ps1.sha256 \
+            .artifacts/dsh-codex-setup.ps1 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$TARGET_SHA" \
+            --title "$RELEASE_TAG" \
+            --generate-notes

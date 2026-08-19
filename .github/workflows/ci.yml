@@ -35,12 +35,14 @@ jobs:
         run: |
           pnpm pack --pack-destination .artifacts
           cp dsh-codex.ps1 .artifacts/dsh-codex.ps1
+          cp dsh-codex-setup.ps1 .artifacts/dsh-codex-setup.ps1
           (cd .artifacts && sha256sum dsh-codex.ps1 > dsh-codex.ps1.sha256)
           artifact="$(find .artifacts -maxdepth 1 -type f -name '*.tgz' -print -quit)"
           test -n "$artifact"
           test -s "$artifact"
           test -s .artifacts/dsh-codex.ps1
           test -s .artifacts/dsh-codex.ps1.sha256
+          test -s .artifacts/dsh-codex-setup.ps1
       - uses: actions/upload-artifact@v6
         with:
           name: dsh-codex-subscription-${{ github.sha }}
@@ -48,6 +50,7 @@ jobs:
             .artifacts/*.tgz
             .artifacts/dsh-codex.ps1
             .artifacts/dsh-codex.ps1.sha256
+            .artifacts/dsh-codex-setup.ps1
           if-no-files-found: error
           include-hidden-files: true
 
@@ -71,6 +74,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Verify Windows installer lifecycle
-        run: node --test tests/powershell-manager.test.mjs
+        run: node --test tests/powershell-manager.test.mjs tests/powershell-setup.test.mjs
         env:
           DSH_CODEX_TEST_USER_PATH: '1'

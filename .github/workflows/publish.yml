@@ -64,7 +64,8 @@ jobs:
           for asset in \
             dsh-codex-subscription.tgz \
             dsh-codex.ps1 \
-            dsh-codex.ps1.sha256
+            dsh-codex.ps1.sha256 \
+            dsh-codex-setup.ps1
           do
             grep -Fxq "$asset" <<<"$assets" || {
               echo "Missing release asset: $asset" >&2
