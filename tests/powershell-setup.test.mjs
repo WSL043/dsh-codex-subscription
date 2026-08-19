@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -130,7 +130,9 @@ windowsTest('multiple discovered portable copies become a numbered choice instea
     const plan = parsePlan(result.stdout)
     assert.equal(plan.candidateCount, 2)
     assert.equal(plan.action, 'Install')
-    assert.equal([first, second].includes(plan.target), true)
+    const selected = realpathSync.native(plan.target).toLowerCase()
+    const expected = [first, second].map(root => realpathSync.native(root).toLowerCase())
+    assert.equal(expected.includes(selected), true)
     assert.match(result.stdout, /More than one DSH installation was found/u)
     assert.match(result.stdout, /\[1\][\s\S]*\[2\]/u)
   } finally {
