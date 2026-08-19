@@ -14,7 +14,6 @@ concurrency:
 
 jobs:
   prepare:
-    if: github.event.head_commit.message == 'chore: trigger clean v1.0.2 preparation'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -28,14 +27,21 @@ jobs:
         run: |
           set -o pipefail
           {
+            current="$(node -p "require('./package.json').version")"
+            if [[ "$current" == "1.0.2" ]]; then
+              echo 'v1.0.2 is already prepared.'
+              exit 0
+            fi
+            if [[ "$current" != "1.0.1" ]]; then
+              echo "Unexpected package version: $current" >&2
+              exit 1
+            fi
             python - <<'PY'
             from pathlib import Path
             import json
 
             pkg_path = Path('package.json')
             pkg = json.loads(pkg_path.read_text())
-            if pkg['version'] != '1.0.1':
-                raise SystemExit(f"expected package version 1.0.1, found {pkg['version']}")
             pkg['version'] = '1.0.2'
             pkg_path.write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n')
 
