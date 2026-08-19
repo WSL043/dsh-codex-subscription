@@ -49,6 +49,8 @@ $Messages = @{
         CurrentVersion = '当前版本'
         NotInstalled = '未安装'
         LegacyInstalled = '检测到旧版插件，将执行迁移更新'
+        Busy = 'DSH 正在执行另一个插件操作。请等它完成后再重试。'
+        BusyPrompt = '按 Enter 重试，或输入 Q 退出'
         Downloading = '正在获取并校验最新安装组件...'
         Installing = '正在安装，请不要关闭窗口...'
         Updating = '正在更新，请不要关闭窗口...'
@@ -82,6 +84,8 @@ $Messages = @{
         CurrentVersion = 'Current version'
         NotInstalled = 'not installed'
         LegacyInstalled = 'A legacy plugin was found and will be migrated during the update'
+        Busy = 'DSH is already running another plugin operation. Wait for it to finish, then retry.'
+        BusyPrompt = 'Press Enter to retry, or enter Q to quit'
         Downloading = 'Downloading and verifying the latest installer component...'
         Installing = 'Installing. Do not close this window...'
         Updating = 'Updating. Do not close this window...'
@@ -369,6 +373,18 @@ function Select-Target {
     }
 }
 
+function Test-DshPluginBusyError {
+    param([Parameter(Mandatory = $true)][string] $Message)
+    return $Message -match '(?i)another\s+DSH\s+plugin\s+command\s+is\s+already\s+running'
+}
+
+function Read-RetryChoice {
+    Write-Host ''
+    Write-Host (T 'Busy') -ForegroundColor Yellow
+    $choice = Read-Host (T 'BusyPrompt')
+    if ($choice -and $choice.Trim() -match '^(?i)q$') { exit 0 }
+}
+
 function Invoke-TargetDshCapture {
     param(
         [Parameter(Mandatory = $true)] $Target,
@@ -389,10 +405,19 @@ function Invoke-TargetDshCapture {
         } else {
             $Arguments
         }
-        $output = & $Target.Executable @allArguments 2>&1
-        $exitCode = $LASTEXITCODE
+
+        $oldErrorAction = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            $output = @(& $Target.Executable @allArguments 2>&1 | ForEach-Object { [string] $_ })
+            $exitCode = $LASTEXITCODE
+        } finally {
+            $ErrorActionPreference = $oldErrorAction
+        }
         if ($exitCode -ne 0) {
-            throw "dsh returned exit code $exitCode."
+            $detail = ($output -join [Environment]::NewLine).Trim()
+            if (-not $detail) { $detail = "dsh returned exit code $exitCode." }
+            throw $detail
         }
         return ($output -join [Environment]::NewLine)
     } finally {
@@ -455,6 +480,23 @@ function Get-InstalledPackageStatus {
         CurrentVersion = $currentVersion
         HasLegacy = $hasLegacy
         LegacyVersion = $legacyVersion
+    }
+}
+
+function Get-InstalledPackageStatusWithRetry {
+    param([Parameter(Mandatory = $true)] $Target)
+
+    while ($true) {
+        try {
+            return Get-InstalledPackageStatus -Target $Target
+        } catch {
+            $message = [string] $_.Exception.Message
+            if (-not (Test-DshPluginBusyError -Message $message)) {
+                throw ((T 'StatusFailure') + ' ' + $message)
+            }
+            Read-RetryChoice
+            Write-Host (T 'CheckingState')
+        }
     }
 }
 
@@ -528,6 +570,62 @@ function Get-VerifiedManager {
     }
 }
 
+function Invoke-ManagerProcess {
+    param(
+        [Parameter(Mandatory = $true)] $Manager,
+        [Parameter(Mandatory = $true)] $Target,
+        [Parameter(Mandatory = $true)][ValidateSet('Install', 'Update')] [string] $SelectedAction,
+        [Parameter(Mandatory = $true)][string] $LogPath
+    )
+
+    $managerArguments = @(
+        '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+        '-File', $Manager.Path,
+        '-Action', $SelectedAction,
+        '-Profile', $Profile
+    )
+    if ($Target.Mode -eq 'portable') {
+        $managerArguments += @('-PortableRoot', $Target.Root)
+    }
+
+    $oldErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & powershell.exe @managerArguments *> $LogPath
+        return $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $oldErrorAction
+    }
+}
+
+function Invoke-ManagerWithRetry {
+    param(
+        [Parameter(Mandatory = $true)] $Manager,
+        [Parameter(Mandatory = $true)] $Target,
+        [Parameter(Mandatory = $true)][ValidateSet('Install', 'Update')] [string] $SelectedAction,
+        [Parameter(Mandatory = $true)][string] $LogPath
+    )
+
+    while ($true) {
+        $exitCode = Invoke-ManagerProcess -Manager $Manager -Target $Target -SelectedAction $SelectedAction -LogPath $LogPath
+        if ($exitCode -eq 0) { return }
+
+        $detail = ''
+        if (Test-Path -LiteralPath $LogPath -PathType Leaf) {
+            $detail = [string] (Get-Content -LiteralPath $LogPath -Raw -ErrorAction SilentlyContinue)
+        }
+        if (-not $detail.Trim()) { $detail = "Installer manager exited with code $exitCode." }
+        if (-not (Test-DshPluginBusyError -Message $detail)) { throw $detail.Trim() }
+
+        Read-RetryChoice
+        if ($SelectedAction -eq 'Update') {
+            Write-Host (T 'Updating')
+        } else {
+            Write-Host (T 'Installing')
+        }
+    }
+}
+
 function Invoke-Setup {
     Write-Host ''
     Write-Host (T 'Banner') -ForegroundColor Cyan
@@ -539,12 +637,7 @@ function Invoke-Setup {
     Write-Host ("{0}: {1}" -f (T 'Selected'), $targetLocation)
     Write-Host (T 'CheckingState')
 
-    try {
-        $status = Get-InstalledPackageStatus -Target $target
-    } catch {
-        throw ((T 'StatusFailure') + ' ' + $_.Exception.Message)
-    }
-
+    $status = Get-InstalledPackageStatusWithRetry -Target $target
     $isInstalled = $status.HasCurrent -or $status.HasLegacy
     $effectiveAction = $Action
     if ($effectiveAction -eq 'Auto') {
@@ -584,16 +677,7 @@ function Invoke-Setup {
             Write-Host (T 'Installing')
         }
 
-        $managerArguments = @('-Action', $effectiveAction, '-Profile', $Profile)
-        if ($target.Mode -eq 'portable') {
-            $managerArguments += @('-PortableRoot', $target.Root)
-        }
-
-        try {
-            & $manager.Path @managerArguments *> $log
-        } catch {
-            throw $_.Exception.Message
-        }
+        Invoke-ManagerWithRetry -Manager $manager -Target $target -SelectedAction $effectiveAction -LogPath $log
 
         Write-Host ''
         if ($effectiveAction -eq 'Update') {
