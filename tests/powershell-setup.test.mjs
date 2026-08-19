@@ -40,6 +40,29 @@ function runSetup(args, { cwd, env = {}, input } = {}) {
   })
 }
 
+function runSetupWithNoVisibleProcesses({ cwd, env = {}, input } = {}) {
+  const source = String.raw`
+function Get-CimInstance {
+  [CmdletBinding()]
+  param(
+    [Parameter(Position = 0)] [string] $ClassName,
+    [string] $Filter
+  )
+  return @()
+}
+& $env:DSH_CODEX_TEST_SETUP -Language 'en-US' -DryRun
+`
+  const encoded = Buffer.from(source, 'utf16le').toString('base64')
+  return spawnSync('powershell.exe', [
+    '-NoLogo', '-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded,
+  ], {
+    cwd,
+    encoding: 'utf8',
+    env: { ...process.env, ...env, DSH_CODEX_TEST_SETUP: setupPath() },
+    input,
+  })
+}
+
 function parsePlan(stdout) {
   const match = stdout.match(/(\{[^\r\n]*"language"[^\r\n]*\})\s*$/u)
   assert.ok(match, `missing dry-run JSON in output:\n${stdout}`)
@@ -127,7 +150,7 @@ windowsTest('multiple discovered portable copies become a numbered choice instea
       join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0'),
       join(systemRoot, 'System32'),
     ].join(';')
-    const result = runSetup(['-Language', 'en-US', '-DryRun'], {
+    const result = runSetupWithNoVisibleProcesses({
       cwd: sandbox,
       env: {
         USERPROFILE: sandbox,
