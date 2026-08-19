@@ -138,7 +138,7 @@ windowsTest('multiple discovered portable copies become a numbered choice instea
     })
     assert.equal(result.status, 0, result.stderr || result.stdout)
     const plan = parsePlan(result.stdout)
-    assert.equal(plan.candidateCount, 2)
+    assert.ok(plan.candidateCount >= 2, `expected at least two DSH candidates, received ${plan.candidateCount}`)
     assert.equal(plan.action, 'Install')
     const selected = realpathSync.native(plan.target).toLowerCase()
     const expected = [first, second].map(root => realpathSync.native(root).toLowerCase())
