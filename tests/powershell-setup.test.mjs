@@ -122,11 +122,17 @@ windowsTest('multiple discovered portable copies become a numbered choice instea
     portableFixture(first)
     portableFixture(second)
     mkdirSync(join(sandbox, 'LocalAppData'), { recursive: true })
+    const systemRoot = process.env.SystemRoot || 'C:\\Windows'
+    const isolatedPath = [
+      join(systemRoot, 'System32', 'WindowsPowerShell', 'v1.0'),
+      join(systemRoot, 'System32'),
+    ].join(';')
     const result = runSetup(['-Language', 'en-US', '-DryRun'], {
       cwd: sandbox,
       env: {
         USERPROFILE: sandbox,
         LOCALAPPDATA: join(sandbox, 'LocalAppData'),
+        PATH: isolatedPath,
       },
       input: '1\r\n',
     })
@@ -137,6 +143,7 @@ windowsTest('multiple discovered portable copies become a numbered choice instea
     const selected = realpathSync.native(plan.target).toLowerCase()
     const expected = [first, second].map(root => realpathSync.native(root).toLowerCase())
     assert.equal(expected.includes(selected), true)
+    for (const root of expected) assert.equal(result.stdout.toLowerCase().includes(root), true)
     assert.match(result.stdout, /More than one DSH installation was found/u)
     assert.match(result.stdout, /\[1\][\s\S]*\[2\]/u)
   } finally {
