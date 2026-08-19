@@ -160,8 +160,6 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
       - uses: pnpm/action-setup@v5
         with:
           version: 11.19.0
@@ -228,43 +226,45 @@ jobs:
           test -s .artifacts/dsh-codex.ps1
           test -s .artifacts/dsh-codex.ps1.sha256
           test -s .artifacts/dsh-codex-setup.ps1
-      - name: Point release tag at the validated commit
+      - name: Create GitHub Release and tag from validated commit
+        id: create-release
+        continue-on-error: true
         env:
+          GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
           TARGET_SHA: ${{ github.sha }}
         shell: bash
         run: |
-          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "$RELEASE_TAG tag exists without a Release; deleting the stale tag first."
-            git push origin ":refs/tags/$RELEASE_TAG"
-          fi
-          git tag -f "$RELEASE_TAG" "$TARGET_SHA"
-          git push origin "refs/tags/$RELEASE_TAG"
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
-        shell: bash
-        run: |
-          set +e
+          set -o pipefail
           gh release create "$RELEASE_TAG" \
             .artifacts/dsh-codex-subscription.tgz \
             .artifacts/dsh-codex.ps1 \
             .artifacts/dsh-codex.ps1.sha256 \
             .artifacts/dsh-codex-setup.ps1 \
             --repo "$GITHUB_REPOSITORY" \
-            --verify-tag \
+            --target "$TARGET_SHA" \
             --title "$RELEASE_TAG" \
             --notes "$(cat .release/install.md)" \
             --generate-notes 2>&1 | tee .release/create.log
-          status=${PIPESTATUS[0]}
-          set -e
-          if [[ $status -ne 0 ]]; then
-            body="Release creation failed at $GITHUB_SHA\n\n\`\`\`text\n$(tail -c 10000 .release/create.log)\n\`\`\`"
-            gh issue comment 5 --repo "$GITHUB_REPOSITORY" --body "$body" || true
-            git push origin ":refs/tags/$RELEASE_TAG" || true
-            exit $status
-          fi
+      - name: Report release creation diagnostics
+        if: steps.create-release.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          {
+            echo "Release creation failed at \`$GITHUB_SHA\`"
+            echo
+            echo '```text'
+            tail -c 10000 .release/create.log
+            echo
+            echo '```'
+          } > .release/create-comment.md
+          gh issue comment 5 --repo "$GITHUB_REPOSITORY" --body-file .release/create-comment.md || true
+          gh release delete "${{ needs.preflight.outputs.tag }}" --repo "$GITHUB_REPOSITORY" --cleanup-tag -y || true
+      - name: Fail when release creation fails
+        if: steps.create-release.outcome != 'success'
+        run: exit 1
 
   report:
     needs: [preflight, verify, windows, release]
