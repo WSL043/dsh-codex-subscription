@@ -80,5 +80,18 @@ jobs:
       - name: Verify committed build output
         run: git diff --exit-code -- lib
 
+      - name: Check whether npm version already exists
+        id: npm-version
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if npm view "dsh-codex-subscription@$version" version >/dev/null 2>&1; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "dsh-codex-subscription@$version is already published; skipping duplicate npm publish."
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Publish with npm Trusted Publishing
+        if: steps.npm-version.outputs.needed == 'true'
         run: npm publish --access public
