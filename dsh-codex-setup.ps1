@@ -287,9 +287,11 @@ function Get-TargetCandidates {
         Add-PortableCandidate -Candidates $candidates -ByRoot $byRoot -Layout $currentLayout -Source Current
     }
     foreach ($layout in @(Find-RunningPortables)) {
+        if ($null -eq $layout) { continue }
         Add-PortableCandidate -Candidates $candidates -ByRoot $byRoot -Layout $layout -Source Running
     }
     foreach ($layout in @(Find-CommonPortables)) {
+        if ($null -eq $layout) { continue }
         Add-PortableCandidate -Candidates $candidates -ByRoot $byRoot -Layout $layout -Source Common
     }
 
