@@ -46,7 +46,7 @@ function parsePlan(stdout) {
   return JSON.parse(match[1])
 }
 
-test('friendly setup is bilingual, checksum-verifies the manager, and avoids code evaluation', () => {
+test('friendly setup is bilingual, checksum-verifies the manager, retries DSH busy state, and avoids code evaluation', () => {
   const source = readFileSync(setup, 'utf8')
   assert.equal(source.codePointAt(0), 0xfeff, 'Windows PowerShell 5.1 needs the UTF-8 BOM for Chinese literals')
   assert.match(source, /1\. 中文（简体）[\s\S]*2\. English/u)
@@ -55,6 +55,10 @@ test('friendly setup is bilingual, checksum-verifies the manager, and avoids cod
   assert.match(source, /\$effectiveAction = if \(\$isInstalled\) \{ 'Update' \} else \{ 'Install' \}/u)
   assert.match(source, /dsh-codex\.ps1\.sha256/u)
   assert.match(source, /Get-FileDigest -Path \$manager/u)
+  assert.match(source, /Get-InstalledPackageStatusWithRetry/u)
+  assert.match(source, /Invoke-ManagerWithRetry/u)
+  assert.match(source, /powershell\.exe @managerArguments/u)
+  assert.doesNotMatch(source, /& \$manager\.Path @managerArguments/u)
   assert.doesNotMatch(source, /Invoke-Expression|\biex\b/iu)
 })
 
@@ -135,6 +139,69 @@ windowsTest('multiple discovered portable copies become a numbered choice instea
     assert.equal(expected.includes(selected), true)
     assert.match(result.stdout, /More than one DSH installation was found/u)
     assert.match(result.stdout, /\[1\][\s\S]*\[2\]/u)
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true })
+  }
+})
+
+windowsTest('real setup invocation passes named manager arguments through child PowerShell', () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-friendly-manager-'))
+  const root = join(sandbox, 'DSH Portable')
+  const manager = join(sandbox, 'fake-manager.ps1')
+  const marker = join(sandbox, 'manager.json')
+  try {
+    portableFixture(root)
+    writeFileSync(manager, String.raw`[CmdletBinding()]
+param(
+  [ValidateSet('Install', 'Update', 'Uninstall')][string] $Action,
+  [string] $Profile,
+  [string] $PortableRoot
+)
+[IO.File]::WriteAllText($env:DSH_CODEX_TEST_MANAGER_MARKER, (@{
+  action = $Action
+  profile = $Profile
+  portableRoot = $PortableRoot
+} | ConvertTo-Json -Compress))
+`)
+    const result = runSetup([
+      '-Language', 'en-US', '-PortableRoot', root, '-ManagerPath', manager,
+    ], { env: { DSH_CODEX_TEST_MANAGER_MARKER: marker } })
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    const invocation = JSON.parse(readFileSync(marker, 'utf8'))
+    assert.equal(invocation.action, 'Install')
+    assert.equal(invocation.profile, 'web')
+    assert.equal(invocation.portableRoot.toLowerCase(), realpathSync.native(root).toLowerCase())
+    assert.match(result.stdout, /Installation completed\./u)
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true })
+  }
+})
+
+windowsTest('busy DSH plugin state offers a retry instead of reporting a terminal failure', () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-friendly-busy-'))
+  const root = join(sandbox, 'DSH Portable')
+  try {
+    portableFixture(root, {})
+    const dsh = join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+    writeFileSync(dsh, String.raw`
+const fs = require('node:fs')
+const path = require('node:path')
+const marker = path.join(process.env.DSH_HOME, 'busy-once.txt')
+if (!fs.existsSync(marker)) {
+  fs.writeFileSync(marker, '1')
+  process.stderr.write('DSH plugin command failed: Another DSH plugin command is already running.\n')
+  process.exit(23)
+}
+process.stdout.write(JSON.stringify([{ dependencies: {} }]))
+`)
+    const result = runSetup([
+      '-Language', 'en-US', '-PortableRoot', root, '-DryRun',
+    ], { input: '\r\n' })
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    const plan = parsePlan(result.stdout)
+    assert.equal(plan.action, 'Install')
+    assert.match(result.stdout, /already running another plugin operation/iu)
+    assert.doesNotMatch(result.stdout, /The operation did not complete\./u)
   } finally {
     rmSync(sandbox, { recursive: true, force: true })
   }
