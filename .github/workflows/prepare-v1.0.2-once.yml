@@ -20,70 +20,79 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Prepare version references
-        id: prepare
+
+      - name: Patch version references
+        id: patch
         continue-on-error: true
         shell: bash
         run: |
-          set -o pipefail
-          {
-            current="$(node -p "require('./package.json').version")"
-            if [[ "$current" == "1.0.2" ]]; then
-              echo 'v1.0.2 is already prepared.'
-              exit 0
-            fi
-            if [[ "$current" != "1.0.1" ]]; then
-              echo "Unexpected package version: $current" >&2
-              exit 1
-            fi
-            python - <<'PY'
-            from pathlib import Path
-            import json
+          python - <<'PY'
+          from pathlib import Path
+          import json
 
-            pkg_path = Path('package.json')
-            pkg = json.loads(pkg_path.read_text())
-            pkg['version'] = '1.0.2'
-            pkg_path.write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n')
+          pkg_path = Path('package.json')
+          pkg = json.loads(pkg_path.read_text())
+          current = pkg['version']
+          if current == '1.0.2':
+              print('v1.0.2 is already prepared.')
+              raise SystemExit(0)
+          if current != '1.0.1':
+              raise SystemExit(f'unexpected package version: {current}')
 
-            for name in [
-                'AGENTS.md',
-                'dsh-codex.ps1',
-                'tests/release-contract.test.mjs',
-                'tests/powershell-manager.test.mjs',
-            ]:
-                path = Path(name)
-                text = path.read_text(encoding='utf-8-sig')
-                text = text.replace('1\\.0\\.1', '1\\.0\\.2')
-                text = text.replace('1.0.1', '1.0.2')
-                path.write_text(text, encoding='utf-8')
-            PY
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add package.json AGENTS.md dsh-codex.ps1 tests/release-contract.test.mjs tests/powershell-manager.test.mjs
-            git diff --cached --quiet && { echo 'No preparation changes found.'; exit 1; }
-            git commit -m 'chore: prepare v1.0.2 release'
-            git push origin HEAD:main
-          } 2>&1 | tee prepare.log
-          exit ${PIPESTATUS[0]}
+          pkg['version'] = '1.0.2'
+          pkg_path.write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n')
+
+          for name in [
+              'AGENTS.md',
+              'dsh-codex.ps1',
+              'tests/release-contract.test.mjs',
+              'tests/powershell-manager.test.mjs',
+          ]:
+              path = Path(name)
+              text = path.read_text(encoding='utf-8-sig')
+              text = text.replace('1\\.0\\.1', '1\\.0\\.2')
+              text = text.replace('1.0.1', '1.0.2')
+              path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Commit prepared version
+        id: commit
+        if: steps.patch.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          if git diff --quiet -- package.json AGENTS.md dsh-codex.ps1 tests/release-contract.test.mjs tests/powershell-manager.test.mjs; then
+            echo 'No version changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json AGENTS.md dsh-codex.ps1 tests/release-contract.test.mjs tests/powershell-manager.test.mjs
+          git commit -m 'chore: prepare v1.0.2 release'
+
+      - name: Push prepared version
+        id: push
+        if: steps.patch.outcome == 'success' && steps.commit.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          if [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]; then
+            echo 'Nothing new to push.'
+            exit 0
+          fi
+          git push origin HEAD:main
+
       - name: Report preparation result
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-          OUTCOME: ${{ steps.prepare.outcome }}
+          PATCH_OUTCOME: ${{ steps.patch.outcome }}
+          COMMIT_OUTCOME: ${{ steps.commit.outcome }}
+          PUSH_OUTCOME: ${{ steps.push.outcome }}
         shell: bash
         run: |
-          {
-            echo "v1.0.2 preparation: **$OUTCOME** at \`$GITHUB_SHA\`"
-            echo
-            echo '<details><summary>output</summary>'
-            echo
-            echo '```text'
-            if [[ -f prepare.log ]]; then tail -c 8000 prepare.log; else echo '(no log)'; fi
-            echo
-            echo '```'
-            echo '</details>'
-          } > prepare-comment.md
-          gh issue comment 5 --repo "$GITHUB_REPOSITORY" --body-file prepare-comment.md
+          gh issue comment 5 --repo "$GITHUB_REPOSITORY" --body "v1.0.2 preparation at \`$GITHUB_SHA\`: patch=**$PATCH_OUTCOME**, commit=**$COMMIT_OUTCOME**, push=**$PUSH_OUTCOME**"
+
       - name: Fail when preparation fails
-        if: steps.prepare.outcome != 'success'
+        if: steps.patch.outcome != 'success' || steps.commit.outcome == 'failure' || steps.push.outcome == 'failure'
         run: exit 1
