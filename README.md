@@ -54,11 +54,10 @@ https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
 
 ### Windows 手动安装
 
-打开 PowerShell，依次粘贴下面两行：
+打开 PowerShell，只需要复制这一行：
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1"
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"; if ($LASTEXITCODE -eq 0) { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1" }
 ```
 
 安装助手会先让你选择 **中文（简体）** 或 **English**，然后自动寻找 DSH：
@@ -200,11 +199,10 @@ service.
 [installation guide](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md)
 to your Agent.
 
-**Windows install:** open PowerShell and run these two lines:
+**Windows install:** open PowerShell and run this one line:
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1"
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"; if ($LASTEXITCODE -eq 0) { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1" }
 ```
 
 The setup asks for Chinese or English first, turns multiple DSH copies into a
