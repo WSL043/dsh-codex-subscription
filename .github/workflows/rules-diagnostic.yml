@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Inspect effective rules and immutable release state
+      - name: Inspect effective rules and deleted release history
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
@@ -26,13 +26,11 @@ jobs:
 
           gh api "${api_headers[@]}" "repos/$GITHUB_REPOSITORY/rulesets?includes_parents=true&targets=branch,tag,push" > rulesets.json 2>rulesets.err
           rulesets_status=$?
-          gh api "${api_headers[@]}" "repos/$GITHUB_REPOSITORY/immutable-releases" > immutable.json 2>immutable.err
-          immutable_status=$?
-          gh api "${api_headers[@]}" "repos/$GITHUB_REPOSITORY/rulesets/rule-suites?per_page=100" > suites.json 2>suites.err
-          suites_status=$?
+          gh api "${api_headers[@]}" "repos/$GITHUB_REPOSITORY/events?per_page=100" > events.json 2>events.err
+          events_status=$?
 
           {
-            echo 'Rules / immutable release diagnostic for v1.0.1'
+            echo 'Rules / deleted release diagnostic for v1.0.1'
             echo
             echo "rulesets API status: $rulesets_status"
             echo '```json'
@@ -40,18 +38,12 @@ jobs:
             echo
             echo '```'
             echo
-            echo "immutable releases API status: $immutable_status"
+            echo "repository events API status: $events_status"
             echo '```json'
-            if [[ $immutable_status -eq 0 ]]; then cat immutable.json; else cat immutable.err; fi
-            echo
-            echo '```'
-            echo
-            echo "rule suites API status: $suites_status"
-            echo '```text'
-            if [[ $suites_status -eq 0 ]]; then
-              jq -c '[.[] | select(.ref == "refs/tags/v1.0.1") | {id, actor_name, ref, result, evaluation_result, pushed_at}]' suites.json
+            if [[ $events_status -eq 0 ]]; then
+              jq '[.[] | select(.type == "ReleaseEvent" and .payload.release.tag_name == "v1.0.1") | {created_at, actor: .actor.login, action: .payload.action, release: {id: .payload.release.id, tag_name: .payload.release.tag_name, immutable: .payload.release.immutable, draft: .payload.release.draft, prerelease: .payload.release.prerelease, target_commitish: .payload.release.target_commitish, published_at: .payload.release.published_at}}]' events.json
             else
-              cat suites.err
+              cat events.err
             fi
             echo
             echo '```'
