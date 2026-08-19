@@ -1,0 +1,46 @@
+name: Windows Setup Validation
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: windows-setup-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Run Windows manager and friendly setup integration tests
+        id: test
+        continue-on-error: true
+        run: node --test tests/powershell-manager.test.mjs tests/powershell-setup.test.mjs
+      - name: Report validation result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_OS: ${{ matrix.os }}
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+        shell: powershell
+        run: |
+          $body = "Windows setup validation $($env:TARGET_OS): **$($env:TEST_OUTCOME)** at ``$($env:GITHUB_SHA)``"
+          gh issue comment 5 --repo $env:GITHUB_REPOSITORY --body $body
+      - name: Fail job when integration tests fail
+        if: steps.test.outcome != 'success'
+        shell: powershell
+        run: exit 1
