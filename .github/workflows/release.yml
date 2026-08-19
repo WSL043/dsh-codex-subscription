@@ -71,7 +71,34 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm test
+      - name: Run release verification tests
+        id: verify-tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm test 2>&1 | tee verify-test.log
+      - name: Report verification diagnostics
+        if: steps.verify-tests.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          {
+            echo "Release verify tests failed at \`$GITHUB_SHA\`"
+            echo
+            echo '<details><summary>test output</summary>'
+            echo
+            echo '```text'
+            tail -c 12000 verify-test.log
+            echo
+            echo '```'
+            echo '</details>'
+          } > verify-comment.md
+          gh issue comment 5 --repo "$GITHUB_REPOSITORY" --body-file verify-comment.md
+      - name: Fail when verification tests fail
+        if: steps.verify-tests.outcome != 'success'
+        run: exit 1
       - run: pnpm run build
       - name: Verify committed build output
         run: git diff --exit-code -- lib
@@ -92,9 +119,39 @@ jobs:
           node-version: 24
           package-manager-cache: false
       - name: Verify Windows manager and friendly setup lifecycle
-        run: node --test tests/powershell-manager.test.mjs tests/powershell-setup.test.mjs
+        id: windows-tests
+        continue-on-error: true
+        shell: powershell
+        run: |
+          node --test tests/powershell-manager.test.mjs tests/powershell-setup.test.mjs 2>&1 | Tee-Object -FilePath windows-release-test.log
+          exit $LASTEXITCODE
         env:
           DSH_CODEX_TEST_USER_PATH: '1'
+      - name: Report Windows release diagnostics
+        if: steps.windows-tests.outcome != 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_OS: ${{ matrix.os }}
+        shell: powershell
+        run: |
+          $log = if (Test-Path windows-release-test.log) { Get-Content windows-release-test.log -Raw } else { '(no test log)' }
+          if ($log.Length -gt 12000) { $log = $log.Substring($log.Length - 12000) }
+          $body = @"
+          Release Windows gate $($env:TARGET_OS) failed at ``$($env:GITHUB_SHA)``
+
+          <details><summary>test output</summary>
+
+          ``````text
+          $log
+          ``````
+
+          </details>
+          "@
+          gh issue comment 5 --repo $env:GITHUB_REPOSITORY --body $body
+      - name: Fail when Windows release tests fail
+        if: steps.windows-tests.outcome != 'success'
+        shell: powershell
+        run: exit 1
 
   release:
     needs: [preflight, verify, windows]
