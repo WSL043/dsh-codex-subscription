@@ -1,1 +1,1 @@
-Trigger the already-registered idempotent v1.0.2 preparation workflow.
+Trigger the observable v1.0.2 preparation workflow.
