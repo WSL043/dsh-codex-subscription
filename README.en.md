@@ -57,11 +57,10 @@ https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
 
 ### Manual Windows install
 
-Open PowerShell and paste these two lines in order:
+Open PowerShell and paste this one line:
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1"
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"; if ($LASTEXITCODE -eq 0) { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1" }
 ```
 
 The setup asks you to choose **中文（简体）** or **English** first, then discovers DSH:
@@ -155,8 +154,8 @@ Windows installer users only need these short commands:
 Update verifies the latest Release manager script with SHA-256. Uninstall removes
 the plugin and `dsh-codex` command while preserving the DSH profile, unrelated
 plugins, and saved sign-in. If an older installation has no short command, run
-the two Windows first-install commands above once; the friendly setup detects the
-existing plugin and automatically shows **Update**.
+the Windows setup line above once; the friendly setup detects the existing plugin
+and automatically shows **Update**.
 
 <details>
 <summary>Update or uninstall with an existing <code>dsh</code> command</summary>
