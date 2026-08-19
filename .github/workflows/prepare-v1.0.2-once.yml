@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: prepare-v1-0-2
@@ -13,61 +14,70 @@ concurrency:
 
 jobs:
   prepare:
-    if: github.event.head_commit.message == 'chore: trigger v1.0.2 preparation'
+    if: github.event.head_commit.message == 'chore: trigger clean v1.0.2 preparation'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v5
-        with:
-          version: 11.19.0
-          run_install: false
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-          cache: pnpm
-      - name: Bump release references to v1.0.2
+      - name: Prepare version references
+        id: prepare
+        continue-on-error: true
         shell: bash
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          import json
+          set -o pipefail
+          {
+            python - <<'PY'
+            from pathlib import Path
+            import json
 
-          pkg_path = Path('package.json')
-          pkg = json.loads(pkg_path.read_text())
-          if pkg['version'] != '1.0.1':
-              raise SystemExit(f"expected package version 1.0.1, found {pkg['version']}")
-          pkg['version'] = '1.0.2'
-          pkg_path.write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n')
+            pkg_path = Path('package.json')
+            pkg = json.loads(pkg_path.read_text())
+            if pkg['version'] != '1.0.1':
+                raise SystemExit(f"expected package version 1.0.1, found {pkg['version']}")
+            pkg['version'] = '1.0.2'
+            pkg_path.write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n')
 
-          for name in [
-              'AGENTS.md',
-              'dsh-codex.ps1',
-              'tests/release-contract.test.mjs',
-              'tests/powershell-manager.test.mjs',
-          ]:
-              path = Path(name)
-              text = path.read_text(encoding='utf-8-sig')
-              text = text.replace('1\\.0\\.1', '1\\.0\\.2')
-              text = text.replace('1.0.1', '1.0.2')
-              path.write_text(text, encoding='utf-8')
-
-          for name in ['src/codex-search.js', 'src/usage.js']:
-              path = Path(name)
-              text = path.read_text()
-              text = text.replace('dsh-codex-subscription/1.0.0', 'dsh-codex-subscription/1.0.2')
-              path.write_text(text)
-          PY
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm run build
-      - name: Commit prepared v1.0.2
+            for name in [
+                'AGENTS.md',
+                'dsh-codex.ps1',
+                'tests/release-contract.test.mjs',
+                'tests/powershell-manager.test.mjs',
+            ]:
+                path = Path(name)
+                text = path.read_text(encoding='utf-8-sig')
+                text = text.replace('1\\.0\\.1', '1\\.0\\.2')
+                text = text.replace('1.0.1', '1.0.2')
+                path.write_text(text, encoding='utf-8')
+            PY
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add package.json AGENTS.md dsh-codex.ps1 tests/release-contract.test.mjs tests/powershell-manager.test.mjs
+            git diff --cached --quiet && { echo 'No preparation changes found.'; exit 1; }
+            git commit -m 'chore: prepare v1.0.2 release'
+            git push origin HEAD:main
+          } 2>&1 | tee prepare.log
+          exit ${PIPESTATUS[0]}
+      - name: Report preparation result
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.prepare.outcome }}
         shell: bash
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add package.json AGENTS.md dsh-codex.ps1 tests/release-contract.test.mjs tests/powershell-manager.test.mjs src/codex-search.js src/usage.js lib
-          git diff --cached --quiet && { echo 'No preparation changes found.'; exit 1; }
-          git commit -m 'chore: prepare v1.0.2 release'
-          git push origin HEAD:main
+          {
+            echo "v1.0.2 preparation: **$OUTCOME** at \`$GITHUB_SHA\`"
+            echo
+            echo '<details><summary>output</summary>'
+            echo
+            echo '```text'
+            if [[ -f prepare.log ]]; then tail -c 8000 prepare.log; else echo '(no log)'; fi
+            echo
+            echo '```'
+            echo '</details>'
+          } > prepare-comment.md
+          gh issue comment 5 --repo "$GITHUB_REPOSITORY" --body-file prepare-comment.md
+      - name: Fail when preparation fails
+        if: steps.prepare.outcome != 'success'
+        run: exit 1
