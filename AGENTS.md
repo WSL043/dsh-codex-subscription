@@ -6,7 +6,7 @@ Use this guide when a user asks an Agent to install, update, verify, or remove
 ## Safety
 
 - Confirm the target DSH profile; use `web` only when it is the user's target.
-- Use the pinned `v1.0.1` release assets for a first install, never a moving branch.
+- Use the pinned `v1.0.2` release assets for a first install, never a moving branch.
 - Never print OAuth credentials, account IDs, authorization callbacks, or the
   credential store.
 - Do not start, stop, or restart DSH without explicit permission.
@@ -51,7 +51,7 @@ the user which installation is the target.
 Download the fixed release asset to a visible file, then invoke the requested action:
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.1/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.2/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
 ```
 
@@ -59,7 +59,7 @@ If `curl.exe` is unavailable, download the same pinned asset without executing
 remote text in memory:
 
 ```powershell
-Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.1/dsh-codex.ps1' -OutFile "$env:TEMP\dsh-codex.ps1"
+Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.2/dsh-codex.ps1' -OutFile "$env:TEMP\dsh-codex.ps1"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
 ```
 
@@ -93,7 +93,7 @@ When `dsh`, Node.js, and pnpm are already available, install the pinned npm
 package directly:
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@1.0.1
+dsh plugin --profile web add dsh-codex-subscription@1.0.2
 ```
 
 Update with `dsh plugin --profile web update dsh-codex-subscription`. When
