@@ -10,14 +10,16 @@ test('GitHub Releases always include beginner-facing install, update, and uninst
   assert.match(workflow, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
   assert.match(workflow, /dsh-codex update/u)
   assert.match(workflow, /dsh-codex uninstall/u)
-  assert.match(workflow, /releases\/generate-notes/u)
   assert.match(workflow, /gh release edit/u)
   assert.match(workflow, /--notes-file \.release\/release-notes\.md/u)
 })
 
-test('a deleted Release cannot leave v1.0.1 pointing at stale source', () => {
+test('a new Release creates its tag and generated changelog atomically from validated main', () => {
   assert.match(workflow, /Retarget stale tag from a deleted release/u)
   assert.match(workflow, /git ls-remote --exit-code --tags origin/u)
   assert.match(workflow, /git push origin ":refs\/tags\/\$RELEASE_TAG"/u)
   assert.match(workflow, /--target "\$TARGET_SHA"/u)
+  assert.match(workflow, /--notes "\$\(cat \.release\/install\.md\)"/u)
+  assert.match(workflow, /--generate-notes/u)
+  assert.doesNotMatch(workflow, /releases\/generate-notes/u)
 })
