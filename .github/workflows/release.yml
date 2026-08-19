@@ -56,16 +56,15 @@ jobs:
         shell: bash
         run: |
           if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "$RELEASE_TAG tag exists without a Release; retargeting it to the validated main commit."
+            echo "$RELEASE_TAG tag exists without a Release; deleting the stale tag before recreation."
             git push origin ":refs/tags/$RELEASE_TAG"
           fi
 
-      - name: Prepare user-facing release notes
+      - name: Prepare beginner-facing release notes
         id: notes
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
-          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
           RELEASE_NEEDED: ${{ steps.existing.outputs.needed }}
         shell: bash
         run: |
@@ -106,22 +105,16 @@ jobs:
 
           NOTES
 
-          if [[ "$RELEASE_NEEDED" == "true" ]]; then
-            gh api --method POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
-              -f tag_name="$RELEASE_TAG" \
-              -f target_commitish="$TARGET_SHA" \
-              --jq '.body // ""' > .release/generated.md
-            cat .release/install.md .release/generated.md > .release/release-notes.md
-            echo "edit=false" >> "$GITHUB_OUTPUT"
-          else
+          if [[ "$RELEASE_NEEDED" == "false" ]]; then
             gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq '.body // ""' > .release/current.md
             if grep -Fq '<!-- dsh-codex-install -->' .release/current.md; then
-              cp .release/current.md .release/release-notes.md
               echo "edit=false" >> "$GITHUB_OUTPUT"
             else
               cat .release/install.md .release/current.md > .release/release-notes.md
               echo "edit=true" >> "$GITHUB_OUTPUT"
             fi
+          else
+            echo "edit=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Update existing release notes
@@ -182,4 +175,5 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$TARGET_SHA" \
             --title "$RELEASE_TAG" \
-            --notes-file .release/release-notes.md
+            --notes "$(cat .release/install.md)" \
+            --generate-notes
