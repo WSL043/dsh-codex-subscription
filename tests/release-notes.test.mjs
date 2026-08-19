@@ -15,14 +15,13 @@ test('GitHub Releases always include beginner-facing install, update, and uninst
   assert.match(notesWorkflow, /--notes-file/u)
 })
 
-test('a new Release is created only from an explicit tag pointing at the validated commit', () => {
-  assert.match(releaseWorkflow, /Point release tag at the validated commit/u)
-  assert.match(releaseWorkflow, /git ls-remote --exit-code --tags origin/u)
-  assert.match(releaseWorkflow, /git tag -f "\$RELEASE_TAG" "\$TARGET_SHA"/u)
-  assert.match(releaseWorkflow, /git push origin "refs\/tags\/\$RELEASE_TAG"/u)
-  assert.match(releaseWorkflow, /--verify-tag/u)
+test('a new Release atomically creates its tag from the validated main commit', () => {
+  assert.match(releaseWorkflow, /Create GitHub Release and tag from validated commit/u)
+  assert.match(releaseWorkflow, /--target "\$TARGET_SHA"/u)
   assert.match(releaseWorkflow, /--notes "\$\(cat \.release\/install\.md\)"/u)
   assert.match(releaseWorkflow, /--generate-notes/u)
-  assert.match(releaseWorkflow, /git push origin ":refs\/tags\/\$RELEASE_TAG" \|\| true/u)
+  assert.match(releaseWorkflow, /gh release delete[\s\S]*--cleanup-tag/u)
+  assert.doesNotMatch(releaseWorkflow, /git tag -f/u)
+  assert.doesNotMatch(releaseWorkflow, /git push origin "refs\/tags/u)
   assert.doesNotMatch(releaseWorkflow, /releases\/generate-notes/u)
 })
