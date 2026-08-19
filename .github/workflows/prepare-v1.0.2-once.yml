@@ -1,0 +1,76 @@
+name: Prepare v1.0.2 once
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: prepare-v1-0-2
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.event.head_commit.message == 'chore: add one-shot v1.0.2 preparation'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Bump release references to v1.0.2
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          pkg_path = Path('package.json')
+          pkg = json.loads(pkg_path.read_text())
+          if pkg['version'] != '1.0.1':
+              raise SystemExit(f"expected package version 1.0.1, found {pkg['version']}")
+          pkg['version'] = '1.0.2'
+          pkg_path.write_text(json.dumps(pkg, ensure_ascii=False, indent=2) + '\n')
+
+          for name in [
+              'AGENTS.md',
+              'dsh-codex.ps1',
+              'tests/release-contract.test.mjs',
+              'tests/powershell-manager.test.mjs',
+          ]:
+              path = Path(name)
+              text = path.read_text(encoding='utf-8-sig')
+              text = text.replace('1\\.0\\.1', '1\\.0\\.2')
+              text = text.replace('1.0.1', '1.0.2')
+              if name == 'dsh-codex.ps1':
+                  path.write_text(text, encoding='utf-8')
+              else:
+                  path.write_text(text, encoding='utf-8')
+
+          for name in ['src/codex-search.js', 'src/usage.js']:
+              path = Path(name)
+              text = path.read_text()
+              text = text.replace('dsh-codex-subscription/1.0.0', 'dsh-codex-subscription/1.0.2')
+              path.write_text(text)
+          PY
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm run build
+      - name: Commit prepared v1.0.2
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add package.json AGENTS.md dsh-codex.ps1 tests/release-contract.test.mjs tests/powershell-manager.test.mjs src/codex-search.js src/usage.js lib
+          git diff --cached --quiet && { echo 'No preparation changes found.'; exit 1; }
+          git commit -m 'chore: prepare v1.0.2 release'
+          git push origin HEAD:main
