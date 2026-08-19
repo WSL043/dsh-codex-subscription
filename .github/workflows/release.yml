@@ -14,6 +14,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: release-${{ github.ref }}
@@ -198,10 +199,29 @@ jobs:
             --verify-tag \
             --title "$RELEASE_TAG" \
             --notes "$(cat .release/install.md)" \
-            --generate-notes
-          status=$?
+            --generate-notes 2>&1 | tee .release/create.log
+          status=${PIPESTATUS[0]}
           set -e
           if [[ $status -ne 0 ]]; then
+            body="Release creation failed at $GITHUB_SHA\n\n\`\`\`text\n$(tail -c 10000 .release/create.log)\n\`\`\`"
+            gh issue comment 5 --repo "$GITHUB_REPOSITORY" --body "$body" || true
             git push origin ":refs/tags/$RELEASE_TAG" || true
             exit $status
           fi
+
+  report:
+    needs: [preflight, verify, windows, release]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report release gate result
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREFLIGHT_RESULT: ${{ needs.preflight.result }}
+          VERIFY_RESULT: ${{ needs.verify.result }}
+          WINDOWS_RESULT: ${{ needs.windows.result }}
+          RELEASE_RESULT: ${{ needs.release.result }}
+        shell: bash
+        run: |
+          gh issue comment 5 --repo "$GITHUB_REPOSITORY" --body "Release gate at \`$GITHUB_SHA\`: preflight=**$PREFLIGHT_RESULT**, verify=**$VERIFY_RESULT**, windows=**$WINDOWS_RESULT**, release=**$RELEASE_RESULT**"
