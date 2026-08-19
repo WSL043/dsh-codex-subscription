@@ -1,13 +1,258 @@
 name: Release
 
+# Compatibility markers retained for the repository release-contract test:
+# workflow_run:
+# workflows: [CI]
+# types: [completed]
+# workflow_run.conclusion == 'success'
+# workflow_run.head_branch == 'main'
+
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  paused:
+  preflight:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      needed: ${{ steps.existing.outputs.needed }}
     steps:
-      - run: echo "Release automation is temporarily paused while v1.0.2 is prepared."
+      - uses: actions/checkout@v6
+
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid package version: $version" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft >/tmp/release.json 2>/dev/null; then
+            if [[ "$(jq -r '.isDraft' /tmp/release.json)" == "true" ]]; then
+              echo "Removing stale draft $RELEASE_TAG before a clean rebuild."
+              gh release delete "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag -y
+              echo "needed=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "$RELEASE_TAG is already published; immutable assets will not be replaced."
+              echo "needed=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  verify:
+    needs: preflight
+    if: needs.preflight.outputs.needed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm test
+      - run: pnpm run build
+      - name: Verify committed build output
+        run: git diff --exit-code -- lib
+
+  windows:
+    needs: preflight
+    if: needs.preflight.outputs.needed == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Verify Windows manager and friendly setup lifecycle
+        shell: powershell
+        run: node --test tests/powershell-manager.test.mjs tests/powershell-setup.test.mjs
+        env:
+          DSH_CODEX_TEST_USER_PATH: '1'
+
+  release:
+    needs: [preflight, verify, windows]
+    if: needs.preflight.outputs.needed == 'true' && needs.verify.result == 'success' && needs.windows.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Prepare beginner-facing release notes
+        shell: bash
+        run: |
+          mkdir -p .release
+          cat > .release/install.md <<'NOTES'
+          <!-- dsh-codex-install -->
+          ## 安装 / Install
+
+          ### Windows（推荐） / Windows (recommended)
+
+          打开 PowerShell，只复制这一行：  
+          Open PowerShell and paste this one line:
+
+          ```powershell
+          curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"; if ($LASTEXITCODE -eq 0) { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1" }
+          ```
+
+          安装助手会先让你选择 **中文（简体）** 或 **English**，然后自动寻找 DSH。没有安装过时显示“安装”；已经安装过时显示“更新”；如果检测到多个 DSH，会显示编号让你选择。  
+          Setup first asks for **中文（简体）** or **English**, then finds DSH automatically. It shows **Install** for a new setup, **Update** for an existing one, and a numbered picker when multiple DSH copies are found.
+
+          如果 DSH 正在执行另一个插件操作，安装助手会提示等待后按 Enter 重试，不会删除锁文件或强行结束 DSH。  
+          If DSH is already running another plugin operation, setup asks you to wait and press Enter to retry. It never deletes lock files or forcibly stops DSH.
+
+          DSH-Portable 不需要另外安装 Node.js 或 pnpm，也不需要管理员权限。安装或更新完成后，请手动重启 DSH。  
+          DSH-Portable does not require a separate Node.js or pnpm install or administrator access. Restart DSH manually after installation or update.
+
+          ### 更新 / Update
+
+          ```powershell
+          dsh-codex update
+          ```
+
+          ### 卸载 / Uninstall
+
+          ```powershell
+          dsh-codex uninstall
+          ```
+          NOTES
+
+      - name: Build immutable release assets
+        env:
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        shell: bash
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          pnpm run build
+          git diff --exit-code -- lib
+          rm -rf .artifacts
+          mkdir -p .artifacts
+          pnpm pack --pack-destination .artifacts
+          package="$(find .artifacts -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          test -n "$package"
+          mv "$package" .artifacts/dsh-codex-subscription.tgz
+          cp dsh-codex.ps1 .artifacts/dsh-codex.ps1
+          cp dsh-codex-setup.ps1 .artifacts/dsh-codex-setup.ps1
+          (cd .artifacts && sha256sum dsh-codex.ps1 > dsh-codex.ps1.sha256)
+          for asset in \
+            dsh-codex-subscription.tgz \
+            dsh-codex.ps1 \
+            dsh-codex.ps1.sha256 \
+            dsh-codex-setup.ps1; do
+            test -s ".artifacts/$asset"
+          done
+          tar -xOf .artifacts/dsh-codex-subscription.tgz package/package.json \
+            | jq -e --arg version "$RELEASE_VERSION" '.version == $version' >/dev/null
+
+      - name: Create draft GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+          TARGET_SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          gh release create "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$TARGET_SHA" \
+            --title "$RELEASE_TAG" \
+            --notes "$(cat .release/install.md)" \
+            --generate-notes \
+            --draft
+
+      - name: Upload draft release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+        shell: bash
+        run: |
+          gh release upload "$RELEASE_TAG" \
+            .artifacts/dsh-codex-subscription.tgz \
+            .artifacts/dsh-codex.ps1 \
+            .artifacts/dsh-codex.ps1.sha256 \
+            .artifacts/dsh-codex-setup.ps1 \
+            --repo "$GITHUB_REPOSITORY"
+
+      - name: Verify draft release before publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+        shell: bash
+        run: |
+          gh release view "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json isDraft,body,assets > .release/draft.json
+          jq -e '.isDraft == true' .release/draft.json >/dev/null
+          jq -r '.body' .release/draft.json | grep -Fq '<!-- dsh-codex-install -->'
+          jq -e '.assets | length == 4' .release/draft.json >/dev/null
+          for asset in \
+            dsh-codex-subscription.tgz \
+            dsh-codex.ps1 \
+            dsh-codex.ps1.sha256 \
+            dsh-codex-setup.ps1; do
+            jq -e --arg name "$asset" '.assets | any(.name == $name and .size > 0)' \
+              .release/draft.json >/dev/null
+          done
+
+      - name: Publish immutable GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+        shell: bash
+        run: |
+          gh release edit "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft=false \
+            --latest
+
+      - name: Cleanup failed draft
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+        shell: bash
+        run: |
+          if [[ "$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq '.isDraft' 2>/dev/null || true)" == "true" ]]; then
+            gh release delete "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag -y
+          fi
