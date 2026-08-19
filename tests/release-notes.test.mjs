@@ -14,3 +14,10 @@ test('GitHub Releases always include beginner-facing install, update, and uninst
   assert.match(workflow, /gh release edit/u)
   assert.match(workflow, /--notes-file \.release\/release-notes\.md/u)
 })
+
+test('a deleted Release cannot leave v1.0.1 pointing at stale source', () => {
+  assert.match(workflow, /Retarget stale tag from a deleted release/u)
+  assert.match(workflow, /git ls-remote --exit-code --tags origin/u)
+  assert.match(workflow, /git push origin ":refs\/tags\/\$RELEASE_TAG"/u)
+  assert.match(workflow, /--target "\$TARGET_SHA"/u)
+})
