@@ -1,1 +1,0 @@
-Temporary republish trigger after the v1.0.1 tag creation ruleset was adjusted.
