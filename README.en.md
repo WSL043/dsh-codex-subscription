@@ -57,22 +57,45 @@ https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
 
 ### Manual Windows install
 
-Open PowerShell and paste these two lines in order. They support both a normal DSH install
-and DSH-Portable. Portable users do not need a system Node.js or pnpm.
+Open PowerShell and paste these two lines in order:
+
+```powershell
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1"
+```
+
+The setup asks you to choose **中文（简体）** or **English** first, then discovers DSH:
+
+- one DSH installation: it shows the target and continues automatically;
+- multiple DSH installations: it shows a numbered list with status and paths instead of throwing a PowerShell exception;
+- no existing plugin: the operation is clearly shown as **Install**;
+- an existing current or legacy plugin: the operation is clearly shown as **Update**, using the existing safe migration path;
+- success: it shows the result and asks you to restart DSH manually; it never restarts DSH on its own.
+
+`Bypass` applies only to this child process and does not change the system
+PowerShell execution policy.
+
+Both a normal DSH installation and DSH-Portable are supported. Portable users do
+not need a system Node.js or pnpm, and administrator access is not required. The
+friendly setup downloads the core manager, verifies its Release SHA-256, then
+lets the existing manager perform installation, update, verification, and PATH
+handling.
+
+<details>
+<summary>Non-interactive / compatibility install</summary>
+
+For scripting, Agent workflows, or an explicit `Install` action, the original
+core manager remains available:
 
 ```powershell
 curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
 ```
 
-`Bypass` applies only to this child process and does not change the system
-PowerShell execution policy.
+When more than one DSH-Portable copy exists, pass `-PortableRoot` explicitly.
+This entry point stays non-interactive for automation.
 
-The commands support both a normal DSH installation and DSH-Portable. Portable
-users do not need a separate Node.js or pnpm installation, and no administrator
-access is required. The installer finds DSH, verifies the result, and adds the
-per-user `dsh-codex` command. It does not change the system execution policy or
-restart DSH on its own.
+</details>
 
 If the portable folder was renamed or moved, start the intended DSH-Portable copy
 once and install again. Restart DSH manually after installation.
@@ -132,7 +155,8 @@ Windows installer users only need these short commands:
 Update verifies the latest Release manager script with SHA-256. Uninstall removes
 the plugin and `dsh-codex` command while preserving the DSH profile, unrelated
 plugins, and saved sign-in. If an older installation has no short command, run
-the two Windows first-install commands above once.
+the two Windows first-install commands above once; the friendly setup detects the
+existing plugin and automatically shows **Update**.
 
 <details>
 <summary>Update or uninstall with an existing <code>dsh</code> command</summary>
@@ -166,9 +190,8 @@ If DSH is running, restart it manually after installation or update.
 
 - If `dsh-codex` is not found after installation, close and reopen PowerShell;
 - If DSH-Portable is not found, start the intended portable copy once and retry;
-- If `curl.exe` is missing, more than one DSH is present, or the command still
-  fails, send the Agent guide URL above to an Agent. Do not change the machine
-  PATH or execution policy, and do not delete a profile to force an install.
+- If multiple DSH installations are found, choose the intended one from the numbered list;
+- If `curl.exe` is missing or setup still fails, send the Agent guide URL above to an Agent. Do not change the machine PATH or execution policy, and do not delete a profile to force an install.
 
 ## Boundaries and support
 
