@@ -49,6 +49,17 @@ jobs:
             echo "needed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Retarget stale tag from a deleted release
+        if: steps.existing.outputs.needed == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "$RELEASE_TAG tag exists without a Release; retargeting it to the validated main commit."
+            git push origin ":refs/tags/$RELEASE_TAG"
+          fi
+
       - name: Prepare user-facing release notes
         id: notes
         env:
@@ -74,6 +85,9 @@ jobs:
 
           安装助手会先让你选择 **中文（简体）** 或 **English**，然后自动寻找 DSH。没有安装过时显示“安装”；已经安装过时显示“更新”；如果检测到多个 DSH，会显示编号让你选择。  
           Setup first asks for **中文（简体）** or **English**, then finds DSH automatically. It shows **Install** for a new setup, **Update** for an existing one, and a numbered picker when multiple DSH copies are found.
+
+          如果 DSH 正在执行另一个插件操作，安装助手会提示等待后按 Enter 重试，不会删除锁文件或强行结束 DSH。  
+          If DSH is already running another plugin operation, setup asks you to wait and press Enter to retry. It never deletes lock files or forcibly stops DSH.
 
           DSH-Portable 不需要另外安装 Node.js 或 pnpm，也不需要管理员权限。安装或更新完成后，请手动重启 DSH。  
           DSH-Portable does not require a separate Node.js or pnpm install or administrator access. Restart DSH manually after installation or update.
