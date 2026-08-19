@@ -21,6 +21,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
 
       - name: Resolve release version
         id: version
@@ -47,17 +48,6 @@ jobs:
             echo "$RELEASE_TAG already exists; its notes will be checked."
           else
             echo "needed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Retarget stale tag from a deleted release
-        if: steps.existing.outputs.needed == 'true'
-        env:
-          RELEASE_TAG: ${{ steps.version.outputs.tag }}
-        shell: bash
-        run: |
-          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "$RELEASE_TAG tag exists without a Release; deleting the stale tag before recreation."
-            git push origin ":refs/tags/$RELEASE_TAG"
           fi
 
       - name: Prepare beginner-facing release notes
@@ -159,21 +149,41 @@ jobs:
           test -s .artifacts/dsh-codex.ps1.sha256
           test -s .artifacts/dsh-codex-setup.ps1
 
+      - name: Point release tag at the validated commit
+        if: steps.existing.outputs.needed == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "$RELEASE_TAG tag exists without a Release; deleting the stale tag first."
+            git push origin ":refs/tags/$RELEASE_TAG"
+          fi
+          git tag -f "$RELEASE_TAG" "$TARGET_SHA"
+          git push origin "refs/tags/$RELEASE_TAG"
+
       - name: Create GitHub Release
         if: steps.existing.outputs.needed == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
-          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
+          set +e
           gh release create "$RELEASE_TAG" \
             .artifacts/dsh-codex-subscription.tgz \
             .artifacts/dsh-codex.ps1 \
             .artifacts/dsh-codex.ps1.sha256 \
             .artifacts/dsh-codex-setup.ps1 \
             --repo "$GITHUB_REPOSITORY" \
-            --target "$TARGET_SHA" \
+            --verify-tag \
             --title "$RELEASE_TAG" \
             --notes "$(cat .release/install.md)" \
             --generate-notes
+          status=$?
+          set -e
+          if [[ $status -ne 0 ]]; then
+            git push origin ":refs/tags/$RELEASE_TAG" || true
+            exit $status
+          fi
