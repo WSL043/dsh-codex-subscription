@@ -1,0 +1,102 @@
+name: Validate v1.0.3 once
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Run verification
+        id: test
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm test 2>&1 | tee validation.log
+          pnpm run build 2>&1 | tee -a validation.log
+          git diff --exit-code -- lib 2>&1 | tee -a validation.log
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.test.outcome }}
+        shell: bash
+        run: |
+          {
+            echo "v1.0.3 Ubuntu gate at \`$GITHUB_SHA\`: **$OUTCOME**"
+            echo
+            echo '<details><summary>output</summary>'
+            echo
+            echo '```text'
+            tail -c 12000 validation.log 2>/dev/null || true
+            echo
+            echo '```'
+            echo '</details>'
+          } > validation-comment.md
+          gh issue comment 7 --repo "$GITHUB_REPOSITORY" --body-file validation-comment.md
+      - if: steps.test.outcome != 'success'
+        run: exit 1
+
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - name: Run Windows lifecycle tests
+        id: test
+        continue-on-error: true
+        shell: powershell
+        run: |
+          node --test tests/powershell-manager.test.mjs tests/powershell-setup.test.mjs 2>&1 | Tee-Object -FilePath validation.log
+          exit $LASTEXITCODE
+        env:
+          DSH_CODEX_TEST_USER_PATH: '1'
+      - name: Report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.test.outcome }}
+          TARGET_OS: ${{ matrix.os }}
+        shell: powershell
+        run: |
+          $log = if (Test-Path validation.log) { Get-Content validation.log -Raw } else { '(no log)' }
+          if ($log.Length -gt 12000) { $log = $log.Substring($log.Length - 12000) }
+          $body = @"
+          v1.0.3 Windows gate $($env:TARGET_OS) at ``$($env:GITHUB_SHA)``: **$($env:OUTCOME)**
+
+          <details><summary>output</summary>
+
+          ``````text
+          $log
+          ``````
+          </details>
+          "@
+          gh issue comment 7 --repo $env:GITHUB_REPOSITORY --body $body
+      - if: steps.test.outcome != 'success'
+        shell: powershell
+        run: exit 1
