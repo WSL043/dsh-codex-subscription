@@ -54,16 +54,37 @@ https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
 
 ### Windows 手动安装
 
-打开 PowerShell，依次粘贴下面两行：
+打开 PowerShell，只需要复制这一行：
+
+```powershell
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"; if ($LASTEXITCODE -eq 0) { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1" }
+```
+
+安装助手会先让你选择 **中文（简体）** 或 **English**，然后自动寻找 DSH：
+
+- 只找到一个 DSH：直接显示目标并继续；
+- 找到多个 DSH：显示编号、状态和路径，让你输入编号选择，不再直接抛英文报错；
+- 没有安装过插件：明确显示 **安装**；
+- 已经安装当前版或旧版插件：明确显示 **更新**，旧包会按原有安全迁移流程处理；
+- 成功后只提示结果和需要手动重启 DSH，不会擅自重启程序。
+
+普通安装版和 DSH-Portable 都能使用。便携版不需要另装 Node.js 或 pnpm，整个过程不需要
+管理员权限。安装助手下载核心管理脚本后会校验 Release 提供的 SHA-256，再交给原有管理器
+执行安装、更新、验证和 PATH 处理。
+
+<details>
+<summary>非交互安装 / 兼容旧方式</summary>
+
+需要脚本化安装、Agent 操作，或想明确指定 `Install` 时，仍然可以使用原来的核心管理器：
 
 ```powershell
 curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
 ```
 
-普通安装版和 DSH-Portable 都能使用。便携版不需要另装 Node.js 或 pnpm，整个过程不需要
-管理员权限。安装器会自动寻找 DSH、验证安装结果，并添加当前用户的 `dsh-codex` 命令；
-它不会修改系统执行策略或擅自重启 DSH。
+如果有多个 DSH-Portable，也可以继续显式传入 `-PortableRoot`。这个入口保持非交互，适合自动化。
+
+</details>
 
 如果便携文件夹改过名字或位置，先启动一次正确的 DSH-Portable，再执行安装。完成后手动
 重启 DSH，让插件生效。
@@ -120,7 +141,7 @@ Windows 安装器用户只需要两条短命令：
 
 更新会校验最新 Release 管理脚本的 SHA-256。卸载会移除插件和 `dsh-codex` 命令，但保留
 DSH profile、其他插件和已保存的登录信息。旧版本如果还没有短命令，重新执行一次上面的
-Windows 首次安装命令即可。
+Windows 首次安装命令即可；安装助手检测到已有插件时会自动显示并执行“更新”。
 
 <details>
 <summary>使用现有 <code>dsh</code> 命令更新或卸载</summary>
@@ -153,8 +174,8 @@ dsh plugin --profile web remove @wsl043/dsh-codex-subscription
 
 - 找不到 `dsh-codex`：关闭并重新打开 PowerShell；
 - 找不到 DSH-Portable：先启动一次正确的便携版，再重新安装；
-- 没有 `curl.exe`、检测到多个 DSH，或仍然失败：把 Agent 文档链接发给 Agent，
-  不要自行修改系统 PATH、执行策略或删除 profile。
+- 检测到多个 DSH：新版安装助手会列出编号和路径，选你准备使用的那个即可；
+- 没有 `curl.exe` 或仍然失败：把 Agent 文档链接发给 Agent，不要自行修改系统 PATH、执行策略或删除 profile。
 
 ## 边界与支持
 
@@ -178,15 +199,16 @@ service.
 [installation guide](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md)
 to your Agent.
 
-**Windows install:** open PowerShell and run these two lines:
+**Windows install:** open PowerShell and run this one line:
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
+curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"; if ($LASTEXITCODE -eq 0) { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1" }
 ```
 
-DSH-Portable is supported without a separate Node.js or pnpm installation.
-After the first install, use `dsh-codex update` to update and
+The setup asks for Chinese or English first, turns multiple DSH copies into a
+numbered choice, and automatically shows **Install** or **Update** based on the
+selected DSH. DSH-Portable is supported without a separate Node.js or pnpm
+installation. After the first install, use `dsh-codex update` to update and
 `dsh-codex uninstall` to remove it. Open **Settings -> Codex**, sign in with a
 ChatGPT account that has Codex access, choose a search source, and select a Codex
 model. For full usage and troubleshooting, see the

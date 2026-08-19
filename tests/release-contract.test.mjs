@@ -20,7 +20,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.equal(pkg.version, '1.0.0')
+  assert.equal(pkg.version, '1.0.1')
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
@@ -39,6 +39,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(existsSync(new URL('../CHANGELOG.md', import.meta.url)), false)
   assert.equal(existsSync(new URL('../docs/ARCHITECTURE.md', import.meta.url)), false)
   assert.equal(existsSync(new URL('../.github/workflows/ci.yml', import.meta.url)), true)
+  assert.equal(existsSync(new URL('../.github/workflows/release.yml', import.meta.url)), true)
 })
 
 test('public docs contain only user-facing product and operation information', () => {
@@ -55,12 +56,12 @@ test('public docs contain only user-facing product and operation information', (
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.match(guide, /releases\/download\/v1\.0\.0\/dsh-codex\.ps1/u)
+  assert.match(guide, /releases\/download\/v1\.0\.1\/dsh-codex\.ps1/u)
   assert.match(guide, /dsh-codex\.ps1" Install/u)
   assert.match(guide, /dsh-codex update/u)
   assert.match(guide, /dsh-codex uninstall/u)
   assert.match(guide, /DSH-Portable[\s\S]*system Node\.js or pnpm[\s\S]*per-user[\s\S]*never modifies[\s\S]*machine PATH/iu)
-  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@1\.0\.0/u)
+  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@1\.0\.1/u)
   assert.match(guide, /dsh plugin --profile web update dsh-codex-subscription/u)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
@@ -85,10 +86,12 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
   assert.match(readmeEn, /## Prepare DSH[\s\S]*community DSH-Portable package[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## Install[\s\S]*### Let an Agent install it \(recommended\)[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md[\s\S]*### Manual Windows install/u)
   assert.match(readme, /本项目的问题反馈[\s\S]*github\.com\/WSL043\/dsh-codex-subscription\/issues[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
   assert.match(readmeEn, /project feedback[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
-  assert.match(readme, /依次粘贴下面两行/u)
-  assert.match(readmeEn, /paste these two lines in order/u)
-  assert.doesNotMatch(`${readme}\n${readmeEn}`, /下面三行|three lines/iu)
-  assert.doesNotMatch(readme, /复制下面|提示词/u)
+  assert.match(readme, /只需要复制这一行/u)
+  assert.match(readmeEn, /paste this one line/u)
+  assert.doesNotMatch(`${readme}\n${readmeEn}`, /依次粘贴下面两行|paste these two lines in order|下面三行|three lines/iu)
+  assert.match(readme, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
+  assert.match(readmeEn, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
+  assert.doesNotMatch(readme, /提示词/u)
   assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/settings\.png/u)
   assert.match(readmeEn, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/settings-en\.png/u)
   assert.match(readme, /raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/composer-quota-en\.png/u)
@@ -128,6 +131,7 @@ test('public readmes provide explicit update commands and verification', () => {
   assert.match(readmeZh, /dsh plugin --profile web add dsh-codex-subscription/u)
   assert.match(readmeEn, /dsh plugin --profile web add dsh-codex-subscription/u)
   for (const readme of [readmeZh, readmeEn]) {
+    assert.match(readme, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
     assert.match(readme, /releases\/latest\/download\/dsh-codex\.ps1/u)
     assert.doesNotMatch(readme, /dsh-codex\.ps1\?/u)
     assert.match(readme, /curl\.exe -fL[\s\S]*-o "\$env:TEMP\\dsh-codex\.ps1"[\s\S]*-ExecutionPolicy Bypass -File/iu)
@@ -138,6 +142,8 @@ test('public readmes provide explicit update commands and verification', () => {
 
 test('Windows manager updates from a checksum-verified immutable release asset', () => {
   const manager = text('dsh-codex.ps1')
+  assert.match(manager, /\$PackageVersion = '1\.0\.1'/u)
+  assert.match(manager, /releases\/download\/v1\.0\.1\/dsh-codex-subscription\.tgz/u)
   assert.match(manager, /api\.github\.com\/repos\/WSL043\/dsh-codex-subscription\/releases\/latest/u)
   assert.match(manager, /dsh-codex\.ps1\.sha256/u)
   assert.match(manager, /Get-FileDigest -Algorithm SHA256/u)
@@ -199,6 +205,19 @@ test('CI uploads the hidden release artifact only after asserting it exists', ()
   assert.match(workflow, /include-hidden-files:\s*true/u)
   assert.match(workflow, /sha256sum dsh-codex\.ps1/u)
   assert.match(workflow, /\.artifacts\/dsh-codex\.ps1\.sha256/u)
+  assert.match(workflow, /\.artifacts\/dsh-codex-setup\.ps1/u)
+})
+
+test('successful main CI creates one immutable GitHub release for the package version', () => {
+  const workflow = text('.github/workflows/release.yml')
+  assert.match(workflow, /workflow_run:[\s\S]*workflows:\s*\[CI\][\s\S]*types:\s*\[completed\]/u)
+  assert.match(workflow, /workflow_run\.conclusion == 'success'/u)
+  assert.match(workflow, /workflow_run\.head_branch == 'main'/u)
+  assert.match(workflow, /contents:\s*write/u)
+  assert.match(workflow, /gh release view/u)
+  assert.match(workflow, /gh release create/u)
+  assert.match(workflow, /dsh-codex-subscription\.tgz/u)
+  assert.match(workflow, /dsh-codex-setup\.ps1/u)
 })
 
 test('npm publishing is release-gated and uses OIDC without a stored npm token', () => {
@@ -212,6 +231,7 @@ test('npm publishing is release-gated and uses OIDC without a stored npm token',
     'dsh-codex-subscription.tgz',
     'dsh-codex.ps1',
     'dsh-codex.ps1.sha256',
+    'dsh-codex-setup.ps1',
   ]) assert.match(workflow, new RegExp(asset.replaceAll('.', '\\.')))
   for (const asset of [
     'settings.png',
