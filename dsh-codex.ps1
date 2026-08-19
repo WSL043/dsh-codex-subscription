@@ -32,8 +32,11 @@ if ($Managed -and -not $PSBoundParameters.ContainsKey('Action')) {
 
 $PackageName = 'dsh-codex-subscription'
 $LegacyPackageName = '@wsl043/dsh-codex-subscription'
-$PackageVersion = '1.0.2'
-$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.2/dsh-codex-subscription.tgz'
+$ManagerScriptName = 'dsh-codex-manager.ps1'
+$LegacyManagerScriptName = 'dsh-codex.ps1'
+$ManagerShimName = 'dsh-codex.cmd'
+$PackageVersion = '1.0.3'
+$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.3/dsh-codex-subscription.tgz'
 $PnpmVersion = '11.19.0'
 $PnpmUrl = 'https://registry.npmjs.org/pnpm/-/pnpm-11.19.0.tgz'
 $PnpmSha512 = '7881F3ED590D472C4A955E2B88B2121791116066DCC88CBCA3849EC9B60F1BBAA6D2CCB221FA91DA4E1C65BEF2BCBE379365AEA7AC539C7BF86DEDC3A1B22DCE'
@@ -243,8 +246,8 @@ function Remove-ManagerFromUserPath {
 function Start-ManagerCleanup {
     param([Parameter(Mandatory = $true)][string] $Directory)
 
-    $installedScript = Join-Path $Directory 'dsh-codex.ps1'
-    $installedShim = Join-Path $Directory 'dsh-codex.cmd'
+    $installedScript = Join-Path $Directory $ManagerScriptName
+    $installedShim = Join-Path $Directory $ManagerShimName
     if (-not (Test-Path -LiteralPath $installedScript -PathType Leaf) -or
         -not (Test-Path -LiteralPath $installedShim -PathType Leaf)) {
         throw 'Refusing to clean an unrecognized manager command directory.'
@@ -263,8 +266,9 @@ $cleanupScript = [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String(
 try {
     Wait-Process -Id $ParentId -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 300
-    Remove-Item -LiteralPath (Join-Path $directory 'dsh-codex.ps1') -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath (Join-Path $directory 'dsh-codex.cmd') -Force -ErrorAction SilentlyContinue
+    foreach ($name in @('dsh-codex-manager.ps1', 'dsh-codex.ps1', 'dsh-codex.cmd')) {
+        Remove-Item -LiteralPath (Join-Path $directory $name) -Force -ErrorAction SilentlyContinue
+    }
     if ((Test-Path -LiteralPath $directory -PathType Container) -and
         -not (Get-ChildItem -LiteralPath $directory -Force -ErrorAction SilentlyContinue | Select-Object -First 1)) {
         Remove-Item -LiteralPath $directory -Force -ErrorAction SilentlyContinue
@@ -285,12 +289,12 @@ function Remove-ManagerCommand {
 
     if (-not $NoModifyPath) { Remove-ManagerFromUserPath -Directory $Directory }
     if (Test-Path -LiteralPath $Directory -PathType Container) {
-        $installedScript = Join-Path $Directory 'dsh-codex.ps1'
+        $installedScript = Join-Path $Directory $ManagerScriptName
         if ($Managed -and $PSCommandPath -and (Test-SamePath -Left $PSCommandPath -Right $installedScript)) {
             Start-ManagerCleanup -Directory $Directory
             return
         }
-        foreach ($ownedFile in @('dsh-codex.ps1', 'dsh-codex.cmd')) {
+        foreach ($ownedFile in @($ManagerScriptName, $LegacyManagerScriptName, $ManagerShimName)) {
             $ownedPath = Join-Path $Directory $ownedFile
             if (Test-Path -LiteralPath $ownedPath -PathType Leaf) {
                 Remove-Item -LiteralPath $ownedPath -Force
@@ -309,7 +313,7 @@ function Install-ManagerCommand {
         throw 'The manager command can only be installed from a downloaded script file.'
     }
     New-Item -ItemType Directory -Force -Path $Directory | Out-Null
-    $installedScript = Join-Path $Directory 'dsh-codex.ps1'
+    $installedScript = Join-Path $Directory $ManagerScriptName
     if (-not (Test-SamePath -Left $PSCommandPath -Right $installedScript)) {
         $stagedScript = Join-Path $Directory ('.dsh-codex-' + [guid]::NewGuid().ToString('N') + '.ps1')
         try {
@@ -322,12 +326,17 @@ function Install-ManagerCommand {
         }
     }
 
+    $legacyInstalledScript = Join-Path $Directory $LegacyManagerScriptName
+    if (Test-Path -LiteralPath $legacyInstalledScript -PathType Leaf) {
+        Remove-Item -LiteralPath $legacyInstalledScript -Force
+    }
+
     $shim = @'
 @echo off
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0dsh-codex.ps1" -Managed %*
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0dsh-codex-manager.ps1" -Managed %*
 exit /b %ERRORLEVEL%
 '@
-    [System.IO.File]::WriteAllText((Join-Path $Directory 'dsh-codex.cmd'), $shim, [System.Text.Encoding]::ASCII)
+    [System.IO.File]::WriteAllText((Join-Path $Directory $ManagerShimName), $shim, [System.Text.Encoding]::ASCII)
     if (-not $NoModifyPath) { Add-ManagerToUserPath -Directory $Directory }
 }
 

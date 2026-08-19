@@ -133,7 +133,7 @@ if (command === 'list') {
   process.stdout.write(JSON.stringify([{ dependencies: packages }]))
 } else if (command === 'add') {
   if (process.env.DSH_CODEX_TEST_FAIL_ADD === '1') process.exit(9)
-  packages['dsh-codex-subscription'] = { version: process.env.DSH_CODEX_TEST_ADDED_VERSION || '1.0.2' }
+  packages['dsh-codex-subscription'] = { version: process.env.DSH_CODEX_TEST_ADDED_VERSION || '1.0.3' }
   fs.writeFileSync(stateFile, JSON.stringify(packages))
 } else if (command === 'remove') {
   delete packages[args[4]]
@@ -214,7 +214,7 @@ windowsTest('update fails instead of reporting success when DSH keeps an older p
       env: { ...process.env, DSH_CODEX_TEST_ADDED_VERSION: '0.2.8' },
     })
     assert.notEqual(result.status, 0)
-    assert.match(result.stderr, /expected 1\.0\.2[^]*found 0\.2\.8/iu)
+    assert.match(result.stderr, /expected 1\.0\.3[^]*found 0\.2\.8/iu)
     assert.doesNotMatch(result.stdout, /Updated\./u)
   } finally {
     rmSync(sandbox, { recursive: true, force: true })
@@ -240,6 +240,40 @@ windowsTest('first install plans a reusable dsh-codex command without requiring 
   }
 })
 
+windowsTest('bare dsh-codex uses the cmd shim under Restricted execution policy', () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-command-resolution-'))
+  const root = join(sandbox, 'DSH Portable')
+  const commandRoot = join(sandbox, 'command')
+  try {
+    functionalPortableFixture(root)
+    mkdirSync(commandRoot, { recursive: true })
+    writeFileSync(join(commandRoot, 'dsh-codex.ps1'), "throw 'legacy manager should have been removed'\n")
+    const install = spawnSync('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
+      '-Action', 'Install', '-PortableRoot', root,
+      '-CommandRoot', commandRoot, '-NoModifyPath',
+    ], { encoding: 'utf8' })
+    assert.equal(install.status, 0, install.stderr || install.stdout)
+    assert.equal(existsSync(join(commandRoot, 'dsh-codex.cmd')), true)
+    assert.equal(existsSync(join(commandRoot, 'dsh-codex-manager.ps1')), true)
+    assert.equal(existsSync(join(commandRoot, 'dsh-codex.ps1')), false)
+
+    const bare = spawnSync('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Restricted',
+      '-Command', 'dsh-codex',
+    ], {
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${commandRoot};${process.env.PATH}` },
+    })
+    assert.equal(bare.status, 0, bare.stderr || bare.stdout)
+    assert.match(bare.stdout, /dsh-codex <install\|update\|uninstall>/iu)
+    assert.doesNotMatch(bare.stderr, /running scripts is disabled|PSSecurityException/iu)
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true })
+  }
+})
+
 windowsTest('reusable command uninstalls the portable plugin and removes itself', () => {
   const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-command-install-'))
   const root = join(sandbox, 'DSH Portable')
@@ -253,7 +287,8 @@ windowsTest('reusable command uninstalls the portable plugin and removes itself'
       '-CommandRoot', commandRoot, '-NoModifyPath',
     ], { encoding: 'utf8' })
     assert.equal(result.status, 0, result.stderr || result.stdout)
-    assert.equal(existsSync(join(commandRoot, 'dsh-codex.ps1')), true)
+    assert.equal(existsSync(join(commandRoot, 'dsh-codex-manager.ps1')), true)
+    assert.equal(existsSync(join(commandRoot, 'dsh-codex.ps1')), false)
     assert.equal(existsSync(join(commandRoot, 'dsh-codex.cmd')), true)
     const managerCommand = join(commandRoot, 'dsh-codex.cmd')
     const help = spawnSync('cmd.exe', ['/d', '/s', '/c', managerCommand], {
@@ -359,6 +394,7 @@ windowsTest('direct uninstall removes only manager-owned files from a custom com
     ], { encoding: 'utf8' })
     assert.equal(uninstall.status, 0, uninstall.stderr || uninstall.stdout)
     assert.equal(existsSync(sentinel), true)
+    assert.equal(existsSync(join(commandRoot, 'dsh-codex-manager.ps1')), false)
     assert.equal(existsSync(join(commandRoot, 'dsh-codex.ps1')), false)
     assert.equal(existsSync(join(commandRoot, 'dsh-codex.cmd')), false)
   } finally {
@@ -521,7 +557,7 @@ windowsTest('portable install uses the bundled CLI, DSH_HOME, and package store'
     assert.deepEqual(plan.arguments, [
       join(expectedRoot, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
       'plugin', '--profile', 'web', 'add',
-      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.2/dsh-codex-subscription.tgz',
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.3/dsh-codex-subscription.tgz',
       '--store-dir', join(expectedRoot, 'data', 'pnpm-store'),
       '--loglevel', 'error',
     ])
@@ -542,7 +578,7 @@ windowsTest('portable install prefers the DSH-Portable command shim when availab
     assert.equal(plan.pnpmDirectory, null)
     assert.deepEqual(plan.arguments, [
       'plugin', '--profile', 'web', 'add',
-      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.2/dsh-codex-subscription.tgz',
+      'https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.3/dsh-codex-subscription.tgz',
       '--store-dir', join(expectedRoot, 'data', 'pnpm-store'),
       '--loglevel', 'error',
     ])
@@ -562,7 +598,7 @@ windowsTest('installed portable mode expands its external state root', () => {
     assert.equal(plan.action, 'Update')
     assert.equal(plan.dshHome, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'dsh-home'))
     assert.equal(plan.pnpmStore, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'pnpm-store'))
-    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.2/dsh-codex-subscription.tgz'), true)
+    assert.equal(plan.arguments.includes('https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.3/dsh-codex-subscription.tgz'), true)
     assert.equal(plan.packageName, 'dsh-codex-subscription')
     assert.equal(plan.legacyPackageName, '@wsl043/dsh-codex-subscription')
   } finally {
