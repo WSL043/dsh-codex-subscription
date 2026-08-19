@@ -29,8 +29,11 @@ jobs:
       - name: Run Windows manager and friendly setup integration tests
         id: test
         continue-on-error: true
-        run: node --test tests/powershell-manager.test.mjs tests/powershell-setup.test.mjs
-      - name: Report validation result
+        shell: powershell
+        run: |
+          node --test tests/powershell-manager.test.mjs tests/powershell-setup.test.mjs 2>&1 | Tee-Object -FilePath windows-test.log
+          exit $LASTEXITCODE
+      - name: Report validation result and diagnostics
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
@@ -38,7 +41,19 @@ jobs:
           TEST_OUTCOME: ${{ steps.test.outcome }}
         shell: powershell
         run: |
-          $body = "Windows setup validation $($env:TARGET_OS): **$($env:TEST_OUTCOME)** at ``$($env:GITHUB_SHA)``"
+          $log = if (Test-Path windows-test.log) { Get-Content windows-test.log -Raw } else { '(no test log)' }
+          if ($log.Length -gt 12000) { $log = $log.Substring($log.Length - 12000) }
+          $body = @"
+          Windows setup validation $($env:TARGET_OS): **$($env:TEST_OUTCOME)** at ``$($env:GITHUB_SHA)``
+
+          <details><summary>test output</summary>
+
+          ``````text
+          $log
+          ``````
+
+          </details>
+          "@
           gh issue comment 5 --repo $env:GITHUB_REPOSITORY --body $body
       - name: Fail job when integration tests fail
         if: steps.test.outcome != 'success'
