@@ -1,0 +1,1 @@
+Trigger v1.0.3 gate diagnostics after workflow registration.
