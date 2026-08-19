@@ -44,10 +44,79 @@ jobs:
         run: |
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "needed=false" >> "$GITHUB_OUTPUT"
-            echo "$RELEASE_TAG already exists; nothing to publish."
+            echo "$RELEASE_TAG already exists; its notes will be checked."
           else
             echo "needed=true" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Prepare user-facing release notes
+        id: notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          TARGET_SHA: ${{ github.event.workflow_run.head_sha }}
+          RELEASE_NEEDED: ${{ steps.existing.outputs.needed }}
+        shell: bash
+        run: |
+          mkdir -p .release
+          cat > .release/install.md <<'NOTES'
+          <!-- dsh-codex-install -->
+          ## 安装 / Install
+
+          ### Windows（推荐） / Windows (recommended)
+
+          打开 PowerShell，只复制这一行：  
+          Open PowerShell and paste this one line:
+
+          ```powershell
+          curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"; if ($LASTEXITCODE -eq 0) { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1" }
+          ```
+
+          安装助手会先让你选择 **中文（简体）** 或 **English**，然后自动寻找 DSH。没有安装过时显示“安装”；已经安装过时显示“更新”；如果检测到多个 DSH，会显示编号让你选择。  
+          Setup first asks for **中文（简体）** or **English**, then finds DSH automatically. It shows **Install** for a new setup, **Update** for an existing one, and a numbered picker when multiple DSH copies are found.
+
+          DSH-Portable 不需要另外安装 Node.js 或 pnpm，也不需要管理员权限。安装或更新完成后，请手动重启 DSH。  
+          DSH-Portable does not require a separate Node.js or pnpm install or administrator access. Restart DSH manually after installation or update.
+
+          ### 更新 / Update
+
+          ```powershell
+          dsh-codex update
+          ```
+
+          ### 卸载 / Uninstall
+
+          ```powershell
+          dsh-codex uninstall
+          ```
+
+          NOTES
+
+          if [[ "$RELEASE_NEEDED" == "true" ]]; then
+            gh api --method POST "repos/$GITHUB_REPOSITORY/releases/generate-notes" \
+              -f tag_name="$RELEASE_TAG" \
+              -f target_commitish="$TARGET_SHA" \
+              --jq '.body // ""' > .release/generated.md
+            cat .release/install.md .release/generated.md > .release/release-notes.md
+            echo "edit=false" >> "$GITHUB_OUTPUT"
+          else
+            gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json body --jq '.body // ""' > .release/current.md
+            if grep -Fq '<!-- dsh-codex-install -->' .release/current.md; then
+              cp .release/current.md .release/release-notes.md
+              echo "edit=false" >> "$GITHUB_OUTPUT"
+            else
+              cat .release/install.md .release/current.md > .release/release-notes.md
+              echo "edit=true" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+      - name: Update existing release notes
+        if: steps.existing.outputs.needed == 'false' && steps.notes.outputs.edit == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --notes-file .release/release-notes.md
 
       - uses: pnpm/action-setup@v5
         if: steps.existing.outputs.needed == 'true'
@@ -99,4 +168,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --target "$TARGET_SHA" \
             --title "$RELEASE_TAG" \
-            --generate-notes
+            --notes-file .release/release-notes.md
