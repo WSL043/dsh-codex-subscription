@@ -79,7 +79,8 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
   const readme = text('README.md')
   const readmeEn = text('README.en.md')
   assert.match(readme, /^# DSH Codex Subscription[\s\S]*在 DeepSeek Harness 中直接登录 ChatGPT/u)
-  assert.match(readme, /\[English\]\(#english\)/u)
+  assert.match(readme, /\[English\]\(https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/blob\/main\/README\.en\.md\)/u)
+  assert.match(readmeEn, /\[简体中文\]\(https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/blob\/main\/README\.md\)/u)
   for (const doc of [readme, readmeEn]) {
     assert.match(doc, /img\.shields\.io\/npm\/v\/dsh-codex-subscription/u)
     assert.match(doc, /npmjs\.com\/package\/dsh-codex-subscription/u)
@@ -114,15 +115,13 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
   assert.equal(existsSync(new URL('../docs/assets/sidebar-en.png', import.meta.url)), false)
 })
 
-test('npm README keeps each language together and includes self-contained English instructions', () => {
+test('each README stays in one language and links to the complete translation', () => {
   const readme = text('README.md')
-  const chineseIntro = readme.indexOf('在 DeepSeek Harness 中直接登录 ChatGPT')
-  const chineseSupport = readme.indexOf('## 边界与支持')
-  const englishStart = readme.indexOf('## English')
-  assert.ok(chineseIntro >= 0 && chineseSupport > chineseIntro && englishStart > chineseSupport)
-  assert.match(readme, /## English[\s\S]*ChatGPT \/ Codex subscription[\s\S]*Codex image generation/iu)
-  assert.match(readme, /## English[\s\S]*curl\.exe -fL[\s\S]*dsh-codex update[\s\S]*dsh-codex uninstall/iu)
-  assert.doesNotMatch(readme, /\[English\]\(README\.en\.md\)/u)
+  const readmeEn = text('README.en.md')
+  assert.doesNotMatch(readme, /^## English$/mu)
+  assert.doesNotMatch(readmeEn, /^## (?:简体中文|中文)$/mu)
+  assert.match(readme, /README\.en\.md/u)
+  assert.match(readmeEn, /README\.md/u)
 })
 
 test('public readmes provide explicit update commands and verification', () => {

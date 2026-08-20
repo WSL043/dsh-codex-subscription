@@ -151,7 +151,7 @@ jobs:
           <!-- dsh-codex-install -->
           ## 安装 / Install
 
-          ### Windows（推荐） / Windows (recommended)
+          ### Windows 安装助手 / Windows guided install
 
           打开 PowerShell，只复制这一行：
           Open PowerShell and paste this one line:
@@ -169,16 +169,31 @@ jobs:
           DSH-Portable 不需要另外安装 Node.js 或 pnpm，也不需要管理员权限。安装或更新完成后，请手动重启 DSH。
           DSH-Portable does not require a separate Node.js or pnpm install or administrator access. Restart DSH manually after installation or update.
 
-          ### 更新 / Update
+          ### macOS、Linux，或已有 dsh / macOS, Linux, or an existing dsh command
+
+          ```sh
+          dsh plugin --profile web add dsh-codex-subscription
+          dsh plugin --profile web list dsh-codex-subscription --depth 0
+          dsh --profile web --dump-config
+          ```
+
+          安装后手动重启 DSH。列表中应只有一个 `dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
+          Restart DSH manually. The plugin list should contain one `dsh-codex-subscription`, and the config should contain one `codex-subscription` entry.
+
+          ### Windows 更新与卸载 / Windows update and uninstall
 
           ```powershell
           dsh-codex update
+          dsh-codex uninstall
           ```
 
-          ### 卸载 / Uninstall
+          ### 通用更新与卸载 / Universal update and uninstall
 
-          ```powershell
-          dsh-codex uninstall
+          ```sh
+          dsh plugin --profile web update dsh-codex-subscription
+          dsh plugin --profile web list dsh-codex-subscription --depth 0
+          dsh --profile web --dump-config
+          dsh plugin --profile web remove dsh-codex-subscription
           ```
           NOTES
 
