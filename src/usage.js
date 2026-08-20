@@ -1,3 +1,5 @@
+import { USER_AGENT } from './version.js'
+
 export const CODEX_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
 const DEFAULT_TTL_MS = 60_000
 const DEFAULT_TIMEOUT_MS = 15_000
@@ -144,6 +146,7 @@ export function createCodexUsageReader(options) {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   let cached
   let inFlight
+  let generation = 0
 
   const load = async signal => {
     const auth = await getAuth({ signal })
@@ -162,7 +165,7 @@ export function createCodexUsageReader(options) {
         'chatgpt-account-id': accountId,
         accept: 'application/json',
         'cache-control': 'no-store',
-        'user-agent': 'dsh-codex-subscription/1.0.0',
+        'user-agent': USER_AGENT,
       },
       signal: requestSignal(signal, timeoutMs),
     })
@@ -186,9 +189,10 @@ export function createCodexUsageReader(options) {
         return Promise.resolve(structuredClone(cached))
       }
       if (inFlight !== undefined) return inFlight.then(structuredClone)
+      const currentGeneration = generation
       const current = load(signal)
         .then(value => {
-          cached = structuredClone(value)
+          if (generation === currentGeneration) cached = structuredClone(value)
           return structuredClone(value)
         })
         .finally(() => {
@@ -198,7 +202,9 @@ export function createCodexUsageReader(options) {
       return current
     },
     clear() {
+      generation += 1
       cached = undefined
+      inFlight = undefined
     },
   })
 }

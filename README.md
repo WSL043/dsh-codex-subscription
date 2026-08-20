@@ -31,7 +31,7 @@
 
 ## 准备 DSH
 
-本插件适配 DeepSeek Harness `0.1.0-rc.6` 与 `0.1.0-rc.7`，还需要一个当前具有 Codex 使用资格的
+本插件适配 DeepSeek Harness `0.1.0-rc.6`、`0.1.0-rc.7` 与 `0.1.0-rc.8`，还需要一个当前具有 Codex 使用资格的
 ChatGPT 账户。
 
 - 不想配置 Node.js：使用 [DSH-Portable（社区便携包）](https://github.com/WSL043/DSH-Portable)；

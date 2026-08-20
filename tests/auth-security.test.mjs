@@ -88,6 +88,36 @@ test('credential adapter migrates the legacy author-prefixed key without signing
   assert.equal(backend.readRaw('LEGACY_CODEX_OAUTH'), undefined)
 })
 
+test('legacy credential migration cannot restore credentials after a queued logout', async () => {
+  const values = new Map([['LEGACY_CODEX_OAUTH', JSON.stringify(oauth('legacy'))]])
+  let releaseMigration
+  let signalMigration
+  const migrationStarted = new Promise(resolve => { signalMigration = resolve })
+  const migrationGate = new Promise(resolve => { releaseMigration = resolve })
+  const backend = {
+    async resolve(ref) { return values.has(ref) ? { value: values.get(ref) } : undefined },
+    async set(ref, value) {
+      if (ref === 'CODEX_SUBSCRIPTION_OAUTH') {
+        signalMigration()
+        await migrationGate
+      }
+      values.set(ref, value)
+    },
+    async unset(ref) { values.delete(ref) },
+  }
+  const store = new DshOAuthCredentialStore(backend, 'CODEX_SUBSCRIPTION_OAUTH', ['LEGACY_CODEX_OAUTH'])
+
+  const reading = store.read('openai-codex')
+  await migrationStarted
+  const deleting = store.delete('openai-codex')
+  await new Promise(resolve => setImmediate(resolve))
+  releaseMigration()
+  await Promise.all([reading, deleting])
+
+  assert.equal(values.has('CODEX_SUBSCRIPTION_OAUTH'), false)
+  assert.equal(values.has('LEGACY_CODEX_OAUTH'), false)
+})
+
 test('only official HTTPS OpenAI authorization URLs can reach the native opener', () => {
   assert.equal(assertCodexAuthUrl('https://auth.openai.com/oauth/authorize?state=public'), 'https://auth.openai.com/oauth/authorize?state=public')
   assert.throws(() => assertCodexAuthUrl('http://auth.openai.com/oauth/authorize'), /HTTPS/i)

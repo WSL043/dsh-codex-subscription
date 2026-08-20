@@ -64,7 +64,7 @@ export class DshOAuthCredentialStore {
     return current
   }
 
-  async read(providerId, options) {
+  async #read(providerId, options) {
     assertProvider(providerId)
     abortIfNeeded(options)
     let hit = await this.credentials.resolve(this.ref)
@@ -84,6 +84,10 @@ export class DshOAuthCredentialStore {
     return parseOAuthCredential(hit.value)
   }
 
+  read(providerId, options) {
+    return this.#enqueue(providerId, () => this.#read(providerId, options), options)
+  }
+
   async list(options) {
     abortIfNeeded(options)
     const current = await this.read(PROVIDER, options)
@@ -92,7 +96,7 @@ export class DshOAuthCredentialStore {
 
   modify(providerId, update, options) {
     return this.#enqueue(providerId, async () => {
-      const current = await this.read(providerId, options)
+      const current = await this.#read(providerId, options)
       const next = await update(clone(current))
       abortIfNeeded(options)
       if (next === undefined) return current

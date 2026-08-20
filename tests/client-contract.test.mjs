@@ -133,15 +133,20 @@ test('build emits host entries and a DSH module-loader client', async () => {
   assert.doesNotMatch(config, /wsl043/iu)
 })
 
-test('generated Codex images use the session attachment gallery', async () => {
+test('generated Codex images use a plugin-owned rc.6-rc.8 compatible viewer', async () => {
   const [source, manifest, config] = await Promise.all([
     text('src/client.jsx'), text('package.json'), text('tsdown.config.mjs'),
   ])
-  assert.match(source, /ImageGallery/u)
+  assert.doesNotMatch(source, /from ['"]@deepseek-ai\/dsh-client-ui-attachment['"]/u)
+  assert.match(source, /function CodexGeneratedImage/u)
+  assert.match(source, /role="dialog"/u)
+  assert.match(source, /event\.key === 'Escape'/u)
+  assert.match(source, /event\.key === 'Tab'/u)
+  assert.match(source, /closeRef\.current\?\.focus/u)
   assert.match(source, /tool\.call\.toolview/u)
   assert.match(source, /key:\s*['"]codex_image_generate['"]/u)
   assert.match(source, /resolveImage\(sessionId,\s*attachment\)/u)
   assert.match(source, /block\.content/u)
   assert.match(manifest, /@deepseek-ai\/dsh-client-ui-tool/u)
-  assert.match(config, /@deepseek-ai\/dsh-client-ui-attachment/u)
+  assert.doesNotMatch(config, /@deepseek-ai\/dsh-client-ui-attachment/u)
 })

@@ -1,5 +1,6 @@
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import { USER_AGENT } from './version.js'
 
 export const CODEX_IMAGE_TOOL_NAME = 'codex_image_generate'
 export const CODEX_IMAGE_GENERATION_URL = 'https://chatgpt.com/backend-api/codex/images/generations'
@@ -168,7 +169,7 @@ export function createCodexImageTool(options) {
             'content-type': 'application/json',
             originator: 'pi',
             'x-codex-image-turn-id': String(exec.callId),
-            'user-agent': 'dsh-codex-subscription',
+            'user-agent': USER_AGENT,
           },
           body: JSON.stringify({
             prompt,

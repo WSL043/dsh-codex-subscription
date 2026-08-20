@@ -195,6 +195,43 @@ test('usage reader is single-flight, short cached, and never exposes bearer or a
   assert.equal(requests, 1)
 })
 
+test('clearing usage invalidates an older in-flight account request', async () => {
+  let requests = 0
+  let releaseFirst
+  let signalFirst
+  const firstStarted = new Promise(resolve => { signalFirst = resolve })
+  const firstGate = new Promise(resolve => { releaseFirst = resolve })
+  const response = usedPercent => ({
+    ok: true,
+    async json() {
+      return { rate_limit: { primary_window: { used_percent: usedPercent, limit_window_seconds: 604_800 } } }
+    },
+  })
+  const reader = createCodexUsageReader({
+    async getAuth() { return { auth: { apiKey: 'account-token' } } },
+    async readCredential() { return { type: 'oauth', accountId: 'account-id' } },
+    async fetch() {
+      requests += 1
+      if (requests === 1) {
+        signalFirst()
+        await firstGate
+        return response(10)
+      }
+      return response(50)
+    },
+  })
+
+  const stale = reader.read()
+  await firstStarted
+  reader.clear()
+  const fresh = reader.read()
+  releaseFirst()
+  assert.equal((await fresh).rateLimits[0].windows[0].remainingPercent, 50)
+  assert.equal((await stale).rateLimits[0].windows[0].remainingPercent, 90)
+  assert.equal((await reader.read()).rateLimits[0].windows[0].remainingPercent, 50)
+  assert.equal(requests, 2)
+})
+
 test('usage reader fails closed with bounded public errors', async () => {
   const signedOut = createCodexUsageReader({
     async getAuth() { return { auth: {} } },

@@ -20,16 +20,17 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.equal(pkg.version, '1.0.3')
+  assert.equal(pkg.version, '1.0.4')
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
-  const supportedDshReleases = '0.1.0-rc.6 || 0.1.0-rc.7'
+  const supportedDshReleases = '0.1.0-rc.6 || 0.1.0-rc.7 || 0.1.0-rc.8'
   for (const [name, version] of Object.entries(pkg.peerDependencies)) {
     if (name.startsWith('@deepseek-ai/dsh-')) assert.equal(version, supportedDshReleases, name)
   }
-  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-llm-pi-ai'], '0.1.0-rc.7')
-  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-api-remotes'], '0.1.0-rc.7')
+  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-llm-pi-ai'], '0.1.0-rc.8')
+  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-api-remotes'], '0.1.0-rc.8')
+  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-client-ui-attachment'], undefined)
   assert.equal(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-api-remotes'), true)
   assert.equal(pkg.peerDependencies['@earendil-works/pi-ai'], '0.82.1')
   assert.equal(pkg.packageManager, 'pnpm@11.19.0')
@@ -39,7 +40,8 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(existsSync(new URL('../CHANGELOG.md', import.meta.url)), false)
   assert.equal(existsSync(new URL('../docs/ARCHITECTURE.md', import.meta.url)), false)
   assert.equal(existsSync(new URL('../.github/workflows/ci.yml', import.meta.url)), true)
-  assert.equal(existsSync(new URL('../.github/workflows/release.yml', import.meta.url)), true)
+  assert.equal(existsSync(new URL('../.github/workflows/release.yml', import.meta.url)), false)
+  assert.equal(existsSync(new URL('../.github/workflows/publish.yml', import.meta.url)), true)
 })
 
 test('public docs contain only user-facing product and operation information', () => {
@@ -56,12 +58,12 @@ test('public docs contain only user-facing product and operation information', (
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.match(guide, /releases\/download\/v1\.0\.3\/dsh-codex\.ps1/u)
+  assert.match(guide, /releases\/download\/v1\.0\.4\/dsh-codex\.ps1/u)
   assert.match(guide, /dsh-codex\.ps1" Install/u)
   assert.match(guide, /dsh-codex update/u)
   assert.match(guide, /dsh-codex uninstall/u)
   assert.match(guide, /DSH-Portable[\s\S]*system Node\.js or pnpm[\s\S]*per-user[\s\S]*never modifies[\s\S]*machine PATH/iu)
-  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@1\.0\.3/u)
+  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@1\.0\.4/u)
   assert.match(guide, /dsh plugin --profile web update dsh-codex-subscription/u)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
@@ -142,8 +144,8 @@ test('public readmes provide explicit update commands and verification', () => {
 
 test('Windows manager updates from a checksum-verified immutable release asset', () => {
   const manager = text('dsh-codex.ps1')
-  assert.match(manager, /\$PackageVersion = '1\.0\.3'/u)
-  assert.match(manager, /releases\/download\/v1\.0\.3\/dsh-codex-subscription\.tgz/u)
+  assert.match(manager, /\$PackageVersion = '1\.0\.4'/u)
+  assert.match(manager, /releases\/download\/v1\.0\.4\/dsh-codex-subscription\.tgz/u)
   assert.match(manager, /api\.github\.com\/repos\/WSL043\/dsh-codex-subscription\/releases\/latest/u)
   assert.match(manager, /dsh-codex\.ps1\.sha256/u)
   assert.match(manager, /Get-FileDigest -Algorithm SHA256/u)
@@ -185,7 +187,7 @@ test('release-age exceptions are pinned to the audited DeepSeek preview graph', 
   const lockfile = text('pnpm-lock.yaml')
   const packagesBlock = lockfile.slice(lockfile.indexOf('\npackages:\n'), lockfile.indexOf('\nsnapshots:\n'))
   const deepseekPackages = [...packagesBlock.matchAll(/^  '(@deepseek-ai\/[^']+@[^']+)':$/gmu)].map(match => match[1])
-  assert.equal(deepseekPackages.length, 68)
+  assert.equal(deepseekPackages.length, 78)
   assert.match(workspace, /minimumReleaseAge:\s*1440/u)
   assert.doesNotMatch(workspace, /@deepseek-ai\/\*/u)
   for (const selector of deepseekPackages) {
@@ -208,25 +210,30 @@ test('CI uploads the hidden release artifact only after asserting it exists', ()
   assert.match(workflow, /\.artifacts\/dsh-codex-setup\.ps1/u)
 })
 
-test('successful main CI creates one immutable GitHub release for the package version', () => {
-  const workflow = text('.github/workflows/release.yml')
-  assert.match(workflow, /workflow_run:[\s\S]*workflows:\s*\[CI\][\s\S]*types:\s*\[completed\]/u)
-  assert.match(workflow, /workflow_run\.conclusion == 'success'/u)
-  assert.match(workflow, /workflow_run\.head_branch == 'main'/u)
+test('one explicit trusted workflow creates the immutable release and publishes npm', () => {
+  const workflow = text('.github/workflows/publish.yml')
+  assert.match(workflow, /on:\s*\n\s*workflow_dispatch:/u)
+  assert.doesNotMatch(workflow, /\n\s*push:/u)
+  assert.doesNotMatch(workflow, /#\s*workflow_run:/u)
   assert.match(workflow, /contents:\s*write/u)
+  assert.match(workflow, /id-token:\s*write/u)
+  assert.match(workflow, /GITHUB_REF[\s\S]*refs\/heads\/main/u)
+  assert.match(workflow, /commits\/\$RELEASE_TAG[\s\S]*tag_sha[\s\S]*GITHUB_SHA/u)
   assert.match(workflow, /gh release view/u)
   assert.match(workflow, /gh release create/u)
   assert.match(workflow, /dsh-codex-subscription\.tgz/u)
   assert.match(workflow, /dsh-codex-setup\.ps1/u)
+  assert.match(workflow, /needs\.preflight\.outputs\.needed == 'false' \|\| needs\.release\.result == 'success'/u)
+  assert.doesNotMatch(workflow, /gh workflow run|gh run watch/u)
+  assert.doesNotMatch(workflow, /--generate-notes/u)
 })
 
 test('npm publishing is release-gated and uses OIDC without a stored npm token', () => {
   const workflow = text('.github/workflows/publish.yml')
-  assert.match(workflow, /release:\s*[\s\S]*types:\s*\[published\]/u)
   assert.match(workflow, /id-token:\s*write/u)
   assert.match(workflow, /contents:\s*read/u)
   assert.match(workflow, /npm@12\.0\.2/u)
-  assert.match(workflow, /release\.tag_name[\s\S]*package\.json[\s\S]*version/u)
+  assert.match(workflow, /needs\.preflight\.outputs\.tag[\s\S]*package\.json[\s\S]*version/u)
   for (const asset of [
     'dsh-codex-subscription.tgz',
     'dsh-codex.ps1',

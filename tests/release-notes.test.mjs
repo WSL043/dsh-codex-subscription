@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
 
-const releaseWorkflow = readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8')
+const releaseWorkflow = readFileSync(new URL('../.github/workflows/publish.yml', import.meta.url), 'utf8')
 
 test('GitHub Releases include beginner-facing install, update, and uninstall instructions before publish', () => {
   assert.match(releaseWorkflow, /<!-- dsh-codex-install -->/u)
@@ -18,8 +18,8 @@ test('immutable releases are drafted, verified with all four assets, then publis
   assert.match(releaseWorkflow, /gh release create "\$RELEASE_TAG"/u)
   assert.match(releaseWorkflow, /--draft/u)
   assert.match(releaseWorkflow, /--target "\$TARGET_SHA"/u)
-  assert.match(releaseWorkflow, /--notes "\$\(cat \.release\/install\.md\)"/u)
-  assert.match(releaseWorkflow, /--generate-notes/u)
+  assert.match(releaseWorkflow, /--notes-file \.release\/install\.md/u)
+  assert.doesNotMatch(releaseWorkflow, /--generate-notes/u)
   assert.match(releaseWorkflow, /Upload draft release assets/u)
   assert.match(releaseWorkflow, /gh release upload "\$RELEASE_TAG"/u)
   for (const asset of [
