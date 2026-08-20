@@ -17,6 +17,23 @@
 </div>
 
 <p align="center">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero.webp" width="900" alt="Codex 订阅直接用在 DSH：订阅模型、联网搜索、实时额度和图片生成">
+</p>
+
+## 核心优势
+
+| 能力 | 用户得到什么 |
+| --- | --- |
+| **Codex 图片生成** | 在 DSH 对话里直接描述画面，生成结果会显示在当前会话中 |
+| **订阅模型直连** | 登录 ChatGPT 后直接使用 Codex，不需要 OpenAI API Key 或 Codex CLI |
+| **订阅搜索** | 可在 DSH 默认搜索与 Codex 订阅搜索之间明确切换 |
+| **额度可见** | 普通 Codex、Spark 等服务端实际返回的额度分开显示 |
+
+这些能力共用同一份本机 ChatGPT 登录。订阅路由失败时会明确报错，不会静默切换到其他付费路由。
+
+## 实际界面
+
+<p align="center">
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-focus.png" width="820" alt="DeepSeek Harness 中的 Codex 订阅设置">
 </p>
 
@@ -26,12 +43,6 @@
 ![DeepSeek Harness 的完整 Codex 订阅设置](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings.png)
 
 </details>
-
-| 订阅直连 | 搜索可选 |
-| --- | --- |
-| 在 DSH 中登录 ChatGPT，直接使用 Codex 订阅 | 随时切换 DSH 默认搜索或 Codex 订阅搜索 |
-| **额度可见** | **图片生成** |
-| 分开显示普通 Codex、Spark 等服务端实际返回的额度 | 在 DSH 会话中直接生成并查看图片 |
 
 ## 准备 DSH
 

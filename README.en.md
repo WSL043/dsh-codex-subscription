@@ -16,6 +16,23 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 </div>
 
 <p align="center">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: subscription models, web search, live quota, and image generation">
+</p>
+
+## Why this plugin
+
+| Capability | What you get |
+| --- | --- |
+| **Codex image generation** | Describe an image in a DSH conversation and view the generated result in that session |
+| **Subscription models** | Sign in to ChatGPT and use Codex without an OpenAI API key or Codex CLI |
+| **Subscription search** | Explicitly choose DSH default search or Codex subscription search |
+| **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate |
+
+All four capabilities reuse the same local ChatGPT sign-in. Subscription routing failures stay visible and never silently switch to another paid route.
+
+## Product screen
+
+<p align="center">
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-focus-en.png" width="820" alt="Codex subscription settings in DeepSeek Harness">
 </p>
 
@@ -25,12 +42,6 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 ![Complete Codex subscription settings in DeepSeek Harness](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-en.png)
 
 </details>
-
-| Subscription models | Your choice of search |
-| --- | --- |
-| Sign in to ChatGPT and use Codex inside DSH | Switch between DSH default and Codex subscription search |
-| **Visible quota** | **Image generation** |
-| Keep standard Codex, Spark, and other limits separate | Generate and view images directly in a DSH conversation |
 
 ## Prepare DSH
 
