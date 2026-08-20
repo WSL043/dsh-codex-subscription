@@ -32,11 +32,11 @@ const zh = {
   cancel: '取消', submit: '提交授权码', openLogin: '打开登录页',
   manualCode: '若浏览器回调没有自动完成，请粘贴授权码或完整重定向地址。',
   deviceHint: '在登录页输入此设备代码：', waiting: '正在等待登录完成…',
-  failed: '登录失败，请重试。', loadFailed: '无法读取 Codex 状态。',
+  failed: '登录失败，请重试。', loadFailed: '无法读取账户状态。', accountRetry: '重试',
   searchTitle: '搜索来源',
   searchDsh: 'DSH 默认', searchDshHint: '当前搜索服务',
   searchCodex: 'Codex 订阅', searchCodexHint: 'ChatGPT 订阅搜索',
-  preferenceFailed: '无法更新设置，请重试。',
+  preferenceFailed: '设置未保存。', preferenceRetry: '重试',
   usage: '订阅额度',
   refresh: '刷新', refreshing: '刷新中…', noUsage: '登录后可读取 ChatGPT 返回的额度窗口。',
   usageLoading: '正在读取额度…', usageEmpty: '当前账户没有返回可显示的额度窗口。请稍后刷新；这不代表额度为零。',
@@ -63,11 +63,11 @@ const en = {
   cancel: 'Cancel', submit: 'Submit authorization code', openLogin: 'Open sign-in page',
   manualCode: 'If the browser callback did not finish automatically, paste the code or full redirect URL.',
   deviceHint: 'Enter this device code on the sign-in page:', waiting: 'Waiting for sign-in to finish…',
-  failed: 'Sign-in failed. Try again.', loadFailed: 'Could not read Codex state.',
+  failed: 'Sign-in failed. Try again.', loadFailed: 'Could not read account status.', accountRetry: 'Retry',
   searchTitle: 'Search source',
   searchDsh: 'DSH default', searchDshHint: 'Current search service',
   searchCodex: 'Codex subscription', searchCodexHint: 'ChatGPT subscription search',
-  preferenceFailed: 'Could not update the setting. Try again.',
+  preferenceFailed: 'The setting was not saved.', preferenceRetry: 'Retry',
   usage: 'Subscription quota',
   refresh: 'Refresh', refreshing: 'Refreshing…', noUsage: 'Sign in to read quota windows reported by ChatGPT.',
   usageLoading: 'Reading quota…', usageEmpty: 'This account returned no displayable quota windows. Refresh later; this does not mean zero quota.',
@@ -101,6 +101,7 @@ const STYLE = `
 .codexSubscriptionActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.codexSubscriptionFlow{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionFlow p{font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCode{width:max-content;max-width:100%;font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;overflow-wrap:anywhere}
 .codexSubscriptionError{font-size:13px;line-height:20px;color:var(--dsw-alias-state-error-primary)}.codexSubscriptionInput{width:100%;box-sizing:border-box}
+.codexSubscriptionRecover{display:flex;align-items:center;justify-content:space-between;gap:12px}.codexSubscriptionRecover .codexSubscriptionError{flex:1}.codexSubscriptionRecover button{flex:0 0 auto}
 .codexSubscriptionSectionTitle{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.codexSubscriptionFreshness{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionRefresh{flex:0 0 auto;min-width:72px;width:max-content;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;writing-mode:horizontal-tb!important}.codexSubscriptionRefresh *{white-space:nowrap!important;word-break:keep-all!important;writing-mode:horizontal-tb!important}
 .codexSubscriptionEmpty{padding:18px;border:1px dashed var(--dsw-alias-border-l3);border-radius:10px;text-align:center;font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}
@@ -214,6 +215,7 @@ function createPreferenceController(scope, rpc) {
   let error = false
   let fallbackStatus = 'loading'
   let fallback
+  let failedPatch
   let generation = 0
   const nativeSnapshot = () => scope.getSnapshot()
   const read = () => {
@@ -240,6 +242,7 @@ function createPreferenceController(scope, rpc) {
   }
   const disposeScope = scope.subscribe(() => {
     error = false
+    failedPatch = undefined
     publish()
   })
   const acceptFallback = value => {
@@ -280,6 +283,7 @@ function createPreferenceController(scope, rpc) {
     const entries = Object.entries(patch)
     updating = true
     error = false
+    failedPatch = undefined
     publish()
     try {
       const native = nativeSnapshot()
@@ -297,7 +301,10 @@ function createPreferenceController(scope, rpc) {
         acceptFallback(value)
       }
     } catch {
-      if (current === generation) error = true
+      if (current === generation) {
+        error = true
+        failedPatch = patch
+      }
     } finally {
       if (current === generation) {
         updating = false
@@ -313,6 +320,7 @@ function createPreferenceController(scope, rpc) {
     },
     load,
     set,
+    retry: () => failedPatch === undefined ? load() : set(failedPatch),
     dispose: disposeScope,
   }
 }
@@ -395,7 +403,7 @@ function PreferencesCard({ preference, t }) {
     <SearchProviderPreference preference={preference} t={t} />
     <div className="codexSubscriptionDivider" />
     <QuickQuotaPreference preference={preference} t={t} />
-    {snapshot.error ? <p className="codexSubscriptionError" role="alert">{t('preferenceFailed')}</p> : null}
+    {snapshot.error ? <div className="codexSubscriptionRecover" role="alert"><p className="codexSubscriptionError">{t('preferenceFailed')}</p><Button type="button" variant="outline" onClick={() => { void preference.retry() }}>{t('preferenceRetry')}</Button></div> : null}
   </div>
 }
 
@@ -509,6 +517,13 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   </div>
 }
 
+function AccountFailureCard({ retry, t }) {
+  return <div className="codexSubscriptionCard codexSubscriptionRecover" role="alert">
+    <p className="codexSubscriptionError">{t('loadFailed')}</p>
+    <Button type="button" variant="outline" onClick={retry}>{t('accountRetry')}</Button>
+  </div>
+}
+
 function ResetTime({ resetsAt, t }) {
   const date = Number.isSafeInteger(resetsAt) ? validDate(resetsAt * 1_000) : undefined
   if (date === undefined) return <span>{t('resetUnknown')}</span>
@@ -581,19 +596,28 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
 
 function CodexSection({ preference, rpc, t }) {
   const [account, setAccount] = useState()
-  const [error, setError] = useState()
+  const [accountError, setAccountError] = useState()
   const [resetKey, setResetKey] = useState(0)
+  const accountRequest = useRef(0)
+  const loadAccount = () => {
+    const id = ++accountRequest.current
+    setAccount(undefined)
+    setAccountError(undefined)
+    void rpc.call(CHANNEL, 'status', {}).then(unwrap).then(next => {
+      if (accountRequest.current === id) setAccount(next)
+    }).catch(() => {
+      if (accountRequest.current === id) setAccountError(true)
+    })
+  }
   useEffect(() => {
-    let live = true
-    void rpc.call(CHANNEL, 'status', {}).then(unwrap).then(next => { if (live) setAccount(next) }).catch(() => { if (live) setError(t('loadFailed')) })
-    return () => { live = false }
+    loadAccount()
+    return () => { accountRequest.current += 1 }
   }, [])
   return <section className="codexSubscription">
     <div className="codexSubscriptionHead"><h2>{t('title')}</h2></div>
-    {error === undefined ? null : <p className="codexSubscriptionError" role="alert">{error}</p>}
-    <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={() => setResetKey(value => value + 1)} />
+    {accountError === undefined ? <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={() => setResetKey(value => value + 1)} /> : <AccountFailureCard retry={loadAccount} t={t} />}
     <PreferencesCard preference={preference} t={t} />
-    <UsageCard rpc={rpc} t={t} signedIn={account?.authenticated === true} resetKey={resetKey} />
+    {account === undefined ? null : <UsageCard rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} />}
   </section>
 }
 

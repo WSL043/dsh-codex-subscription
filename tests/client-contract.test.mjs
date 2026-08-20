@@ -144,6 +144,18 @@ test('settings keep only actionable account, search, quick quota, and usage copy
   assert.doesNotMatch(source, /routePolicy|noFallback|searchIntro|quickQuotaHint|usageIntro|codexSubscriptionIntro|codexSubscriptionRoutePolicy/u)
 })
 
+test('account and preference failures stop loading and offer an in-place retry', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /accountError === undefined\s*\?\s*<AccountCard/u)
+  assert.match(source, /<AccountFailureCard/u)
+  assert.match(source, /accountRetry/u)
+  assert.match(source, /preference\.retry\(\)/u)
+  assert.match(source, /preferenceRetry/u)
+  assert.match(source, /role=['"]alert['"][\s\S]*?Button/u)
+  assert.match(source, /account === undefined \? null : <UsageCard/u)
+  assert.doesNotMatch(source, /accountState === ['"](?:loading|error)['"]/u)
+})
+
 test('build emits host entries and a DSH module-loader client', async () => {
   const config = await text('tsdown.config.mjs')
   assert.match(config, /src\/index\.js/)
