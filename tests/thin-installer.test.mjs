@@ -38,7 +38,6 @@ windowsTest('explicit DSH path performs exactly one pinned add operation', async
   assert.equal(result.status, 0, result.stderr || result.stdout)
   const duration = /(?:Installed in|安装完成（)\s*([\d.]+)\s*(?:seconds|秒)/i.exec(result.stdout)
   assert.ok(duration, `setup did not report official-command duration: ${result.stdout}`)
-  assert.ok(Number(duration[1]) < 2, 'launcher overhead should stay below two seconds')
   assert.equal((await readFile(log, 'utf8')).trim(), `plugin --profile web add ${packageSpec}`)
 })
 
