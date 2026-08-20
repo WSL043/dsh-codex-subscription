@@ -16,11 +16,15 @@ import { createCodexImageTool } from './codex-images.js'
 import {
   DEFAULT_QUICK_QUOTA_VISIBLE,
   DEFAULT_SEARCH_PROVIDER,
+  DEFAULT_SPEED_MODE,
   QUICK_QUOTA_FIELD,
   SEARCH_PROVIDER_CODEX,
   SEARCH_PROVIDER_DSH,
   SEARCH_PROVIDER_FIELD,
   SETTINGS_NAMESPACE,
+  SPEED_MODE_FAST,
+  SPEED_MODE_FIELD,
+  SPEED_MODE_STANDARD,
 } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 
@@ -57,6 +61,12 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, prefere
               return publicError('internal', 'Invalid search provider preference')
             }
             patch[SEARCH_PROVIDER_FIELD] = payload[SEARCH_PROVIDER_FIELD]
+          }
+          if (Object.hasOwn(payload ?? {}, SPEED_MODE_FIELD)) {
+            if (![SPEED_MODE_STANDARD, SPEED_MODE_FAST].includes(payload[SPEED_MODE_FIELD])) {
+              return publicError('internal', 'Invalid speed mode preference')
+            }
+            patch[SPEED_MODE_FIELD] = payload[SPEED_MODE_FIELD]
           }
           if (Object.keys(patch).length === 0) {
             return publicError('internal', 'Invalid preference update')
@@ -116,19 +126,23 @@ export function apply(ctx) {
   const settings = ctx.settings.register(settingsNamespace(SETTINGS_NAMESPACE), z.object({
     [QUICK_QUOTA_FIELD]: z.boolean().default(DEFAULT_QUICK_QUOTA_VISIBLE),
     [SEARCH_PROVIDER_FIELD]: z.union([SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX]).default(DEFAULT_SEARCH_PROVIDER),
+    [SPEED_MODE_FIELD]: z.union([SPEED_MODE_STANDARD, SPEED_MODE_FAST]).default(DEFAULT_SPEED_MODE),
   }))
   const searchProvider = createSearchProviderSwitcher(ctx.loader)
   const preferences = {
     status: () => ({
       [QUICK_QUOTA_FIELD]: settings.get()[QUICK_QUOTA_FIELD],
       [SEARCH_PROVIDER_FIELD]: settings.get()[SEARCH_PROVIDER_FIELD],
+      [SPEED_MODE_FIELD]: settings.get()[SPEED_MODE_FIELD],
       writable: ctx.settings.writable,
     }),
     update: patch => settings.update(patch),
   }
 
   const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF])
-  const provider = openaiCodexSubscriptionProvider()
+  const provider = openaiCodexSubscriptionProvider({
+    resolveSpeedMode: () => settings.get()[SPEED_MODE_FIELD],
+  })
   const authModels = createModels({ credentials: store })
   authModels.setProvider(provider)
   const profile = Object.freeze({

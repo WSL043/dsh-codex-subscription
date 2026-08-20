@@ -29,6 +29,7 @@
 | **订阅模型直连** | 登录 ChatGPT 后直接使用 Codex，不需要 OpenAI API Key 或 Codex CLI |
 | **订阅搜索** | 可在 DSH 默认搜索与 Codex 订阅搜索之间明确切换 |
 | **额度可见** | 普通 Codex、Spark 等服务端实际返回的额度分开显示 |
+| **高速模式（Beta）** | 直接在输入框切换标准或高速，无需离开当前会话 |
 
 这些能力共用同一份本机 ChatGPT 登录。订阅路由失败时会明确报错，不会静默切换到其他付费路由。
 
@@ -53,6 +54,12 @@
 - 想按官方方式运行：查看 [DeepSeek Harness 官方说明](https://github.com/deepseek-ai/deepseek-harness#run)。
 
 ## 安装
+
+想先体验输入框高速模式，可安装 Beta；它不会替换 npm 的稳定版：
+
+```sh
+dsh plugin --profile web add dsh-codex-subscription@1.1.0-beta.0
+```
 
 ### 交给 Agent（推荐）
 
@@ -108,6 +115,7 @@ dsh --profile web --dump-config
 - 设置页显示服务端返回的额度、重置时间和更新时间；
 - 普通 Codex、Codex-Spark、Credits 等独立额度分开显示；
 - 输入框可显示当前 Codex 模型的剩余额度（Beta，默认关闭）；
+- 输入框可为支持的 Codex 模型切换标准或高速模式（Beta）；
 - 订阅路由不可用时明确报错，不会静默切换到其他付费路由。
 
 ### 输入框额度
@@ -118,6 +126,12 @@ dsh --profile web --dump-config
 
 快捷百分比只在选择 Codex 模型时显示。普通 Codex 使用服务端返回窗口中剩余最少的一项，
 Spark 使用独立额度。插件不会写死“5 小时 + 每周”，也不会虚构服务端没有返回的 Credits 或消费上限。
+
+### 输入框速度（Beta）
+
+选择支持的 Codex 模型后，模型名称左侧会显示 `1×` 或闪电。点击即可切换标准与高速；
+Spark 不显示这个入口。高速模式会提高速度，也会消耗更多 Credits；具体规则见
+[OpenAI Codex Speed 文档](https://learn.chatgpt.com/docs/agent-configuration/speed)。
 
 ## 更新与卸载
 

@@ -17,6 +17,8 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      npm_tag: ${{ steps.version.outputs.npm_tag }}
       needed: ${{ steps.existing.outputs.needed }}
     steps:
       - uses: actions/checkout@v6
@@ -34,12 +36,19 @@ jobs:
         shell: bash
         run: |
           version="$(node -p "require('./package.json').version")"
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-beta\.[0-9]+)?$ ]]; then
             echo "Invalid package version: $version" >&2
             exit 1
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
+          if [[ "$version" == *-* ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "npm_tag=beta" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+            echo "npm_tag=latest" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Check whether release already exists
         id: existing
@@ -137,14 +146,44 @@ jobs:
           fi
 
       - name: Prepare beginner-facing release notes
+        env:
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+          IS_PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
         shell: bash
         run: |
           mkdir -p .release
+          if [[ "$IS_PRERELEASE" == 'true' ]]; then
+            cat > .release/install.md <<NOTES
+          ## Beta 更新 / Beta preview
+
+          - 输入框支持为兼容的 Codex 模型切换标准或高速 / Switch supported Codex models between Standard and Fast in the composer
+          - 高速模式显示为闪电，Spark 会自动隐藏不适用的入口 / Fast is shown as a lightning icon; Spark hides the unsupported control
+
+          <!-- dsh-codex-install -->
+          ## 安装 Beta / Install the Beta
+
+          \`\`\`sh
+          dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
+          dsh plugin --profile web list dsh-codex-subscription --depth 0
+          dsh --profile web --dump-config
+          \`\`\`
+
+          安装后手动重启 DSH。Beta 不会替换 npm 的稳定版标签。
+          Restart DSH manually. This Beta does not replace npm's stable tag.
+
+          ## 卸载 / Uninstall
+
+          \`\`\`sh
+          dsh plugin --profile web remove dsh-codex-subscription
+          \`\`\`
+          NOTES
+            exit 0
+          fi
           cat > .release/install.md <<'NOTES'
           ## 更新内容 / What's new
 
-          - 修复 Windows PowerShell 5.1 直接粘贴安装命令时的脚本编码错误 / Fixes script encoding when pasting the install command into Windows PowerShell 5.1
-          - 安装助手保持轻量，只调用一次 DSH 官方插件命令 / Setup stays lightweight and invokes the official DSH plugin command once
+          - 输入框支持为兼容的 Codex 模型切换标准或高速 / Switch supported Codex models between Standard and Fast in the composer
+          - 高速模式直接应用到下一次请求；Spark 会自动隐藏不适用的入口 / Fast applies to the next request; Spark hides the unsupported control
 
           <!-- dsh-codex-install -->
           ## 安装 / Install
@@ -185,6 +224,7 @@ jobs:
       - name: Build immutable release assets
         env:
           RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+          IS_PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
         shell: bash
         run: |
           pnpm install --frozen-lockfile --ignore-scripts
@@ -196,16 +236,15 @@ jobs:
           package="$(find .artifacts -maxdepth 1 -type f -name '*.tgz' -print -quit)"
           test -n "$package"
           mv "$package" .artifacts/dsh-codex-subscription.tgz
-          cp dsh-codex.ps1 .artifacts/dsh-codex.ps1
-          cp dsh-codex-setup.ps1 .artifacts/dsh-codex-setup.ps1
-          (cd .artifacts && sha256sum dsh-codex.ps1 > dsh-codex.ps1.sha256)
-          for asset in \
-            dsh-codex-subscription.tgz \
-            dsh-codex.ps1 \
-            dsh-codex.ps1.sha256 \
-            dsh-codex-setup.ps1; do
-            test -s ".artifacts/$asset"
-          done
+          test -s .artifacts/dsh-codex-subscription.tgz
+          if [[ "$IS_PRERELEASE" != 'true' ]]; then
+            cp dsh-codex.ps1 .artifacts/dsh-codex.ps1
+            cp dsh-codex-setup.ps1 .artifacts/dsh-codex-setup.ps1
+            (cd .artifacts && sha256sum dsh-codex.ps1 > dsh-codex.ps1.sha256)
+            for asset in dsh-codex.ps1 dsh-codex.ps1.sha256 dsh-codex-setup.ps1; do
+              test -s ".artifacts/$asset"
+            done
+          fi
           tar -xOf .artifacts/dsh-codex-subscription.tgz package/package.json \
             | jq -e --arg version "$RELEASE_VERSION" '.version == $version' >/dev/null
 
@@ -214,14 +253,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
           TARGET_SHA: ${{ github.sha }}
+          IS_PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
         shell: bash
         run: |
+          flags=()
+          if [[ "$IS_PRERELEASE" == 'true' ]]; then flags+=(--prerelease); fi
           gh release create "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$TARGET_SHA" \
             --title "$RELEASE_TAG" \
             --notes-file .release/install.md \
-            --draft
+            --draft "${flags[@]}"
 
       - name: Upload draft release assets
         env:
@@ -229,30 +271,29 @@ jobs:
           RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
         shell: bash
         run: |
-          gh release upload "$RELEASE_TAG" \
-            .artifacts/dsh-codex-subscription.tgz \
-            .artifacts/dsh-codex.ps1 \
-            .artifacts/dsh-codex.ps1.sha256 \
-            .artifacts/dsh-codex-setup.ps1 \
-            --repo "$GITHUB_REPOSITORY"
+          gh release upload "$RELEASE_TAG" .artifacts/* --repo "$GITHUB_REPOSITORY"
 
       - name: Verify draft release before publish
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
         shell: bash
         run: |
           gh release view "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
-            --json isDraft,body,assets > .release/draft.json
+            --json isDraft,isPrerelease,body,assets > .release/draft.json
           jq -e '.isDraft == true' .release/draft.json >/dev/null
+          jq -e --argjson prerelease "$IS_PRERELEASE" '.isPrerelease == $prerelease' .release/draft.json >/dev/null
           jq -r '.body' .release/draft.json | grep -Fq '<!-- dsh-codex-install -->'
-          jq -e '.assets | length == 4' .release/draft.json >/dev/null
-          for asset in \
-            dsh-codex-subscription.tgz \
-            dsh-codex.ps1 \
-            dsh-codex.ps1.sha256 \
-            dsh-codex-setup.ps1; do
+          expected=1
+          assets=(dsh-codex-subscription.tgz)
+          if [[ "$IS_PRERELEASE" != 'true' ]]; then
+            expected=4
+            assets+=(dsh-codex.ps1 dsh-codex.ps1.sha256 dsh-codex-setup.ps1)
+          fi
+          jq -e --argjson expected "$expected" '.assets | length == $expected' .release/draft.json >/dev/null
+          for asset in "${assets[@]}"; do
             jq -e --arg name "$asset" '.assets | any(.name == $name and .size > 0)' \
               .release/draft.json >/dev/null
           done
@@ -261,12 +302,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
         shell: bash
         run: |
-          gh release edit "$RELEASE_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --draft=false \
-            --latest
+          if [[ "$IS_PRERELEASE" == 'true' ]]; then
+            gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease
+          else
+            gh release edit "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --draft=false --latest
+          fi
 
       - name: Cleanup failed draft
         if: failure()
@@ -317,7 +360,7 @@ jobs:
           import { readFileSync } from 'node:fs'
           const tag = process.env.RELEASE_TAG
           const { version } = JSON.parse(readFileSync('package.json', 'utf8'))
-          if (!/^v\d+\.\d+\.\d+$/.test(tag) || tag !== `v${version}`) {
+          if (!/^v\d+\.\d+\.\d+(?:-beta\.\d+)?$/.test(tag) || tag !== `v${version}`) {
             throw new Error(`Release tag ${tag} does not match package version ${version}.`)
           }
           NODE
@@ -326,13 +369,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+          IS_PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
         run: |
           assets="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
-          for asset in \
-            dsh-codex-subscription.tgz \
-            dsh-codex.ps1 \
-            dsh-codex.ps1.sha256 \
-            dsh-codex-setup.ps1
+          required=(dsh-codex-subscription.tgz)
+          if [[ "$IS_PRERELEASE" != 'true' ]]; then
+            required+=(dsh-codex.ps1 dsh-codex.ps1.sha256 dsh-codex-setup.ps1)
+          fi
+          for asset in "${required[@]}"
           do
             grep -Fxq "$asset" <<<"$assets" || {
               echo "Missing release asset: $asset" >&2
@@ -361,4 +405,6 @@ jobs:
 
       - name: Publish with npm Trusted Publishing
         if: steps.npm-version.outputs.needed == 'true'
-        run: npm publish --access public
+        env:
+          NPM_TAG: ${{ needs.preflight.outputs.npm_tag }}
+        run: npm publish --access public --tag "$NPM_TAG"

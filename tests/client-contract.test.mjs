@@ -88,6 +88,27 @@ test('settings offer explicit DSH or Codex search and mark quick quota as beta',
   assert.match(source, /quickQuotaBeta/u)
 })
 
+test('beta speed control is compact, persisted, and visible beside the model selector', async () => {
+  const [client, host, contract] = await Promise.all([
+    text('src/client.jsx'), text('src/index.js'), text('src/settings-contract.js'),
+  ])
+  assert.match(contract, /SPEED_MODE_FIELD\s*=\s*['"]speedMode['"]/u)
+  assert.match(contract, /DEFAULT_SPEED_MODE\s*=\s*SPEED_MODE_STANDARD/u)
+  assert.match(host, /SPEED_MODE_FIELD/u)
+  assert.match(host, /resolveSpeedMode/u)
+  assert.match(client, /speedTitle/u)
+  assert.match(client, /speedStandard/u)
+  assert.match(client, /speedFast/u)
+  assert.match(client, /speedFastHint/u)
+  assert.match(client, /codexComposerSpeed/u)
+  assert.match(client, /\bMenu\b/u)
+  assert.match(client, /selectedId=/u)
+  assert.match(client, /supportsCodexFastMode/u)
+  assert.match(client, /slots\.inject\(['"]conversation\.input\.right['"]/u)
+  assert.doesNotMatch(client, /codexSubscriptionSpeedChoices/u, 'speed belongs in the composer, not Settings')
+  assert.doesNotMatch(client, /localStorage|sessionStorage/u)
+})
+
 test('quota is the primary surface with reset, freshness, loading, and empty-state semantics', async () => {
   const source = await text('src/client.jsx')
   for (const token of ['resetsAt', 'fetchedAt', 'usageLoading', 'usageEmpty', 'usageUpdated', 'resetCredits']) {

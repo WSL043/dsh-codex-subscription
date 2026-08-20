@@ -2,6 +2,7 @@
 // The exact peer version makes a DSH update fail visibly until this seam is
 // re-audited instead of silently changing authentication or cache semantics.
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
+import { SPEED_MODE_FAST, supportsCodexFastMode } from './settings-contract.js'
 
 export { createModels } from '@earendil-works/pi-ai'
 export { createOpenAICodexProvider as openaiCodexProvider }
@@ -17,7 +18,7 @@ export { createOpenAICodexProvider as openaiCodexProvider }
  * token for this request; login, refresh, persistence, headers, transport, and
  * model behavior remain owned by the original provider.
  */
-export function openaiCodexSubscriptionProvider() {
+export function openaiCodexSubscriptionProvider({ resolveSpeedMode = () => undefined } = {}) {
   const provider = createOpenAICodexProvider()
   const requestToken = Object.freeze({
     name: 'DSH-managed Codex OAuth request token',
@@ -27,9 +28,24 @@ export function openaiCodexSubscriptionProvider() {
       return { auth: { apiKey: token }, source: 'DSH-managed OAuth request' }
     },
   })
+  const withSpeed = (model, options = {}) => {
+    if (resolveSpeedMode() !== SPEED_MODE_FAST || !supportsCodexFastMode(model?.id)) return options
+    const onPayload = options.onPayload
+    return {
+      ...options,
+      serviceTier: 'fast',
+      async onPayload(payload, requestModel) {
+        const fastPayload = { ...payload, service_tier: 'fast' }
+        const next = await onPayload?.(fastPayload, requestModel)
+        return { ...(next ?? fastPayload), service_tier: 'fast' }
+      },
+    }
+  }
   return Object.freeze({
     ...provider,
     auth: Object.freeze({ ...provider.auth, apiKey: requestToken }),
+    stream: (model, context, options) => provider.stream(model, context, withSpeed(model, options)),
+    streamSimple: (model, context, options) => provider.streamSimple(model, context, withSpeed(model, options)),
   })
 }
 
