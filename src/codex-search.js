@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { WebError } from '@deepseek-ai/dsh-web'
+import { USER_AGENT } from './version.js'
 
 export const CODEX_SEARCH_PROVIDER_ID = 'codex-subscription'
 export const CODEX_SEARCH_URL = 'https://chatgpt.com/backend-api/codex/alpha/search'
@@ -91,7 +92,7 @@ export function createCodexSearchProvider(options) {
             accept: 'application/json',
             'content-type': 'application/json',
             originator: 'pi',
-            'user-agent': 'dsh-codex-subscription/1.0.0',
+            'user-agent': USER_AGENT,
           },
           body: JSON.stringify({
             id,

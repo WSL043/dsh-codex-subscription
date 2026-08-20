@@ -35,8 +35,9 @@ $LegacyPackageName = '@wsl043/dsh-codex-subscription'
 $ManagerScriptName = 'dsh-codex-manager.ps1'
 $LegacyManagerScriptName = 'dsh-codex.ps1'
 $ManagerShimName = 'dsh-codex.cmd'
-$PackageVersion = '1.0.3'
-$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.3/dsh-codex-subscription.tgz'
+$ManagerStateName = 'install-state.json'
+$PackageVersion = '1.0.4'
+$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.4/dsh-codex-subscription.tgz'
 $PnpmVersion = '11.19.0'
 $PnpmUrl = 'https://registry.npmjs.org/pnpm/-/pnpm-11.19.0.tgz'
 $PnpmSha512 = '7881F3ED590D472C4A955E2B88B2121791116066DCC88CBCA3849EC9B60F1BBAA6D2CCB221FA91DA4E1C65BEF2BCBE379365AEA7AC539C7BF86DEDC3A1B22DCE'
@@ -227,9 +228,10 @@ function Add-ManagerToUserPath {
 
     $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
     $updated = Add-UserPathEntry -UserPath $userPath -Directory $Directory
-    if ([string]::Equals([string] $updated, [string] $userPath, [System.StringComparison]::Ordinal)) { return }
+    if ([string]::Equals([string] $updated, [string] $userPath, [System.StringComparison]::Ordinal)) { return $false }
     [Environment]::SetEnvironmentVariable('Path', $updated, 'User')
     Publish-UserPathChange
+    return $true
 }
 
 function Remove-ManagerFromUserPath {
@@ -266,7 +268,7 @@ $cleanupScript = [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String(
 try {
     Wait-Process -Id $ParentId -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 300
-    foreach ($name in @('dsh-codex-manager.ps1', 'dsh-codex.ps1', 'dsh-codex.cmd')) {
+    foreach ($name in @('dsh-codex-manager.ps1', 'dsh-codex.ps1', 'dsh-codex.cmd', 'install-state.json')) {
         Remove-Item -LiteralPath (Join-Path $directory $name) -Force -ErrorAction SilentlyContinue
     }
     if ((Test-Path -LiteralPath $directory -PathType Container) -and
@@ -285,16 +287,19 @@ try {
 }
 
 function Remove-ManagerCommand {
-    param([Parameter(Mandatory = $true)][string] $Directory)
+    param(
+        [Parameter(Mandatory = $true)][string] $Directory,
+        [bool] $RemovePath
+    )
 
-    if (-not $NoModifyPath) { Remove-ManagerFromUserPath -Directory $Directory }
+    if ($RemovePath) { Remove-ManagerFromUserPath -Directory $Directory }
     if (Test-Path -LiteralPath $Directory -PathType Container) {
         $installedScript = Join-Path $Directory $ManagerScriptName
         if ($Managed -and $PSCommandPath -and (Test-SamePath -Left $PSCommandPath -Right $installedScript)) {
             Start-ManagerCleanup -Directory $Directory
             return
         }
-        foreach ($ownedFile in @($ManagerScriptName, $LegacyManagerScriptName, $ManagerShimName)) {
+        foreach ($ownedFile in @($ManagerScriptName, $LegacyManagerScriptName, $ManagerShimName, $ManagerStateName)) {
             $ownedPath = Join-Path $Directory $ownedFile
             if (Test-Path -LiteralPath $ownedPath -PathType Leaf) {
                 Remove-Item -LiteralPath $ownedPath -Force
@@ -337,12 +342,68 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0dsh-codex-manager.
 exit /b %ERRORLEVEL%
 '@
     [System.IO.File]::WriteAllText((Join-Path $Directory $ManagerShimName), $shim, [System.Text.Encoding]::ASCII)
-    if (-not $NoModifyPath) { Add-ManagerToUserPath -Directory $Directory }
+    if ($NoModifyPath) { return $false }
+    return Add-ManagerToUserPath -Directory $Directory
 }
 
 function Resolve-FullPath {
     param([Parameter(Mandatory = $true)][string] $Path)
     return [System.IO.Path]::GetFullPath([Environment]::ExpandEnvironmentVariables($Path))
+}
+
+function Read-ManagerState {
+    param([Parameter(Mandatory = $true)][string] $Directory)
+
+    $path = Join-Path $Directory $ManagerStateName
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
+    try {
+        $state = Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+    } catch {
+        throw 'The saved dsh-codex installation target is unreadable. Re-run setup and choose DSH again.'
+    }
+    if ($state.schemaVersion -ne 1 -or $state.mode -notin @('portable', 'global') -or
+        [string] $state.profile -notmatch '^[A-Za-z0-9._-]+$' -or
+        $state.pathOwned -isnot [bool]) {
+        throw 'The saved dsh-codex installation target is invalid. Re-run setup and choose DSH again.'
+    }
+    if ($state.mode -eq 'portable' -and -not [string] $state.portableRoot) {
+        throw 'The saved DSH-Portable target is missing. Re-run setup and choose DSH again.'
+    }
+    if ($state.mode -eq 'global' -and
+        (($state.PSObject.Properties['globalDsh'] -and -not [string] $state.globalDsh) -or
+         ($state.PSObject.Properties['globalNode'] -and -not [string] $state.globalNode))) {
+        throw 'The saved global DSH target is invalid. Re-run setup and choose DSH again.'
+    }
+    return $state
+}
+
+function Write-ManagerState {
+    param(
+        [Parameter(Mandatory = $true)][string] $Directory,
+        [Parameter(Mandatory = $true)] $Target,
+        [Parameter(Mandatory = $true)][string] $SelectedProfile,
+        [Parameter(Mandatory = $true)][bool] $PathOwned
+    )
+
+    $path = Join-Path $Directory $ManagerStateName
+    $staged = Join-Path $Directory ('.install-state-' + [guid]::NewGuid().ToString('N') + '.json')
+    $state = [ordered]@{
+        schemaVersion = 1
+        mode = $Target.Mode
+        portableRoot = if ($Target.Mode -eq 'portable') { $Target.Layout.Root } else { $null }
+        globalDsh = if ($Target.Mode -eq 'global') { Resolve-FullPath $Target.Executable } else { $null }
+        globalNode = if ($Target.Mode -eq 'global') { Resolve-FullPath $Target.Node } else { $null }
+        profile = $SelectedProfile
+        pathOwned = $PathOwned
+    } | ConvertTo-Json -Compress
+    try {
+        [System.IO.File]::WriteAllText($staged, $state, $Utf8NoBom)
+        Move-Item -LiteralPath $staged -Destination $path -Force
+    } finally {
+        if (Test-Path -LiteralPath $staged) {
+            Remove-Item -LiteralPath $staged -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 function Get-PortableLayout {
@@ -451,12 +512,51 @@ function Find-CommonPortables {
 }
 
 function Get-ManagerTarget {
+    param(
+        [AllowNull()][string] $PreferredMode,
+        [AllowNull()] $SavedState
+    )
+
     if ($PortableRoot) {
         $layout = Get-PortableLayout $PortableRoot
         if ($null -eq $layout) {
             throw "The selected DSH-Portable folder is incomplete: $PortableRoot"
         }
         return New-PortableTarget $layout
+    }
+
+    if ($PreferredMode -eq 'global') {
+        $savedDshPath = if ($null -ne $SavedState -and $SavedState.PSObject.Properties['globalDsh']) {
+            [string] $SavedState.globalDsh
+        } else { $null }
+        $savedNodePath = if ($null -ne $SavedState -and $SavedState.PSObject.Properties['globalNode']) {
+            [string] $SavedState.globalNode
+        } else { $null }
+        if ($savedDshPath -and $savedNodePath) {
+            if (-not (Test-Path -LiteralPath $savedDshPath -PathType Leaf) -or
+                -not (Test-Path -LiteralPath $savedNodePath -PathType Leaf)) {
+                throw 'The saved global DSH target is no longer available. Re-run setup and choose DSH again.'
+            }
+            return [pscustomobject]@{
+                Mode = 'global'
+                Layout = $null
+                Executable = Resolve-FullPath $savedDshPath
+                Node = Resolve-FullPath $savedNodePath
+                UsesPortableCli = $false
+            }
+        }
+        $savedGlobalDsh = Get-Command dsh -ErrorAction SilentlyContinue
+        $savedGlobalNode = Get-Command node -ErrorAction SilentlyContinue
+        if ($null -eq $savedGlobalDsh -or $null -eq $savedGlobalNode) {
+            throw 'The saved global DSH target is no longer available on PATH. Re-run setup and choose DSH again.'
+        }
+        return [pscustomobject]@{
+            Mode = 'global'
+            Layout = $null
+            Executable = $savedGlobalDsh.Source
+            Node = $savedGlobalNode.Source
+            UsesPortableCli = $false
+        }
     }
 
     $layout = Find-PortableFromCurrentDirectory
@@ -647,12 +747,36 @@ function Get-InstalledPackages {
 }
 
 $managerCommandRoot = Get-ManagerCommandRoot
+$managerState = Read-ManagerState -Directory $managerCommandRoot
+if ($Managed -and $null -ne $managerState) {
+    $explicitPortableRoot = $PSBoundParameters.ContainsKey('PortableRoot')
+    $sameSavedPortable = $explicitPortableRoot -and $managerState.mode -eq 'portable' -and
+        (Test-SamePath -Left $PortableRoot -Right ([string] $managerState.portableRoot))
+    if (-not $PSBoundParameters.ContainsKey('Profile') -and
+        (-not $explicitPortableRoot -or $sameSavedPortable)) {
+        $Profile = [string] $managerState.profile
+    }
+    if (-not $PSBoundParameters.ContainsKey('PortableRoot') -and $managerState.mode -eq 'portable') {
+        $PortableRoot = [string] $managerState.portableRoot
+    }
+}
+$legacyManagedPathOwned = $false
+if ($Managed -and $null -eq $managerState -and
+    (Test-Path -LiteralPath (Join-Path $managerCommandRoot $ManagerScriptName) -PathType Leaf)) {
+    $currentUserPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+    $legacyManagedPathOwned = [string]::Equals(
+        [string] (Add-UserPathEntry -UserPath $currentUserPath -Directory $managerCommandRoot),
+        [string] $currentUserPath,
+        [System.StringComparison]::Ordinal
+    )
+}
 if ($Managed -and $Action -eq 'Update' -and -not $SkipSelfUpdate -and -not $DryRun) {
     Invoke-LatestManager -InstalledCommandRoot $managerCommandRoot
     exit 0
 }
 
-$target = Get-ManagerTarget
+$preferredMode = if ($Managed -and $null -ne $managerState) { [string] $managerState.mode } else { $null }
+$target = Get-ManagerTarget -PreferredMode $preferredMode -SavedState $managerState
 $managerCommand = Join-Path $managerCommandRoot 'dsh-codex.cmd'
 $pnpmDirectory = Get-PnpmDirectory $target
 $pnpmStore = Get-PnpmStore $target
@@ -759,7 +883,11 @@ try {
         if ($entryCount -ne 0 -or $legacyEntryCount -ne 0) {
             throw 'The plugin package was removed, but its profile entry is still present.'
         }
-        Remove-ManagerCommand -Directory $managerCommandRoot
+        $removePath = (-not $NoModifyPath) -and (
+            ($null -ne $managerState -and [bool] $managerState.pathOwned) -or
+            ($null -eq $managerState -and $legacyManagedPathOwned)
+        )
+        Remove-ManagerCommand -Directory $managerCommandRoot -RemovePath $removePath
         Write-Host 'Uninstalled. The DSH profile and saved credentials were kept.'
     } else {
         $installedPackage = @($installedAfter | Where-Object { $_.Name -eq $PackageName } | Select-Object -First 1)
@@ -771,7 +899,10 @@ try {
         if ($installedAfterNames -contains $LegacyPackageName) { throw 'The legacy package is still present after migration.' }
         if ($entryCount -ne 1) { throw "Expected one plugin profile entry, found $entryCount." }
         if ($legacyEntryCount -ne 0) { throw 'The legacy plugin profile entry is still present after migration.' }
-        Install-ManagerCommand -Directory $managerCommandRoot
+        $addedPath = Install-ManagerCommand -Directory $managerCommandRoot
+        $pathOwned = ($null -ne $managerState -and [bool] $managerState.pathOwned) -or
+            $legacyManagedPathOwned -or [bool] $addedPath
+        Write-ManagerState -Directory $managerCommandRoot -Target $target -SelectedProfile $Profile -PathOwned $pathOwned
         $verb = if ($Action -eq 'Update') { 'Updated.' } else { 'Installed.' }
         Write-Host "$verb Restart DSH manually to load the change if it is currently running."
     }

@@ -33,7 +33,7 @@ If this helps, open the [GitHub repository](https://github.com/WSL043/dsh-codex-
 
 ## Prepare DSH
 
-This plugin supports DeepSeek Harness `0.1.0-rc.6` and `0.1.0-rc.7`, and requires a ChatGPT account
+This plugin supports DeepSeek Harness `0.1.0-rc.6`, `0.1.0-rc.7`, and `0.1.0-rc.8`, and requires a ChatGPT account
 that currently has Codex access.
 
 - Do not want to configure Node.js? Use the [community DSH-Portable package](https://github.com/WSL043/DSH-Portable).

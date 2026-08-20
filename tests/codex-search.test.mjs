@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 import {
@@ -62,6 +63,8 @@ test('Codex search uses refreshed subscription OAuth and returns structured cite
   assert.equal(headers.get('content-type'), 'application/json')
   assert.equal(headers.get('accept'), 'application/json')
   assert.equal(headers.get('originator'), 'pi')
+  const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+  assert.equal(headers.get('user-agent'), `dsh-codex-subscription/${version}`)
   assert.deepEqual(JSON.parse(requests[0].init.body), {
     id: 'session-local',
     model: 'gpt-5.6-luna',
@@ -78,6 +81,33 @@ test('Codex search uses refreshed subscription OAuth and returns structured cite
   })
   assert.doesNotMatch(requests[0].url, /api\.openai\.com/u)
   assert.doesNotMatch(requests[0].init.body, /access-secret|account-local/u)
+})
+
+test('Codex search safely supports the concurrent provider calls used by DSH rc.8', async () => {
+  const pending = []
+  const provider = createCodexSearchProvider({
+    async getAuth() { return { auth: { apiKey: 'access-secret' } } },
+    async readCredential() { return { type: 'oauth', accountId: 'account-local' } },
+    async fetch(_url, init) {
+      const query = JSON.parse(init.body).input
+      await new Promise(resolve => pending.push(resolve))
+      return new Response(JSON.stringify({
+        results: [{ url: `https://example.com/${query}`, title: query }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } })
+    },
+  })
+
+  const searches = [
+    provider.search({ query: 'one', maxResults: 8 }),
+    provider.search({ query: 'two', maxResults: 8 }),
+    provider.search({ query: 'three', maxResults: 8 }),
+    provider.search({ query: 'four', maxResults: 8 }),
+  ]
+  while (pending.length < searches.length) await new Promise(resolve => setImmediate(resolve))
+  for (const resolve of pending) resolve()
+
+  const results = await Promise.all(searches)
+  assert.deepEqual(results.map(result => result.sources[0].title), ['one', 'two', 'three', 'four'])
 })
 
 test('Codex search drops the raw endpoint dump and preserves full structured source copy', async () => {

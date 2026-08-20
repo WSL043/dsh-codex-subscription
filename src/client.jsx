@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
-import { ImageGallery } from '@deepseek-ai/dsh-client-ui-attachment'
 import {
   normalizeSearchProvider,
   QUICK_QUOTA_FIELD,
@@ -104,7 +103,7 @@ const STYLE = `
 .codexSubscriptionCreditBalance{display:flex;flex-direction:column;gap:6px}.codexSubscriptionCreditBalance span,.codexSubscriptionCreditLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .codexSubscriptionSpendLimit{display:flex;flex-direction:column;gap:8px}.codexSubscriptionSpendTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionSpendTop strong{font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.codexSubscriptionSpendLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}.codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexComposerQuota{display:inline-flex;align-items:center;flex:0 0 auto;height:28px;box-sizing:border-box;margin-right:-4px;padding:0;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}
-.codexImageTool{display:flex;flex-direction:column;gap:8px;margin:4px 0;color:var(--dsw-alias-label-primary)}.codexImageToolRow{display:flex;align-items:center;min-height:24px;gap:8px;font-size:13px;line-height:20px}.codexImageToolIcon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}.codexImageToolIcon::before{content:'';width:8px;height:8px;border:1.5px solid currentColor;border-radius:3px}.codexImageTool[data-state=running] .codexImageToolIcon::before{border-radius:50%;border-right-color:transparent;animation:codexImageSpin 800ms linear infinite}.codexImageTool[data-state=error] .codexImageToolIcon::before{border-color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-state-error-primary)}.codexImageToolTitle{font-weight:500}.codexImageToolState{color:var(--dsw-alias-label-tertiary)}.codexImageToolError{margin:0 0 0 24px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary)}.codexImageToolGallery{margin-left:24px}@keyframes codexImageSpin{to{transform:rotate(360deg)}}
+.codexImageTool{display:flex;flex-direction:column;gap:8px;margin:4px 0;color:var(--dsw-alias-label-primary)}.codexImageToolRow{display:flex;align-items:center;min-height:24px;gap:8px;font-size:13px;line-height:20px}.codexImageToolIcon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}.codexImageToolIcon::before{content:'';width:8px;height:8px;border:1.5px solid currentColor;border-radius:3px}.codexImageTool[data-state=running] .codexImageToolIcon::before{border-radius:50%;border-right-color:transparent;animation:codexImageSpin 800ms linear infinite}.codexImageTool[data-state=error] .codexImageToolIcon::before{border-color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-state-error-primary)}.codexImageToolTitle{font-weight:500}.codexImageToolState{color:var(--dsw-alias-label-tertiary)}.codexImageToolError{margin:0 0 0 24px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary)}.codexImageToolGallery{margin-left:24px}.codexGeneratedImageFrame{display:flex;align-items:center;justify-content:center;width:min(240px,100%);min-height:120px;padding:0;overflow:hidden;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-tertiary);cursor:pointer}.codexGeneratedImageFrame img{display:block;width:100%;max-height:240px;object-fit:contain}.codexGeneratedImageRetry{min-height:36px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);cursor:pointer}.codexGeneratedImageLightbox{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:32px;border:0;background:rgba(0,0,0,.72)}.codexGeneratedImageLightbox img{display:block;max-width:min(1100px,calc(100vw - 64px));max-height:calc(100vh - 64px);object-fit:contain}.codexGeneratedImageClose{position:absolute;top:16px;right:16px;width:36px;height:36px;border:1px solid rgba(255,255,255,.35);border-radius:50%;background:rgba(0,0,0,.48);color:#fff;font-size:20px;line-height:1;cursor:pointer}@keyframes codexImageSpin{to{transform:rotate(360deg)}}
 @container (max-width:560px){.codexSubscriptionCreditRows{grid-template-columns:1fr}}
 @container (max-width:480px){.codexSubscriptionAccountRow,.codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column}.codexSubscriptionActions{width:100%}.codexSubscriptionSearchChoices{grid-template-columns:1fr}}
 @media(max-width:640px){.codexSubscriptionCard{padding:14px}}
@@ -133,14 +132,54 @@ const validDate = value => {
   return Number.isFinite(date.getTime()) ? date : undefined
 }
 
-const imageGalleryLabels = t => ({
-  image: t('imageLabel'),
-  open: t('imageOpen'),
-  openNamed: value => fill(t('imageOpenNamed'), { value }),
-  loading: t('imageLoading'),
-  loadFailed: t('imageLoadFailed'),
-  lightbox: { dialog: t('imagePreview'), close: t('imageClosePreview') },
-})
+function CodexGeneratedImage({ attachment, loadImage, t }) {
+  const [attempt, setAttempt] = useState(0)
+  const [error, setError] = useState(false)
+  const [open, setOpen] = useState(false)
+  const [src, setSrc] = useState()
+  const closeRef = useRef(null)
+  const triggerRef = useRef(null)
+  useEffect(() => {
+    let live = true
+    setError(false)
+    setSrc(undefined)
+    void loadImage(attachment)
+      .then(value => { if (live) setSrc(value) })
+      .catch(() => { if (live) setError(true) })
+    return () => { live = false }
+  }, [attachment, loadImage, attempt])
+  useEffect(() => {
+    if (!open) return undefined
+    const handleKeyDown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setOpen(false)
+      } else if (event.key === 'Tab') {
+        event.preventDefault()
+        closeRef.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    closeRef.current?.focus()
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      triggerRef.current?.focus()
+    }
+  }, [open])
+  const label = attachment.name ?? t('imageLabel')
+  if (error) {
+    return <button type="button" className="codexGeneratedImageRetry" onClick={() => setAttempt(value => value + 1)}>{t('imageLoadFailed')}</button>
+  }
+  return <>
+    <button ref={triggerRef} type="button" className="codexGeneratedImageFrame" title={t('imageOpen')} aria-label={fill(t('imageOpenNamed'), { value: label })} onClick={() => { if (src !== undefined) setOpen(true) }}>
+      {src === undefined ? <span>{t('imageLoading')}</span> : <img src={src} alt={label} />}
+    </button>
+    {!open || src === undefined ? null : <div className="codexGeneratedImageLightbox" role="dialog" aria-modal="true" aria-label={t('imagePreview')} onClick={() => setOpen(false)}>
+      <img src={src} alt={label} onClick={event => event.stopPropagation()} />
+      <button ref={closeRef} type="button" className="codexGeneratedImageClose" aria-label={t('imageClosePreview')} onClick={() => setOpen(false)}>×</button>
+    </div>}
+  </>
+}
 
 function CodexImageToolRow({ block, loadImage, t }) {
   const settled = block?.kind === 'tool-result'
@@ -155,7 +194,7 @@ function CodexImageToolRow({ block, loadImage, t }) {
     : undefined
   return <div className="codexImageTool" data-state={state}>
     <div className="codexImageToolRow"><span className="codexImageToolIcon" aria-hidden="true" /><span className="codexImageToolTitle">{t('imageGenerate')}</span><span className="codexImageToolState">{status}</span></div>
-    {image === undefined ? null : <div className="codexImageToolGallery"><ImageGallery images={[{ attachment: image.attachment }]} load={loadImage} align="start" labels={imageGalleryLabels(t)} /></div>}
+    {image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage attachment={image.attachment} loadImage={loadImage} t={t} /></div>}
     {error === undefined ? null : <p className="codexImageToolError">{error}</p>}
   </div>
 }
