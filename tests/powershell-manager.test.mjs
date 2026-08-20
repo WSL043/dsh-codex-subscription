@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
@@ -837,7 +837,10 @@ windowsTest('managed commands remember a global target even when run inside a po
     assert.equal(result.status, 0, result.stderr || result.stdout)
     const plan = JSON.parse(result.stdout.trim())
     assert.equal(plan.mode, 'global')
-    assert.equal(plan.executable.toLowerCase(), join(bin, 'dsh.cmd').toLowerCase())
+    const actual = statSync(plan.executable)
+    const expected = statSync(join(bin, 'dsh.cmd'))
+    assert.equal(actual.dev, expected.dev)
+    assert.equal(actual.ino, expected.ino)
   } finally {
     rmSync(sandbox, { recursive: true, force: true })
   }
