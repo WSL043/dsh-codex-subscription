@@ -143,9 +143,8 @@ jobs:
           cat > .release/install.md <<'NOTES'
           ## 更新内容 / What's new
 
-          - Windows 安装改为轻量助手，直接调用 DSH 官方插件命令 / Windows setup is now a lightweight launcher for the official DSH plugin command
-          - 不再为首次安装下载 pnpm、创建常驻管理器或重复下载插件 / First install no longer downloads pnpm, creates a resident manager, or downloads the plugin twice
-          - 修复全新 profile 的安装判断错误 / Fixes installation on a completely new profile
+          - 修复 Windows PowerShell 5.1 直接粘贴安装命令时的脚本编码错误 / Fixes script encoding when pasting the install command into Windows PowerShell 5.1
+          - 安装助手保持轻量，只调用一次 DSH 官方插件命令 / Setup stays lightweight and invokes the official DSH plugin command once
 
           <!-- dsh-codex-install -->
           ## 安装 / Install
