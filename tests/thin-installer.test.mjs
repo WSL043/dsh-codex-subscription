@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 
 const installer = new URL('../dsh-codex-setup.ps1', import.meta.url)
-const packageSpec = 'dsh-codex-subscription@1.0.5'
+const packageSpec = 'dsh-codex-subscription@1.0.6'
 const windowsTest = process.platform === 'win32' ? test : test.skip
 
 test('setup remains a thin official DSH CLI launcher', async () => {
@@ -17,6 +17,12 @@ test('setup remains a thin official DSH CLI launcher', async () => {
   assert.doesNotMatch(source, /Get-ChildItem[^\r\n]*-Recurse/i)
   assert.doesNotMatch(source, /api\.github\.com|Invoke-WebRequest|Start-Process|Stop-Process/i)
   assert.doesNotMatch(source, /pnpm|install-state|snapshot|dsh-codex\.cmd/i)
+})
+
+test('setup is ASCII without a byte-order mark for Windows PowerShell 5.1 irm pipe execution', async () => {
+  const bytes = await readFile(installer)
+  assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf])
+  assert.equal(bytes.every(byte => byte <= 0x7f), true)
 })
 
 windowsTest('explicit DSH path performs exactly one pinned add operation', async t => {

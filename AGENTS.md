@@ -6,7 +6,7 @@ Use this guide when a user asks an Agent to install, update, verify, or remove
 ## Safety
 
 - Confirm the target DSH installation and profile. Use `web` only when it is the user's target.
-- Use the exact `1.0.5` package below; do not install a moving branch.
+- Use the exact `1.0.6` package below; do not install a moving branch.
 - Never print OAuth credentials, account IDs, authorization callbacks, or credential-store contents.
 - Preserve the DSH profile, unrelated plugins, sessions, and saved sign-in.
 - Do not start, stop, or restart DSH without explicit permission.
@@ -31,13 +31,13 @@ instead of recreating its package-manager environment in this installer.
 With an existing `dsh` command:
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@1.0.5
+dsh plugin --profile web add dsh-codex-subscription@1.0.6
 ```
 
 From a DSH-Portable folder:
 
 ```powershell
-.\dsh.exe plugin --profile web add dsh-codex-subscription@1.0.5
+.\dsh.exe plugin --profile web add dsh-codex-subscription@1.0.6
 ```
 
 Use the same `add` command to update or repair. This is the complete package-changing operation.
@@ -61,7 +61,7 @@ dsh --profile web --dump-config
 
 For DSH-Portable, replace `dsh` with `.\dsh.exe`. Static acceptance requires:
 
-1. `dsh-codex-subscription` version `1.0.5` appears exactly once.
+1. `dsh-codex-subscription` version `1.0.6` appears exactly once.
 2. `codex-subscription` appears exactly once in the composed config.
 3. The legacy package is absent after a migration.
 4. No unrelated plugin or profile was changed and DSH was not restarted.
