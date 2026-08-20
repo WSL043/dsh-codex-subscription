@@ -12,7 +12,7 @@
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[交给 Agent 安装](#交给-agent推荐) · [Windows 安装](#windows-手动安装) · [更新与卸载](#更新与卸载) · [English](#english)
+[交给 Agent 安装](#交给-agent推荐) · [Windows 安装](#windows-手动安装) · [更新与卸载](#更新与卸载) · [English](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.en.md)
 
 </div>
 
@@ -88,7 +88,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1
 </details>
 
 <details>
-<summary>macOS、Linux，或已经有 <code>dsh</code> 命令</summary>
+<summary>macOS、Linux，或已有 <code>dsh</code> 命令（通用安装）</summary>
 
 ```sh
 dsh plugin --profile web add dsh-codex-subscription
@@ -172,22 +172,6 @@ ChatGPT Codex 后端和 DSH 可能独立变化；本项目为社区项目，与 
 DSH 插件交流可前往 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)。
 敏感问题请先阅读 [SECURITY.md](SECURITY.md)。
 
-## English
-
-Use a ChatGPT / Codex subscription directly in DeepSeek Harness without an OpenAI API key or Codex CLI.
-The plugin adds Codex models, Codex image generation, selectable subscription search, and quota display to DSH.
-
-- **Agent:** send it the [installation guide](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md).
-- **Full English documentation:** [README.en.md](README.en.md)
-
-**Windows install:** open PowerShell and paste this one line:
-
-```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"; if ($LASTEXITCODE -eq 0) { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1" }
-```
-
-After installation, use `dsh-codex update` to update and `dsh-codex uninstall` to remove the plugin.
-
-If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex-subscription/stargazers) helps more DSH users find it.
+如果这个项目对你有帮助，[点一下 Star](https://github.com/WSL043/dsh-codex-subscription/stargazers) 可以让更多 DSH 用户发现它。
 
 [MIT](LICENSE)
