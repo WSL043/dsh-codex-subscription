@@ -28,8 +28,9 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 | **Subscription models** | Sign in to ChatGPT and use Codex without an OpenAI API key or Codex CLI |
 | **Subscription search** | Explicitly choose DSH default search or Codex subscription search |
 | **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate |
+| **Fast mode (Beta)** | Switch between Standard and Fast directly in the composer |
 
-All four capabilities reuse the same local ChatGPT sign-in. Subscription routing failures stay visible and never silently switch to another paid route.
+These capabilities reuse the same local ChatGPT sign-in. Subscription routing failures stay visible and never silently switch to another paid route.
 
 ## Product screen
 
@@ -52,6 +53,12 @@ This plugin supports DeepSeek Harness `0.1.0-rc.6`, `0.1.0-rc.7`, and `0.1.0-rc.
 - Prefer the official route? Follow the [DeepSeek Harness run guide](https://github.com/deepseek-ai/deepseek-harness#run).
 
 ## Install
+
+To preview the composer Fast mode without replacing npm `latest`, install the Beta explicitly:
+
+```sh
+dsh plugin --profile web add dsh-codex-subscription@1.1.0-beta.0
+```
 
 ### Let an Agent install it (recommended)
 
@@ -107,6 +114,7 @@ Restart DSH manually after installation, then:
 - Actual backend-provided quota, reset time, and freshness;
 - Separate standard Codex, Codex-Spark, Credits, and other independent limits;
 - Optional composer quota for the selected Codex model (Beta, off by default);
+- Standard or Fast mode for supported Codex models directly in the composer (Beta);
 - Visible errors when subscription routing is unavailable, with no silent paid fallback.
 
 ### Composer quota
@@ -118,6 +126,12 @@ Restart DSH manually after installation, then:
 The compact percentage appears only for a selected Codex model. Standard Codex uses the lowest remaining
 window returned by the service; Spark uses its independent quota. The plugin does not hard-code a
 “5-hour + weekly” layout or invent Credits and spending caps that the service did not return.
+
+### Composer speed (Beta)
+
+With a supported Codex model selected, `1×` or a lightning icon appears immediately before the model name.
+Click it to choose Standard or Fast. Spark does not show this control. Fast mode increases speed and uses more Credits;
+see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) for the current rules.
 
 ## Update and uninstall
 

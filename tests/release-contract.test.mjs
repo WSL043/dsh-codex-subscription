@@ -19,7 +19,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.equal(pkg.version, '1.0.6')
+  assert.equal(pkg.version, '1.1.0-beta.0')
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
@@ -237,4 +237,15 @@ test('npm publishing is release-gated and uses OIDC without a stored npm token',
   ]) assert.doesNotMatch(workflow, new RegExp(asset.replaceAll('.', '\\.')))
   assert.match(workflow, /npm publish/u)
   assert.doesNotMatch(workflow, /NODE_AUTH_TOKEN|NPM_TOKEN|secrets\.NPM/iu)
+})
+
+test('beta publishing stays a prerelease and never replaces npm latest or stable Windows assets', () => {
+  const workflow = text('.github/workflows/publish.yml')
+  assert.match(workflow, /npm_tag=beta/u)
+  assert.match(workflow, /--prerelease/u)
+  assert.match(workflow, /isPrerelease[\s\S]*IS_PRERELEASE/u)
+  assert.match(workflow, /npm publish --access public --tag "\$NPM_TAG"/u)
+  assert.match(workflow, /IS_PRERELEASE[\s\S]*dsh-codex-subscription\.tgz/u)
+  assert.match(workflow, /IS_PRERELEASE[\s\S]*cp dsh-codex\.ps1/u)
+  assert.match(workflow, /IS_PRERELEASE[\s\S]*--latest/u)
 })

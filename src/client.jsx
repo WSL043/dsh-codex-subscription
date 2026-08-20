@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
+  normalizeSpeedMode,
   normalizeSearchProvider,
   QUICK_QUOTA_FIELD,
   SEARCH_PROVIDER_CODEX,
   SEARCH_PROVIDER_DSH,
   SEARCH_PROVIDER_FIELD,
   SETTINGS_NAMESPACE,
+  SPEED_MODE_FAST,
+  SPEED_MODE_FIELD,
+  SPEED_MODE_STANDARD,
+  supportsCodexFastMode,
 } from './settings-contract.js'
 import { selectModelQuota } from './sidebar-quota.js'
 
@@ -44,6 +49,8 @@ const zh = {
   creditsUsed: '已用 {used} / {limit} credits', spendReached: 'Credits 月度消费上限已用尽。', unavailable: '暂无数据',
   quickQuotaSetting: '输入框额度',
   quickQuotaBeta: 'Beta', quickQuotaStatus: 'Codex 剩余额度 {value}%',
+  speedTitle: '速度', speedStandard: '标准', speedStandardHint: '标准速度',
+  speedFast: '高速', speedFastHint: '1.5 倍，消耗更多 Credits',
   imageGenerate: '生成图片', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
   imageLabel: '生成的图片', imageOpen: '查看原图', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imageClosePreview: '关闭预览',
 }
@@ -73,6 +80,8 @@ const en = {
   creditsUsed: '{used} / {limit} credits used', spendReached: 'The monthly Credits spending cap has been reached.', unavailable: 'No data yet',
   quickQuotaSetting: 'Composer quota',
   quickQuotaBeta: 'Beta', quickQuotaStatus: 'Codex quota: {value}% remaining',
+  speedTitle: 'Speed', speedStandard: 'Standard', speedStandardHint: 'Standard speed',
+  speedFast: 'Fast', speedFastHint: '1.5x; higher Credits use',
   imageGenerate: 'Generate image', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
   imageLabel: 'Generated image', imageOpen: 'View original', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imageClosePreview: 'Close preview',
 }
@@ -103,6 +112,7 @@ const STYLE = `
 .codexSubscriptionCreditBalance{display:flex;flex-direction:column;gap:6px}.codexSubscriptionCreditBalance span,.codexSubscriptionCreditLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .codexSubscriptionSpendLimit{display:flex;flex-direction:column;gap:8px}.codexSubscriptionSpendTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionSpendTop strong{font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.codexSubscriptionSpendLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}.codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexComposerQuota{display:inline-flex;align-items:center;flex:0 0 auto;height:28px;box-sizing:border-box;margin-right:-4px;padding:0;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}
+.codexComposerControls{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto}.codexComposerSpeed{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;box-sizing:border-box;padding:0 7px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);font:500 12px/20px inherit;cursor:pointer;white-space:nowrap}.codexComposerSpeed:hover,.codexComposerSpeed[aria-expanded=true]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}.codexComposerSpeed:disabled{cursor:not-allowed;opacity:.5}.codexComposerSpeedFast{font-size:14px}.codexComposerSpeedChoice{display:flex;min-width:150px;flex-direction:column;gap:1px}.codexComposerSpeedChoice strong{font-size:13px;line-height:18px;font-weight:500}.codexComposerSpeedChoice span{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
 .codexImageTool{display:flex;flex-direction:column;gap:8px;margin:4px 0;color:var(--dsw-alias-label-primary)}.codexImageToolRow{display:flex;align-items:center;min-height:24px;gap:8px;font-size:13px;line-height:20px}.codexImageToolIcon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}.codexImageToolIcon::before{content:'';width:8px;height:8px;border:1.5px solid currentColor;border-radius:3px}.codexImageTool[data-state=running] .codexImageToolIcon::before{border-radius:50%;border-right-color:transparent;animation:codexImageSpin 800ms linear infinite}.codexImageTool[data-state=error] .codexImageToolIcon::before{border-color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-state-error-primary)}.codexImageToolTitle{font-weight:500}.codexImageToolState{color:var(--dsw-alias-label-tertiary)}.codexImageToolError{margin:0 0 0 24px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary)}.codexImageToolGallery{margin-left:24px}.codexGeneratedImageFrame{display:flex;align-items:center;justify-content:center;width:min(240px,100%);min-height:120px;padding:0;overflow:hidden;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-tertiary);cursor:pointer}.codexGeneratedImageFrame img{display:block;width:100%;max-height:240px;object-fit:contain}.codexGeneratedImageRetry{min-height:36px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);cursor:pointer}.codexGeneratedImageLightbox{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:32px;border:0;background:rgba(0,0,0,.72)}.codexGeneratedImageLightbox img{display:block;max-width:min(1100px,calc(100vw - 64px));max-height:calc(100vh - 64px);object-fit:contain}.codexGeneratedImageClose{position:absolute;top:16px;right:16px;width:36px;height:36px;border:1px solid rgba(255,255,255,.35);border-radius:50%;background:rgba(0,0,0,.48);color:#fff;font-size:20px;line-height:1;cursor:pointer}@keyframes codexImageSpin{to{transform:rotate(360deg)}}
 @container (max-width:560px){.codexSubscriptionCreditRows{grid-template-columns:1fr}}
 @container (max-width:480px){.codexSubscriptionAccountRow,.codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column}.codexSubscriptionActions{width:100%}.codexSubscriptionSearchChoices{grid-template-columns:1fr}}
@@ -217,6 +227,7 @@ function createPreferenceController(scope, rpc) {
       status: updating ? 'updating' : current.status,
       visible: current.value?.[QUICK_QUOTA_FIELD] === true,
       searchProvider: normalizeSearchProvider(current.value?.[SEARCH_PROVIDER_FIELD]),
+      speedMode: normalizeSpeedMode(current.value?.[SPEED_MODE_FIELD]),
       writable: !updating && current.status === 'ready' && current.writable === true,
       error,
     })
@@ -238,6 +249,7 @@ function createPreferenceController(scope, rpc) {
       value: {
         [QUICK_QUOTA_FIELD]: value?.[QUICK_QUOTA_FIELD] === true,
         [SEARCH_PROVIDER_FIELD]: normalizeSearchProvider(value?.[SEARCH_PROVIDER_FIELD]),
+        [SPEED_MODE_FIELD]: normalizeSpeedMode(value?.[SPEED_MODE_FIELD]),
       },
       writable: value?.writable === true,
     }
@@ -387,20 +399,54 @@ function PreferencesCard({ preference, t }) {
   </div>
 }
 
-function CodexComposerQuota({ preference, rpc, t, directory }) {
+function CodexComposerControls({ preference, rpc, t, directory }) {
+  const [speedOpen, setSpeedOpen] = useState(false)
   const preferenceSnapshot = usePreferenceSnapshot(preference)
   const modelState = useSyncExternalStore(
     listener => directory.subscribe(listener),
     () => directory.getSnapshot(),
   )
   const current = modelState.current
-  const enabled = preferenceSnapshot.status === 'ready' && preferenceSnapshot.visible
-    && current?.provider === 'openai-codex'
-  const quota = useQuickQuota(rpc, enabled, current?.model)
-  if (!enabled || quota === undefined) return null
-  const value = percent(quota.remainingPercent)
-  const label = fill(t('quickQuotaStatus'), { value })
-  return <span className="codexComposerQuota" role="status" aria-label={label} title={label}>{value}%</span>
+  const codex = current?.provider === 'openai-codex'
+  const speedSupported = codex && supportsCodexFastMode(current?.model)
+  const speedWritable = preferenceSnapshot.status === 'ready' && preferenceSnapshot.writable === true
+  const fast = preferenceSnapshot.speedMode === SPEED_MODE_FAST
+  const quotaEnabled = preferenceSnapshot.status === 'ready' && preferenceSnapshot.visible && codex
+  const quota = useQuickQuota(rpc, quotaEnabled, current?.model)
+  if (!speedSupported && (!quotaEnabled || quota === undefined)) return null
+
+  const speedItems = [
+    {
+      id: SPEED_MODE_STANDARD,
+      label: <span className="codexComposerSpeedChoice"><strong>{t('speedStandard')}</strong><span>{t('speedStandardHint')}</span></span>,
+    },
+    {
+      id: SPEED_MODE_FAST,
+      label: <span className="codexComposerSpeedChoice"><strong>{t('speedFast')}</strong><span>{t('speedFastHint')}</span></span>,
+    },
+  ]
+  const speed = speedSupported ? <Menu
+    open={speedOpen}
+    anchor={<button className={`codexComposerSpeed${fast ? ' codexComposerSpeedFast' : ''}`} type="button" aria-label={`${t('speedTitle')}: ${t(fast ? 'speedFast' : 'speedStandard')}`} aria-expanded={speedOpen} disabled={!speedWritable} onClick={() => setSpeedOpen(value => !value)}>{fast ? '⚡' : '1×'}</button>}
+    items={speedItems}
+    selectedId={preferenceSnapshot.speedMode}
+    onSelect={id => {
+      setSpeedOpen(false)
+      void preference.set({ [SPEED_MODE_FIELD]: id })
+    }}
+    onClose={() => setSpeedOpen(false)}
+    align="end"
+    side="top"
+    portal
+    compact
+  /> : null
+  let quotaView = null
+  if (quotaEnabled && quota !== undefined) {
+    const value = percent(quota.remainingPercent)
+    const label = fill(t('quickQuotaStatus'), { value })
+    quotaView = <span className="codexComposerQuota" role="status" aria-label={label} title={label}>{value}%</span>
+  }
+  return <span className="codexComposerControls">{quotaView}{speed}</span>
 }
 
 function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
@@ -585,7 +631,7 @@ export function apply(ctx) {
       t,
       directory: ctx.modelDirectories.directoryFor(sessionId).store,
     }),
-  }, CodexComposerQuota))
+  }, CodexComposerControls))
   const conversation = ctx.get('conversation')
   ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
     name: 'tool.call.toolview', key: 'codex_image_generate', locale: NS,

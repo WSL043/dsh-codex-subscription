@@ -6,6 +6,8 @@ import {
   normalizeSearchProvider,
   SEARCH_PROVIDER_CODEX,
   SEARCH_PROVIDER_DSH,
+  SPEED_MODE_FAST,
+  SPEED_MODE_STANDARD,
 } from '../src/settings-contract.js'
 
 const { apply: applyPlugin } = plugin
@@ -18,7 +20,7 @@ function fakeContext() {
   const settings = []
   const webUpdates = []
   const provided = new Map()
-  let preference = { quickQuotaVisible: false, searchProvider: 'dsh' }
+  let preference = { quickQuotaVisible: false, searchProvider: 'dsh', speedMode: SPEED_MODE_STANDARD }
   const preferenceWatchers = new Set()
   let credential
   const webEntry = {
@@ -142,15 +144,16 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
   const preferenceStatus = await host.handled[0].handler('preferences/status', {}, signal)
   assert.deepEqual(preferenceStatus, {
     ok: true,
-    value: { quickQuotaVisible: true, searchProvider: 'codex', writable: true },
+    value: { quickQuotaVisible: true, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, writable: true },
   })
   const preferenceUpdate = await host.handled[0].handler('preferences/update', {
     quickQuotaVisible: false,
     searchProvider: 'dsh',
+    speedMode: SPEED_MODE_FAST,
   }, signal)
   assert.deepEqual(preferenceUpdate, {
     ok: true,
-    value: { quickQuotaVisible: false, searchProvider: 'dsh', writable: true },
+    value: { quickQuotaVisible: false, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, writable: true },
   })
   assert.deepEqual(host.webUpdates.at(-1), {
     config: { searchProvider: 'deepseek-official', fetchProvider: 'local' },
