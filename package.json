@@ -1,6 +1,6 @@
 {
   "name": "dsh-codex-subscription",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "packageManager": "pnpm@11.19.0",
   "description": "ChatGPT and Codex subscriptions for DeepSeek Harness with OAuth login, image generation, quota, and subscription web search",
   "type": "module",
@@ -17,7 +17,6 @@
     "README.md",
     "README.en.md",
     "AGENTS.md",
-    "dsh-codex.ps1",
     "LICENSE",
     "SECURITY.md",
     "THIRD_PARTY_NOTICES.md",

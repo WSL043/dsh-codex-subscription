@@ -70,22 +70,13 @@ Agent 文档包含安装、更新、卸载和验收步骤，并要求保留 DSH 
 打开 PowerShell，只需要复制这一行：
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"; if ($LASTEXITCODE -eq 0) { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1" }
+irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
 ```
 
-安装助手会先选择中文或 English，再自动寻找普通安装版和
-[DSH-Portable](https://github.com/WSL043/DSH-Portable)。检测到多个 DSH 时会列出编号和路径；
-检测到旧版插件时会自动进入更新流程。无需管理员权限，也不会擅自重启 DSH。
-
-<details>
-<summary>Agent 或自动化使用的非交互入口</summary>
-
-```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
-```
-
-</details>
+这个轻量助手只在当前目录、系统命令和常见的
+[DSH-Portable](https://github.com/WSL043/DSH-Portable) 位置查找 DSH，然后调用一次官方
+`plugin add`。它不会递归扫盘、安装 pnpm、创建常驻命令、保存 profile 快照或重复下载插件。
+无需管理员权限，也不会擅自重启 DSH。
 
 <details>
 <summary>macOS、Linux，或已有 <code>dsh</code> 命令（通用安装）</summary>
@@ -129,15 +120,8 @@ Spark 使用独立额度。插件不会写死“5 小时 + 每周”，也不会
 
 ## 更新与卸载
 
-Windows 安装器用户只需要：
-
-| 操作 | 命令 |
-| --- | --- |
-| 更新 | `dsh-codex update` |
-| 卸载 | `dsh-codex uninstall` |
-
-更新会校验 Release 脚本的 SHA-256。卸载只移除插件和 `dsh-codex` 命令，保留 DSH profile、
-其他插件和登录信息。旧版本没有短命令时，重新执行一次上面的 Windows 安装命令即可更新。
+Windows 用户重新运行上面的单行助手即可更新。卸载使用 DSH 官方命令；两种操作都保留
+DSH profile、其他插件和登录信息。
 
 <details>
 <summary>使用现有 <code>dsh</code> 命令更新或卸载</summary>
@@ -157,11 +141,12 @@ dsh plugin --profile web remove @wsl043/dsh-codex-subscription
 
 </details>
 
+DSH-Portable 在其目录中把上述 `dsh` 换成 `.\dsh.exe`。
+
 ## 常见问题
 
-- **找不到 `dsh-codex`**：关闭并重新打开 PowerShell；
-- **找不到 DSH-Portable**：先启动一次要使用的便携版，再重新安装；
-- **检测到多个 DSH**：从安装助手列出的编号和路径中选择目标；
+- **找不到 DSH-Portable**：进入它的目录后重新执行安装命令，或直接运行 `.\dsh.exe plugin --profile web add dsh-codex-subscription`；
+- **电脑上有多个 DSH**：进入要使用的那个 DSH-Portable 目录再运行助手；
 - **安装仍然失败**：把上面的 Agent 文档链接发给 Agent，不要删除 profile 或随意修改系统 PATH。
 
 ## 边界与支持

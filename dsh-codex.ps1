@@ -36,8 +36,8 @@ $ManagerScriptName = 'dsh-codex-manager.ps1'
 $LegacyManagerScriptName = 'dsh-codex.ps1'
 $ManagerShimName = 'dsh-codex.cmd'
 $ManagerStateName = 'install-state.json'
-$PackageVersion = '1.0.4'
-$PackageSpec = 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.4/dsh-codex-subscription.tgz'
+$PackageVersion = '1.0.5'
+$PackageSpec = 'dsh-codex-subscription@1.0.5'
 $PnpmVersion = '11.19.0'
 $PnpmUrl = 'https://registry.npmjs.org/pnpm/-/pnpm-11.19.0.tgz'
 $PnpmSha512 = '7881F3ED590D472C4A955E2B88B2121791116066DCC88CBCA3849EC9B60F1BBAA6D2CCB221FA91DA4E1C65BEF2BCBE379365AEA7AC539C7BF86DEDC3A1B22DCE'
@@ -718,6 +718,7 @@ function Get-InstalledPackages {
     $json = Invoke-DshCommand -Target $Target -Arguments @(
         'plugin', '--profile', $Profile, 'list', '--depth', '0', '--json', '--loglevel', 'error'
     ) -Capture
+    if (-not ([string] $json).Trim()) { return }
     try {
         # Windows PowerShell 5.1 preserves a top-level JSON array as one pipeline
         # object. Assign first so @() expands the resulting Object[] correctly.

@@ -69,22 +69,13 @@ The guide includes verification steps and tells the Agent to preserve the DSH pr
 Open PowerShell and paste this one line:
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"; if ($LASTEXITCODE -eq 0) { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1" }
+irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
 ```
 
-The setup starts with a Chinese or English language choice and discovers both regular DSH installs and
-[DSH-Portable](https://github.com/WSL043/DSH-Portable). Multiple copies become a numbered path list;
-an existing plugin automatically becomes an update. Administrator access is not required, and setup never restarts DSH by itself.
-
-<details>
-<summary>Non-interactive entry point for Agents and automation</summary>
-
-```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
-```
-
-</details>
+The lightweight setup checks only the current folder, the system command, and common
+[DSH-Portable](https://github.com/WSL043/DSH-Portable) locations, then invokes the official `plugin add`
+operation once. It does not recursively scan disks, install pnpm, create a resident command, snapshot a
+profile, or download the plugin twice. It needs no administrator access and never restarts DSH.
 
 <details>
 <summary>macOS, Linux, or an existing <code>dsh</code> command (universal install)</summary>
@@ -129,16 +120,8 @@ window returned by the service; Spark uses its independent quota. The plugin doe
 
 ## Update and uninstall
 
-Windows installer users only need:
-
-| Action | Command |
-| --- | --- |
-| Update | `dsh-codex update` |
-| Uninstall | `dsh-codex uninstall` |
-
-Update verifies the Release script SHA-256. Uninstall removes the plugin and `dsh-codex` command while
-preserving the DSH profile, other plugins, and saved sign-in. If an older install has no short command,
-run the Windows setup line above once to update it.
+On Windows, rerun the one-line setup above to update. Use the official DSH command to uninstall. Both
+operations preserve the DSH profile, other plugins, and saved sign-in.
 
 <details>
 <summary>Update or uninstall with an existing <code>dsh</code> command</summary>
@@ -158,11 +141,12 @@ dsh plugin --profile web remove @wsl043/dsh-codex-subscription
 
 </details>
 
+From a DSH-Portable folder, replace `dsh` above with `.\dsh.exe`.
+
 ## Troubleshooting
 
-- **`dsh-codex` is not found:** close and reopen PowerShell;
-- **DSH-Portable is not found:** start the intended portable copy once, then retry;
-- **Multiple DSH copies are found:** choose the intended numbered path in setup;
+- **DSH-Portable is not found:** enter its folder and rerun setup, or run `.\dsh.exe plugin --profile web add dsh-codex-subscription` directly;
+- **More than one DSH exists:** enter the intended DSH-Portable folder before running setup;
 - **Setup still fails:** send the Agent guide above to an Agent. Do not delete the profile or change the system PATH to force an install.
 
 The ChatGPT Codex backend and DSH can change independently. This community project is not affiliated with or endorsed by DeepSeek or OpenAI.

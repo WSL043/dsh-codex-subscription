@@ -13,14 +13,13 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'README.md',
     'README.en.md',
     'AGENTS.md',
-    'dsh-codex.ps1',
     'LICENSE',
     'SECURITY.md',
     'THIRD_PARTY_NOTICES.md',
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.equal(pkg.version, '1.0.4')
+  assert.equal(pkg.version, '1.0.5')
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
@@ -58,21 +57,15 @@ test('public docs contain only user-facing product and operation information', (
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.match(guide, /releases\/download\/v1\.0\.4\/dsh-codex\.ps1/u)
-  assert.match(guide, /dsh-codex\.ps1" Install/u)
-  assert.match(guide, /dsh-codex update/u)
-  assert.match(guide, /dsh-codex uninstall/u)
-  assert.match(guide, /DSH-Portable[\s\S]*system Node\.js or pnpm[\s\S]*per-user[\s\S]*never modifies[\s\S]*machine PATH/iu)
-  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@1\.0\.4/u)
-  assert.match(guide, /dsh plugin --profile web update dsh-codex-subscription/u)
+  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@1\.0\.5/u)
+  assert.match(guide, /\.\\dsh\.exe plugin --profile web add dsh-codex-subscription@1\.0\.5/u)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
   assert.match(guide, /dsh plugin --profile web remove dsh-codex-subscription/u)
-  assert.match(guide, /curl\.exe -fL[\s\S]*-o "\$env:TEMP\\dsh-codex\.ps1"[\s\S]*-ExecutionPolicy Bypass -File/iu)
-  assert.doesNotMatch(guide, /dsh-codex\.ps1\?/u)
   assert.doesNotMatch(guide, /scriptblock|Invoke-Expression|\biex\b/iu)
-  assert.match(guide, /do not.*delete.*profile|never delete.*profile|不要.*删除.*profile/iu)
+  assert.match(guide, /do not.*wipe.*profile|preserve the DSH profile/iu)
   assert.doesNotMatch(guide, /autoInstallPeers|profiles\/node_modules|checked-out development|pnpm install/iu)
+  assert.match(guide, /Do not[\s\S]*add a resident manager/iu)
 })
 
 test('GitHub defaults to concise Chinese and directs Agents to their own guide', () => {
@@ -127,24 +120,22 @@ test('each README stays in one language and links to the complete translation', 
 test('public readmes provide explicit update commands and verification', () => {
   const readmeZh = text('README.md')
   const readmeEn = text('README.en.md')
-  assert.match(readmeZh, /## 更新与卸载[\s\S]*dsh-codex update[\s\S]*dsh-codex uninstall[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
-  assert.match(readmeEn, /## Update and uninstall[\s\S]*dsh-codex update[\s\S]*dsh-codex uninstall[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
+  assert.match(readmeZh, /## 更新与卸载[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
+  assert.match(readmeEn, /## Update and uninstall[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
   assert.match(readmeZh, /dsh plugin --profile web add dsh-codex-subscription/u)
   assert.match(readmeEn, /dsh plugin --profile web add dsh-codex-subscription/u)
   for (const readme of [readmeZh, readmeEn]) {
     assert.match(readme, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
-    assert.match(readme, /releases\/latest\/download\/dsh-codex\.ps1/u)
-    assert.doesNotMatch(readme, /dsh-codex\.ps1\?/u)
-    assert.match(readme, /curl\.exe -fL[\s\S]*-o "\$env:TEMP\\dsh-codex\.ps1"[\s\S]*-ExecutionPolicy Bypass -File/iu)
     assert.doesNotMatch(readme, /Invoke-WebRequest/iu)
-    assert.doesNotMatch(readme, /scriptblock|Invoke-Expression|\biex\b/iu)
+    assert.doesNotMatch(readme, /scriptblock|Invoke-Expression/iu)
+    assert.match(readme, /\birm\b[\s\S]*\biex\b/iu)
   }
 })
 
 test('Windows manager updates from a checksum-verified immutable release asset', () => {
   const manager = text('dsh-codex.ps1')
-  assert.match(manager, /\$PackageVersion = '1\.0\.4'/u)
-  assert.match(manager, /releases\/download\/v1\.0\.4\/dsh-codex-subscription\.tgz/u)
+  assert.match(manager, /\$PackageVersion = '1\.0\.5'/u)
+  assert.match(manager, /\$PackageSpec = 'dsh-codex-subscription@1\.0\.5'/u)
   assert.match(manager, /api\.github\.com\/repos\/WSL043\/dsh-codex-subscription\/releases\/latest/u)
   assert.match(manager, /dsh-codex\.ps1\.sha256/u)
   assert.match(manager, /Get-FileDigest -Algorithm SHA256/u)
@@ -178,7 +169,7 @@ test('docs explain dynamic quota buckets without exposing maintenance internals'
     assert.match(text, /Spark/u)
     assert.match(text, /backend-provided|actual.*returned|服务端实际返回/iu)
   }
-  assert.match(agent, /peers check/u)
+  assert.match(agent, /Codex subscription/u)
 })
 
 test('release-age exceptions are pinned to the audited DeepSeek preview graph', () => {

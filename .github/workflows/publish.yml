@@ -102,9 +102,9 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - name: Verify Windows manager and friendly setup lifecycle
+      - name: Verify Windows manager compatibility and thin setup lifecycle
         shell: powershell
-        run: node --test tests/powershell-manager.test.mjs tests/powershell-setup.test.mjs
+        run: node --test tests/powershell-manager.test.mjs tests/thin-installer.test.mjs
         env:
           DSH_CODEX_TEST_USER_PATH: '1'
 
@@ -143,10 +143,9 @@ jobs:
           cat > .release/install.md <<'NOTES'
           ## 更新内容 / What's new
 
-          - 支持 DeepSeek Harness 0.1.0-rc.8 / Supports DeepSeek Harness 0.1.0-rc.8
-          - 修复生成图片在新版 DSH 中的显示 / Fixes generated-image display on current DSH
-          - 更新和卸载会记住首次选择的 DSH / Update and uninstall remember the selected DSH
-          - 修复登录切换时的凭据与额度并发问题 / Fixes credential and quota races during account changes
+          - Windows 安装改为轻量助手，直接调用 DSH 官方插件命令 / Windows setup is now a lightweight launcher for the official DSH plugin command
+          - 不再为首次安装下载 pnpm、创建常驻管理器或重复下载插件 / First install no longer downloads pnpm, creates a resident manager, or downloads the plugin twice
+          - 修复全新 profile 的安装判断错误 / Fixes installation on a completely new profile
 
           <!-- dsh-codex-install -->
           ## 安装 / Install
@@ -157,17 +156,11 @@ jobs:
           Open PowerShell and paste this one line:
 
           ```powershell
-          curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1 -o "$env:TEMP\dsh-codex-setup.ps1"; if ($LASTEXITCODE -eq 0) { powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex-setup.ps1" }
+          irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
           ```
 
-          安装助手会先让你选择 **中文（简体）** 或 **English**，然后自动寻找 DSH。没有安装过时显示“安装”；已经安装过时显示“更新”；如果检测到多个 DSH，会显示编号让你选择。
-          Setup first asks for **中文（简体）** or **English**, then finds DSH automatically. It shows **Install** for a new setup, **Update** for an existing one, and a numbered picker when multiple DSH copies are found.
-
-          如果 DSH 正在执行另一个插件操作，安装助手会提示等待后按 Enter 重试，不会删除锁文件或强行结束 DSH。
-          If DSH is already running another plugin operation, setup asks you to wait and press Enter to retry. It never deletes lock files or forcibly stops DSH.
-
-          DSH-Portable 不需要另外安装 Node.js 或 pnpm，也不需要管理员权限。安装或更新完成后，请手动重启 DSH。
-          DSH-Portable does not require a separate Node.js or pnpm install or administrator access. Restart DSH manually after installation or update.
+          助手只查找当前目录、系统命令和常见 DSH-Portable 位置，然后执行一次官方 `plugin add`。无需管理员权限，完成后请手动重启 DSH。
+          Setup checks the current folder, the system command, and common DSH-Portable locations, then runs the official `plugin add` once. It needs no administrator access. Restart DSH manually afterward.
 
           ### macOS、Linux，或已有 dsh / macOS, Linux, or an existing dsh command
 
@@ -179,13 +172,6 @@ jobs:
 
           安装后手动重启 DSH。列表中应只有一个 `dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
           Restart DSH manually. The plugin list should contain one `dsh-codex-subscription`, and the config should contain one `codex-subscription` entry.
-
-          ### Windows 更新与卸载 / Windows update and uninstall
-
-          ```powershell
-          dsh-codex update
-          dsh-codex uninstall
-          ```
 
           ### 通用更新与卸载 / Universal update and uninstall
 
