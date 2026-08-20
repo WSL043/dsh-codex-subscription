@@ -12,8 +12,7 @@ test('GitHub Releases include beginner-facing install, update, and uninstall ins
   assert.match(releaseWorkflow, /dsh plugin --profile web add dsh-codex-subscription/u)
   assert.match(releaseWorkflow, /dsh plugin --profile web update dsh-codex-subscription/u)
   assert.match(releaseWorkflow, /dsh plugin --profile web remove dsh-codex-subscription/u)
-  assert.match(releaseWorkflow, /dsh-codex update/u)
-  assert.match(releaseWorkflow, /dsh-codex uninstall/u)
+  assert.match(releaseWorkflow, /official `plugin add` once/u)
   assert.equal(existsSync(new URL('../.github/workflows/release-notes.yml', import.meta.url)), false)
 })
 

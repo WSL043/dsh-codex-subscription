@@ -74,6 +74,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Verify Windows installer lifecycle
-        run: node --test tests/powershell-manager.test.mjs tests/powershell-setup.test.mjs
+        run: node --test tests/powershell-manager.test.mjs tests/thin-installer.test.mjs
         env:
           DSH_CODEX_TEST_USER_PATH: '1'

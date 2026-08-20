@@ -1,152 +1,97 @@
 # Agent installation guide
 
 Use this guide when a user asks an Agent to install, update, verify, or remove
-`dsh-codex-subscription`.
+`dsh-codex-subscription` in a selected DeepSeek Harness profile.
 
 ## Safety
 
-- Confirm the target DSH profile; use `web` only when it is the user's target.
-- Use the pinned `v1.0.4` release assets for a first install, never a moving branch.
-- Never print OAuth credentials, account IDs, authorization callbacks, or the
-  credential store.
+- Confirm the target DSH installation and profile. Use `web` only when it is the user's target.
+- Use the exact `1.0.5` package below; do not install a moving branch.
+- Never print OAuth credentials, account IDs, authorization callbacks, or credential-store contents.
+- Preserve the DSH profile, unrelated plugins, sessions, and saved sign-in.
 - Do not start, stop, or restart DSH without explicit permission.
-- Preserve the DSH profile, unrelated plugins, and stored OAuth credentials.
-  Signing out requires explicit permission.
-- Do not delete any DSH profile during install, update, verification, or uninstall.
+- If more than one DSH installation exists, ask which one is the target before changing it.
 
-## Detect the installation
+## Locate DSH
 
-On Windows, first run `Get-Command dsh-codex -ErrorAction SilentlyContinue`.
-When it exists, use `dsh-codex update` or `dsh-codex uninstall` instead of
-downloading the manager again.
-
-On Windows, prefer the release manager below. It supports both a normal DSH
-installation and DSH-Portable. It discovers a running portable instance, the
-current folder and its parents, the default installed location, and common
-Downloads or Desktop locations.
-
-Do not require a DSH-Portable user to install system Node.js or pnpm. The manager
-uses the portable runtime, sets its isolated `DSH_HOME`, and keeps its verified
-pnpm tool and store inside the portable data directory. A successful first install
-adds only the per-user `dsh-codex` command directory to PATH; it never modifies
-the machine PATH.
-
-If automatic discovery fails, locate the portable root with read-only checks and
-pass it explicitly as `-PortableRoot`. A valid root contains both:
-
-```text
-runtime\node\node.exe
-app\node_modules\@deepseek-ai\dsh\lib\bin.js
-```
-
-Before changing anything on an unfamiliar Windows computer, confirm that
-`powershell.exe` starts, note `$PSVersionTable.PSVersion`, and check
-`Get-Command curl.exe,dsh,node -ErrorAction SilentlyContinue`. Missing system
-Node.js or pnpm is normal for DSH-Portable and is not a reason to install either.
-If more than one DSH installation is present, stop automatic discovery and ask
-the user which installation is the target.
-
-## Windows manager
-
-Download the fixed release asset to a visible file, then invoke the requested action:
+On Windows, check the command and common Portable entry points without recursively scanning disks:
 
 ```powershell
-curl.exe -fL https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.4/dsh-codex.ps1 -o "$env:TEMP\dsh-codex.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
+Get-Command dsh -ErrorAction SilentlyContinue
+Test-Path -LiteralPath '.\dsh.exe' -PathType Leaf
+Test-Path -LiteralPath "$env:USERPROFILE\Downloads\DSH-Portable\dsh.exe" -PathType Leaf
 ```
 
-If `curl.exe` is unavailable, download the same pinned asset without executing
-remote text in memory:
+A current DSH-Portable includes `dsh.exe`. Missing system Node.js or pnpm is normal; do not install
+either globally for this plugin. If the Portable copy does not contain `dsh.exe`, update DSH-Portable
+instead of recreating its package-manager environment in this installer.
 
-```powershell
-Invoke-WebRequest -UseBasicParsing -Uri 'https://github.com/WSL043/dsh-codex-subscription/releases/download/v1.0.4/dsh-codex.ps1' -OutFile "$env:TEMP\dsh-codex.ps1"
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install
-```
+## Install or update
 
-The process-scoped `Bypass` is for this child process only; do not change the
-machine or user execution policy.
-
-For a custom portable location:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\dsh-codex.ps1" Install -PortableRoot 'C:\path\to\DSH-Portable'
-```
-
-After a successful first install, use these commands in a new PowerShell window:
-
-```powershell
-dsh-codex update
-dsh-codex uninstall
-```
-
-`dsh-codex update` resolves the latest immutable GitHub Release and verifies the
-downloaded manager with its SHA-256 asset before running it. If `Get-Command
-dsh-codex` does not find the command on an older installation, download the pinned
-manager above and invoke `Update` once; that also installs the command. The manager
-verifies the package list and composed config. It never restarts DSH and never
-deletes a profile. Uninstall removes the manager command but preserves the DSH
-profile and saved login.
-
-## Existing DSH CLI
-
-When `dsh`, Node.js, and pnpm are already available, install the pinned npm
-package directly:
+With an existing `dsh` command:
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@1.0.4
+dsh plugin --profile web add dsh-codex-subscription@1.0.5
 ```
 
-Update with `dsh plugin --profile web update dsh-codex-subscription`. When
-migrating from v0.2.1 by hand, remove `@wsl043/dsh-codex-subscription` only
-after the new package passes verification. The Windows manager performs this
-migration automatically and preserves the stored login. Uninstall the current
-package with:
+From a DSH-Portable folder:
+
+```powershell
+.\dsh.exe plugin --profile web add dsh-codex-subscription@1.0.5
+```
+
+Use the same `add` command to update or repair. This is the complete package-changing operation.
+Do not download pnpm, create a second package store, save profile snapshots, add a resident manager,
+or restart DSH automatically. The DSH CLI owns package resolution, locking, and profile composition.
+
+For a legacy installation, first add and verify the current package. Only then remove the old package:
 
 ```sh
-dsh plugin --profile web remove dsh-codex-subscription
+dsh plugin --profile web remove @wsl043/dsh-codex-subscription
 ```
 
 ## Verify
 
-For the existing CLI path, run:
+Use the same executable selected above:
 
 ```sh
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-Success requires:
+For DSH-Portable, replace `dsh` with `.\dsh.exe`. Static acceptance requires:
 
-1. The requested package version appears once.
-2. `codex-subscription` appears once in the composed config after install
-   or update, and is absent after uninstall.
-3. No unrelated profile or plugin changed.
-4. A running DSH process was not restarted by the operation.
+1. `dsh-codex-subscription` version `1.0.5` appears exactly once.
+2. `codex-subscription` appears exactly once in the composed config.
+3. The legacy package is absent after a migration.
+4. No unrelated plugin or profile was changed and DSH was not restarted.
 
-Do not treat `dsh plugin --profile web peers check` as the completion test.
-If the user authorizes a live check, restart DSH manually, open
-**Settings -> Codex**, and verify the page loads. Confirm that Web
-search offers both **DSH default** and **Codex subscription**, and that the Beta
-composer quota switch starts off. Weekly-only usage is valid; Spark remains a
-separate bucket. Confirm that `codex_image_generate` is available. Only when the
-user explicitly requests a quota-consuming live check, ask the Agent to generate
-one simple image and confirm that it appears in the conversation.
+With permission to restart DSH, open **Settings -> Codex** and verify the settings page loads. Confirm
+that search offers both **DSH default** and **Codex subscription**, the composer quota switch defaults
+to off, and `codex_image_generate` is available. Do not consume quota merely to test installation unless
+the user explicitly asks for a live model, search, or image-generation check.
+
+## Uninstall
+
+```sh
+dsh plugin --profile web remove dsh-codex-subscription
+```
+
+For DSH-Portable:
+
+```powershell
+.\dsh.exe plugin --profile web remove dsh-codex-subscription
+```
+
+Uninstall removes only this plugin. It must preserve the profile, sessions, other plugins, and saved
+ChatGPT sign-in. Signing out is a separate action and requires explicit permission.
 
 ## Failure handling
 
-If `dsh-codex` is not found immediately after a successful install, start a new
-PowerShell window and run `Get-Command dsh-codex`. If it is still missing, check
-the current user's PATH and
-`$env:LOCALAPPDATA\Programs\dsh-codex\dsh-codex.cmd`; do not edit the machine
-PATH. The full command path may be used for verification while the shell refresh
-is pending.
+Distinguish command discovery, network, HTTP/TLS, package-manager, profile-lock, version, and peer
+dependency failures. Do not disable TLS validation, delete a lock owned by a live process, install a
+second package manager, wipe a profile, expose credentials, or switch to another paid route.
 
-If download fails, distinguish DNS, proxy, TLS/certificate, HTTP status, and
-checksum failures. Never disable certificate validation or skip a checksum. If
-`MachinePolicy` or `UserPolicy` blocks the child process, report the applicable
-`Get-ExecutionPolicy -List` result and stop; do not change organization policy.
-
-On any failure, report the sanitized command error, DSH version, selected
-profile, requested release, installation mode, what changed, cleanup status, and
-what remains unverified. Do not patch DSH, switch to another paid route, wipe
-credentials, delete a profile, or claim success from a partial check.
+On failure, report the sanitized command error, DSH version, selected profile, requested plugin version,
+installation mode, what changed, and what remains unverified. A successful CLI exit is not live UI
+acceptance.
