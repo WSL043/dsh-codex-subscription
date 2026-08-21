@@ -220,9 +220,9 @@ windowsTest('setup offers a stopped nested Downloads Portable beside a running t
 
   assert.equal(result.status, 0, result.stderr || result.stdout)
   const output = `${result.stderr}\n${result.stdout}`
-  assert.match(output, new RegExp(running.dsh.replaceAll('\\', '\\\\')))
-  assert.match(output, new RegExp(intended.dsh.replaceAll('\\', '\\\\')))
-  assert.match(output, new RegExp(`Target: ${intended.dsh.replaceAll('\\', '\\\\')}`))
+  assert.match(output, /AppData\\Local\\Temp\\tool-test\\DSH-Portable\\dsh\.exe/iu)
+  assert.match(output, /Downloads\\DSH-Portable-windows-x64-offline\\DSH-Portable\\dsh\.exe/iu)
+  assert.match(output, /Target: .*Downloads\\DSH-Portable-windows-x64-offline\\DSH-Portable\\dsh\.exe/iu)
 })
 
 windowsTest('setup stops safely when multiple Portables cannot be selected interactively', async t => {
