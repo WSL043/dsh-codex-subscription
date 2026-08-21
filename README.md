@@ -196,13 +196,13 @@ DSH-Portable 在其目录中把上述 `dsh` 换成 `.\dsh.exe`。
 - **找不到 DSH-Portable**：进入它的目录后重新执行安装命令，或直接运行 `.\dsh.exe plugin --profile web add dsh-codex-subscription`；
 - **电脑上有多个 DSH**：单行助手会合并正在运行的副本与常用目录内检测到的 Portable，输入对应编号即可；交给 Agent 时让它进入目标目录，或明确传入 `-DshPath`；
 - **安装仍然失败**：把上面的 Agent 文档链接发给 Agent，不要删除 profile 或随意修改系统 PATH。
-- **需要提交问题**：在设置页底部生成“支持诊断”并复制到 Issue。报告不含凭据和账号标识；仍不要附上登录链接、授权码或浏览器回调地址。
+- **需要提交问题**：在设置页底部生成“支持诊断”，然后打开[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)。表单会收集准确的 DSH/插件版本和复现步骤；报告不含凭据和账号标识，仍不要附上登录链接、授权码或浏览器回调地址。
 
 ## 边界与支持
 
 ChatGPT Codex 后端和 DSH 可能独立变化；本项目为社区项目，与 DeepSeek、OpenAI 无隶属或背书关系。
 
-本项目的问题反馈请使用 [GitHub Issues](https://github.com/WSL043/dsh-codex-subscription/issues)；
+本项目的问题反馈请使用[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)；
 DSH 插件交流可前往 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)。
 敏感问题请先阅读 [SECURITY.md](SECURITY.md)。
 

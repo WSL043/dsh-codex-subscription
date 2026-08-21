@@ -197,10 +197,11 @@ From a DSH-Portable folder, replace `dsh` above with `.\dsh.exe`.
 - **DSH-Portable is not found:** enter its folder and rerun setup, or run `.\dsh.exe plugin --profile web add dsh-codex-subscription` directly;
 - **More than one DSH exists:** the one-line setup combines running copies with Portable folders detected in common locations; enter its number. For an Agent, use the intended folder or pass `-DshPath` explicitly;
 - **Setup still fails:** send the Agent guide above to an Agent. Do not delete the profile or change the system PATH to force an install.
+- **Need to report a problem:** generate a **Support diagnostics** report at the bottom of Settings, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The form collects exact DSH/plugin versions and reproduction steps. The generated report excludes credentials and account identifiers; still do not attach sign-in URLs, authorization codes, or browser callback addresses.
 
 The ChatGPT Codex backend and DSH can change independently. This community project is not affiliated with or endorsed by DeepSeek or OpenAI.
 
-Use [GitHub Issues](https://github.com/WSL043/dsh-codex-subscription/issues) for project feedback.
+Use the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml) for project feedback.
 For DSH plugin discussion, visit [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
 Read [SECURITY.md](SECURITY.md) before reporting sensitive issues.
 
