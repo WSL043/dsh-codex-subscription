@@ -225,6 +225,7 @@ test('official DSH install and web startup are hard gates before a release', () 
   for (const workflow of [ci, publish]) {
     assert.match(workflow, /Official DSH end-to-end acceptance/u)
     assert.match(workflow, /accept-official-release\.ps1/u)
+    assert.match(workflow, /accept-official-release\.ps1 -PackagePath \$package -DshRunner pnpm/u)
     assert.match(workflow, /actions\/download-artifact@v8/u)
   }
   assert.match(publish, /path:\s*\.candidate\/\*\.tgz[\s\S]*include-hidden-files:\s*true/u)

@@ -102,4 +102,4 @@ jobs:
         run: |
           $package = (Get-ChildItem -LiteralPath .candidate -Filter '*.tgz' -File | Select-Object -First 1).FullName
           if (-not $package) { throw 'Candidate package artifact was not downloaded.' }
-          .\.github\scripts\accept-official-release.ps1 -PackagePath $package
+          .\.github\scripts\accept-official-release.ps1 -PackagePath $package -DshRunner pnpm
