@@ -19,6 +19,18 @@ test('GitHub Releases include beginner-facing install, update, and uninstall ins
   assert.equal(existsSync(new URL('../.github/workflows/release-notes.yml', import.meta.url)), false)
 })
 
+test('GitHub Release notes stay user-facing and exclude internal maintenance evidence', () => {
+  const notesStart = releaseWorkflow.indexOf('- name: Prepare beginner-facing release notes')
+  const notesEnd = releaseWorkflow.indexOf('- name: Build immutable release assets')
+  assert.ok(notesStart >= 0 && notesEnd > notesStart, 'publish workflow must define a bounded release-notes step')
+  const notesStep = releaseWorkflow.slice(notesStart, notesEnd)
+  assert.doesNotMatch(
+    notesStep,
+    /GitHub Actions|每\s*6\s*小时|every six hours|隔离验收|isolated .*acceptance|smoke acceptance|fail[- ]closed|自动兼容|compatibility autopilot/iu,
+  )
+  assert.match(notesStep, /Added support for DeepSeek Harness/u)
+})
+
 test('immutable releases are drafted, verified with all four assets, then published', () => {
   assert.match(releaseWorkflow, /Create draft GitHub Release/u)
   assert.match(releaseWorkflow, /gh release create "\$RELEASE_TAG"/u)

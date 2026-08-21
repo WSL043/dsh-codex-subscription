@@ -210,6 +210,8 @@ test('official DSH compatibility updates are detected, accepted, and then dispat
   assert.match(workflow, /test "\$\(git rev-parse origin\/main\)" = "\$GITHUB_SHA"/u)
   assert.match(workflow, /git push origin HEAD:main[\s\S]*gh workflow run publish\.yml/u)
   assert.match(workflow, /release_kind=compatibility/u)
+  assert.match(workflow, /request_id="compat-\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}"/u)
+  assert.match(workflow, /gh run watch "\$release_run"[\s\S]*--exit-status/u)
   assert.doesNotMatch(workflow, /continue-on-error:\s*true|NODE_AUTH_TOKEN|NPM_TOKEN/iu)
 })
 
@@ -272,7 +274,7 @@ test('one explicit trusted workflow creates the immutable release and publishes 
   assert.match(workflow, /dsh-codex-subscription\.tgz/u)
   assert.match(workflow, /dsh-codex-setup\.ps1/u)
   assert.match(workflow, /needs\.preflight\.outputs\.needed == 'false' \|\| needs\.release\.result == 'success'/u)
-  assert.doesNotMatch(workflow, /gh workflow run|gh run watch/u)
+  assert.match(workflow, /run-name:\s*Release \$\{\{ inputs\.request_id \|\| github\.sha \}\}/u)
   assert.doesNotMatch(workflow, /--generate-notes/u)
 })
 
