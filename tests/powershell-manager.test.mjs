@@ -9,6 +9,7 @@ import { createServer } from 'node:http'
 import test from 'node:test'
 
 const script = new URL('../dsh-codex.ps1', import.meta.url)
+const manifestVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version
 const windowsTest = process.platform === 'win32' ? test : test.skip
 const userPathTest = process.platform === 'win32' && process.env.DSH_CODEX_TEST_USER_PATH === '1'
   ? test
@@ -138,7 +139,7 @@ if (command === 'list') {
   process.stdout.write(JSON.stringify([{ dependencies: packages }]))
 } else if (command === 'add') {
   if (process.env.DSH_CODEX_TEST_FAIL_ADD === '1') process.exit(9)
-  packages['dsh-codex-subscription'] = { version: process.env.DSH_CODEX_TEST_ADDED_VERSION || '1.1.4' }
+  packages['dsh-codex-subscription'] = { version: process.env.DSH_CODEX_TEST_ADDED_VERSION || '${manifestVersion}' }
   fs.writeFileSync(stateFile, JSON.stringify(packages))
 } else if (command === 'remove') {
   delete packages[args[4]]
@@ -170,7 +171,7 @@ windowsTest('legacy manager can install into a completely new profile with an em
     })
     assert.equal(result.status, 0, result.stderr || result.stdout)
     const installed = JSON.parse(readFileSync(join(root, 'data', 'dsh-home', 'fake-packages.json'), 'utf8'))
-    assert.equal(installed['dsh-codex-subscription'].version, '1.1.4')
+    assert.equal(installed['dsh-codex-subscription'].version, manifestVersion)
   } finally {
     rmSync(sandbox, { recursive: true, force: true })
   }
@@ -242,7 +243,7 @@ windowsTest('update fails instead of reporting success when DSH keeps an older p
       env: { ...process.env, DSH_CODEX_TEST_ADDED_VERSION: '0.2.8' },
     })
     assert.notEqual(result.status, 0)
-    assert.match(result.stderr, /expected 1\.1\.4[^]*found 0\.2\.8/iu)
+    assert.match(result.stderr, new RegExp(`expected ${manifestVersion.replaceAll('.', '\\.')}[^]*found 0\\.2\\.8`, 'iu'))
     assert.doesNotMatch(result.stdout, /Updated\./u)
   } finally {
     rmSync(sandbox, { recursive: true, force: true })
@@ -706,7 +707,7 @@ windowsTest('portable install uses the bundled CLI, DSH_HOME, and package store'
     assert.deepEqual(plan.arguments, [
       join(expectedRoot, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
       'plugin', '--profile', 'web', 'add',
-      'dsh-codex-subscription@1.1.4',
+      `dsh-codex-subscription@${manifestVersion}`,
       '--store-dir', join(expectedRoot, 'data', 'pnpm-store'),
       '--loglevel', 'error',
     ])
@@ -727,7 +728,7 @@ windowsTest('portable install prefers the DSH-Portable command shim when availab
     assert.equal(plan.pnpmDirectory, null)
     assert.deepEqual(plan.arguments, [
       'plugin', '--profile', 'web', 'add',
-      'dsh-codex-subscription@1.1.4',
+      `dsh-codex-subscription@${manifestVersion}`,
       '--store-dir', join(expectedRoot, 'data', 'pnpm-store'),
       '--loglevel', 'error',
     ])
@@ -747,7 +748,7 @@ windowsTest('installed portable mode expands its external state root', () => {
     assert.equal(plan.action, 'Update')
     assert.equal(plan.dshHome, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'dsh-home'))
     assert.equal(plan.pnpmStore, join(realpathSync.native(localAppData), 'DeepSeek-Herness', 'data', 'pnpm-store'))
-    assert.equal(plan.arguments.includes('dsh-codex-subscription@1.1.4'), true)
+    assert.equal(plan.arguments.includes(`dsh-codex-subscription@${manifestVersion}`), true)
     assert.equal(plan.packageName, 'dsh-codex-subscription')
     assert.equal(plan.legacyPackageName, '@wsl043/dsh-codex-subscription')
   } finally {

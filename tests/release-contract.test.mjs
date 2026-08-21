@@ -3,6 +3,8 @@ import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const text = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
+const manifest = JSON.parse(text('package.json'))
+const compatibility = JSON.parse(text('compatibility.json'))
 
 test('release is a prebuilt, documented, removable DSH bundle', () => {
   const pkg = JSON.parse(text('package.json'))
@@ -13,22 +15,23 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'README.md',
     'README.en.md',
     'AGENTS.md',
+    'compatibility.json',
     'LICENSE',
     'SECURITY.md',
     'THIRD_PARTY_NOTICES.md',
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.equal(pkg.version, '1.1.4')
+  assert.match(pkg.version, /^\d+\.\d+\.\d+$/u)
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
-  const supportedDshReleases = '0.1.0-rc.6 || 0.1.0-rc.7 || 0.1.0-rc.8'
+  const supportedDshReleases = compatibility.supported.join(' || ')
   for (const [name, version] of Object.entries(pkg.peerDependencies)) {
     if (name.startsWith('@deepseek-ai/dsh-')) assert.equal(version, supportedDshReleases, name)
   }
-  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-llm-pi-ai'], '0.1.0-rc.8')
-  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-api-remotes'], '0.1.0-rc.8')
+  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-llm-pi-ai'], compatibility.latestTested)
+  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-api-remotes'], compatibility.latestTested)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-client-ui-attachment'], undefined)
   assert.equal(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-api-remotes'), true)
   assert.equal(pkg.peerDependencies['@earendil-works/pi-ai'], '0.82.1')
@@ -52,16 +55,16 @@ test('public docs contain only user-facing product and operation information', (
   assert.doesNotMatch(docs, /github\.com\/WSL043\/(?!(?:dsh-codex-subscription|DSH-Portable)(?:[\/)#]|$))[\w.-]+/iu)
   assert.doesNotMatch(docs, /安装提示词|更新提示词|卸载提示词|install prompt|update prompt|uninstall prompt/iu)
   assert.doesNotMatch(docs, /开发与验收|development and verification|pnpm test|pnpm run build|测试覆盖|release-contract|28 项/iu)
-  assert.match(docs, /当前适配[^\n]*0\.1\.0-rc\.8|currently compatible[^\n]*0\.1\.0-rc\.8/iu)
+  assert.equal(docs.includes(compatibility.latestTested), true)
   assert.doesNotMatch(docs, /0\.1\.0-rc\.(?:6|7)|v0\.2\.1|1\.1\.0-beta\.0/iu)
   assert.equal(existsSync(new URL('../docs/CACHE.md', import.meta.url)), false)
 })
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@1\.1\.4/u)
-  assert.match(guide, /\.\\dsh\.exe plugin --profile web add dsh-codex-subscription@1\.1\.4/u)
-  assert.match(guide, /npx -y @deepseek-ai\/dsh@0\.1\.0-rc\.8 plugin --profile web add dsh-codex-subscription@1\.1\.4/u)
+  assert.equal(guide.includes(`dsh plugin --profile web add dsh-codex-subscription@${manifest.version}`), true)
+  assert.equal(guide.includes(`.\\dsh.exe plugin --profile web add dsh-codex-subscription@${manifest.version}`), true)
+  assert.equal(guide.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add dsh-codex-subscription@${manifest.version}`), true)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
   assert.match(guide, /dsh plugin --profile web remove dsh-codex-subscription/u)
@@ -128,9 +131,9 @@ test('public readmes provide explicit update commands and verification', () => {
   assert.match(readmeZh, /dsh plugin --profile web add dsh-codex-subscription/u)
   assert.match(readmeEn, /dsh plugin --profile web add dsh-codex-subscription/u)
   for (const readme of [readmeZh, readmeEn]) {
-    assert.match(readme, /npx -y @deepseek-ai\/dsh@0\.1\.0-rc\.8 plugin --profile web add dsh-codex-subscription/u)
-    assert.match(readme, /npx -y @deepseek-ai\/dsh@0\.1\.0-rc\.8 plugin --profile web list dsh-codex-subscription --depth 0/u)
-    assert.match(readme, /npx -y @deepseek-ai\/dsh@0\.1\.0-rc\.8 --profile web --dump-config/u)
+    assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add dsh-codex-subscription`), true)
+    assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web list dsh-codex-subscription --depth 0`), true)
+    assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} --profile web --dump-config`), true)
   }
   for (const readme of [readmeZh, readmeEn]) {
     assert.match(readme, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
@@ -142,8 +145,8 @@ test('public readmes provide explicit update commands and verification', () => {
 
 test('Windows manager updates from a checksum-verified immutable release asset', () => {
   const manager = text('dsh-codex.ps1')
-  assert.match(manager, /\$PackageVersion = '1\.1\.4'/u)
-  assert.match(manager, /\$PackageSpec = 'dsh-codex-subscription@1\.1\.4'/u)
+  assert.equal(manager.includes(`$PackageVersion = '${manifest.version}'`), true)
+  assert.equal(manager.includes(`$PackageSpec = 'dsh-codex-subscription@${manifest.version}'`), true)
   assert.match(manager, /api\.github\.com\/repos\/WSL043\/dsh-codex-subscription\/releases\/latest/u)
   assert.match(manager, /dsh-codex\.ps1\.sha256/u)
   assert.match(manager, /Get-FileDigest -Algorithm SHA256/u)
@@ -185,12 +188,29 @@ test('release-age exceptions are pinned to the audited DeepSeek preview graph', 
   const lockfile = text('pnpm-lock.yaml')
   const packagesBlock = lockfile.slice(lockfile.indexOf('\npackages:\n'), lockfile.indexOf('\nsnapshots:\n'))
   const deepseekPackages = [...packagesBlock.matchAll(/^  '(@deepseek-ai\/[^']+@[^']+)':$/gmu)].map(match => match[1])
-  assert.equal(deepseekPackages.length, 78)
+  assert.ok(deepseekPackages.length > 0)
   assert.match(workspace, /minimumReleaseAge:\s*1440/u)
+  assert.match(workspace, /# dsh-compat-release-age-start[\s\S]*# dsh-compat-release-age-end/u)
+  assert.equal(workspace.includes(`'@deepseek-ai/dsh@${compatibility.latestTested}'`), true)
   assert.doesNotMatch(workspace, /@deepseek-ai\/\*/u)
   for (const selector of deepseekPackages) {
     assert.equal(workspace.includes(`- '${selector}'`), true, `missing exact release-age exception for ${selector}`)
   }
+})
+
+test('official DSH compatibility updates are detected, accepted, and then dispatched to the trusted publisher', () => {
+  const workflow = text('.github/workflows/upstream-compatibility.yml')
+  assert.match(workflow, /cron:\s*'29 \*\/6 \* \* \*'/u)
+  assert.match(workflow, /compareVersions[\s\S]*for version in "\$\{candidates\[@\]\}"/u)
+  assert.match(workflow, /repos\/deepseek-ai\/deepseek-harness\/releases\/tags\/dsh-v/u)
+  assert.match(workflow, /\.draft == false and \.immutable == true/u)
+  assert.match(workflow, /prepare-compat-release\.mjs --refresh-release-age/u)
+  assert.match(workflow, /windows-acceptance:[\s\S]*accept-official-release\.ps1/u)
+  assert.match(workflow, /git diff --binary \| sha256sum/u)
+  assert.match(workflow, /test "\$\(git rev-parse origin\/main\)" = "\$GITHUB_SHA"/u)
+  assert.match(workflow, /git push origin HEAD:main[\s\S]*gh workflow run publish\.yml/u)
+  assert.match(workflow, /release_kind=compatibility/u)
+  assert.doesNotMatch(workflow, /continue-on-error:\s*true|NODE_AUTH_TOKEN|NPM_TOKEN/iu)
 })
 
 test('CI uploads the hidden release artifact only after asserting it exists', () => {
@@ -221,6 +241,8 @@ test('official DSH install and web startup are hard gates before a release', () 
   assert.match(smoke, /Invoke-Dsh @\('plugin', '--profile', \$Profile, 'remove'/u)
   assert.match(smoke, /dsh web:|Invoke-WebRequest/u)
   assert.match(smoke, /dsh-codex-subscription@/u)
+  assert.match(smoke, /--config\.minimum-release-age=0[\s\S]*dlx/u)
+  assert.match(smoke, /Remove-Item -LiteralPath \$resolvedAcceptance -Recurse -Force/u)
 
   for (const workflow of [ci, publish]) {
     assert.match(workflow, /Official DSH end-to-end acceptance/u)
@@ -229,6 +251,8 @@ test('official DSH install and web startup are hard gates before a release', () 
     assert.match(workflow, /actions\/download-artifact@v8/u)
   }
   assert.match(publish, /path:\s*\.candidate\/\*\.tgz[\s\S]*include-hidden-files:\s*true/u)
+  assert.match(publish, /release:[\s\S]*actions\/download-artifact@v8[\s\S]*name:\s*release-candidate-\$\{\{ github\.sha \}\}[\s\S]*cp "\$package" \.artifacts\/dsh-codex-subscription\.tgz/u)
+  assert.doesNotMatch(publish, /release:[\s\S]*pnpm pack --pack-destination \.artifacts/u)
   assert.match(publish, /official-acceptance:[\s\S]*?actions\/setup-node@v6[\s\S]*?package-manager-cache:\s*false[\s\S]*?\n  release:/u, 'official acceptance must not fail after passing because a disposable pnpm cache path vanished')
   assert.match(publish, /release:\s*\n\s*needs:\s*\[[^\]]*official-acceptance[^\]]*\]/u)
 })
@@ -268,7 +292,9 @@ test('npm publishing is release-gated and uses OIDC without a stored npm token',
     'settings-en.png',
     'composer-quota-en.png',
   ]) assert.doesNotMatch(workflow, new RegExp(asset.replaceAll('.', '\\.')))
-  assert.match(workflow, /npm publish/u)
+  assert.match(workflow, /gh release download[\s\S]*dsh-codex-subscription\.tgz/u)
+  assert.match(workflow, /tar -xOf[\s\S]*package\/package\.json/u)
+  assert.match(workflow, /npm publish \.\/\.release-artifact\/dsh-codex-subscription\.tgz/u)
   assert.doesNotMatch(workflow, /NODE_AUTH_TOKEN|NPM_TOKEN|secrets\.NPM/iu)
 })
 
@@ -277,7 +303,7 @@ test('beta publishing stays a prerelease and never replaces npm latest or stable
   assert.match(workflow, /npm_tag=beta/u)
   assert.match(workflow, /--prerelease/u)
   assert.match(workflow, /isPrerelease[\s\S]*IS_PRERELEASE/u)
-  assert.match(workflow, /npm publish --access public --tag "\$NPM_TAG"/u)
+  assert.match(workflow, /npm publish \.\/\.release-artifact\/dsh-codex-subscription\.tgz --access public --tag "\$NPM_TAG"/u)
   assert.match(workflow, /IS_PRERELEASE[\s\S]*dsh-codex-subscription\.tgz/u)
   assert.match(workflow, /IS_PRERELEASE[\s\S]*cp dsh-codex\.ps1/u)
   assert.match(workflow, /IS_PRERELEASE[\s\S]*--latest/u)

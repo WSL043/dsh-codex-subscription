@@ -174,7 +174,7 @@ test('build emits host entries and a DSH module-loader client', async () => {
   assert.doesNotMatch(config, /wsl043/iu)
 })
 
-test('generated Codex images use a plugin-owned rc.6-rc.8 compatible viewer', async () => {
+test('generated Codex images use a plugin-owned viewer across supported DSH releases', async () => {
   const [source, manifest, config] = await Promise.all([
     text('src/client.jsx'), text('package.json'), text('tsdown.config.mjs'),
   ])

@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string] $PackagePath,
-    [string] $DshVersion = '0.1.0-rc.8',
+    [string] $DshVersion = '0.1.1-rc.1',
     [string] $Profile = 'web',
     [ValidateSet('npx', 'pnpm')][string] $DshRunner = 'npx',
     [int] $StartupTimeoutSeconds = 45
@@ -14,7 +14,10 @@ $runner = Get-Command $DshRunner -CommandType Application -ErrorAction Stop |
 $runnerPrefix = if ($DshRunner -eq 'npx') {
     @('-y', "@deepseek-ai/dsh@$DshVersion")
 } else {
-    @('dlx', "@deepseek-ai/dsh@$DshVersion")
+    # The workflow authenticates this exact DSH version against an immutable
+    # official GitHub release before acceptance. Disable only pnpm's time delay;
+    # dependency, peer, integrity, build, and runtime checks remain enabled.
+    @('--config.minimum-release-age=0', 'dlx', "@deepseek-ai/dsh@$DshVersion")
 }
 $acceptanceRoot = Join-Path ([IO.Path]::GetTempPath()) ('dsh-codex-official-' + [Guid]::NewGuid().ToString('N'))
 $previousDshHome = $env:DSH_HOME
@@ -118,4 +121,10 @@ try {
     Write-Host 'Official DSH end-to-end acceptance passed.'
 } finally {
     $env:DSH_HOME = $previousDshHome
+    $resolvedTemp = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd([IO.Path]::DirectorySeparatorChar)
+    $resolvedAcceptance = [IO.Path]::GetFullPath($acceptanceRoot)
+    if ($resolvedAcceptance.StartsWith($resolvedTemp + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) -and
+        (Split-Path -Leaf $resolvedAcceptance) -like 'dsh-codex-official-*') {
+        Remove-Item -LiteralPath $resolvedAcceptance -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }

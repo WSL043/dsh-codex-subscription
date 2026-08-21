@@ -6,7 +6,9 @@ import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 
 const installer = new URL('../dsh-codex-setup.ps1', import.meta.url)
-const packageSpec = 'dsh-codex-subscription@1.1.4'
+const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+const compatibility = JSON.parse(await readFile(new URL('../compatibility.json', import.meta.url), 'utf8'))
+const packageSpec = `dsh-codex-subscription@${manifest.version}`
 const windowsTest = process.platform === 'win32' ? test : test.skip
 
 test('setup remains a thin official DSH CLI launcher', async () => {
@@ -22,8 +24,9 @@ test('setup remains a thin official DSH CLI launcher', async () => {
 test('npm fallback is pinned to the DSH release accepted by this plugin', async () => {
   const source = await readFile(installer, 'utf8')
 
-  assert.match(source, /DshRelease = '0\.1\.0-rc\.8'/u)
-  assert.match(source, /first official DSH run may take/i)
+  assert.equal(source.includes(`DshRelease = '${compatibility.latestTested}'`), true)
+  assert.match(source, /cold run may use one CPU core/i)
+  assert.match(source, /--prefer-offline[\s\S]*--no-audit[\s\S]*--no-fund/u)
 })
 
 test('setup is ASCII without a byte-order mark for Windows PowerShell 5.1 irm pipe execution', async () => {
@@ -65,12 +68,51 @@ windowsTest('PATH discovery works and preserves DSH failures', async t => {
     `function global:Get-CimInstance { @() }; Get-Content -LiteralPath '${escapedInstaller}' -Raw | Invoke-Expression`,
   ], {
     cwd: fixture,
-    env: { ...process.env, PATH: `${fixture}${delimiter}${process.env.PATH ?? ''}` },
+    env: {
+      ...process.env,
+      PATH: `${fixture}${delimiter}${process.env.PATH ?? ''}`,
+      USERPROFILE: fixture,
+      DSH_PORTABLE_ROOT: '',
+    },
     encoding: 'utf8',
   })
 
   assert.notEqual(result.status, 0)
   assert.match(`${result.stderr}\n${result.stdout}`, /exit code 23/i)
+})
+
+windowsTest('PATH and Portable candidates are never selected silently when both exist', async t => {
+  const fixture = await mkdtemp(join(tmpdir(), 'dsh-codex-path-portable-'))
+  t.after(() => rm(fixture, { recursive: true, force: true }))
+  const binRoot = join(fixture, 'bin')
+  const portable = join(fixture, 'Downloads', 'DSH-Portable')
+  await mkdir(binRoot, { recursive: true })
+  await writeFile(join(binRoot, 'dsh.cmd'), '@echo off\r\nexit /b 0\r\n')
+  await mkdir(join(portable, 'runtime', 'node'), { recursive: true })
+  await mkdir(join(portable, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib'), { recursive: true })
+  await writeFile(join(portable, 'runtime', 'node', 'node.exe'), '')
+  await writeFile(join(portable, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'), '')
+  await writeFile(join(portable, 'dsh.exe'), '')
+
+  const quote = value => value.replaceAll("'", "''")
+  const command = `function global:Get-CimInstance { @() }; Get-Content -LiteralPath '${quote(installer.pathname.slice(1))}' -Raw | Invoke-Expression`
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], {
+    cwd: fixture,
+    env: {
+      ...process.env,
+      PATH: `${binRoot}${delimiter}${process.env.PATH ?? ''}`,
+      USERPROFILE: fixture,
+      DSH_PORTABLE_ROOT: '',
+    },
+    encoding: 'utf8',
+  })
+
+  assert.notEqual(result.status, 0)
+  const output = `${result.stderr}\n${result.stdout}`
+  assert.match(output, /Choose the DSH installation to use/u)
+  assert.match(output, /PATH:/u)
+  assert.match(output, /Downloads\\DSH-Portable\\dsh\.exe/iu)
+  assert.match(output, /Could not read a selection/u)
 })
 
 windowsTest('official npm users do not need a global dsh command', async t => {
@@ -96,7 +138,92 @@ windowsTest('official npm users do not need a global dsh command', async t => {
   })
 
   assert.equal(result.status, 0, result.stderr || result.stdout)
-  assert.equal((await readFile(log, 'utf8')).trim(), `-y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add ${packageSpec}`)
+  assert.equal(
+    (await readFile(log, 'utf8')).trim(),
+    `-y --prefer-offline --no-audit --no-fund @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add ${packageSpec}`,
+  )
+})
+
+windowsTest('a running official npm DSH is reused without another npx dependency resolution', async t => {
+  const fixture = await mkdtemp(join(tmpdir(), 'dsh-codex-running-official-'))
+  t.after(() => rm(fixture, { recursive: true, force: true }))
+  const node = join(fixture, 'node.cmd')
+  const bin = join(fixture, '_npx', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+  const argsLog = join(fixture, 'node-args.txt')
+  const npxLog = join(fixture, 'npx-args.txt')
+  await mkdir(join(bin, '..'), { recursive: true })
+  await writeFile(node, '@echo off\r\n>> "%DSH_INSTALLER_TEST_NODE_LOG%" echo %*\r\nexit /b 0\r\n')
+  await writeFile(bin, '')
+  await writeFile(join(fixture, '_npx', 'node_modules', '@deepseek-ai', 'dsh', 'package.json'), JSON.stringify({
+    name: '@deepseek-ai/dsh',
+    version: compatibility.latestTested,
+  }))
+  await writeFile(join(fixture, 'npx.cmd'), '@echo off\r\n>> "%DSH_INSTALLER_TEST_NPX_LOG%" echo %*\r\nexit /b 0\r\n')
+
+  const quote = value => value.replaceAll("'", "''")
+  const command = [
+    `function global:Get-CimInstance { [pscustomobject]@{ ExecutablePath = '${quote(node)}'; CommandLine = '\"${quote(node)}\" \"${quote(bin)}\" web' } }`,
+    `Get-Content -LiteralPath '${quote(installer.pathname.slice(1))}' -Raw | Invoke-Expression`,
+  ].join('; ')
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', command], {
+    cwd: fixture,
+    env: {
+      ...process.env,
+      PATH: `${fixture}${delimiter}${process.env.PATH ?? ''}`,
+      USERPROFILE: fixture,
+      DSH_PORTABLE_ROOT: '',
+      DSH_INSTALLER_TEST_NPX_LOG: npxLog,
+      DSH_INSTALLER_TEST_NODE_LOG: argsLog,
+    },
+    encoding: 'utf8',
+  })
+
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.match(result.stdout, new RegExp(`Target: running official DSH ${compatibility.latestTested.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:`))
+  assert.equal((await readFile(argsLog, 'utf8')).trim(), `${bin} plugin --profile web add ${packageSpec}`)
+  await assert.rejects(readFile(npxLog, 'utf8'), /ENOENT/u)
+})
+
+windowsTest('an unverified bin.js process is ignored instead of being reused as DSH', async t => {
+  const fixture = await mkdtemp(join(tmpdir(), 'dsh-codex-unverified-process-'))
+  t.after(() => rm(fixture, { recursive: true, force: true }))
+  const node = join(fixture, 'node.cmd')
+  const bin = join(fixture, '_npx', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+  const nodeLog = join(fixture, 'node-args.txt')
+  const npxLog = join(fixture, 'npx-args.txt')
+  await mkdir(join(bin, '..'), { recursive: true })
+  await writeFile(node, '@echo off\r\n>> "%DSH_INSTALLER_TEST_NODE_LOG%" echo %*\r\nexit /b 0\r\n')
+  await writeFile(bin, '')
+  await writeFile(join(fixture, '_npx', 'node_modules', '@deepseek-ai', 'dsh', 'package.json'), JSON.stringify({
+    name: 'not-dsh',
+    version: compatibility.latestTested,
+  }))
+  await writeFile(join(fixture, 'npx.cmd'), '@echo off\r\n>> "%DSH_INSTALLER_TEST_NPX_LOG%" echo %*\r\nexit /b 0\r\n')
+
+  const quote = value => value.replaceAll("'", "''")
+  const command = [
+    `function global:Get-CimInstance { [pscustomobject]@{ ExecutablePath = '${quote(node)}'; CommandLine = '\"${quote(node)}\" \"${quote(bin)}\" web' } }`,
+    `Get-Content -LiteralPath '${quote(installer.pathname.slice(1))}' -Raw | Invoke-Expression`,
+  ].join('; ')
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', command], {
+    cwd: fixture,
+    env: {
+      ...process.env,
+      PATH: `${fixture}${delimiter}${process.env.PATH ?? ''}`,
+      USERPROFILE: fixture,
+      DSH_PORTABLE_ROOT: '',
+      DSH_INSTALLER_TEST_NODE_LOG: nodeLog,
+      DSH_INSTALLER_TEST_NPX_LOG: npxLog,
+    },
+    encoding: 'utf8',
+  })
+
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.equal(
+    (await readFile(npxLog, 'utf8')).trim(),
+    `-y --prefer-offline --no-audit --no-fund @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add ${packageSpec}`,
+  )
+  await assert.rejects(readFile(nodeLog, 'utf8'), /ENOENT/u)
 })
 
 windowsTest('a running Portable in an arbitrary folder is used instead of npx', async t => {
@@ -177,7 +304,7 @@ windowsTest('setup lets an interactive user select between two running Portables
 
   assert.equal(result.status, 0, result.stderr || result.stdout)
   const output = `${result.stderr}\n${result.stdout}`
-  assert.match(output, /Choose the DSH-Portable to use/u)
+  assert.match(output, /Choose the DSH installation to use/u)
   for (const { dsh } of processes) assert.match(output, new RegExp(dsh.replaceAll('\\', '\\\\')))
   assert.match(output, new RegExp(`Target: ${processes[1].dsh.replaceAll('\\', '\\\\')}`))
   await assert.rejects(readFile(npxLog, 'utf8'), /ENOENT/u)
@@ -273,12 +400,14 @@ windowsTest('download-pipe execution is non-interactive and invokes one add', as
 
   const escaped = installer.pathname.slice(1).replaceAll("'", "''")
   const result = spawnSync('powershell.exe', [
-    '-NoProfile', '-Command', `Get-Content -LiteralPath '${escaped}' -Raw | Invoke-Expression`,
+    '-NoProfile', '-Command', `function global:Get-CimInstance { @() }; Get-Content -LiteralPath '${escaped}' -Raw | Invoke-Expression`,
   ], {
     cwd: fixture,
     env: {
       ...process.env,
       PATH: `${fixture}${delimiter}${process.env.PATH ?? ''}`,
+      USERPROFILE: fixture,
+      DSH_PORTABLE_ROOT: '',
       DSH_INSTALLER_TEST_LOG: log,
     },
     encoding: 'utf8',
