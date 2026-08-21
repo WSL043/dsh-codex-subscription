@@ -7,7 +7,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$PackageSpec = 'dsh-codex-subscription@1.1.2'
+$PackageSpec = 'dsh-codex-subscription@1.1.3'
 $DshRelease = '0.1.0-rc.8'
 
 function New-DshInvocation {
@@ -62,6 +62,27 @@ function Find-RunningPortableDsh {
         }
     } catch {
         # Process discovery is an optional location hint.
+    }
+}
+
+function Find-CommonPortableDsh {
+    if (-not $env:USERPROFILE) { return }
+
+    foreach ($container in @(
+        (Join-Path $env:USERPROFILE 'Downloads'),
+        (Join-Path $env:USERPROFILE 'Desktop'),
+        (Join-Path $env:USERPROFILE 'Documents')
+    )) {
+        $direct = Get-PortableDshFromRoot (Join-Path $container 'DSH-Portable')
+        if ($direct) { Write-Output $direct }
+        if (-not (Test-Path -LiteralPath $container -PathType Container)) { continue }
+
+        foreach ($child in Get-ChildItem -LiteralPath $container -Directory -ErrorAction SilentlyContinue) {
+            $childRoot = Get-PortableDshFromRoot $child.FullName
+            if ($childRoot) { Write-Output $childRoot }
+            $nestedRoot = Get-PortableDshFromRoot (Join-Path $child.FullName 'DSH-Portable')
+            if ($nestedRoot) { Write-Output $nestedRoot }
+        }
     }
 }
 
@@ -122,26 +143,9 @@ function Resolve-DshCommand {
         return New-DshInvocation -Executable $resolved -Label $resolved
     }
 
-    $runningCandidates = @(Find-RunningPortableDsh | Sort-Object -Unique)
-    if ($runningCandidates.Count -gt 1) {
-        $selected = Select-DshCandidate -Candidates $runningCandidates -Reason 'Choose the DSH-Portable to use:'
-        return New-DshInvocation -Executable $selected -Label $selected
-    }
-    if ($runningCandidates.Count -eq 1) {
-        return New-DshInvocation -Executable $runningCandidates[0] -Label $runningCandidates[0]
-    }
-
     $candidates = [Collections.Generic.List[string]]::new()
-    if ($env:USERPROFILE) {
-        foreach ($root in @(
-            (Join-Path $env:USERPROFILE 'Downloads\DSH-Portable'),
-            (Join-Path $env:USERPROFILE 'Desktop\DSH-Portable'),
-            (Join-Path $env:USERPROFILE 'Documents\DSH-Portable')
-        )) {
-            $portable = Get-PortableDshFromRoot $root
-            if ($portable) { $candidates.Add($portable) }
-        }
-    }
+    foreach ($portable in @(Find-RunningPortableDsh)) { $candidates.Add($portable) }
+    foreach ($portable in @(Find-CommonPortableDsh)) { $candidates.Add($portable) }
 
     $resolvedCandidates = @($candidates | ForEach-Object {
         if ($_ -and (Test-Path -LiteralPath $_ -PathType Leaf)) {
@@ -174,7 +178,7 @@ if ($dsh.PrefixArguments.Count -gt 0) {
     Write-Host 'No existing DSH was found. The first official DSH run may take a few minutes while npm resolves its dependencies.'
 }
 
-# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.1.2
+# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.1.3
 & $dsh.Executable @invokeArgs
 $code = $LASTEXITCODE
 $timer.Stop()

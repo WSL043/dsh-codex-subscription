@@ -222,9 +222,9 @@ jobs:
           cat > .release/install.md <<'NOTES'
           ## 更新内容 / What's new
 
-          - 多个 DSH-Portable 同时运行时，Windows 安装助手会显示编号供选择 / Windows setup now lets you choose when multiple DSH-Portable copies are running
+          - Windows 安装助手会合并正在运行与常用目录内的 DSH-Portable，再显示编号供选择 / Windows setup combines running and commonly located DSH-Portable copies before asking you to choose
+          - 支持常用目录下一层解压文件夹中的 Portable，无需先启动 / Portable copies nested one folder below a common location are detected without starting them first
           - Agent 或无人值守环境不会猜测安装目标，可继续使用明确路径 / Agent and unattended installs still require an explicit target instead of guessing
-          - 找不到现有 DSH 时，官方 npm 入口固定使用已适配的 DSH 版本并提示首次解析耗时 / The npm fallback pins the compatible DSH release and explains first-run dependency resolution
 
           <!-- dsh-codex-install -->
           ## 安装 / Install
