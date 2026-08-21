@@ -17,6 +17,15 @@ test('client is one removable DSH settings section, not a second application she
   assert.doesNotMatch(source, /createRoot|ReactDOM|index\.html|localStorage|sessionStorage|accessToken|refreshToken/)
 })
 
+test('settings exposes one secret-free support diagnostic that can be copied deliberately', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /['"]diagnostics['"]/u)
+  assert.match(source, /navigator\.clipboard\.writeText/u)
+  assert.match(source, /JSON\.stringify\(report, null, 2\)/u)
+  assert.match(source, /diagnosticsCopy/u)
+  assert.doesNotMatch(source, /accessToken|refreshToken|accountId/u)
+})
+
 test('the English settings navigation label fits the DSH sidebar', async () => {
   const source = await text('src/client.jsx')
   assert.match(source, /const en = \{[\s\S]*?nav:\s*['"]Codex['"][\s\S]*?title:\s*['"]Codex subscription['"]/u)
@@ -146,9 +155,10 @@ test('quota is the primary surface with reset, freshness, loading, and empty-sta
   assert.doesNotMatch(source, /individualLimit\.remaining(?!Percent)/u)
 })
 
-test('settings keep only actionable account, search, quick quota, and usage copy', async () => {
+test('settings keep support diagnostics actionable and omit internal cache or route policy copy', async () => {
   const source = await text('src/client.jsx')
-  assert.doesNotMatch(source, /CacheDiagnostics|Technical diagnostics|技术诊断|codexSubscriptionDiagnostics|codexSubscriptionSafety/u)
+  assert.doesNotMatch(source, /CacheDiagnostics|Technical diagnostics|技术诊断|codexSubscriptionSafety/u)
+  assert.match(source, /diagnosticsHint/u)
   assert.doesNotMatch(source, /routePolicy|noFallback|searchIntro|quickQuotaHint|usageIntro|codexSubscriptionIntro|codexSubscriptionRoutePolicy/u)
 })
 

@@ -13,7 +13,7 @@
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[交给 Agent 安装](#交给-agent推荐) · [Windows 安装](#windows-手动安装) · [更新与卸载](#更新与卸载) · [English](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.en.md)
+[三步开始](#三步开始) · [交给 Agent 安装](#交给-agent推荐) · [更新与卸载](#更新与卸载) · [English](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.en.md)
 
 </div>
 
@@ -21,14 +21,34 @@
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero.webp" width="900" alt="Codex 订阅直接用在 DSH：订阅模型、联网搜索、实时额度和图片生成">
 </p>
 
+## 三步开始
+
+1. **安装插件**：Windows 打开 PowerShell，运行下面一行；已有 `dsh` 或 DSH-Portable 的用户也可使用后面的标准命令。
+
+   ```powershell
+   irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
+   ```
+
+2. **登录订阅**：手动重启 DSH，打开 **设置 -> Codex 订阅**，点击浏览器登录。无需 Codex CLI，也不要粘贴 token。
+3. **开始使用**：在模型选择器中选择 Codex；额度、订阅搜索、图片生成和高速模式都在 DSH 内使用。
+
+已有 `dsh` 命令时，标准安装命令是：
+
+```sh
+dsh plugin --profile web add dsh-codex-subscription
+```
+
+DSH-Portable 用户在产品目录中运行 `./dsh plugin ...`，Windows PowerShell 使用 `.\dsh.exe plugin ...`。完整的官方 npm、Agent 安装、更新和卸载方式见下文。
+
 ## 核心优势
 
 | 能力 | 用户得到什么 |
 | --- | --- |
-| **Codex 图片生成** | 在 DSH 对话里直接描述画面，生成结果会显示在当前会话中 |
 | **订阅模型直连** | 登录 ChatGPT 后直接使用 Codex，不需要 OpenAI API Key 或 Codex CLI |
-| **订阅搜索** | 可在 DSH 默认搜索与 Codex 订阅搜索之间明确切换 |
+| **可恢复、可诊断** | 登录状态会自动对账；设置页可生成不含凭据和账号标识的支持报告 |
 | **额度可见** | 普通 Codex、Spark 等服务端实际返回的额度分开显示 |
+| **订阅搜索** | 可在 DSH 默认搜索与 Codex 订阅搜索之间明确切换 |
+| **Codex 图片生成** | 在 DSH 对话里直接描述画面，生成结果会显示在当前会话中 |
 | **高速模式（Beta）** | 直接在输入框切换标准或高速，无需离开当前会话 |
 
 这些能力共用同一份本机 ChatGPT 登录。订阅路由失败时会明确报错，不会静默切换到其他付费路由。
@@ -124,6 +144,7 @@ DSH-Portable 请把 `dsh` 换成 `./dsh`（PowerShell 使用 `.\dsh.exe`）。�
 - 普通 Codex、Codex-Spark、Credits 等独立额度分开显示；
 - 输入框可显示当前 Codex 模型的剩余额度（Beta，默认关闭）；
 - 输入框可为支持的 Codex 模型切换标准或高速模式（Beta）；
+- 设置页可生成并复制无敏感信息的支持诊断，报告不包含 OAuth 凭据、账号标识或授权时间；
 - 订阅路由不可用时明确报错，不会静默切换到其他付费路由。
 
 ### 输入框额度
@@ -175,6 +196,7 @@ DSH-Portable 在其目录中把上述 `dsh` 换成 `.\dsh.exe`。
 - **找不到 DSH-Portable**：进入它的目录后重新执行安装命令，或直接运行 `.\dsh.exe plugin --profile web add dsh-codex-subscription`；
 - **电脑上有多个 DSH**：单行助手会合并正在运行的副本与常用目录内检测到的 Portable，输入对应编号即可；交给 Agent 时让它进入目标目录，或明确传入 `-DshPath`；
 - **安装仍然失败**：把上面的 Agent 文档链接发给 Agent，不要删除 profile 或随意修改系统 PATH。
+- **需要提交问题**：在设置页底部生成“支持诊断”并复制到 Issue。报告不含凭据和账号标识；仍不要附上登录链接、授权码或浏览器回调地址。
 
 ## 边界与支持
 
