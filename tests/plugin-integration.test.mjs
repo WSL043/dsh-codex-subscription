@@ -135,6 +135,39 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
   })
   assert.doesNotMatch(JSON.stringify(status), /access|refresh|accountId/)
 
+  const diagnostics = await host.handled[0].handler('diagnostics', {}, signal)
+  assert.deepEqual(diagnostics, {
+    ok: true,
+    value: {
+      schemaVersion: 1,
+      package: 'dsh-codex-subscription',
+      version: '1.2.0',
+      runtime: { node: process.version },
+      account: { status: 'signed-out' },
+      provider: {
+        id: 'openai-codex',
+        transport: 'sse',
+        cache: { owner: 'dsh/pi-ai', retention: 'short' },
+      },
+      capabilities: {
+        models: true,
+        quota: true,
+        search: true,
+        imageGeneration: true,
+        composerQuota: true,
+        speedMode: true,
+      },
+      configuration: {
+        quickQuotaVisible: false,
+        searchProvider: 'dsh',
+        speedMode: SPEED_MODE_STANDARD,
+        writable: true,
+      },
+      issues: [],
+    },
+  })
+  assert.doesNotMatch(JSON.stringify(diagnostics), /access|refresh|accountId|expiresAt/)
+
   await host.updateSettings({ quickQuotaVisible: true })
   assert.deepEqual(host.webUpdates, [], 'quota-only settings must not touch the web provider')
   await host.updateSettings({ searchProvider: 'codex' })
@@ -174,6 +207,17 @@ test('usage failures use a DSH-supported bounded RPC error', async () => {
     error: { code: 'internal', message: 'Could not read ChatGPT usage', details: { issues: [] } },
   })
   assert.doesNotMatch(JSON.stringify(result), /host secret/)
+})
+
+test('diagnostics converts credential failures to a fixed public issue without leaking host errors', async () => {
+  const report = await plugin.createSubscriptionDiagnostics({
+    auth: { async status() { throw new Error('refresh-secret account-local') } },
+    preferences: { status: () => ({ quickQuotaVisible: false, searchProvider: 'dsh', speedMode: 'standard', writable: true }) },
+  })
+
+  assert.deepEqual(report.account, { status: 'unknown' })
+  assert.deepEqual(report.issues, [{ code: 'account-status-unavailable' }])
+  assert.doesNotMatch(JSON.stringify(report), /refresh-secret|account-local/)
 })
 
 test('unknown browser search preferences fail safe to the DSH default', () => {

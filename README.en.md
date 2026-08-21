@@ -12,7 +12,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Agent install](#let-an-agent-install-it-recommended) · [Windows install](#manual-windows-install) · [Update and uninstall](#update-and-uninstall) · [简体中文](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md)
+[Three-step start](#three-step-start) · [Agent install](#let-an-agent-install-it-recommended) · [Update and uninstall](#update-and-uninstall) · [简体中文](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md)
 
 </div>
 
@@ -20,14 +20,34 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: subscription models, web search, live quota, and image generation">
 </p>
 
+## Three-step start
+
+1. **Install the plugin.** On Windows, open PowerShell and run the line below. Existing `dsh` and DSH-Portable users can use the standard command that follows.
+
+   ```powershell
+   irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
+   ```
+
+2. **Sign in.** Restart DSH yourself, open **Settings -> Codex**, and choose browser sign-in. No Codex CLI and no pasted token are required.
+3. **Use Codex.** Select a Codex model. Quota, subscription search, image generation, and Fast mode remain inside DSH.
+
+With an existing `dsh` command, install with:
+
+```sh
+dsh plugin --profile web add dsh-codex-subscription
+```
+
+From a DSH-Portable product folder, run `./dsh plugin ...` (`.\dsh.exe plugin ...` in Windows PowerShell). See below for the complete official npm, Agent, update, and uninstall routes.
+
 ## Why this plugin
 
 | Capability | What you get |
 | --- | --- |
-| **Codex image generation** | Describe an image in a DSH conversation and view the generated result in that session |
 | **Subscription models** | Sign in to ChatGPT and use Codex without an OpenAI API key or Codex CLI |
-| **Subscription search** | Explicitly choose DSH default search or Codex subscription search |
+| **Recoverable and diagnosable** | Sign-in state reconciles automatically; Settings can create a support report without credentials or account identifiers |
 | **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate |
+| **Subscription search** | Explicitly choose DSH default search or Codex subscription search |
+| **Codex image generation** | Describe an image in a DSH conversation and view the generated result in that session |
 | **Fast mode (Beta)** | Switch between Standard and Fast directly in the composer |
 
 These capabilities reuse the same local ChatGPT sign-in. Subscription routing failures stay visible and never silently switch to another paid route.
@@ -124,6 +144,7 @@ Restart DSH manually after installation, then:
 - Separate standard Codex, Codex-Spark, Credits, and other independent limits;
 - Optional composer quota for the selected Codex model (Beta, off by default);
 - Standard or Fast mode for supported Codex models directly in the composer (Beta);
+- A copyable support report in Settings that excludes OAuth credentials, account identifiers, and authorization timestamps;
 - Visible errors when subscription routing is unavailable, with no silent paid fallback.
 
 ### Composer quota
