@@ -198,7 +198,7 @@ test('CI uploads the hidden release artifact only after asserting it exists', ()
   assert.match(workflow, /actions\/checkout@v6/u)
   assert.match(workflow, /pnpm\/action-setup@v5/u)
   assert.match(workflow, /actions\/setup-node@v6/u)
-  assert.match(workflow, /actions\/upload-artifact@v6/u)
+  assert.match(workflow, /actions\/upload-artifact@v7/u)
   assert.match(workflow, /find \.artifacts[^\n]*-name '\*\.tgz'/u)
   assert.match(workflow, /test -s "\$artifact"/u)
   assert.match(workflow, /path:\s*\|[\s\S]*\.artifacts\/\*\.tgz/u)
@@ -206,6 +206,29 @@ test('CI uploads the hidden release artifact only after asserting it exists', ()
   assert.match(workflow, /sha256sum dsh-codex\.ps1/u)
   assert.match(workflow, /\.artifacts\/dsh-codex\.ps1\.sha256/u)
   assert.match(workflow, /\.artifacts\/dsh-codex-setup\.ps1/u)
+})
+
+test('official DSH install and web startup are hard gates before a release', () => {
+  const ci = text('.github/workflows/ci.yml')
+  const publish = text('.github/workflows/publish.yml')
+  const smokePath = new URL('../.github/scripts/accept-official-release.ps1', import.meta.url)
+
+  assert.equal(existsSync(smokePath), true)
+  const smoke = readFileSync(smokePath, 'utf8')
+  assert.match(smoke, /Invoke-Dsh @\('plugin', '--profile', \$Profile, 'add'/u)
+  assert.match(smoke, /plugin --profile \$Profile list dsh-codex-subscription --depth 0/u)
+  assert.match(smoke, /--profile \$Profile --dump-config/u)
+  assert.match(smoke, /Invoke-Dsh @\('plugin', '--profile', \$Profile, 'remove'/u)
+  assert.match(smoke, /dsh web:|Invoke-WebRequest/u)
+  assert.match(smoke, /dsh-codex-subscription@/u)
+
+  for (const workflow of [ci, publish]) {
+    assert.match(workflow, /Official DSH end-to-end acceptance/u)
+    assert.match(workflow, /accept-official-release\.ps1/u)
+    assert.match(workflow, /actions\/download-artifact@v8/u)
+  }
+  assert.match(publish, /path:\s*\.candidate\/\*\.tgz[\s\S]*include-hidden-files:\s*true/u)
+  assert.match(publish, /release:\s*\n\s*needs:\s*\[[^\]]*official-acceptance[^\]]*\]/u)
 })
 
 test('one explicit trusted workflow creates the immutable release and publishes npm', () => {
