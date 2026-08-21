@@ -47,7 +47,7 @@ These capabilities reuse the same local ChatGPT sign-in. Subscription routing fa
 
 ## Prepare DSH
 
-This plugin is currently compatible through DeepSeek Harness `0.1.0-rc.8` and requires a ChatGPT account that currently has Codex access.
+This plugin is currently compatible through DeepSeek Harness `0.1.1-rc.1` and requires a ChatGPT account that currently has Codex access.
 
 - Do not want to configure Node.js? Use the [community DSH-Portable package](https://github.com/WSL043/DSH-Portable).
 - Prefer the official route? Follow the [DeepSeek Harness run guide](https://github.com/deepseek-ai/deepseek-harness#run).
@@ -74,11 +74,11 @@ Open PowerShell and paste this one line:
 irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
 ```
 
-The lightweight setup checks the current folder, the system command, common locations, and any running
+The lightweight setup checks the current folder, the system command, common locations, and any running official DSH or
 [DSH-Portable](https://github.com/WSL043/DSH-Portable), then invokes the official `plugin add`
 operation once. It does not recursively scan disks, install pnpm, create a resident command, snapshot a
 profile, or download the plugin twice. It needs no administrator access and never restarts DSH. Only
-when no existing DSH is found does it use the official npm route pinned to `0.1.0-rc.8`; the setup warns
+when no existing DSH is found does it use the official npm route pinned to `0.1.1-rc.1`; the setup warns
 that first-time dependency resolution can take a while.
 
 <details>
@@ -87,9 +87,9 @@ that first-time dependency resolution can take a while.
 The official `npx @deepseek-ai/dsh web` command does not create a global `dsh` command. Keep the full `npx` prefix when installing the plugin:
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.0-rc.8 --profile web --dump-config
+npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web add dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh@0.1.1-rc.1 --profile web --dump-config
 ```
 
 </details>
@@ -147,10 +147,10 @@ see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-
 On Windows, rerun the one-line setup above to update. For the official npm route, use:
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web update dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.0-rc.8 --profile web --dump-config
-npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web remove dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web update dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh@0.1.1-rc.1 --profile web --dump-config
+npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web remove dsh-codex-subscription
 ```
 
 These operations preserve the DSH profile, other plugins, and saved sign-in.
@@ -171,7 +171,7 @@ From a DSH-Portable folder, replace `dsh` above with `.\dsh.exe`.
 
 ## Troubleshooting
 
-- **`dsh` is not recognized:** the official npm route does not create a global `dsh` command; use the complete `npx -y @deepseek-ai/dsh@0.1.0-rc.8 ...` command above;
+- **`dsh` is not recognized:** the official npm route does not create a global `dsh` command; use the complete `npx -y @deepseek-ai/dsh@0.1.1-rc.1 ...` command above;
 - **`dsh.exe` is not recognized:** that file is not in the current folder; enter the DSH-Portable folder first or use the one-line Windows setup;
 - **DSH-Portable is not found:** enter its folder and rerun setup, or run `.\dsh.exe plugin --profile web add dsh-codex-subscription` directly;
 - **More than one DSH exists:** the one-line setup combines running copies with Portable folders detected in common locations; enter its number. For an Agent, use the intended folder or pass `-DshPath` explicitly;

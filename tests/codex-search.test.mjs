@@ -83,7 +83,7 @@ test('Codex search uses refreshed subscription OAuth and returns structured cite
   assert.doesNotMatch(requests[0].init.body, /access-secret|account-local/u)
 })
 
-test('Codex search safely supports the concurrent provider calls used by DSH rc.8', async () => {
+test('Codex search safely supports concurrent provider calls across supported DSH releases', async () => {
   const pending = []
   const provider = createCodexSearchProvider({
     async getAuth() { return { auth: { apiKey: 'access-secret' } } },

@@ -2,6 +2,17 @@ name: Release and publish
 
 on:
   workflow_dispatch:
+    inputs:
+      release_kind:
+        description: Release-note template
+        required: false
+        default: feature
+        type: choice
+        options: [feature, compatibility]
+      dsh_version:
+        description: Exact accepted DSH version for a compatibility release
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -174,6 +185,10 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - uses: actions/download-artifact@v8
+        with:
+          name: release-candidate-${{ github.sha }}
+          path: .candidate
 
       - name: Remove stale draft
         env:
@@ -189,9 +204,17 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
           IS_PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
+          RELEASE_KIND: ${{ inputs.release_kind }}
+          REQUESTED_DSH_VERSION: ${{ inputs.dsh_version }}
         shell: bash
         run: |
+          set -euo pipefail
           mkdir -p .release
+          current_dsh="$(node -p "require('./compatibility.json').latestTested")"
+          if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
+            test -n "${REQUESTED_DSH_VERSION:-}"
+            test "$REQUESTED_DSH_VERSION" = "$current_dsh"
+          fi
           if [[ "$IS_PRERELEASE" == 'true' ]]; then
             cat > .release/install.md <<NOTES
           ## Beta 更新 / Beta preview
@@ -203,9 +226,9 @@ jobs:
           ## 安装 Beta / Install the Beta
 
           \`\`\`sh
-          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
-          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh@0.1.0-rc.8 --profile web --dump-config
+          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
+          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh@0.1.1-rc.1 --profile web --dump-config
           \`\`\`
 
           安装后手动重启 DSH。Beta 不会替换 npm 的稳定版标签。
@@ -214,17 +237,30 @@ jobs:
           ## 卸载 / Uninstall
 
           \`\`\`sh
-          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web remove dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web remove dsh-codex-subscription
           \`\`\`
           NOTES
             exit 0
           fi
-          cat > .release/install.md <<'NOTES'
+          if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
+            cat > .release/install.md <<NOTES
+          ## DSH 兼容更新 / DSH compatibility
+
+          - 已支持 DeepSeek Harness \`$current_dsh\` / Added support for DeepSeek Harness \`$current_dsh\`
+          - 安装、更新、官方 Web 启动和卸载均已通过隔离验收 / Isolated install, update, official Web startup, and uninstall acceptance passed
+
+          NOTES
+          else
+            cat > .release/install.md <<'NOTES'
           ## 更新内容 / What's new
 
           - 速度选择已整合进输入框的模型菜单，与 Codex 的操作方式一致 / Speed selection now lives inside the composer's model menu, matching the Codex interaction
           - 标准速度保持简洁；只有高速模式会在模型名称左侧显示闪电 / Standard stays visually quiet; only Fast shows a lightning icon beside the model name
           - 菜单使用 DSH 的主题与组件，在浅色和深色界面中保持对齐 / The menu follows DSH components and theme tokens in both light and dark modes
+
+          NOTES
+          fi
+          cat >> .release/install.md <<'NOTES'
 
           <!-- dsh-codex-install -->
           ## 安装 / Install
@@ -244,9 +280,9 @@ jobs:
           ### 官方 npm 方式 / Official npm route
 
           ```sh
-          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add dsh-codex-subscription
-          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh@0.1.0-rc.8 --profile web --dump-config
+          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web add dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh@0.1.1-rc.1 --profile web --dump-config
           ```
 
           安装后手动重启 DSH。列表中应只有一个 `dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
@@ -255,10 +291,10 @@ jobs:
           ### 通用更新与卸载 / Universal update and uninstall
 
           ```sh
-          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web update dsh-codex-subscription
-          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh@0.1.0-rc.8 --profile web --dump-config
-          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web remove dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web update dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh@0.1.1-rc.1 --profile web --dump-config
+          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web remove dsh-codex-subscription
           ```
           NOTES
 
@@ -273,10 +309,9 @@ jobs:
           git diff --exit-code -- lib
           rm -rf .artifacts
           mkdir -p .artifacts
-          pnpm pack --pack-destination .artifacts
-          package="$(find .artifacts -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          package="$(find .candidate -maxdepth 1 -type f -name '*.tgz' -print -quit)"
           test -n "$package"
-          mv "$package" .artifacts/dsh-codex-subscription.tgz
+          cp "$package" .artifacts/dsh-codex-subscription.tgz
           test -s .artifacts/dsh-codex-subscription.tgz
           if [[ "$IS_PRERELEASE" != 'true' ]]; then
             cp dsh-codex.ps1 .artifacts/dsh-codex.ps1
@@ -425,6 +460,32 @@ jobs:
             }
           done
 
+      - name: Download the accepted package artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+        run: |
+          mkdir -p .release-artifact
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --pattern dsh-codex-subscription.tgz --dir .release-artifact
+
+      - name: Verify accepted package metadata
+        env:
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+        run: |
+          tar -xOf .release-artifact/dsh-codex-subscription.tgz package/package.json > .release-artifact/package.json
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs'
+          const expected = JSON.parse(readFileSync('package.json', 'utf8'))
+          const actual = JSON.parse(readFileSync('.release-artifact/package.json', 'utf8'))
+          if (actual.name !== expected.name || actual.version !== expected.version) {
+            throw new Error(`Release package is ${actual.name}@${actual.version}; expected ${expected.name}@${expected.version}.`)
+          }
+          if (process.env.RELEASE_TAG !== `v${actual.version}`) {
+            throw new Error(`Release tag ${process.env.RELEASE_TAG} does not match accepted package ${actual.version}.`)
+          }
+          NODE
+
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm test
       - run: pnpm run build
@@ -448,4 +509,4 @@ jobs:
         if: steps.npm-version.outputs.needed == 'true'
         env:
           NPM_TAG: ${{ needs.preflight.outputs.npm_tag }}
-        run: npm publish --access public --tag "$NPM_TAG"
+        run: npm publish ./.release-artifact/dsh-codex-subscription.tgz --access public --tag "$NPM_TAG"

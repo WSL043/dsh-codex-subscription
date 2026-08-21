@@ -118,6 +118,8 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
   assert.deepEqual(host.searchProviders.map(provider => provider.id), ['codex-subscription'])
   assert.deepEqual(host.tools.map(tool => tool.name), ['codex_image_generate'])
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
+  const models = await host.registered[0].adapter.listModels('openai-codex')
+  assert.ok(models.length > 0, 'the supported DSH adapter must receive auth before creating its model registry')
   assert.equal(host.handled.length, 1)
   assert.equal(host.handled[0].channel, '/codex-subscription')
   assert.deepEqual(host.handled[0].options, { authority: 'loopback' })

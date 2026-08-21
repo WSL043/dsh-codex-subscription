@@ -11,12 +11,13 @@ export { createOpenAICodexProvider as openaiCodexProvider }
  * Preserve pi-ai's native Codex OAuth provider while allowing DSH's generic
  * PiAiAdapter to pass the access token resolved by the host credential store.
  *
- * PiAiAdapter owns a request-local Models collection without a credential
- * store. A pure OAuth provider ignores its `apiKey` request override and fails
- * before dispatch with "Provider is not configured". This non-interactive
- * bridge teaches that collection how to consume only the already-refreshed
- * token for this request; login, refresh, persistence, headers, transport, and
- * model behavior remain owned by the original provider.
+ * PiAiAdapter owns a request-local Models collection backed by the same DSH
+ * credential store as this provider. A pure OAuth provider ignores its
+ * `apiKey` request override and otherwise fails before dispatch with "Provider
+ * is not configured". This non-interactive bridge teaches that collection how
+ * to consume only the already-refreshed token for this request; login, refresh,
+ * persistence, headers, transport, and model behavior remain owned by the
+ * original provider.
  */
 export function openaiCodexSubscriptionProvider({ resolveSpeedMode = () => undefined } = {}) {
   const provider = createOpenAICodexProvider()

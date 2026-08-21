@@ -9,5 +9,5 @@ test('rebuilding the same GitHub Release does not fail on an already-published n
   assert.match(workflow, /npm view "dsh-codex-subscription@\$version" version/u)
   assert.match(workflow, /needed=false/u)
   assert.match(workflow, /if: steps\.npm-version\.outputs\.needed == 'true'/u)
-  assert.match(workflow, /npm publish --access public/u)
+  assert.match(workflow, /npm publish \.\/\.release-artifact\/dsh-codex-subscription\.tgz --access public/u)
 })

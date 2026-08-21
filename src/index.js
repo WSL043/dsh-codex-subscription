@@ -160,6 +160,13 @@ export function apply(ctx) {
   })
   const profiles = new Map([[PROVIDER, profile]])
   const resolveAuth = () => authModels.getAuth(PROVIDER)
+  const adapterAuth = Object.freeze({
+    credentials: store,
+    authContext: Object.freeze({
+      env: async () => undefined,
+      fileExists: async () => false,
+    }),
+  })
   ctx.tools.register(createCodexImageTool({
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
@@ -179,6 +186,7 @@ export function apply(ctx) {
       }
       return resolved.auth.apiKey
     },
+    auth: adapterAuth,
     resolveAttachments: () => ctx.get?.('attachments'),
   })
   ctx.llm.registerAdapter([PROVIDER], adapter)
