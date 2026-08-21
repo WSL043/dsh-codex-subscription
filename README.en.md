@@ -47,18 +47,12 @@ These capabilities reuse the same local ChatGPT sign-in. Subscription routing fa
 
 ## Prepare DSH
 
-This plugin supports DeepSeek Harness `0.1.0-rc.6`, `0.1.0-rc.7`, and `0.1.0-rc.8`, and requires a ChatGPT account that currently has Codex access.
+This plugin is currently compatible through DeepSeek Harness `0.1.0-rc.8` and requires a ChatGPT account that currently has Codex access.
 
 - Do not want to configure Node.js? Use the [community DSH-Portable package](https://github.com/WSL043/DSH-Portable).
 - Prefer the official route? Follow the [DeepSeek Harness run guide](https://github.com/deepseek-ai/deepseek-harness#run).
 
 ## Install
-
-To preview the composer Fast mode without replacing npm `latest`, install the Beta explicitly:
-
-```sh
-dsh plugin --profile web add dsh-codex-subscription@1.1.0-beta.0
-```
 
 ### Let an Agent install it (recommended)
 
@@ -86,7 +80,20 @@ operation once. It does not recursively scan disks, install pnpm, create a resid
 profile, or download the plugin twice. It needs no administrator access and never restarts DSH.
 
 <details>
-<summary>macOS, Linux, or an existing <code>dsh</code> command (universal install)</summary>
+<summary>Official npm route (Node.js installed)</summary>
+
+The official `npx @deepseek-ai/dsh web` command does not create a global `dsh` command. Keep the full `npx` prefix when installing the plugin:
+
+```sh
+npx -y @deepseek-ai/dsh plugin --profile web add dsh-codex-subscription
+npx -y @deepseek-ai/dsh plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh --profile web --dump-config
+```
+
+</details>
+
+<details>
+<summary>An existing <code>dsh</code> command or a DSH-Portable folder</summary>
 
 ```sh
 dsh plugin --profile web add dsh-codex-subscription
@@ -94,8 +101,8 @@ dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-The plugin list should contain one `dsh-codex-subscription`, and the config should contain one
-`codex-subscription` entry.
+For DSH-Portable, replace `dsh` with `./dsh` (`.\dsh.exe` in PowerShell). The plugin list should contain
+one `dsh-codex-subscription`, and the config should contain one `codex-subscription` entry.
 
 </details>
 
@@ -135,8 +142,16 @@ see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-
 
 ## Update and uninstall
 
-On Windows, rerun the one-line setup above to update. Use the official DSH command to uninstall. Both
-operations preserve the DSH profile, other plugins, and saved sign-in.
+On Windows, rerun the one-line setup above to update. For the official npm route, use:
+
+```sh
+npx -y @deepseek-ai/dsh plugin --profile web update dsh-codex-subscription
+npx -y @deepseek-ai/dsh plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh --profile web --dump-config
+npx -y @deepseek-ai/dsh plugin --profile web remove dsh-codex-subscription
+```
+
+These operations preserve the DSH profile, other plugins, and saved sign-in.
 
 <details>
 <summary>Update or uninstall with an existing <code>dsh</code> command</summary>
@@ -148,18 +163,14 @@ dsh --profile web --dump-config
 dsh plugin --profile web remove dsh-codex-subscription
 ```
 
-When migrating manually from v0.2.1, remove the old package only after the new one installs successfully:
-
-```sh
-dsh plugin --profile web remove @wsl043/dsh-codex-subscription
-```
-
 </details>
 
 From a DSH-Portable folder, replace `dsh` above with `.\dsh.exe`.
 
 ## Troubleshooting
 
+- **`dsh` is not recognized:** the official npm route does not create a global `dsh` command; use the complete `npx -y @deepseek-ai/dsh ...` command above;
+- **`dsh.exe` is not recognized:** that file is not in the current folder; enter the DSH-Portable folder first or use the one-line Windows setup;
 - **DSH-Portable is not found:** enter its folder and rerun setup, or run `.\dsh.exe plugin --profile web add dsh-codex-subscription` directly;
 - **More than one DSH exists:** enter the intended DSH-Portable folder before running setup;
 - **Setup still fails:** send the Agent guide above to an Agent. Do not delete the profile or change the system PATH to force an install.

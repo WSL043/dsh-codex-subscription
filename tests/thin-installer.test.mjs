@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 
 const installer = new URL('../dsh-codex-setup.ps1', import.meta.url)
-const packageSpec = 'dsh-codex-subscription@1.0.6'
+const packageSpec = 'dsh-codex-subscription@1.1.0'
 const windowsTest = process.platform === 'win32' ? test : test.skip
 
 test('setup remains a thin official DSH CLI launcher', async () => {
@@ -62,6 +62,30 @@ windowsTest('PATH discovery works and preserves DSH failures', async t => {
 
   assert.notEqual(result.status, 0)
   assert.match(`${result.stderr}\n${result.stdout}`, /exit code 23/i)
+})
+
+windowsTest('official npm users do not need a global dsh command', async t => {
+  const fixture = await mkdtemp(join(tmpdir(), 'dsh-codex-thin-installer-'))
+  t.after(() => rm(fixture, { recursive: true, force: true }))
+  const log = join(fixture, 'args.txt')
+  await writeFile(join(fixture, 'npx.cmd'), '@echo off\r\n>> "%DSH_INSTALLER_TEST_LOG%" echo %*\r\nexit /b 0\r\n')
+
+  const result = spawnSync('powershell.exe', [
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', installer.pathname.slice(1),
+  ], {
+    cwd: fixture,
+    env: {
+      ...process.env,
+      PATH: `${fixture}${delimiter}${process.env.PATH ?? ''}`,
+      USERPROFILE: fixture,
+      DSH_PORTABLE_ROOT: '',
+      DSH_INSTALLER_TEST_LOG: log,
+    },
+    encoding: 'utf8',
+  })
+
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.equal((await readFile(log, 'utf8')).trim(), `-y @deepseek-ai/dsh plugin --profile web add ${packageSpec}`)
 })
 
 windowsTest('download-pipe execution is non-interactive and invokes one add', async t => {

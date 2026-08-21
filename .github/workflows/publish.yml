@@ -163,9 +163,9 @@ jobs:
           ## 安装 Beta / Install the Beta
 
           \`\`\`sh
-          dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
-          dsh plugin --profile web list dsh-codex-subscription --depth 0
-          dsh --profile web --dump-config
+          npx -y @deepseek-ai/dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
+          npx -y @deepseek-ai/dsh plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh --profile web --dump-config
           \`\`\`
 
           安装后手动重启 DSH。Beta 不会替换 npm 的稳定版标签。
@@ -174,7 +174,7 @@ jobs:
           ## 卸载 / Uninstall
 
           \`\`\`sh
-          dsh plugin --profile web remove dsh-codex-subscription
+          npx -y @deepseek-ai/dsh plugin --profile web remove dsh-codex-subscription
           \`\`\`
           NOTES
             exit 0
@@ -197,15 +197,15 @@ jobs:
           irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
           ```
 
-          助手只查找当前目录、系统命令和常见 DSH-Portable 位置，然后执行一次官方 `plugin add`。无需管理员权限，完成后请手动重启 DSH。
-          Setup checks the current folder, the system command, and common DSH-Portable locations, then runs the official `plugin add` once. It needs no administrator access. Restart DSH manually afterward.
+          助手会使用当前目录、系统命令、常见 DSH-Portable 位置，或官方 npm 入口执行一次 `plugin add`。无需管理员权限，完成后请手动重启 DSH。
+          Setup uses the current folder, a system command, a common DSH-Portable location, or the official npm route, then runs `plugin add` once. It needs no administrator access. Restart DSH manually afterward.
 
-          ### macOS、Linux，或已有 dsh / macOS, Linux, or an existing dsh command
+          ### 官方 npm 方式 / Official npm route
 
           ```sh
-          dsh plugin --profile web add dsh-codex-subscription
-          dsh plugin --profile web list dsh-codex-subscription --depth 0
-          dsh --profile web --dump-config
+          npx -y @deepseek-ai/dsh plugin --profile web add dsh-codex-subscription
+          npx -y @deepseek-ai/dsh plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh --profile web --dump-config
           ```
 
           安装后手动重启 DSH。列表中应只有一个 `dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
@@ -214,10 +214,10 @@ jobs:
           ### 通用更新与卸载 / Universal update and uninstall
 
           ```sh
-          dsh plugin --profile web update dsh-codex-subscription
-          dsh plugin --profile web list dsh-codex-subscription --depth 0
-          dsh --profile web --dump-config
-          dsh plugin --profile web remove dsh-codex-subscription
+          npx -y @deepseek-ai/dsh plugin --profile web update dsh-codex-subscription
+          npx -y @deepseek-ai/dsh plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh --profile web --dump-config
+          npx -y @deepseek-ai/dsh plugin --profile web remove dsh-codex-subscription
           ```
           NOTES
 
