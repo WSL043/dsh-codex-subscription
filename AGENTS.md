@@ -6,7 +6,7 @@ Use this guide when a user asks an Agent to install, update, verify, or remove
 ## Safety
 
 - Confirm the target DSH installation and profile. Use `web` only when it is the user's target.
-- Use the exact `1.1.1` package below; do not install a moving branch.
+- Use the exact `1.1.2` package below; do not install a moving branch.
 - Never print OAuth credentials, account IDs, authorization callbacks, or credential-store contents.
 - Preserve the DSH profile, unrelated plugins, sessions, and saved sign-in.
 - Do not start, stop, or restart DSH without explicit permission.
@@ -38,19 +38,19 @@ For an official DSH installation run through npm, keep the complete `npx` prefix
 run command does not create a global `dsh` command:
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add dsh-codex-subscription@1.1.1
+npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add dsh-codex-subscription@1.1.2
 ```
 
 With an existing global `dsh` command:
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@1.1.1
+dsh plugin --profile web add dsh-codex-subscription@1.1.2
 ```
 
 From a DSH-Portable folder:
 
 ```powershell
-.\dsh.exe plugin --profile web add dsh-codex-subscription@1.1.1
+.\dsh.exe plugin --profile web add dsh-codex-subscription@1.1.2
 ```
 
 Use the same `add` command to update or repair. This is the complete package-changing operation.
@@ -70,7 +70,7 @@ For DSH-Portable, replace `dsh` with `.\dsh.exe`. Static acceptance requires:
 
 For the official npm route, run the same checks with `npx -y @deepseek-ai/dsh@0.1.0-rc.8` in place of `dsh`.
 
-1. `dsh-codex-subscription` version `1.1.1` appears exactly once.
+1. `dsh-codex-subscription` version `1.1.2` appears exactly once.
 2. `codex-subscription` appears exactly once in the composed config.
 3. No unrelated plugin or profile was changed and DSH was not restarted.
 
