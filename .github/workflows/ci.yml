@@ -43,7 +43,7 @@ jobs:
           test -s .artifacts/dsh-codex.ps1
           test -s .artifacts/dsh-codex.ps1.sha256
           test -s .artifacts/dsh-codex-setup.ps1
-      - uses: actions/upload-artifact@v6
+      - uses: actions/upload-artifact@v7
         with:
           name: dsh-codex-subscription-${{ github.sha }}
           path: |
@@ -77,3 +77,29 @@ jobs:
         run: node --test tests/powershell-manager.test.mjs tests/thin-installer.test.mjs
         env:
           DSH_CODEX_TEST_USER_PATH: '1'
+
+  official-acceptance:
+    name: Official DSH end-to-end acceptance
+    needs: verify
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11.19.0
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/download-artifact@v8
+        with:
+          name: dsh-codex-subscription-${{ github.sha }}
+          path: .candidate
+      - name: Official DSH end-to-end acceptance
+        shell: powershell
+        run: |
+          $package = (Get-ChildItem -LiteralPath .candidate -Filter '*.tgz' -File | Select-Object -First 1).FullName
+          if (-not $package) { throw 'Candidate package artifact was not downloaded.' }
+          .\.github\scripts\accept-official-release.ps1 -PackagePath $package
