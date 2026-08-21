@@ -221,14 +221,29 @@ jobs:
           git add -- .github/scripts/accept-official-release.ps1 .github/workflows/publish.yml AGENTS.md README.md README.en.md compatibility.json dsh-codex-setup.ps1 dsh-codex.ps1 lib package.json pnpm-lock.yaml pnpm-workspace.yaml
           git commit -m "chore: support DSH $DSH_VERSION"
           git push origin HEAD:main
-      - name: Start the verified release workflow
+      - name: Dispatch and await the verified release workflow
         env:
           GH_TOKEN: ${{ github.token }}
           DSH_VERSION: ${{ needs.prepare.outputs.dsh_version }}
         shell: bash
         run: |
+          set -euo pipefail
+          request_id="compat-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          title="Release $request_id"
           gh workflow run publish.yml \
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
+            -f request_id="$request_id" \
             -f release_kind=compatibility \
             -f dsh_version="$DSH_VERSION"
+          release_run=""
+          for attempt in $(seq 1 90); do
+            sleep 2
+            runs="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow publish.yml --event workflow_dispatch --limit 20 --json databaseId,displayTitle)"
+            release_run="$(jq -r --arg title "$title" 'map(select(.displayTitle == $title))[0].databaseId // empty' <<< "$runs")"
+            if [ -n "$release_run" ]; then
+              break
+            fi
+          done
+          test -n "$release_run"
+          gh run watch "$release_run" --repo "$GITHUB_REPOSITORY" --exit-status

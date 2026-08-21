@@ -1,8 +1,13 @@
 name: Release and publish
+run-name: Release ${{ inputs.request_id || github.sha }}
 
 on:
   workflow_dispatch:
     inputs:
+      request_id:
+        description: Optional correlation id used by the compatibility autopilot
+        required: false
+        type: string
       release_kind:
         description: Release-note template
         required: false
@@ -247,7 +252,7 @@ jobs:
           ## DSH 兼容更新 / DSH compatibility
 
           - 已支持 DeepSeek Harness \`$current_dsh\` / Added support for DeepSeek Harness \`$current_dsh\`
-          - 安装、更新、官方 Web 启动和卸载均已通过隔离验收 / Isolated install, update, official Web startup, and uninstall acceptance passed
+          - 支持在官方 DSH Web 中安装、更新和卸载 / Supports install, update, and uninstall in official DSH Web
 
           NOTES
           else
