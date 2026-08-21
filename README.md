@@ -50,7 +50,7 @@
 
 本插件当前适配到 DeepSeek Harness `0.1.1-rc.1`，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
 
-- 不想配置 Node.js：使用 [DSH-Portable（社区便携包）](https://github.com/WSL043/DSH-Portable)；
+- 不想配置 Node.js：使用 [DSH-Portable](https://github.com/WSL043/DSH-Portable)。这是社区桌面分发，提供 Windows 便携版和安装版，以及 macOS、Linux 桌面包；
 - 想按官方方式运行：查看 [DeepSeek Harness 官方说明](https://github.com/deepseek-ai/deepseek-harness#run)。
 
 ## 安装

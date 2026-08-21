@@ -84,8 +84,9 @@ test('GitHub defaults to concise Chinese and directs Agents to their own guide',
     assert.match(doc, /img\.shields\.io\/npm\/v\/dsh-codex-subscription/u)
     assert.match(doc, /npmjs\.com\/package\/dsh-codex-subscription/u)
   }
-  assert.match(readme, /## 准备 DSH[\s\S]*DSH-Portable（社区便携包）[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## 安装[\s\S]*### 交给 Agent（推荐）[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md[\s\S]*### Windows 手动安装/u)
-  assert.match(readmeEn, /## Prepare DSH[\s\S]*community DSH-Portable package[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## Install[\s\S]*### Let an Agent install it \(recommended\)[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md[\s\S]*### Manual Windows install/u)
+  assert.match(readme, /## 准备 DSH[\s\S]*DSH-Portable[\s\S]*社区桌面分发[\s\S]*便携版和安装版[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## 安装[\s\S]*### 交给 Agent（推荐）[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md[\s\S]*### Windows 手动安装/u)
+  assert.match(readmeEn, /## Prepare DSH[\s\S]*DSH-Portable[\s\S]*community desktop distribution[\s\S]*portable and installed editions[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## Install[\s\S]*### Let an Agent install it \(recommended\)[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md[\s\S]*### Manual Windows install/u)
+  assert.doesNotMatch(`${readme}\n${readmeEn}`, /社区便携包|community DSH-Portable package/iu)
   assert.match(readme, /本项目的问题反馈[\s\S]*github\.com\/WSL043\/dsh-codex-subscription\/issues[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
   assert.match(readmeEn, /project feedback[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
   assert.match(readme, /只需要复制这一行/u)

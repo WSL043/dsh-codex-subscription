@@ -49,7 +49,7 @@ These capabilities reuse the same local ChatGPT sign-in. Subscription routing fa
 
 This plugin is currently compatible through DeepSeek Harness `0.1.1-rc.1` and requires a ChatGPT account that currently has Codex access.
 
-- Do not want to configure Node.js? Use the [community DSH-Portable package](https://github.com/WSL043/DSH-Portable).
+- Do not want to configure Node.js? Use [DSH-Portable](https://github.com/WSL043/DSH-Portable), a community desktop distribution with portable and installed editions for Windows plus desktop packages for macOS and Linux.
 - Prefer the official route? Follow the [DeepSeek Harness run guide](https://github.com/deepseek-ai/deepseek-harness#run).
 
 ## Install
