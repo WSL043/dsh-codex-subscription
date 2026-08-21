@@ -7,7 +7,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$PackageSpec = 'dsh-codex-subscription@1.1.1'
+$PackageSpec = 'dsh-codex-subscription@1.1.2'
 $DshRelease = '0.1.0-rc.8'
 
 function New-DshInvocation {
@@ -65,6 +65,35 @@ function Find-RunningPortableDsh {
     }
 }
 
+function Select-DshCandidate {
+    param(
+        [Parameter(Mandatory = $true)][string[]] $Candidates,
+        [Parameter(Mandatory = $true)][string] $Reason
+    )
+
+    Write-Host $Reason
+    for ($index = 0; $index -lt $Candidates.Count; $index++) {
+        Write-Host "[$($index + 1)] $($Candidates[$index])"
+    }
+
+    for ($attempt = 0; $attempt -lt 3; $attempt++) {
+        try {
+            $selection = Read-Host 'Enter a number (or press Ctrl+C to cancel)'
+        } catch {
+            throw 'Could not read a selection. Run setup from the intended DSH-Portable folder or pass -DshPath.'
+        }
+        if ($selection -match '^\d+$') {
+            $selectedIndex = [int] $selection - 1
+            if ($selectedIndex -ge 0 -and $selectedIndex -lt $Candidates.Count) {
+                return $Candidates[$selectedIndex]
+            }
+        }
+        Write-Host 'That number is not in the list.'
+    }
+
+    throw 'No valid DSH-Portable was selected. Run setup from the intended DSH-Portable folder or pass -DshPath.'
+}
+
 function Resolve-DshCommand {
     if ($DshPath) {
         if (-not (Test-Path -LiteralPath $DshPath -PathType Leaf)) {
@@ -95,8 +124,8 @@ function Resolve-DshCommand {
 
     $runningCandidates = @(Find-RunningPortableDsh | Sort-Object -Unique)
     if ($runningCandidates.Count -gt 1) {
-        $paths = ($runningCandidates | ForEach-Object { "- $_" }) -join [Environment]::NewLine
-        throw "More than one running DSH-Portable was found. Run setup from the intended Portable folder or pass -DshPath:`n$paths"
+        $selected = Select-DshCandidate -Candidates $runningCandidates -Reason 'Choose the DSH-Portable to use:'
+        return New-DshInvocation -Executable $selected -Label $selected
     }
     if ($runningCandidates.Count -eq 1) {
         return New-DshInvocation -Executable $runningCandidates[0] -Label $runningCandidates[0]
@@ -120,8 +149,8 @@ function Resolve-DshCommand {
         }
     } | Sort-Object -Unique)
     if ($resolvedCandidates.Count -gt 1) {
-        $paths = ($resolvedCandidates | ForEach-Object { "- $_" }) -join [Environment]::NewLine
-        throw "More than one DSH-Portable folder was found. Run setup from the intended Portable folder or pass -DshPath:`n$paths"
+        $selected = Select-DshCandidate -Candidates $resolvedCandidates -Reason 'Choose the DSH-Portable to use:'
+        return New-DshInvocation -Executable $selected -Label $selected
     }
     if ($resolvedCandidates.Count -eq 1) {
         return New-DshInvocation -Executable $resolvedCandidates[0] -Label $resolvedCandidates[0]
@@ -145,7 +174,7 @@ if ($dsh.PrefixArguments.Count -gt 0) {
     Write-Host 'No existing DSH was found. The first official DSH run may take a few minutes while npm resolves its dependencies.'
 }
 
-# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.1.1
+# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.1.2
 & $dsh.Executable @invokeArgs
 $code = $LASTEXITCODE
 $timer.Stop()

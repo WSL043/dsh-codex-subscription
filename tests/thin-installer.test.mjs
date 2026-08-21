@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 
 const installer = new URL('../dsh-codex-setup.ps1', import.meta.url)
-const packageSpec = 'dsh-codex-subscription@1.1.1'
+const packageSpec = 'dsh-codex-subscription@1.1.2'
 const windowsTest = process.platform === 'win32' ? test : test.skip
 
 test('setup remains a thin official DSH CLI launcher', async () => {
@@ -136,7 +136,7 @@ windowsTest('a running Portable in an arbitrary folder is used instead of npx', 
   await assert.rejects(readFile(npxLog, 'utf8'), /ENOENT/u)
 })
 
-windowsTest('setup stops instead of guessing between two running Portables', async t => {
+windowsTest('setup lets an interactive user select between two running Portables', async t => {
   const fixture = await mkdtemp(join(tmpdir(), 'dsh-codex-running-portables-'))
   t.after(() => rm(fixture, { recursive: true, force: true }))
   const processes = []
@@ -148,7 +148,7 @@ windowsTest('setup stops instead of guessing between two running Portables', asy
     await mkdir(join(root, 'runtime', 'node'), { recursive: true })
     await mkdir(join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib'), { recursive: true })
     await writeFile(node, '')
-    await writeFile(dsh, '')
+    await copyFile(process.env.ComSpec, dsh)
     await writeFile(bin, '')
     processes.push({ node, bin, dsh })
   }
@@ -160,6 +160,7 @@ windowsTest('setup stops instead of guessing between two running Portables', asy
     `[pscustomobject]@{ ExecutablePath = '${quote(node)}'; CommandLine = '\"${quote(node)}\" \"${quote(bin)}\" web' }`).join(', ')
   const command = [
     `function global:Get-CimInstance { [CmdletBinding()] param($ClassName, $Filter); @(${processLiterals}) }`,
+    `function global:Read-Host { param($Prompt); '2' }`,
     `Get-Content -LiteralPath '${quote(installer.pathname.slice(1))}' -Raw | Invoke-Expression`,
   ].join('; ')
   const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', command], {
@@ -174,11 +175,52 @@ windowsTest('setup stops instead of guessing between two running Portables', asy
     encoding: 'utf8',
   })
 
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  const output = `${result.stderr}\n${result.stdout}`
+  assert.match(output, /Choose the DSH-Portable to use/u)
+  for (const { dsh } of processes) assert.match(output, new RegExp(dsh.replaceAll('\\', '\\\\')))
+  assert.match(output, new RegExp(`Target: ${processes[1].dsh.replaceAll('\\', '\\\\')}`))
+  await assert.rejects(readFile(npxLog, 'utf8'), /ENOENT/u)
+})
+
+windowsTest('setup stops safely when multiple Portables cannot be selected interactively', async t => {
+  const fixture = await mkdtemp(join(tmpdir(), 'dsh-codex-running-portables-noninteractive-'))
+  t.after(() => rm(fixture, { recursive: true, force: true }))
+  const processLiterals = []
+  for (const name of ['Portable A', 'Portable B']) {
+    const root = join(fixture, name)
+    const node = join(root, 'runtime', 'node', 'node.exe')
+    const dsh = join(root, 'dsh.exe')
+    const bin = join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+    await mkdir(join(root, 'runtime', 'node'), { recursive: true })
+    await mkdir(join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib'), { recursive: true })
+    await writeFile(node, '')
+    await writeFile(dsh, '')
+    await writeFile(bin, '')
+    const quote = value => value.replaceAll("'", "''")
+    processLiterals.push(`[pscustomobject]@{ ExecutablePath = '${quote(node)}'; CommandLine = '\"${quote(node)}\" \"${quote(bin)}\" web' }`)
+  }
+
+  const quote = value => value.replaceAll("'", "''")
+  const command = [
+    `function global:Get-CimInstance { [CmdletBinding()] param($ClassName, $Filter); @(${processLiterals.join(', ')}) }`,
+    `Get-Content -LiteralPath '${quote(installer.pathname.slice(1))}' -Raw | Invoke-Expression`,
+  ].join('; ')
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', command], {
+    cwd: fixture,
+    env: {
+      ...process.env,
+      PATH: `${fixture}${delimiter}${process.env.PATH ?? ''}`,
+      USERPROFILE: fixture,
+      DSH_PORTABLE_ROOT: '',
+    },
+    encoding: 'utf8',
+  })
+
   assert.notEqual(result.status, 0)
   const output = `${result.stderr}\n${result.stdout}`
-  assert.match(output, /More than one running DSH-Portable was found/u)
-  for (const { dsh } of processes) assert.match(output, new RegExp(dsh.replaceAll('\\', '\\\\')))
-  await assert.rejects(readFile(npxLog, 'utf8'), /ENOENT/u)
+  assert.match(output, /Could not read a selection/u)
+  assert.match(output, /-DshPath/u)
 })
 
 windowsTest('download-pipe execution is non-interactive and invokes one add', async t => {
