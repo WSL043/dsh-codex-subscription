@@ -7,14 +7,27 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$PackageSpec = 'dsh-codex-subscription@1.0.6'
+$PackageSpec = 'dsh-codex-subscription@1.1.0'
+
+function New-DshInvocation {
+    param(
+        [Parameter(Mandatory = $true)][string] $Executable,
+        [string[]] $PrefixArguments = @(),
+        [Parameter(Mandatory = $true)][string] $Label
+    )
+    return [PSCustomObject]@{
+        Executable = $Executable
+        PrefixArguments = $PrefixArguments
+        Label = $Label
+    }
+}
 
 function Resolve-DshCommand {
     if ($DshPath) {
         if (-not (Test-Path -LiteralPath $DshPath -PathType Leaf)) {
             throw "DSH executable not found: $DshPath"
         }
-        return (Resolve-Path -LiteralPath $DshPath).Path
+        return New-DshInvocation -Executable (Resolve-Path -LiteralPath $DshPath).Path -Label $DshPath
     }
 
     $candidates = [Collections.Generic.List[string]]::new()
@@ -35,20 +48,28 @@ function Resolve-DshCommand {
 
     foreach ($candidate in $candidates) {
         if ($candidate -and (Test-Path -LiteralPath $candidate -PathType Leaf)) {
-            return (Resolve-Path -LiteralPath $candidate).Path
+            $resolved = (Resolve-Path -LiteralPath $candidate).Path
+            return New-DshInvocation -Executable $resolved -Label $resolved
         }
     }
 
-    throw 'DSH was not found. Run this command in the DSH-Portable folder, add dsh to PATH, or pass -DshPath.'
+    $npx = Get-Command npx -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($npx) {
+        return New-DshInvocation -Executable $npx.Source -PrefixArguments @('-y', '@deepseek-ai/dsh') -Label 'official DSH via npx'
+    }
+
+    throw 'DSH was not found. Run this command in the DSH-Portable folder, install Node.js for the official npx route, add dsh to PATH, or pass -DshPath.'
 }
 
 $dsh = Resolve-DshCommand
+$invokeArgs = @($dsh.PrefixArguments) + @('plugin', '--profile', $Profile, 'add', $PackageSpec)
 $timer = [Diagnostics.Stopwatch]::StartNew()
-Write-Host "Target: $dsh"
+Write-Host "Target: $($dsh.Label)"
 Write-Host 'Installing or updating through the official DSH plugin command...'
 
-# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.0.6
-& $dsh plugin --profile $Profile add $PackageSpec
+# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.1.0
+& $dsh.Executable @invokeArgs
 $code = $LASTEXITCODE
 $timer.Stop()
 if ($code -ne 0) {

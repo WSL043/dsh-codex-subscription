@@ -6,7 +6,7 @@ Use this guide when a user asks an Agent to install, update, verify, or remove
 ## Safety
 
 - Confirm the target DSH installation and profile. Use `web` only when it is the user's target.
-- Use the exact `1.0.6` package below; do not install a moving branch.
+- Use the exact `1.1.0` package below; do not install a moving branch.
 - Never print OAuth credentials, account IDs, authorization callbacks, or credential-store contents.
 - Preserve the DSH profile, unrelated plugins, sessions, and saved sign-in.
 - Do not start, stop, or restart DSH without explicit permission.
@@ -18,6 +18,7 @@ On Windows, check the command and common Portable entry points without recursive
 
 ```powershell
 Get-Command dsh -ErrorAction SilentlyContinue
+Get-Command npx -ErrorAction SilentlyContinue
 Test-Path -LiteralPath '.\dsh.exe' -PathType Leaf
 Test-Path -LiteralPath "$env:USERPROFILE\Downloads\DSH-Portable\dsh.exe" -PathType Leaf
 ```
@@ -28,27 +29,28 @@ instead of recreating its package-manager environment in this installer.
 
 ## Install or update
 
-With an existing `dsh` command:
+For an official DSH installation run through npm, keep the complete `npx` prefix because the official
+run command does not create a global `dsh` command:
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@1.0.6
+npx -y @deepseek-ai/dsh plugin --profile web add dsh-codex-subscription@1.1.0
+```
+
+With an existing global `dsh` command:
+
+```sh
+dsh plugin --profile web add dsh-codex-subscription@1.1.0
 ```
 
 From a DSH-Portable folder:
 
 ```powershell
-.\dsh.exe plugin --profile web add dsh-codex-subscription@1.0.6
+.\dsh.exe plugin --profile web add dsh-codex-subscription@1.1.0
 ```
 
 Use the same `add` command to update or repair. This is the complete package-changing operation.
 Do not download pnpm, create a second package store, save profile snapshots, add a resident manager,
 or restart DSH automatically. The DSH CLI owns package resolution, locking, and profile composition.
-
-For a legacy installation, first add and verify the current package. Only then remove the old package:
-
-```sh
-dsh plugin --profile web remove @wsl043/dsh-codex-subscription
-```
 
 ## Verify
 
@@ -61,10 +63,11 @@ dsh --profile web --dump-config
 
 For DSH-Portable, replace `dsh` with `.\dsh.exe`. Static acceptance requires:
 
-1. `dsh-codex-subscription` version `1.0.6` appears exactly once.
+For the official npm route, run the same checks with `npx -y @deepseek-ai/dsh` in place of `dsh`.
+
+1. `dsh-codex-subscription` version `1.1.0` appears exactly once.
 2. `codex-subscription` appears exactly once in the composed config.
-3. The legacy package is absent after a migration.
-4. No unrelated plugin or profile was changed and DSH was not restarted.
+3. No unrelated plugin or profile was changed and DSH was not restarted.
 
 With permission to restart DSH, open **Settings -> Codex** and verify the settings page loads. Confirm
 that search offers both **DSH default** and **Codex subscription**, the composer quota switch defaults
@@ -81,6 +84,12 @@ For DSH-Portable:
 
 ```powershell
 .\dsh.exe plugin --profile web remove dsh-codex-subscription
+```
+
+For the official npm route:
+
+```sh
+npx -y @deepseek-ai/dsh plugin --profile web remove dsh-codex-subscription
 ```
 
 Uninstall removes only this plugin. It must preserve the profile, sessions, other plugins, and saved

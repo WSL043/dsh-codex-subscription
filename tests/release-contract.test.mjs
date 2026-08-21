@@ -19,7 +19,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.equal(pkg.version, '1.1.0-beta.0')
+  assert.equal(pkg.version, '1.1.0')
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
@@ -52,13 +52,16 @@ test('public docs contain only user-facing product and operation information', (
   assert.doesNotMatch(docs, /github\.com\/WSL043\/(?!(?:dsh-codex-subscription|DSH-Portable)(?:[\/)#]|$))[\w.-]+/iu)
   assert.doesNotMatch(docs, /安装提示词|更新提示词|卸载提示词|install prompt|update prompt|uninstall prompt/iu)
   assert.doesNotMatch(docs, /开发与验收|development and verification|pnpm test|pnpm run build|测试覆盖|release-contract|28 项/iu)
+  assert.match(docs, /当前适配[^\n]*0\.1\.0-rc\.8|currently compatible[^\n]*0\.1\.0-rc\.8/iu)
+  assert.doesNotMatch(docs, /0\.1\.0-rc\.(?:6|7)|v0\.2\.1|1\.1\.0-beta\.0/iu)
   assert.equal(existsSync(new URL('../docs/CACHE.md', import.meta.url)), false)
 })
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@1\.0\.6/u)
-  assert.match(guide, /\.\\dsh\.exe plugin --profile web add dsh-codex-subscription@1\.0\.6/u)
+  assert.match(guide, /dsh plugin --profile web add dsh-codex-subscription@1\.1\.0/u)
+  assert.match(guide, /\.\\dsh\.exe plugin --profile web add dsh-codex-subscription@1\.1\.0/u)
+  assert.match(guide, /npx -y @deepseek-ai\/dsh plugin --profile web add dsh-codex-subscription@1\.1\.0/u)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
   assert.match(guide, /dsh plugin --profile web remove dsh-codex-subscription/u)
@@ -125,6 +128,11 @@ test('public readmes provide explicit update commands and verification', () => {
   assert.match(readmeZh, /dsh plugin --profile web add dsh-codex-subscription/u)
   assert.match(readmeEn, /dsh plugin --profile web add dsh-codex-subscription/u)
   for (const readme of [readmeZh, readmeEn]) {
+    assert.match(readme, /npx -y @deepseek-ai\/dsh plugin --profile web add dsh-codex-subscription/u)
+    assert.match(readme, /npx -y @deepseek-ai\/dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
+    assert.match(readme, /npx -y @deepseek-ai\/dsh --profile web --dump-config/u)
+  }
+  for (const readme of [readmeZh, readmeEn]) {
     assert.match(readme, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
     assert.doesNotMatch(readme, /Invoke-WebRequest/iu)
     assert.doesNotMatch(readme, /scriptblock|Invoke-Expression/iu)
@@ -134,8 +142,8 @@ test('public readmes provide explicit update commands and verification', () => {
 
 test('Windows manager updates from a checksum-verified immutable release asset', () => {
   const manager = text('dsh-codex.ps1')
-  assert.match(manager, /\$PackageVersion = '1\.0\.6'/u)
-  assert.match(manager, /\$PackageSpec = 'dsh-codex-subscription@1\.0\.6'/u)
+  assert.match(manager, /\$PackageVersion = '1\.1\.0'/u)
+  assert.match(manager, /\$PackageSpec = 'dsh-codex-subscription@1\.1\.0'/u)
   assert.match(manager, /api\.github\.com\/repos\/WSL043\/dsh-codex-subscription\/releases\/latest/u)
   assert.match(manager, /dsh-codex\.ps1\.sha256/u)
   assert.match(manager, /Get-FileDigest -Algorithm SHA256/u)

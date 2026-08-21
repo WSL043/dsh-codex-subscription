@@ -48,18 +48,12 @@
 
 ## 准备 DSH
 
-本插件适配 DeepSeek Harness `0.1.0-rc.6`、`0.1.0-rc.7` 与 `0.1.0-rc.8`，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
+本插件当前适配到 DeepSeek Harness `0.1.0-rc.8`，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
 
 - 不想配置 Node.js：使用 [DSH-Portable（社区便携包）](https://github.com/WSL043/DSH-Portable)；
 - 想按官方方式运行：查看 [DeepSeek Harness 官方说明](https://github.com/deepseek-ai/deepseek-harness#run)。
 
 ## 安装
-
-想先体验输入框高速模式，可安装 Beta；它不会替换 npm 的稳定版：
-
-```sh
-dsh plugin --profile web add dsh-codex-subscription@1.1.0-beta.0
-```
 
 ### 交给 Agent（推荐）
 
@@ -87,7 +81,20 @@ irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/d
 无需管理员权限，也不会擅自重启 DSH。
 
 <details>
-<summary>macOS、Linux，或已有 <code>dsh</code> 命令（通用安装）</summary>
+<summary>官方 npm 方式（已安装 Node.js）</summary>
+
+官方的 `npx @deepseek-ai/dsh web` 不会创建全局 `dsh` 命令，因此安装插件时也要保留完整的 `npx` 前缀：
+
+```sh
+npx -y @deepseek-ai/dsh plugin --profile web add dsh-codex-subscription
+npx -y @deepseek-ai/dsh plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh --profile web --dump-config
+```
+
+</details>
+
+<details>
+<summary>已经能运行 <code>dsh</code>，或位于 DSH-Portable 目录</summary>
 
 ```sh
 dsh plugin --profile web add dsh-codex-subscription
@@ -95,8 +102,8 @@ dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-安装列表中应只有一个 `dsh-codex-subscription`，配置中应只有一个
-`codex-subscription` 条目。
+DSH-Portable 请把 `dsh` 换成 `./dsh`（PowerShell 使用 `.\dsh.exe`）。安装列表中应只有一个
+`dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
 
 </details>
 
@@ -135,8 +142,16 @@ Spark 不显示这个入口。高速模式会提高速度，也会消耗更多 C
 
 ## 更新与卸载
 
-Windows 用户重新运行上面的单行助手即可更新。卸载使用 DSH 官方命令；两种操作都保留
-DSH profile、其他插件和登录信息。
+Windows 用户重新运行上面的单行助手即可更新。官方 npm 用户使用：
+
+```sh
+npx -y @deepseek-ai/dsh plugin --profile web update dsh-codex-subscription
+npx -y @deepseek-ai/dsh plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh --profile web --dump-config
+npx -y @deepseek-ai/dsh plugin --profile web remove dsh-codex-subscription
+```
+
+这些操作会保留 DSH profile、其他插件和登录信息。
 
 <details>
 <summary>使用现有 <code>dsh</code> 命令更新或卸载</summary>
@@ -148,18 +163,14 @@ dsh --profile web --dump-config
 dsh plugin --profile web remove dsh-codex-subscription
 ```
 
-从 v0.2.1 手动迁移时，确认新包安装成功后再移除旧包名：
-
-```sh
-dsh plugin --profile web remove @wsl043/dsh-codex-subscription
-```
-
 </details>
 
 DSH-Portable 在其目录中把上述 `dsh` 换成 `.\dsh.exe`。
 
 ## 常见问题
 
+- **`dsh` 无法识别**：官方 npm 方式本来就不会创建全局 `dsh` 命令，请使用上面的完整 `npx -y @deepseek-ai/dsh ...` 命令；
+- **`dsh.exe` 无法识别**：当前目录没有该文件。请先进入 DSH-Portable 目录，或使用 Windows 单行助手；
 - **找不到 DSH-Portable**：进入它的目录后重新执行安装命令，或直接运行 `.\dsh.exe plugin --profile web add dsh-codex-subscription`；
 - **电脑上有多个 DSH**：进入要使用的那个 DSH-Portable 目录再运行助手；
 - **安装仍然失败**：把上面的 Agent 文档链接发给 Agent，不要删除 profile 或随意修改系统 PATH。
