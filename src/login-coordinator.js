@@ -200,7 +200,6 @@ export class CodexLoginCoordinator {
       }
       session.controller.abort(new Error('Codex login cancelled'))
     }
-    await Promise.resolve(session.run).catch(() => undefined)
     return this.read(id)
   }
 

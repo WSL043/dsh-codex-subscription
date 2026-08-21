@@ -4,6 +4,7 @@ import test from 'node:test'
 import { createCodexAuthService, DshOAuthCredentialStore } from '../src/credential-store.js'
 import { assertCodexAuthUrl, commandForCodexAuthUrl } from '../src/external-url.js'
 import { CodexLoginCoordinator, createCodexRpcHandler } from '../src/login-coordinator.js'
+import { readLoginProgress } from '../src/login-progress.js'
 
 const oauth = suffix => ({
   type: 'oauth',
@@ -180,4 +181,45 @@ test('starting a new login discards the previous terminal session', async () => 
   assert.equal((await coordinator.start({ method: 'browser' })).id, 'login-1')
   assert.equal((await coordinator.start({ method: 'browser' })).id, 'login-2')
   assert.throws(() => coordinator.read('login-1'), /unknown Codex login/)
+})
+
+test('login polling recovers an authenticated account after the flow RPC is lost', async () => {
+  const account = { authenticated: true, provider: 'openai-codex', type: 'oauth' }
+  const next = await readLoginProgress({
+    flow: { id: 'login-old', method: 'browser', phase: 'waiting_input' },
+    async readFlow() { throw new Error('unknown Codex login') },
+    async readAccount() { return account },
+  })
+
+  assert.deepEqual(next, {
+    flow: {
+      id: 'login-old',
+      method: 'browser',
+      phase: 'authenticated',
+      authenticated: true,
+    },
+    account,
+    recovered: true,
+  })
+})
+
+test('cancelling acknowledges immediately even when the provider login does not settle', async () => {
+  const auth = {
+    async status() { return { authenticated: false, provider: 'openai-codex' } },
+    async login(interaction) {
+      interaction.notify({ type: 'auth_url', url: 'https://auth.openai.com/oauth/authorize?state=public' })
+      await new Promise(() => {})
+    },
+    async logout() {},
+  }
+  const coordinator = new CodexLoginCoordinator(auth, { createId: () => 'login-stuck' })
+  const started = await coordinator.start({ method: 'browser' })
+  assert.equal(started.phase, 'waiting_browser')
+
+  const result = await Promise.race([
+    coordinator.cancel(started.id),
+    new Promise(resolve => setTimeout(() => resolve('timeout'), 30)),
+  ])
+  assert.notEqual(result, 'timeout')
+  assert.equal(result.phase, 'cancelled')
 })
