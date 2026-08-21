@@ -203,9 +203,9 @@ jobs:
           ## 安装 Beta / Install the Beta
 
           \`\`\`sh
-          npx -y @deepseek-ai/dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
-          npx -y @deepseek-ai/dsh plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh --profile web --dump-config
+          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
+          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh@0.1.0-rc.8 --profile web --dump-config
           \`\`\`
 
           安装后手动重启 DSH。Beta 不会替换 npm 的稳定版标签。
@@ -214,7 +214,7 @@ jobs:
           ## 卸载 / Uninstall
 
           \`\`\`sh
-          npx -y @deepseek-ai/dsh plugin --profile web remove dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web remove dsh-codex-subscription
           \`\`\`
           NOTES
             exit 0
@@ -222,8 +222,8 @@ jobs:
           cat > .release/install.md <<'NOTES'
           ## 更新内容 / What's new
 
-          - 输入框支持为兼容的 Codex 模型切换标准或高速 / Switch supported Codex models between Standard and Fast in the composer
-          - 高速模式直接应用到下一次请求；Spark 会自动隐藏不适用的入口 / Fast applies to the next request; Spark hides the unsupported control
+          - Windows 安装助手现在可识别任意目录中正在运行的 DSH-Portable / Windows setup now finds a running DSH-Portable in any folder
+          - 找不到现有 DSH 时，官方 npm 入口固定使用已适配的 DSH 版本并提示首次解析耗时 / The npm fallback pins the compatible DSH release and explains first-run dependency resolution
 
           <!-- dsh-codex-install -->
           ## 安装 / Install
@@ -237,15 +237,15 @@ jobs:
           irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
           ```
 
-          助手会使用当前目录、系统命令、常见 DSH-Portable 位置，或官方 npm 入口执行一次 `plugin add`。无需管理员权限，完成后请手动重启 DSH。
-          Setup uses the current folder, a system command, a common DSH-Portable location, or the official npm route, then runs `plugin add` once. It needs no administrator access. Restart DSH manually afterward.
+          助手会使用当前目录、系统命令、常见位置或正在运行的 DSH-Portable；都找不到时才使用固定版本的官方 npm 入口。无需管理员权限，完成后请手动重启 DSH。
+          Setup uses the current folder, a system command, a common location, or a running DSH-Portable; only then does it fall back to the pinned official npm route. It runs `plugin add` once, needs no administrator access, and does not restart DSH.
 
           ### 官方 npm 方式 / Official npm route
 
           ```sh
-          npx -y @deepseek-ai/dsh plugin --profile web add dsh-codex-subscription
-          npx -y @deepseek-ai/dsh plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh --profile web --dump-config
+          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web add dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh@0.1.0-rc.8 --profile web --dump-config
           ```
 
           安装后手动重启 DSH。列表中应只有一个 `dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
@@ -254,10 +254,10 @@ jobs:
           ### 通用更新与卸载 / Universal update and uninstall
 
           ```sh
-          npx -y @deepseek-ai/dsh plugin --profile web update dsh-codex-subscription
-          npx -y @deepseek-ai/dsh plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh --profile web --dump-config
-          npx -y @deepseek-ai/dsh plugin --profile web remove dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web update dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh@0.1.0-rc.8 --profile web --dump-config
+          npx -y @deepseek-ai/dsh@0.1.0-rc.8 plugin --profile web remove dsh-codex-subscription
           ```
           NOTES
 
