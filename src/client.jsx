@@ -15,6 +15,7 @@ import {
   supportsCodexFastMode,
 } from './settings-contract.js'
 import { selectModelQuota } from './sidebar-quota.js'
+import { readLoginProgress } from './login-progress.js'
 
 export const inject = [
   'slots', 'locale', 'connection', 'remote', 'settingsScope', 'modelDirectories', 'conversation', 'sessions',
@@ -625,12 +626,17 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   useEffect(() => {
     if (flow?.id === undefined || ['authenticated', 'failed', 'cancelled'].includes(flow.phase)) return undefined
     const timer = window.setInterval(() => {
-      void call('login/status', { id: flow.id }).then(next => {
-        setFlow(next)
-        if (next.phase === 'authenticated') void call('status').then(account => {
-          setAccount(account)
+      void readLoginProgress({
+        flow,
+        readFlow: () => call('login/status', { id: flow.id }),
+        readAccount: () => call('status'),
+      }).then(next => {
+        setFlow(next.flow)
+        setError(undefined)
+        if (next.account !== undefined) {
+          setAccount(next.account)
           notifyQuickQuota()
-        })
+        }
       }).catch(() => setError(t('failed')))
     }, 800)
     return () => window.clearInterval(timer)
@@ -644,7 +650,17 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   const cancel = () => {
     if (flow?.id === undefined) return
     setBusy(true)
-    void call('login/cancel', { id: flow.id }).then(setFlow).finally(() => setBusy(false))
+    void call('login/cancel', { id: flow.id }).then(next => {
+      setFlow(next)
+      return call('status').then(account => {
+        if (account.authenticated === true) {
+          setAccount(account)
+          setFlow({ ...next, phase: 'authenticated', authenticated: true })
+          setError(undefined)
+          notifyQuickQuota()
+        }
+      })
+    }).catch(() => setError(t('failed'))).finally(() => setBusy(false))
   }
   const submit = event => {
     event.preventDefault()
