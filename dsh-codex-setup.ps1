@@ -7,7 +7,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$PackageSpec = 'dsh-codex-subscription@1.1.3'
+$PackageSpec = 'dsh-codex-subscription@1.1.4'
 $DshRelease = '0.1.0-rc.8'
 
 function New-DshInvocation {
@@ -178,7 +178,7 @@ if ($dsh.PrefixArguments.Count -gt 0) {
     Write-Host 'No existing DSH was found. The first official DSH run may take a few minutes while npm resolves its dependencies.'
 }
 
-# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.1.3
+# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.1.4
 & $dsh.Executable @invokeArgs
 $code = $LASTEXITCODE
 $timer.Stop()

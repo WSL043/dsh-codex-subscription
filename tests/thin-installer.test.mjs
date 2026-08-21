@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 
 const installer = new URL('../dsh-codex-setup.ps1', import.meta.url)
-const packageSpec = 'dsh-codex-subscription@1.1.3'
+const packageSpec = 'dsh-codex-subscription@1.1.4'
 const windowsTest = process.platform === 'win32' ? test : test.skip
 
 test('setup remains a thin official DSH CLI launcher', async () => {

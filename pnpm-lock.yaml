@@ -65,6 +65,9 @@ importers:
       '@earendil-works/pi-ai':
         specifier: 0.82.1
         version: 0.82.1(ws@8.21.3)(zod@4.4.3)
+      '@heroicons/react':
+        specifier: 2.2.0
+        version: 2.2.0(react@18.3.1)
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -1008,6 +1011,11 @@ packages:
     peerDependenciesMeta:
       '@modelcontextprotocol/sdk':
         optional: true
+
+  '@heroicons/react@2.2.0':
+    resolution: {integrity: sha512-LMcepvRaS9LYHJGsF0zzmgKCUim/X3N/DQKc4jepAXJ7l8QxJ1PmxJzqplF2Z3FE4PqBAIGyJAQ/w4B5dsqbtQ==}
+    peerDependencies:
+      react: '>= 16 || ^19.0.0-rc'
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -3008,6 +3016,10 @@ snapshots:
       - bufferutil
       - supports-color
       - utf-8-validate
+
+  '@heroicons/react@2.2.0(react@18.3.1)':
+    dependencies:
+      react: 18.3.1
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:

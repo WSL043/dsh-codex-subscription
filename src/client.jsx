@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { Button, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { BoltIcon } from '@heroicons/react/16/solid'
+import { Button, IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
   normalizeSpeedMode,
   normalizeSearchProvider,
@@ -16,7 +17,7 @@ import {
 import { selectModelQuota } from './sidebar-quota.js'
 
 export const inject = [
-  'slots', 'locale', 'connection', 'remote', 'settingsScope', 'modelDirectories', 'conversation',
+  'slots', 'locale', 'connection', 'remote', 'settingsScope', 'modelDirectories', 'conversation', 'sessions',
 ]
 
 const NS = 'settings.codexSubscription'
@@ -51,6 +52,8 @@ const zh = {
   quickQuotaBeta: 'Beta', quickQuotaStatus: 'Codex 剩余额度 {value}%',
   speedTitle: '速度', speedStandard: '标准', speedStandardHint: '标准速度',
   speedFast: '高速', speedFastHint: '1.5 倍，消耗更多 Credits',
+  modelMenuAria: '模型、推理等级与速度', modelLabel: '模型', effortLabel: '推理等级', providerDefault: 'Default', selectModel: '选择模型',
+  modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
   imageGenerate: '生成图片', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
   imageLabel: '生成的图片', imageOpen: '查看原图', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imageClosePreview: '关闭预览',
 }
@@ -82,6 +85,8 @@ const en = {
   quickQuotaBeta: 'Beta', quickQuotaStatus: 'Codex quota: {value}% remaining',
   speedTitle: 'Speed', speedStandard: 'Standard', speedStandardHint: 'Standard speed',
   speedFast: 'Fast', speedFastHint: '1.5x; higher Credits use',
+  modelMenuAria: 'Model, effort, and speed', modelLabel: 'Model', effortLabel: 'Effort', providerDefault: 'Default', selectModel: 'Select model',
+  modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
   imageGenerate: 'Generate image', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
   imageLabel: 'Generated image', imageOpen: 'View original', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imageClosePreview: 'Close preview',
 }
@@ -112,8 +117,10 @@ const STYLE = `
 .codexSubscriptionCreditSection{display:flex;flex-direction:column;gap:7px}.codexSubscriptionCreditNote{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionCreditRows{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.codexSubscriptionCreditBalance,.codexSubscriptionSpendLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionCreditBalance{display:flex;flex-direction:column;gap:6px}.codexSubscriptionCreditBalance span,.codexSubscriptionCreditLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .codexSubscriptionSpendLimit{display:flex;flex-direction:column;gap:8px}.codexSubscriptionSpendTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionSpendTop strong{font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.codexSubscriptionSpendLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}.codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
-.codexComposerQuota{display:inline-flex;align-items:center;flex:0 0 auto;height:28px;box-sizing:border-box;margin-right:-4px;padding:0;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}
-.codexComposerControls{display:inline-flex;align-items:center;gap:6px;flex:0 0 auto}.codexComposerSpeed{display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;box-sizing:border-box;padding:0 7px;border:0;border-radius:8px;background:transparent;color:var(--dsw-alias-label-secondary);font:500 12px/20px inherit;cursor:pointer;white-space:nowrap}.codexComposerSpeed:hover,.codexComposerSpeed[aria-expanded=true]{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}.codexComposerSpeed:disabled{cursor:not-allowed;opacity:.5}.codexComposerSpeedFast{font-size:14px}.codexComposerSpeedChoice{display:flex;min-width:150px;flex-direction:column;gap:1px}.codexComposerSpeedChoice strong{font-size:13px;line-height:18px;font-weight:500}.codexComposerSpeedChoice span{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
+.codexComposerQuota{display:inline-flex;align-items:center;flex:0 0 auto;height:28px;box-sizing:border-box;padding:0;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}
+.codexModelSelect{position:relative;min-width:0}.codexModelSelectTrigger{display:flex;align-items:center;gap:4px;min-width:0;max-width:min(360px,45cqw);height:28px;padding:0 4px 0 8px;border:0;border-radius:24px;outline:0;background:transparent;color:var(--dsw-alias-label-secondary);font-size:13px;font-weight:500;line-height:20px;cursor:pointer}.codexModelSelectTrigger:hover:not(:disabled),.codexModelSelectTrigger[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover)}.codexModelSelectTrigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}.codexModelSelectTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectBolt{display:block;flex:none;width:14px;height:14px;color:var(--dsw-alias-label-primary)}.codexModelSelectLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectEffort{flex:none;color:var(--dsw-alias-label-caption)}.codexModelSelectChevron{flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms}.codexModelSelectTrigger[aria-expanded=true] .codexModelSelectChevron{transform:rotate(180deg)}
+.codexModelSelectMenu,.codexModelSelectSubmenu{position:absolute;z-index:30;box-sizing:border-box;width:max-content;min-width:min(240px,calc(100vw - 32px));max-width:min(420px,calc(100vw - 32px));max-height:min(360px,calc(100vh - 96px));padding:4px;border:1px solid var(--dsw-alias-border-inverted);border-radius:12px;background:var(--dsw-specific-menu);box-shadow:var(--dsw-shadow-lv3);color:var(--dsw-alias-label-primary);overflow:hidden}.codexModelSelectMenu{right:0;bottom:calc(100% + 8px)}.codexModelSelectSubmenu{right:calc(100% + 8px);bottom:0;min-width:min(230px,calc(100vw - 32px))}.codexModelSelectCell{display:flex;align-items:center;gap:8px;width:100%;min-width:100%;height:40px;box-sizing:border-box;padding:0 10px;border:0;border-radius:10px;background:transparent;color:inherit;font-size:14px;line-height:22px;text-align:left;cursor:pointer}.codexModelSelectCell:hover,.codexModelSelectCell:focus-visible,.codexModelSelectCell[data-open=true]{background:var(--dsw-alias-interactive-bg-hover);outline:0}.codexModelSelectCell:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectCellLabel{flex:none;white-space:nowrap}.codexModelSelectCellValue{flex:auto;min-width:0;overflow:hidden;color:var(--dsw-alias-label-tertiary);text-align:right;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectCellChevron{flex:none;color:var(--dsw-alias-label-tertiary)}.codexModelSelectGroups{min-height:0;max-height:352px;overflow-y:auto}.codexModelSelectGroup+.codexModelSelectGroup{margin-top:4px}.codexModelSelectGroupTitle{position:sticky;top:0;z-index:1;padding:5px 8px 3px;background:var(--dsw-specific-menu);color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:500;line-height:18px}.codexModelSelectOption{display:flex;align-items:center;gap:8px;width:100%;min-width:100%;min-height:38px;box-sizing:border-box;padding:6px 8px;border:0;border-radius:10px;outline:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.codexModelSelectOption:hover:not(:disabled),.codexModelSelectOption:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}.codexModelSelectOption:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectOptionCopy{display:flex;flex:1;min-width:0;flex-direction:column}.codexModelSelectOptionName{overflow:hidden;color:inherit;font-size:14px;font-weight:500;line-height:20px;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectOptionDescription{overflow:hidden;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectCheck{display:grid;place-items:center;flex:0 0 18px;color:var(--dsw-alias-label-primary)}.codexModelSelectStatus,.codexModelSelectEmpty{padding:10px;color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:20px}.codexModelSelectError,.codexModelSelectWarning{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;padding:7px 8px;border-radius:8px;background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}.codexModelSelectWarning{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-state-warn-label)}.codexModelSelectRetry{flex:none;padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}
+.codexModelSelectMenu{overflow:visible}
 .codexImageTool{display:flex;flex-direction:column;gap:8px;margin:4px 0;color:var(--dsw-alias-label-primary)}.codexImageToolRow{display:flex;align-items:center;min-height:24px;gap:8px;font-size:13px;line-height:20px}.codexImageToolIcon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}.codexImageToolIcon::before{content:'';width:8px;height:8px;border:1.5px solid currentColor;border-radius:3px}.codexImageTool[data-state=running] .codexImageToolIcon::before{border-radius:50%;border-right-color:transparent;animation:codexImageSpin 800ms linear infinite}.codexImageTool[data-state=error] .codexImageToolIcon::before{border-color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-state-error-primary)}.codexImageToolTitle{font-weight:500}.codexImageToolState{color:var(--dsw-alias-label-tertiary)}.codexImageToolError{margin:0 0 0 24px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary)}.codexImageToolGallery{margin-left:24px}.codexGeneratedImageFrame{display:flex;align-items:center;justify-content:center;width:min(240px,100%);min-height:120px;padding:0;overflow:hidden;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-tertiary);cursor:pointer}.codexGeneratedImageFrame img{display:block;width:100%;max-height:240px;object-fit:contain}.codexGeneratedImageRetry{min-height:36px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);cursor:pointer}.codexGeneratedImageLightbox{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:32px;border:0;background:rgba(0,0,0,.72)}.codexGeneratedImageLightbox img{display:block;max-width:min(1100px,calc(100vw - 64px));max-height:calc(100vh - 64px);object-fit:contain}.codexGeneratedImageClose{position:absolute;top:16px;right:16px;width:36px;height:36px;border:1px solid rgba(255,255,255,.35);border-radius:50%;background:rgba(0,0,0,.48);color:#fff;font-size:20px;line-height:1;cursor:pointer}@keyframes codexImageSpin{to{transform:rotate(360deg)}}
 @container (max-width:560px){.codexSubscriptionCreditRows{grid-template-columns:1fr}}
 @container (max-width:480px){.codexSubscriptionAccountRow,.codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column}.codexSubscriptionActions{width:100%}.codexSubscriptionSearchChoices{grid-template-columns:1fr}}
@@ -407,8 +414,7 @@ function PreferencesCard({ preference, t }) {
   </div>
 }
 
-function CodexComposerControls({ preference, rpc, t, directory }) {
-  const [speedOpen, setSpeedOpen] = useState(false)
+function CodexComposerQuota({ preference, rpc, t, directory }) {
   const preferenceSnapshot = usePreferenceSnapshot(preference)
   const modelState = useSyncExternalStore(
     listener => directory.subscribe(listener),
@@ -416,45 +422,197 @@ function CodexComposerControls({ preference, rpc, t, directory }) {
   )
   const current = modelState.current
   const codex = current?.provider === 'openai-codex'
-  const speedSupported = codex && supportsCodexFastMode(current?.model)
-  const speedWritable = preferenceSnapshot.status === 'ready' && preferenceSnapshot.writable === true
-  const fast = preferenceSnapshot.speedMode === SPEED_MODE_FAST
   const quotaEnabled = preferenceSnapshot.status === 'ready' && preferenceSnapshot.visible && codex
   const quota = useQuickQuota(rpc, quotaEnabled, current?.model)
-  if (!speedSupported && (!quotaEnabled || quota === undefined)) return null
+  if (!quotaEnabled || quota === undefined) return null
+  const value = percent(quota.remainingPercent)
+  const label = fill(t('quickQuotaStatus'), { value })
+  return <span className="codexComposerQuota" role="status" aria-label={label} title={label}>{value}%</span>
+}
 
-  const speedItems = [
-    {
-      id: SPEED_MODE_STANDARD,
-      label: <span className="codexComposerSpeedChoice"><strong>{t('speedStandard')}</strong><span>{t('speedStandardHint')}</span></span>,
+function CodexModelSelect({ locked, available, directory, load, select, preference, t }) {
+  const state = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
+  const preferenceSnapshot = usePreferenceSnapshot(preference)
+  const [open, setOpen] = useState(false)
+  const [pane, setPane] = useState('root')
+  const rootRef = useRef(null)
+  const triggerRef = useRef(null)
+  const id = useId()
+  const choices = useMemo(() => state.groups.flatMap(group => group.models.map(model => ({
+    group,
+    model,
+    selection: {
+      provider: group.id,
+      model: model.id,
+      ...(model.reasoning?.defaultEffort === undefined ? {} : { reasoningEffort: model.reasoning.defaultEffort }),
     },
-    {
-      id: SPEED_MODE_FAST,
-      label: <span className="codexComposerSpeedChoice"><strong>{t('speedFast')}</strong><span>{t('speedFastHint')}</span></span>,
-    },
-  ]
-  const speed = speedSupported ? <Menu
-    open={speedOpen}
-    anchor={<button className={`codexComposerSpeed${fast ? ' codexComposerSpeedFast' : ''}`} type="button" aria-label={`${t('speedTitle')}: ${t(fast ? 'speedFast' : 'speedStandard')}`} aria-expanded={speedOpen} disabled={!speedWritable} onClick={() => setSpeedOpen(value => !value)}>{fast ? '⚡' : '1×'}</button>}
-    items={speedItems}
-    selectedId={preferenceSnapshot.speedMode}
-    onSelect={id => {
-      setSpeedOpen(false)
-      void preference.set({ [SPEED_MODE_FIELD]: id })
-    }}
-    onClose={() => setSpeedOpen(false)}
-    align="end"
-    side="top"
-    portal
-    compact
-  /> : null
-  let quotaView = null
-  if (quotaEnabled && quota !== undefined) {
-    const value = percent(quota.remainingPercent)
-    const label = fill(t('quickQuotaStatus'), { value })
-    quotaView = <span className="codexComposerQuota" role="status" aria-label={label} title={label}>{value}%</span>
+  }))), [state.groups])
+  const currentChoice = choices.find(choice => choice.selection.provider === state.current?.provider && choice.selection.model === state.current?.model)
+  const reasoning = currentChoice?.model.reasoning
+  const effectiveEffort = state.current?.reasoningEffort ?? reasoning?.defaultEffort
+  const effortLabel = reasoning === undefined
+    ? undefined
+    : effectiveEffort === undefined
+      ? t('providerDefault')
+      : reasoning.efforts.find(level => level.id === effectiveEffort)?.name ?? effectiveEffort
+  const effortChoices = useMemo(() => reasoning === undefined ? [] : [
+    ...(reasoning.defaultEffort === undefined ? [{ key: 'provider-default', effort: undefined, label: t('providerDefault') }] : []),
+    ...reasoning.efforts.map(effort => ({
+      key: `effort:${effort.id}`,
+      effort: effort.id,
+      label: effort.name,
+      ...(effort.description === undefined ? {} : { description: effort.description }),
+    })),
+  ], [reasoning, t])
+  const modelLabel = currentChoice?.model.name ?? t('selectModel')
+  const speedSupported = state.current?.provider === 'openai-codex' && supportsCodexFastMode(state.current?.model)
+  const speedWritable = preferenceSnapshot.status === 'ready' && preferenceSnapshot.writable === true
+  const fast = speedSupported && preferenceSnapshot.speedMode === SPEED_MODE_FAST
+  const busy = state.status === 'selecting'
+
+  useEffect(() => {
+    if (available) load()
+  }, [available, load])
+  useEffect(() => {
+    if (!open) return undefined
+    const closeOutside = event => {
+      if (!rootRef.current?.contains(event.target)) {
+        setOpen(false)
+        setPane('root')
+      }
+    }
+    document.addEventListener('mousedown', closeOutside)
+    return () => document.removeEventListener('mousedown', closeOutside)
+  }, [open])
+  useEffect(() => {
+    if (!speedSupported && pane === 'speed') setPane('root')
+  }, [pane, speedSupported])
+  if (!available) return null
+
+  const close = (restoreFocus = false) => {
+    setOpen(false)
+    setPane('root')
+    if (restoreFocus) queueMicrotask(() => triggerRef.current?.focus())
   }
-  return <span className="codexComposerControls">{quotaView}{speed}</span>
+  const settleSelection = accepted => {
+    if (accepted) close(true)
+  }
+  const chooseModel = selection => {
+    if (state.current?.provider === selection.provider && state.current.model === selection.model) {
+      close(true)
+      return
+    }
+    void select(selection).then(settleSelection)
+  }
+  const chooseEffort = effort => {
+    if (state.current === null) return
+    if (effectiveEffort === effort) {
+      close(true)
+      return
+    }
+    void select({
+      provider: state.current.provider,
+      model: state.current.model,
+      ...(effort === undefined ? {} : { reasoningEffort: effort }),
+    }).then(settleSelection)
+  }
+  const chooseSpeed = speedMode => {
+    close(true)
+    void preference.set({ [SPEED_MODE_FIELD]: speedMode })
+  }
+  const option = ({ key, label, description, selected, disabled, onClick }) => <button
+    key={key}
+    type="button"
+    role="menuitemradio"
+    aria-checked={selected}
+    className="codexModelSelectOption"
+    disabled={disabled}
+    onClick={onClick}
+  >
+    <span className="codexModelSelectOptionCopy"><span className="codexModelSelectOptionName">{label}</span>{description === undefined ? null : <span className="codexModelSelectOptionDescription">{description}</span>}</span>
+    <span className="codexModelSelectCheck">{selected ? <IconCheckOutline16 /> : null}</span>
+  </button>
+  const cell = (target, label, value) => <button
+    type="button"
+    role="menuitem"
+    className="codexModelSelectCell"
+    data-open={pane === target}
+    aria-haspopup="menu"
+    aria-expanded={pane === target}
+    onClick={() => setPane(current => current === target ? 'root' : target)}
+  >
+    <span className="codexModelSelectCellLabel">{label}</span>
+    <span className="codexModelSelectCellValue">{value}</span>
+    <IconChevronRightOutline14 className="codexModelSelectCellChevron" />
+  </button>
+
+  let submenu = null
+  if (pane === 'model') {
+    submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('modelLabel')}>
+      {state.status === 'loading' ? <div className="codexModelSelectStatus">{t('modelsLoading')}</div> : null}
+      {state.error === null ? null : <div className="codexModelSelectError"><span>{fill(t('modelFailed'), { value: state.error })}</span><button className="codexModelSelectRetry" type="button" onClick={load}>{t('modelRetry')}</button></div>}
+      {state.failures.map(failure => <div className="codexModelSelectWarning" key={failure.id}>{fill(t('groupFailed'), { name: failure.name, value: failure.message })}</div>)}
+      <div className="codexModelSelectGroups scrollable">{state.groups.map(group => <section className="codexModelSelectGroup" role="group" aria-labelledby={`${id}-${group.id}`} key={group.id}>
+        <div className="codexModelSelectGroupTitle" id={`${id}-${group.id}`}>{group.name}</div>
+        {group.models.map(model => option({
+          key: model.id,
+          label: model.name,
+          description: model.description,
+          selected: state.current?.provider === group.id && state.current.model === model.id,
+          disabled: busy,
+          onClick: () => chooseModel({ provider: group.id, model: model.id }),
+        }))}
+      </section>)}</div>
+      {state.status === 'ready' && choices.length === 0 ? <div className="codexModelSelectEmpty">{t('modelsEmpty')}</div> : null}
+    </div>
+  } else if (pane === 'effort') {
+    submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('effortLabel')}>
+      {effortChoices.length === 0 ? <div className="codexModelSelectEmpty">{t('effortsEmpty')}</div> : effortChoices.map(level => option({
+        key: level.key,
+        label: level.label,
+        description: level.description,
+        selected: effectiveEffort === level.effort,
+        disabled: busy,
+        onClick: () => chooseEffort(level.effort),
+      }))}
+    </div>
+  } else if (pane === 'speed') {
+    submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('speedTitle')}>
+      {option({ key: SPEED_MODE_STANDARD, label: t('speedStandard'), description: t('speedStandardHint'), selected: !fast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_STANDARD) })}
+      {option({ key: SPEED_MODE_FAST, label: t('speedFast'), description: t('speedFastHint'), selected: fast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_FAST) })}
+    </div>
+  }
+
+  return <div className="codexModelSelect" ref={rootRef} onKeyDown={event => {
+    if (event.key !== 'Escape' || !open) return
+    event.preventDefault()
+    if (pane === 'root') close(true)
+    else setPane('root')
+  }}>
+    <button
+      ref={triggerRef}
+      type="button"
+      className="codexModelSelectTrigger"
+      aria-label={modelLabel}
+      aria-haspopup="menu"
+      aria-expanded={open}
+      aria-controls={open ? `${id}-menu` : undefined}
+      title={modelLabel}
+      disabled={locked}
+      onClick={() => open ? close() : (setPane('root'), setOpen(true), load())}
+    >
+      {fast && <BoltIcon className="codexModelSelectBolt" aria-hidden="true" />}
+      <span className="codexModelSelectLabel">{modelLabel}</span>
+      {effortLabel === undefined ? null : <span className="codexModelSelectEffort">{effortLabel}</span>}
+      <IconChevronDownOutline14 className="codexModelSelectChevron" />
+    </button>
+    {open ? <div className="codexModelSelectMenu" id={`${id}-menu`} role="menu" aria-label={t('modelMenuAria')} aria-busy={state.status === 'loading' || busy}>
+      {cell('model', t('modelLabel'), modelLabel)}
+      {reasoning === undefined ? null : cell('effort', t('effortLabel'), effortLabel)}
+      {speedSupported && cell('speed', t('speedTitle'), t(fast ? 'speedFast' : 'speedStandard'))}
+      {submenu}
+    </div> : null}
+  </div>
 }
 
 function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
@@ -655,7 +813,22 @@ export function apply(ctx) {
       t,
       directory: ctx.modelDirectories.directoryFor(sessionId).store,
     }),
-  }, CodexComposerControls))
+  }, CodexComposerQuota))
+  const sessions = ctx.get('sessions')
+  ctx.slots.inject('conversation.input.model', () => ctx.slots.register({
+    name: 'conversation.input.model', priority: -10, locale: NS,
+    inject: sessionId => {
+      const directory = ctx.modelDirectories.directoryFor(sessionId)
+      const available = sessions.subagentAddress(sessionId) === undefined
+      return {
+        available,
+        directory: directory.store,
+        load: () => { if (available) void directory.load() },
+        select: selection => available ? directory.select(selection).then(() => true, () => false) : Promise.resolve(false),
+        preference,
+      }
+    },
+  }, CodexModelSelect))
   const conversation = ctx.get('conversation')
   ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
     name: 'tool.call.toolview', key: 'codex_image_generate', locale: NS,

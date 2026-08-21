@@ -137,8 +137,8 @@ Spark 使用独立额度。插件不会写死“5 小时 + 每周”，也不会
 
 ### 输入框速度（Beta）
 
-选择支持的 Codex 模型后，模型名称左侧会显示 `1×` 或闪电。点击即可切换标准与高速；
-Spark 不显示这个入口。高速模式会提高速度，也会消耗更多 Credits；具体规则见
+选择支持的 Codex 模型后，可在输入框的模型菜单中切换标准与高速。标准模式不增加图标，
+只有高速模式会在模型名称左侧显示闪电；Spark 不显示速度入口。高速模式会提高速度，也会消耗更多 Credits；具体规则见
 [OpenAI Codex Speed 文档](https://learn.chatgpt.com/docs/agent-configuration/speed)。
 
 ## 更新与卸载
