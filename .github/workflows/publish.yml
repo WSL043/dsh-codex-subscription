@@ -222,9 +222,9 @@ jobs:
           cat > .release/install.md <<'NOTES'
           ## 更新内容 / What's new
 
-          - Windows 安装助手会合并正在运行与常用目录内的 DSH-Portable，再显示编号供选择 / Windows setup combines running and commonly located DSH-Portable copies before asking you to choose
-          - 支持常用目录下一层解压文件夹中的 Portable，无需先启动 / Portable copies nested one folder below a common location are detected without starting them first
-          - Agent 或无人值守环境不会猜测安装目标，可继续使用明确路径 / Agent and unattended installs still require an explicit target instead of guessing
+          - 速度选择已整合进输入框的模型菜单，与 Codex 的操作方式一致 / Speed selection now lives inside the composer's model menu, matching the Codex interaction
+          - 标准速度保持简洁；只有高速模式会在模型名称左侧显示闪电 / Standard stays visually quiet; only Fast shows a lightning icon beside the model name
+          - 菜单使用 DSH 的主题与组件，在浅色和深色界面中保持对齐 / The menu follows DSH components and theme tokens in both light and dark modes
 
           <!-- dsh-codex-install -->
           ## 安装 / Install

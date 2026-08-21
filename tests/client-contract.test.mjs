@@ -62,7 +62,7 @@ test('composer quota is neutral and the detailed quota grid is compact', async (
   assert.match(composerRule, /display:\s*inline-flex/u)
   assert.match(composerRule, /align-items:\s*center/u)
   assert.match(composerRule, /height:\s*28px/u)
-  assert.match(composerRule, /margin-right:\s*-4px/u)
+  assert.doesNotMatch(composerRule, /margin(?:-right)?:\s*-\d/u, 'composer alignment must not depend on negative margins')
   assert.match(composerRule, /font-size:\s*12px/u)
   assert.match(composerRule, /line-height:\s*20px/u)
   assert.doesNotMatch(composerRule, /brand|success|error|#[0-9a-f]{3,8}|rgb\(/iu)
@@ -88,7 +88,7 @@ test('settings offer explicit DSH or Codex search and mark quick quota as beta',
   assert.match(source, /quickQuotaBeta/u)
 })
 
-test('beta speed control is compact, persisted, and visible beside the model selector', async () => {
+test('beta speed control is persisted inside the model menu and hidden from the composer while standard', async () => {
   const [client, host, contract] = await Promise.all([
     text('src/client.jsx'), text('src/index.js'), text('src/settings-contract.js'),
   ])
@@ -100,9 +100,17 @@ test('beta speed control is compact, persisted, and visible beside the model sel
   assert.match(client, /speedStandard/u)
   assert.match(client, /speedFast/u)
   assert.match(client, /speedFastHint/u)
-  assert.match(client, /codexComposerSpeed/u)
-  assert.match(client, /\bMenu\b/u)
-  assert.match(client, /selectedId=/u)
+  assert.match(client, /BoltIcon/u)
+  assert.doesNotMatch(client, />\s*(?:⚡|1×)\s*</u, 'speed control must not use a font glyph')
+  assert.match(client, /function CodexModelSelect/u)
+  assert.match(client, /slots\.inject\(['"]conversation\.input\.model['"]/u)
+  assert.match(client, /name:\s*['"]conversation\.input\.model['"][\s\S]*?priority:\s*-10/u)
+  assert.match(client, /pane === ['"]speed['"]/u)
+  assert.match(client, /speedSupported &&[\s\S]*?t\(['"]speedTitle['"]\)/u)
+  assert.match(client, /fast && <BoltIcon className=['"]codexModelSelectBolt['"]/u)
+  assert.match(client, /\.codexModelSelectMenu\{overflow:visible\}/u, 'the nested speed menu must not be clipped by the root menu')
+  assert.match(client, /\.codexModelSelectSubmenu\{right:calc\(100% \+ 8px\)/u, 'the submenu should open beside the root menu like Codex')
+  assert.doesNotMatch(client, /codexComposerSpeed|codexComposerControls/u)
   assert.match(client, /supportsCodexFastMode/u)
   assert.match(client, /slots\.inject\(['"]conversation\.input\.right['"]/u)
   assert.doesNotMatch(client, /codexSubscriptionSpeedChoices/u, 'speed belongs in the composer, not Settings')

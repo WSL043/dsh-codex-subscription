@@ -138,8 +138,8 @@ window returned by the service; Spark uses its independent quota. The plugin doe
 
 ### Composer speed (Beta)
 
-With a supported Codex model selected, `1×` or a lightning icon appears immediately before the model name.
-Click it to choose Standard or Fast. Spark does not show this control. Fast mode increases speed and uses more Credits;
+With a supported Codex model selected, open the composer's model menu to choose Standard or Fast.
+Standard adds no icon; only Fast shows a lightning icon before the model name. Spark does not show the speed entry. Fast mode increases speed and uses more Credits;
 see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) for the current rules.
 
 ## Update and uninstall
