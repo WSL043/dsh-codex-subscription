@@ -173,7 +173,7 @@ DSH-Portable 在其目录中把上述 `dsh` 换成 `.\dsh.exe`。
 - **`dsh` 无法识别**：官方 npm 方式本来就不会创建全局 `dsh` 命令，请使用上面的完整 `npx -y @deepseek-ai/dsh@0.1.0-rc.8 ...` 命令；
 - **`dsh.exe` 无法识别**：当前目录没有该文件。请先进入 DSH-Portable 目录，或使用 Windows 单行助手；
 - **找不到 DSH-Portable**：进入它的目录后重新执行安装命令，或直接运行 `.\dsh.exe plugin --profile web add dsh-codex-subscription`；
-- **电脑上有多个 DSH**：单行助手会列出正在运行的 Portable，输入对应编号即可；交给 Agent 时让它进入目标目录，或明确传入 `-DshPath`；
+- **电脑上有多个 DSH**：单行助手会合并正在运行的副本与常用目录内检测到的 Portable，输入对应编号即可；交给 Agent 时让它进入目标目录，或明确传入 `-DshPath`；
 - **安装仍然失败**：把上面的 Agent 文档链接发给 Agent，不要删除 profile 或随意修改系统 PATH。
 
 ## 边界与支持

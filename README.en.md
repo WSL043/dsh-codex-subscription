@@ -174,7 +174,7 @@ From a DSH-Portable folder, replace `dsh` above with `.\dsh.exe`.
 - **`dsh` is not recognized:** the official npm route does not create a global `dsh` command; use the complete `npx -y @deepseek-ai/dsh@0.1.0-rc.8 ...` command above;
 - **`dsh.exe` is not recognized:** that file is not in the current folder; enter the DSH-Portable folder first or use the one-line Windows setup;
 - **DSH-Portable is not found:** enter its folder and rerun setup, or run `.\dsh.exe plugin --profile web add dsh-codex-subscription` directly;
-- **More than one DSH exists:** the one-line setup lists running Portable copies; enter its number. For an Agent, use the intended folder or pass `-DshPath` explicitly;
+- **More than one DSH exists:** the one-line setup combines running copies with Portable folders detected in common locations; enter its number. For an Agent, use the intended folder or pass `-DshPath` explicitly;
 - **Setup still fails:** send the Agent guide above to an Agent. Do not delete the profile or change the system PATH to force an install.
 
 The ChatGPT Codex backend and DSH can change independently. This community project is not affiliated with or endorsed by DeepSeek or OpenAI.

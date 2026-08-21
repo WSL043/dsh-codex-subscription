@@ -6,7 +6,7 @@ import { spawnSync } from 'node:child_process'
 import test from 'node:test'
 
 const installer = new URL('../dsh-codex-setup.ps1', import.meta.url)
-const packageSpec = 'dsh-codex-subscription@1.1.2'
+const packageSpec = 'dsh-codex-subscription@1.1.3'
 const windowsTest = process.platform === 'win32' ? test : test.skip
 
 test('setup remains a thin official DSH CLI launcher', async () => {
@@ -181,6 +181,48 @@ windowsTest('setup lets an interactive user select between two running Portables
   for (const { dsh } of processes) assert.match(output, new RegExp(dsh.replaceAll('\\', '\\\\')))
   assert.match(output, new RegExp(`Target: ${processes[1].dsh.replaceAll('\\', '\\\\')}`))
   await assert.rejects(readFile(npxLog, 'utf8'), /ENOENT/u)
+})
+
+windowsTest('setup offers a stopped nested Downloads Portable beside a running temporary copy', async t => {
+  const fixture = await mkdtemp(join(tmpdir(), 'dsh-codex-mixed-portables-'))
+  t.after(() => rm(fixture, { recursive: true, force: true }))
+  const runningRoot = join(fixture, 'AppData', 'Local', 'Temp', 'tool-test', 'DSH-Portable')
+  const intendedRoot = join(fixture, 'Downloads', 'DSH-Portable-windows-x64-offline', 'DSH-Portable')
+  const makePortable = async root => {
+    const node = join(root, 'runtime', 'node', 'node.exe')
+    const dsh = join(root, 'dsh.exe')
+    const bin = join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
+    await mkdir(join(root, 'runtime', 'node'), { recursive: true })
+    await mkdir(join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib'), { recursive: true })
+    await writeFile(node, '')
+    await copyFile(process.env.ComSpec, dsh)
+    await writeFile(bin, '')
+    return { node, dsh, bin }
+  }
+  const running = await makePortable(runningRoot)
+  const intended = await makePortable(intendedRoot)
+  const quote = value => value.replaceAll("'", "''")
+  const command = [
+    `function global:Get-CimInstance { [CmdletBinding()] param($ClassName, $Filter); [pscustomobject]@{ ExecutablePath = '${quote(running.node)}'; CommandLine = '\"${quote(running.node)}\" \"${quote(running.bin)}\" web' } }`,
+    `function global:Read-Host { param($Prompt); '2' }`,
+    `Get-Content -LiteralPath '${quote(installer.pathname.slice(1))}' -Raw | Invoke-Expression`,
+  ].join('; ')
+  const result = spawnSync('powershell.exe', ['-NoProfile', '-Command', command], {
+    cwd: fixture,
+    env: {
+      ...process.env,
+      PATH: `${fixture}${delimiter}${process.env.PATH ?? ''}`,
+      USERPROFILE: fixture,
+      DSH_PORTABLE_ROOT: '',
+    },
+    encoding: 'utf8',
+  })
+
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  const output = `${result.stderr}\n${result.stdout}`
+  assert.match(output, new RegExp(running.dsh.replaceAll('\\', '\\\\')))
+  assert.match(output, new RegExp(intended.dsh.replaceAll('\\', '\\\\')))
+  assert.match(output, new RegExp(`Target: ${intended.dsh.replaceAll('\\', '\\\\')}`))
 })
 
 windowsTest('setup stops safely when multiple Portables cannot be selected interactively', async t => {
