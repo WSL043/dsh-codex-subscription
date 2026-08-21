@@ -229,6 +229,7 @@ test('official DSH install and web startup are hard gates before a release', () 
     assert.match(workflow, /actions\/download-artifact@v8/u)
   }
   assert.match(publish, /path:\s*\.candidate\/\*\.tgz[\s\S]*include-hidden-files:\s*true/u)
+  assert.match(publish, /official-acceptance:[\s\S]*?actions\/setup-node@v6[\s\S]*?package-manager-cache:\s*false[\s\S]*?\n  release:/u, 'official acceptance must not fail after passing because a disposable pnpm cache path vanished')
   assert.match(publish, /release:\s*\n\s*needs:\s*\[[^\]]*official-acceptance[^\]]*\]/u)
 })
 
