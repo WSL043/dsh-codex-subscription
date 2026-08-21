@@ -1,6 +1,6 @@
-name: 安装或更新失败 / Install problem
-description: 安装、更新、登录、额度或卸载没有正常工作
-title: "[安装问题] "
+name: 使用问题 / Bug report
+description: 安装、更新、登录、模型、额度或卸载没有正常工作
+title: "[问题] "
 labels:
   - bug
 body:
@@ -9,6 +9,8 @@ body:
       value: |
         请勿提交 Token、Cookie、OAuth 链接或其他凭据。
         Do not include tokens, cookies, OAuth URLs, or other credentials.
+        如果设置页可以打开，请先在“支持诊断”中生成报告；它不会包含凭据或账号标识。
+        If Settings opens, generate a Support diagnostics report first; it excludes credentials and account identifiers.
 
   - type: dropdown
     id: system
@@ -38,7 +40,15 @@ body:
     id: plugin_version
     attributes:
       label: 插件版本 / Plugin version
-      placeholder: 例如 v0.2.8 / e.g. v0.2.8
+      description: 从设置页或插件列表复制；安装尚未完成时填写“未安装”。 / Copy it from Settings or the plugin list; enter “not installed” if setup did not finish.
+    validations:
+      required: true
+
+  - type: input
+    id: dsh_version
+    attributes:
+      label: DSH 版本 / DSH version
+      description: 从 DSH 关于页、启动输出或包管理器复制完整版本。 / Copy the exact version from About, startup output, or the package manager.
     validations:
       required: true
 
@@ -49,9 +59,11 @@ body:
       options:
         - 安装 / Install
         - 更新 / Update
-        - 登录 / Sign in
+        - 浏览器登录或取消 / Browser sign-in or cancel
         - 模型或搜索 / Models or search
         - 额度显示 / Quota display
+        - 图片生成 / Image generation
+        - 支持诊断 / Support diagnostics
         - 卸载 / Uninstall
         - 其他 / Other
     validations:
@@ -66,13 +78,18 @@ body:
       required: true
 
   - type: textarea
+    id: diagnostics
+    attributes:
+      label: 支持诊断 / Support diagnostics
+      description: 如果设置页可以打开，请粘贴“支持诊断”生成的完整报告。不要补充 Token、Cookie、OAuth 链接、授权码或回调地址。 / If Settings opens, paste the complete Support diagnostics report. Do not add tokens, cookies, OAuth URLs, authorization codes, or callback addresses.
+      render: text
+
+  - type: textarea
     id: output
     attributes:
-      label: 错误输出 / Error output
-      description: 粘贴完整错误；先移除 Token、Cookie、OAuth 链接和其他凭据。
+      label: 其他错误输出 / Other error output
+      description: 安装器、终端或 DSH 另外显示了错误时粘贴到这里；先移除凭据和授权链接。 / Paste any additional setup, terminal, or DSH error here after removing credentials and authorization links.
       render: shell
-    validations:
-      required: true
 
   - type: checkboxes
     id: safety
@@ -80,4 +97,6 @@ body:
       label: 提交前确认 / Before submitting
       options:
         - label: 我已确认内容中没有 Token、Cookie、OAuth 链接或其他凭据。
+          required: true
+        - label: 我已填写准确的 DSH 和插件版本，或说明插件尚未安装。 / I provided the exact DSH and plugin versions, or stated that the plugin is not installed.
           required: true
