@@ -547,7 +547,7 @@ windowsTest('direct uninstall removes only manager-owned files from a custom com
     assert.equal(existsSync(join(commandRoot, 'dsh-codex.ps1')), false)
     assert.equal(existsSync(join(commandRoot, 'dsh-codex.cmd')), false)
   } finally {
-    rmSync(sandbox, { recursive: true, force: true })
+    rmSync(sandbox, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   }
 })
 
