@@ -31,6 +31,14 @@ test('GitHub Release notes stay user-facing and exclude internal maintenance evi
   assert.match(notesStep, /Added support for DeepSeek Harness/u)
 })
 
+test('feature releases credit merged contributor PRs with verified authors and links', () => {
+  assert.match(releaseWorkflow, /contributor_prs:[\s\S]*merged contributor PR numbers/iu)
+  assert.match(releaseWorkflow, /CONTRIBUTOR_PRS: \$\{\{ inputs\.contributor_prs \}\}/u)
+  assert.match(releaseWorkflow, /gh pr view "\$pr_number"[\s\S]*author,mergedAt,number,url/u)
+  assert.match(releaseWorkflow, /test "\$merged_at" != 'null'/u)
+  assert.match(releaseWorkflow, /Thanks to \[@\$author\][\s\S]*for contributing in \[#\$number\]/u)
+})
+
 test('immutable releases are drafted, verified with all four assets, then published', () => {
   assert.match(releaseWorkflow, /Create draft GitHub Release/u)
   assert.match(releaseWorkflow, /gh release create "\$RELEASE_TAG"/u)
