@@ -4,7 +4,7 @@ import test from "node:test";
 
 const issueForm = new URL("../.github/ISSUE_TEMPLATE/install-problem.yml", import.meta.url);
 const chineseReadme = new URL("../README.md", import.meta.url);
-const englishReadme = new URL("../README.en.md", import.meta.url);
+const englishReadme = new URL("../README.md", import.meta.url);
 
 test("bug intake accepts UI failures and requests secret-safe support evidence", async () => {
   const form = await readFile(issueForm, "utf8");

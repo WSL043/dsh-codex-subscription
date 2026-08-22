@@ -129,7 +129,7 @@ async function prepare(root, candidate) {
 
   const boundedPaths = [
     'README.md',
-    'README.en.md',
+    'README.zh-CN.md',
     'AGENTS.md',
     'dsh-codex.ps1',
     'dsh-codex-setup.ps1',

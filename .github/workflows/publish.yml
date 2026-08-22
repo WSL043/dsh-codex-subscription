@@ -223,7 +223,9 @@ jobs:
           set -euo pipefail
           mkdir -p .release
           current_dsh="$(node -p "require('./compatibility.json').latestTested")"
-          append_contributors() {
+          prepare_contributors() {
+            : > .release/contributors.en.md
+            : > .release/contributors.zh-CN.md
             [[ -z "${CONTRIBUTOR_PRS:-}" ]] && return 0
             local raw_pr pr_number pr_json merged_at author number url
             IFS=',' read -ra contributor_pr_numbers <<< "$CONTRIBUTOR_PRS"
@@ -239,24 +241,67 @@ jobs:
               author="$(jq -r '.author.login' <<< "$pr_json")"
               number="$(jq -r '.number' <<< "$pr_json")"
               url="$(jq -r '.url' <<< "$pr_json")"
-              cat >> .release/install.md <<NOTES
-          - 感谢 [@$author](https://github.com/$author) 在 [#$number]($url) 提交贡献 / Thanks to [@$author](https://github.com/$author) for contributing in [#$number]($url)
+              cat >> .release/contributors.en.md <<NOTES
+          - Thanks to [@$author](https://github.com/$author) for contributing in [#$number]($url).
+          NOTES
+              cat >> .release/contributors.zh-CN.md <<NOTES
+          - 感谢 [@$author](https://github.com/$author) 在 [#$number]($url) 提交贡献。
           NOTES
             done
           }
+          append_contributors() {
+            local language="$1" heading file
+            if [[ "$language" == 'en' ]]; then
+              heading='Contributors'
+              file=.release/contributors.en.md
+            else
+              heading='贡献者'
+              file=.release/contributors.zh-CN.md
+            fi
+            [[ -s "$file" ]] || return 0
+            printf '\n## %s\n\n' "$heading" >> .release/install.md
+            cat "$file" >> .release/install.md
+          }
+          prepare_contributors
           if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
             test -n "${REQUESTED_DSH_VERSION:-}"
             test "$REQUESTED_DSH_VERSION" = "$current_dsh"
           fi
           if [[ "$IS_PRERELEASE" == 'true' ]]; then
             cat > .release/install.md <<NOTES
-          ## Beta 更新 / Beta preview
+          ## Beta preview
 
-          - 输入框支持为兼容的 Codex 模型切换标准或高速 / Switch supported Codex models between Standard and Fast in the composer
-          - 高速模式显示为闪电，Spark 会自动隐藏不适用的入口 / Fast is shown as a lightning icon; Spark hides the unsupported control
+          - Switch supported Codex models between Standard and Fast in the composer.
+          - Fast is shown as a lightning icon; Spark hides the unsupported control.
 
           <!-- dsh-codex-install -->
-          ## 安装 Beta / Install the Beta
+          ## Install the Beta
+
+          \`\`\`sh
+          npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
+          npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh@$current_dsh --profile web --dump-config
+          \`\`\`
+
+          Restart DSH manually. This Beta does not replace npm's stable tag.
+
+          ## Uninstall
+
+          \`\`\`sh
+          npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web remove dsh-codex-subscription
+          \`\`\`
+          NOTES
+            append_contributors en
+            cat >> .release/install.md <<NOTES
+
+          ## 中文
+
+          ## Beta 更新
+
+          - 输入框支持为兼容的 Codex 模型切换标准或高速。
+          - 高速模式显示为闪电，Spark 会自动隐藏不适用的入口。
+
+          ## 安装 Beta
 
           \`\`\`sh
           npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
@@ -265,53 +310,105 @@ jobs:
           \`\`\`
 
           安装后手动重启 DSH。Beta 不会替换 npm 的稳定版标签。
-          Restart DSH manually. This Beta does not replace npm's stable tag.
 
-          ## 卸载 / Uninstall
+          ## 卸载
 
           \`\`\`sh
           npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web remove dsh-codex-subscription
           \`\`\`
           NOTES
-            append_contributors
+            append_contributors zh-CN
             exit 0
           fi
           if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
             cat > .release/install.md <<NOTES
-          ## DSH 兼容更新 / DSH compatibility
+          ## DSH compatibility
 
-          - 已支持 DeepSeek Harness \`$current_dsh\` / Added support for DeepSeek Harness \`$current_dsh\`
-          - 支持在官方 DSH Web 中安装、更新和卸载 / Supports install, update, and uninstall in official DSH Web
+          - Added support for DeepSeek Harness \`$current_dsh\`.
+          - Supports install, update, and uninstall in official DSH Web.
 
           NOTES
           else
             cat > .release/install.md <<'NOTES'
-          ## 更新内容 / What's new
+          ## What's new
 
-          - 修复会话中加入持久图片后，下一次 Codex 模型请求可能因图片预算缺失而失败 / Fixes Codex model requests failing after a durable image is added to the conversation
-          - 图片仍由 DSH 的原生附件与请求归一化流程处理 / Images continue to use DSH's native attachment and request-normalization path
+          - Fixes Codex model requests failing after a durable image is added to the conversation.
+          - Images continue to use DSH's native attachment and request-normalization path.
 
           NOTES
           fi
-          append_contributors
+          append_contributors en
           cat >> .release/install.md <<'NOTES'
 
           <!-- dsh-codex-install -->
-          ## 安装 / Install
+          ## Installation
 
-          ### Windows 安装助手 / Windows guided install
+          ### Windows guided install
 
-          打开 PowerShell，只复制这一行：
           Open PowerShell and paste this one line:
 
           ```powershell
           irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
           ```
 
-          助手会使用当前目录、系统命令、常见位置或正在运行的 DSH-Portable；都找不到时才使用固定版本的官方 npm 入口。无需管理员权限，完成后请手动重启 DSH。
           Setup uses the current folder, a system command, a common location, or a running DSH-Portable; only then does it fall back to the pinned official npm route. It runs `plugin add` once, needs no administrator access, and does not restart DSH.
 
-          ### 官方 npm 方式 / Official npm route
+          ### Official npm route
+
+          ```sh
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ --profile web --dump-config
+          ```
+
+          Restart DSH manually. The plugin list should contain one `dsh-codex-subscription`, and the config should contain one `codex-subscription` entry.
+
+          ### Universal update and uninstall
+
+          ```sh
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ --profile web --dump-config
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription
+          ```
+          NOTES
+          cat >> .release/install.md <<'NOTES'
+
+          ## 中文
+          NOTES
+          if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
+            cat >> .release/install.md <<NOTES
+
+          ## DSH 兼容更新
+
+          - 已支持 DeepSeek Harness \`$current_dsh\`。
+          - 支持在官方 DSH Web 中安装、更新和卸载。
+          NOTES
+          else
+            cat >> .release/install.md <<'NOTES'
+
+          ## 更新内容
+
+          - 修复会话中加入持久图片后，下一次 Codex 模型请求可能因图片预算缺失而失败。
+          - 图片仍由 DSH 的原生附件与请求归一化流程处理。
+          NOTES
+          fi
+          append_contributors zh-CN
+          cat >> .release/install.md <<'NOTES'
+
+          ## 安装
+
+          ### Windows 安装助手
+
+          打开 PowerShell，只复制这一行：
+
+          ```powershell
+          irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
+          ```
+
+          助手会使用当前目录、系统命令、常见位置或正在运行的 DSH-Portable；都找不到时才使用固定版本的官方 npm 入口。无需管理员权限，完成后请手动重启 DSH。
+
+          ### 官方 npm 方式
 
           ```sh
           npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription
@@ -320,9 +417,8 @@ jobs:
           ```
 
           安装后手动重启 DSH。列表中应只有一个 `dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
-          Restart DSH manually. The plugin list should contain one `dsh-codex-subscription`, and the config should contain one `codex-subscription` entry.
 
-          ### 通用更新与卸载 / Universal update and uninstall
+          ### 通用更新与卸载
 
           ```sh
           npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription
