@@ -116,6 +116,16 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
 
   assert.equal('CODEX_PROVIDER_POLICY' in plugin, false, 'do not replace the removed boundary with cosmetic metadata')
   assert.deepEqual(host.registered.map(item => item.providers), [['openai-codex']])
+  const profile = host.registered[0].adapter.current().profiles.get('openai-codex')
+  assert.deepEqual({
+    maxRequestImageBytes: profile.maxRequestImageBytes,
+    requestImagePixelBudget: profile.requestImagePixelBudget,
+    requestImageMaxBytes: profile.requestImageMaxBytes,
+  }, {
+    maxRequestImageBytes: 20 * 1024 * 1024,
+    requestImagePixelBudget: 2048 * 2048,
+    requestImageMaxBytes: 1024 * 1024,
+  })
   assert.deepEqual(host.searchProviders.map(provider => provider.id), ['codex-subscription'])
   assert.deepEqual(host.tools.map(tool => tool.name), ['codex_image_generate'])
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
