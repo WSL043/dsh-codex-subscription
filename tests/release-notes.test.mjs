@@ -3,16 +3,16 @@ import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const releaseWorkflow = readFileSync(new URL('../.github/workflows/publish.yml', import.meta.url), 'utf8')
-const compatibility = JSON.parse(readFileSync(new URL('../compatibility.json', import.meta.url), 'utf8'))
 
 test('GitHub Releases include beginner-facing install, update, and uninstall instructions before publish', () => {
   assert.match(releaseWorkflow, /<!-- dsh-codex-install -->/u)
   assert.match(releaseWorkflow, /## 安装 \/ Install/u)
   assert.match(releaseWorkflow, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
   assert.match(releaseWorkflow, /官方 npm 方式 \/ Official npm route/u)
-  assert.equal(releaseWorkflow.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add dsh-codex-subscription`), true)
-  assert.equal(releaseWorkflow.includes(`dsh@${compatibility.latestTested} plugin --profile web update dsh-codex-subscription`), true)
-  assert.equal(releaseWorkflow.includes(`dsh@${compatibility.latestTested} plugin --profile web remove dsh-codex-subscription`), true)
+  assert.match(releaseWorkflow, /npx -y @deepseek-ai\/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription/u)
+  assert.match(releaseWorkflow, /dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription/u)
+  assert.match(releaseWorkflow, /dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription/u)
+  assert.match(releaseWorkflow, /sed -i "s\/__DSH_VERSION__\/\$current_dsh\/g" \.release\/install\.md/u)
   assert.match(releaseWorkflow, /runs `plugin add` once/u)
   assert.match(releaseWorkflow, /release_kind:[\s\S]*compatibility/u)
   assert.match(releaseWorkflow, /Added support for DeepSeek Harness/u)
