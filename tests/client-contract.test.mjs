@@ -155,6 +155,28 @@ test('quota is the primary surface with reset, freshness, loading, and empty-sta
   assert.doesNotMatch(source, /individualLimit\.remaining(?!Percent)/u)
 })
 
+test('quota reset redemption requires deliberate multi-step confirmation and never consumes on cancel', async () => {
+  const [client, host] = await Promise.all([text('src/client.jsx'), text('src/index.js')])
+  assert.match(client, /reset-credit\/prepare/u)
+  assert.match(client, /reset-credit\/consume/u)
+  assert.match(client, /type=['"]checkbox['"]/u)
+  assert.match(client, /confirmPhrase/u)
+  assert.match(client, /resetPhrase === challenge\.confirmPhrase/u)
+  assert.match(client, /readyAt/u)
+  assert.match(client, /setInterval/u)
+  assert.match(client, /resetAcknowledged/u)
+  assert.match(client, /resetPhrase/u)
+  assert.match(client, /resetCountdown/u)
+  assert.match(client, /resetAcknowledged && resetPhrase === challenge\.confirmPhrase && resetCountdown === 0/u)
+  assert.match(client, /if \(resetBusy\) return/u, 'the final action must be single-flight in the browser')
+  assert.match(client, /onClick=\{cancelReset\}/u)
+  assert.match(client, /resetCreditErrorText/u)
+  assert.match(client, /key \?\? 'resetFailed'/u, 'unknown host errors must stay bounded and localized')
+  assert.doesNotMatch(client, /window\.confirm|window\.prompt/u)
+  assert.match(host, /resetCreditService\.consume/u)
+  assert.match(host, /resetCreditService\.clear/u)
+})
+
 test('settings keep support diagnostics actionable and omit internal cache or route policy copy', async () => {
   const source = await text('src/client.jsx')
   assert.doesNotMatch(source, /CacheDiagnostics|Technical diagnostics|技术诊断|codexSubscriptionSafety/u)

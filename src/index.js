@@ -28,6 +28,7 @@ import {
   SPEED_MODE_STANDARD,
 } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
+import { createCodexResetCreditService } from './reset-credits.js'
 
 export const name = 'codex-subscription'
 export const inject = ['llm', 'credentials', 'connection', 'settings', 'web', 'loader', 'tools', 'attachments']
@@ -47,7 +48,7 @@ const publicError = (code, message) => ({
   error: { code, message, details: { issues: [] } },
 })
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, preferences, diagnosticsReader }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, diagnosticsReader }) {
   return async (endpoint, payload, signal) => {
     if (endpoint === 'diagnostics') {
       try {
@@ -108,8 +109,44 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, prefere
         return publicError('internal', message)
       }
     }
+    if (endpoint === 'reset-credit/prepare' || endpoint === 'reset-credit/consume') {
+      try {
+        signal.throwIfAborted()
+        const value = endpoint === 'reset-credit/prepare'
+          ? await resetCreditService.prepare({ signal })
+          : await resetCreditService.consume({
+              challengeId: payload?.challengeId,
+              phrase: payload?.phrase,
+              signal,
+            })
+        return { ok: true, value }
+      } catch (error) {
+        if (signal.aborted) throw error
+        const known = new Set([
+          'ChatGPT subscription is not signed in',
+          'ChatGPT sign-in needs to be renewed',
+          'No quota reset is available',
+          'No usable quota reset is available',
+          'The available quota reset expires too soon',
+          'This quota reset confirmation is no longer valid',
+          'This quota reset is already in progress',
+          'Wait before confirming this quota reset',
+          'The quota reset confirmation phrase does not match',
+          'The current Codex quota is not exhausted',
+          'The signed-in ChatGPT account changed',
+        ])
+        const fallback = endpoint === 'reset-credit/prepare'
+          ? 'Could not prepare a quota reset'
+          : 'Could not use the quota reset'
+        const message = error instanceof Error && known.has(error.message) ? error.message : fallback
+        return publicError('internal', message)
+      }
+    }
     const result = await authHandler(endpoint, payload, signal)
-    if (endpoint === 'logout' && result.ok === true) usageReader.clear()
+    if (endpoint === 'logout' && result.ok === true) {
+      usageReader.clear()
+      resetCreditService.clear()
+    }
     return result
   }
 }
@@ -236,9 +273,15 @@ export function apply(ctx) {
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
   })
+  const resetCreditService = createCodexResetCreditService({
+    getAuth: resolveAuth,
+    readCredential: options => store.read(PROVIDER, options),
+    usageReader,
+  })
   const handler = createSubscriptionRpcHandler({
     authHandler: createCodexRpcHandler(coordinator, { openExternal: openCodexAuthUrl }),
     usageReader,
+    resetCreditService,
     preferences,
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences }),
   })
@@ -254,6 +297,12 @@ export { createSubscriptionDiagnostics } from './diagnostics.js'
 export { assertCodexAuthUrl, commandForCodexAuthUrl, openCodexAuthUrl } from './external-url.js'
 export { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinator.js'
 export { CODEX_USAGE_URL, createCodexUsageReader, parseCodexUsage } from './usage.js'
+export {
+  CODEX_RESET_CONSUME_URL,
+  CODEX_RESET_CREDITS_URL,
+  RESET_CONFIRM_PHRASE,
+  createCodexResetCreditService,
+} from './reset-credits.js'
 export {
   CODEX_IMAGE_GENERATION_URL,
   CODEX_IMAGE_TOOL_NAME,

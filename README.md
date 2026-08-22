@@ -17,7 +17,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 </div>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: subscription models, web search, live quota, and image generation">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
 </p>
 
 ## Three-step start
@@ -46,6 +46,7 @@ From a DSH-Portable product folder, run `./dsh plugin ...` (`.\dsh.exe plugin ..
 | **Subscription models** | Sign in to ChatGPT and use Codex without an OpenAI API key or Codex CLI |
 | **Recoverable and diagnosable** | Sign-in state reconciles automatically; Settings can create a support report without credentials or account identifiers |
 | **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate |
+| **Safe quota reset** | Use a reset only for an exhausted Codex quota, with a cooldown, checkbox, and typed confirmation |
 | **Subscription search** | Explicitly choose DSH default search or Codex subscription search |
 | **Codex image generation** | Describe an image in a DSH conversation and view the generated result in that session |
 | **Fast mode (Beta)** | Switch between Standard and Fast directly in the composer |
@@ -142,6 +143,7 @@ Restart DSH manually after installation, then:
 - A clear choice between DSH default search and Codex subscription search;
 - Actual backend-provided quota, reset time, and freshness;
 - Separate standard Codex, Codex-Spark, Credits, and other independent limits;
+- Deliberate quota-reset redemption for exhausted Codex limits, with layered confirmation and no automatic retry;
 - Optional composer quota for the selected Codex model (Beta, off by default);
 - Standard or Fast mode for supported Codex models directly in the composer (Beta);
 - A copyable support report in Settings that excludes OAuth credentials, account identifiers, and authorization timestamps;
@@ -156,6 +158,13 @@ Restart DSH manually after installation, then:
 The compact percentage appears only for a selected Codex model. Standard Codex uses the lowest remaining
 window returned by the service; Spark uses its independent quota. The plugin does not hard-code a
 “5-hour + weekly” layout or invent Credits and spending caps that the service did not return.
+
+### Safe quota reset
+
+If ChatGPT reports an available quota reset, Settings shows it in a compact row. Redemption stays disabled
+until a Codex model quota is exhausted. Using one requires a five-second cooldown, an acknowledgement checkbox,
+and the exact confirmation phrase. Cancel never consumes a reset, rapid repeated clicks are single-flight, and an
+uncertain network result is never retried automatically.
 
 ### Composer speed (Beta)
 

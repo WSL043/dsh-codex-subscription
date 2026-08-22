@@ -48,6 +48,17 @@ const zh = {
   windowHours: '{value} 小时额度', windowDays: '{value} 天额度', resets: '重置于 {value}', resetUnknown: '重置时间未提供',
   creditsBalance: '额外 Credits 余额', creditsUnit: 'credits', unlimited: '不限额', monthlyCreditLimit: 'Credits 月度消费上限',
   resetCredits: '可用额度重置次数', resetCreditsValue: '{count} 次',
+  resetUse: '使用一次重置', resetUnavailable: '仅当至少一个 Codex 模型额度已用尽时可使用。',
+  resetPreparing: '正在读取重置详情…', resetConfirmTitle: '确认使用额度重置',
+  resetWarning: '此操作会立即消耗 1 次额度重置，且无法撤销。请确认你确实需要恢复已用尽的模型额度。',
+  resetAcknowledge: '我知道这会消耗 1 次额度重置', resetTypeHint: '输入 {phrase} 以继续',
+  resetWait: '请再等待 {count} 秒', resetFinal: '消耗 1 次并重置额度', resetUsing: '正在重置…',
+  resetSuccess: '额度重置已完成。', resetNothing: '当前没有可重置的额度，未消耗新的重置次数。',
+  resetNoCredit: '没有可用的额度重置。', resetAlready: '这次重置请求已处理。', resetFailed: '无法使用额度重置。',
+  resetRenewLogin: '登录状态已失效，请重新登录。', resetExpired: '本次确认已失效，请重新开始。',
+  resetInProgress: '额度重置正在处理中。', resetTooEarly: '请等待冷静期结束后再确认。',
+  resetPhraseMismatch: '确认短语不一致。', resetNotExhausted: '当前 Codex 模型额度尚未用尽。',
+  resetAccountChanged: '登录账号已变更，请重新开始。',
   creditsNote: '仅显示 Codex 为此账户或工作区实际返回的额外 Credits、消费上限或额度重置次数；三者不是同一项。',
   creditsUsed: '已用 {used} / {limit} credits', spendReached: 'Credits 月度消费上限已用尽。', unavailable: '暂无数据',
   quickQuotaSetting: '输入框额度',
@@ -82,6 +93,17 @@ const en = {
   windowHours: '{value}-hour quota', windowDays: '{value}-day quota', resets: 'Resets {value}', resetUnknown: 'Reset time not provided',
   creditsBalance: 'Extra Credits balance', creditsUnit: 'credits', unlimited: 'Unlimited', monthlyCreditLimit: 'Monthly Credits spending cap',
   resetCredits: 'Available quota resets', resetCreditsValue: '{count} available',
+  resetUse: 'Use one reset', resetUnavailable: 'Available only when at least one Codex model quota is exhausted.',
+  resetPreparing: 'Reading reset details…', resetConfirmTitle: 'Confirm quota reset',
+  resetWarning: 'This immediately consumes one quota reset and cannot be undone. Continue only if you intend to restore an exhausted model quota.',
+  resetAcknowledge: 'I understand this consumes one quota reset', resetTypeHint: 'Type {phrase} to continue',
+  resetWait: 'Wait {count} more seconds', resetFinal: 'Consume one reset', resetUsing: 'Resetting…',
+  resetSuccess: 'Quota reset completed.', resetNothing: 'There is currently nothing to reset; no new reset was consumed.',
+  resetNoCredit: 'No quota reset is available.', resetAlready: 'This reset request was already processed.', resetFailed: 'Could not use the quota reset.',
+  resetRenewLogin: 'Your sign-in expired. Sign in again.', resetExpired: 'This confirmation expired. Start again.',
+  resetInProgress: 'A quota reset is already in progress.', resetTooEarly: 'Wait for the cooldown before confirming.',
+  resetPhraseMismatch: 'The confirmation phrase does not match.', resetNotExhausted: 'The current Codex model quota is not exhausted.',
+  resetAccountChanged: 'The signed-in account changed. Start again.',
   creditsNote: 'Shows only extra Credits, spending caps, or quota resets returned for this account or workspace; these are separate items.',
   creditsUsed: '{used} / {limit} credits used', spendReached: 'The monthly Credits spending cap has been reached.', unavailable: 'No data yet',
   quickQuotaSetting: 'Composer quota',
@@ -120,6 +142,7 @@ const STYLE = `
 .codexSubscriptionLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionLimitMeta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionCreditSection{display:flex;flex-direction:column;gap:7px}.codexSubscriptionCreditNote{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionCreditRows{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.codexSubscriptionCreditBalance,.codexSubscriptionSpendLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionCreditBalance{display:flex;flex-direction:column;gap:6px}.codexSubscriptionCreditBalance span,.codexSubscriptionCreditLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.codexSubscriptionResetSummary{display:flex;align-items:center;justify-content:space-between;gap:10px}.codexSubscriptionResetBalance{display:flex;flex-direction:column;gap:8px}.codexSubscriptionResetBalance .codexSubscriptionActions{justify-content:flex-start}.codexSubscriptionResetFlow{display:flex;flex-direction:column;gap:9px;border:1px solid var(--dsw-alias-state-warning-border,var(--dsw-alias-border-l2));border-radius:10px;padding:11px 12px;background:var(--dsw-alias-bg-module-platform)}.codexSubscriptionResetFlow h4{margin:0;font-size:13px;line-height:20px;font-weight:600}.codexSubscriptionResetWarning{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionResetCheck{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);cursor:pointer}.codexSubscriptionResetCheck input{margin:3px 0 0;accent-color:var(--dsw-alias-label-primary)}.codexSubscriptionResetPhrase{font:600 12px/18px ui-monospace,SFMono-Regular,Consolas,monospace}.codexSubscriptionResetFinal{border-color:var(--dsw-alias-state-error-primary)!important;color:var(--dsw-alias-state-error-primary)!important}.codexSubscriptionResetResult{font-size:12px;line-height:18px;color:var(--dsw-alias-state-success-primary)}
 .codexSubscriptionSpendLimit{display:flex;flex-direction:column;gap:8px}.codexSubscriptionSpendTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionSpendTop strong{font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.codexSubscriptionSpendLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}.codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexComposerQuota{display:inline-flex;align-items:center;flex:0 0 auto;height:28px;box-sizing:border-box;padding:0;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}
 .codexModelSelect{position:relative;min-width:0}.codexModelSelectTrigger{display:flex;align-items:center;gap:4px;min-width:0;max-width:min(360px,45cqw);height:28px;padding:0 4px 0 8px;border:0;border-radius:24px;outline:0;background:transparent;color:var(--dsw-alias-label-secondary);font-size:13px;font-weight:500;line-height:20px;cursor:pointer}.codexModelSelectTrigger:hover:not(:disabled),.codexModelSelectTrigger[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover)}.codexModelSelectTrigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}.codexModelSelectTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectBolt{display:block;flex:none;width:14px;height:14px;color:var(--dsw-alias-label-primary)}.codexModelSelectLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectEffort{flex:none;color:var(--dsw-alias-label-caption)}.codexModelSelectChevron{flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms}.codexModelSelectTrigger[aria-expanded=true] .codexModelSelectChevron{transform:rotate(180deg)}
@@ -734,6 +757,88 @@ function ResetTime({ resetsAt, t }) {
   return <time dateTime={date.toISOString()} title={date.toLocaleString()}>{fill(t('resets'), { value })}</time>
 }
 
+function ResetCreditControl({ rpc, t, count, exhausted, onConsumed }) {
+  const [challenge, setChallenge] = useState()
+  const [resetBusy, setResetBusy] = useState(false)
+  const [resetAcknowledged, setResetAcknowledged] = useState(false)
+  const [resetPhrase, setResetPhrase] = useState('')
+  const [resetCountdown, setResetCountdown] = useState(0)
+  const [resetError, setResetError] = useState()
+  const [resetResult, setResetResult] = useState()
+
+  useEffect(() => {
+    if (challenge === undefined) { setResetCountdown(0); return undefined }
+    const update = () => setResetCountdown(Math.max(0, Math.ceil((challenge.readyAt - Date.now()) / 1_000)))
+    update()
+    const timer = window.setInterval(update, 250)
+    return () => window.clearInterval(timer)
+  }, [challenge])
+
+  const prepareReset = () => {
+    if (resetBusy || !exhausted) return
+    setResetBusy(true); setResetError(undefined); setResetResult(undefined)
+    void rpc.call(CHANNEL, 'reset-credit/prepare', {}).then(unwrap)
+      .then(next => { setChallenge(next); setResetAcknowledged(false); setResetPhrase('') })
+      .catch(error => setResetError(resetCreditErrorText(error, t)))
+      .finally(() => setResetBusy(false))
+  }
+  const cancelReset = () => {
+    if (resetBusy) return
+    setChallenge(undefined); setResetAcknowledged(false); setResetPhrase(''); setResetError(undefined)
+  }
+  const resetReady = challenge !== undefined
+    && resetAcknowledged && resetPhrase === challenge.confirmPhrase && resetCountdown === 0
+  const consumeReset = () => {
+    if (resetBusy) return
+    if (!resetReady) return
+    setResetBusy(true); setResetError(undefined); setResetResult(undefined)
+    void rpc.call(CHANNEL, 'reset-credit/consume', {
+      challengeId: challenge.challengeId,
+      phrase: resetPhrase,
+    }).then(unwrap).then(result => {
+      setChallenge(undefined); setResetAcknowledged(false); setResetPhrase('')
+      const message = result.code === 'reset' ? t('resetSuccess')
+        : result.code === 'nothing_to_reset' ? t('resetNothing')
+          : result.code === 'no_credit' ? t('resetNoCredit') : t('resetAlready')
+      setResetResult(message)
+      onConsumed()
+    }).catch(error => setResetError(resetCreditErrorText(error, t))).finally(() => setResetBusy(false))
+  }
+
+  return <div className="codexSubscriptionResetBalance">
+    {challenge === undefined ? <>
+      <div className="codexSubscriptionResetSummary"><strong>{fill(t('resetCreditsValue'), { count })}</strong><div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={!exhausted || resetBusy} aria-busy={resetBusy} title={!exhausted ? t('resetUnavailable') : undefined} onClick={prepareReset}>{resetBusy ? t('resetPreparing') : t('resetUse')}</Button></div></div>
+    </> : <div className="codexSubscriptionResetFlow" role="group" aria-labelledby="codex-reset-confirm-title">
+      <h4 id="codex-reset-confirm-title">{challenge.title ?? t('resetConfirmTitle')}</h4>
+      {challenge.description ? <p className="codexSubscriptionResetWarning">{challenge.description}</p> : null}
+      <p className="codexSubscriptionResetWarning">{t('resetWarning')}</p>
+      <label className="codexSubscriptionResetCheck"><input type="checkbox" checked={resetAcknowledged} disabled={resetBusy} onChange={event => setResetAcknowledged(event.target.checked)} /><span>{t('resetAcknowledge')}</span></label>
+      <label className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionCreditLabel">{fill(t('resetTypeHint'), { phrase: challenge.confirmPhrase })}</span><Input className="codexSubscriptionInput codexSubscriptionResetPhrase" value={resetPhrase} disabled={resetBusy} autoComplete="off" spellCheck={false} onChange={event => setResetPhrase(event.target.value)} /></label>
+      {resetCountdown > 0 ? <p className="codexSubscriptionCreditNote" role="status">{fill(t('resetWait'), { count: resetCountdown })}</p> : null}
+      <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={resetBusy} onClick={cancelReset}>{t('cancel')}</Button><Button className="codexSubscriptionResetFinal" type="button" variant="outline" disabled={!resetReady || resetBusy} aria-busy={resetBusy} onClick={consumeReset}>{resetBusy ? t('resetUsing') : t('resetFinal')}</Button></div>
+    </div>}
+    {resetResult ? <p className="codexSubscriptionResetResult" role="status">{resetResult}</p> : null}
+    {resetError ? <p className="codexSubscriptionError" role="alert">{resetError || t('resetFailed')}</p> : null}
+  </div>
+}
+
+function resetCreditErrorText(error, t) {
+  const key = new Map([
+    ['ChatGPT subscription is not signed in', 'resetRenewLogin'],
+    ['ChatGPT sign-in needs to be renewed', 'resetRenewLogin'],
+    ['No quota reset is available', 'resetNoCredit'],
+    ['No usable quota reset is available', 'resetNoCredit'],
+    ['The available quota reset expires too soon', 'resetExpired'],
+    ['This quota reset confirmation is no longer valid', 'resetExpired'],
+    ['This quota reset is already in progress', 'resetInProgress'],
+    ['Wait before confirming this quota reset', 'resetTooEarly'],
+    ['The quota reset confirmation phrase does not match', 'resetPhraseMismatch'],
+    ['The current Codex quota is not exhausted', 'resetNotExhausted'],
+    ['The signed-in ChatGPT account changed', 'resetAccountChanged'],
+  ]).get(error instanceof Error ? error.message : '')
+  return t(key ?? 'resetFailed')
+}
+
 function UsageCard({ rpc, t, signedIn, resetKey }) {
   const [usage, setUsage] = useState()
   const [busy, setBusy] = useState(false)
@@ -760,6 +865,8 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
   }, [signedIn, resetKey])
   const visibleUsage = signedIn ? usage : undefined
   const limits = visibleUsage?.rateLimits ?? []
+  const exhausted = limits.some(limit => limit.id !== 'code_review'
+    && limit.windows.some(window => window.usedPercent >= 100))
   const hasUsageDetails = limits.length > 0 || visibleUsage?.credits !== undefined
     || visibleUsage?.individualLimit !== undefined || visibleUsage?.resetCredits?.availableCount > 0
   const fetchedAt = typeof visibleUsage?.fetchedAt === 'number' ? validDate(visibleUsage.fetchedAt) : undefined
@@ -784,7 +891,7 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
       <p className="codexSubscriptionCreditNote">{t('creditsNote')}</p>
       <div className="codexSubscriptionCreditRows">
         {visibleUsage?.credits ? <div className="codexSubscriptionCreditBalance"><span>{t('creditsBalance')}</span><strong>{visibleUsage.credits.unlimited ? t('unlimited') : `${visibleUsage.credits.balance ?? t('unavailable')} ${t('creditsUnit')}`}</strong></div> : null}
-        {visibleUsage?.resetCredits?.availableCount > 0 ? <div className="codexSubscriptionCreditBalance"><span>{t('resetCredits')}</span><strong>{fill(t('resetCreditsValue'), { count: visibleUsage.resetCredits.availableCount })}</strong></div> : null}
+        {visibleUsage?.resetCredits?.availableCount > 0 ? <div className="codexSubscriptionCreditBalance"><span>{t('resetCredits')}</span><ResetCreditControl rpc={rpc} t={t} count={visibleUsage.resetCredits.availableCount} exhausted={exhausted} onConsumed={() => load(true)} /></div> : null}
         {visibleUsage?.individualLimit ? <div className="codexSubscriptionSpendLimit">
           <div className="codexSubscriptionSpendTop"><span className="codexSubscriptionCreditLabel">{t('monthlyCreditLimit')}</span><strong>{fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}</strong></div>
           <progress max="100" value={visibleUsage.individualLimit.remainingPercent} aria-label={`${t('monthlyCreditLimit')} ${fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}`} />
