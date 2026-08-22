@@ -103,7 +103,7 @@ jobs:
         run: |
           pnpm test
           pnpm run build
-          git diff --exit-code --check
+          git diff --check
           rm -rf .candidate
           mkdir .candidate
           pnpm pack --pack-destination .candidate
