@@ -332,9 +332,9 @@ jobs:
             cat > .release/install.md <<'NOTES'
           ## What's new
 
-          - Use an available quota reset from Settings after a Codex model quota is exhausted.
-          - Redemption is protected by a five-second cooldown, an acknowledgement checkbox, an exact typed phrase, and single-flight requests. Cancel never consumes a reset, and uncertain network results are not retried automatically.
-          - The reset control stays compact until opened.
+          - Composer quota display is now a supported setting with Off, Percent, and Progress bar modes.
+          - The compact display follows DSH's interface language and shows the active Codex model's current quota without opening Settings.
+          - Existing Beta preferences migrate automatically; the feature remains off by default.
 
           NOTES
           fi
@@ -390,9 +390,9 @@ jobs:
 
           ## 更新内容
 
-          - Codex 模型额度用尽后，可在设置页主动使用服务端返回的额度重置卡。
-          - 使用前必须等待 5 秒、勾选知情确认并输入完全一致的确认短语；取消不会消耗，快速重复点击只会发出一次请求，网络结果不确定时也不会自动重试。
-          - 重置入口默认保持紧凑，仅在操作时展开。
+          - 输入框额度显示现已正式支持关闭、百分比和进度条三种模式。
+          - 紧凑显示会跟随 DSH 界面语言，并直接展示当前 Codex 模型的额度，无需打开设置页。
+          - 旧版 Beta 偏好会自动迁移，功能仍默认关闭。
           NOTES
           fi
           append_contributors zh-CN

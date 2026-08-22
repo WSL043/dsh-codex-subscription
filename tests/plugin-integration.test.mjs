@@ -4,7 +4,11 @@ import test from 'node:test'
 import * as plugin from '../src/index.js'
 import { PACKAGE_VERSION } from '../src/version.js'
 import {
+  normalizeQuickQuotaMode,
   normalizeSearchProvider,
+  QUICK_QUOTA_MODE_BAR,
+  QUICK_QUOTA_MODE_OFF,
+  QUICK_QUOTA_MODE_PERCENT,
   SEARCH_PROVIDER_CODEX,
   SEARCH_PROVIDER_DSH,
   SPEED_MODE_FAST,
@@ -12,6 +16,15 @@ import {
 } from '../src/settings-contract.js'
 
 const { apply: applyPlugin } = plugin
+
+test('composer quota mode normalizes formal values and legacy booleans', () => {
+  assert.equal(normalizeQuickQuotaMode(QUICK_QUOTA_MODE_OFF), QUICK_QUOTA_MODE_OFF)
+  assert.equal(normalizeQuickQuotaMode(QUICK_QUOTA_MODE_PERCENT), QUICK_QUOTA_MODE_PERCENT)
+  assert.equal(normalizeQuickQuotaMode(QUICK_QUOTA_MODE_BAR), QUICK_QUOTA_MODE_BAR)
+  assert.equal(normalizeQuickQuotaMode(undefined, true), QUICK_QUOTA_MODE_PERCENT)
+  assert.equal(normalizeQuickQuotaMode(undefined, false), QUICK_QUOTA_MODE_OFF)
+  assert.equal(normalizeQuickQuotaMode('invalid', true), QUICK_QUOTA_MODE_PERCENT)
+})
 
 function fakeContext() {
   const registered = []
@@ -169,7 +182,7 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
         speedMode: true,
       },
       configuration: {
-        quickQuotaVisible: false,
+        quickQuotaMode: QUICK_QUOTA_MODE_OFF,
         searchProvider: 'dsh',
         speedMode: SPEED_MODE_STANDARD,
         writable: true,
@@ -190,20 +203,27 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
   const preferenceStatus = await host.handled[0].handler('preferences/status', {}, signal)
   assert.deepEqual(preferenceStatus, {
     ok: true,
-    value: { quickQuotaVisible: true, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, writable: true },
+    value: { quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, writable: true },
   })
   const preferenceUpdate = await host.handled[0].handler('preferences/update', {
-    quickQuotaVisible: false,
+    quickQuotaMode: QUICK_QUOTA_MODE_BAR,
     searchProvider: 'dsh',
     speedMode: SPEED_MODE_FAST,
   }, signal)
   assert.deepEqual(preferenceUpdate, {
     ok: true,
-    value: { quickQuotaVisible: false, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, writable: true },
+    value: { quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, writable: true },
   })
   assert.deepEqual(host.webUpdates.at(-1), {
     config: { searchProvider: 'deepseek-official', fetchProvider: 'local' },
     noSave: true,
+  })
+  const invalidQuotaMode = await host.handled[0].handler('preferences/update', {
+    quickQuotaMode: 'card',
+  }, signal)
+  assert.deepEqual(invalidQuotaMode, {
+    ok: false,
+    error: { code: 'internal', message: 'Invalid quick quota preference', details: { issues: [] } },
   })
 })
 
