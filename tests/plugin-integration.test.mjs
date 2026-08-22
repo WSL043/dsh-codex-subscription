@@ -211,6 +211,7 @@ test('usage failures use a DSH-supported bounded RPC error', async () => {
   const handler = plugin.createSubscriptionRpcHandler({
     async authHandler() { throw new Error('not used') },
     usageReader: { async read() { throw new Error('host secret') }, clear() {} },
+    resetCreditService: { async prepare() {}, async consume() {}, clear() {} },
   })
   const result = await handler('usage', {}, new AbortController().signal)
   assert.deepEqual(result, {
@@ -218,6 +219,51 @@ test('usage failures use a DSH-supported bounded RPC error', async () => {
     error: { code: 'internal', message: 'Could not read ChatGPT usage', details: { issues: [] } },
   })
   assert.doesNotMatch(JSON.stringify(result), /host secret/)
+})
+
+test('quota reset RPC exposes only bounded prepare and consume results', async () => {
+  const calls = []
+  const handler = plugin.createSubscriptionRpcHandler({
+    async authHandler() { throw new Error('not used') },
+    usageReader: { async read() {}, clear() {} },
+    resetCreditService: {
+      async prepare(value) { calls.push(['prepare', value]); return { challengeId: 'opaque', readyAt: 5 } },
+      async consume(value) { calls.push(['consume', value]); return { code: 'reset', windowsReset: ['primary'] } },
+      clear() {},
+    },
+  })
+  const controller = new AbortController()
+  assert.deepEqual(await handler('reset-credit/prepare', {}, controller.signal), {
+    ok: true,
+    value: { challengeId: 'opaque', readyAt: 5 },
+  })
+  assert.deepEqual(await handler('reset-credit/consume', { challengeId: 'opaque', phrase: 'USE RESET' }, controller.signal), {
+    ok: true,
+    value: { code: 'reset', windowsReset: ['primary'] },
+  })
+  assert.equal(calls.length, 2)
+})
+
+test('quota reset RPC bounds host failures and logout invalidates pending challenges', async () => {
+  let cleared = 0
+  const handler = plugin.createSubscriptionRpcHandler({
+    async authHandler(endpoint) { return endpoint === 'logout' ? { ok: true, value: {} } : { ok: false } },
+    usageReader: { async read() {}, clear() { cleared += 1 } },
+    resetCreditService: {
+      async prepare() { throw new Error('provider-secret credit-secret') },
+      async consume() { throw new Error('provider-secret credit-secret') },
+      clear() { cleared += 1 },
+    },
+  })
+  const controller = new AbortController()
+  const failed = await handler('reset-credit/prepare', {}, controller.signal)
+  assert.deepEqual(failed, {
+    ok: false,
+    error: { code: 'internal', message: 'Could not prepare a quota reset', details: { issues: [] } },
+  })
+  assert.doesNotMatch(JSON.stringify(failed), /provider-secret|credit-secret/)
+  await handler('logout', {}, controller.signal)
+  assert.equal(cleared, 2)
 })
 
 test('diagnostics converts credential failures to a fixed public issue without leaking host errors', async () => {
