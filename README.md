@@ -68,7 +68,7 @@ DSH-Portable 用户在产品目录中运行 `./dsh plugin ...`，Windows PowerSh
 
 ## 准备 DSH
 
-本插件当前适配到 DeepSeek Harness `0.1.1-rc.1`，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
+本插件当前适配到 DeepSeek Harness `0.1.1-rc.2`，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
 
 - 不想配置 Node.js：使用 [DSH-Portable](https://github.com/WSL043/DSH-Portable)。这是社区桌面分发，提供 Windows 便携版和安装版，以及 macOS、Linux 桌面包；
 - 想按官方方式运行：查看 [DeepSeek Harness 官方说明](https://github.com/deepseek-ai/deepseek-harness#run)。
@@ -98,7 +98,7 @@ irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/d
 这个轻量助手会检查当前目录、系统命令、常见位置以及正在运行的官方 DSH 或
 [DSH-Portable](https://github.com/WSL043/DSH-Portable)，然后调用一次官方
 `plugin add`。它不会递归扫盘、安装 pnpm、创建常驻命令、保存 profile 快照或重复下载插件。
-无需管理员权限，也不会擅自重启 DSH。找不到现有 DSH 时才会使用固定为 `0.1.1-rc.1`
+无需管理员权限，也不会擅自重启 DSH。找不到现有 DSH 时才会使用固定为 `0.1.1-rc.2`
 的官方 npm 运行方式；首次解析依赖可能较慢，安装器会先明确提示。
 
 <details>
@@ -107,9 +107,9 @@ irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/d
 官方的 `npx @deepseek-ai/dsh web` 不会创建全局 `dsh` 命令，因此安装插件时也要保留完整的 `npx` 前缀：
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web add dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.1-rc.1 --profile web --dump-config
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web add dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 --profile web --dump-config
 ```
 
 </details>
@@ -167,10 +167,10 @@ Spark 使用独立额度。插件不会写死“5 小时 + 每周”，也不会
 Windows 用户重新运行上面的单行助手即可更新。官方 npm 用户使用：
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web update dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.1-rc.1 --profile web --dump-config
-npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web remove dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web update dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 --profile web --dump-config
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web remove dsh-codex-subscription
 ```
 
 这些操作会保留 DSH profile、其他插件和登录信息。
@@ -191,7 +191,7 @@ DSH-Portable 在其目录中把上述 `dsh` 换成 `.\dsh.exe`。
 
 ## 常见问题
 
-- **`dsh` 无法识别**：官方 npm 方式本来就不会创建全局 `dsh` 命令，请使用上面的完整 `npx -y @deepseek-ai/dsh@0.1.1-rc.1 ...` 命令；
+- **`dsh` 无法识别**：官方 npm 方式本来就不会创建全局 `dsh` 命令，请使用上面的完整 `npx -y @deepseek-ai/dsh@0.1.1-rc.2 ...` 命令；
 - **`dsh.exe` 无法识别**：当前目录没有该文件。请先进入 DSH-Portable 目录，或使用 Windows 单行助手；
 - **找不到 DSH-Portable**：进入它的目录后重新执行安装命令，或直接运行 `.\dsh.exe plugin --profile web add dsh-codex-subscription`；
 - **电脑上有多个 DSH**：单行助手会合并正在运行的副本与常用目录内检测到的 Portable，输入对应编号即可；交给 Agent 时让它进入目标目录，或明确传入 `-DshPath`；

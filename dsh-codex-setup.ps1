@@ -7,8 +7,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$PackageSpec = 'dsh-codex-subscription@1.2.0'
-$DshRelease = '0.1.1-rc.1'
+$PackageSpec = 'dsh-codex-subscription@1.2.1'
+$DshRelease = '0.1.1-rc.2'
 
 function New-DshInvocation {
     param(
@@ -217,7 +217,7 @@ if ($dsh.PrefixArguments.Count -gt 0) {
     Write-Host 'Downloaded packages stay in the normal npm cache, so later runs can reuse them.'
 }
 
-# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.2.0
+# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.2.1
 & $dsh.Executable @invokeArgs
 $code = $LASTEXITCODE
 $timer.Stop()
