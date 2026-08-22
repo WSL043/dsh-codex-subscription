@@ -1,11 +1,10 @@
-# DSH Codex Subscription
-
 <div align="center">
 
-**把 ChatGPT / Codex 订阅直接接入 DeepSeek Harness**
+# DSH Codex Subscription
 
-在 DeepSeek Harness 中直接登录 ChatGPT 并使用 Codex 订阅。无需 OpenAI API Key，也不依赖 Codex CLI；
-模型、搜索、额度和图片生成都留在 DSH 里。
+**Use your ChatGPT / Codex subscription directly in DeepSeek Harness**
+
+No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay inside DSH.
 
 [![CI](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml/badge.svg)](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/dsh-codex-subscription?logo=npm&label=npm)](https://www.npmjs.com/package/dsh-codex-subscription)
@@ -13,98 +12,99 @@
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[三步开始](#三步开始) · [交给 Agent 安装](#交给-agent推荐) · [更新与卸载](#更新与卸载) · [English](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.en.md)
+[Three-step start](#three-step-start) · [Agent install](#let-an-agent-install-it-recommended) · [Update and uninstall](#update-and-uninstall) · [简体中文](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md)
 
 </div>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero.webp" width="900" alt="Codex 订阅直接用在 DSH：订阅模型、联网搜索、实时额度和图片生成">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: subscription models, web search, live quota, and image generation">
 </p>
 
-## 三步开始
+## Three-step start
 
-1. **安装插件**：Windows 打开 PowerShell，运行下面一行；已有 `dsh` 或 DSH-Portable 的用户也可使用后面的标准命令。
+1. **Install the plugin.** On Windows, open PowerShell and run the line below. Existing `dsh` and DSH-Portable users can use the standard command that follows.
 
    ```powershell
    irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
    ```
 
-2. **登录订阅**：手动重启 DSH，打开 **设置 -> Codex 订阅**，点击浏览器登录。无需 Codex CLI，也不要粘贴 token。
-3. **开始使用**：在模型选择器中选择 Codex；额度、订阅搜索、图片生成和高速模式都在 DSH 内使用。
+2. **Sign in.** Restart DSH yourself, open **Settings -> Codex**, and choose browser sign-in. No Codex CLI and no pasted token are required.
+3. **Use Codex.** Select a Codex model. Quota, subscription search, image generation, and Fast mode remain inside DSH.
 
-已有 `dsh` 命令时，标准安装命令是：
+With an existing `dsh` command, install with:
 
 ```sh
 dsh plugin --profile web add dsh-codex-subscription
 ```
 
-DSH-Portable 用户在产品目录中运行 `./dsh plugin ...`，Windows PowerShell 使用 `.\dsh.exe plugin ...`。完整的官方 npm、Agent 安装、更新和卸载方式见下文。
+From a DSH-Portable product folder, run `./dsh plugin ...` (`.\dsh.exe plugin ...` in Windows PowerShell). See below for the complete official npm, Agent, update, and uninstall routes.
 
-## 核心优势
+## Why this plugin
 
-| 能力 | 用户得到什么 |
+| Capability | What you get |
 | --- | --- |
-| **订阅模型直连** | 登录 ChatGPT 后直接使用 Codex，不需要 OpenAI API Key 或 Codex CLI |
-| **可恢复、可诊断** | 登录状态会自动对账；设置页可生成不含凭据和账号标识的支持报告 |
-| **额度可见** | 普通 Codex、Spark 等服务端实际返回的额度分开显示 |
-| **订阅搜索** | 可在 DSH 默认搜索与 Codex 订阅搜索之间明确切换 |
-| **Codex 图片生成** | 在 DSH 对话里直接描述画面，生成结果会显示在当前会话中 |
-| **高速模式（Beta）** | 直接在输入框切换标准或高速，无需离开当前会话 |
+| **Subscription models** | Sign in to ChatGPT and use Codex without an OpenAI API key or Codex CLI |
+| **Recoverable and diagnosable** | Sign-in state reconciles automatically; Settings can create a support report without credentials or account identifiers |
+| **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate |
+| **Subscription search** | Explicitly choose DSH default search or Codex subscription search |
+| **Codex image generation** | Describe an image in a DSH conversation and view the generated result in that session |
+| **Fast mode (Beta)** | Switch between Standard and Fast directly in the composer |
 
-这些能力共用同一份本机 ChatGPT 登录。订阅路由失败时会明确报错，不会静默切换到其他付费路由。
+These capabilities reuse the same local ChatGPT sign-in. Subscription routing failures stay visible and never silently switch to another paid route.
 
-## 实际界面
+## Product screen
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-focus.png" width="820" alt="DeepSeek Harness 中的 Codex 订阅设置">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-focus-en.png" width="820" alt="Codex subscription settings in DeepSeek Harness">
 </p>
 
 <details>
-<summary>查看完整设置界面</summary>
+<summary>View the complete settings screen</summary>
 
-![DeepSeek Harness 的完整 Codex 订阅设置](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings.png)
+![Complete Codex subscription settings in DeepSeek Harness](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-en.png)
 
 </details>
 
-## 准备 DSH
+## Prepare DSH
 
-本插件当前适配到 DeepSeek Harness `0.1.1-rc.2`，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
+This plugin is currently compatible through DeepSeek Harness `0.1.1-rc.2` and requires a ChatGPT account that currently has Codex access.
 
-- 不想配置 Node.js：使用 [DSH-Portable](https://github.com/WSL043/DSH-Portable)。这是社区桌面分发，提供 Windows 便携版和安装版，以及 macOS、Linux 桌面包；
-- 想按官方方式运行：查看 [DeepSeek Harness 官方说明](https://github.com/deepseek-ai/deepseek-harness#run)。
+- Do not want to configure Node.js? Use [DSH-Portable](https://github.com/WSL043/DSH-Portable), a community desktop distribution with portable and installed editions for Windows plus desktop packages for macOS and Linux.
+- Prefer the official route? Follow the [DeepSeek Harness run guide](https://github.com/deepseek-ai/deepseek-harness#run).
 
-## 安装
+## Install
 
-### 交给 Agent（推荐）
+### Let an Agent install it (recommended)
 
-把这个链接直接发给 Agent：
+Send this link directly to your Agent:
 
-**[Agent 安装、更新与卸载文档](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md)**
+**[Agent install, update, and uninstall guide](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md)**
 
 ```text
 https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
 ```
 
-Agent 文档包含安装、更新、卸载和验收步骤，并要求保留 DSH profile、登录信息和其他插件。
+The guide includes verification steps and tells the Agent to preserve the DSH profile, sign-in, and other plugins.
 
-### Windows 手动安装
+### Manual Windows install
 
-打开 PowerShell，只需要复制这一行：
+Open PowerShell and paste this one line:
 
 ```powershell
 irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
 ```
 
-这个轻量助手会检查当前目录、系统命令、常见位置以及正在运行的官方 DSH 或
-[DSH-Portable](https://github.com/WSL043/DSH-Portable)，然后调用一次官方
-`plugin add`。它不会递归扫盘、安装 pnpm、创建常驻命令、保存 profile 快照或重复下载插件。
-无需管理员权限，也不会擅自重启 DSH。找不到现有 DSH 时才会使用固定为 `0.1.1-rc.2`
-的官方 npm 运行方式；首次解析依赖可能较慢，安装器会先明确提示。
+The lightweight setup checks the current folder, the system command, common locations, and any running official DSH or
+[DSH-Portable](https://github.com/WSL043/DSH-Portable), then invokes the official `plugin add`
+operation once. It does not recursively scan disks, install pnpm, create a resident command, snapshot a
+profile, or download the plugin twice. It needs no administrator access and never restarts DSH. Only
+when no existing DSH is found does it use the official npm route pinned to `0.1.1-rc.2`; the setup warns
+that first-time dependency resolution can take a while.
 
 <details>
-<summary>官方 npm 方式（已安装 Node.js）</summary>
+<summary>Official npm route (Node.js installed)</summary>
 
-官方的 `npx @deepseek-ai/dsh web` 不会创建全局 `dsh` 命令，因此安装插件时也要保留完整的 `npx` 前缀：
+The official `npx @deepseek-ai/dsh web` command does not create a global `dsh` command. Keep the full `npx` prefix when installing the plugin:
 
 ```sh
 npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web add dsh-codex-subscription
@@ -115,7 +115,7 @@ npx -y @deepseek-ai/dsh@0.1.1-rc.2 --profile web --dump-config
 </details>
 
 <details>
-<summary>已经能运行 <code>dsh</code>，或位于 DSH-Portable 目录</summary>
+<summary>An existing <code>dsh</code> command or a DSH-Portable folder</summary>
 
 ```sh
 dsh plugin --profile web add dsh-codex-subscription
@@ -123,48 +123,49 @@ dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-DSH-Portable 请把 `dsh` 换成 `./dsh`（PowerShell 使用 `.\dsh.exe`）。安装列表中应只有一个
-`dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
+For DSH-Portable, replace `dsh` with `./dsh` (`.\dsh.exe` in PowerShell). The plugin list should contain
+one `dsh-codex-subscription`, and the config should contain one `codex-subscription` entry.
 
 </details>
 
-安装完成后手动重启 DSH，然后：
+Restart DSH manually after installation, then:
 
-1. 打开 **设置 -> Codex 订阅**；
-2. 登录具有 Codex 使用资格的 ChatGPT 账户；
-3. 选择搜索来源；
-4. 在模型选择器中选择 Codex 模型。
+1. Open **Settings -> Codex**.
+2. Sign in with a ChatGPT account that has Codex access.
+3. Choose a search source.
+4. Select a Codex model.
 
-## 功能
+## Features
 
-- ChatGPT OAuth 登录，凭据保留在本机；
-- Codex 模型和图片生成直接出现在 DSH 会话中；
-- DSH 默认搜索与 Codex 订阅搜索可随时切换；
-- 设置页显示服务端返回的额度、重置时间和更新时间；
-- 普通 Codex、Codex-Spark、Credits 等独立额度分开显示；
-- 输入框可显示当前 Codex 模型的剩余额度（Beta，默认关闭）；
-- 输入框可为支持的 Codex 模型切换标准或高速模式（Beta）；
-- 设置页可生成并复制无敏感信息的支持诊断，报告不包含 OAuth 凭据、账号标识或授权时间；
-- 订阅路由不可用时明确报错，不会静默切换到其他付费路由。
+- ChatGPT OAuth sign-in with credentials kept on the host;
+- Codex models and image generation directly inside DSH conversations;
+- A clear choice between DSH default search and Codex subscription search;
+- Actual backend-provided quota, reset time, and freshness;
+- Separate standard Codex, Codex-Spark, Credits, and other independent limits;
+- Optional composer quota for the selected Codex model (Beta, off by default);
+- Standard or Fast mode for supported Codex models directly in the composer (Beta);
+- A copyable support report in Settings that excludes OAuth credentials, account identifiers, and authorization timestamps;
+- Visible errors when subscription routing is unavailable, with no silent paid fallback.
 
-### 输入框额度
+### Composer quota
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota-en.png" width="800" alt="输入框内的 Codex 剩余额度">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota-en.png" width="800" alt="Codex quota inside the composer">
 </p>
 
-快捷百分比只在选择 Codex 模型时显示。普通 Codex 使用服务端返回窗口中剩余最少的一项，
-Spark 使用独立额度。插件不会写死“5 小时 + 每周”，也不会虚构服务端没有返回的 Credits 或消费上限。
+The compact percentage appears only for a selected Codex model. Standard Codex uses the lowest remaining
+window returned by the service; Spark uses its independent quota. The plugin does not hard-code a
+“5-hour + weekly” layout or invent Credits and spending caps that the service did not return.
 
-### 输入框速度（Beta）
+### Composer speed (Beta)
 
-选择支持的 Codex 模型后，可在输入框的模型菜单中切换标准与高速。标准模式不增加图标，
-只有高速模式会在模型名称左侧显示闪电；Spark 不显示速度入口。高速模式会提高速度，也会消耗更多 Credits；具体规则见
-[OpenAI Codex Speed 文档](https://learn.chatgpt.com/docs/agent-configuration/speed)。
+With a supported Codex model selected, open the composer's model menu to choose Standard or Fast.
+Standard adds no icon; only Fast shows a lightning icon before the model name. Spark does not show the speed entry. Fast mode increases speed and uses more Credits;
+see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) for the current rules.
 
-## 更新与卸载
+## Update and uninstall
 
-Windows 用户重新运行上面的单行助手即可更新。官方 npm 用户使用：
+On Windows, rerun the one-line setup above to update. For the official npm route, use:
 
 ```sh
 npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web update dsh-codex-subscription
@@ -173,10 +174,10 @@ npx -y @deepseek-ai/dsh@0.1.1-rc.2 --profile web --dump-config
 npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web remove dsh-codex-subscription
 ```
 
-这些操作会保留 DSH profile、其他插件和登录信息。
+These operations preserve the DSH profile, other plugins, and saved sign-in.
 
 <details>
-<summary>使用现有 <code>dsh</code> 命令更新或卸载</summary>
+<summary>Update or uninstall with an existing <code>dsh</code> command</summary>
 
 ```sh
 dsh plugin --profile web update dsh-codex-subscription
@@ -187,25 +188,23 @@ dsh plugin --profile web remove dsh-codex-subscription
 
 </details>
 
-DSH-Portable 在其目录中把上述 `dsh` 换成 `.\dsh.exe`。
+From a DSH-Portable folder, replace `dsh` above with `.\dsh.exe`.
 
-## 常见问题
+## Troubleshooting
 
-- **`dsh` 无法识别**：官方 npm 方式本来就不会创建全局 `dsh` 命令，请使用上面的完整 `npx -y @deepseek-ai/dsh@0.1.1-rc.2 ...` 命令；
-- **`dsh.exe` 无法识别**：当前目录没有该文件。请先进入 DSH-Portable 目录，或使用 Windows 单行助手；
-- **找不到 DSH-Portable**：进入它的目录后重新执行安装命令，或直接运行 `.\dsh.exe plugin --profile web add dsh-codex-subscription`；
-- **电脑上有多个 DSH**：单行助手会合并正在运行的副本与常用目录内检测到的 Portable，输入对应编号即可；交给 Agent 时让它进入目标目录，或明确传入 `-DshPath`；
-- **安装仍然失败**：把上面的 Agent 文档链接发给 Agent，不要删除 profile 或随意修改系统 PATH。
-- **需要提交问题**：在设置页底部生成“支持诊断”，然后打开[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)。表单会收集准确的 DSH/插件版本和复现步骤；报告不含凭据和账号标识，仍不要附上登录链接、授权码或浏览器回调地址。
+- **`dsh` is not recognized:** the official npm route does not create a global `dsh` command; use the complete `npx -y @deepseek-ai/dsh@0.1.1-rc.2 ...` command above;
+- **`dsh.exe` is not recognized:** that file is not in the current folder; enter the DSH-Portable folder first or use the one-line Windows setup;
+- **DSH-Portable is not found:** enter its folder and rerun setup, or run `.\dsh.exe plugin --profile web add dsh-codex-subscription` directly;
+- **More than one DSH exists:** the one-line setup combines running copies with Portable folders detected in common locations; enter its number. For an Agent, use the intended folder or pass `-DshPath` explicitly;
+- **Setup still fails:** send the Agent guide above to an Agent. Do not delete the profile or change the system PATH to force an install.
+- **Need to report a problem:** generate a **Support diagnostics** report at the bottom of Settings, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The form collects exact DSH/plugin versions and reproduction steps. The generated report excludes credentials and account identifiers; still do not attach sign-in URLs, authorization codes, or browser callback addresses.
 
-## 边界与支持
+The ChatGPT Codex backend and DSH can change independently. This community project is not affiliated with or endorsed by DeepSeek or OpenAI.
 
-ChatGPT Codex 后端和 DSH 可能独立变化；本项目为社区项目，与 DeepSeek、OpenAI 无隶属或背书关系。
+Use the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml) for project feedback.
+For DSH plugin discussion, visit [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
+Read [SECURITY.md](SECURITY.md) before reporting sensitive issues.
 
-本项目的问题反馈请使用[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)；
-DSH 插件交流可前往 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)。
-敏感问题请先阅读 [SECURITY.md](SECURITY.md)。
+If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex-subscription/stargazers) helps more DSH users find it.
 
-如果这个项目对你有帮助，[点一下 Star](https://github.com/WSL043/dsh-codex-subscription/stargazers) 可以让更多 DSH 用户发现它。
-
-[MIT](LICENSE)
+[简体中文](README.md) · [MIT](LICENSE)
