@@ -201,7 +201,7 @@ test('release-age exceptions are pinned to the audited DeepSeek preview graph', 
 
 test('official DSH compatibility updates are detected, accepted, and then dispatched to the trusted publisher', () => {
   const workflow = text('.github/workflows/upstream-compatibility.yml')
-  assert.match(workflow, /cron:\s*'29 \*\/6 \* \* \*'/u)
+  assert.match(workflow, /cron:\s*'29 \*\/3 \* \* \*'/u)
   assert.match(workflow, /compareVersions[\s\S]*for version in "\$\{candidates\[@\]\}"/u)
   assert.match(workflow, /repos\/deepseek-ai\/deepseek-harness\/releases\/tags\/dsh-v/u)
   assert.match(workflow, /\.draft == false and \.immutable == true/u)
@@ -211,9 +211,16 @@ test('official DSH compatibility updates are detected, accepted, and then dispat
   assert.match(workflow, /test "\$\(git rev-parse origin\/main\)" = "\$GITHUB_SHA"/u)
   assert.match(workflow, /git push origin HEAD:main[\s\S]*gh workflow run publish\.yml/u)
   assert.match(workflow, /release_kind=compatibility/u)
+  assert.match(workflow, /git add --[^\n]*AGENTS\.md[^\n]*README\.md[^\n]*README\.en\.md[^\n]*compatibility\.json/u)
   assert.match(workflow, /request_id="compat-\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}"/u)
   assert.match(workflow, /gh run watch "\$release_run"[\s\S]*--exit-status/u)
   assert.doesNotMatch(workflow, /continue-on-error:\s*true|NODE_AUTH_TOKEN|NPM_TOKEN/iu)
+})
+
+test('integration diagnostics follow the package version during compatibility releases', () => {
+  const integration = text('tests/plugin-integration.test.mjs')
+  assert.match(integration, /PACKAGE_VERSION/u)
+  assert.doesNotMatch(integration, new RegExp(`version:\\s*['\"]${manifest.version.replaceAll('.', '\\\\.')}['\"]`, 'u'))
 })
 
 test('CI uploads the hidden release artifact only after asserting it exists', () => {

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import * as plugin from '../src/index.js'
+import { PACKAGE_VERSION } from '../src/version.js'
 import {
   normalizeSearchProvider,
   SEARCH_PROVIDER_CODEX,
@@ -141,7 +142,7 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
     value: {
       schemaVersion: 1,
       package: 'dsh-codex-subscription',
-      version: '1.2.0',
+      version: PACKAGE_VERSION,
       runtime: { node: process.version },
       account: { status: 'signed-out' },
       provider: {
