@@ -206,6 +206,8 @@ test('official DSH compatibility updates are detected, accepted, and then dispat
   assert.match(workflow, /repos\/deepseek-ai\/deepseek-harness\/releases\/tags\/dsh-v/u)
   assert.match(workflow, /\.draft == false and \.immutable == true/u)
   assert.match(workflow, /prepare-compat-release\.mjs --refresh-release-age/u)
+  assert.match(workflow, /git diff --check/u)
+  assert.doesNotMatch(workflow, /git diff --exit-code --check/u)
   assert.match(workflow, /windows-acceptance:[\s\S]*accept-official-release\.ps1/u)
   assert.match(workflow, /git diff --binary \| sha256sum/u)
   assert.match(workflow, /test "\$\(git rev-parse origin\/main\)" = "\$GITHUB_SHA"/u)
