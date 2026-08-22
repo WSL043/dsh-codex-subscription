@@ -38,6 +38,9 @@ const LEGACY_CREDENTIAL_REF = credentialRef('WSL043_OPENAI_CODEX_OAUTH')
 const CHANNEL = '/codex-subscription'
 const WEB_ENTRY_ID = 'web'
 const DSH_SEARCH_PROVIDER_FALLBACK = 'deepseek-official'
+const MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
+const REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
+const REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 
 const publicError = (code, message) => ({
   ok: false,
@@ -161,6 +164,11 @@ export function apply(ctx) {
     piProvider: provider,
     configuredMaxTokens: new Map(),
     streamIdleTimeoutMs: 10 * 60 * 1000,
+    // Custom PiAiAdapter profiles bypass the settings-backed profile resolver,
+    // so request-image limits must be complete here rather than left undefined.
+    maxRequestImageBytes: MAX_REQUEST_IMAGE_BYTES,
+    requestImagePixelBudget: REQUEST_IMAGE_PIXEL_BUDGET,
+    requestImageMaxBytes: REQUEST_IMAGE_MAX_BYTES,
     // pi-ai owns prompt_cache_key and encrypted reasoning replay. The explicit
     // profile values make the subscription cache contract auditable.
     cacheRetention: 'short',
