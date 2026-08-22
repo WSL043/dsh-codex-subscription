@@ -214,6 +214,7 @@ test('official DSH compatibility updates are detected, accepted, and then dispat
   assert.match(workflow, /git push origin HEAD:main[\s\S]*gh workflow run publish\.yml/u)
   assert.match(workflow, /release_kind=compatibility/u)
   assert.match(workflow, /git add --[^\n]*AGENTS\.md[^\n]*README\.md[^\n]*README\.en\.md[^\n]*compatibility\.json/u)
+  assert.doesNotMatch(workflow, /git add --[^\n]*\.github\/workflows\/publish\.yml/u)
   assert.match(workflow, /request_id="compat-\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}"/u)
   assert.match(workflow, /gh run watch "\$release_run"[\s\S]*--exit-status/u)
   assert.doesNotMatch(workflow, /continue-on-error:\s*true|NODE_AUTH_TOKEN|NPM_TOKEN/iu)
@@ -223,6 +224,11 @@ test('integration diagnostics follow the package version during compatibility re
   const integration = text('tests/plugin-integration.test.mjs')
   assert.match(integration, /PACKAGE_VERSION/u)
   assert.doesNotMatch(integration, new RegExp(`version:\\s*['\"]${manifest.version.replaceAll('.', '\\\\.')}['\"]`, 'u'))
+})
+
+test('compatibility preparation keeps trusted workflow files immutable', () => {
+  const prepare = text('scripts/prepare-compat-release.mjs')
+  assert.doesNotMatch(prepare, /boundedPaths[\s\S]*\.github\/workflows\/publish\.yml/u)
 })
 
 test('CI uploads the hidden release artifact only after asserting it exists', () => {

@@ -231,9 +231,9 @@ jobs:
           ## 安装 Beta / Install the Beta
 
           \`\`\`sh
-          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
-          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh@0.1.1-rc.1 --profile web --dump-config
+          npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
+          npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh@$current_dsh --profile web --dump-config
           \`\`\`
 
           安装后手动重启 DSH。Beta 不会替换 npm 的稳定版标签。
@@ -242,7 +242,7 @@ jobs:
           ## 卸载 / Uninstall
 
           \`\`\`sh
-          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web remove dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web remove dsh-codex-subscription
           \`\`\`
           NOTES
             exit 0
@@ -285,9 +285,9 @@ jobs:
           ### 官方 npm 方式 / Official npm route
 
           ```sh
-          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web add dsh-codex-subscription
-          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh@0.1.1-rc.1 --profile web --dump-config
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ --profile web --dump-config
           ```
 
           安装后手动重启 DSH。列表中应只有一个 `dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
@@ -296,12 +296,13 @@ jobs:
           ### 通用更新与卸载 / Universal update and uninstall
 
           ```sh
-          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web update dsh-codex-subscription
-          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh@0.1.1-rc.1 --profile web --dump-config
-          npx -y @deepseek-ai/dsh@0.1.1-rc.1 plugin --profile web remove dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web list dsh-codex-subscription --depth 0
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ --profile web --dump-config
+          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription
           ```
           NOTES
+          sed -i "s/__DSH_VERSION__/$current_dsh/g" .release/install.md
 
       - name: Build immutable release assets
         env:

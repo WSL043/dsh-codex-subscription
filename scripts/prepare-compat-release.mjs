@@ -134,7 +134,6 @@ async function prepare(root, candidate) {
     'dsh-codex.ps1',
     'dsh-codex-setup.ps1',
     '.github/scripts/accept-official-release.ps1',
-    '.github/workflows/publish.yml',
   ]
   const sources = await Promise.all(boundedPaths.map(path => readFile(resolve(root, path), 'utf8')))
   const rewritten = sources.map((source, index) => rewriteBoundedVersions(source, update, boundedPaths[index]))
