@@ -259,9 +259,8 @@ jobs:
             cat > .release/install.md <<'NOTES'
           ## 更新内容 / What's new
 
-          - 浏览器授权完成后，登录页会自动显示已登录，无需切换设置页 / Completed browser authorization now appears as signed in without leaving and reopening Settings
-          - 登录回调异常时会复核真实账户状态，避免把成功授权显示成失败 / Sign-in recovery checks the real account state instead of showing a successful authorization as failed
-          - 取消登录会立即响应，不再因授权窗口仍在收尾而卡住 / Cancel responds immediately even while the authorization window is finishing
+          - 修复会话中加入持久图片后，下一次 Codex 模型请求可能因图片预算缺失而失败 / Fixes Codex model requests failing after a durable image is added to the conversation
+          - 图片仍由 DSH 的原生附件与请求归一化流程处理 / Images continue to use DSH's native attachment and request-normalization path
 
           NOTES
           fi
