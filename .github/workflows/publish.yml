@@ -334,7 +334,7 @@ jobs:
 
           - Use an available quota reset from Settings after a Codex model quota is exhausted.
           - Redemption is protected by a five-second cooldown, an acknowledgement checkbox, an exact typed phrase, and single-flight requests. Cancel never consumes a reset, and uncertain network results are not retried automatically.
-          - The reset control stays compact until opened. Refreshed English and Chinese product images also highlight subscription models, web search, quota, image generation, and Fast mode.
+          - The reset control stays compact until opened.
 
           NOTES
           fi
@@ -392,7 +392,7 @@ jobs:
 
           - Codex 模型额度用尽后，可在设置页主动使用服务端返回的额度重置卡。
           - 使用前必须等待 5 秒、勾选知情确认并输入完全一致的确认短语；取消不会消耗，快速重复点击只会发出一次请求，网络结果不确定时也不会自动重试。
-          - 重置入口默认保持紧凑，仅在操作时展开；中英文产品图也已更新，集中展示订阅模型、联网搜索、额度、图片生成和高速模式。
+          - 重置入口默认保持紧凑，仅在操作时展开。
           NOTES
           fi
           append_contributors zh-CN
