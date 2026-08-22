@@ -18,6 +18,10 @@ on:
         description: Exact accepted DSH version for a compatibility release
         required: false
         type: string
+      contributor_prs:
+        description: Comma-separated merged contributor PR numbers to credit
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -180,6 +184,7 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v5
@@ -211,11 +216,34 @@ jobs:
           IS_PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
           RELEASE_KIND: ${{ inputs.release_kind }}
           REQUESTED_DSH_VERSION: ${{ inputs.dsh_version }}
+          CONTRIBUTOR_PRS: ${{ inputs.contributor_prs }}
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p .release
           current_dsh="$(node -p "require('./compatibility.json').latestTested")"
+          append_contributors() {
+            [[ -z "${CONTRIBUTOR_PRS:-}" ]] && return 0
+            local raw_pr pr_number pr_json merged_at author number url
+            IFS=',' read -ra contributor_pr_numbers <<< "$CONTRIBUTOR_PRS"
+            for raw_pr in "${contributor_pr_numbers[@]}"; do
+              pr_number="$(xargs <<< "$raw_pr")"
+              [[ "$pr_number" =~ ^[1-9][0-9]*$ ]] || {
+                echo "Invalid contributor PR number: $raw_pr" >&2
+                return 1
+              }
+              pr_json="$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json author,mergedAt,number,url)"
+              merged_at="$(jq -r '.mergedAt' <<< "$pr_json")"
+              test "$merged_at" != 'null'
+              author="$(jq -r '.author.login' <<< "$pr_json")"
+              number="$(jq -r '.number' <<< "$pr_json")"
+              url="$(jq -r '.url' <<< "$pr_json")"
+              cat >> .release/install.md <<NOTES
+          - 感谢 [@$author](https://github.com/$author) 在 [#$number]($url) 提交贡献 / Thanks to [@$author](https://github.com/$author) for contributing in [#$number]($url)
+          NOTES
+            done
+          }
           if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
             test -n "${REQUESTED_DSH_VERSION:-}"
             test "$REQUESTED_DSH_VERSION" = "$current_dsh"
@@ -245,6 +273,7 @@ jobs:
           npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web remove dsh-codex-subscription
           \`\`\`
           NOTES
+            append_contributors
             exit 0
           fi
           if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
@@ -264,6 +293,7 @@ jobs:
 
           NOTES
           fi
+          append_contributors
           cat >> .release/install.md <<'NOTES'
 
           <!-- dsh-codex-install -->
