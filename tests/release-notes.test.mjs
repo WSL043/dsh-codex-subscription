@@ -6,9 +6,9 @@ const releaseWorkflow = readFileSync(new URL('../.github/workflows/publish.yml',
 
 test('GitHub Releases include beginner-facing install, update, and uninstall instructions before publish', () => {
   assert.match(releaseWorkflow, /<!-- dsh-codex-install -->/u)
-  assert.match(releaseWorkflow, /## 安装 \/ Install/u)
+  assert.match(releaseWorkflow, /## Installation[\s\S]*## 中文[\s\S]*## 安装/u)
   assert.match(releaseWorkflow, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
-  assert.match(releaseWorkflow, /官方 npm 方式 \/ Official npm route/u)
+  assert.match(releaseWorkflow, /### Official npm route[\s\S]*### 官方 npm 方式/u)
   assert.match(releaseWorkflow, /npx -y @deepseek-ai\/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription/u)
   assert.match(releaseWorkflow, /dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription/u)
   assert.match(releaseWorkflow, /dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription/u)
@@ -37,6 +37,16 @@ test('feature releases credit merged contributor PRs with verified authors and l
   assert.match(releaseWorkflow, /gh pr view "\$pr_number"[\s\S]*author,mergedAt,number,url/u)
   assert.match(releaseWorkflow, /test "\$merged_at" != 'null'/u)
   assert.match(releaseWorkflow, /Thanks to \[@\$author\][\s\S]*for contributing in \[#\$number\]/u)
+})
+
+test('release notes present complete English before a separate Chinese translation', () => {
+  const notesStart = releaseWorkflow.indexOf('- name: Prepare beginner-facing release notes')
+  const notesEnd = releaseWorkflow.indexOf('- name: Build immutable release assets')
+  const notesStep = releaseWorkflow.slice(notesStart, notesEnd)
+
+  assert.match(notesStep, /## What's new[\s\S]*## Installation[\s\S]*## 中文[\s\S]*## 更新内容[\s\S]*## 安装/u)
+  assert.doesNotMatch(notesStep, /^## .* \/ .*$/mu)
+  assert.doesNotMatch(notesStep, /提交贡献 \/ Thanks to/u)
 })
 
 test('immutable releases are drafted, verified with all four assets, then published', () => {
