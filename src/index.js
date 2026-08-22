@@ -15,10 +15,14 @@ import { CODEX_SEARCH_PROVIDER_ID, createCodexSearchProvider } from './codex-sea
 import { createCodexImageTool } from './codex-images.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
 import {
-  DEFAULT_QUICK_QUOTA_VISIBLE,
+  LEGACY_QUICK_QUOTA_FIELD,
+  normalizeQuickQuotaMode,
   DEFAULT_SEARCH_PROVIDER,
   DEFAULT_SPEED_MODE,
-  QUICK_QUOTA_FIELD,
+  QUICK_QUOTA_MODE_BAR,
+  QUICK_QUOTA_MODE_FIELD,
+  QUICK_QUOTA_MODE_OFF,
+  QUICK_QUOTA_MODE_PERCENT,
   SEARCH_PROVIDER_CODEX,
   SEARCH_PROVIDER_DSH,
   SEARCH_PROVIDER_FIELD,
@@ -64,11 +68,11 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
         signal.throwIfAborted()
         if (endpoint === 'preferences/update') {
           const patch = {}
-          if (Object.hasOwn(payload ?? {}, QUICK_QUOTA_FIELD)) {
-            if (typeof payload[QUICK_QUOTA_FIELD] !== 'boolean') {
+          if (Object.hasOwn(payload ?? {}, QUICK_QUOTA_MODE_FIELD)) {
+            if (![QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR].includes(payload[QUICK_QUOTA_MODE_FIELD])) {
               return publicError('internal', 'Invalid quick quota preference')
             }
-            patch[QUICK_QUOTA_FIELD] = payload[QUICK_QUOTA_FIELD]
+            patch[QUICK_QUOTA_MODE_FIELD] = payload[QUICK_QUOTA_MODE_FIELD]
           }
           if (Object.hasOwn(payload ?? {}, SEARCH_PROVIDER_FIELD)) {
             if (![SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX].includes(payload[SEARCH_PROVIDER_FIELD])) {
@@ -174,14 +178,18 @@ export function createSearchProviderSwitcher(loader) {
 
 export function apply(ctx) {
   const settings = ctx.settings.register(settingsNamespace(SETTINGS_NAMESPACE), z.object({
-    [QUICK_QUOTA_FIELD]: z.boolean().default(DEFAULT_QUICK_QUOTA_VISIBLE),
+    [QUICK_QUOTA_MODE_FIELD]: z.union([QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR]),
+    [LEGACY_QUICK_QUOTA_FIELD]: z.boolean(),
     [SEARCH_PROVIDER_FIELD]: z.union([SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX]).default(DEFAULT_SEARCH_PROVIDER),
     [SPEED_MODE_FIELD]: z.union([SPEED_MODE_STANDARD, SPEED_MODE_FAST]).default(DEFAULT_SPEED_MODE),
   }))
   const searchProvider = createSearchProviderSwitcher(ctx.loader)
   const preferences = {
     status: () => ({
-      [QUICK_QUOTA_FIELD]: settings.get()[QUICK_QUOTA_FIELD],
+      [QUICK_QUOTA_MODE_FIELD]: normalizeQuickQuotaMode(
+        settings.get()[QUICK_QUOTA_MODE_FIELD],
+        settings.get()[LEGACY_QUICK_QUOTA_FIELD],
+      ),
       [SEARCH_PROVIDER_FIELD]: settings.get()[SEARCH_PROVIDER_FIELD],
       [SPEED_MODE_FIELD]: settings.get()[SPEED_MODE_FIELD],
       writable: ctx.settings.writable,

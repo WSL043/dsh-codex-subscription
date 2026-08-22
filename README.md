@@ -46,6 +46,7 @@ From a DSH-Portable product folder, run `./dsh plugin ...` (`.\dsh.exe plugin ..
 | **Subscription models** | Sign in to ChatGPT and use Codex without an OpenAI API key or Codex CLI |
 | **Recoverable and diagnosable** | Sign-in state reconciles automatically; Settings can create a support report without credentials or account identifiers |
 | **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate |
+| **Composer quota** | Choose a compact percentage, progress bar, or no inline quota display |
 | **Safe quota reset** | Use a reset only for an exhausted Codex quota, with a cooldown, checkbox, and typed confirmation |
 | **Subscription search** | Explicitly choose DSH default search or Codex subscription search |
 | **Codex image generation** | Describe an image in a DSH conversation and view the generated result in that session |
@@ -144,7 +145,7 @@ Restart DSH manually after installation, then:
 - Actual backend-provided quota, reset time, and freshness;
 - Separate standard Codex, Codex-Spark, Credits, and other independent limits;
 - Deliberate quota-reset redemption for exhausted Codex limits, with layered confirmation and no automatic retry;
-- Optional composer quota for the selected Codex model (Beta, off by default);
+- Optional percentage or progress bar for the selected Codex model (off by default);
 - Standard or Fast mode for supported Codex models directly in the composer (Beta);
 - A copyable support report in Settings that excludes OAuth credentials, account identifiers, and authorization timestamps;
 - Visible errors when subscription routing is unavailable, with no silent paid fallback.
@@ -155,8 +156,8 @@ Restart DSH manually after installation, then:
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota-en.png" width="800" alt="Codex quota inside the composer">
 </p>
 
-The compact percentage appears only for a selected Codex model. Standard Codex uses the lowest remaining
-window returned by the service; Spark uses its independent quota. The plugin does not hard-code a
+Choose Off, Percent, or Progress bar in Settings. The compact display appears only for a selected Codex model.
+Standard Codex uses the lowest remaining window returned by the service; Spark uses its independent quota. The plugin does not hard-code a
 “5-hour + weekly” layout or invent Credits and spending caps that the service did not return.
 
 ### Safe quota reset

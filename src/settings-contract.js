@@ -1,6 +1,10 @@
 export const SETTINGS_NAMESPACE = 'codex-subscription'
-export const QUICK_QUOTA_FIELD = 'quickQuotaVisible'
-export const DEFAULT_QUICK_QUOTA_VISIBLE = false
+export const QUICK_QUOTA_MODE_FIELD = 'quickQuotaMode'
+export const LEGACY_QUICK_QUOTA_FIELD = 'quickQuotaVisible'
+export const QUICK_QUOTA_MODE_OFF = 'off'
+export const QUICK_QUOTA_MODE_PERCENT = 'percent'
+export const QUICK_QUOTA_MODE_BAR = 'bar'
+export const DEFAULT_QUICK_QUOTA_MODE = QUICK_QUOTA_MODE_OFF
 export const SEARCH_PROVIDER_FIELD = 'searchProvider'
 export const SEARCH_PROVIDER_DSH = 'dsh'
 export const SEARCH_PROVIDER_CODEX = 'codex'
@@ -17,6 +21,14 @@ export const normalizeSearchProvider = value => [SEARCH_PROVIDER_DSH, SEARCH_PRO
 export const normalizeSpeedMode = value => [SPEED_MODE_STANDARD, SPEED_MODE_FAST].includes(value)
   ? value
   : DEFAULT_SPEED_MODE
+
+export const normalizeQuickQuotaMode = (value, legacyVisible = false) => (
+  [QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR].includes(value)
+    ? value
+    : legacyVisible === true
+      ? QUICK_QUOTA_MODE_PERCENT
+      : DEFAULT_QUICK_QUOTA_MODE
+)
 
 export const supportsCodexFastMode = modelId => typeof modelId === 'string' && (
   /^gpt-5\.(?:5|6)(?:$|-)/u.test(modelId) || modelId === 'gpt-5.4'

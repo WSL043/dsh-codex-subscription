@@ -47,6 +47,7 @@ DSH-Portable 用户在产品目录中运行 `./dsh plugin ...`，Windows PowerSh
 | **订阅模型直连** | 登录 ChatGPT 后直接使用 Codex，不需要 OpenAI API Key 或 Codex CLI |
 | **可恢复、可诊断** | 登录状态会自动对账；设置页可生成不含凭据和账号标识的支持报告 |
 | **额度可见** | 普通 Codex、Spark 等服务端实际返回的额度分开显示 |
+| **输入框额度** | 可选择紧凑百分比、进度条或完全关闭输入框额度显示 |
 | **安全额度重置** | 仅在 Codex 额度用尽后使用重置，并经过冷静期、勾选和输入确认 |
 | **订阅搜索** | 可在 DSH 默认搜索与 Codex 订阅搜索之间明确切换 |
 | **Codex 图片生成** | 在 DSH 对话里直接描述画面，生成结果会显示在当前会话中 |
@@ -144,7 +145,7 @@ DSH-Portable 请把 `dsh` 换成 `./dsh`（PowerShell 使用 `.\dsh.exe`）。�
 - 设置页显示服务端返回的额度、重置时间和更新时间；
 - 普通 Codex、Codex-Spark、Credits 等独立额度分开显示；
 - 已用尽的 Codex 额度可主动使用重置卡，并经过分层确认且不会自动重试；
-- 输入框可显示当前 Codex 模型的剩余额度（Beta，默认关闭）；
+- 输入框可用百分比或进度条显示当前 Codex 模型的剩余额度（默认关闭）；
 - 输入框可为支持的 Codex 模型切换标准或高速模式（Beta）；
 - 设置页可生成并复制无敏感信息的支持诊断，报告不包含 OAuth 凭据、账号标识或授权时间；
 - 订阅路由不可用时明确报错，不会静默切换到其他付费路由。
@@ -155,7 +156,7 @@ DSH-Portable 请把 `dsh` 换成 `./dsh`（PowerShell 使用 `.\dsh.exe`）。�
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota-en.png" width="800" alt="输入框内的 Codex 剩余额度">
 </p>
 
-快捷百分比只在选择 Codex 模型时显示。普通 Codex 使用服务端返回窗口中剩余最少的一项，
+可在设置中选择关闭、百分比或进度条；紧凑额度只在选择 Codex 模型时显示。普通 Codex 使用服务端返回窗口中剩余最少的一项，
 Spark 使用独立额度。插件不会写死“5 小时 + 每周”，也不会虚构服务端没有返回的 Credits 或消费上限。
 
 ### 安全使用额度重置

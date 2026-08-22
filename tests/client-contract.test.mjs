@@ -31,7 +31,7 @@ test('the English settings navigation label fits the DSH sidebar', async () => {
   assert.match(source, /const en = \{[\s\S]*?nav:\s*['"]Codex['"][\s\S]*?title:\s*['"]Codex subscription['"]/u)
 })
 
-test('beta quota badge uses the public composer slot before the model selector', async () => {
+test('composer quota modes use the public composer slot before the model selector', async () => {
   const [client, host, contract] = await Promise.all([
     text('src/client.jsx'), text('src/index.js'), text('src/settings-contract.js'),
   ])
@@ -45,11 +45,14 @@ test('beta quota badge uses the public composer slot before the model selector',
   assert.match(client, /preferences\/status/u)
   assert.match(client, /preferences\/update/u)
   assert.match(client, /native\.status === ['"]ready['"]/u)
-  assert.match(client, /QUICK_QUOTA_FIELD/u)
-  assert.match(client, /role=['"]switch['"]/u)
-  assert.match(client, /aria-checked=/u)
+  assert.match(client, /QUICK_QUOTA_MODE_FIELD/u)
+  assert.match(client, /QUICK_QUOTA_MODE_OFF/u)
+  assert.match(client, /QUICK_QUOTA_MODE_PERCENT/u)
+  assert.match(client, /QUICK_QUOTA_MODE_BAR/u)
+  assert.match(client, /role=['"]radiogroup['"]/u)
+  assert.match(client, /type=['"]radio['"]/u)
   assert.match(client, /role=['"]status['"]/u)
-  assert.match(client, /preferenceSnapshot\.status === ['"]ready['"] && preferenceSnapshot\.visible/u)
+  assert.match(client, /preferenceSnapshot\.status === ['"]ready['"] && preferenceSnapshot\.quickQuotaMode !== QUICK_QUOTA_MODE_OFF/u)
   assert.doesNotMatch(client, /onPointerDown|onMouseDown|onContextMenu/u)
   assert.doesNotMatch(client, /localStorage|sessionStorage/u)
   assert.match(host, /export const inject = \[[^\]]*['"]settings['"]/u)
@@ -57,9 +60,10 @@ test('beta quota badge uses the public composer slot before the model selector',
   assert.match(host, /settings\.watch/u)
   assert.match(host, /preferences\/status/u)
   assert.match(host, /preferences\/update/u)
-  assert.match(host, /QUICK_QUOTA_FIELD/u)
-  assert.match(contract, /quickQuotaVisible/u)
-  assert.match(contract, /DEFAULT_QUICK_QUOTA_VISIBLE\s*=\s*false/u)
+  assert.match(host, /QUICK_QUOTA_MODE_FIELD/u)
+  assert.match(contract, /QUICK_QUOTA_MODE_FIELD\s*=\s*['"]quickQuotaMode['"]/u)
+  assert.match(contract, /LEGACY_QUICK_QUOTA_FIELD\s*=\s*['"]quickQuotaVisible['"]/u)
+  assert.match(contract, /DEFAULT_QUICK_QUOTA_MODE\s*=\s*QUICK_QUOTA_MODE_OFF/u)
   assert.match(contract, /DEFAULT_SEARCH_PROVIDER\s*=\s*SEARCH_PROVIDER_DSH/u)
 })
 
@@ -75,13 +79,17 @@ test('composer quota is neutral and the detailed quota grid is compact', async (
   assert.match(composerRule, /font-size:\s*12px/u)
   assert.match(composerRule, /line-height:\s*20px/u)
   assert.doesNotMatch(composerRule, /brand|success|error|#[0-9a-f]{3,8}|rgb\(/iu)
+  assert.match(source, /className=['"]codexComposerQuotaBar['"]/u)
+  assert.match(source, /<progress[^>]*max=\{100\}[^>]*value=\{value\}/u)
+  assert.match(source, /\.codexComposerQuotaBar\{[^}]*width:\s*40px[^}]*height:\s*4px/u)
+  assert.doesNotMatch(source.match(/\.codexComposerQuotaBar\{[^}]+\}/u)?.[0] ?? '', /brand|success|error|#[0-9a-f]{3,8}|rgb\(/iu)
   assert.match(source, /\.codexSubscriptionUsageCard\{[^}]*padding:\s*12px 14px[^}]*gap:\s*9px/u)
   assert.match(source, /\.codexSubscriptionLimit\{[^}]*padding:\s*9px 12px[^}]*gap:\s*6px/u)
   assert.match(source, /\.codexSubscriptionLimit progress\{[^}]*height:\s*4px/u)
   assert.doesNotMatch(source, /fill\(t\(['"]used['"]\),\s*\{\s*value:\s*percent\(window\.usedPercent\)/u)
 })
 
-test('settings offer explicit DSH or Codex search and mark quick quota as beta', async () => {
+test('settings offer explicit search and formal composer quota display modes', async () => {
   const source = await text('src/client.jsx')
   assert.match(source, /searchProvider/u)
   assert.match(source, /searchDsh/u)
@@ -94,7 +102,10 @@ test('settings offer explicit DSH or Codex search and mark quick quota as beta',
   assert.doesNotMatch(source, /role=['"]radio['"]/u)
   assert.match(source, /preferenceFailed/u)
   assert.match(source, /snapshot\.error/u)
-  assert.match(source, /quickQuotaBeta/u)
+  assert.match(source, /quickQuotaOff/u)
+  assert.match(source, /quickQuotaPercent/u)
+  assert.match(source, /quickQuotaBar/u)
+  assert.doesNotMatch(source, /quickQuotaBeta/u)
 })
 
 test('beta speed control is persisted inside the model menu and hidden from the composer while standard', async () => {
