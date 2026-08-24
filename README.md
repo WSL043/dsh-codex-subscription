@@ -96,12 +96,13 @@ Open PowerShell and paste this one line:
 irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
 ```
 
-The lightweight setup checks the current folder, the system command, common locations, and any running official DSH or
-[DSH-Portable](https://github.com/WSL043/DSH-Portable), then invokes the official `plugin add`
-operation once. It does not recursively scan disks, install pnpm, create a resident command, snapshot a
-profile, or download the plugin twice. It needs no administrator access and never restarts DSH. Only
-when no existing DSH is found does it use the official npm route pinned to `0.1.1-rc.2`; the setup warns
-that first-time dependency resolution can take a while.
+The lightweight setup checks the current folder, the system command, common locations, and running official DSH or
+[DSH-Portable](https://github.com/WSL043/DSH-Portable). It asks before choosing when more than one target is available.
+Portable keeps using its public launcher. For official DSH, setup uses the selected profile home and a checksum-verified
+pnpm helper pinned to the accepted DSH release; the helper is cached under the current Windows user when no working pnpm
+command is available. It does not recursively scan disks, create a resident command, snapshot a profile, require
+administrator access, or restart DSH. A recognized release-age rejection may retry the same pinned add once for that
+command only.
 
 <details>
 <summary>Official npm route (Node.js installed)</summary>
