@@ -39,6 +39,13 @@ test('feature releases credit merged contributor PRs with verified authors and l
   assert.match(releaseWorkflow, /Thanks to \[@\$author\][\s\S]*for contributing in \[#\$number\]/u)
 })
 
+test('bug-fix releases can credit verified issue reporters', () => {
+  assert.match(releaseWorkflow, /reported_issues:[\s\S]*issue numbers to credit/iu)
+  assert.match(releaseWorkflow, /REPORTED_ISSUES: \$\{\{ inputs\.reported_issues \}\}/u)
+  assert.match(releaseWorkflow, /gh issue view "\$issue_number"[\s\S]*author,number,url/u)
+  assert.match(releaseWorkflow, /Thanks to \[@\$author\][\s\S]*for reporting \[#\$number\]/u)
+})
+
 test('release notes present complete English before a separate Chinese translation', () => {
   const notesStart = releaseWorkflow.indexOf('- name: Prepare beginner-facing release notes')
   const notesEnd = releaseWorkflow.indexOf('- name: Build immutable release assets')

@@ -38,7 +38,7 @@
 dsh plugin --profile web add dsh-codex-subscription
 ```
 
-DSH-Portable 用户在产品目录中运行 `./dsh plugin ...`，Windows PowerShell 使用 `.\dsh.exe plugin ...`。完整的官方 npm、Agent 安装、更新和卸载方式见下文。
+DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的命令。完整的官方 npm、Agent 安装、更新和卸载方式见下文。
 
 ## 核心优势
 
@@ -117,7 +117,7 @@ npx -y @deepseek-ai/dsh@0.1.1-rc.2 --profile web --dump-config
 </details>
 
 <details>
-<summary>已经能运行 <code>dsh</code>，或位于 DSH-Portable 目录</summary>
+<summary>已经能运行 <code>dsh</code></summary>
 
 ```sh
 dsh plugin --profile web add dsh-codex-subscription
@@ -125,8 +125,7 @@ dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-DSH-Portable 请把 `dsh` 换成 `./dsh`（PowerShell 使用 `.\dsh.exe`）。安装列表中应只有一个
-`dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
+安装列表中应只有一个 `dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
 
 </details>
 
@@ -196,14 +195,10 @@ dsh plugin --profile web remove dsh-codex-subscription
 
 </details>
 
-DSH-Portable 在其目录中把上述 `dsh` 换成 `.\dsh.exe`。
-
 ## 常见问题
 
 - **`dsh` 无法识别**：官方 npm 方式本来就不会创建全局 `dsh` 命令，请使用上面的完整 `npx -y @deepseek-ai/dsh@0.1.1-rc.2 ...` 命令；
-- **`dsh.exe` 无法识别**：当前目录没有该文件。请先进入 DSH-Portable 目录，或使用 Windows 单行助手；
-- **找不到 DSH-Portable**：进入它的目录后重新执行安装命令，或直接运行 `.\dsh.exe plugin --profile web add dsh-codex-subscription`；
-- **电脑上有多个 DSH**：单行助手会合并正在运行的副本与常用目录内检测到的 Portable，输入对应编号即可；交给 Agent 时让它进入目标目录，或明确传入 `-DshPath`；
+- **电脑上有多个 DSH**：请在目标 DSH 环境中运行标准命令；交给 Agent 时明确目标，或传入 `-DshPath`；
 - **安装仍然失败**：把上面的 Agent 文档链接发给 Agent，不要删除 profile 或随意修改系统 PATH。
 - **需要提交问题**：在设置页底部生成“支持诊断”，然后打开[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)。表单会收集准确的 DSH/插件版本和复现步骤；报告不含凭据和账号标识，仍不要附上登录链接、授权码或浏览器回调地址。
 

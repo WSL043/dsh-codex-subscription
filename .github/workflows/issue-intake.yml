@@ -1,0 +1,33 @@
+name: Issue intake acknowledgement
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  acknowledge:
+    if: github.event.issue.user.type != 'Bot'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const marker = '<!-- dsh-maintenance-ack -->'
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            })
+            if (comments.some(comment => comment.body?.includes(marker))) return
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `${marker}\nThanks for the detailed report. It has entered the maintenance queue and will be reproduced and reviewed against the supported release before any fix or closure decision.\n\n感谢你提供详细信息。问题已进入维护队列；在修复或关闭前，会先基于受支持版本复现并审核。`,
+            })

@@ -13,13 +13,17 @@ on:
         required: false
         default: feature
         type: choice
-        options: [feature, compatibility]
+        options: [feature, bugfix, compatibility]
       dsh_version:
         description: Exact accepted DSH version for a compatibility release
         required: false
         type: string
       contributor_prs:
         description: Comma-separated merged contributor PR numbers to credit
+        required: false
+        type: string
+      reported_issues:
+        description: Comma-separated issue numbers to credit
         required: false
         type: string
 
@@ -217,6 +221,7 @@ jobs:
           RELEASE_KIND: ${{ inputs.release_kind }}
           REQUESTED_DSH_VERSION: ${{ inputs.dsh_version }}
           CONTRIBUTOR_PRS: ${{ inputs.contributor_prs }}
+          REPORTED_ISSUES: ${{ inputs.reported_issues }}
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
@@ -249,6 +254,31 @@ jobs:
           NOTES
             done
           }
+          prepare_reporters() {
+            : > .release/reporters.en.md
+            : > .release/reporters.zh-CN.md
+            [[ -z "${REPORTED_ISSUES:-}" ]] && return 0
+            local raw_issue issue_number issue_json author number url
+            IFS=',' read -ra reported_issue_numbers <<< "$REPORTED_ISSUES"
+            for raw_issue in "${reported_issue_numbers[@]}"; do
+              issue_number="$(xargs <<< "$raw_issue")"
+              [[ "$issue_number" =~ ^[1-9][0-9]*$ ]] || {
+                echo "Invalid reported issue number: $raw_issue" >&2
+                return 1
+              }
+              issue_json="$(gh issue view "$issue_number" --repo "$GITHUB_REPOSITORY" --json author,number,url)"
+              author="$(jq -r '.author.login' <<< "$issue_json")"
+              number="$(jq -r '.number' <<< "$issue_json")"
+              url="$(jq -r '.url' <<< "$issue_json")"
+              test -n "$author"
+              cat >> .release/reporters.en.md <<NOTES
+          - Thanks to [@$author](https://github.com/$author) for reporting [#$number]($url).
+          NOTES
+              cat >> .release/reporters.zh-CN.md <<NOTES
+          - 感谢 [@$author](https://github.com/$author) 在 [#$number]($url) 报告问题。
+          NOTES
+            done
+          }
           append_contributors() {
             local language="$1" heading file
             if [[ "$language" == 'en' ]]; then
@@ -262,7 +292,21 @@ jobs:
             printf '\n## %s\n\n' "$heading" >> .release/install.md
             cat "$file" >> .release/install.md
           }
+          append_reporters() {
+            local language="$1" heading file
+            if [[ "$language" == 'en' ]]; then
+              heading='Issue reporters'
+              file=.release/reporters.en.md
+            else
+              heading='问题报告者'
+              file=.release/reporters.zh-CN.md
+            fi
+            [[ -s "$file" ]] || return 0
+            printf '\n## %s\n\n' "$heading" >> .release/install.md
+            cat "$file" >> .release/install.md
+          }
           prepare_contributors
+          prepare_reporters
           if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
             test -n "${REQUESTED_DSH_VERSION:-}"
             test "$REQUESTED_DSH_VERSION" = "$current_dsh"
@@ -292,6 +336,7 @@ jobs:
           \`\`\`
           NOTES
             append_contributors en
+            append_reporters en
             cat >> .release/install.md <<NOTES
 
           ## 中文
@@ -318,6 +363,7 @@ jobs:
           \`\`\`
           NOTES
             append_contributors zh-CN
+            append_reporters zh-CN
             exit 0
           fi
           if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
@@ -326,6 +372,14 @@ jobs:
 
           - Added support for DeepSeek Harness \`$current_dsh\`.
           - Supports install, update, and uninstall in official DSH Web.
+
+          NOTES
+          elif [[ "${RELEASE_KIND:-feature}" == 'bugfix' ]]; then
+            cat > .release/install.md <<'NOTES'
+          ## What's new
+
+          - Fixed `codex_image_generate` for large Base64 PNG responses, preventing a Node.js stack overflow before the durable attachment is saved.
+          - Existing padding, decoded-size, image-size, and PNG-signature safety checks remain enforced.
 
           NOTES
           else
@@ -339,6 +393,7 @@ jobs:
           NOTES
           fi
           append_contributors en
+          append_reporters en
           cat >> .release/install.md <<'NOTES'
 
           <!-- dsh-codex-install -->
@@ -385,6 +440,14 @@ jobs:
           - 已支持 DeepSeek Harness \`$current_dsh\`。
           - 支持在官方 DSH Web 中安装、更新和卸载。
           NOTES
+          elif [[ "${RELEASE_KIND:-feature}" == 'bugfix' ]]; then
+            cat >> .release/install.md <<'NOTES'
+
+          ## 更新内容
+
+          - 修复 `codex_image_generate` 处理大型 Base64 PNG 时在持久化附件前触发 Node.js 栈溢出的问题。
+          - 仍保留填充、解码长度、图片大小和 PNG 签名安全检查。
+          NOTES
           else
             cat >> .release/install.md <<'NOTES'
 
@@ -396,6 +459,7 @@ jobs:
           NOTES
           fi
           append_contributors zh-CN
+          append_reporters zh-CN
           cat >> .release/install.md <<'NOTES'
 
           ## 安装
