@@ -37,7 +37,7 @@ With an existing `dsh` command, install with:
 dsh plugin --profile web add dsh-codex-subscription
 ```
 
-From a DSH-Portable product folder, run `./dsh plugin ...` (`.\dsh.exe plugin ...` in Windows PowerShell). See below for the complete official npm, Agent, update, and uninstall routes.
+DSH-Portable exposes the same standard plugin command, so the command above also applies there. See below for the complete official npm, Agent, update, and uninstall routes.
 
 ## Why this plugin
 
@@ -117,7 +117,7 @@ npx -y @deepseek-ai/dsh@0.1.1-rc.2 --profile web --dump-config
 </details>
 
 <details>
-<summary>An existing <code>dsh</code> command or a DSH-Portable folder</summary>
+<summary>An existing <code>dsh</code> command</summary>
 
 ```sh
 dsh plugin --profile web add dsh-codex-subscription
@@ -125,8 +125,7 @@ dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-For DSH-Portable, replace `dsh` with `./dsh` (`.\dsh.exe` in PowerShell). The plugin list should contain
-one `dsh-codex-subscription`, and the config should contain one `codex-subscription` entry.
+The plugin list should contain one `dsh-codex-subscription`, and the config should contain one `codex-subscription` entry.
 
 </details>
 
@@ -198,14 +197,10 @@ dsh plugin --profile web remove dsh-codex-subscription
 
 </details>
 
-From a DSH-Portable folder, replace `dsh` above with `.\dsh.exe`.
-
 ## Troubleshooting
 
 - **`dsh` is not recognized:** the official npm route does not create a global `dsh` command; use the complete `npx -y @deepseek-ai/dsh@0.1.1-rc.2 ...` command above;
-- **`dsh.exe` is not recognized:** that file is not in the current folder; enter the DSH-Portable folder first or use the one-line Windows setup;
-- **DSH-Portable is not found:** enter its folder and rerun setup, or run `.\dsh.exe plugin --profile web add dsh-codex-subscription` directly;
-- **More than one DSH exists:** the one-line setup combines running copies with Portable folders detected in common locations; enter its number. For an Agent, use the intended folder or pass `-DshPath` explicitly;
+- **More than one DSH exists:** run the standard command from the intended DSH environment. For an Agent, specify the target or pass `-DshPath` explicitly;
 - **Setup still fails:** send the Agent guide above to an Agent. Do not delete the profile or change the system PATH to force an install.
 - **Need to report a problem:** generate a **Support diagnostics** report at the bottom of Settings, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The form collects exact DSH/plugin versions and reproduction steps. The generated report excludes credentials and account identifiers; still do not attach sign-in URLs, authorization codes, or browser callback addresses.
 

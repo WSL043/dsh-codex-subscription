@@ -63,7 +63,7 @@ test('public docs contain only user-facing product and operation information', (
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
   assert.equal(guide.includes(`dsh plugin --profile web add dsh-codex-subscription@${manifest.version}`), true)
-  assert.equal(guide.includes(`.\\dsh.exe plugin --profile web add dsh-codex-subscription@${manifest.version}`), true)
+  assert.doesNotMatch(guide, /\\dsh\.exe plugin/iu)
   assert.equal(guide.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add dsh-codex-subscription@${manifest.version}`), true)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)

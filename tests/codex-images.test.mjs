@@ -122,6 +122,17 @@ test('malformed and oversized image payloads fail before attachment persistence'
   assert.equal(saved, false)
 })
 
+test('large valid base64 image responses decode without recursive-regexp stack overflow', () => {
+  const bytes = Buffer.alloc(6_000_000)
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]).copy(bytes)
+  const encoded = bytes.toString('base64')
+  assert.equal(encoded.length, 8_000_000)
+  assert.equal(decodeCodexPng(encoded, bytes.length).byteLength, bytes.length)
+
+  assert.throws(() => decodeCodexPng(`${ONE_PIXEL_PNG.slice(0, 8)}=${ONE_PIXEL_PNG.slice(9)}`, 1024), /valid base64 PNG/)
+  assert.throws(() => decodeCodexPng(`${ONE_PIXEL_PNG.slice(0, -1)}!`, 1024), /valid base64 PNG/)
+})
+
 test('missing subscription auth and provider errors are bounded', async () => {
   const { tool: missing } = fixture({
     async getAuth() { return undefined },

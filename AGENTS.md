@@ -6,7 +6,7 @@ Use this guide when a user asks an Agent to install, update, verify, or remove
 ## Safety
 
 - Confirm the target DSH installation and profile. Use `web` only when it is the user's target.
-- Use the exact `1.4.0` package below; do not install a moving branch.
+- Use the exact `1.4.1` package below; do not install a moving branch.
 - Never print OAuth credentials, account IDs, authorization callbacks, or credential-store contents.
 - Preserve the DSH profile, unrelated plugins, sessions, and saved sign-in.
 - Do not start, stop, or restart DSH without explicit permission.
@@ -14,23 +14,19 @@ Use this guide when a user asks an Agent to install, update, verify, or remove
 
 ## Locate DSH
 
-On Windows, check the command and common Portable entry points without recursively scanning disks:
+On Windows, check the standard DSH and official npm entry points without recursively scanning disks:
 
 ```powershell
 Get-Command dsh -ErrorAction SilentlyContinue
 Get-Command npx -ErrorAction SilentlyContinue
-Test-Path -LiteralPath '.\dsh.exe' -PathType Leaf
-Test-Path -LiteralPath "$env:USERPROFILE\Downloads\DSH-Portable\dsh.exe" -PathType Leaf
 Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" |
   Where-Object { $_.CommandLine -match '@deepseek-ai[\\/]dsh[\\/]lib[\\/]bin\.js' } |
   Select-Object ExecutablePath, CommandLine
 ```
 
-A current DSH-Portable includes `dsh.exe`. Missing system Node.js or pnpm is normal; do not install
-either globally for this plugin. If the Portable copy does not contain `dsh.exe`, update DSH-Portable
-instead of recreating its package-manager environment in this installer. For a matching running process,
-the Portable root is the parent of `runtime`; use its `dsh.exe`. If several targets remain possible, stop
-and ask the user which one to change.
+DSH-Portable exposes the same standard `dsh plugin` contract. Missing system pnpm is normal; do not
+install it globally for this plugin. If several targets remain possible, stop and ask the user which one
+to change.
 
 ## Install or update
 
@@ -38,19 +34,13 @@ For an official DSH installation run through npm, keep the complete `npx` prefix
 run command does not create a global `dsh` command:
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web add dsh-codex-subscription@1.4.0
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web add dsh-codex-subscription@1.4.1
 ```
 
 With an existing global `dsh` command:
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@1.4.0
-```
-
-From a DSH-Portable folder:
-
-```powershell
-.\dsh.exe plugin --profile web add dsh-codex-subscription@1.4.0
+dsh plugin --profile web add dsh-codex-subscription@1.4.1
 ```
 
 Use the same `add` command to update or repair. This is the complete package-changing operation.
@@ -66,11 +56,9 @@ dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
 ```
 
-For DSH-Portable, replace `dsh` with `.\dsh.exe`. Static acceptance requires:
-
 For the official npm route, run the same checks with `npx -y @deepseek-ai/dsh@0.1.1-rc.2` in place of `dsh`.
 
-1. `dsh-codex-subscription` version `1.4.0` appears exactly once.
+1. `dsh-codex-subscription` version `1.4.1` appears exactly once.
 2. `codex-subscription` appears exactly once in the composed config.
 3. No unrelated plugin or profile was changed and DSH was not restarted.
 
@@ -83,12 +71,6 @@ the user explicitly asks for a live model, search, or image-generation check.
 
 ```sh
 dsh plugin --profile web remove dsh-codex-subscription
-```
-
-For DSH-Portable:
-
-```powershell
-.\dsh.exe plugin --profile web remove dsh-codex-subscription
 ```
 
 For the official npm route:

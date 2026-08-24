@@ -16,6 +16,18 @@ function encodedLimit(decodedBytes) {
   return Math.ceil(decodedBytes / 3) * 4
 }
 
+function validBase64Body(value, end) {
+  for (let index = 0; index < end; index += 1) {
+    const code = value.charCodeAt(index)
+    if (!((code >= 65 && code <= 90)
+      || (code >= 97 && code <= 122)
+      || (code >= 48 && code <= 57)
+      || code === 43
+      || code === 47)) return false
+  }
+  return true
+}
+
 async function readJsonWithin(response, maximumBytes) {
   const contentLength = Number(response.headers.get('content-length'))
   if (Number.isFinite(contentLength) && contentLength > maximumBytes) {
@@ -46,11 +58,11 @@ async function readJsonWithin(response, maximumBytes) {
 /** Strictly decode one PNG returned by the subscription backend. */
 export function decodeCodexPng(value, maximumBytes) {
   const encoded = nonEmpty(value)
+  const padding = encoded?.endsWith('==') ? 2 : encoded?.endsWith('=') ? 1 : 0
   if (encoded === undefined || encoded.length % 4 !== 0
-    || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(encoded)) {
+    || !validBase64Body(encoded, encoded.length - padding)) {
     throw new Error('Codex returned an invalid base64 PNG')
   }
-  const padding = encoded.endsWith('==') ? 2 : encoded.endsWith('=') ? 1 : 0
   const decodedBytes = (encoded.length / 4) * 3 - padding
   if (decodedBytes > maximumBytes) throw new Error('Codex image exceeds the image size limit')
   const data = Buffer.from(encoded, 'base64')

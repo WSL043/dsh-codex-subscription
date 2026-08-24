@@ -5,6 +5,7 @@ import test from "node:test";
 const issueForm = new URL("../.github/ISSUE_TEMPLATE/install-problem.yml", import.meta.url);
 const chineseReadme = new URL("../README.md", import.meta.url);
 const englishReadme = new URL("../README.md", import.meta.url);
+const acknowledgementWorkflow = new URL("../.github/workflows/issue-intake.yml", import.meta.url);
 
 test("bug intake accepts UI failures and requests secret-safe support evidence", async () => {
   const form = await readFile(issueForm, "utf8");
@@ -20,6 +21,16 @@ test("bug intake accepts UI failures and requests secret-safe support evidence",
   const outputBlock = form.match(/  - type: textarea\r?\n    id: output[\s\S]*?(?=\r?\n  - type:|$)/)?.[0];
   assert.ok(outputBlock, "other error output field should exist");
   assert.doesNotMatch(outputBlock, /required: true/);
+});
+
+test("new issues receive one free, non-judgmental acknowledgement", async () => {
+  const workflow = await readFile(acknowledgementWorkflow, "utf8");
+  assert.match(workflow, /issues:\s*write/);
+  assert.match(workflow, /types:\s*\[opened\]/);
+  assert.match(workflow, /dsh-maintenance-ack/);
+  assert.match(workflow, /github\.rest\.issues\.createComment/);
+  assert.match(workflow, /reviewed against the supported release/);
+  assert.doesNotMatch(workflow, /close|state:\s*closed|merge/i);
 });
 
 test("both public readmes link directly to the guided bug report", async () => {
