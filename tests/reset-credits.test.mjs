@@ -68,6 +68,19 @@ test('prepare is read-only and returns a bounded browser-safe challenge', async 
   assert.doesNotMatch(JSON.stringify(prepared), /bearer-secret|account-secret|credit-secret/)
 })
 
+test('inspect exposes the earliest reset expiry without creating a confirmation challenge', async () => {
+  const { service, requests } = fixture()
+
+  assert.deepEqual(await service.inspect({ signal }), {
+    availableCount: 1,
+    nextExpiresAt: 1_800_003_600_000,
+  })
+  assert.equal(requests.length, 1)
+  assert.equal(requests[0].url, CODEX_RESET_CREDITS_URL)
+  assert.equal(requests[0].init.method, 'GET')
+  assert.doesNotMatch(JSON.stringify(await service.inspect({ signal })), /challengeId|credit-secret|bearer-secret/)
+})
+
 test('prepare accepts the ISO expiration shape returned by current Codex clients', async () => {
   const { service } = fixture({
     options: {

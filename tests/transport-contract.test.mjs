@@ -156,7 +156,7 @@ test('subscription fast mode reaches only officially supported Codex model reque
     speedMode = 'standard'
     await run('gpt-5.6-sol')
 
-    assert.equal(wires[0].service_tier, 'fast')
+    assert.equal(wires[0].service_tier, 'priority')
     assert.equal('service_tier' in wires[1], false)
     assert.equal('service_tier' in wires[2], false)
   } finally {

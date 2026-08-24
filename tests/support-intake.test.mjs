@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const issueForm = new URL("../.github/ISSUE_TEMPLATE/install-problem.yml", import.meta.url);
+const featureForm = new URL("../.github/ISSUE_TEMPLATE/feature-request.yml", import.meta.url);
 const chineseReadme = new URL("../README.md", import.meta.url);
 const englishReadme = new URL("../README.md", import.meta.url);
 const acknowledgementWorkflow = new URL("../.github/workflows/issue-intake.yml", import.meta.url);
@@ -15,12 +16,24 @@ test("bug intake accepts UI failures and requests secret-safe support evidence",
   assert.match(form, /id: diagnostics/);
   assert.match(form, /Support diagnostics/);
   assert.match(form, /excludes credentials and account identifiers/);
-  assert.match(form, /浏览器登录或取消 \/ Browser sign-in or cancel/);
+  assert.match(form, /Browser sign-in or cancel/);
+  assert.doesNotMatch(form, /使用问题|问题|\/[ ]*(?:Bug report|System|Use case)/u);
+  assert.doesNotMatch(form, /^title:/mu);
   assert.doesNotMatch(form, /v0\.2\.8/);
 
   const outputBlock = form.match(/  - type: textarea\r?\n    id: output[\s\S]*?(?=\r?\n  - type:|$)/)?.[0];
   assert.ok(outputBlock, "other error output field should exist");
   assert.doesNotMatch(outputBlock, /required: true/);
+});
+
+test('issue forms default to concise English without forced title prefixes', async () => {
+  const [bug, feature] = await Promise.all([readFile(issueForm, 'utf8'), readFile(featureForm, 'utf8')]);
+  for (const form of [bug, feature]) {
+    assert.doesNotMatch(form, /^title:/mu);
+    assert.doesNotMatch(form, /功能建议|使用场景|希望怎样工作|提交前确认/u);
+  }
+  assert.match(bug, /^name: Bug report$/mu);
+  assert.match(feature, /^name: Feature request$/mu);
 });
 
 test("new issues receive one free, non-judgmental acknowledgement", async () => {

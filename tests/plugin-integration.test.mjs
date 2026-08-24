@@ -231,7 +231,7 @@ test('usage failures use a DSH-supported bounded RPC error', async () => {
   const handler = plugin.createSubscriptionRpcHandler({
     async authHandler() { throw new Error('not used') },
     usageReader: { async read() { throw new Error('host secret') }, clear() {} },
-    resetCreditService: { async prepare() {}, async consume() {}, clear() {} },
+    resetCreditService: { async inspect() {}, async prepare() {}, async consume() {}, clear() {} },
   })
   const result = await handler('usage', {}, new AbortController().signal)
   assert.deepEqual(result, {
@@ -241,18 +241,23 @@ test('usage failures use a DSH-supported bounded RPC error', async () => {
   assert.doesNotMatch(JSON.stringify(result), /host secret/)
 })
 
-test('quota reset RPC exposes only bounded prepare and consume results', async () => {
+test('quota reset RPC exposes bounded inspection, prepare, and consume results', async () => {
   const calls = []
   const handler = plugin.createSubscriptionRpcHandler({
     async authHandler() { throw new Error('not used') },
     usageReader: { async read() {}, clear() {} },
     resetCreditService: {
+      async inspect(value) { calls.push(['inspect', value]); return { availableCount: 1, nextExpiresAt: 9 } },
       async prepare(value) { calls.push(['prepare', value]); return { challengeId: 'opaque', readyAt: 5 } },
       async consume(value) { calls.push(['consume', value]); return { code: 'reset', windowsReset: ['primary'] } },
       clear() {},
     },
   })
   const controller = new AbortController()
+  assert.deepEqual(await handler('reset-credit/inspect', {}, controller.signal), {
+    ok: true,
+    value: { availableCount: 1, nextExpiresAt: 9 },
+  })
   assert.deepEqual(await handler('reset-credit/prepare', {}, controller.signal), {
     ok: true,
     value: { challengeId: 'opaque', readyAt: 5 },
@@ -261,7 +266,7 @@ test('quota reset RPC exposes only bounded prepare and consume results', async (
     ok: true,
     value: { code: 'reset', windowsReset: ['primary'] },
   })
-  assert.equal(calls.length, 2)
+  assert.equal(calls.length, 3)
 })
 
 test('quota reset RPC bounds host failures and logout invalidates pending challenges', async () => {
@@ -270,6 +275,7 @@ test('quota reset RPC bounds host failures and logout invalidates pending challe
     async authHandler(endpoint) { return endpoint === 'logout' ? { ok: true, value: {} } : { ok: false } },
     usageReader: { async read() {}, clear() { cleared += 1 } },
     resetCreditService: {
+      async inspect() { throw new Error('provider-secret credit-secret') },
       async prepare() { throw new Error('provider-secret credit-secret') },
       async consume() { throw new Error('provider-secret credit-secret') },
       clear() { cleared += 1 },
