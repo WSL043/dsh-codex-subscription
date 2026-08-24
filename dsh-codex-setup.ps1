@@ -7,7 +7,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$PackageSpec = 'dsh-codex-subscription@1.7.4'
+$PackageSpec = 'dsh-codex-subscription@1.7.3'
 $DshRelease = '0.1.1-rc.2'
 
 function New-DshInvocation {
@@ -47,6 +47,36 @@ function Find-PortableFromCurrentDirectory {
     return $null
 }
 
+function Get-DshBinFromCommandLine {
+    param([string] $CommandLine)
+
+    if (-not $CommandLine) { return $null }
+    foreach ($match in [regex]::Matches($CommandLine, '(?:"([^"]+)"|(\S+))')) {
+        $value = if ($match.Groups[1].Success) { $match.Groups[1].Value } else { $match.Groups[2].Value }
+        if ($value -match '(?i)@deepseek-ai[\\/]dsh[\\/]lib[\\/]bin\.js$' -and
+            (Test-Path -LiteralPath $value -PathType Leaf)) {
+            return (Resolve-Path -LiteralPath $value).Path
+        }
+    }
+    return $null
+}
+
+function Get-DshPackageFromBin {
+    param([Parameter(Mandatory = $true)][string] $BinPath)
+
+    $packageRoot = Split-Path -Parent (Split-Path -Parent $BinPath)
+    $manifestPath = Join-Path $packageRoot 'package.json'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { return $null }
+    try {
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        if ($manifest.name -ne '@deepseek-ai/dsh' -or
+            [string] $manifest.version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') { return $null }
+        return $manifest
+    } catch {
+        return $null
+    }
+}
+
 function Find-RunningDshInvocations {
     try {
         foreach ($process in Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction Stop) {
@@ -54,12 +84,19 @@ function Find-RunningDshInvocations {
             $commandLine = [string] $process.CommandLine
             if (-not $executable -or
                 $commandLine -notmatch '(?i)@deepseek-ai[\\/]dsh[\\/]lib[\\/]bin\.js') { continue }
+            $bin = Get-DshBinFromCommandLine $commandLine
+            if (-not $bin) { continue }
             $nodeDirectory = Split-Path -Parent $executable
             $runtimeDirectory = Split-Path -Parent $nodeDirectory
             $root = Split-Path -Parent $runtimeDirectory
             $dsh = Get-PortableDshFromRoot $root
             if ($dsh) {
                 Write-Output (New-DshInvocation -Executable $dsh -Label $dsh)
+            } elseif (Test-Path -LiteralPath $executable -PathType Leaf) {
+                $package = Get-DshPackageFromBin $bin
+                if (-not $package) { continue }
+                $node = (Resolve-Path -LiteralPath $executable).Path
+                Write-Output (New-DshInvocation -Executable $node -PrefixArguments @($bin) -Label "running official DSH $($package.version): $bin")
             }
         }
     } catch {
@@ -180,7 +217,7 @@ if ($dsh.PrefixArguments.Count -gt 0) {
     Write-Host 'Downloaded packages stay in the normal npm cache, so later runs can reuse them.'
 }
 
-# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.7.4
+# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.7.3
 $lines = [Collections.Generic.List[string]]::new()
 $previousErrorAction = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
