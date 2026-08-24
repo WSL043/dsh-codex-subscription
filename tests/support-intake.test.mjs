@@ -7,6 +7,7 @@ const featureForm = new URL("../.github/ISSUE_TEMPLATE/feature-request.yml", imp
 const chineseReadme = new URL("../README.md", import.meta.url);
 const englishReadme = new URL("../README.md", import.meta.url);
 const acknowledgementWorkflow = new URL("../.github/workflows/issue-intake.yml", import.meta.url);
+const reporterFollowupWorkflow = new URL("../.github/workflows/waiting-for-reporter.yml", import.meta.url);
 
 test("bug intake accepts UI failures and requests secret-safe support evidence", async () => {
   const form = await readFile(issueForm, "utf8");
@@ -49,6 +50,23 @@ test("new issues receive one free, non-judgmental acknowledgement", async () => 
   assert.match(workflow, /github\.rest\.issues\.createComment/);
   assert.match(workflow, /reviewed against the supported release/);
   assert.doesNotMatch(workflow, /close|state:\s*closed|merge/i);
+});
+
+test("reporter follow-up starts only after a maintainer reply and explicit waiting label", async () => {
+  const workflow = await readFile(reporterFollowupWorkflow, "utf8");
+
+  assert.match(workflow, /issue_comment:/);
+  assert.match(workflow, /schedule:/);
+  assert.match(workflow, /waiting-for-reporter/);
+  assert.match(workflow, /context\.repo\.owner/);
+  assert.match(workflow, /latestOwnerComment/);
+  assert.match(workflow, /issue\.user\?\.login/);
+  assert.match(workflow, /48 \* HOUR/);
+  assert.match(workflow, /Date\.parse\(reminder\.created_at\) >= 24 \* HOUR/);
+  assert.match(workflow, /waiting-for-reporter-reminder/);
+  assert.match(workflow, /state: 'closed'/);
+  assert.match(workflow, /removeLabel/);
+  assert.doesNotMatch(workflow, /types:\s*\[opened\]/);
 });
 
 test("both public readmes link directly to the guided bug report", async () => {
