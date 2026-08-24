@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { delimiter, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -192,6 +192,7 @@ windowsTest('a running official npm DSH is reused without another npx dependency
   await mkdir(join(bin, '..'), { recursive: true })
   const homeLog = join(fixture, 'home.txt')
   await writeFile(bin, '')
+  await mkdir(join(fixture, '.dsh'))
   await writeFile(join(fixture, '_npx', 'node_modules', '@deepseek-ai', 'dsh', 'package.json'), JSON.stringify({
     name: '@deepseek-ai/dsh',
     version: compatibility.latestTested,
@@ -221,7 +222,7 @@ windowsTest('a running official npm DSH is reused without another npx dependency
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.match(result.stdout, new RegExp(`Target: official DSH ${compatibility.latestTested.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, profile home`))
   assert.equal((await readFile(argsLog, 'utf8')).trim(), `dlx @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add ${packageSpec}`)
-  assert.equal((await readFile(homeLog, 'utf8')).trim(), join(fixture, '.dsh'))
+  assert.equal((await readFile(homeLog, 'utf8')).trim(), await realpath(join(fixture, '.dsh')))
   await assert.rejects(readFile(npxLog, 'utf8'), /ENOENT/u)
 })
 
