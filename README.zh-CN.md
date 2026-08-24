@@ -204,16 +204,6 @@ dsh plugin --profile web remove dsh-codex-subscription
 - **安装仍然失败**：把上面的 Agent 文档链接发给 Agent，不要删除 profile 或随意修改系统 PATH。
 - **需要提交问题**：在设置页底部生成“支持诊断”，然后打开[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)。表单会收集准确的 DSH/插件版本和复现步骤；报告不含凭据和账号标识，仍不要附上登录链接、授权码或浏览器回调地址。
 
-## 社区贡献者
-
-问题报告和生态反馈同样是贡献。这里分开标明贡献类型，避免把问题报告者误写成代码作者。
-
-| 贡献者 | 贡献 |
-| --- | --- |
-| <a href="https://github.com/BaronCyrus"><img src="https://avatars.githubusercontent.com/u/18019310?v=4" width="48" height="48" alt="BaronCyrus"><br><sub>BaronCyrus</sub></a> | 代码与问题报告：[PR #8](https://github.com/WSL043/dsh-codex-subscription/pull/8)、[Issue #9](https://github.com/WSL043/dsh-codex-subscription/issues/9) |
-| <a href="https://github.com/fabulousyuann-tech"><img src="https://avatars.githubusercontent.com/u/293398910?v=4" width="48" height="48" alt="fabulousyuann-tech"><br><sub>fabulousyuann-tech</sub></a> | 问题报告：[Issue #10](https://github.com/WSL043/dsh-codex-subscription/issues/10) |
-| <a href="https://github.com/alexchenzl"><img src="https://avatars.githubusercontent.com/u/2885415?v=4" width="48" height="48" alt="alexchenzl"><br><sub>alexchenzl</sub></a> | 生态反馈：[Issue #3](https://github.com/WSL043/dsh-codex-subscription/issues/3) |
-
 ## 边界与支持
 
 ChatGPT Codex 后端和 DSH 可能独立变化；本项目为社区项目，与 DeepSeek、OpenAI 无隶属或背书关系。

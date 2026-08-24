@@ -208,16 +208,6 @@ dsh plugin --profile web remove dsh-codex-subscription
 - **Setup still fails:** send the Agent guide above to an Agent. Do not delete the profile or change the system PATH to force an install.
 - **Need to report a problem:** generate a **Support diagnostics** report at the bottom of Settings, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The form collects exact DSH/plugin versions and reproduction steps. The generated report excludes credentials and account identifiers; still do not attach sign-in URLs, authorization codes, or browser callback addresses.
 
-## Community contributors
-
-Issue reports and ecosystem feedback are contributions too. Roles are shown separately so credit stays accurate.
-
-| Contributor | Contribution |
-| --- | --- |
-| <a href="https://github.com/BaronCyrus"><img src="https://avatars.githubusercontent.com/u/18019310?v=4" width="48" height="48" alt="BaronCyrus"><br><sub>BaronCyrus</sub></a> | Code and bug report: [PR #8](https://github.com/WSL043/dsh-codex-subscription/pull/8), [Issue #9](https://github.com/WSL043/dsh-codex-subscription/issues/9) |
-| <a href="https://github.com/fabulousyuann-tech"><img src="https://avatars.githubusercontent.com/u/293398910?v=4" width="48" height="48" alt="fabulousyuann-tech"><br><sub>fabulousyuann-tech</sub></a> | Bug report: [Issue #10](https://github.com/WSL043/dsh-codex-subscription/issues/10) |
-| <a href="https://github.com/alexchenzl"><img src="https://avatars.githubusercontent.com/u/2885415?v=4" width="48" height="48" alt="alexchenzl"><br><sub>alexchenzl</sub></a> | Ecosystem feedback: [Issue #3](https://github.com/WSL043/dsh-codex-subscription/issues/3) |
-
 The ChatGPT Codex backend and DSH can change independently. This community project is not affiliated with or endorsed by DeepSeek or OpenAI.
 
 Use the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml) for project feedback.
