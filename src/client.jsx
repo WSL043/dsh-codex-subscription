@@ -28,6 +28,7 @@ export const inject = [
 
 const NS = 'settings.codexSubscription'
 const CHANNEL = '/codex-subscription'
+const SUPPORT_ISSUE_URL = 'https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml'
 const QUICK_QUOTA_REFRESH_EVENT = 'dsh-codex-subscription:refresh-quick-quota'
 const QUICK_QUOTA_REFRESH_MS = 60_000
 
@@ -40,7 +41,7 @@ const zh = {
   manualCode: '若浏览器回调没有自动完成，请粘贴授权码或完整重定向地址。',
   deviceHint: '在登录页输入此设备代码：', waiting: '正在等待登录完成…',
   failed: '登录失败，请重试。', loadFailed: '无法读取账户状态。', accountRetry: '重试',
-  diagnostics: '支持诊断', diagnosticsHint: '生成不含凭据、账号标识和授权时间的诊断信息。', diagnosticsLoad: '生成诊断', diagnosticsCopy: '复制诊断', diagnosticsCopied: '已复制', diagnosticsFailed: '无法生成诊断信息。',
+  diagnostics: '支持诊断', diagnosticsHint: '生成不含凭据、账号标识和授权时间的诊断信息。', diagnosticsLoad: '生成诊断', diagnosticsCopy: '复制诊断', diagnosticsCopied: '已复制', diagnosticsFailed: '无法生成诊断信息。', feedbackOpen: '反馈问题',
   searchTitle: '搜索来源',
   searchDsh: 'DSH 默认', searchDshHint: '当前搜索服务',
   searchCodex: 'Codex 订阅', searchCodexHint: 'ChatGPT 订阅搜索',
@@ -53,16 +54,15 @@ const zh = {
   windowHours: '{value} 小时额度', windowDays: '{value} 天额度', resets: '重置于 {value}', resetUnknown: '重置时间未提供',
   creditsBalance: '额外 Credits 余额', creditsUnit: 'credits', unlimited: '不限额', monthlyCreditLimit: 'Credits 月度消费上限',
   resetCredits: '可用额度重置次数', resetCreditsValue: '{count} 次',
-  resetUse: '使用一次重置', resetUnavailable: '仅当至少一个 Codex 模型额度已用尽时可使用。',
+  resetUse: '查看并使用',
   resetPreparing: '正在读取重置详情…', resetConfirmTitle: '确认使用额度重置',
-  resetWarning: '此操作会立即消耗 1 次额度重置，且无法撤销。请确认你确实需要恢复已用尽的模型额度。',
-  resetAcknowledge: '我知道这会消耗 1 次额度重置', resetTypeHint: '输入 {phrase} 以继续',
+  resetWarning: '若 ChatGPT 执行重置，将立即消耗 1 次且无法撤销。', resetEarlyWarning: '当前模型额度尚未用尽；ChatGPT 可能执行重置，也可能判定暂无需重置且不消耗次数。',
+  resetAcknowledge: '我知道这次操作可能立即消耗 1 次重置', resetCreditExpires: '最早到期：{value}', resetCreditExpiryUnknown: '到期时间未提供',
   resetWait: '请再等待 {count} 秒', resetFinal: '消耗 1 次并重置额度', resetUsing: '正在重置…',
   resetSuccess: '额度重置已完成。', resetNothing: '当前没有可重置的额度，未消耗新的重置次数。',
   resetNoCredit: '没有可用的额度重置。', resetAlready: '这次重置请求已处理。', resetFailed: '无法使用额度重置。',
   resetRenewLogin: '登录状态已失效，请重新登录。', resetExpired: '本次确认已失效，请重新开始。',
-  resetInProgress: '额度重置正在处理中。', resetTooEarly: '请等待冷静期结束后再确认。',
-  resetPhraseMismatch: '确认短语不一致。', resetNotExhausted: '当前 Codex 模型额度尚未用尽。',
+  resetInProgress: '额度重置正在处理中。', resetTooEarly: '请等待冷静期结束后再确认。', resetAcknowledgeRequired: '请先确认已了解这次操作可能消耗重置次数。',
   resetAccountChanged: '登录账号已变更，请重新开始。',
   creditsNote: '仅显示 Codex 为此账户或工作区实际返回的额外 Credits、消费上限或额度重置次数；三者不是同一项。',
   creditsUsed: '已用 {used} / {limit} credits', spendReached: 'Credits 月度消费上限已用尽。', unavailable: '暂无数据',
@@ -73,7 +73,7 @@ const zh = {
   modelMenuAria: '模型、推理等级与速度', modelLabel: '模型', effortLabel: '推理等级', providerDefault: 'Default', selectModel: '选择模型',
   modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
   imageGenerate: '生成图片', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
-  imageLabel: '生成的图片', imageOpen: '查看原图', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imageClosePreview: '关闭预览',
+  imageLabel: '生成的图片', imageOpen: '查看原图', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imageClosePreview: '关闭预览', imageDownload: '下载原图', imageRefineHint: '继续在当前会话描述修改内容，即可基于这张图片继续调整。',
 }
 
 const en = {
@@ -85,7 +85,7 @@ const en = {
   manualCode: 'If the browser callback did not finish automatically, paste the code or full redirect URL.',
   deviceHint: 'Enter this device code on the sign-in page:', waiting: 'Waiting for sign-in to finish…',
   failed: 'Sign-in failed. Try again.', loadFailed: 'Could not read account status.', accountRetry: 'Retry',
-  diagnostics: 'Support diagnostics', diagnosticsHint: 'Create a report without credentials, account identifiers, or authorization timestamps.', diagnosticsLoad: 'Create report', diagnosticsCopy: 'Copy report', diagnosticsCopied: 'Copied', diagnosticsFailed: 'Could not create diagnostics.',
+  diagnostics: 'Support diagnostics', diagnosticsHint: 'Create a report without credentials, account identifiers, or authorization timestamps.', diagnosticsLoad: 'Create report', diagnosticsCopy: 'Copy report', diagnosticsCopied: 'Copied', diagnosticsFailed: 'Could not create diagnostics.', feedbackOpen: 'Report a problem',
   searchTitle: 'Search source',
   searchDsh: 'DSH default', searchDshHint: 'Current search service',
   searchCodex: 'Codex subscription', searchCodexHint: 'ChatGPT subscription search',
@@ -98,16 +98,15 @@ const en = {
   windowHours: '{value}-hour quota', windowDays: '{value}-day quota', resets: 'Resets {value}', resetUnknown: 'Reset time not provided',
   creditsBalance: 'Extra Credits balance', creditsUnit: 'credits', unlimited: 'Unlimited', monthlyCreditLimit: 'Monthly Credits spending cap',
   resetCredits: 'Available quota resets', resetCreditsValue: '{count} available',
-  resetUse: 'Use one reset', resetUnavailable: 'Available only when at least one Codex model quota is exhausted.',
+  resetUse: 'Review and use',
   resetPreparing: 'Reading reset details…', resetConfirmTitle: 'Confirm quota reset',
-  resetWarning: 'This immediately consumes one quota reset and cannot be undone. Continue only if you intend to restore an exhausted model quota.',
-  resetAcknowledge: 'I understand this consumes one quota reset', resetTypeHint: 'Type {phrase} to continue',
+  resetWarning: 'If ChatGPT performs the reset, one reset is consumed immediately and cannot be restored.', resetEarlyWarning: 'No model quota is exhausted. ChatGPT may reset it, or report that nothing needs resetting without consuming a reset.',
+  resetAcknowledge: 'I understand this may consume one reset now', resetCreditExpires: 'Earliest expiry: {value}', resetCreditExpiryUnknown: 'Expiration time not provided',
   resetWait: 'Wait {count} more seconds', resetFinal: 'Consume one reset', resetUsing: 'Resetting…',
   resetSuccess: 'Quota reset completed.', resetNothing: 'There is currently nothing to reset; no new reset was consumed.',
   resetNoCredit: 'No quota reset is available.', resetAlready: 'This reset request was already processed.', resetFailed: 'Could not use the quota reset.',
   resetRenewLogin: 'Your sign-in expired. Sign in again.', resetExpired: 'This confirmation expired. Start again.',
-  resetInProgress: 'A quota reset is already in progress.', resetTooEarly: 'Wait for the cooldown before confirming.',
-  resetPhraseMismatch: 'The confirmation phrase does not match.', resetNotExhausted: 'The current Codex model quota is not exhausted.',
+  resetInProgress: 'A quota reset is already in progress.', resetTooEarly: 'Wait for the cooldown before confirming.', resetAcknowledgeRequired: 'Confirm that you understand this may consume a reset.',
   resetAccountChanged: 'The signed-in account changed. Start again.',
   creditsNote: 'Shows only extra Credits, spending caps, or quota resets returned for this account or workspace; these are separate items.',
   creditsUsed: '{used} / {limit} credits used', spendReached: 'The monthly Credits spending cap has been reached.', unavailable: 'No data yet',
@@ -118,7 +117,7 @@ const en = {
   modelMenuAria: 'Model, effort, and speed', modelLabel: 'Model', effortLabel: 'Effort', providerDefault: 'Default', selectModel: 'Select model',
   modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
   imageGenerate: 'Generate image', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
-  imageLabel: 'Generated image', imageOpen: 'View original', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imageClosePreview: 'Close preview',
+  imageLabel: 'Generated image', imageOpen: 'View original', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imageClosePreview: 'Close preview', imageDownload: 'Download original', imageRefineHint: 'Describe the changes in this conversation to continue refining this image.',
 }
 
 const STYLE = `
@@ -138,7 +137,7 @@ const STYLE = `
 .codexSubscriptionFlow p{font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCode{width:max-content;max-width:100%;font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;overflow-wrap:anywhere}
 .codexSubscriptionError{font-size:13px;line-height:20px;color:var(--dsw-alias-state-error-primary)}.codexSubscriptionInput{width:100%;box-sizing:border-box}
 .codexSubscriptionRecover{display:flex;align-items:center;justify-content:space-between;gap:12px}.codexSubscriptionRecover .codexSubscriptionError{flex:1}.codexSubscriptionRecover button{flex:0 0 auto}
-.codexSubscriptionDiagnostics pre{max-height:240px;margin:0;padding:10px 12px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/17px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionDiagnostics pre{max-height:240px;margin:0;padding:10px 12px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/17px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--dsw-alias-label-secondary)}.codexSubscriptionLink{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 13px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-decoration:none;white-space:nowrap}.codexSubscriptionLink:hover{background:var(--dsw-alias-bg-module-platform)}.codexSubscriptionLink:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}
 .codexSubscriptionSectionTitle{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.codexSubscriptionFreshness{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionRefresh{flex:0 0 auto;min-width:72px;width:max-content;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;writing-mode:horizontal-tb!important}.codexSubscriptionRefresh *{white-space:nowrap!important;word-break:keep-all!important;writing-mode:horizontal-tb!important}
 .codexSubscriptionEmpty{padding:18px;border:1px dashed var(--dsw-alias-border-l3);border-radius:10px;text-align:center;font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}
@@ -148,13 +147,13 @@ const STYLE = `
 .codexSubscriptionLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionLimitMeta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionCreditSection{display:flex;flex-direction:column;gap:7px}.codexSubscriptionCreditNote{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionCreditRows{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.codexSubscriptionCreditBalance,.codexSubscriptionSpendLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionCreditBalance{display:flex;flex-direction:column;gap:6px}.codexSubscriptionCreditBalance span,.codexSubscriptionCreditLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.codexSubscriptionResetSummary{display:flex;align-items:center;justify-content:space-between;gap:10px}.codexSubscriptionResetBalance{display:flex;flex-direction:column;gap:8px}.codexSubscriptionResetBalance .codexSubscriptionActions{justify-content:flex-start}.codexSubscriptionResetFlow{display:flex;flex-direction:column;gap:9px;border:1px solid var(--dsw-alias-state-warning-border,var(--dsw-alias-border-l2));border-radius:10px;padding:11px 12px;background:var(--dsw-alias-bg-module-platform)}.codexSubscriptionResetFlow h4{margin:0;font-size:13px;line-height:20px;font-weight:600}.codexSubscriptionResetWarning{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionResetCheck{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);cursor:pointer}.codexSubscriptionResetCheck input{margin:3px 0 0;accent-color:var(--dsw-alias-label-primary)}.codexSubscriptionResetPhrase{font:600 12px/18px ui-monospace,SFMono-Regular,Consolas,monospace}.codexSubscriptionResetFinal{border-color:var(--dsw-alias-state-error-primary)!important;color:var(--dsw-alias-state-error-primary)!important}.codexSubscriptionResetResult{font-size:12px;line-height:18px;color:var(--dsw-alias-state-success-primary)}
+.codexSubscriptionResetSummary{display:flex;align-items:center;justify-content:space-between;gap:10px}.codexSubscriptionResetMeta{display:flex;min-width:0;flex-direction:column;gap:1px}.codexSubscriptionResetBalance{display:flex;flex-direction:column;gap:8px}.codexSubscriptionResetBalance .codexSubscriptionActions{justify-content:flex-start}.codexSubscriptionResetFlow{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:10px}.codexSubscriptionResetFlow h4{margin:0;font-size:13px;line-height:20px;font-weight:500}.codexSubscriptionResetWarning{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionResetExpiry{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionResetCheck{display:flex;align-items:flex-start;gap:8px;padding:9px 10px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);cursor:pointer}.codexSubscriptionResetCheck input{margin:3px 0 0;accent-color:var(--dsw-alias-label-primary)}.codexSubscriptionResetFinal{border-color:var(--dsw-alias-state-error-primary)!important;color:var(--dsw-alias-state-error-primary)!important}.codexSubscriptionResetResult{font-size:12px;line-height:18px;color:var(--dsw-alias-state-success-primary)}
 .codexSubscriptionSpendLimit{display:flex;flex-direction:column;gap:8px}.codexSubscriptionSpendTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionSpendTop strong{font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.codexSubscriptionSpendLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}.codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexComposerQuota{display:inline-flex;align-items:center;flex:0 0 auto;height:28px;box-sizing:border-box;padding:0;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}.codexComposerQuotaBar{display:block;width:40px;height:4px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-label-secondary);-webkit-appearance:none;appearance:none}.codexComposerQuotaBar::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexComposerQuotaBar::-webkit-progress-value{background:var(--dsw-alias-label-secondary);border-radius:999px}.codexComposerQuotaBar::-moz-progress-bar{background:var(--dsw-alias-label-secondary);border-radius:999px}
 .codexModelSelect{position:relative;min-width:0}.codexModelSelectTrigger{display:flex;align-items:center;gap:4px;min-width:0;max-width:min(360px,45cqw);height:28px;padding:0 4px 0 8px;border:0;border-radius:24px;outline:0;background:transparent;color:var(--dsw-alias-label-secondary);font-size:13px;font-weight:500;line-height:20px;cursor:pointer}.codexModelSelectTrigger:hover:not(:disabled),.codexModelSelectTrigger[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover)}.codexModelSelectTrigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}.codexModelSelectTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectBolt{display:block;flex:none;width:14px;height:14px;color:var(--dsw-alias-label-primary)}.codexModelSelectLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectEffort{flex:none;color:var(--dsw-alias-label-caption)}.codexModelSelectChevron{flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms}.codexModelSelectTrigger[aria-expanded=true] .codexModelSelectChevron{transform:rotate(180deg)}
 .codexModelSelectMenu,.codexModelSelectSubmenu{position:absolute;z-index:30;box-sizing:border-box;width:max-content;min-width:min(240px,calc(100vw - 32px));max-width:min(420px,calc(100vw - 32px));max-height:min(360px,calc(100vh - 96px));padding:4px;border:1px solid var(--dsw-alias-border-inverted);border-radius:12px;background:var(--dsw-specific-menu);box-shadow:var(--dsw-shadow-lv3);color:var(--dsw-alias-label-primary);overflow:hidden}.codexModelSelectMenu{right:0;bottom:calc(100% + 8px)}.codexModelSelectSubmenu{right:calc(100% + 8px);bottom:0;min-width:min(230px,calc(100vw - 32px))}.codexModelSelectCell{display:flex;align-items:center;gap:8px;width:100%;min-width:100%;height:40px;box-sizing:border-box;padding:0 10px;border:0;border-radius:10px;background:transparent;color:inherit;font-size:14px;line-height:22px;text-align:left;cursor:pointer}.codexModelSelectCell:hover,.codexModelSelectCell:focus-visible,.codexModelSelectCell[data-open=true]{background:var(--dsw-alias-interactive-bg-hover);outline:0}.codexModelSelectCell:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectCellLabel{flex:none;white-space:nowrap}.codexModelSelectCellValue{flex:auto;min-width:0;overflow:hidden;color:var(--dsw-alias-label-tertiary);text-align:right;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectCellChevron{flex:none;color:var(--dsw-alias-label-tertiary)}.codexModelSelectGroups{min-height:0;max-height:352px;overflow-y:auto}.codexModelSelectGroup+.codexModelSelectGroup{margin-top:4px}.codexModelSelectGroupTitle{position:sticky;top:0;z-index:1;padding:5px 8px 3px;background:var(--dsw-specific-menu);color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:500;line-height:18px}.codexModelSelectOption{display:flex;align-items:center;gap:8px;width:100%;min-width:100%;min-height:38px;box-sizing:border-box;padding:6px 8px;border:0;border-radius:10px;outline:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.codexModelSelectOption:hover:not(:disabled),.codexModelSelectOption:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}.codexModelSelectOption:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectOptionCopy{display:flex;flex:1;min-width:0;flex-direction:column}.codexModelSelectOptionName{overflow:hidden;color:inherit;font-size:14px;font-weight:500;line-height:20px;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectOptionDescription{overflow:hidden;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectCheck{display:grid;place-items:center;flex:0 0 18px;color:var(--dsw-alias-label-primary)}.codexModelSelectStatus,.codexModelSelectEmpty{padding:10px;color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:20px}.codexModelSelectError,.codexModelSelectWarning{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;padding:7px 8px;border-radius:8px;background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}.codexModelSelectWarning{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-state-warn-label)}.codexModelSelectRetry{flex:none;padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}
 .codexModelSelectMenu{overflow:visible}
-.codexImageTool{display:flex;flex-direction:column;gap:8px;margin:4px 0;color:var(--dsw-alias-label-primary)}.codexImageToolRow{display:flex;align-items:center;min-height:24px;gap:8px;font-size:13px;line-height:20px}.codexImageToolIcon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}.codexImageToolIcon::before{content:'';width:8px;height:8px;border:1.5px solid currentColor;border-radius:3px}.codexImageTool[data-state=running] .codexImageToolIcon::before{border-radius:50%;border-right-color:transparent;animation:codexImageSpin 800ms linear infinite}.codexImageTool[data-state=error] .codexImageToolIcon::before{border-color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-state-error-primary)}.codexImageToolTitle{font-weight:500}.codexImageToolState{color:var(--dsw-alias-label-tertiary)}.codexImageToolError{margin:0 0 0 24px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary)}.codexImageToolGallery{margin-left:24px}.codexGeneratedImageFrame{display:flex;align-items:center;justify-content:center;width:min(240px,100%);min-height:120px;padding:0;overflow:hidden;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-tertiary);cursor:pointer}.codexGeneratedImageFrame img{display:block;width:100%;max-height:240px;object-fit:contain}.codexGeneratedImageRetry{min-height:36px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);cursor:pointer}.codexGeneratedImageLightbox{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:32px;border:0;background:rgba(0,0,0,.72)}.codexGeneratedImageLightbox img{display:block;max-width:min(1100px,calc(100vw - 64px));max-height:calc(100vh - 64px);object-fit:contain}.codexGeneratedImageClose{position:absolute;top:16px;right:16px;width:36px;height:36px;border:1px solid rgba(255,255,255,.35);border-radius:50%;background:rgba(0,0,0,.48);color:#fff;font-size:20px;line-height:1;cursor:pointer}@keyframes codexImageSpin{to{transform:rotate(360deg)}}
+.codexImageTool{display:flex;flex-direction:column;gap:8px;margin:4px 0;color:var(--dsw-alias-label-primary)}.codexImageToolRow{display:flex;align-items:center;min-height:24px;gap:8px;font-size:13px;line-height:20px}.codexImageToolIcon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}.codexImageToolIcon::before{content:'';width:8px;height:8px;border:1.5px solid currentColor;border-radius:3px}.codexImageTool[data-state=running] .codexImageToolIcon::before{border-radius:50%;border-right-color:transparent;animation:codexImageSpin 800ms linear infinite}.codexImageTool[data-state=error] .codexImageToolIcon::before{border-color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-state-error-primary)}.codexImageToolTitle{font-weight:500}.codexImageToolState{color:var(--dsw-alias-label-tertiary)}.codexImageToolError{margin:0 0 0 24px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary)}.codexImageToolGallery{margin-left:24px}.codexGeneratedImageFrame{display:flex;align-items:center;justify-content:center;width:min(240px,100%);min-height:120px;padding:0;overflow:hidden;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-tertiary);cursor:pointer}.codexGeneratedImageFrame img{display:block;width:100%;max-height:240px;object-fit:contain}.codexGeneratedImageRetry{min-height:36px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);cursor:pointer}.codexGeneratedImageLightbox{position:fixed;inset:0;z-index:1000;display:flex;align-items:center;justify-content:center;padding:32px;border:0;background:rgba(0,0,0,.72)}.codexGeneratedImageLightbox img{display:block;max-width:min(1100px,calc(100vw - 64px));max-height:calc(100vh - 112px);object-fit:contain}.codexGeneratedImageClose{position:absolute;top:16px;right:16px;width:36px;height:36px;border:1px solid rgba(255,255,255,.35);border-radius:50%;background:rgba(0,0,0,.48);color:#fff;font-size:20px;line-height:1;cursor:pointer}.codexGeneratedImageActions{position:absolute;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:min(90vw,720px);padding:6px 8px 6px 12px;border:1px solid rgba(255,255,255,.2);border-radius:999px;background:rgba(20,20,20,.82);color:rgba(255,255,255,.72);font-size:12px;line-height:18px;backdrop-filter:blur(12px)}.codexGeneratedImageDownload{flex:0 0 auto;padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.12);color:#fff;text-decoration:none;white-space:nowrap}.codexGeneratedImageDownload:hover{background:rgba(255,255,255,.2)}.codexGeneratedImageDownload:focus-visible,.codexGeneratedImageClose:focus-visible{outline:2px solid #fff;outline-offset:2px}.codexGeneratedImageRefineHint{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}@keyframes codexImageSpin{to{transform:rotate(360deg)}}
 @container (max-width:560px){.codexSubscriptionCreditRows{grid-template-columns:1fr}}
 @container (max-width:480px){.codexSubscriptionAccountRow,.codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column}.codexSubscriptionActions{width:100%}.codexSubscriptionSearchChoices{grid-template-columns:1fr}}
 @media(max-width:640px){.codexSubscriptionCard{padding:14px}}
@@ -182,6 +181,13 @@ const validDate = value => {
   const date = new Date(value)
   return Number.isFinite(date.getTime()) ? date : undefined
 }
+const imageDownloadName = attachment => {
+  const fallback = 'codex-generated-image.png'
+  if (typeof attachment?.name !== 'string') return fallback
+  const cleaned = attachment.name.replace(/[<>:"/\\|?*\u0000-\u001f]/gu, '-').replace(/[. ]+$/u, '').trim()
+  if (cleaned === '') return fallback
+  return cleaned.toLowerCase().endsWith('.png') ? cleaned : `${cleaned}.png`
+}
 
 function CodexGeneratedImage({ attachment, loadImage, t }) {
   const [attempt, setAttempt] = useState(0)
@@ -189,6 +195,7 @@ function CodexGeneratedImage({ attachment, loadImage, t }) {
   const [open, setOpen] = useState(false)
   const [src, setSrc] = useState()
   const closeRef = useRef(null)
+  const downloadRef = useRef(null)
   const triggerRef = useRef(null)
   useEffect(() => {
     let live = true
@@ -207,7 +214,12 @@ function CodexGeneratedImage({ attachment, loadImage, t }) {
         setOpen(false)
       } else if (event.key === 'Tab') {
         event.preventDefault()
-        closeRef.current?.focus()
+        const controls = [downloadRef.current, closeRef.current].filter(Boolean)
+        const current = controls.indexOf(document.activeElement)
+        const next = event.shiftKey
+          ? (current <= 0 ? controls.length - 1 : current - 1)
+          : (current + 1) % controls.length
+        controls[next]?.focus()
       }
     }
     document.addEventListener('keydown', handleKeyDown)
@@ -218,6 +230,7 @@ function CodexGeneratedImage({ attachment, loadImage, t }) {
     }
   }, [open])
   const label = attachment.name ?? t('imageLabel')
+  const downloadName = imageDownloadName(attachment)
   if (error) {
     return <button type="button" className="codexGeneratedImageRetry" onClick={() => setAttempt(value => value + 1)}>{t('imageLoadFailed')}</button>
   }
@@ -227,6 +240,10 @@ function CodexGeneratedImage({ attachment, loadImage, t }) {
     </button>
     {!open || src === undefined ? null : <div className="codexGeneratedImageLightbox" role="dialog" aria-modal="true" aria-label={t('imagePreview')} onClick={() => setOpen(false)}>
       <img src={src} alt={label} onClick={event => event.stopPropagation()} />
+      <div className="codexGeneratedImageActions" onClick={event => event.stopPropagation()}>
+        <span className="codexGeneratedImageRefineHint">{t('imageRefineHint')}</span>
+        <a ref={downloadRef} className="codexGeneratedImageDownload" href={src} download={downloadName}>{t('imageDownload')}</a>
+      </div>
       <button ref={closeRef} type="button" className="codexGeneratedImageClose" aria-label={t('imageClosePreview')} onClick={() => setOpen(false)}>×</button>
     </div>}
   </>
@@ -756,7 +773,7 @@ function DiagnosticsCard({ rpc, t }) {
   return <div className="codexSubscriptionCard codexSubscriptionDiagnostics">
     <div className="codexSubscriptionSectionHead">
       <div className="codexSubscriptionSectionTitle"><h3>{t('diagnostics')}</h3><p className="codexSubscriptionNote">{t('diagnosticsHint')}</p></div>
-      <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={copy}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}</div>
+      <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={copy}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}<a className="codexSubscriptionLink" href={SUPPORT_ISSUE_URL} target="_blank" rel="noreferrer">{t('feedbackOpen')}</a></div>
     </div>
     {report === undefined ? null : <pre>{JSON.stringify(report, null, 2)}</pre>}
     {error ? <p className="codexSubscriptionError" role="alert">{t('diagnosticsFailed')}</p> : null}
@@ -772,11 +789,15 @@ function ResetTime({ resetsAt, t }) {
   return <time dateTime={date.toISOString()} title={date.toLocaleString()}>{fill(t('resets'), { value })}</time>
 }
 
-function ResetCreditControl({ rpc, t, count, exhausted, onConsumed }) {
+function ResetCreditExpiry({ expiresAt, t }) {
+  const date = validDate(expiresAt)
+  return <span className="codexSubscriptionResetExpiry">{date === undefined ? t('resetCreditExpiryUnknown') : <time dateTime={date.toISOString()} title={date.toLocaleString()}>{fill(t('resetCreditExpires'), { value: date.toLocaleString() })}</time>}</span>
+}
+
+function ResetCreditControl({ rpc, t, count, nextExpiresAt, hasExhaustedQuota, onConsumed }) {
   const [challenge, setChallenge] = useState()
   const [resetBusy, setResetBusy] = useState(false)
   const [resetAcknowledged, setResetAcknowledged] = useState(false)
-  const [resetPhrase, setResetPhrase] = useState('')
   const [resetCountdown, setResetCountdown] = useState(0)
   const [resetError, setResetError] = useState()
   const [resetResult, setResetResult] = useState()
@@ -790,28 +811,28 @@ function ResetCreditControl({ rpc, t, count, exhausted, onConsumed }) {
   }, [challenge])
 
   const prepareReset = () => {
-    if (resetBusy || !exhausted) return
+    if (resetBusy) return
     setResetBusy(true); setResetError(undefined); setResetResult(undefined)
     void rpc.call(CHANNEL, 'reset-credit/prepare', {}).then(unwrap)
-      .then(next => { setChallenge(next); setResetAcknowledged(false); setResetPhrase('') })
+      .then(next => { setChallenge(next); setResetAcknowledged(false) })
       .catch(error => setResetError(resetCreditErrorText(error, t)))
       .finally(() => setResetBusy(false))
   }
   const cancelReset = () => {
     if (resetBusy) return
-    setChallenge(undefined); setResetAcknowledged(false); setResetPhrase(''); setResetError(undefined)
+    setChallenge(undefined); setResetAcknowledged(false); setResetError(undefined)
   }
   const resetReady = challenge !== undefined
-    && resetAcknowledged && resetPhrase === challenge.confirmPhrase && resetCountdown === 0
+    && resetAcknowledged && resetCountdown === 0
   const consumeReset = () => {
     if (resetBusy) return
     if (!resetReady) return
     setResetBusy(true); setResetError(undefined); setResetResult(undefined)
     void rpc.call(CHANNEL, 'reset-credit/consume', {
       challengeId: challenge.challengeId,
-      phrase: resetPhrase,
+      acknowledged: resetAcknowledged,
     }).then(unwrap).then(result => {
-      setChallenge(undefined); setResetAcknowledged(false); setResetPhrase('')
+      setChallenge(undefined); setResetAcknowledged(false)
       const message = result.code === 'reset' ? t('resetSuccess')
         : result.code === 'nothing_to_reset' ? t('resetNothing')
           : result.code === 'no_credit' ? t('resetNoCredit') : t('resetAlready')
@@ -822,13 +843,13 @@ function ResetCreditControl({ rpc, t, count, exhausted, onConsumed }) {
 
   return <div className="codexSubscriptionResetBalance">
     {challenge === undefined ? <>
-      <div className="codexSubscriptionResetSummary"><strong>{fill(t('resetCreditsValue'), { count })}</strong><div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={!exhausted || resetBusy} aria-busy={resetBusy} title={!exhausted ? t('resetUnavailable') : undefined} onClick={prepareReset}>{resetBusy ? t('resetPreparing') : t('resetUse')}</Button></div></div>
+      <div className="codexSubscriptionResetSummary"><div className="codexSubscriptionResetMeta"><strong>{fill(t('resetCreditsValue'), { count })}</strong><ResetCreditExpiry expiresAt={nextExpiresAt} t={t} /></div><div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={resetBusy} aria-busy={resetBusy} onClick={prepareReset}>{resetBusy ? t('resetPreparing') : t('resetUse')}</Button></div></div>
     </> : <div className="codexSubscriptionResetFlow" role="group" aria-labelledby="codex-reset-confirm-title">
       <h4 id="codex-reset-confirm-title">{challenge.title ?? t('resetConfirmTitle')}</h4>
       {challenge.description ? <p className="codexSubscriptionResetWarning">{challenge.description}</p> : null}
-      <p className="codexSubscriptionResetWarning">{t('resetWarning')}</p>
+      <ResetCreditExpiry expiresAt={challenge.creditExpiresAt} t={t} />
+      <p className="codexSubscriptionResetWarning">{t(hasExhaustedQuota ? 'resetWarning' : 'resetEarlyWarning')}</p>
       <label className="codexSubscriptionResetCheck"><input type="checkbox" checked={resetAcknowledged} disabled={resetBusy} onChange={event => setResetAcknowledged(event.target.checked)} /><span>{t('resetAcknowledge')}</span></label>
-      <label className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionCreditLabel">{fill(t('resetTypeHint'), { phrase: challenge.confirmPhrase })}</span><Input className="codexSubscriptionInput codexSubscriptionResetPhrase" value={resetPhrase} disabled={resetBusy} autoComplete="off" spellCheck={false} onChange={event => setResetPhrase(event.target.value)} /></label>
       {resetCountdown > 0 ? <p className="codexSubscriptionCreditNote" role="status">{fill(t('resetWait'), { count: resetCountdown })}</p> : null}
       <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={resetBusy} onClick={cancelReset}>{t('cancel')}</Button><Button className="codexSubscriptionResetFinal" type="button" variant="outline" disabled={!resetReady || resetBusy} aria-busy={resetBusy} onClick={consumeReset}>{resetBusy ? t('resetUsing') : t('resetFinal')}</Button></div>
     </div>}
@@ -847,8 +868,7 @@ function resetCreditErrorText(error, t) {
     ['This quota reset confirmation is no longer valid', 'resetExpired'],
     ['This quota reset is already in progress', 'resetInProgress'],
     ['Wait before confirming this quota reset', 'resetTooEarly'],
-    ['The quota reset confirmation phrase does not match', 'resetPhraseMismatch'],
-    ['The current Codex quota is not exhausted', 'resetNotExhausted'],
+    ['You must acknowledge that this may consume one quota reset', 'resetAcknowledgeRequired'],
     ['The signed-in ChatGPT account changed', 'resetAccountChanged'],
   ]).get(error instanceof Error ? error.message : '')
   return t(key ?? 'resetFailed')
@@ -906,7 +926,7 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
       <p className="codexSubscriptionCreditNote">{t('creditsNote')}</p>
       <div className="codexSubscriptionCreditRows">
         {visibleUsage?.credits ? <div className="codexSubscriptionCreditBalance"><span>{t('creditsBalance')}</span><strong>{visibleUsage.credits.unlimited ? t('unlimited') : `${visibleUsage.credits.balance ?? t('unavailable')} ${t('creditsUnit')}`}</strong></div> : null}
-        {visibleUsage?.resetCredits?.availableCount > 0 ? <div className="codexSubscriptionCreditBalance"><span>{t('resetCredits')}</span><ResetCreditControl rpc={rpc} t={t} count={visibleUsage.resetCredits.availableCount} exhausted={exhausted} onConsumed={() => load(true)} /></div> : null}
+        {visibleUsage?.resetCredits?.availableCount > 0 ? <div className="codexSubscriptionCreditBalance"><span>{t('resetCredits')}</span><ResetCreditControl rpc={rpc} t={t} count={visibleUsage.resetCredits.availableCount} nextExpiresAt={visibleUsage.resetCredits.nextExpiresAt} hasExhaustedQuota={exhausted} onConsumed={() => load(true)} /></div> : null}
         {visibleUsage?.individualLimit ? <div className="codexSubscriptionSpendLimit">
           <div className="codexSubscriptionSpendTop"><span className="codexSubscriptionCreditLabel">{t('monthlyCreditLimit')}</span><strong>{fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}</strong></div>
           <progress max="100" value={visibleUsage.individualLimit.remainingPercent} aria-label={`${t('monthlyCreditLimit')} ${fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}`} />

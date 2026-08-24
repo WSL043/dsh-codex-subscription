@@ -42,7 +42,13 @@ test('usage parser returns secret-free remaining quota windows and exact disclos
         reset_at: 1_802_592_000,
       },
     },
-    rate_limit_reset_credits: { available_count: 2 },
+    rate_limit_reset_credits: {
+      available_count: 2,
+      credits: [
+        { id: 'later-secret', status: 'available', expires_at: 1_800_007_200 },
+        { id: 'earlier-secret', status: 'available', expires_at: 1_800_003_600 },
+      ],
+    },
     access_token: 'must-not-leak',
   })
   assert.deepEqual(parsed.rateLimits[0].windows, [
@@ -68,7 +74,7 @@ test('usage parser returns secret-free remaining quota windows and exact disclos
     resetsAt: 1_802_592_000,
   })
   assert.equal(parsed.spendControlReached, false)
-  assert.deepEqual(parsed.resetCredits, { availableCount: 2 })
+  assert.deepEqual(parsed.resetCredits, { availableCount: 2, nextExpiresAt: 1_800_003_600_000 })
   assert.doesNotMatch(JSON.stringify(parsed), /must-not-leak|access_token/)
 })
 

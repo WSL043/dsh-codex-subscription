@@ -257,7 +257,7 @@ test('quota reset RPC exposes only bounded prepare and consume results', async (
     ok: true,
     value: { challengeId: 'opaque', readyAt: 5 },
   })
-  assert.deepEqual(await handler('reset-credit/consume', { challengeId: 'opaque', phrase: 'USE RESET' }, controller.signal), {
+  assert.deepEqual(await handler('reset-credit/consume', { challengeId: 'opaque', acknowledged: true }, controller.signal), {
     ok: true,
     value: { code: 'reset', windowsReset: ['primary'] },
   })

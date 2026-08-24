@@ -4,7 +4,6 @@ import test from 'node:test'
 import {
   CODEX_RESET_CONSUME_URL,
   CODEX_RESET_CREDITS_URL,
-  RESET_CONFIRM_PHRASE,
   createCodexResetCreditService,
 } from '../src/reset-credits.js'
 
@@ -61,33 +60,70 @@ test('prepare is read-only and returns a bounded browser-safe challenge', async 
   assert.equal(requests[0].init.method, 'GET')
   assert.equal(requests[0].init.redirect, 'error')
   assert.equal(requests[0].init.headers.authorization, 'Bearer bearer-secret')
-  assert.equal(prepared.confirmPhrase, RESET_CONFIRM_PHRASE)
   assert.equal(prepared.availableCount, 1)
+  assert.equal(prepared.creditExpiresAt, 1_800_003_600_000)
   assert.equal(prepared.title, 'Quota reset')
   assert.equal(prepared.description, 'Reset the current Codex quota window.')
   assert.equal(prepared.readyAt, 1_800_000_005_000)
   assert.doesNotMatch(JSON.stringify(prepared), /bearer-secret|account-secret|credit-secret/)
 })
 
-test('consume rejects an early or mistyped confirmation without a POST', async () => {
+test('prepare accepts the ISO expiration shape returned by current Codex clients', async () => {
+  const { service } = fixture({
+    options: {
+      async fetch(_url, init) {
+        if (init.method === 'GET') return response({
+          available_count: 1,
+          credits: [{ id: 'credit-secret', status: 'available', expires_at: '2027-01-15T09:00:00.000Z' }],
+        })
+        return response({ code: 'reset', windows_reset: 2 })
+      },
+    },
+  })
+  const prepared = await service.prepare({ signal })
+  assert.equal(prepared.creditExpiresAt, Date.parse('2027-01-15T09:00:00.000Z'))
+})
+
+test('consume rejects an early or unacknowledged confirmation without a POST', async () => {
   const { service, requests, advance } = fixture()
   const prepared = await service.prepare({ signal })
 
-  await assert.rejects(service.consume({ challengeId: prepared.challengeId, phrase: RESET_CONFIRM_PHRASE, signal }), /wait before confirming/i)
+  await assert.rejects(service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }), /wait before confirming/i)
   advance(5_000)
-  await assert.rejects(service.consume({ challengeId: prepared.challengeId, phrase: 'USE RESE', signal }), /confirmation phrase/i)
+  await assert.rejects(service.consume({ challengeId: prepared.challengeId, acknowledged: false, signal }), /acknowledge/i)
   assert.equal(requests.filter(request => request.init.method === 'POST').length, 0)
 })
 
-test('consume refuses to spend a reset unless the current Codex quota is exhausted', async () => {
+test('consume allows deliberate early redemption while the current Codex quota remains', async () => {
   const { service, requests, advance } = fixture({
     usage: { rateLimits: [{ id: 'codex', windows: [{ usedPercent: 99 }] }] },
   })
   const prepared = await service.prepare({ signal })
   advance(5_000)
 
-  await assert.rejects(service.consume({ challengeId: prepared.challengeId, phrase: RESET_CONFIRM_PHRASE, signal }), /not exhausted/i)
-  assert.equal(requests.filter(request => request.init.method === 'POST').length, 0)
+  assert.deepEqual(await service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }), {
+    code: 'reset', windowsReset: ['primary'],
+  })
+  assert.equal(requests.filter(request => request.init.method === 'POST').length, 1)
+})
+
+test('consume preserves the numeric windows-reset count returned by Codex', async () => {
+  const { service, advance } = fixture({
+    options: {
+      async fetch(_url, init) {
+        if (init.method === 'GET') return response({
+          available_count: 1,
+          credits: [{ id: 'credit-secret', status: 'available' }],
+        })
+        return response({ code: 'reset', windows_reset: 2 })
+      },
+    },
+  })
+  const prepared = await service.prepare({ signal })
+  advance(5_000)
+  assert.deepEqual(await service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }), {
+    code: 'reset', windowsReset: [], windowsResetCount: 2,
+  })
 })
 
 test('a prepared challenge is account-bound and cannot POST after account switching', async () => {
@@ -101,7 +137,7 @@ test('a prepared challenge is account-bound and cannot POST after account switch
   accountId = 'account-two'
   advance(5_000)
 
-  await assert.rejects(service.consume({ challengeId: prepared.challengeId, phrase: RESET_CONFIRM_PHRASE, signal }), /account changed/i)
+  await assert.rejects(service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }), /account changed/i)
   assert.equal(requests.filter(request => request.init.method === 'POST').length, 0)
 })
 
@@ -123,8 +159,8 @@ test('concurrent and repeated confirmation performs exactly one explicit idempot
   })
   const prepared = await service.prepare({ signal })
   advance(5_000)
-  const first = service.consume({ challengeId: prepared.challengeId, phrase: RESET_CONFIRM_PHRASE, signal })
-  const duplicate = service.consume({ challengeId: prepared.challengeId, phrase: RESET_CONFIRM_PHRASE, signal })
+  const first = service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal })
+  const duplicate = service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal })
   await assert.rejects(duplicate, /already in progress/i)
   release()
 
@@ -136,7 +172,7 @@ test('concurrent and repeated confirmation performs exactly one explicit idempot
     redeem_request_id: '11111111-2222-4333-8444-555555555555',
     credit_id: 'credit-secret',
   })
-  await assert.rejects(service.consume({ challengeId: prepared.challengeId, phrase: RESET_CONFIRM_PHRASE, signal }), /no longer valid/i)
+  await assert.rejects(service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }), /no longer valid/i)
   assert.equal(requests.filter(request => request.init.method === 'POST').length, 1)
 })
 
@@ -145,7 +181,7 @@ test('clear invalidates prepared challenges without a POST', async () => {
   const prepared = await service.prepare({ signal })
   service.clear()
   advance(5_000)
-  await assert.rejects(service.consume({ challengeId: prepared.challengeId, phrase: RESET_CONFIRM_PHRASE, signal }), /no longer valid/i)
+  await assert.rejects(service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }), /no longer valid/i)
   assert.equal(requests.filter(request => request.init.method === 'POST').length, 0)
 })
 
@@ -164,7 +200,7 @@ test('provider failures are bounded and do not leak response bodies or credentia
   const prepared = await service.prepare({ signal })
   advance(5_000)
   await assert.rejects(
-    service.consume({ challengeId: prepared.challengeId, phrase: RESET_CONFIRM_PHRASE, signal }),
+    service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }),
     error => {
       assert.match(error.message, /failed \(HTTP 503\)/)
       assert.doesNotMatch(error.message, /provider-secret|credit-secret|bearer-secret/)
