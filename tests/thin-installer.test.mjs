@@ -18,7 +18,7 @@ test('setup remains a thin official DSH CLI launcher', async () => {
   assert.match(source, new RegExp(packageSpec.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
   assert.doesNotMatch(source, /Get-ChildItem[^\r\n]*-Recurse/i)
   assert.doesNotMatch(source, /api\.github\.com|Invoke-WebRequest|Start-Process|Stop-Process/i)
-  assert.doesNotMatch(source, /pnpm|install-state|snapshot|dsh-codex\.cmd/i)
+  assert.doesNotMatch(source, /Get-Command\s+pnpm|pnpm(?:\.cmd)?\s+(?:add|install)|install-state|snapshot|dsh-codex\.cmd/i)
 })
 
 test('npm fallback is pinned to the DSH release accepted by this plugin', async () => {
@@ -55,6 +55,38 @@ windowsTest('explicit DSH path performs exactly one pinned add operation', async
   const duration = /(?:Installed in|安装完成（)\s*([\d.]+)\s*(?:seconds|秒)/i.exec(result.stdout)
   assert.ok(duration, `setup did not report official-command duration: ${result.stdout}`)
   assert.equal((await readFile(log, 'utf8')).trim(), `plugin --profile web add ${packageSpec}`)
+})
+
+windowsTest('setup retries once when an existing young lock entry blocks the add', async t => {
+  const fixture = await mkdtemp(join(tmpdir(), 'dsh-codex-release-age-'))
+  t.after(() => rm(fixture, { recursive: true, force: true }))
+  const fake = join(fixture, 'dsh.cmd')
+  const log = join(fixture, 'args.txt')
+  await writeFile(fake, [
+    '@echo off',
+    '>> "%DSH_INSTALLER_TEST_LOG%" echo %*',
+    'echo %* | findstr /c:"--config.minimumReleaseAge=0" >nul',
+    'if errorlevel 1 (',
+    '  echo ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION existing-plugin@1.0.0 1>&2',
+    '  exit /b 1',
+    ')',
+    'echo retry succeeded',
+    'exit /b 0',
+    '',
+  ].join('\r\n'))
+  const result = spawnSync('powershell.exe', [
+    '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', installer.pathname.slice(1),
+    '-DshPath', fake, '-Profile', 'web',
+  ], {
+    cwd: fixture,
+    env: { ...process.env, DSH_INSTALLER_TEST_LOG: log },
+    encoding: 'utf8',
+  })
+  assert.equal(result.status, 0, result.stderr || result.stdout)
+  assert.deepEqual((await readFile(log, 'utf8')).trim().split(/\r?\n/u), [
+    `plugin --profile web add ${packageSpec}`,
+    `plugin --profile web add --config.minimumReleaseAge=0 ${packageSpec}`,
+  ])
 })
 
 windowsTest('PATH discovery works and preserves DSH failures', async t => {
