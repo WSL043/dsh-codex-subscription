@@ -14,7 +14,7 @@ const hostExternal = [
   '@earendil-works/pi-ai/providers/openai-codex',
 ]
 const clientExternal = [
-  'react', 'react/jsx-runtime', '@deepseek-ai/cordis',
+  'react', 'react/jsx-runtime', 'react-dom', '@deepseek-ai/cordis',
   '@deepseek-ai/dsh-client-ui-primitives',
   '@deepseek-ai/dsh-client-ui-slots',
 ]

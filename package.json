@@ -1,6 +1,6 @@
 {
   "name": "dsh-codex-subscription",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "packageManager": "pnpm@11.19.0",
   "description": "Use ChatGPT and Codex subscriptions in DeepSeek Harness with OAuth, quota, safe resets, web search, images, and Fast mode",
   "type": "module",
@@ -21,8 +21,7 @@
     "compatibility.json",
     "LICENSE",
     "SECURITY.md",
-    "THIRD_PARTY_NOTICES.md",
-    "docs/assets/*.png"
+    "THIRD_PARTY_NOTICES.md"
   ],
   "dsh": {
     "bundle": {
@@ -101,7 +100,8 @@
     "@deepseek-ai/dsh-web": "0.1.0-rc.6 || 0.1.0-rc.7 || 0.1.0-rc.8 || 0.1.1-rc.1 || 0.1.1-rc.2",
     "@deepseek-ai/schemastery": "3.18.1",
     "@earendil-works/pi-ai": "0.82.1",
-    "react": "^18.2.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.1",
@@ -125,6 +125,7 @@
     "@earendil-works/pi-ai": "0.82.1",
     "@heroicons/react": "2.2.0",
     "react": "18.3.1",
+    "react-dom": "18.3.1",
     "tsdown": "0.22.2"
   }
 }

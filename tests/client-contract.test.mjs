@@ -192,15 +192,25 @@ test('quota reset redemption requires deliberate multi-step confirmation and nev
   assert.match(host, /resetCreditService\.clear/u)
 })
 
-test('generated image preview uses native controls and states reference behavior honestly', async () => {
+test('generated image preview uses a native full-screen canvas and explicit edit handoff', async () => {
   const source = await text('src/client.jsx')
-  assert.match(source, /\bModal\b/u)
+  assert.match(source, /createPortal/u)
   assert.match(source, /IconDownloadOutline16/u)
   assert.match(source, /imageDownload/u)
   assert.match(source, /download=\{downloadName\}/u)
-  assert.match(source, /imageRefineHint/u)
-  assert.match(source, /imageNewHint/u)
   assert.match(source, /imageBeta/u)
+  assert.match(source, /codexGeneratedImageLightbox/u)
+  assert.match(source, /imageAnnotation/u)
+  assert.match(source, /attachForEdit/u)
+  assert.match(source, /createDraftImages/u)
+  assert.match(source, /input\.addImages/u)
+  assert.match(source, /input\.setDraft/u)
+  assert.match(source, /imageEditDefault/u)
+  assert.match(source, /imageRegionNotes/u)
+  assert.match(source, /event\.key === ['"]Tab['"]/u)
+  assert.match(source, /querySelectorAll\(/u)
+  assert.match(source, /border-radius:16px/u)
+  assert.match(source, /object-fit:cover/u)
   assert.doesNotMatch(source, /continue refining this image|继续在当前会话描述修改内容/u)
 })
 
@@ -240,15 +250,16 @@ test('build emits host entries and a DSH module-loader client', async () => {
   assert.doesNotMatch(config, /wsl043/iu)
 })
 
-test('generated Codex images use a plugin-owned viewer across supported DSH releases', async () => {
+test('generated Codex images use a DSH-tokenized native viewer across supported releases', async () => {
   const [source, manifest, config] = await Promise.all([
     text('src/client.jsx'), text('package.json'), text('tsdown.config.mjs'),
   ])
   assert.doesNotMatch(source, /from ['"]@deepseek-ai\/dsh-client-ui-attachment['"]/u)
   assert.match(source, /function CodexGeneratedImage/u)
-  assert.match(source, /<Modal\s+open=\{open\}/u)
-  assert.match(source, /closeLabel=\{t\('imageClosePreview'\)\}/u)
-  assert.doesNotMatch(source, /codexGeneratedImageLightbox|event\.key === 'Tab'/u)
+  assert.match(source, /createPortal\(/u)
+  assert.match(source, /event\.key === ['"]Escape['"]/u)
+  assert.match(source, /role=['"]dialog['"]/u)
+  assert.match(source, /aria-modal=['"]true['"]/u)
   assert.match(source, /tool\.call\.toolview/u)
   assert.match(source, /key:\s*['"]codex_image_generate['"]/u)
   assert.match(source, /resolveImage\(sessionId,\s*attachment\)/u)

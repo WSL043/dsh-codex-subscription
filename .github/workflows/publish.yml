@@ -386,10 +386,10 @@ jobs:
             cat > .release/install.md <<'NOTES'
           ## What's new
 
-          - Quota reset expiry is read automatically in the summary row; **Use reset** opens the guarded confirmation without spending anything yet.
-          - Beta GPT Image 2 support now distinguishes new generation from explicit reference-image editing, with up to five selected durable references.
-          - The image viewer now uses DSH-native dialog controls for zoom, fit, dimensions, and original download.
-          - Fast mode now sends the official priority service tier, fixing `Unsupported service_tier: fast`.
+          - Generated images now open in a full-screen DSH-native viewer with zoom, fit, dimensions, and original download.
+          - Add numbered notes directly to image regions, then continue in the same composer with exactly that image and an editable draft.
+          - Fresh generation never silently reuses earlier images; sending remains an explicit user action.
+          - README screenshots stay on GitHub instead of increasing the installed runtime package.
 
           NOTES
           fi
@@ -454,10 +454,10 @@ jobs:
 
           ## 更新内容
 
-          - 额度重置到期时间会自动显示在摘要行；点击“使用重置”只会打开带保护的确认流程，不会立即消耗。
-          - Beta GPT Image 2 能力会区分全新生成与明确参考图片编辑，最多使用 5 张明确选中的持久图片。
-          - 图片查看器改用 DSH 原生弹窗控件，提供缩放、适合窗口、尺寸和原图下载。
-          - 高速模式改用官方 priority 服务层，修复 `Unsupported service_tier: fast`。
+          - 生成图片现在会在全屏 DSH 原生查看器中打开，支持缩放、适合窗口、尺寸和原图下载。
+          - 可直接对图片部位添加编号标注，再把当前这一张图和可编辑草稿带回同一输入框。
+          - 全新生成不会静默复用历史图片，最终发送始终由用户明确触发。
+          - README 截图只保留在 GitHub，不再增大安装后的运行包。
           NOTES
           fi
           append_contributors zh-CN
