@@ -41,6 +41,15 @@ export class CodexLoginCoordinator {
     return publicClone(await this.auth.status(options))
   }
 
+  supportState() {
+    const active = this.#activeId === undefined ? undefined : this.#sessions.get(this.#activeId)
+    if (active === undefined) return { phase: 'idle' }
+    return {
+      method: active.view.method,
+      phase: active.view.phase,
+    }
+  }
+
   async start({ method }) {
     if (!LOGIN_METHODS.has(method)) throw new Error(`unsupported Codex login method: ${String(method)}`)
     const active = this.#activeId === undefined ? undefined : this.#sessions.get(this.#activeId)
@@ -136,7 +145,7 @@ export class CodexLoginCoordinator {
           ...(typeof status.expiresAt === 'number' ? { expiresAt: status.expiresAt } : {}),
         }
       })
-      .catch(error => {
+      .catch(async error => {
         if (controller.signal.aborted) {
           session.view = {
             id,
@@ -146,6 +155,22 @@ export class CodexLoginCoordinator {
             authenticated: false,
           }
           return
+        }
+        try {
+          const status = await this.auth.status()
+          if (status.authenticated === true) {
+            session.view = {
+              id,
+              provider: 'openai-codex',
+              method,
+              phase: 'authenticated',
+              authenticated: true,
+              ...(typeof status.expiresAt === 'number' ? { expiresAt: status.expiresAt } : {}),
+            }
+            return
+          }
+        } catch {
+          // Preserve the provider failure when credential state cannot be read.
         }
         session.view = {
           id,

@@ -163,11 +163,12 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
   assert.deepEqual(diagnostics, {
     ok: true,
     value: {
-      schemaVersion: 1,
+      schemaVersion: 2,
       package: 'dsh-codex-subscription',
       version: PACKAGE_VERSION,
-      runtime: { node: process.version },
+      runtime: { node: process.version, platform: process.platform, arch: process.arch },
       account: { status: 'signed-out' },
+      login: { phase: 'idle' },
       provider: {
         id: 'openai-codex',
         transport: 'sse',

@@ -94,8 +94,10 @@ body:
     id: diagnostics
     attributes:
       label: Support diagnostics
-      description: Paste the complete report generated in Settings. Do not add secrets or authorization links.
+      description: Paste the report generated in Settings, or write "unavailable" and explain why. Do not paste full raw logs, secrets, or authorization links.
       render: text
+    validations:
+      required: true
 
   - type: textarea
     id: output

@@ -214,7 +214,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 - **`dsh` is not recognized:** the official npm route does not create a global `dsh` command; use the complete `npx -y @deepseek-ai/dsh@0.1.1-rc.2 ...` command above;
 - **More than one DSH exists:** run the standard command from the intended DSH environment. For an Agent, specify the target or pass `-DshPath` explicitly;
 - **Setup still fails:** send the Agent guide above to an Agent. Do not delete the profile or change the system PATH to force an install.
-- **Need to report a problem:** generate a **Support diagnostics** report at the bottom of Settings, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The form collects exact DSH/plugin versions and reproduction steps. The generated report excludes credentials and account identifiers; still do not attach sign-in URLs, authorization codes, or browser callback addresses.
+- **Need to report a problem:** generate a **Support diagnostics** report at the bottom of Settings, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The report includes the OS/runtime and a bounded sign-in phase, but excludes credentials, account identifiers, raw errors, and full logs. Paste it into the required diagnostics field; never attach sign-in URLs, authorization codes, or browser callback addresses.
 
 The ChatGPT Codex backend and DSH can change independently. This community project is not affiliated with or endorsed by DeepSeek or OpenAI.
 

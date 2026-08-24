@@ -1,7 +1,7 @@
 import { PACKAGE_VERSION } from './version.js'
 
 /** Build a support report that deliberately excludes OAuth and account metadata. */
-export async function createSubscriptionDiagnostics({ auth, preferences }) {
+export async function createSubscriptionDiagnostics({ auth, preferences, login = { phase: 'idle' } }) {
   let account = { status: 'unknown' }
   const issues = []
   try {
@@ -12,11 +12,12 @@ export async function createSubscriptionDiagnostics({ auth, preferences }) {
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     package: 'dsh-codex-subscription',
     version: PACKAGE_VERSION,
-    runtime: { node: process.version },
+    runtime: { node: process.version, platform: process.platform, arch: process.arch },
     account,
+    login,
     provider: {
       id: 'openai-codex',
       transport: 'sse',

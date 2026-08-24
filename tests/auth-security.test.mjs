@@ -150,6 +150,48 @@ test('login RPC exposes only public flow state and sanitizes host failures', asy
   const finished = await handler('login/status', { id: 'login-1' }, signal)
   assert.equal(finished.value.phase, 'failed')
   assert.doesNotMatch(JSON.stringify(finished), /access-secret|refresh-secret/)
+  assert.deepEqual(coordinator.supportState(), { method: 'browser', phase: 'failed' })
+})
+
+test('support diagnostics expose only a bounded login phase', async () => {
+  const auth = {
+    async status() { return { authenticated: false, provider: 'openai-codex' } },
+    async login(interaction) {
+      interaction.notify({ type: 'auth_url', url: 'https://auth.openai.com/oauth/authorize?state=private' })
+      await new Promise(() => {})
+    },
+    async logout() {},
+  }
+  const coordinator = new CodexLoginCoordinator(auth, { createId: () => 'private-login-id' })
+  assert.deepEqual(coordinator.supportState(), { phase: 'idle' })
+  await coordinator.start({ method: 'browser' })
+  const state = coordinator.supportState()
+  assert.deepEqual(state, { method: 'browser', phase: 'waiting_browser' })
+  assert.doesNotMatch(JSON.stringify(state), /private|auth\.openai|login-id/u)
+})
+
+test('login RPC reports authentication when the browser stored credentials before its provider task failed', async () => {
+  let authenticated = false
+  const auth = {
+    async status() { return { authenticated, provider: 'openai-codex', type: authenticated ? 'oauth' : undefined } },
+    async login(interaction) {
+      interaction.notify({ type: 'auth_url', url: 'https://auth.openai.com/oauth/authorize?state=public' })
+      authenticated = true
+      throw new Error('provider callback closed after credentials were stored')
+    },
+    async logout() {},
+  }
+  const coordinator = new CodexLoginCoordinator(auth, { createId: () => 'login-macos' })
+  const handler = createCodexRpcHandler(coordinator, { openExternal: async () => {} })
+  const signal = new AbortController().signal
+
+  await handler('login/start', { method: 'browser', openExternal: true }, signal)
+  await new Promise(resolve => setTimeout(resolve, 0))
+
+  const finished = await handler('login/status', { id: 'login-macos' }, signal)
+  assert.equal(finished.value.phase, 'authenticated')
+  assert.equal(finished.value.authenticated, true)
+  assert.doesNotMatch(JSON.stringify(finished), /provider callback/)
 })
 
 test('login flow never returns an untrusted provider URL to the browser client', async () => {
@@ -194,6 +236,26 @@ test('login polling recovers an authenticated account after the flow RPC is lost
   assert.deepEqual(next, {
     flow: {
       id: 'login-old',
+      method: 'browser',
+      phase: 'authenticated',
+      authenticated: true,
+    },
+    account,
+    recovered: true,
+  })
+})
+
+test('login polling trusts the credential store when browser auth succeeds after a failed flow terminal', async () => {
+  const account = { authenticated: true, provider: 'openai-codex', type: 'oauth' }
+  const next = await readLoginProgress({
+    flow: { id: 'login-macos', method: 'browser', phase: 'waiting_browser' },
+    async readFlow() { return { id: 'login-macos', method: 'browser', phase: 'failed' } },
+    async readAccount() { return account },
+  })
+
+  assert.deepEqual(next, {
+    flow: {
+      id: 'login-macos',
       method: 'browser',
       phase: 'authenticated',
       authenticated: true,
