@@ -98,10 +98,11 @@ irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/d
 ```
 
 这个轻量助手会检查当前目录、系统命令、常见位置以及正在运行的官方 DSH 或
-[DSH-Portable](https://github.com/WSL043/DSH-Portable)，然后调用一次官方
-`plugin add`。它不会递归扫盘、安装 pnpm、创建常驻命令、保存 profile 快照或重复下载插件。
-无需管理员权限，也不会擅自重启 DSH。找不到现有 DSH 时才会使用固定为 `0.1.1-rc.2`
-的官方 npm 运行方式；首次解析依赖可能较慢，安装器会先明确提示。
+[DSH-Portable](https://github.com/WSL043/DSH-Portable)；存在多个目标时会先让用户选择。
+Portable 继续使用它的公开启动器。安装到官方 DSH 时，助手会使用选定的配置目录和固定到已验收
+DSH 版本的 pnpm 助手；系统没有可用 pnpm 时，会在当前 Windows 用户目录下缓存经过校验的副本。
+它不会递归扫盘、创建常驻命令、保存 profile 快照、要求管理员权限或擅自重启 DSH。只有识别到
+发布时间策略拦截时，才会仅对同一个固定安装命令重试一次。
 
 <details>
 <summary>官方 npm 方式（已安装 Node.js）</summary>

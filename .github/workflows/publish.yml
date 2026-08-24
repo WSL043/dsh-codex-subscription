@@ -408,7 +408,7 @@ jobs:
           irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
           ```
 
-          Setup uses the current folder, a system command, a common location, or a running DSH-Portable; only then does it fall back to the pinned official npm route. It runs `plugin add` once, needs no administrator access, and does not restart DSH.
+          Setup detects official DSH and DSH-Portable independently and asks before choosing when multiple targets exist. Portable uses its public launcher; official DSH uses the selected profile home and a checksum-verified pnpm helper. A recognized release-age rejection may retry the same pinned add once. Setup needs no administrator access and does not restart DSH.
 
           ### Official npm route
 
@@ -462,7 +462,7 @@ jobs:
           irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
           ```
 
-          助手会使用当前目录、系统命令、常见位置或正在运行的 DSH-Portable；都找不到时才使用固定版本的官方 npm 入口。无需管理员权限，完成后请手动重启 DSH。
+          助手会分别识别官方 DSH 与 DSH-Portable，存在多个目标时先让用户选择。Portable 使用公开启动器；官方 DSH 使用选定的配置目录和经过校验的 pnpm 助手。识别到发布时间策略拦截时，可能只对同一个固定命令重试一次。无需管理员权限，完成后请手动重启 DSH。
 
           ### 官方 npm 方式
 
