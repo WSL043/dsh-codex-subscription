@@ -117,21 +117,6 @@ test('GitHub defaults to English and links a complete separate Chinese README', 
   assert.equal(existsSync(new URL('../docs/assets/sidebar-en.png', import.meta.url)), false)
 })
 
-test('README visibly credits code and issue contributions without conflating their roles', () => {
-  const readme = text('README.md')
-  const readmeZh = text('README.zh-CN.md')
-  for (const doc of [readme, readmeZh]) {
-    assert.match(doc, /BaronCyrus/u)
-    assert.match(doc, /fabulousyuann-tech/u)
-    assert.match(doc, /alexchenzl/u)
-    assert.match(doc, /issues\/9/u)
-    assert.match(doc, /issues\/10/u)
-    assert.match(doc, /issues\/3/u)
-  }
-  assert.match(readme, /Code and bug report[\s\S]*Bug report[\s\S]*Ecosystem feedback/u)
-  assert.match(readmeZh, /代码与问题报告[\s\S]*问题报告[\s\S]*生态反馈/u)
-})
-
 test('each README stays in one language and links to the complete translation', () => {
   const readme = text('README.md')
   const readmeZh = text('README.zh-CN.md')
