@@ -105,29 +105,41 @@ export function createCodexResetCreditService(options) {
     await readCredential({ signal }),
   )
 
+  const readDetails = async signal => {
+    const { access, accountId } = await resolveCredentials(signal)
+    const response = await fetchReset(CODEX_RESET_CREDITS_URL, {
+      method: 'GET',
+      redirect: 'error',
+      headers: {
+        authorization: `Bearer ${access}`,
+        'chatgpt-account-id': accountId,
+        accept: 'application/json',
+        'cache-control': 'no-store',
+        'user-agent': USER_AGENT,
+      },
+      signal: requestSignal(signal, timeoutMs),
+    })
+    if (!response.ok) {
+      throw new Error(response.status === 401 || response.status === 403
+        ? 'ChatGPT sign-in needs to be renewed'
+        : `ChatGPT quota reset request failed (HTTP ${response.status})`)
+    }
+    let raw
+    try { raw = await response.json() } catch { throw new Error('ChatGPT returned unreadable quota reset details') }
+    return { accountId, details: parseDetails(raw, now()) }
+  }
+
   return Object.freeze({
-    async prepare({ signal } = {}) {
-      const { access, accountId } = await resolveCredentials(signal)
-      const response = await fetchReset(CODEX_RESET_CREDITS_URL, {
-        method: 'GET',
-        redirect: 'error',
-        headers: {
-          authorization: `Bearer ${access}`,
-          'chatgpt-account-id': accountId,
-          accept: 'application/json',
-          'cache-control': 'no-store',
-          'user-agent': USER_AGENT,
-        },
-        signal: requestSignal(signal, timeoutMs),
-      })
-      if (!response.ok) {
-        throw new Error(response.status === 401 || response.status === 403
-          ? 'ChatGPT sign-in needs to be renewed'
-          : `ChatGPT quota reset request failed (HTTP ${response.status})`)
+    async inspect({ signal } = {}) {
+      const { details } = await readDetails(signal)
+      return {
+        availableCount: details.availableCount,
+        ...(details.creditExpiresAt === undefined ? {} : { nextExpiresAt: details.creditExpiresAt }),
       }
-      let raw
-      try { raw = await response.json() } catch { throw new Error('ChatGPT returned unreadable quota reset details') }
-      const details = parseDetails(raw, now())
+    },
+
+    async prepare({ signal } = {}) {
+      const { accountId, details } = await readDetails(signal)
       const preparedAt = now()
       const readyAt = preparedAt + confirmDelayMs
       const expiresAt = Math.min(preparedAt + challengeTtlMs, details.creditExpiresAt ?? Number.MAX_SAFE_INTEGER)

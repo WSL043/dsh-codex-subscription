@@ -113,12 +113,14 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
         return publicError('internal', message)
       }
     }
-    if (endpoint === 'reset-credit/prepare' || endpoint === 'reset-credit/consume') {
+    if (endpoint === 'reset-credit/inspect' || endpoint === 'reset-credit/prepare' || endpoint === 'reset-credit/consume') {
       try {
         signal.throwIfAborted()
-        const value = endpoint === 'reset-credit/prepare'
-          ? await resetCreditService.prepare({ signal })
-          : await resetCreditService.consume({
+        const value = endpoint === 'reset-credit/inspect'
+          ? await resetCreditService.inspect({ signal })
+          : endpoint === 'reset-credit/prepare'
+            ? await resetCreditService.prepare({ signal })
+            : await resetCreditService.consume({
             challengeId: payload?.challengeId,
             acknowledged: payload?.acknowledged,
             signal,
@@ -138,9 +140,11 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
           'You must acknowledge that one quota reset will be consumed',
           'The signed-in ChatGPT account changed',
         ])
-        const fallback = endpoint === 'reset-credit/prepare'
-          ? 'Could not prepare a quota reset'
-          : 'Could not use the quota reset'
+        const fallback = endpoint === 'reset-credit/inspect'
+          ? 'Could not read quota reset details'
+          : endpoint === 'reset-credit/prepare'
+            ? 'Could not prepare a quota reset'
+            : 'Could not use the quota reset'
         const message = error instanceof Error && known.has(error.message) ? error.message : fallback
         return publicError('internal', message)
       }

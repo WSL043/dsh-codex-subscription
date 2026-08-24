@@ -4,6 +4,8 @@
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 import { SPEED_MODE_FAST, supportsCodexFastMode } from './settings-contract.js'
 
+const FAST_SERVICE_TIER = 'priority'
+
 export { createModels } from '@earendil-works/pi-ai'
 export { createOpenAICodexProvider as openaiCodexProvider }
 
@@ -34,11 +36,11 @@ export function openaiCodexSubscriptionProvider({ resolveSpeedMode = () => undef
     const onPayload = options.onPayload
     return {
       ...options,
-      serviceTier: 'fast',
+      serviceTier: FAST_SERVICE_TIER,
       async onPayload(payload, requestModel) {
-        const fastPayload = { ...payload, service_tier: 'fast' }
+        const fastPayload = { ...payload, service_tier: FAST_SERVICE_TIER }
         const next = await onPayload?.(fastPayload, requestModel)
-        return { ...(next ?? fastPayload), service_tier: 'fast' }
+        return { ...(next ?? fastPayload), service_tier: FAST_SERVICE_TIER }
       },
     }
   }

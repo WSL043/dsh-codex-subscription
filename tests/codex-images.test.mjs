@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  CODEX_IMAGE_EDIT_URL,
   CODEX_IMAGE_GENERATION_URL,
   CODEX_IMAGE_TOOL_NAME,
   createCodexImageTool,
@@ -30,6 +31,10 @@ function fixture(overrides = {}) {
     async saveImage(input) {
       saves.push(input)
       return IMAGE_REF
+    },
+    async readImage(ref) {
+      assert.deepEqual(ref, IMAGE_REF)
+      return { ref, data: Buffer.from(ONE_PIXEL_PNG, 'base64') }
     },
   }
   const tool = createCodexImageTool({
@@ -101,6 +106,41 @@ test('tool result contains a durable image block without base64 or credentials',
     { type: 'image', attachment: IMAGE_REF },
   ])
   assert.doesNotMatch(JSON.stringify(content), /oauth-access-token|account-123|iVBOR/)
+})
+
+test('image editing is opt-in and sends only explicitly selected durable references', async () => {
+  const { requests, tool } = fixture()
+  const signal = new AbortController().signal
+
+  await tool.execute({
+    prompt: 'keep the composition and make the circle red',
+    referenceImages: [IMAGE_REF],
+  }, { callId: 'call-edit', signal })
+
+  assert.equal(requests[0].url, CODEX_IMAGE_EDIT_URL)
+  assert.deepEqual(JSON.parse(requests[0].init.body), {
+    images: [{ image_url: `data:image/png;base64,${ONE_PIXEL_PNG}` }],
+    prompt: 'keep the composition and make the circle red',
+    background: 'auto',
+    model: 'gpt-image-2',
+    quality: 'auto',
+    size: 'auto',
+  })
+})
+
+test('new generation never includes a previous image unless references are provided', async () => {
+  let reads = 0
+  const { requests, tool } = fixture({
+    attachments: {
+      imageLimits: { maxImageBytes: 10 * 1024 * 1024, maxMessageImageBytes: 10 * 1024 * 1024, mediaTypes: ['image/png'] },
+      async saveImage() { return IMAGE_REF },
+      async readImage() { reads += 1; throw new Error('must not read history') },
+    },
+  })
+  await tool.execute({ prompt: 'a completely new landscape' }, { callId: 'call-new', signal: new AbortController().signal })
+  assert.equal(requests[0].url, CODEX_IMAGE_GENERATION_URL)
+  assert.equal(reads, 0)
+  assert.equal('images' in JSON.parse(requests[0].init.body), false)
 })
 
 test('malformed and oversized image payloads fail before attachment persistence', async () => {

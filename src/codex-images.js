@@ -4,8 +4,10 @@ import { USER_AGENT } from './version.js'
 
 export const CODEX_IMAGE_TOOL_NAME = 'codex_image_generate'
 export const CODEX_IMAGE_GENERATION_URL = 'https://chatgpt.com/backend-api/codex/images/generations'
+export const CODEX_IMAGE_EDIT_URL = 'https://chatgpt.com/backend-api/codex/images/edits'
 
 const IMAGE_MODEL = 'gpt-image-2'
+const MAX_REFERENCE_IMAGES = 5
 const RESPONSE_ENVELOPE_BYTES = 1024 * 1024
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
@@ -84,6 +86,42 @@ function imageReference(value) {
   }
 }
 
+function referenceOf(value, attachments) {
+  if (!record(value)
+    || typeof value.attachmentId !== 'string' || value.attachmentId.length === 0 || value.attachmentId.length > 256
+    || !attachments.imageLimits.mediaTypes.includes(value.mediaType)
+    || !Number.isSafeInteger(value.bytes) || value.bytes <= 0
+    || !Number.isSafeInteger(value.width) || value.width <= 0
+    || !Number.isSafeInteger(value.height) || value.height <= 0
+    || (value.name !== undefined && (typeof value.name !== 'string' || value.name.length > 256))) {
+    throw new Error('referenceImages contains an invalid image reference')
+  }
+  return imageReference(value)
+}
+
+async function editImages(values, attachments, signal) {
+  if (!Array.isArray(values) || values.length === 0 || values.length > MAX_REFERENCE_IMAGES) {
+    throw new Error(`referenceImages must contain between 1 and ${MAX_REFERENCE_IMAGES} images`)
+  }
+  const references = values.map(value => referenceOf(value, attachments))
+  if (new Set(references.map(value => value.attachmentId)).size !== references.length) {
+    throw new Error('referenceImages must not contain duplicates')
+  }
+  const images = []
+  let totalBytes = 0
+  for (const reference of references) {
+    const stored = await attachments.readImage(reference, signal)
+    totalBytes += stored.data.byteLength
+    if (totalBytes > attachments.imageLimits.maxMessageImageBytes) {
+      throw new Error('referenceImages exceed the DSH message image limit')
+    }
+    images.push({
+      image_url: `data:${stored.ref.mediaType};base64,${Buffer.from(stored.data).toString('base64')}`,
+    })
+  }
+  return images
+}
+
 function imageContent(value) {
   const label = typeof value.size === 'string' && value.size.length > 0
     ? `Generated a ${value.size} image.`
@@ -137,12 +175,28 @@ export function createCodexImageTool(options) {
   const attachments = options.attachments
   return defineTool({
     name: CODEX_IMAGE_TOOL_NAME,
-    description: 'Generate an image from a detailed description using the signed-in Codex subscription. Use this whenever the user asks to create an image.',
+    description: 'Create a new image or explicitly edit selected prior images using the signed-in Codex subscription. Omit referenceImages for a completely new image. Include only the exact prior image references the user asked to edit; never assume every image in the conversation is a reference.',
     parameters: {
       prompt: {
         type: 'string',
         required: true,
         description: 'A complete, production-ready description of the image to generate.',
+      },
+      referenceImages: {
+        type: 'array',
+        description: 'Optional explicit references to 1-5 prior images to edit. Omit for a new image.',
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            attachmentId: { type: 'string', required: true },
+            mediaType: { type: 'string', required: true },
+            bytes: { type: 'integer', required: true },
+            width: { type: 'integer', required: true },
+            height: { type: 'integer', required: true },
+            name: { type: 'string' },
+          },
+        },
       },
     },
     output: {
@@ -169,9 +223,13 @@ export function createCodexImageTool(options) {
         attachments.imageLimits.maxImageBytes,
         attachments.imageLimits.maxMessageImageBytes,
       )
+      const editing = args.referenceImages !== undefined
+      const images = editing
+        ? await editImages(args.referenceImages, attachments, exec.signal)
+        : undefined
       let response
       try {
-        response = await fetchImage(CODEX_IMAGE_GENERATION_URL, {
+        response = await fetchImage(editing ? CODEX_IMAGE_EDIT_URL : CODEX_IMAGE_GENERATION_URL, {
           method: 'POST',
           redirect: 'error',
           headers: {
@@ -184,6 +242,7 @@ export function createCodexImageTool(options) {
             'user-agent': USER_AGENT,
           },
           body: JSON.stringify({
+            ...(images === undefined ? {} : { images }),
             prompt,
             background: 'auto',
             model: IMAGE_MODEL,
@@ -194,14 +253,14 @@ export function createCodexImageTool(options) {
         })
       } catch (error) {
         if (exec.signal.aborted) throw exec.signal.reason
-        throw new Error('Codex image generation request failed', { cause: error })
+        throw new Error(`Codex image ${editing ? 'edit' : 'generation'} request failed`, { cause: error })
       }
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
           throw new Error('ChatGPT sign-in needs to be renewed')
         }
         if (response.status === 429) throw new Error('Codex image generation quota is unavailable')
-        throw new Error(`Codex image generation failed (HTTP ${response.status})`)
+        throw new Error(`Codex image ${editing ? 'edit' : 'generation'} failed (HTTP ${response.status})`)
       }
       const value = await readJsonWithin(
         response,

@@ -109,7 +109,7 @@ test('settings offer explicit search and formal composer quota display modes', a
   assert.doesNotMatch(source, /quickQuotaBeta/u)
 })
 
-test('beta speed control is persisted inside the model menu and hidden from the composer while standard', async () => {
+test('stable speed control is persisted inside the model menu and hidden from the composer while standard', async () => {
   const [client, host, contract] = await Promise.all([
     text('src/client.jsx'), text('src/index.js'), text('src/settings-contract.js'),
   ])
@@ -170,6 +170,7 @@ test('quota is the primary surface with reset, freshness, loading, and empty-sta
 test('quota reset redemption requires deliberate multi-step confirmation and never consumes on cancel', async () => {
   const [client, host] = await Promise.all([text('src/client.jsx'), text('src/index.js')])
   assert.match(client, /reset-credit\/prepare/u)
+  assert.match(client, /reset-credit\/inspect/u)
   assert.match(client, /reset-credit\/consume/u)
   assert.match(client, /type=['"]checkbox['"]/u)
   assert.match(client, /creditExpiresAt/u)
@@ -191,11 +192,16 @@ test('quota reset redemption requires deliberate multi-step confirmation and nev
   assert.match(host, /resetCreditService\.clear/u)
 })
 
-test('generated image preview offers download and honest conversational refinement guidance', async () => {
+test('generated image preview uses native controls and states reference behavior honestly', async () => {
   const source = await text('src/client.jsx')
+  assert.match(source, /\bModal\b/u)
+  assert.match(source, /IconDownloadOutline16/u)
   assert.match(source, /imageDownload/u)
   assert.match(source, /download=\{downloadName\}/u)
   assert.match(source, /imageRefineHint/u)
+  assert.match(source, /imageNewHint/u)
+  assert.match(source, /imageBeta/u)
+  assert.doesNotMatch(source, /continue refining this image|继续在当前会话描述修改内容/u)
 })
 
 test('support diagnostics includes a direct repository feedback action', async () => {
@@ -240,10 +246,9 @@ test('generated Codex images use a plugin-owned viewer across supported DSH rele
   ])
   assert.doesNotMatch(source, /from ['"]@deepseek-ai\/dsh-client-ui-attachment['"]/u)
   assert.match(source, /function CodexGeneratedImage/u)
-  assert.match(source, /role="dialog"/u)
-  assert.match(source, /event\.key === 'Escape'/u)
-  assert.match(source, /event\.key === 'Tab'/u)
-  assert.match(source, /closeRef\.current\?\.focus/u)
+  assert.match(source, /<Modal\s+open=\{open\}/u)
+  assert.match(source, /closeLabel=\{t\('imageClosePreview'\)\}/u)
+  assert.doesNotMatch(source, /codexGeneratedImageLightbox|event\.key === 'Tab'/u)
   assert.match(source, /tool\.call\.toolview/u)
   assert.match(source, /key:\s*['"]codex_image_generate['"]/u)
   assert.match(source, /resolveImage\(sessionId,\s*attachment\)/u)

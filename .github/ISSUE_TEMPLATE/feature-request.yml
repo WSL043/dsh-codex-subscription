@@ -1,27 +1,32 @@
-name: 功能建议 / Feature request
-description: 提议一个具体、可说明使用场景的改进
-title: "[功能建议] "
+name: Feature request
+description: Suggest a focused improvement with a clear user need
 labels:
   - enhancement
 body:
   - type: textarea
     id: use_case
     attributes:
-      label: 使用场景 / Use case
-      description: 你在什么情况下需要这个功能？
+      label: Use case
+      description: What are you trying to accomplish, and when does this need arise?
     validations:
       required: true
 
   - type: textarea
     id: expected
     attributes:
-      label: 希望怎样工作 / Expected behavior
-      description: 描述你希望看到的操作和结果。
+      label: Expected behavior
+      description: Describe the smallest interaction and outcome that would solve the need.
     validations:
       required: true
 
   - type: textarea
     id: current_workaround
     attributes:
-      label: 目前怎么处理 / Current workaround
-      description: 可选；如果已有临时办法，可以写在这里。
+      label: Current workaround
+      description: Optional. Explain how you handle this today.
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Optional. Link examples or explain approaches that did not work for you.

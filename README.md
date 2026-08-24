@@ -49,8 +49,8 @@ DSH-Portable exposes the same standard plugin command, so the command above also
 | **Composer quota** | Choose a compact percentage, progress bar, or no inline quota display |
 | **Safe quota reset** | See the next expiry and deliberately try a reset with a cooldown and acknowledgement |
 | **Subscription search** | Explicitly choose DSH default search or Codex subscription search |
-| **Codex image generation** | Preview or download the original, then describe refinements in the same conversation |
-| **Fast mode (Beta)** | Switch between Standard and Fast directly in the composer |
+| **Codex image generation and editing (Beta)** | Generate without references, or explicitly edit selected conversation images; preview, zoom, and download the original |
+| **Fast mode** | Switch between Standard and Fast directly in the composer |
 
 These capabilities reuse the same local ChatGPT sign-in. Subscription routing failures stay visible and never silently switch to another paid route.
 
@@ -139,13 +139,13 @@ Restart DSH manually after installation, then:
 ## Features
 
 - ChatGPT OAuth sign-in with credentials kept on the host;
-- Codex models and image generation directly inside DSH conversations;
+- Codex models and Beta image generation/editing directly inside DSH conversations;
 - A clear choice between DSH default search and Codex subscription search;
 - Actual backend-provided quota, reset time, and freshness;
 - Separate standard Codex, Codex-Spark, Credits, and other independent limits;
 - Visible quota-reset count and earliest expiry, with deliberate early redemption, layered confirmation, and no automatic retry;
 - Optional percentage or progress bar for the selected Codex model (off by default);
-- Standard or Fast mode for supported Codex models directly in the composer (Beta);
+- Standard or Fast mode for supported Codex models directly in the composer;
 - A copyable support report and direct feedback link in Settings; the report excludes OAuth credentials, account identifiers, and authorization timestamps;
 - Visible errors when subscription routing is unavailable, with no silent paid fallback.
 
@@ -167,10 +167,14 @@ decides whether a window needs resetting and may return **nothing to reset** wit
 action requires an acknowledgement checkbox and five-second cooldown. Cancel never consumes a reset, rapid repeated
 clicks are single-flight, and an uncertain network result is never retried automatically.
 
-Generated images open in a plugin-owned preview with **Download original**. To refine one, continue describing the
-change in the same conversation; the durable conversation image remains available to the next model turn.
+### Image generation and editing (Beta)
 
-### Composer speed (Beta)
+Generated images open in a DSH-native preview with zoom, fit, dimensions, and **Download original**. A new image request
+does not silently include earlier images. To refine a result, explicitly ask to edit that image in the same conversation;
+the plugin sends only the selected durable image references, up to five. GPT Image 2 can take longer than a normal text
+turn, and detailed text, exact composition, or repeated-character consistency may still need another pass.
+
+### Composer speed
 
 With a supported Codex model selected, open the composer's model menu to choose Standard or Fast.
 Standard adds no icon; only Fast shows a lightning icon before the model name. Spark does not show the speed entry. Fast mode increases speed and uses more Credits;

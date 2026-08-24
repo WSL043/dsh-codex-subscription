@@ -386,10 +386,10 @@ jobs:
             cat > .release/install.md <<'NOTES'
           ## What's new
 
-          - Quota resets now show their earliest disclosed expiry and can be deliberately attempted before a quota is fully exhausted.
-          - Confirmation is simpler: one acknowledgement and a five-second cooldown, while cancel, single-flight, and no-automatic-retry safeguards remain.
-          - Generated-image previews can download the original and explain how to continue refining it in the same conversation.
-          - Settings now links directly to the structured feedback form beside secret-free support diagnostics.
+          - Quota reset expiry is read automatically in the summary row; **Use reset** opens the guarded confirmation without spending anything yet.
+          - Beta GPT Image 2 support now distinguishes new generation from explicit reference-image editing, with up to five selected durable references.
+          - The image viewer now uses DSH-native dialog controls for zoom, fit, dimensions, and original download.
+          - Fast mode now sends the official priority service tier, fixing `Unsupported service_tier: fast`; GitHub issue forms default to concise English without forced title prefixes.
 
           NOTES
           fi
@@ -454,10 +454,10 @@ jobs:
 
           ## 更新内容
 
-          - 额度重置会显示服务端提供的最早到期时间，并允许在额度尚未完全用尽时主动尝试。
-          - 确认流程简化为一次知情勾选和 5 秒冷静期，同时保留取消不消费、单次请求和不自动重试保护。
-          - 图片预览可下载原图，并说明如何在同一会话继续修改。
-          - 无敏感信息的支持诊断旁新增结构化问题反馈入口。
+          - 额度重置到期时间会自动显示在摘要行；点击“使用重置”只会打开带保护的确认流程，不会立即消耗。
+          - Beta GPT Image 2 能力会区分全新生成与明确参考图片编辑，最多使用 5 张明确选中的持久图片。
+          - 图片查看器改用 DSH 原生弹窗控件，提供缩放、适合窗口、尺寸和原图下载。
+          - 高速模式改用官方 priority 服务层，修复 `Unsupported service_tier: fast`；GitHub Issue 表单默认使用简洁英文，并取消固定标题前缀。
           NOTES
           fi
           append_contributors zh-CN
