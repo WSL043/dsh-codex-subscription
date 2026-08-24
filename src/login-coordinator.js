@@ -27,6 +27,15 @@ const publicPrompt = prompt => ({
   ...(typeof prompt.placeholder === 'string' ? { placeholder: prompt.placeholder } : {}),
 })
 
+function classifyLoginFailure(error) {
+  const message = error instanceof Error ? error.message : ''
+  if (/token exchange failed/iu.test(message)) return 'token-exchange'
+  if (/extract accountId|account[_ -]?id/iu.test(message)) return 'account-claim'
+  if (/credential|credentials-local|OAuth JSON/iu.test(message)) return 'credential-store'
+  if (/Missing authorization code|State mismatch|callback/iu.test(message)) return 'callback'
+  return 'provider'
+}
+
 /** Own one host-side login without exposing tokens to the browser client. */
 export class CodexLoginCoordinator {
   #sessions = new Map()
@@ -47,6 +56,7 @@ export class CodexLoginCoordinator {
     return {
       method: active.view.method,
       phase: active.view.phase,
+      ...(active.view.phase === 'failed' ? { failure: classifyLoginFailure(active.hostError) } : {}),
     }
   }
 
@@ -54,7 +64,14 @@ export class CodexLoginCoordinator {
     if (!LOGIN_METHODS.has(method)) throw new Error(`unsupported Codex login method: ${String(method)}`)
     const active = this.#activeId === undefined ? undefined : this.#sessions.get(this.#activeId)
     if (active !== undefined && !TERMINAL_PHASES.has(active.view.phase)) {
-      throw new Error('a Codex login is already active')
+      active.view = {
+        id: active.view.id,
+        provider: 'openai-codex',
+        method: active.view.method,
+        phase: 'cancelled',
+        authenticated: false,
+      }
+      active.controller.abort(new Error('Codex login replaced by a new attempt'))
     }
     if (active !== undefined) this.#sessions.delete(active.view.id)
 
@@ -76,7 +93,7 @@ export class CodexLoginCoordinator {
     this.#sessions.set(id, session)
     this.#activeId = id
 
-    const publishReady = () => ready.resolve(this.read(id))
+    const publishReady = () => ready.resolve(publicClone(session.view))
     const interaction = {
       signal: controller.signal,
       prompt: async prompt => {

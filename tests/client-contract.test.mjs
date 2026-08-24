@@ -185,11 +185,19 @@ test('quota reset redemption requires deliberate multi-step confirmation and nev
   assert.doesNotMatch(client, /disabled=\{!exhausted/u)
   assert.match(client, /if \(resetBusy\) return/u, 'the final action must be single-flight in the browser')
   assert.match(client, /onClick=\{cancelReset\}/u)
+  assert.match(client, /className=['"]codexSubscriptionResetUse['"]/u)
+  assert.match(client, /\.codexSubscriptionResetUse:hover:not\(:disabled\)/u)
+  assert.match(client, /\.codexSubscriptionResetUse:focus-visible/u)
   assert.match(client, /resetCreditErrorText/u)
   assert.match(client, /key \?\? 'resetFailed'/u, 'unknown host errors must stay bounded and localized')
   assert.doesNotMatch(client, /window\.confirm|window\.prompt/u)
   assert.match(host, /resetCreditService\.consume/u)
   assert.match(host, /resetCreditService\.clear/u)
+})
+
+test('a fresh sign-in attempt clears stale client flow state before starting', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /const begin = method => \{\s*setFlow\(undefined\);\s*setBusy\(true\); setError\(undefined\)/u)
 })
 
 test('generated image preview uses a native full-screen canvas and explicit edit handoff', async () => {
