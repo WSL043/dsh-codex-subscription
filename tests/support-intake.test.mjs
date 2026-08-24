@@ -16,6 +16,11 @@ test("bug intake accepts UI failures and requests secret-safe support evidence",
   assert.match(form, /id: diagnostics/);
   assert.match(form, /Support diagnostics/);
   assert.match(form, /excludes credentials and account identifiers/);
+  const diagnosticsBlock = form.match(/  - type: textarea\r?\n    id: diagnostics[\s\S]*?(?=\r?\n  - type:|$)/)?.[0];
+  assert.ok(diagnosticsBlock, "support diagnostics field should exist");
+  assert.match(diagnosticsBlock, /required: true/);
+  assert.match(diagnosticsBlock, /unavailable/i);
+  assert.match(diagnosticsBlock, /Do not paste full raw logs/);
   assert.match(form, /Browser sign-in or cancel/);
   assert.doesNotMatch(form, /使用问题|问题|\/[ ]*(?:Bug report|System|Use case)/u);
   assert.doesNotMatch(form, /^title:/mu);

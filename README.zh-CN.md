@@ -210,7 +210,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 - **`dsh` 无法识别**：官方 npm 方式本来就不会创建全局 `dsh` 命令，请使用上面的完整 `npx -y @deepseek-ai/dsh@0.1.1-rc.2 ...` 命令；
 - **电脑上有多个 DSH**：请在目标 DSH 环境中运行标准命令；交给 Agent 时明确目标，或传入 `-DshPath`；
 - **安装仍然失败**：把上面的 Agent 文档链接发给 Agent，不要删除 profile 或随意修改系统 PATH。
-- **需要提交问题**：在设置页底部生成“支持诊断”，然后打开[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)。表单会收集准确的 DSH/插件版本和复现步骤；报告不含凭据和账号标识，仍不要附上登录链接、授权码或浏览器回调地址。
+- **需要提交问题**：在设置页底部生成“支持诊断”，然后打开[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)。报告包含系统/运行时和有限的登录阶段，但不含凭据、账号标识、原始错误或完整日志；请粘贴到必填诊断栏，且不要附上登录链接、授权码或浏览器回调地址。
 
 ## 边界与支持
 

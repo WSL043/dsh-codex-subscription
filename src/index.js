@@ -294,7 +294,7 @@ export function apply(ctx) {
     usageReader,
     resetCreditService,
     preferences,
-    diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences }),
+    diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState() }),
   })
 
   ctx.effect(
