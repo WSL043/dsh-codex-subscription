@@ -82,6 +82,8 @@ test('GitHub defaults to English and links a complete separate Chinese README', 
   assert.match(readmeZh, /\[English\]\(https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/blob\/main\/README\.md\)/u)
   for (const doc of [readme, readmeZh]) {
     assert.match(doc, /img\.shields\.io\/npm\/v\/dsh-codex-subscription/u)
+    assert.match(doc, /img\.shields\.io\/npm\/dt\/dsh-codex-subscription/u)
+    assert.doesNotMatch(doc, /img\.shields\.io\/npm\/d(?:m|w|y)\/dsh-codex-subscription/u)
     assert.match(doc, /npmjs\.com\/package\/dsh-codex-subscription/u)
   }
   assert.match(readmeZh, /## 准备 DSH[\s\S]*DSH-Portable[\s\S]*社区桌面分发[\s\S]*便携版和安装版[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## 安装[\s\S]*### 交给 Agent（推荐）[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md[\s\S]*### Windows 手动安装/u)
@@ -113,6 +115,21 @@ test('GitHub defaults to English and links a complete separate Chinese README', 
   }
   assert.equal(existsSync(new URL('../docs/assets/sidebar.png', import.meta.url)), false)
   assert.equal(existsSync(new URL('../docs/assets/sidebar-en.png', import.meta.url)), false)
+})
+
+test('README visibly credits code and issue contributions without conflating their roles', () => {
+  const readme = text('README.md')
+  const readmeZh = text('README.zh-CN.md')
+  for (const doc of [readme, readmeZh]) {
+    assert.match(doc, /BaronCyrus/u)
+    assert.match(doc, /fabulousyuann-tech/u)
+    assert.match(doc, /alexchenzl/u)
+    assert.match(doc, /issues\/9/u)
+    assert.match(doc, /issues\/10/u)
+    assert.match(doc, /issues\/3/u)
+  }
+  assert.match(readme, /Code and bug report[\s\S]*Bug report[\s\S]*Ecosystem feedback/u)
+  assert.match(readmeZh, /代码与问题报告[\s\S]*问题报告[\s\S]*生态反馈/u)
 })
 
 test('each README stays in one language and links to the complete translation', () => {
