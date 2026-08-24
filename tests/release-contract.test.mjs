@@ -19,8 +19,8 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'LICENSE',
     'SECURITY.md',
     'THIRD_PARTY_NOTICES.md',
-    'docs/assets/*.png',
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
+  assert.equal([...included].some(path => path.startsWith('docs/assets')), false, 'README screenshots stay on GitHub and out of the runtime package')
   assert.equal(pkg.name, 'dsh-codex-subscription')
   assert.match(pkg.version, /^\d+\.\d+\.\d+$/u)
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')

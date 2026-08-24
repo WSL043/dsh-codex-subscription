@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 import { BoltIcon } from '@heroicons/react/16/solid'
-import { Button, IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, IconDownloadOutline16, IconFullscreenOutline16, Input, Modal } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, IconDownloadOutline16, IconFullscreenOutline16, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
   LEGACY_QUICK_QUOTA_FIELD,
   normalizeQuickQuotaMode,
@@ -73,7 +74,8 @@ const zh = {
   modelMenuAria: '模型、推理等级与速度', modelLabel: '模型', effortLabel: '推理等级', providerDefault: 'Default', selectModel: '选择模型',
   modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
   imageGenerate: '生成图片', imageBeta: 'Beta', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
-  imageLabel: '生成的图片', imageOpen: '查看原图', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imageClosePreview: '关闭预览', imageDownload: '下载原图', imageZoomOut: '缩小', imageZoomIn: '放大', imageFit: '适合窗口', imageRefineHint: '要修改这张图，请在当前会话明确说“编辑这张图片……”；插件只会把这张图作为参考。', imageNewHint: '要重新生成，请直接描述一张新图片；不会自动带入历史图片。',
+  imageLabel: '生成的图片', imageOpen: '查看原图', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imageClosePreview: '关闭预览', imageDownload: '下载原图', imageZoomOut: '缩小', imageZoomIn: '放大', imageFit: '适合窗口',
+  imageAnnotate: '标注部位', imageAnnotateHint: '点击图片添加编号标注', imageAnnotation: '标注 {value}', imageAnnotationPlaceholder: '描述这个部位要修改什么', imageEditPrompt: '描述你想怎样修改这张图', imageEditDefault: '编辑这张图片。', imageRegionNotes: '部位修改：', imageEdit: '在输入框中继续编辑', imageEditPreparing: '正在添加到输入框…', imageEditFailed: '无法把图片添加到输入框。', imageRemoveAnnotation: '删除标注',
 }
 
 const en = {
@@ -117,7 +119,8 @@ const en = {
   modelMenuAria: 'Model, effort, and speed', modelLabel: 'Model', effortLabel: 'Effort', providerDefault: 'Default', selectModel: 'Select model',
   modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
   imageGenerate: 'Generate image', imageBeta: 'Beta', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
-  imageLabel: 'Generated image', imageOpen: 'View original', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imageClosePreview: 'Close preview', imageDownload: 'Download original', imageZoomOut: 'Zoom out', imageZoomIn: 'Zoom in', imageFit: 'Fit to window', imageRefineHint: 'To change this image, say “Edit this image…” in this conversation; only this image is sent as a reference.', imageNewHint: 'To start over, describe a new image; prior images are not included automatically.',
+  imageLabel: 'Generated image', imageOpen: 'View original', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imageClosePreview: 'Close preview', imageDownload: 'Download original', imageZoomOut: 'Zoom out', imageZoomIn: 'Zoom in', imageFit: 'Fit to window',
+  imageAnnotate: 'Annotate', imageAnnotateHint: 'Click the image to add a numbered note', imageAnnotation: 'Note {value}', imageAnnotationPlaceholder: 'Describe what should change in this area', imageEditPrompt: 'Describe how you want to change this image', imageEditDefault: 'Edit this image.', imageRegionNotes: 'Region changes:', imageEdit: 'Continue editing in composer', imageEditPreparing: 'Adding to composer…', imageEditFailed: 'Could not add the image to the composer.', imageRemoveAnnotation: 'Remove note',
 }
 
 const STYLE = `
@@ -153,11 +156,26 @@ const STYLE = `
 .codexModelSelect{position:relative;min-width:0}.codexModelSelectTrigger{display:flex;align-items:center;gap:4px;min-width:0;max-width:min(360px,45cqw);height:28px;padding:0 4px 0 8px;border:0;border-radius:24px;outline:0;background:transparent;color:var(--dsw-alias-label-secondary);font-size:13px;font-weight:500;line-height:20px;cursor:pointer}.codexModelSelectTrigger:hover:not(:disabled),.codexModelSelectTrigger[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover)}.codexModelSelectTrigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}.codexModelSelectTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectBolt{display:block;flex:none;width:14px;height:14px;color:var(--dsw-alias-label-primary)}.codexModelSelectLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectEffort{flex:none;color:var(--dsw-alias-label-caption)}.codexModelSelectChevron{flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms}.codexModelSelectTrigger[aria-expanded=true] .codexModelSelectChevron{transform:rotate(180deg)}
 .codexModelSelectMenu,.codexModelSelectSubmenu{position:absolute;z-index:30;box-sizing:border-box;width:max-content;min-width:min(240px,calc(100vw - 32px));max-width:min(420px,calc(100vw - 32px));max-height:min(360px,calc(100vh - 96px));padding:4px;border:1px solid var(--dsw-alias-border-inverted);border-radius:12px;background:var(--dsw-specific-menu);box-shadow:var(--dsw-shadow-lv3);color:var(--dsw-alias-label-primary);overflow:hidden}.codexModelSelectMenu{right:0;bottom:calc(100% + 8px)}.codexModelSelectSubmenu{right:calc(100% + 8px);bottom:0;min-width:min(230px,calc(100vw - 32px))}.codexModelSelectCell{display:flex;align-items:center;gap:8px;width:100%;min-width:100%;height:40px;box-sizing:border-box;padding:0 10px;border:0;border-radius:10px;background:transparent;color:inherit;font-size:14px;line-height:22px;text-align:left;cursor:pointer}.codexModelSelectCell:hover,.codexModelSelectCell:focus-visible,.codexModelSelectCell[data-open=true]{background:var(--dsw-alias-interactive-bg-hover);outline:0}.codexModelSelectCell:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectCellLabel{flex:none;white-space:nowrap}.codexModelSelectCellValue{flex:auto;min-width:0;overflow:hidden;color:var(--dsw-alias-label-tertiary);text-align:right;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectCellChevron{flex:none;color:var(--dsw-alias-label-tertiary)}.codexModelSelectGroups{min-height:0;max-height:352px;overflow-y:auto}.codexModelSelectGroup+.codexModelSelectGroup{margin-top:4px}.codexModelSelectGroupTitle{position:sticky;top:0;z-index:1;padding:5px 8px 3px;background:var(--dsw-specific-menu);color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:500;line-height:18px}.codexModelSelectOption{display:flex;align-items:center;gap:8px;width:100%;min-width:100%;min-height:38px;box-sizing:border-box;padding:6px 8px;border:0;border-radius:10px;outline:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.codexModelSelectOption:hover:not(:disabled),.codexModelSelectOption:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}.codexModelSelectOption:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectOptionCopy{display:flex;flex:1;min-width:0;flex-direction:column}.codexModelSelectOptionName{overflow:hidden;color:inherit;font-size:14px;font-weight:500;line-height:20px;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectOptionDescription{overflow:hidden;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectCheck{display:grid;place-items:center;flex:0 0 18px;color:var(--dsw-alias-label-primary)}.codexModelSelectStatus,.codexModelSelectEmpty{padding:10px;color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:20px}.codexModelSelectError,.codexModelSelectWarning{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;padding:7px 8px;border-radius:8px;background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}.codexModelSelectWarning{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-state-warn-label)}.codexModelSelectRetry{flex:none;padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}
 .codexModelSelectMenu{overflow:visible}
-.codexImageTool{display:flex;flex-direction:column;gap:8px;margin:4px 0;color:var(--dsw-alias-label-primary)}.codexImageToolRow{display:flex;align-items:center;min-height:24px;gap:8px;font-size:13px;line-height:20px}.codexImageToolIcon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}.codexImageToolIcon::before{content:'';width:8px;height:8px;border:1.5px solid currentColor;border-radius:3px}.codexImageTool[data-state=running] .codexImageToolIcon::before{border-radius:50%;border-right-color:transparent;animation:codexImageSpin 800ms linear infinite}.codexImageTool[data-state=error] .codexImageToolIcon::before{border-color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-state-error-primary)}.codexImageToolTitle{font-weight:500}.codexImageToolState{color:var(--dsw-alias-label-tertiary)}.codexImageToolError{margin:0 0 0 24px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary)}.codexImageToolGallery{margin-left:24px}.codexGeneratedImageFrame{display:flex;align-items:center;justify-content:center;width:min(240px,100%);min-height:120px;padding:0;overflow:hidden;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-tertiary);cursor:pointer}.codexGeneratedImageFrame img{display:block;width:100%;max-height:240px;object-fit:contain}.codexGeneratedImageRetry{min-height:36px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);cursor:pointer}.codexGeneratedImageModal{width:min(920px,calc(100vw - 32px));max-height:calc(100vh - 32px)}.codexGeneratedImageModalContent{min-height:0;overflow:hidden}.codexGeneratedImageViewer{display:flex;min-width:0;flex-direction:column;gap:12px}.codexGeneratedImageStage{display:grid;place-items:center;min-height:280px;max-height:calc(100vh - 260px);overflow:auto;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-module-platform)}.codexGeneratedImageStage img{display:block;max-width:100%;max-height:calc(100vh - 280px);object-fit:contain;transform-origin:center;transition:transform 120ms ease}.codexGeneratedImageMeta{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.codexGeneratedImageToolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.codexGeneratedImageZoom{display:flex;align-items:center;gap:6px}.codexGeneratedImageZoomValue{min-width:44px;color:var(--dsw-alias-label-secondary);font-size:12px;text-align:center}.codexGeneratedImageDownload{display:inline-flex;align-items:center;gap:6px;min-height:32px;box-sizing:border-box;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;text-decoration:none}.codexGeneratedImageDownload:hover{background:var(--dsw-alias-interactive-bg-hover)}.codexGeneratedImageGuidance{display:flex;flex-direction:column;gap:2px;padding-top:2px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}@keyframes codexImageSpin{to{transform:rotate(360deg)}}
+.codexImageTool{display:flex;flex-direction:column;gap:8px;margin:4px 0;color:var(--dsw-alias-label-primary)}.codexImageToolRow{display:flex;align-items:center;min-height:24px;gap:8px;font-size:13px;line-height:20px}.codexImageToolIcon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}.codexImageToolIcon::before{content:'';width:8px;height:8px;border:1.5px solid currentColor;border-radius:3px}.codexImageTool[data-state=running] .codexImageToolIcon::before{border-radius:50%;border-right-color:transparent;animation:codexImageSpin 800ms linear infinite}.codexImageTool[data-state=error] .codexImageToolIcon::before{border-color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-state-error-primary)}.codexImageToolTitle{font-weight:500}.codexImageToolState{color:var(--dsw-alias-label-tertiary)}.codexImageToolError{margin:0 0 0 24px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary)}.codexImageToolGallery{margin-left:24px}.codexGeneratedImageFrame{display:flex;align-items:center;justify-content:center;width:min(240px,100%);height:240px;padding:0;overflow:hidden;border:1px solid var(--dsw-alias-border-l2);border-radius:16px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-tertiary);cursor:pointer}.codexGeneratedImageFrame img{display:block;width:100%;height:100%;object-fit:cover}.codexGeneratedImageRetry{min-height:36px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);cursor:pointer}.codexGeneratedImageModal{width:min(920px,calc(100vw - 32px));max-height:calc(100vh - 32px)}.codexGeneratedImageModalContent{min-height:0;overflow:hidden}.codexGeneratedImageViewer{display:flex;min-width:0;flex-direction:column;gap:12px}.codexGeneratedImageStage{display:grid;place-items:center;min-height:280px;max-height:calc(100vh - 260px);overflow:auto;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-module-platform)}.codexGeneratedImageStage img{display:block;max-width:100%;max-height:calc(100vh - 280px);object-fit:contain;transform-origin:center;transition:transform 120ms ease}.codexGeneratedImageMeta{color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}.codexGeneratedImageToolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.codexGeneratedImageZoom{display:flex;align-items:center;gap:6px}.codexGeneratedImageZoomValue{min-width:44px;color:var(--dsw-alias-label-secondary);font-size:12px;text-align:center}.codexGeneratedImageDownload{display:inline-flex;align-items:center;gap:6px;min-height:32px;box-sizing:border-box;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;text-decoration:none}.codexGeneratedImageDownload:hover{background:var(--dsw-alias-interactive-bg-hover)}.codexGeneratedImageGuidance{display:flex;flex-direction:column;gap:2px;padding-top:2px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}@keyframes codexImageSpin{to{transform:rotate(360deg)}}
 .codexImageBeta{padding:0 5px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;color:var(--dsw-alias-label-tertiary);font-size:10px;line-height:16px}
 @container (max-width:560px){.codexSubscriptionCreditRows{grid-template-columns:1fr}}
 @container (max-width:480px){.codexSubscriptionAccountRow,.codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column}.codexSubscriptionActions{width:100%}.codexSubscriptionSearchChoices{grid-template-columns:1fr}}
 @media(max-width:640px){.codexSubscriptionCard{padding:14px}}
+`
+
+const IMAGE_STYLE = String.raw`
+.codexGeneratedImageLightbox{position:fixed;inset:0;z-index:1000;display:grid;grid-template-rows:auto minmax(0,1fr) auto;background:var(--dsw-alias-bg-base,#111);color:var(--dsw-alias-label-primary);outline:0}.codexGeneratedImageTopbar{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:58px;padding:8px 14px;border-bottom:1px solid var(--dsw-alias-border-l2);background:color-mix(in srgb,var(--dsw-alias-bg-base,#111) 92%,transparent);backdrop-filter:blur(18px)}.codexGeneratedImageTopbar>div:first-child{display:flex;min-width:0;flex-direction:column}.codexGeneratedImageTopbar strong{overflow:hidden;font-size:13px;font-weight:600;line-height:20px;text-overflow:ellipsis;white-space:nowrap}.codexGeneratedImageTopbar small{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:17px}.codexGeneratedImageActions{display:flex;align-items:center;gap:6px}.codexGeneratedImageActions button,.codexGeneratedImageActions a{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:5px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:16px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;text-decoration:none;cursor:pointer}.codexGeneratedImageActions button:hover,.codexGeneratedImageActions a:hover,.codexGeneratedImageActions button.is-active{background:var(--dsw-alias-interactive-bg-hover)}.codexGeneratedImageActions button:focus-visible,.codexGeneratedImageActions a:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px}.codexGeneratedImageActions button:disabled{opacity:.4;cursor:default}.codexGeneratedImageActions>span{min-width:38px;color:var(--dsw-alias-label-tertiary);font-size:11px;text-align:center}.codexGeneratedImageClose{font-size:20px!important}.codexGeneratedImageCanvas{position:relative;display:grid;place-items:center;min-height:0;overflow:auto;padding:24px;background:var(--dsw-alias-bg-base,#111)}.codexGeneratedImageSurface{position:relative;display:inline-flex;max-width:calc(100vw - 48px);max-height:calc(100vh - 210px);transform-origin:center;transition:transform 120ms ease}.codexGeneratedImageSurface img{display:block;max-width:100%;max-height:calc(100vh - 210px);border-radius:12px;object-fit:contain}.codexGeneratedImageCanvas.is-annotating .codexGeneratedImageSurface{cursor:crosshair}.codexGeneratedImagePin{position:absolute;display:grid;place-items:center;width:24px;height:24px;padding:0;border:2px solid white;border-radius:50%;background:var(--dsw-alias-label-primary);box-shadow:0 1px 4px rgba(0,0,0,.35);color:var(--dsw-alias-bg-base,#111);font:inherit;font-size:11px;font-weight:700;transform:translate(-50%,-50%);cursor:pointer}.codexGeneratedImagePin.is-active{background:var(--dsw-alias-state-business-primary,#3964fe);color:white}.codexGeneratedImageAnnotateHint{position:absolute;bottom:14px;left:50%;padding:6px 10px;border-radius:14px;background:color-mix(in srgb,var(--dsw-alias-bg-layer-3) 90%,transparent);box-shadow:var(--dsw-shadow-lv2);color:var(--dsw-alias-label-secondary);font-size:11px;transform:translateX(-50%)}.codexGeneratedImageEditDock{display:flex;flex-direction:column;gap:8px;padding:10px 14px 14px;border-top:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base))}.codexGeneratedImagePrompt,.codexGeneratedImageAnnotation{display:flex;align-items:center;gap:8px;width:min(820px,100%);margin:0 auto}.codexGeneratedImagePrompt>*:first-child,.codexGeneratedImageAnnotation>*:nth-child(2){min-width:0;flex:1}.codexGeneratedImagePrompt button{flex:none;white-space:nowrap}.codexGeneratedImageAnnotation>span{flex:none;color:var(--dsw-alias-label-secondary);font-size:12px}.codexGeneratedImageAnnotation>button{flex:none;height:28px;padding:0 8px;border:0;border-radius:14px;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:11px;cursor:pointer}.codexGeneratedImageAnnotation>button:hover{background:var(--dsw-alias-interactive-bg-hover)}.codexGeneratedImageEditError{width:min(820px,100%);margin:0 auto;color:var(--dsw-alias-state-error-primary);font-size:11px;line-height:17px}@media(max-width:760px){.codexGeneratedImageTopbar{align-items:flex-start;flex-direction:column}.codexGeneratedImageActions{width:100%;overflow-x:auto}.codexGeneratedImageActions>span{display:none}.codexGeneratedImageCanvas{padding:12px}.codexGeneratedImageSurface{max-width:calc(100vw - 24px);max-height:calc(100vh - 270px)}.codexGeneratedImageSurface img{max-height:calc(100vh - 270px)}.codexGeneratedImagePrompt,.codexGeneratedImageAnnotation{align-items:stretch;flex-direction:column}.codexGeneratedImagePrompt button{width:100%}}
+`
+
+const IMAGE_LAYOUT_STYLE = String.raw`
+.codexGeneratedImageWorkspace{display:grid;min-height:0;grid-template-columns:minmax(0,1fr)}
+.codexGeneratedImageWorkspace.has-comments{grid-template-columns:minmax(0,1fr) 296px}
+.codexGeneratedImageComments{display:flex;min-width:0;flex-direction:column;gap:12px;overflow:auto;padding:18px 14px;border-left:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base))}
+.codexGeneratedImageComments>header{display:flex;flex-direction:column;gap:2px}.codexGeneratedImageComments>header strong{font-size:13px;font-weight:600;line-height:20px}.codexGeneratedImageComments>header small{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:17px}
+.codexGeneratedImageCommentList{display:flex;flex-direction:column;gap:8px}.codexGeneratedImageCommentList article{display:grid;grid-template-columns:24px minmax(0,1fr) 24px;align-items:start;gap:7px;padding:9px;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-3)}.codexGeneratedImageCommentList article.is-active{border-color:var(--dsw-alias-state-business-primary,#3964fe)}
+.codexGeneratedImageCommentList article>span{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-base,#111);font-size:10px;font-weight:700}.codexGeneratedImageCommentList textarea{box-sizing:border-box;width:100%;min-height:64px;resize:vertical;border:0;outline:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:18px}.codexGeneratedImageCommentList textarea::placeholder{color:var(--dsw-alias-label-dimmed)}
+.codexGeneratedImageCommentList article>button{display:grid;place-items:center;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:17px;cursor:pointer}.codexGeneratedImageCommentList article>button:hover{background:var(--dsw-alias-interactive-bg-hover)}
+@media(max-width:760px){.codexGeneratedImageWorkspace.has-comments{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(118px,34vh)}.codexGeneratedImageComments{border-top:1px solid var(--dsw-alias-border-l2);border-left:0;padding:10px 12px}}
 `
 
 const unwrap = response => {
@@ -194,13 +212,29 @@ const imageByteSize = bytes => bytes < 1024 * 1024
   ? `${Math.max(0.1, bytes / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} KB`
   : `${(bytes / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} MB`
 
-function CodexGeneratedImage({ attachment, loadImage, t }) {
+function editDraft(prompt, annotations, t) {
+  const notes = annotations
+    .map((annotation, index) => ({ number: index + 1, note: annotation.note.trim() }))
+    .filter(annotation => annotation.note !== '')
+    .map(annotation => String(annotation.number) + '. ' + annotation.note)
+  const base = prompt.trim() === '' ? t('imageEditDefault') : prompt.trim()
+  return notes.length === 0 ? base : base + '\n\n' + t('imageRegionNotes') + '\n' + notes.join('\n')
+}
+
+function CodexGeneratedImage({ attachment, loadImage, attachForEdit, t }) {
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState(false)
   const [open, setOpen] = useState(false)
   const [src, setSrc] = useState()
   const [zoom, setZoom] = useState(1)
+  const [annotationMode, setAnnotationMode] = useState(false)
+  const [annotations, setAnnotations] = useState([])
+  const [selectedAnnotation, setSelectedAnnotation] = useState()
+  const [prompt, setPrompt] = useState('')
+  const [editBusy, setEditBusy] = useState(false)
+  const [editError, setEditError] = useState(false)
   const triggerRef = useRef(null)
+  const dialogRef = useRef(null)
   useEffect(() => {
     let live = true
     setError(false)
@@ -214,36 +248,115 @@ function CodexGeneratedImage({ attachment, loadImage, t }) {
     setOpen(false)
     window.requestAnimationFrame(() => triggerRef.current?.focus())
   }
+  useEffect(() => {
+    if (!open) return undefined
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    dialogRef.current?.focus()
+    const keydown = event => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        close()
+        return
+      }
+      if (event.key === 'Tab') {
+        const focusable = [...dialogRef.current.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')]
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable.at(-1)
+        if (event.shiftKey && document.activeElement === first) {
+          event.preventDefault()
+          last.focus()
+        } else if (!event.shiftKey && document.activeElement === last) {
+          event.preventDefault()
+          first.focus()
+        }
+      }
+    }
+    document.addEventListener('keydown', keydown)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', keydown)
+    }
+  }, [open])
   const label = attachment.name ?? t('imageLabel')
   const downloadName = imageDownloadName(attachment)
-  const imageMeta = `${attachment.width} × ${attachment.height} · ${imageByteSize(attachment.bytes)}`
+  const imageMeta = attachment.width + ' × ' + attachment.height + ' · ' + imageByteSize(attachment.bytes)
+  const addAnnotation = event => {
+    if (!annotationMode || event.target.closest('.codexGeneratedImagePin')) return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const annotation = {
+      id: crypto.randomUUID(),
+      x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
+      y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)),
+      note: '',
+    }
+    setAnnotations(value => [...value, annotation])
+    setSelectedAnnotation(annotation.id)
+  }
+  const continueEditing = async () => {
+    if (editBusy || src === undefined) return
+    setEditBusy(true)
+    setEditError(false)
+    try {
+      await attachForEdit(src, downloadName, editDraft(prompt, annotations, t))
+      close()
+    } catch {
+      setEditError(true)
+    } finally {
+      setEditBusy(false)
+    }
+  }
   if (error) {
     return <button type="button" className="codexGeneratedImageRetry" onClick={() => setAttempt(value => value + 1)}>{t('imageLoadFailed')}</button>
   }
+  const lightbox = !open || src === undefined ? null : createPortal(
+    <div ref={dialogRef} className="codexGeneratedImageLightbox" role="dialog" aria-modal="true" aria-label={t('imagePreview')} tabIndex={-1}>
+      <header className="codexGeneratedImageTopbar">
+        <div><strong>{label}</strong><small>{imageMeta}</small></div>
+        <div className="codexGeneratedImageActions">
+          <button type="button" className={annotationMode ? 'is-active' : ''} aria-pressed={annotationMode} onClick={() => setAnnotationMode(value => !value)}>{t('imageAnnotate')}</button>
+          <button type="button" aria-label={t('imageZoomOut')} disabled={zoom <= 0.5} onClick={() => setZoom(value => Math.max(0.5, value - 0.25))}>−</button>
+          <span>{Math.round(zoom * 100)}%</span>
+          <button type="button" aria-label={t('imageZoomIn')} disabled={zoom >= 3} onClick={() => setZoom(value => Math.min(3, value + 0.25))}>+</button>
+          <button type="button" onClick={() => setZoom(1)}><IconFullscreenOutline16 aria-hidden="true" />{t('imageFit')}</button>
+          <a href={src} download={downloadName}><IconDownloadOutline16 aria-hidden="true" />{t('imageDownload')}</a>
+          <button type="button" className="codexGeneratedImageClose" aria-label={t('imageClosePreview')} onClick={close}>×</button>
+        </div>
+      </header>
+      <div className={'codexGeneratedImageWorkspace ' + (annotationMode || annotations.length > 0 ? 'has-comments' : '')}>
+        <main className={'codexGeneratedImageCanvas ' + (annotationMode ? 'is-annotating' : '')}>
+          <div className="codexGeneratedImageSurface" onClick={addAnnotation} style={{ transform: 'scale(' + zoom + ')' }}>
+            <img src={src} alt={label} />
+            {annotations.map((annotation, index) => <button type="button" className={'codexGeneratedImagePin ' + (annotation.id === selectedAnnotation ? 'is-active' : '')} aria-label={fill(t('imageAnnotation'), { value: index + 1 })} style={{ left: (annotation.x * 100) + '%', top: (annotation.y * 100) + '%' }} onClick={event => { event.stopPropagation(); setSelectedAnnotation(annotation.id) }} key={annotation.id}>{index + 1}</button>)}
+          </div>
+          {annotationMode ? <div className="codexGeneratedImageAnnotateHint">{t('imageAnnotateHint')}</div> : null}
+        </main>
+        {annotationMode || annotations.length > 0 ? <aside className="codexGeneratedImageComments" aria-label={t('imageAnnotate')}>
+          <header><strong>{t('imageAnnotate')}</strong><small>{t('imageAnnotateHint')}</small></header>
+          <div className="codexGeneratedImageCommentList">{annotations.map((annotation, index) => <article className={annotation.id === selectedAnnotation ? 'is-active' : ''} key={annotation.id} onClick={() => setSelectedAnnotation(annotation.id)}>
+            <span>{index + 1}</span>
+            <textarea value={annotation.note} rows={3} aria-label={fill(t('imageAnnotation'), { value: index + 1 })} placeholder={t('imageAnnotationPlaceholder')} onFocus={() => setSelectedAnnotation(annotation.id)} onChange={event => { const note = event.target.value; setAnnotations(value => value.map(item => item.id === annotation.id ? { ...item, note } : item)) }} />
+            <button type="button" aria-label={t('imageRemoveAnnotation')} onClick={event => { event.stopPropagation(); setAnnotations(value => value.filter(item => item.id !== annotation.id)); if (selectedAnnotation === annotation.id) setSelectedAnnotation(undefined) }}>×</button>
+          </article>)}</div>
+        </aside> : null}
+      </div>
+      <footer className="codexGeneratedImageEditDock">
+        <div className="codexGeneratedImagePrompt"><Input value={prompt} placeholder={t('imageEditPrompt')} onChange={event => setPrompt(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void continueEditing() } }} /><Button type="button" disabled={editBusy} onClick={() => { void continueEditing() }}>{editBusy ? t('imageEditPreparing') : t('imageEdit')}</Button></div>
+        {editError ? <div className="codexGeneratedImageEditError" role="alert">{t('imageEditFailed')}</div> : null}
+      </footer>
+    </div>,
+    document.body,
+  )
   return <>
     <button ref={triggerRef} type="button" className="codexGeneratedImageFrame" title={t('imageOpen')} aria-label={fill(t('imageOpenNamed'), { value: label })} onClick={() => { if (src !== undefined) { setZoom(1); setOpen(true) } }}>
       {src === undefined ? <span>{t('imageLoading')}</span> : <img src={src} alt={label} />}
     </button>
-    {src === undefined ? null : <Modal open={open} onClose={close} title={t('imagePreview')} closeLabel={t('imageClosePreview')} className="codexGeneratedImageModal" contentClassName="codexGeneratedImageModalContent">
-      <div className="codexGeneratedImageViewer">
-        <div className="codexGeneratedImageStage"><img src={src} alt={label} style={{ transform: `scale(${zoom})` }} /></div>
-        <div className="codexGeneratedImageMeta">{imageMeta}</div>
-        <div className="codexGeneratedImageToolbar">
-          <div className="codexGeneratedImageZoom">
-            <Button type="button" variant="outline" aria-label={t('imageZoomOut')} title={t('imageZoomOut')} disabled={zoom <= 0.5} onClick={() => setZoom(value => Math.max(0.5, value - 0.25))}>−</Button>
-            <span className="codexGeneratedImageZoomValue">{Math.round(zoom * 100)}%</span>
-            <Button type="button" variant="outline" aria-label={t('imageZoomIn')} title={t('imageZoomIn')} disabled={zoom >= 3} onClick={() => setZoom(value => Math.min(3, value + 0.25))}>+</Button>
-            <Button type="button" variant="outline" onClick={() => setZoom(1)}><IconFullscreenOutline16 aria-hidden="true" />{t('imageFit')}</Button>
-          </div>
-          <a className="codexGeneratedImageDownload" href={src} download={downloadName}><IconDownloadOutline16 aria-hidden="true" />{t('imageDownload')}</a>
-        </div>
-        <div className="codexGeneratedImageGuidance"><span>{t('imageRefineHint')}</span><span>{t('imageNewHint')}</span></div>
-      </div>
-    </Modal>}
+    {lightbox}
   </>
 }
 
-function CodexImageToolRow({ block, loadImage, t }) {
+function CodexImageToolRow({ block, loadImage, attachForEdit, t }) {
   const settled = block?.kind === 'tool-result'
   const image = settled
     ? block.content.find(item => item?.type === 'image' && item.attachment !== undefined)
@@ -256,7 +369,7 @@ function CodexImageToolRow({ block, loadImage, t }) {
     : undefined
   return <div className="codexImageTool" data-state={state}>
     <div className="codexImageToolRow"><span className="codexImageToolIcon" aria-hidden="true" /><span className="codexImageToolTitle">{t('imageGenerate')}</span><span className="codexImageBeta">{t('imageBeta')}</span><span className="codexImageToolState">{status}</span></div>
-    {image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage attachment={image.attachment} loadImage={loadImage} t={t} /></div>}
+    {image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage attachment={image.attachment} loadImage={loadImage} attachForEdit={attachForEdit} t={t} /></div>}
     {error === undefined ? null : <p className="codexImageToolError">{error}</p>}
   </div>
 }
@@ -984,7 +1097,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = 'dsh-codex-subscription'
-    tag.textContent = STYLE
+    tag.textContent = STYLE + IMAGE_STYLE + IMAGE_LAYOUT_STYLE
     document.head.append(tag)
     return () => tag.remove()
   }, 'codex-subscription: style')
@@ -1035,6 +1148,23 @@ export function apply(ctx) {
     inject: sessionId => ({
       t,
       loadImage: attachment => conversation.resolveImage(sessionId, attachment),
+      attachForEdit: async (src, filename, draft) => {
+        const actx = sessions.scope(sessionId)
+        if (actx === undefined || typeof conversation.createDraftImages !== 'function' || conversation.input?.for === undefined) {
+          throw new Error('This DSH version does not provide the image composer bridge')
+        }
+        const response = await fetch(src)
+        if (!response.ok) throw new Error('Could not read generated image')
+        const blob = await response.blob()
+        const created = conversation.createDraftImages([new File([blob], filename, { type: blob.type || 'image/png' })])
+        const input = conversation.input.for(actx)
+        if (!input.addImages(created.map(item => item.id))) {
+          conversation.releaseDraftImages(created)
+          throw new Error('The composer is busy')
+        }
+        sessions.open(sessionId)
+        input.setDraft(draft)
+      },
     }),
   }, CodexImageToolRow))
 }

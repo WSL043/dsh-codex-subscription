@@ -49,7 +49,7 @@ DSH-Portable exposes the same standard plugin command, so the command above also
 | **Composer quota** | Choose a compact percentage, progress bar, or no inline quota display |
 | **Safe quota reset** | See the next expiry and deliberately try a reset with a cooldown and acknowledgement |
 | **Subscription search** | Explicitly choose DSH default search or Codex subscription search |
-| **Codex image generation and editing (Beta)** | Generate without references, or explicitly edit selected conversation images; preview, zoom, and download the original |
+| **Codex image generation and editing (Beta)** | Generate without references, or explicitly edit one selected image; preview, zoom, annotate regions, download the original, and continue in the same composer |
 | **Fast mode** | Switch between Standard and Fast directly in the composer |
 
 These capabilities reuse the same local ChatGPT sign-in. Subscription routing failures stay visible and never silently switch to another paid route.
@@ -169,10 +169,14 @@ clicks are single-flight, and an uncertain network result is never retried autom
 
 ### Image generation and editing (Beta)
 
-Generated images open in a DSH-native preview with zoom, fit, dimensions, and **Download original**. A new image request
-does not silently include earlier images. To refine a result, explicitly ask to edit that image in the same conversation;
-the plugin sends only the selected durable image references, up to five. GPT Image 2 can take longer than a normal text
+Generated images open in a DSH-native preview with zoom, fit, dimensions, **Download original**, and numbered region notes.
+**Continue editing in composer** attaches exactly the image you opened and writes the region notes into the draft without
+sending it. A new image request does not silently include earlier images. GPT Image 2 can take longer than a normal text
 turn, and detailed text, exact composition, or repeated-character consistency may still need another pass.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/image-preview-annotations-en.png" width="900" alt="DSH-native generated-image preview with zoom, original download, and numbered region annotations">
+</p>
 
 ### Composer speed
 
