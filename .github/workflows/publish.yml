@@ -26,6 +26,14 @@ on:
         description: Comma-separated issue numbers to credit
         required: false
         type: string
+      release_notes_en:
+        description: English user-facing release summary (required for feature and bugfix releases)
+        required: false
+        type: string
+      release_notes_zh:
+        description: Chinese user-facing release summary (required for feature and bugfix releases)
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -222,6 +230,8 @@ jobs:
           REQUESTED_DSH_VERSION: ${{ inputs.dsh_version }}
           CONTRIBUTOR_PRS: ${{ inputs.contributor_prs }}
           REPORTED_ISSUES: ${{ inputs.reported_issues }}
+          RELEASE_NOTES_EN: ${{ inputs.release_notes_en }}
+          RELEASE_NOTES_ZH: ${{ inputs.release_notes_zh }}
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
@@ -374,24 +384,14 @@ jobs:
           - Supports install, update, and uninstall in official DSH Web.
 
           NOTES
-          elif [[ "${RELEASE_KIND:-feature}" == 'bugfix' ]]; then
-            cat > .release/install.md <<'NOTES'
-          ## What's new
-
-          - Fixed `codex_image_generate` for large Base64 PNG responses, preventing a Node.js stack overflow before the durable attachment is saved.
-          - Existing padding, decoded-size, image-size, and PNG-signature safety checks remain enforced.
-
-          NOTES
           else
+            # Feature and bugfix releases require explicit bilingual release notes.
+            test -n "${RELEASE_NOTES_EN:-}"
+            test -n "${RELEASE_NOTES_ZH:-}"
             cat > .release/install.md <<'NOTES'
           ## What's new
-
-          - Generated images now open in a full-screen DSH-native viewer with zoom, fit, dimensions, and original download.
-          - Add numbered notes directly to image regions, then continue in the same composer with exactly that image and an editable draft.
-          - Fresh generation never silently reuses earlier images; sending remains an explicit user action.
-          - README screenshots stay on GitHub instead of increasing the installed runtime package.
-
           NOTES
+            printf '\n%s\n' "$RELEASE_NOTES_EN" >> .release/install.md
           fi
           append_contributors en
           append_reporters en
@@ -441,24 +441,12 @@ jobs:
           - 已支持 DeepSeek Harness \`$current_dsh\`。
           - 支持在官方 DSH Web 中安装、更新和卸载。
           NOTES
-          elif [[ "${RELEASE_KIND:-feature}" == 'bugfix' ]]; then
-            cat >> .release/install.md <<'NOTES'
-
-          ## 更新内容
-
-          - 修复 `codex_image_generate` 处理大型 Base64 PNG 时在持久化附件前触发 Node.js 栈溢出的问题。
-          - 仍保留填充、解码长度、图片大小和 PNG 签名安全检查。
-          NOTES
           else
             cat >> .release/install.md <<'NOTES'
 
           ## 更新内容
-
-          - 生成图片现在会在全屏 DSH 原生查看器中打开，支持缩放、适合窗口、尺寸和原图下载。
-          - 可直接对图片部位添加编号标注，再把当前这一张图和可编辑草稿带回同一输入框。
-          - 全新生成不会静默复用历史图片，最终发送始终由用户明确触发。
-          - README 截图只保留在 GitHub，不再增大安装后的运行包。
           NOTES
+            printf '\n%s\n' "$RELEASE_NOTES_ZH" >> .release/install.md
           fi
           append_contributors zh-CN
           append_reporters zh-CN
