@@ -176,7 +176,7 @@ windowsTest('official npm users do not need a global dsh command', async t => {
   )
 })
 
-windowsTest('a running official npm DSH is reused without another npx dependency resolution', async t => {
+windowsTest('a running official web process is not mistaken for a reusable plugin host', async t => {
   const fixture = await mkdtemp(join(tmpdir(), 'dsh-codex-running-official-'))
   t.after(() => rm(fixture, { recursive: true, force: true }))
   const node = join(fixture, 'node.cmd')
@@ -211,9 +211,12 @@ windowsTest('a running official npm DSH is reused without another npx dependency
   })
 
   assert.equal(result.status, 0, result.stderr || result.stdout)
-  assert.match(result.stdout, new RegExp(`Target: running official DSH ${compatibility.latestTested.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:`))
-  assert.equal((await readFile(argsLog, 'utf8')).trim(), `${bin} plugin --profile web add ${packageSpec}`)
-  await assert.rejects(readFile(npxLog, 'utf8'), /ENOENT/u)
+  assert.doesNotMatch(result.stdout, /running official DSH/u)
+  await assert.rejects(readFile(argsLog, 'utf8'), /ENOENT/u)
+  assert.equal(
+    (await readFile(npxLog, 'utf8')).trim(),
+    `-y --prefer-offline --no-audit --no-fund @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add ${packageSpec}`,
+  )
 })
 
 windowsTest('an unverified bin.js process is ignored instead of being reused as DSH', async t => {
