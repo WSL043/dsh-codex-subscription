@@ -29,6 +29,10 @@ test('GitHub Release notes stay user-facing and exclude internal maintenance evi
     /GitHub Actions|每\s*6\s*小时|every six hours|隔离验收|isolated .*acceptance|smoke acceptance|fail[- ]closed|自动兼容|compatibility autopilot/iu,
   )
   assert.match(notesStep, /Added support for DeepSeek Harness/u)
+  assert.doesNotMatch(notesStep, /Fixed `codex_image_generate` for large Base64 PNG/u)
+  assert.match(releaseWorkflow, /release_notes_en:[\s\S]*English user-facing release summary/u)
+  assert.match(releaseWorkflow, /release_notes_zh:[\s\S]*Chinese user-facing release summary/u)
+  assert.match(notesStep, /Feature and bugfix releases require explicit bilingual release notes/u)
 })
 
 test('feature releases credit merged contributor PRs with verified authors and links', () => {
