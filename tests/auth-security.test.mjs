@@ -150,7 +150,7 @@ test('login RPC exposes only public flow state and sanitizes host failures', asy
   const finished = await handler('login/status', { id: 'login-1' }, signal)
   assert.equal(finished.value.phase, 'failed')
   assert.doesNotMatch(JSON.stringify(finished), /access-secret|refresh-secret/)
-  assert.deepEqual(coordinator.supportState(), { method: 'browser', phase: 'failed' })
+  assert.deepEqual(coordinator.supportState(), { method: 'browser', phase: 'failed', failure: 'provider' })
 })
 
 test('support diagnostics expose only a bounded login phase', async () => {
@@ -223,6 +223,51 @@ test('starting a new login discards the previous terminal session', async () => 
   assert.equal((await coordinator.start({ method: 'browser' })).id, 'login-1')
   assert.equal((await coordinator.start({ method: 'browser' })).id, 'login-2')
   assert.throws(() => coordinator.read('login-1'), /unknown Codex login/)
+})
+
+test('starting a new login replaces an orphaned active flow after the client lost its id', async () => {
+  const ids = ['login-browser', 'login-device']
+  const aborted = []
+  const auth = {
+    async status() { return { authenticated: false, provider: 'openai-codex' } },
+    async login(interaction) {
+      interaction.signal.addEventListener('abort', () => aborted.push(true), { once: true })
+      interaction.notify({ type: 'auth_url', url: 'https://auth.openai.com/oauth/authorize?state=public' })
+      await new Promise((resolve, reject) => interaction.signal.addEventListener('abort', () => reject(interaction.signal.reason), { once: true }))
+    },
+    async logout() {},
+  }
+  const coordinator = new CodexLoginCoordinator(auth, { createId: () => ids.shift() })
+
+  const browser = await coordinator.start({ method: 'browser' })
+  const device = await coordinator.start({ method: 'device_code' })
+
+  assert.equal(browser.id, 'login-browser')
+  assert.equal(device.id, 'login-device')
+  assert.deepEqual(aborted, [true])
+  assert.throws(() => coordinator.read('login-browser'), /unknown Codex login/)
+  await new Promise(resolve => setImmediate(resolve))
+})
+
+test('support diagnostics classify post-callback failures without exposing provider details', async () => {
+  const auth = {
+    async status() { return { authenticated: false, provider: 'openai-codex' } },
+    async login(interaction) {
+      interaction.notify({ type: 'auth_url', url: 'https://auth.openai.com/oauth/authorize?state=private' })
+      throw new Error('OpenAI Codex token exchange failed (400): refresh-secret')
+    },
+    async logout() {},
+  }
+  const coordinator = new CodexLoginCoordinator(auth, { createId: () => 'login-failed' })
+  await coordinator.start({ method: 'browser' })
+  await new Promise(resolve => setTimeout(resolve, 0))
+
+  assert.deepEqual(coordinator.supportState(), {
+    method: 'browser',
+    phase: 'failed',
+    failure: 'token-exchange',
+  })
+  assert.doesNotMatch(JSON.stringify(coordinator.supportState()), /refresh-secret|400|private/u)
 })
 
 test('login polling recovers an authenticated account after the flow RPC is lost', async () => {
