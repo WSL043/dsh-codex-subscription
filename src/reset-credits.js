@@ -4,7 +4,6 @@ import { USER_AGENT } from './version.js'
 
 export const CODEX_RESET_CREDITS_URL = 'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits'
 export const CODEX_RESET_CONSUME_URL = `${CODEX_RESET_CREDITS_URL}/consume`
-export const RESET_CONFIRM_PHRASE = 'USE RESET'
 
 const DEFAULT_CONFIRM_DELAY_MS = 5_000
 const DEFAULT_CHALLENGE_TTL_MS = 60_000
@@ -34,6 +33,16 @@ function credentialsOf(auth, credential) {
   return { access, accountId }
 }
 
+function expirationOf(value) {
+  if (value === undefined || value === null) return undefined
+  if (Number.isSafeInteger(value) && value > 0) return value * 1_000
+  if (typeof value === 'string' && value.length > 0 && value.length <= 64) {
+    const parsed = Date.parse(value)
+    if (Number.isFinite(parsed) && parsed > 0) return parsed
+  }
+  throw new Error('ChatGPT returned malformed quota reset details')
+}
+
 function parseDetails(value, now) {
   if (!record(value) || !Number.isSafeInteger(value.available_count) || value.available_count < 0
     || !Array.isArray(value.credits)) {
@@ -45,12 +54,7 @@ function parseDetails(value, now) {
       && typeof credit.id === 'string' && credit.id.length > 0 && credit.id.length <= 256
       && typeof credit.status === 'string' && credit.status.toLowerCase() === 'available')
     .map(credit => {
-      const expiresAt = credit.expires_at === undefined || credit.expires_at === null
-        ? undefined
-        : credit.expires_at * 1_000
-      if (expiresAt !== undefined && (!Number.isSafeInteger(credit.expires_at) || credit.expires_at <= 0)) {
-        throw new Error('ChatGPT returned malformed quota reset details')
-      }
+      const expiresAt = expirationOf(credit.expires_at)
       return { credit, expiresAt }
     })
     .filter(({ expiresAt }) => expiresAt === undefined || expiresAt > now)
@@ -72,13 +76,11 @@ function parseConsumeResult(value) {
   const windowsReset = Array.isArray(value.windows_reset)
     ? value.windows_reset.filter(item => typeof item === 'string').slice(0, 16)
     : []
-  return { code: value.code, windowsReset }
-}
-
-function quotaIsExhausted(usage) {
-  return Array.isArray(usage?.rateLimits) && usage.rateLimits.some(limit =>
-    limit?.id !== 'code_review' && Array.isArray(limit?.windows)
-      && limit.windows.some(window => Number.isFinite(window?.usedPercent) && window.usedPercent >= 100))
+  const windowsResetCount = Number.isSafeInteger(value.windows_reset)
+    && value.windows_reset >= 0 && value.windows_reset <= 16
+    ? value.windows_reset
+    : undefined
+  return { code: value.code, windowsReset, ...(windowsResetCount === undefined ? {} : { windowsResetCount }) }
 }
 
 /**
@@ -142,15 +144,15 @@ export function createCodexResetCreditService(options) {
       return {
         challengeId,
         availableCount: details.availableCount,
-        confirmPhrase: RESET_CONFIRM_PHRASE,
         readyAt,
         expiresAt,
+        ...(details.creditExpiresAt === undefined ? {} : { creditExpiresAt: details.creditExpiresAt }),
         ...(details.title === undefined ? {} : { title: details.title }),
         ...(details.description === undefined ? {} : { description: details.description }),
       }
     },
 
-    async consume({ challengeId, phrase, signal } = {}) {
+    async consume({ challengeId, acknowledged, signal } = {}) {
       const challenge = typeof challengeId === 'string' ? challenges.get(challengeId) : undefined
       if (challenge === undefined) throw new Error('This quota reset confirmation is no longer valid')
       if (challenge.state === 'pending') throw new Error('This quota reset is already in progress')
@@ -159,14 +161,12 @@ export function createCodexResetCreditService(options) {
         challenges.delete(challengeId)
         throw new Error('This quota reset confirmation is no longer valid')
       }
-      if (phrase !== RESET_CONFIRM_PHRASE) throw new Error('The quota reset confirmation phrase does not match')
+      if (acknowledged !== true) throw new Error('You must acknowledge that this may consume one quota reset')
 
       // Set the gate synchronously before the first await so rapid clicks and
       // concurrent RPC calls can never create more than one provider POST.
       challenge.state = 'pending'
       try {
-        const usage = await usageReader.read({ force: true, signal })
-        if (!quotaIsExhausted(usage)) throw new Error('The current Codex quota is not exhausted')
         const { access, accountId } = await resolveCredentials(signal)
         if (accountId !== challenge.accountId) throw new Error('The signed-in ChatGPT account changed')
         const response = await fetchReset(CODEX_RESET_CONSUME_URL, {

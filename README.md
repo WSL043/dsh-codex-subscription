@@ -47,9 +47,9 @@ DSH-Portable exposes the same standard plugin command, so the command above also
 | **Recoverable and diagnosable** | Sign-in state reconciles automatically; Settings can create a support report without credentials or account identifiers |
 | **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate |
 | **Composer quota** | Choose a compact percentage, progress bar, or no inline quota display |
-| **Safe quota reset** | Use a reset only for an exhausted Codex quota, with a cooldown, checkbox, and typed confirmation |
+| **Safe quota reset** | See the next expiry and deliberately try a reset with a cooldown and acknowledgement |
 | **Subscription search** | Explicitly choose DSH default search or Codex subscription search |
-| **Codex image generation** | Describe an image in a DSH conversation and view the generated result in that session |
+| **Codex image generation** | Preview or download the original, then describe refinements in the same conversation |
 | **Fast mode (Beta)** | Switch between Standard and Fast directly in the composer |
 
 These capabilities reuse the same local ChatGPT sign-in. Subscription routing failures stay visible and never silently switch to another paid route.
@@ -143,10 +143,10 @@ Restart DSH manually after installation, then:
 - A clear choice between DSH default search and Codex subscription search;
 - Actual backend-provided quota, reset time, and freshness;
 - Separate standard Codex, Codex-Spark, Credits, and other independent limits;
-- Deliberate quota-reset redemption for exhausted Codex limits, with layered confirmation and no automatic retry;
+- Visible quota-reset count and earliest expiry, with deliberate early redemption, layered confirmation, and no automatic retry;
 - Optional percentage or progress bar for the selected Codex model (off by default);
 - Standard or Fast mode for supported Codex models directly in the composer (Beta);
-- A copyable support report in Settings that excludes OAuth credentials, account identifiers, and authorization timestamps;
+- A copyable support report and direct feedback link in Settings; the report excludes OAuth credentials, account identifiers, and authorization timestamps;
 - Visible errors when subscription routing is unavailable, with no silent paid fallback.
 
 ### Composer quota
@@ -161,10 +161,14 @@ Standard Codex uses the lowest remaining window returned by the service; Spark u
 
 ### Safe quota reset
 
-If ChatGPT reports an available quota reset, Settings shows it in a compact row. Redemption stays disabled
-until a Codex model quota is exhausted. Using one requires a five-second cooldown, an acknowledgement checkbox,
-and the exact confirmation phrase. Cancel never consumes a reset, rapid repeated clicks are single-flight, and an
-uncertain network result is never retried automatically.
+If ChatGPT reports an available quota reset, Settings shows its count and earliest disclosed expiry in a compact row.
+You may deliberately try it before a quota reaches 100%, which is useful for a reset nearing expiry. ChatGPT still
+decides whether a window needs resetting and may return **nothing to reset** without spending the reset. The final
+action requires an acknowledgement checkbox and five-second cooldown. Cancel never consumes a reset, rapid repeated
+clicks are single-flight, and an uncertain network result is never retried automatically.
+
+Generated images open in a plugin-owned preview with **Download original**. To refine one, continue describing the
+change in the same conversation; the durable conversation image remains available to the next model turn.
 
 ### Composer speed (Beta)
 

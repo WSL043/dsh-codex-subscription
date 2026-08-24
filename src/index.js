@@ -119,9 +119,9 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
         const value = endpoint === 'reset-credit/prepare'
           ? await resetCreditService.prepare({ signal })
           : await resetCreditService.consume({
-              challengeId: payload?.challengeId,
-              phrase: payload?.phrase,
-              signal,
+            challengeId: payload?.challengeId,
+            acknowledged: payload?.acknowledged,
+            signal,
             })
         return { ok: true, value }
       } catch (error) {
@@ -135,8 +135,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
           'This quota reset confirmation is no longer valid',
           'This quota reset is already in progress',
           'Wait before confirming this quota reset',
-          'The quota reset confirmation phrase does not match',
-          'The current Codex quota is not exhausted',
+          'You must acknowledge that one quota reset will be consumed',
           'The signed-in ChatGPT account changed',
         ])
         const fallback = endpoint === 'reset-credit/prepare'
@@ -308,7 +307,6 @@ export { CODEX_USAGE_URL, createCodexUsageReader, parseCodexUsage } from './usag
 export {
   CODEX_RESET_CONSUME_URL,
   CODEX_RESET_CREDITS_URL,
-  RESET_CONFIRM_PHRASE,
   createCodexResetCreditService,
 } from './reset-credits.js'
 export {

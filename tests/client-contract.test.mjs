@@ -9,7 +9,8 @@ test('client is one removable DSH settings section, not a second application she
   assert.match(source, /slots\.inject\(['"]settings\.section['"]/)
   assert.match(source, /id:\s*['"]codex-subscription['"]/)
   assert.match(source, /['"]\/codex-subscription['"]/) // RPC channel
-  assert.doesNotMatch(source, /wsl043/iu)
+  const withoutRepositorySupportLink = source.replace('https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml', '')
+  assert.doesNotMatch(withoutRepositorySupportLink, /wsl043/iu)
   assert.match(source, /login\/start/)
   assert.match(source, /login\/status/)
   assert.match(source, /['"]usage['"]/)
@@ -171,14 +172,16 @@ test('quota reset redemption requires deliberate multi-step confirmation and nev
   assert.match(client, /reset-credit\/prepare/u)
   assert.match(client, /reset-credit\/consume/u)
   assert.match(client, /type=['"]checkbox['"]/u)
-  assert.match(client, /confirmPhrase/u)
-  assert.match(client, /resetPhrase === challenge\.confirmPhrase/u)
+  assert.match(client, /creditExpiresAt/u)
+  assert.match(client, /nextExpiresAt/u)
+  assert.match(client, /resetCreditExpires/u)
   assert.match(client, /readyAt/u)
   assert.match(client, /setInterval/u)
   assert.match(client, /resetAcknowledged/u)
-  assert.match(client, /resetPhrase/u)
   assert.match(client, /resetCountdown/u)
-  assert.match(client, /resetAcknowledged && resetPhrase === challenge\.confirmPhrase && resetCountdown === 0/u)
+  assert.match(client, /resetAcknowledged && resetCountdown === 0/u)
+  assert.doesNotMatch(client, /resetPhrase|confirmPhrase|resetTypeHint/u)
+  assert.doesNotMatch(client, /disabled=\{!exhausted/u)
   assert.match(client, /if \(resetBusy\) return/u, 'the final action must be single-flight in the browser')
   assert.match(client, /onClick=\{cancelReset\}/u)
   assert.match(client, /resetCreditErrorText/u)
@@ -186,6 +189,20 @@ test('quota reset redemption requires deliberate multi-step confirmation and nev
   assert.doesNotMatch(client, /window\.confirm|window\.prompt/u)
   assert.match(host, /resetCreditService\.consume/u)
   assert.match(host, /resetCreditService\.clear/u)
+})
+
+test('generated image preview offers download and honest conversational refinement guidance', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /imageDownload/u)
+  assert.match(source, /download=\{downloadName\}/u)
+  assert.match(source, /imageRefineHint/u)
+})
+
+test('support diagnostics includes a direct repository feedback action', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /SUPPORT_ISSUE_URL/u)
+  assert.match(source, /feedbackOpen/u)
+  assert.match(source, /target="_blank"/u)
 })
 
 test('settings keep support diagnostics actionable and omit internal cache or route policy copy', async () => {

@@ -85,7 +85,24 @@ function resetCreditsOf(value) {
   if (!record(value) || !Number.isSafeInteger(value.available_count) || value.available_count < 0) {
     throw new Error('Codex returned malformed reset credit details')
   }
-  return { availableCount: value.available_count }
+  if (value.credits !== undefined && value.credits !== null && !Array.isArray(value.credits)) {
+    throw new Error('Codex returned malformed reset credit details')
+  }
+  const expirations = (value.credits ?? [])
+    .filter(credit => record(credit) && credit.status?.toLowerCase?.() === 'available')
+    .map(credit => {
+      if (Number.isSafeInteger(credit.expires_at) && credit.expires_at > 0) return credit.expires_at * 1_000
+      if (typeof credit.expires_at === 'string' && credit.expires_at.length <= 64) {
+        const parsed = Date.parse(credit.expires_at)
+        if (Number.isFinite(parsed) && parsed > 0) return parsed
+      }
+      return undefined
+    })
+    .filter(expiration => expiration !== undefined)
+  return {
+    availableCount: value.available_count,
+    ...(expirations.length === 0 ? {} : { nextExpiresAt: Math.min(...expirations) }),
+  }
 }
 
 /** Reduce the provider payload to a browser-safe quota projection. */
