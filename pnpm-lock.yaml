@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      https-proxy-agent:
+        specifier: 7.0.6
+        version: 7.0.6
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.1

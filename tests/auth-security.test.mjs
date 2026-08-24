@@ -270,6 +270,22 @@ test('support diagnostics classify post-callback failures without exposing provi
   assert.doesNotMatch(JSON.stringify(coordinator.supportState()), /refresh-secret|400|private/u)
 })
 
+test('support diagnostics identify OAuth transport failures without exposing proxy details', async () => {
+  const coordinator = new CodexLoginCoordinator({
+    async login() { throw new Error('fetch failed: ECONNREFUSED 127.0.0.1:7890') },
+    async status() { return { authenticated: false, provider: 'openai-codex' } },
+  }, { createId: () => 'login-network' })
+
+  await coordinator.start({ method: 'browser' })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.deepEqual(coordinator.supportState(), {
+    method: 'browser',
+    phase: 'failed',
+    failure: 'network',
+  })
+  assert.doesNotMatch(JSON.stringify(coordinator.supportState()), /127\.0\.0\.1|7890/u)
+})
+
 test('login polling recovers an authenticated account after the flow RPC is lost', async () => {
   const account = { authenticated: true, provider: 'openai-codex', type: 'oauth' }
   const next = await readLoginProgress({
