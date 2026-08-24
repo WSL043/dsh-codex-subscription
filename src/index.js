@@ -7,6 +7,7 @@ import z from '@deepseek-ai/schemastery'
 import { createCodexAuthService, DshOAuthCredentialStore } from './credential-store.js'
 import { openCodexAuthUrl } from './external-url.js'
 import { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinator.js'
+import { withCodexOAuthNetwork } from './oauth-network.js'
 import {
   createModels,
   openaiCodexSubscriptionProvider,
@@ -278,7 +279,7 @@ export function apply(ctx) {
     return settings.watch(select)
   }, 'codex-subscription: search provider selection')
 
-  const auth = createCodexAuthService(authModels, store)
+  const auth = createCodexAuthService(authModels, store, { runLogin: withCodexOAuthNetwork })
   const coordinator = new CodexLoginCoordinator(auth)
   const usageReader = createCodexUsageReader({
     getAuth: resolveAuth,

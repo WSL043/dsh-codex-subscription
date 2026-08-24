@@ -11,22 +11,25 @@ const compatibility = JSON.parse(await readFile(new URL('../compatibility.json',
 const packageSpec = `dsh-codex-subscription@${manifest.version}`
 const windowsTest = process.platform === 'win32' ? test : test.skip
 
-test('setup remains a thin official DSH CLI launcher', async () => {
+test('setup uses the official DSH CLI and a checksum-pinned pnpm helper', async () => {
   const source = await readFile(installer, 'utf8')
 
   assert.match(source, /dsh plugin --profile/i)
   assert.match(source, new RegExp(packageSpec.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
   assert.doesNotMatch(source, /Get-ChildItem[^\r\n]*-Recurse/i)
-  assert.doesNotMatch(source, /api\.github\.com|Invoke-WebRequest|Start-Process|Stop-Process/i)
-  assert.doesNotMatch(source, /Get-Command\s+pnpm|pnpm(?:\.cmd)?\s+(?:add|install)|install-state|snapshot|dsh-codex\.cmd/i)
+  assert.doesNotMatch(source, /api\.github\.com|Start-Process|Stop-Process/i)
+  assert.match(source, /PnpmVersion = '11\.19\.0'/u)
+  assert.match(source, /PnpmSha512 = '[A-F0-9]{128}'/u)
+  assert.match(source, /pnpm checksum mismatch/u)
+  assert.doesNotMatch(source, /pnpm(?:\.cmd)?\s+(?:add|install)|install-state|snapshot|dsh-codex\.cmd/i)
 })
 
 test('npm fallback is pinned to the DSH release accepted by this plugin', async () => {
   const source = await readFile(installer, 'utf8')
 
   assert.equal(source.includes(`DshRelease = '${compatibility.latestTested}'`), true)
-  assert.match(source, /cold run may use one CPU core/i)
-  assert.match(source, /--prefer-offline[\s\S]*--no-audit[\s\S]*--no-fund/u)
+  assert.match(source, /UsePnpmDlx/u)
+  assert.match(source, /'dlx',[\s\S]*@deepseek-ai\/dsh@\$DshRelease/u)
 })
 
 test('setup is ASCII without a byte-order mark for Windows PowerShell 5.1 irm pipe execution', async () => {
@@ -93,6 +96,7 @@ windowsTest('PATH discovery works and preserves DSH failures', async t => {
   const fixture = await mkdtemp(join(tmpdir(), 'dsh-codex-thin-installer-'))
   t.after(() => rm(fixture, { recursive: true, force: true }))
   await writeFile(join(fixture, 'dsh.cmd'), '@echo off\r\nexit /b 23\r\n')
+  await writeFile(join(fixture, 'pnpm.cmd'), '@echo off\r\necho 11.19.0\r\n')
 
   const escapedInstaller = installer.pathname.slice(1).replaceAll("'", "''")
   const result = spawnSync('powershell.exe', [
@@ -142,7 +146,7 @@ windowsTest('PATH and Portable candidates are never selected silently when both 
   assert.notEqual(result.status, 0)
   const output = `${result.stderr}\n${result.stdout}`
   assert.match(output, /Choose the DSH installation to use/u)
-  assert.match(output, /PATH:/u)
+  assert.match(output, /official DSH on PATH/u)
   assert.match(output, /Downloads\\DSH-Portable\\dsh\.exe/iu)
   assert.match(output, /Could not read a selection/u)
 })
@@ -151,7 +155,9 @@ windowsTest('official npm users do not need a global dsh command', async t => {
   const fixture = await mkdtemp(join(tmpdir(), 'dsh-codex-thin-installer-'))
   t.after(() => rm(fixture, { recursive: true, force: true }))
   const log = join(fixture, 'args.txt')
-  await writeFile(join(fixture, 'npx.cmd'), '@echo off\r\n>> "%DSH_INSTALLER_TEST_LOG%" echo %*\r\nexit /b 0\r\n')
+  await writeFile(join(fixture, 'npx.cmd'), '@echo off\r\nexit /b 0\r\n')
+  await copyFile(process.execPath, join(fixture, 'node.exe'))
+  await writeFile(join(fixture, 'pnpm.cmd'), '@echo off\r\nif "%1"=="--version" (echo 11.19.0& exit /b 0)\r\n>> "%DSH_INSTALLER_TEST_LOG%" echo %*\r\nexit /b 0\r\n')
 
   const escapedInstaller = installer.pathname.slice(1).replaceAll("'", "''")
   const result = spawnSync('powershell.exe', [
@@ -172,25 +178,26 @@ windowsTest('official npm users do not need a global dsh command', async t => {
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.equal(
     (await readFile(log, 'utf8')).trim(),
-    `-y --prefer-offline --no-audit --no-fund @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add ${packageSpec}`,
+    `dlx @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add ${packageSpec}`,
   )
 })
 
 windowsTest('a running official npm DSH is reused without another npx dependency resolution', async t => {
   const fixture = await mkdtemp(join(tmpdir(), 'dsh-codex-running-official-'))
   t.after(() => rm(fixture, { recursive: true, force: true }))
-  const node = join(fixture, 'node.cmd')
+  const node = process.execPath
   const bin = join(fixture, '_npx', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js')
   const argsLog = join(fixture, 'node-args.txt')
   const npxLog = join(fixture, 'npx-args.txt')
   await mkdir(join(bin, '..'), { recursive: true })
-  await writeFile(node, '@echo off\r\n>> "%DSH_INSTALLER_TEST_NODE_LOG%" echo %*\r\nexit /b 0\r\n')
+  const homeLog = join(fixture, 'home.txt')
   await writeFile(bin, '')
   await writeFile(join(fixture, '_npx', 'node_modules', '@deepseek-ai', 'dsh', 'package.json'), JSON.stringify({
     name: '@deepseek-ai/dsh',
     version: compatibility.latestTested,
   }))
   await writeFile(join(fixture, 'npx.cmd'), '@echo off\r\n>> "%DSH_INSTALLER_TEST_NPX_LOG%" echo %*\r\nexit /b 0\r\n')
+  await writeFile(join(fixture, 'pnpm.cmd'), '@echo off\r\nif "%1"=="--version" (echo 11.19.0& exit /b 0)\r\n> "%DSH_INSTALLER_TEST_HOME_LOG%" echo %DSH_HOME%\r\n>> "%DSH_INSTALLER_TEST_NODE_LOG%" echo %*\r\nexit /b 0\r\n')
 
   const quote = value => value.replaceAll("'", "''")
   const command = [
@@ -206,13 +213,15 @@ windowsTest('a running official npm DSH is reused without another npx dependency
       DSH_PORTABLE_ROOT: '',
       DSH_INSTALLER_TEST_NPX_LOG: npxLog,
       DSH_INSTALLER_TEST_NODE_LOG: argsLog,
+      DSH_INSTALLER_TEST_HOME_LOG: homeLog,
     },
     encoding: 'utf8',
   })
 
   assert.equal(result.status, 0, result.stderr || result.stdout)
-  assert.match(result.stdout, new RegExp(`Target: running official DSH ${compatibility.latestTested.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:`))
-  assert.equal((await readFile(argsLog, 'utf8')).trim(), `${bin} plugin --profile web add ${packageSpec}`)
+  assert.match(result.stdout, new RegExp(`Target: official DSH ${compatibility.latestTested.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}, profile home`))
+  assert.equal((await readFile(argsLog, 'utf8')).trim(), `dlx @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add ${packageSpec}`)
+  assert.equal((await readFile(homeLog, 'utf8')).trim(), join(fixture, '.dsh'))
   await assert.rejects(readFile(npxLog, 'utf8'), /ENOENT/u)
 })
 
@@ -231,6 +240,8 @@ windowsTest('an unverified bin.js process is ignored instead of being reused as 
     version: compatibility.latestTested,
   }))
   await writeFile(join(fixture, 'npx.cmd'), '@echo off\r\n>> "%DSH_INSTALLER_TEST_NPX_LOG%" echo %*\r\nexit /b 0\r\n')
+  await copyFile(process.execPath, join(fixture, 'node.exe'))
+  await writeFile(join(fixture, 'pnpm.cmd'), '@echo off\r\nif "%1"=="--version" (echo 11.19.0& exit /b 0)\r\n>> "%DSH_INSTALLER_TEST_NPX_LOG%" echo %*\r\nexit /b 0\r\n')
 
   const quote = value => value.replaceAll("'", "''")
   const command = [
@@ -253,7 +264,7 @@ windowsTest('an unverified bin.js process is ignored instead of being reused as 
   assert.equal(result.status, 0, result.stderr || result.stdout)
   assert.equal(
     (await readFile(npxLog, 'utf8')).trim(),
-    `-y --prefer-offline --no-audit --no-fund @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add ${packageSpec}`,
+    `dlx @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add ${packageSpec}`,
   )
   await assert.rejects(readFile(nodeLog, 'utf8'), /ENOENT/u)
 })

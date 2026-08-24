@@ -3,24 +3,136 @@ param(
     [ValidatePattern('^[A-Za-z0-9._-]+$')]
     [string] $Profile = 'web',
 
-    [string] $DshPath
+    [string] $DshPath,
+
+    [string] $DshHome
 )
 
 $ErrorActionPreference = 'Stop'
-$PackageSpec = 'dsh-codex-subscription@1.7.3'
+$PackageSpec = 'dsh-codex-subscription@1.7.4'
 $DshRelease = '0.1.1-rc.2'
+$PnpmVersion = '11.19.0'
+$PnpmUrl = 'https://registry.npmjs.org/pnpm/-/pnpm-11.19.0.tgz'
+$PnpmSha512 = '7881F3ED590D472C4A955E2B88B2121791116066DCC88CBCA3849EC9B60F1BBAA6D2CCB221FA91DA4E1C65BEF2BCBE379365AEA7AC539C7BF86DEDC3A1B22DCE'
 
 function New-DshInvocation {
     param(
         [Parameter(Mandatory = $true)][string] $Executable,
         [string[]] $PrefixArguments = @(),
-        [Parameter(Mandatory = $true)][string] $Label
+        [Parameter(Mandatory = $true)][string] $Label,
+        [bool] $NeedsPnpm = $false,
+        [AllowNull()][string] $DshHomePath = $null,
+        [bool] $UsePnpmDlx = $false,
+        [AllowNull()][string] $NodeExecutable = $null
     )
     return [PSCustomObject]@{
         Executable = $Executable
         PrefixArguments = $PrefixArguments
         Label = $Label
+        NeedsPnpm = $NeedsPnpm
+        DshHomePath = $DshHomePath
+        UsePnpmDlx = $UsePnpmDlx
+        NodeExecutable = $NodeExecutable
     }
+}
+
+function Resolve-NodeExecutable {
+    param([AllowNull()][string] $Preferred = $null)
+
+    if ($Preferred -and (Test-Path -LiteralPath $Preferred -PathType Leaf)) {
+        return (Resolve-Path -LiteralPath $Preferred).Path
+    }
+    $node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($node) { return (Resolve-Path -LiteralPath $node.Source).Path }
+    throw 'Node.js was not found. Start the official DSH instance you want to update, install Node.js, or use DSH-Portable.'
+}
+
+function Get-FileDigest {
+    param([Parameter(Mandatory = $true)][string] $Path)
+
+    $hasher = [Security.Cryptography.SHA512]::Create()
+    $stream = [IO.File]::OpenRead($Path)
+    try {
+        return ([BitConverter]::ToString($hasher.ComputeHash($stream))).Replace('-', '')
+    } finally {
+        $stream.Dispose()
+        $hasher.Dispose()
+    }
+}
+
+function Resolve-OfficialDshHome {
+    $candidate = if ($DshHome) {
+        $DshHome
+    } elseif ($env:DSH_HOME) {
+        $env:DSH_HOME
+    } elseif ($env:USERPROFILE) {
+        Join-Path $env:USERPROFILE '.dsh'
+    } else {
+        throw 'USERPROFILE is unavailable. Pass -DshHome with the official DSH data directory.'
+    }
+    return [IO.Path]::GetFullPath($candidate)
+}
+
+function Test-PnpmCommand {
+    param([Parameter(Mandatory = $true)][string] $Command)
+    try {
+        $reported = (& $Command '--version' 2>$null | Select-Object -First 1)
+        return [bool](([string] $reported).Trim() -match '^\d+\.\d+\.\d+$')
+    } catch {
+        return $false
+    }
+}
+
+function Get-PnpmCommand {
+    $existing = Get-Command pnpm -CommandType Application -ErrorAction SilentlyContinue |
+        Select-Object -First 1
+    if ($existing -and (Test-PnpmCommand -Command $existing.Source)) {
+        return [pscustomobject]@{ Command = $existing.Source; Directory = (Split-Path -Parent $existing.Source) }
+    }
+    if (-not $env:LOCALAPPDATA) {
+        throw 'LOCALAPPDATA is unavailable, so the verified pnpm helper cannot be cached.'
+    }
+
+    $directory = Join-Path $env:LOCALAPPDATA "dsh-plugin-tools\pnpm-$PnpmVersion"
+    $entry = Join-Path $directory 'package\bin\pnpm.cjs'
+    $shim = Join-Path $directory 'pnpm.cmd'
+    if ((Test-Path -LiteralPath $entry -PathType Leaf) -and
+        (Test-Path -LiteralPath $shim -PathType Leaf)) {
+        return [pscustomobject]@{ Command = $shim; Directory = $directory }
+    }
+
+    $parent = Split-Path -Parent $directory
+    $stage = Join-Path $parent ('.pnpm-' + [guid]::NewGuid().ToString('N'))
+    $archive = Join-Path $stage 'pnpm.tgz'
+    New-Item -ItemType Directory -Force -Path $stage | Out-Null
+    try {
+        Write-Host "Preparing the verified plugin manager (pnpm $PnpmVersion)..."
+        Invoke-WebRequest -UseBasicParsing -Uri $PnpmUrl -OutFile $archive
+        $actualHash = Get-FileDigest -Path $archive
+        if ($actualHash -ne $PnpmSha512) {
+            throw "pnpm checksum mismatch. Expected $PnpmSha512, received $actualHash."
+        }
+        $tar = Get-Command tar.exe -ErrorAction SilentlyContinue
+        if (-not $tar) { throw 'Windows tar.exe is required to unpack the verified pnpm helper.' }
+        & $tar.Source '-xzf' $archive '-C' $stage
+        if ($LASTEXITCODE -ne 0) { throw "tar.exe failed with exit code $LASTEXITCODE." }
+        Remove-Item -LiteralPath $archive -Force
+        if (-not (Test-Path -LiteralPath (Join-Path $stage 'package\bin\pnpm.cjs') -PathType Leaf)) {
+            throw 'The verified pnpm archive did not contain package\bin\pnpm.cjs.'
+        }
+        $shimText = "@echo off`r`n`"%DSH_PLUGIN_NODE%`" `"%~dp0package\bin\pnpm.cjs`" %*`r`n"
+        [IO.File]::WriteAllText((Join-Path $stage 'pnpm.cmd'), $shimText, [Text.Encoding]::ASCII)
+        if (Test-Path -LiteralPath $directory) {
+            Remove-Item -LiteralPath $directory -Recurse -Force
+        }
+        Move-Item -LiteralPath $stage -Destination $directory
+    } finally {
+        if (Test-Path -LiteralPath $stage) {
+            Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+    return [pscustomobject]@{ Command = (Join-Path $directory 'pnpm.cmd'); Directory = $directory }
 }
 
 function Get-PortableDshFromRoot {
@@ -96,7 +208,8 @@ function Find-RunningDshInvocations {
                 $package = Get-DshPackageFromBin $bin
                 if (-not $package) { continue }
                 $node = (Resolve-Path -LiteralPath $executable).Path
-                Write-Output (New-DshInvocation -Executable $node -PrefixArguments @($bin) -Label "running official DSH $($package.version): $bin")
+                $officialHome = Resolve-OfficialDshHome
+                Write-Output (New-DshInvocation -Executable $node -Label "official DSH $($package.version), profile home $officialHome" -NeedsPnpm $true -DshHomePath $officialHome -UsePnpmDlx $true -NodeExecutable $node)
             }
         }
     } catch {
@@ -159,7 +272,10 @@ function Resolve-DshCommand {
         if (-not (Test-Path -LiteralPath $DshPath -PathType Leaf)) {
             throw "DSH executable not found: $DshPath"
         }
-        return New-DshInvocation -Executable (Resolve-Path -LiteralPath $DshPath).Path -Label $DshPath
+        $resolvedDsh = (Resolve-Path -LiteralPath $DshPath).Path
+        $portableRoot = Split-Path -Parent $resolvedDsh
+        $isPortable = (Get-PortableDshFromRoot $portableRoot) -eq $resolvedDsh
+        return New-DshInvocation -Executable $resolvedDsh -Label $DshPath -NeedsPnpm (-not $isPortable) -DshHomePath $(if ($isPortable) { $null } else { Resolve-OfficialDshHome }) -NodeExecutable $(if ($isPortable) { $null } else { Resolve-NodeExecutable })
     }
 
     $currentPortable = Find-PortableFromCurrentDirectory
@@ -180,7 +296,7 @@ function Resolve-DshCommand {
         Select-Object -First 1
     if ($command) {
         $resolved = (Resolve-Path -LiteralPath $command.Source).Path
-        $candidates.Add((New-DshInvocation -Executable $resolved -Label "PATH: $resolved"))
+        $candidates.Add((New-DshInvocation -Executable $resolved -Label "official DSH on PATH, profile home $(Resolve-OfficialDshHome)" -NeedsPnpm $true -DshHomePath (Resolve-OfficialDshHome) -NodeExecutable (Resolve-NodeExecutable)))
     }
     foreach ($running in @(Find-RunningDshInvocations)) { $candidates.Add($running) }
     foreach ($portable in @(Find-CommonPortableDsh)) {
@@ -195,15 +311,23 @@ function Resolve-DshCommand {
         return $resolvedCandidates[0]
     }
 
-    $npx = Get-Command npx -CommandType Application -ErrorAction SilentlyContinue |
+    $node = Get-Command node -CommandType Application -ErrorAction SilentlyContinue |
         Select-Object -First 1
-    if ($npx) {
-        return New-DshInvocation -Executable $npx.Source -PrefixArguments @(
-            '-y', '--prefer-offline', '--no-audit', '--no-fund', "@deepseek-ai/dsh@$DshRelease"
-        ) -Label "official DSH $DshRelease via npx"
+    if (-not $node) {
+        $npx = Get-Command npx -CommandType Application -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($npx) {
+            $adjacentNode = Join-Path (Split-Path -Parent $npx.Source) 'node.exe'
+            if (Test-Path -LiteralPath $adjacentNode -PathType Leaf) {
+                $node = [pscustomobject]@{ Source = $adjacentNode }
+            }
+        }
+    }
+    if ($node) {
+        return New-DshInvocation -Executable $node.Source -Label "official DSH $DshRelease via pnpm, profile home $(Resolve-OfficialDshHome)" -NeedsPnpm $true -DshHomePath (Resolve-OfficialDshHome) -UsePnpmDlx $true -NodeExecutable $node.Source
     }
 
-    throw 'DSH was not found. Run this command in the DSH-Portable folder, install Node.js for the official npx route, add dsh to PATH, or pass -DshPath.'
+    throw 'DSH was not found. Run this command in the DSH-Portable folder, install Node.js for the official DSH route, add dsh to PATH, or pass -DshPath.'
 }
 
 $dsh = Resolve-DshCommand
@@ -211,41 +335,57 @@ $invokeArgs = @($dsh.PrefixArguments) + @('plugin', '--profile', $Profile, 'add'
 $timer = [Diagnostics.Stopwatch]::StartNew()
 Write-Host "Target: $($dsh.Label)"
 Write-Host 'Installing or updating through the official DSH plugin command...'
-if ($dsh.PrefixArguments.Count -gt 0) {
-    Write-Host 'No reusable DSH host was found. npm must prepare the official DSH host before it can install this plugin.'
-    Write-Host 'A cold run may use one CPU core and several hundred MB for a few minutes. A moving spinner means npm is working; press Ctrl+C to cancel.'
-    Write-Host 'Downloaded packages stay in the normal npm cache, so later runs can reuse them.'
+
+$oldPath = $env:PATH
+$oldHome = $env:DSH_HOME
+$oldPluginNode = $env:DSH_PLUGIN_NODE
+if ($dsh.NeedsPnpm) {
+    $pnpm = Get-PnpmCommand
+    $env:DSH_PLUGIN_NODE = $dsh.NodeExecutable
+    $env:PATH = $pnpm.Directory + [IO.Path]::PathSeparator + (Split-Path -Parent $dsh.NodeExecutable) + [IO.Path]::PathSeparator + $oldPath
+    $env:DSH_HOME = $dsh.DshHomePath
+    if ($dsh.UsePnpmDlx) {
+        $dsh.Executable = $pnpm.Command
+        $dsh.PrefixArguments = @('dlx', "@deepseek-ai/dsh@$DshRelease")
+        $invokeArgs = @($dsh.PrefixArguments) + @('plugin', '--profile', $Profile, 'add', $PackageSpec)
+    }
 }
 
-# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.7.3
-$lines = [Collections.Generic.List[string]]::new()
-$previousErrorAction = $ErrorActionPreference
-$ErrorActionPreference = 'Continue'
 try {
-    & $dsh.Executable @invokeArgs 2>&1 | ForEach-Object {
-        $line = [string]$_
-        $lines.Add($line)
-        Write-Host $line
-    }
-    $code = $LASTEXITCODE
-} finally {
-    $ErrorActionPreference = $previousErrorAction
-}
-if ($code -ne 0 -and ($lines -join "`n") -match 'ERR_PNPM_(?:MINIMUM_RELEASE_AGE_VIOLATION|NO_MATURE_MATCHING_VERSION)') {
-    Write-Host 'The existing lockfile contains a version still inside the release-age hold; retrying this command once with a scoped confirmation...'
-    $retryArgs = @($dsh.PrefixArguments) + @('plugin', '--profile', $Profile, 'add', '--config.minimumReleaseAge=0', $PackageSpec)
+    # Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.7.4
+    $lines = [Collections.Generic.List[string]]::new()
     $previousErrorAction = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
     try {
-        & $dsh.Executable @retryArgs 2>&1 | ForEach-Object { Write-Host ([string]$_) }
+        & $dsh.Executable @invokeArgs 2>&1 | ForEach-Object {
+            $line = [string]$_
+            $lines.Add($line)
+            Write-Host $line
+        }
         $code = $LASTEXITCODE
     } finally {
         $ErrorActionPreference = $previousErrorAction
     }
-}
-$timer.Stop()
-if ($code -ne 0) {
-    throw "DSH plugin command failed with exit code $code."
+    if ($code -ne 0 -and ($lines -join "`n") -match 'ERR_PNPM_(?:MINIMUM_RELEASE_AGE_VIOLATION|NO_MATURE_MATCHING_VERSION)') {
+        Write-Host 'The existing lockfile contains a version still inside the release-age hold; retrying this command once with a scoped confirmation...'
+        $retryArgs = @($dsh.PrefixArguments) + @('plugin', '--profile', $Profile, 'add', '--config.minimumReleaseAge=0', $PackageSpec)
+        $previousErrorAction = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try {
+            & $dsh.Executable @retryArgs 2>&1 | ForEach-Object { Write-Host ([string]$_) }
+            $code = $LASTEXITCODE
+        } finally {
+            $ErrorActionPreference = $previousErrorAction
+        }
+    }
+    $timer.Stop()
+    if ($code -ne 0) {
+        throw "DSH plugin command failed with exit code $code."
+    }
+} finally {
+    $env:PATH = $oldPath
+    $env:DSH_HOME = $oldHome
+    $env:DSH_PLUGIN_NODE = $oldPluginNode
 }
 
 Write-Host "Installed in $([Math]::Round($timer.Elapsed.TotalSeconds, 1)) seconds. Save your work and restart DSH normally."

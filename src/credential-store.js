@@ -118,7 +118,8 @@ export class DshOAuthCredentialStore {
 }
 
 /** Return only account state that is safe to expose to the browser client. */
-export function createCodexAuthService(models, store) {
+export function createCodexAuthService(models, store, options = {}) {
+  const runLogin = options.runLogin ?? (run => run())
   return Object.freeze({
     async status(options) {
       const current = await store.read(PROVIDER, options)
@@ -131,7 +132,7 @@ export function createCodexAuthService(models, store) {
       }
     },
     login(interaction) {
-      return models.login(PROVIDER, 'oauth', interaction)
+      return runLogin(() => models.login(PROVIDER, 'oauth', interaction))
     },
     logout(options) {
       return models.logout(PROVIDER, options)

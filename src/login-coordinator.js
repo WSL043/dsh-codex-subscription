@@ -30,6 +30,7 @@ const publicPrompt = prompt => ({
 function classifyLoginFailure(error) {
   const message = error instanceof Error ? error.message : ''
   if (/token exchange failed/iu.test(message)) return 'token-exchange'
+  if (/fetch failed|\b(?:ECONN|ENOTFOUND|ETIMEDOUT|CERT_|socket|network)\b/iu.test(message)) return 'network'
   if (/extract accountId|account[_ -]?id/iu.test(message)) return 'account-claim'
   if (/credential|credentials-local|OAuth JSON/iu.test(message)) return 'credential-store'
   if (/Missing authorization code|State mismatch|callback/iu.test(message)) return 'callback'
