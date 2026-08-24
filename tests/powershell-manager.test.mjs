@@ -138,6 +138,10 @@ if (command === 'list') {
   if (process.env.DSH_CODEX_TEST_EMPTY_LIST === '1' && !fs.existsSync(stateFile)) process.exit(0)
   process.stdout.write(JSON.stringify([{ dependencies: packages }]))
 } else if (command === 'add') {
+  if (process.env.DSH_CODEX_TEST_RELEASE_AGE === '1' && !args.includes('--config.minimumReleaseAge=0')) {
+    process.stderr.write('ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION existing-plugin@1.0.0\n')
+    process.exit(1)
+  }
   if (process.env.DSH_CODEX_TEST_FAIL_ADD === '1') process.exit(9)
   packages['dsh-codex-subscription'] = { version: process.env.DSH_CODEX_TEST_ADDED_VERSION || '${manifestVersion}' }
   fs.writeFileSync(stateFile, JSON.stringify(packages))
@@ -172,6 +176,32 @@ windowsTest('legacy manager can install into a completely new profile with an em
     assert.equal(result.status, 0, result.stderr || result.stdout)
     const installed = JSON.parse(readFileSync(join(root, 'data', 'dsh-home', 'fake-packages.json'), 'utf8'))
     assert.equal(installed['dsh-codex-subscription'].version, manifestVersion)
+  } finally {
+    rmSync(sandbox, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+  }
+})
+
+windowsTest('managed install retries one release-age-blocked mutation without disabling policy globally', () => {
+  const sandbox = mkdtempSync(join(tmpdir(), 'dsh-codex-managed-release-age-'))
+  const root = join(sandbox, 'DSH Portable')
+  const commandRoot = join(sandbox, 'command')
+  try {
+    functionalPortableFixture(root)
+    const result = spawnSync('powershell.exe', [
+      '-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass',
+      '-File', script.pathname.replace(/^\/(?:([A-Za-z]:))/, '$1'),
+      '-Action', 'Install', '-PortableRoot', root,
+      '-CommandRoot', commandRoot, '-NoModifyPath',
+    ], {
+      encoding: 'utf8',
+      env: { ...process.env, DSH_CODEX_TEST_RELEASE_AGE: '1' },
+    })
+    assert.equal(result.status, 0, result.stderr || result.stdout)
+    const calls = JSON.parse(readFileSync(join(root, 'data', 'dsh-home', 'fake-calls.json'), 'utf8'))
+    const adds = calls.filter(args => args[0] === 'plugin' && args[3] === 'add')
+    assert.equal(adds.length, 2)
+    assert.equal(adds[0].includes('--config.minimumReleaseAge=0'), false)
+    assert.equal(adds[1].includes('--config.minimumReleaseAge=0'), true)
   } finally {
     rmSync(sandbox, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   }

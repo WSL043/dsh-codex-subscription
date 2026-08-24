@@ -7,7 +7,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$PackageSpec = 'dsh-codex-subscription@1.7.1'
+$PackageSpec = 'dsh-codex-subscription@1.7.2'
 $DshRelease = '0.1.1-rc.2'
 
 function New-DshInvocation {
@@ -217,9 +217,32 @@ if ($dsh.PrefixArguments.Count -gt 0) {
     Write-Host 'Downloaded packages stay in the normal npm cache, so later runs can reuse them.'
 }
 
-# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.7.1
-& $dsh.Executable @invokeArgs
-$code = $LASTEXITCODE
+# Equivalent to: dsh plugin --profile web add dsh-codex-subscription@1.7.2
+$lines = [Collections.Generic.List[string]]::new()
+$previousErrorAction = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+try {
+    & $dsh.Executable @invokeArgs 2>&1 | ForEach-Object {
+        $line = [string]$_
+        $lines.Add($line)
+        Write-Host $line
+    }
+    $code = $LASTEXITCODE
+} finally {
+    $ErrorActionPreference = $previousErrorAction
+}
+if ($code -ne 0 -and ($lines -join "`n") -match 'ERR_PNPM_(?:MINIMUM_RELEASE_AGE_VIOLATION|NO_MATURE_MATCHING_VERSION)') {
+    Write-Host 'The existing lockfile contains a version still inside the release-age hold; retrying this command once with a scoped confirmation...'
+    $retryArgs = @($dsh.PrefixArguments) + @('plugin', '--profile', $Profile, 'add', '--config.minimumReleaseAge=0', $PackageSpec)
+    $previousErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        & $dsh.Executable @retryArgs 2>&1 | ForEach-Object { Write-Host ([string]$_) }
+        $code = $LASTEXITCODE
+    } finally {
+        $ErrorActionPreference = $previousErrorAction
+    }
+}
 $timer.Stop()
 if ($code -ne 0) {
     throw "DSH plugin command failed with exit code $code."
