@@ -173,7 +173,7 @@ windowsTest('legacy manager can install into a completely new profile with an em
     const installed = JSON.parse(readFileSync(join(root, 'data', 'dsh-home', 'fake-packages.json'), 'utf8'))
     assert.equal(installed['dsh-codex-subscription'].version, manifestVersion)
   } finally {
-    rmSync(sandbox, { recursive: true, force: true })
+    rmSync(sandbox, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   }
 })
 
@@ -223,7 +223,7 @@ windowsTest('a failed update preserves the currently installed plugin', () => {
       'another-plugin': { version: '1.0.0' },
     })
   } finally {
-    rmSync(sandbox, { recursive: true, force: true })
+    rmSync(sandbox, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   }
 })
 
