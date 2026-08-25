@@ -58,15 +58,10 @@ These capabilities reuse the same local ChatGPT sign-in. Subscription routing fa
 ## Product screen
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-focus-en.png" width="820" alt="Codex subscription settings in DeepSeek Harness">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/context-settings-en.png" width="820" alt="Current Codex subscription settings in DeepSeek Harness with search, model-aware context, composer quota, and support diagnostics">
 </p>
 
-<details>
-<summary>View the complete settings screen</summary>
-
-![Complete Codex subscription settings in DeepSeek Harness](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-en.png)
-
-</details>
+Captured from the installed official DeepSeek Harness `0.1.1-rc.2` product with the current plugin build.
 
 ## Prepare DSH
 

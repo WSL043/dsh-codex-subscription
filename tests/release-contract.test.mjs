@@ -97,8 +97,8 @@ test('GitHub defaults to English and links a complete separate Chinese README', 
   assert.match(readme, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
   assert.match(readmeZh, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
   assert.doesNotMatch(readmeZh, /提示词/u)
-  assert.match(readmeZh, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/settings\.png/u)
-  assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/settings-en\.png/u)
+  assert.match(readmeZh, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings\.png/u)
+  assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings-en\.png/u)
   assert.match(readmeZh, /raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/composer-quota-en\.png/u)
   for (const doc of [readme, readmeZh]) {
     for (const match of doc.matchAll(/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/([^\s)]+\.png)/gu)) {

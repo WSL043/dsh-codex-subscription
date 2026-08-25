@@ -59,15 +59,10 @@ DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的�
 ## 实际界面
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-focus.png" width="820" alt="DeepSeek Harness 中的 Codex 订阅设置">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/context-settings.png" width="820" alt="当前 DeepSeek Harness Codex 订阅设置，包含搜索来源、模型感知上下文、输入框额度和支持诊断">
 </p>
 
-<details>
-<summary>查看完整设置界面</summary>
-
-![DeepSeek Harness 的完整 Codex 订阅设置](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings.png)
-
-</details>
+图片来自已安装的官方 DeepSeek Harness `0.1.1-rc.2` 与当前插件构建。
 
 ## 准备 DSH
 
