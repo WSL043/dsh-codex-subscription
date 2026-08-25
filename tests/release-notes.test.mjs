@@ -43,11 +43,8 @@ test('feature releases credit merged contributor PRs with verified authors and l
   assert.match(releaseWorkflow, /Thanks to \[@\$author\][\s\S]*for contributing in \[#\$number\]/u)
 })
 
-test('bug-fix releases can credit verified issue reporters', () => {
-  assert.match(releaseWorkflow, /reported_issues:[\s\S]*issue numbers to credit/iu)
-  assert.match(releaseWorkflow, /REPORTED_ISSUES: \$\{\{ inputs\.reported_issues \}\}/u)
-  assert.match(releaseWorkflow, /gh issue view "\$issue_number"[\s\S]*author,number,url/u)
-  assert.match(releaseWorkflow, /Thanks to \[@\$author\][\s\S]*for reporting \[#\$number\]/u)
+test('releases credit merged PR contributors but never turn issue reports into release credits', () => {
+  assert.doesNotMatch(releaseWorkflow, /reported_issues|REPORTED_ISSUES|prepare_reporters|append_reporters|Issue reporters/iu)
 })
 
 test('release notes present complete English before a separate Chinese translation', () => {

@@ -6,6 +6,11 @@ import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { openaiCodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 
 import { openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
+import {
+  CONTEXT_MODE_CUSTOM,
+  CONTEXT_MODE_EXTENDED,
+  CONTEXT_MODE_STANDARD,
+} from '../src/settings-contract.js'
 
 const jwt = accountId => {
   const encode = value => Buffer.from(JSON.stringify(value)).toString('base64url')
@@ -78,7 +83,13 @@ test('DSH PiAiAdapter can execute the OAuth-only Codex provider with a refreshed
   }
 
   try {
-    const provider = openaiCodexSubscriptionProvider()
+    const networkAreas = []
+    const provider = openaiCodexSubscriptionProvider({
+      runNetwork: (area, operation) => {
+        networkAreas.push(area)
+        return operation()
+      },
+    })
     const profiles = new Map([['openai-codex', {
       provider: 'openai-codex',
       displayName: 'ChatGPT subscription',
@@ -104,6 +115,8 @@ test('DSH PiAiAdapter can execute the OAuth-only Codex provider with a refreshed
     assert.equal(text, 'ok')
     assert.equal(request.url, 'https://chatgpt.com/backend-api/codex/responses')
     assert.equal(request.headers.get('chatgpt-account-id'), 'account-dsh')
+    assert.ok(networkAreas.length > 0)
+    assert.deepEqual(new Set(networkAreas), new Set(['model']))
   } finally {
     globalThis.fetch = previousFetch
   }
@@ -162,4 +175,54 @@ test('subscription fast mode reaches only officially supported Codex model reque
   } finally {
     globalThis.fetch = previousFetch
   }
+})
+
+test('context presets preserve catalog defaults and cap every supported model independently', () => {
+  let contextMode = CONTEXT_MODE_STANDARD
+  let customContextWindow = 500_000
+  const perModel = new Map()
+  const provider = openaiCodexSubscriptionProvider({
+    resolveContextMode: () => contextMode,
+    resolveCustomContextWindow: modelKey => perModel.get(modelKey) ?? customContextWindow,
+  })
+  const contexts = () => Object.fromEntries(provider.getModels().map(model => [model.id, model.contextWindow]))
+
+  assert.deepEqual(contexts(), {
+    'gpt-5.3-codex-spark': 128_000,
+    'gpt-5.4': 272_000,
+    'gpt-5.4-mini': 272_000,
+    'gpt-5.5': 272_000,
+    'gpt-5.6-luna': 272_000,
+    'gpt-5.6-sol': 272_000,
+    'gpt-5.6-terra': 272_000,
+  })
+
+  contextMode = CONTEXT_MODE_EXTENDED
+  assert.deepEqual(contexts(), {
+    'gpt-5.3-codex-spark': 128_000,
+    'gpt-5.4': 1_000_000,
+    'gpt-5.4-mini': 400_000,
+    'gpt-5.5': 1_000_000,
+    'gpt-5.6-luna': 1_000_000,
+    'gpt-5.6-sol': 1_000_000,
+    'gpt-5.6-terra': 1_000_000,
+  })
+
+  contextMode = CONTEXT_MODE_CUSTOM
+  perModel.set('gpt-5.4-mini', 300_000)
+  perModel.set('gpt-5.6', 750_000)
+  assert.deepEqual(contexts(), {
+    'gpt-5.3-codex-spark': 128_000,
+    'gpt-5.4': 500_000,
+    'gpt-5.4-mini': 300_000,
+    'gpt-5.5': 500_000,
+    'gpt-5.6-luna': 750_000,
+    'gpt-5.6-sol': 750_000,
+    'gpt-5.6-terra': 750_000,
+  })
+
+  customContextWindow = 64_000
+  assert.equal(contexts()['gpt-5.4'], 128_000)
+  perModel.set('gpt-5.4-mini', 200_000)
+  assert.equal(contexts()['gpt-5.4-mini'], 200_000)
 })

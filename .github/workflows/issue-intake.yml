@@ -1,15 +1,15 @@
-name: Issue intake acknowledgement
+name: Issue intake
 
 on:
   issues:
-    types: [opened]
+    types: [opened, edited]
 
 permissions:
   contents: read
   issues: write
 
 jobs:
-  acknowledge:
+  intake:
     if: github.event.issue.user.type != 'Bot'
     runs-on: ubuntu-latest
     timeout-minutes: 3
@@ -17,17 +17,52 @@ jobs:
       - uses: actions/github-script@v8
         with:
           script: |
-            const marker = '<!-- dsh-maintenance-ack -->'
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               per_page: 100,
             })
-            if (comments.some(comment => comment.body?.includes(marker))) return
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: `${marker}\nThanks for the detailed report. It has entered the maintenance queue and will be reproduced and reviewed against the supported release before any fix or closure decision.\n\n感谢你提供详细信息。问题已进入维护队列；在修复或关闭前，会先基于受支持版本复现并审核。`,
-            })
+            const commentOnce = async (marker, body) => {
+              if (comments.some(comment => comment.body?.includes(marker))) return
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `${marker}\n${body}`,
+              })
+            }
+
+            if (context.payload.action === 'opened') {
+              await commentOnce(
+                '<!-- dsh-maintenance-ack -->',
+                'Thanks for the report. It will be reproduced and reviewed against the supported release before any fix or closure decision.',
+              )
+            }
+
+            const isBug = context.payload.issue.labels?.some(label => (typeof label === 'string' ? label : label.name) === 'bug')
+            if (!isBug) return
+            const body = context.payload.issue.body ?? ''
+            const value = /^### Plugin version\s*\n+([^\n]+)/imu.exec(body)?.[1]?.trim()
+            if (value?.toLowerCase() === 'not installed') return
+            if (!/^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(value ?? '')) {
+              await commentOnce(
+                '<!-- dsh-version-check:missing -->',
+                'Please edit the report and provide the exact plugin version from Settings or `dsh plugin --profile web list dsh-codex-subscription --depth 0`. If installation never completed, enter `not installed`.',
+              )
+              return
+            }
+
+            const response = await fetch('https://registry.npmjs.org/dsh-codex-subscription/latest')
+            if (!response.ok) return
+            const latest = String((await response.json()).version ?? '')
+            const parts = version => version.replace(/^v/u, '').split(/[.-]/u).slice(0, 3).map(Number)
+            const [major, minor, patch] = parts(value)
+            const [latestMajor, latestMinor, latestPatch] = parts(latest)
+            const older = major < latestMajor || (major === latestMajor && (minor < latestMinor || (minor === latestMinor && patch < latestPatch)))
+            if (older) {
+              await commentOnce(
+                `<!-- dsh-version-check:outdated:${latest} -->`,
+                `This report uses ${value}; the current release is ${latest}. Please update and say whether the problem still reproduces.`,
+              )
+            }
