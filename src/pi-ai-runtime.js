@@ -2,7 +2,14 @@
 // The exact peer version makes a DSH update fail visibly until this seam is
 // re-audited instead of silently changing authentication or cache semantics.
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
-import { SPEED_MODE_FAST, supportsCodexFastMode } from './settings-contract.js'
+import {
+  CONTEXT_MODE_CUSTOM,
+  CONTEXT_MODE_EXTENDED,
+  customContextModelKey,
+  SPEED_MODE_FAST,
+  normalizeCustomContextWindow,
+  supportsCodexFastMode,
+} from './settings-contract.js'
 
 const FAST_SERVICE_TIER = 'priority'
 
@@ -21,7 +28,21 @@ export { createOpenAICodexProvider as openaiCodexProvider }
  * persistence, headers, transport, and model behavior remain owned by the
  * original provider.
  */
-export function openaiCodexSubscriptionProvider({ resolveSpeedMode = () => undefined } = {}) {
+const EXTENDED_CONTEXT_WINDOWS = Object.freeze({
+  'gpt-5.4': 1_000_000,
+  'gpt-5.4-mini': 400_000,
+  'gpt-5.5': 1_000_000,
+  'gpt-5.6-luna': 1_000_000,
+  'gpt-5.6-sol': 1_000_000,
+  'gpt-5.6-terra': 1_000_000,
+})
+
+export function openaiCodexSubscriptionProvider({
+  resolveSpeedMode = () => undefined,
+  resolveContextMode = () => undefined,
+  resolveCustomContextWindow = () => undefined,
+  runNetwork = (_area, operation) => operation(),
+} = {}) {
   const provider = createOpenAICodexProvider()
   const requestToken = Object.freeze({
     name: 'DSH-managed Codex OAuth request token',
@@ -44,11 +65,32 @@ export function openaiCodexSubscriptionProvider({ resolveSpeedMode = () => undef
       },
     }
   }
+  const getModels = () => provider.getModels().map(model => {
+    const maximum = EXTENDED_CONTEXT_WINDOWS[model.id]
+    const mode = resolveContextMode()
+    if (maximum === undefined || ![CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM].includes(mode)) return model
+    if (mode === CONTEXT_MODE_EXTENDED) {
+      return { ...model, contextWindow: Math.max(model.contextWindow, maximum) }
+    }
+    const requested = normalizeCustomContextWindow(resolveCustomContextWindow(customContextModelKey(model.id)), maximum)
+    return { ...model, contextWindow: requested }
+  })
+  const networkIterable = factory => {
+    let iterator
+    const getIterator = () => (iterator ??= factory()[Symbol.asyncIterator]())
+    return {
+      [Symbol.asyncIterator]() { return this },
+      next: value => runNetwork('model', () => getIterator().next(value)),
+      return: value => runNetwork('model', () => getIterator().return?.(value) ?? Promise.resolve({ done: true, value })),
+      throw: error => runNetwork('model', () => getIterator().throw?.(error) ?? Promise.reject(error)),
+    }
+  }
   return Object.freeze({
     ...provider,
     auth: Object.freeze({ ...provider.auth, apiKey: requestToken }),
-    stream: (model, context, options) => provider.stream(model, context, withSpeed(model, options)),
-    streamSimple: (model, context, options) => provider.streamSimple(model, context, withSpeed(model, options)),
+    getModels,
+    stream: (model, context, options) => networkIterable(() => provider.stream(model, context, withSpeed(model, options))),
+    streamSimple: (model, context, options) => networkIterable(() => provider.streamSimple(model, context, withSpeed(model, options))),
   })
 }
 

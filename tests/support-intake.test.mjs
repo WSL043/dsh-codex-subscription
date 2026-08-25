@@ -41,14 +41,17 @@ test('issue forms default to concise English without forced title prefixes', asy
   assert.match(feature, /^name: Feature request$/mu);
 });
 
-test("new issues receive one free, non-judgmental acknowledgement", async () => {
+test("bug issues receive one acknowledgement and bounded version guidance on open or edit", async () => {
   const workflow = await readFile(acknowledgementWorkflow, "utf8");
   assert.match(workflow, /issues:\s*write/);
-  assert.match(workflow, /types:\s*\[opened\]/);
+  assert.match(workflow, /types:\s*\[opened, edited\]/);
   assert.match(workflow, /dsh-maintenance-ack/);
+  assert.match(workflow, /dsh-version-check/);
+  assert.match(workflow, /### Plugin version/);
+  assert.match(workflow, /registry\.npmjs\.org\/dsh-codex-subscription\/latest/);
   assert.match(workflow, /github\.rest\.issues\.createComment/);
   assert.match(workflow, /reviewed against the supported release/);
-  assert.doesNotMatch(workflow, /close|state:\s*closed|merge/i);
+  assert.doesNotMatch(workflow, /schedule:|close|state:\s*closed|merge/i);
 });
 
 test("both public readmes link directly to the guided bug report", async () => {

@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  createCodexNetworkTransport,
   proxyFromEnvironment,
   resolveCodexOAuthProxy,
+  withCodexNetwork,
   withCodexOAuthNetwork,
 } from '../src/oauth-network.js'
 
@@ -82,4 +84,68 @@ test('concurrent OAuth attempts never inherit another attempt proxy', async () =
   } finally {
     globalThis.fetch = original
   }
+})
+
+test('concurrent Codex request scopes do not serialize a streaming model behind other features', async () => {
+  const original = globalThis.fetch
+  let releaseModel
+  let quotaStarted = false
+  globalThis.fetch = async input => new Response(`direct:${input}`)
+  try {
+    const model = withCodexNetwork(async () => {
+      await new Promise(resolve => { releaseModel = resolve })
+      return (await fetch('https://chatgpt.com/backend-api/codex/responses')).text()
+    }, { env: {} })
+    await new Promise(resolve => setImmediate(resolve))
+    const quota = withCodexNetwork(async () => {
+      quotaStarted = true
+      return (await fetch('https://chatgpt.com/backend-api/wham/usage')).text()
+    }, { env: {} })
+    await new Promise(resolve => setImmediate(resolve))
+    const overlapped = quotaStarted
+    releaseModel()
+    assert.deepEqual(await Promise.all([model, quota]), [
+      'direct:https://chatgpt.com/backend-api/codex/responses',
+      'direct:https://chatgpt.com/backend-api/wham/usage',
+    ])
+    assert.equal(overlapped, true)
+  } finally {
+    globalThis.fetch = original
+  }
+})
+
+test('Codex network adapts only official auth and subscription hosts to an existing proxy', async () => {
+  const original = globalThis.fetch
+  const calls = []
+  globalThis.fetch = async input => new Response(`direct:${input}`)
+  try {
+    const result = await withCodexNetwork(async () => {
+      const quota = await fetch('https://chatgpt.com/backend-api/wham/usage')
+      const unrelated = await fetch('https://example.test/')
+      return [await quota.text(), await unrelated.text()]
+    }, {
+      env: { HTTPS_PROXY: 'http://127.0.0.1:7890' },
+      fetchThroughProxy: async (input, _init, proxy) => {
+        calls.push({ input, proxy })
+        return new Response('proxied')
+      },
+    })
+    assert.deepEqual(result, ['proxied', 'direct:https://example.test/'])
+    assert.deepEqual(calls, [{ input: 'https://chatgpt.com/backend-api/wham/usage', proxy: 'http://127.0.0.1:7890/' }])
+  } finally {
+    globalThis.fetch = original
+  }
+})
+
+test('network diagnostics keep actionable request failures without proxy addresses', async () => {
+  const transport = createCodexNetworkTransport({
+    env: { HTTPS_PROXY: 'http://user:secret@127.0.0.1:7890' },
+    fetchThroughProxy: async () => new Response('', { status: 502 }),
+  })
+  const response = await transport.fetch('quota', 'https://chatgpt.com/backend-api/wham/usage')
+  assert.equal(response.status, 502)
+  assert.deepEqual(transport.snapshot(), {
+    quota: { status: 'failed', stage: 'http', code: 'http-error', httpStatus: 502, route: 'environment', elapsed: 'under-1s' },
+  })
+  assert.doesNotMatch(JSON.stringify(transport.snapshot()), /secret|127\.0\.0\.1|7890/u)
 })

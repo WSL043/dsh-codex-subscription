@@ -4,8 +4,17 @@ import test from 'node:test'
 import * as plugin from '../src/index.js'
 import { PACKAGE_VERSION } from '../src/version.js'
 import {
+  CONTEXT_MODE_CUSTOM,
+  CONTEXT_MODE_EXTENDED,
+  CONTEXT_MODE_STANDARD,
+  CUSTOM_CONTEXT_MODEL_DEFAULTS,
+  contextModelGroups,
+  CUSTOM_CONTEXT_WINDOW_FIELD,
+  CONTEXT_MODE_FIELD,
+  formatContextWindow,
   normalizeQuickQuotaMode,
   normalizeSearchProvider,
+  parseContextWindow,
   QUICK_QUOTA_MODE_BAR,
   QUICK_QUOTA_MODE_OFF,
   QUICK_QUOTA_MODE_PERCENT,
@@ -26,6 +35,44 @@ test('composer quota mode normalizes formal values and legacy booleans', () => {
   assert.equal(normalizeQuickQuotaMode('invalid', true), QUICK_QUOTA_MODE_PERCENT)
 })
 
+test('context settings expose safe presets and bounded custom values', async () => {
+  assert.equal(plugin.normalizeContextMode(CONTEXT_MODE_STANDARD), CONTEXT_MODE_STANDARD)
+  assert.equal(plugin.normalizeContextMode(CONTEXT_MODE_EXTENDED), CONTEXT_MODE_EXTENDED)
+  assert.equal(plugin.normalizeContextMode(CONTEXT_MODE_CUSTOM), CONTEXT_MODE_CUSTOM)
+  assert.equal(plugin.normalizeContextMode('unknown'), CONTEXT_MODE_STANDARD)
+  assert.equal(plugin.normalizeCustomContextWindow(500_000), 500_000)
+  assert.equal(plugin.normalizeCustomContextWindow(99), 128_000)
+  assert.equal(plugin.normalizeCustomContextWindow(2_000_000), 1_000_000)
+})
+
+test('custom context starts from the audited Codex default and accepts plain token counts', () => {
+  assert.deepEqual(CUSTOM_CONTEXT_MODEL_DEFAULTS, {
+    'gpt-5.4': 272_000,
+    'gpt-5.4-mini': 272_000,
+    'gpt-5.5': 272_000,
+    'gpt-5.6': 272_000,
+  })
+  assert.equal(formatContextWindow(1_000_000), '1M')
+  assert.equal(formatContextWindow(400_000), '400K')
+  assert.equal(parseContextWindow('750000'), 750_000)
+  assert.equal(parseContextWindow('272000'), 272_000)
+  assert.ok(Number.isNaN(parseContextWindow('750K')))
+  assert.ok(Number.isNaN(parseContextWindow('0.5M')))
+})
+
+test('custom context rows follow the active upstream model catalog', () => {
+  assert.deepEqual(contextModelGroups([
+    { id: 'gpt-5.4', name: 'GPT-5.4' },
+    { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol' },
+    { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' },
+    { id: 'gpt-5.3-codex-spark', name: 'GPT-5.3 Codex Spark' },
+  ]), [
+    { key: 'gpt-5.4', label: 'GPT-5.4', maximum: 1_000_000 },
+    { key: 'gpt-5.6', label: 'GPT-5.6 Sol / Terra', maximum: 1_000_000 },
+    { key: 'gpt-5.3-codex-spark', label: 'GPT-5.3 Codex Spark', maximum: 128_000, fixed: true },
+  ])
+})
+
 function fakeContext() {
   const registered = []
   const handled = []
@@ -34,7 +81,7 @@ function fakeContext() {
   const settings = []
   const webUpdates = []
   const provided = new Map()
-  let preference = { quickQuotaVisible: false, searchProvider: 'dsh', speedMode: SPEED_MODE_STANDARD }
+  let preference = { quickQuotaVisible: false, searchProvider: 'dsh', speedMode: SPEED_MODE_STANDARD, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 1_000_000, customContextGpt56: 1_000_000 }
   const preferenceWatchers = new Set()
   let credential
   const webEntry = {
@@ -144,6 +191,13 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
   const models = await host.registered[0].adapter.listModels('openai-codex')
   assert.ok(models.length > 0, 'the supported DSH adapter must receive auth before creating its model registry')
+  assert.equal((await host.registered[0].adapter.resolveModel('openai-codex', 'gpt-5.5')).context.contextWindow, 272_000)
+  await host.updateSettings({ [CONTEXT_MODE_FIELD]: CONTEXT_MODE_EXTENDED })
+  assert.equal((await host.registered[0].adapter.resolveModel('openai-codex', 'gpt-5.5')).context.contextWindow, 1_000_000)
+  await host.updateSettings({ [CONTEXT_MODE_FIELD]: CONTEXT_MODE_CUSTOM, customContextGpt54Mini: 400_000, customContextGpt55: 500_000 })
+  assert.equal((await host.registered[0].adapter.resolveModel('openai-codex', 'gpt-5.4-mini')).context.contextWindow, 400_000)
+  assert.equal((await host.registered[0].adapter.resolveModel('openai-codex', 'gpt-5.5')).context.contextWindow, 500_000)
+  await host.updateSettings({ [CONTEXT_MODE_FIELD]: CONTEXT_MODE_STANDARD, [CUSTOM_CONTEXT_WINDOW_FIELD]: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000 })
   assert.equal(host.handled.length, 1)
   assert.equal(host.handled[0].channel, '/codex-subscription')
   assert.deepEqual(host.handled[0].options, { authority: 'loopback' })
@@ -163,26 +217,15 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
   assert.deepEqual(diagnostics, {
     ok: true,
     value: {
-      schemaVersion: 2,
+      schemaVersion: 3,
       package: 'dsh-codex-subscription',
       version: PACKAGE_VERSION,
       runtime: { node: process.version, platform: process.platform, arch: process.arch },
       account: { status: 'signed-out' },
       login: { phase: 'idle' },
-      provider: {
-        id: 'openai-codex',
-        transport: 'sse',
-        cache: { owner: 'dsh/pi-ai', retention: 'short' },
-      },
-      capabilities: {
-        models: true,
-        quota: true,
-        search: true,
-        imageGeneration: true,
-        composerQuota: true,
-        speedMode: true,
-      },
+      requests: {},
       configuration: {
+        contextMode: CONTEXT_MODE_STANDARD,
         quickQuotaMode: QUICK_QUOTA_MODE_OFF,
         searchProvider: 'dsh',
         speedMode: SPEED_MODE_STANDARD,
@@ -202,18 +245,28 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
   }])
 
   const preferenceStatus = await host.handled[0].handler('preferences/status', {}, signal)
+  const activeContextModels = [
+    { key: 'gpt-5.3-codex-spark', label: 'GPT-5.3 Codex Spark', maximum: 128_000, fixed: true },
+    { key: 'gpt-5.4', label: 'GPT-5.4', maximum: 1_000_000 },
+    { key: 'gpt-5.4-mini', label: 'GPT-5.4 mini', maximum: 400_000 },
+    { key: 'gpt-5.5', label: 'GPT-5.5', maximum: 1_000_000 },
+    { key: 'gpt-5.6', label: 'GPT-5.6 Luna / Sol / Terra', maximum: 1_000_000 },
+  ]
   assert.deepEqual(preferenceStatus, {
     ok: true,
-    value: { quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, writable: true },
+    value: { quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000, contextModels: activeContextModels, writable: true },
   })
   const preferenceUpdate = await host.handled[0].handler('preferences/update', {
     quickQuotaMode: QUICK_QUOTA_MODE_BAR,
     searchProvider: 'dsh',
     speedMode: SPEED_MODE_FAST,
+    contextMode: CONTEXT_MODE_EXTENDED,
+    customContextWindow: 500_000,
+    customContextGpt54Mini: 400_000,
   }, signal)
   assert.deepEqual(preferenceUpdate, {
     ok: true,
-    value: { quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, writable: true },
+    value: { quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 272_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 272_000, contextModels: activeContextModels, writable: true },
   })
   assert.deepEqual(host.webUpdates.at(-1), {
     config: { searchProvider: 'deepseek-official', fetchProvider: 'local' },
@@ -302,6 +355,17 @@ test('diagnostics converts credential failures to a fixed public issue without l
   assert.deepEqual(report.account, { status: 'unknown' })
   assert.deepEqual(report.issues, [{ code: 'account-status-unavailable' }])
   assert.doesNotMatch(JSON.stringify(report), /refresh-secret|account-local/)
+})
+
+test('diagnostics includes bounded request failures and excludes proxy or credential details', async () => {
+  const report = await plugin.createSubscriptionDiagnostics({
+    auth: { async status() { return { authenticated: false } } },
+    preferences: { status: () => ({ contextMode: 'standard', quickQuotaMode: 'off', searchProvider: 'dsh', speedMode: 'standard', writable: true, ignored: 'noise' }) },
+    network: { snapshot: () => ({ login: { status: 'failed', stage: 'transport', code: 'dns', route: 'environment', elapsed: '1-5s' } }) },
+  })
+  assert.deepEqual(report.requests, { login: { status: 'failed', stage: 'transport', code: 'dns', route: 'environment', elapsed: '1-5s' } })
+  assert.equal('ignored' in report.configuration, false)
+  assert.doesNotMatch(JSON.stringify(report), /proxy|bearer|token|accountId/iu)
 })
 
 test('unknown browser search preferences fail safe to the DSH default', () => {

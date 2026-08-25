@@ -1,12 +1,25 @@
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { BoltIcon } from '@heroicons/react/16/solid'
-import { Button, IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, IconDownloadOutline16, IconFullscreenOutline16, Input } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, IconDownloadOutline16, IconFullscreenOutline16, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import {
+  CONTEXT_MODE_CUSTOM,
+  CONTEXT_MODE_EXTENDED,
+  CONTEXT_MODE_FIELD,
+  CONTEXT_MODE_STANDARD,
+  CUSTOM_CONTEXT_MODEL_CAPS,
+  CUSTOM_CONTEXT_MODEL_DEFAULTS,
+  CUSTOM_CONTEXT_MODEL_FIELDS,
+  CUSTOM_CONTEXT_WINDOW_FIELD,
+  MIN_CUSTOM_CONTEXT_WINDOW,
   LEGACY_QUICK_QUOTA_FIELD,
+  normalizeContextMode,
+  normalizeCustomContextWindow,
+  formatContextWindow,
   normalizeQuickQuotaMode,
   normalizeSpeedMode,
   normalizeSearchProvider,
+  parseContextWindow,
   QUICK_QUOTA_MODE_BAR,
   QUICK_QUOTA_MODE_FIELD,
   QUICK_QUOTA_MODE_OFF,
@@ -68,6 +81,9 @@ const zh = {
   creditsNote: '仅显示 Codex 为此账户或工作区实际返回的额外 Credits、消费上限或额度重置次数；三者不是同一项。',
   creditsUsed: '已用 {used} / {limit} credits', spendReached: 'Credits 月度消费上限已用尽。', unavailable: '暂无数据',
   quickQuotaSetting: '输入框额度', quickQuotaOff: '关闭', quickQuotaPercent: '百分比', quickQuotaBar: '进度条',
+  contextTitle: '上下文窗口', contextStandard: '标准', contextStandardHint: '使用模型目录默认值；官方 Agent 预设会自动管理上下文。',
+  contextExtended: '扩展', contextExtendedHint: '按模型使用 400K 或 1M；超过 272K 后可能消耗更多额度。',
+  contextCustom: '自定义', contextCustomHint: '输入完整 Token 数值；较低数值会让官方 Agent 预设更早压缩上下文。', contextTokens: 'Token 上限', contextFixed: '固定 {value}', contextMaximum: '范围 128000–{value}',
   quickQuotaStatus: 'Codex 剩余额度 {value}%',
   speedTitle: '速度', speedStandard: '标准', speedStandardHint: '标准速度',
   speedFast: '高速', speedFastHint: '1.5 倍，消耗更多 Credits',
@@ -113,6 +129,9 @@ const en = {
   creditsNote: 'Shows only extra Credits, spending caps, or quota resets returned for this account or workspace; these are separate items.',
   creditsUsed: '{used} / {limit} credits used', spendReached: 'The monthly Credits spending cap has been reached.', unavailable: 'No data yet',
   quickQuotaSetting: 'Composer quota', quickQuotaOff: 'Off', quickQuotaPercent: 'Percent', quickQuotaBar: 'Progress bar',
+  contextTitle: 'Context window', contextStandard: 'Standard', contextStandardHint: 'Use the model catalog default; official agent presets manage context automatically.',
+  contextExtended: 'Extended', contextExtendedHint: 'Uses 400K or 1M by model; usage above 272K may consume more quota.',
+  contextCustom: 'Custom', contextCustomHint: 'Enter the full token count; lower values make official agent presets compact sooner.', contextTokens: 'Token limit', contextFixed: 'Fixed {value}', contextMaximum: '128000–{value}',
   quickQuotaStatus: 'Codex quota: {value}% remaining',
   speedTitle: 'Speed', speedStandard: 'Standard', speedStandardHint: 'Standard speed',
   speedFast: 'Fast', speedFastHint: '1.5x; higher Credits use',
@@ -132,6 +151,7 @@ const STYLE = `
 .codexSubscriptionCard{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-1);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
 .codexSubscriptionUsageCard{padding:12px 14px;gap:9px}.codexSubscriptionPreferencesCard{padding:12px 14px;gap:10px}.codexSubscriptionPreference{min-height:32px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}.codexSubscriptionPreferenceCopy{display:flex;min-width:0;flex-direction:column;gap:2px}.codexSubscriptionPreferenceLabel{display:flex;align-items:center;gap:6px}
 .codexSubscriptionQuotaModes{display:flex;align-items:center;gap:3px;padding:2px;border-radius:9px;background:var(--dsw-alias-bg-module-platform)}.codexSubscriptionQuotaMode{position:relative;display:flex;align-items:center;justify-content:center;min-height:26px;padding:0 9px;border-radius:7px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;cursor:pointer}.codexSubscriptionQuotaMode:has(input:checked){background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);box-shadow:0 0 0 1px var(--dsw-alias-border-l3)}.codexSubscriptionQuotaMode:has(input:focus-visible){outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px}.codexSubscriptionQuotaMode:has(input:disabled){cursor:not-allowed;opacity:.5}.codexSubscriptionQuotaMode input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.codexSubscriptionContext{display:flex;flex-direction:column;gap:8px}.codexSubscriptionContextHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.codexSubscriptionContextCopy{display:flex;min-width:0;flex:1;flex-direction:column;gap:2px}.codexSubscriptionContextHint{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionContextTrigger{height:32px;min-width:108px;display:inline-flex;align-items:center;justify-content:space-between;gap:10px;padding:0 10px 0 12px;border:0;border-radius:999px;outline:0;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}.codexSubscriptionContextTrigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.codexSubscriptionContextTrigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}.codexSubscriptionContextTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:not-allowed}.codexSubscriptionContextTrigger svg{color:var(--dsw-alias-label-tertiary);transition:transform 120ms var(--ds-ease-in-out)}.codexSubscriptionContextTrigger[aria-expanded=true] svg{transform:rotate(180deg)}.codexSubscriptionContextModels{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.codexSubscriptionContextModel{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--dsw-alias-border-l2)}.codexSubscriptionContextModel:last-child{border-bottom:0}.codexSubscriptionContextModelCopy{display:flex;min-width:0;flex-direction:column}.codexSubscriptionContextModelCopy strong{font-size:12px;line-height:18px;font-weight:500}.codexSubscriptionContextModelCopy span{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionContextInput{width:116px}
 .codexSubscriptionSwitch{position:relative;flex:0 0 auto;width:32px;height:18px;padding:0;border:1px solid var(--dsw-alias-border-l3);border-radius:999px;background:var(--dsw-alias-bg-module-platform);cursor:pointer}.codexSubscriptionSwitch:disabled{cursor:not-allowed;opacity:.5}.codexSubscriptionSwitch[aria-checked=true]{background:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-label-secondary)}.codexSubscriptionSwitchKnob{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--dsw-alias-bg-layer-1);transition:transform 120ms var(--ds-ease-in-out)}.codexSubscriptionSwitch[aria-checked=true] .codexSubscriptionSwitchKnob{transform:translateX(14px)}
 .codexSubscriptionSearch{display:flex;flex-direction:column;gap:7px}.codexSubscriptionSearchChoices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.codexSubscriptionSearchChoice{display:grid;grid-template-columns:14px minmax(0,1fr);align-items:center;column-gap:8px;min-width:0;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);padding:9px 10px;text-align:left;cursor:pointer}.codexSubscriptionSearchChoice:has(input:disabled){cursor:not-allowed;opacity:.5}.codexSubscriptionSearchChoice:has(input:checked){border-color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}.codexSubscriptionSearchChoice:has(input:focus-visible){outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}.codexSubscriptionSearchInput{width:14px;height:14px;margin:0;accent-color:var(--dsw-alias-label-primary);cursor:inherit}.codexSubscriptionSearchCopy{display:block;min-width:0;pointer-events:none}.codexSubscriptionSearchCopy strong,.codexSubscriptionSearchCopy span{display:block}.codexSubscriptionSearchCopy strong{font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary)}.codexSubscriptionSearchChoice:has(input:checked) strong{color:var(--dsw-alias-label-primary)}.codexSubscriptionSearchCopy span{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionDivider{height:1px;background:var(--dsw-alias-border-l2)}
 .codexSubscriptionAccountRow,.codexSubscriptionSectionHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.codexSubscriptionStatus{display:flex;align-items:center;gap:8px;font-size:14px;line-height:22px;font-weight:500}
@@ -382,6 +402,7 @@ function createPreferenceController(scope, rpc) {
   let fallback
   let failedPatch
   let generation = 0
+  let contextModels = []
   const nativeSnapshot = () => scope.getSnapshot()
   const read = () => {
     const native = nativeSnapshot()
@@ -398,6 +419,10 @@ function createPreferenceController(scope, rpc) {
       ),
       searchProvider: normalizeSearchProvider(current.value?.[SEARCH_PROVIDER_FIELD]),
       speedMode: normalizeSpeedMode(current.value?.[SPEED_MODE_FIELD]),
+      contextMode: normalizeContextMode(current.value?.[CONTEXT_MODE_FIELD]),
+      customContextWindow: normalizeCustomContextWindow(current.value?.[CUSTOM_CONTEXT_WINDOW_FIELD]),
+      customContextWindows: Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [modelKey, normalizeCustomContextWindow(current.value?.[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])])),
+      contextModels,
       writable: !updating && current.status === 'ready' && current.writable === true,
       error,
     })
@@ -414,6 +439,7 @@ function createPreferenceController(scope, rpc) {
     publish()
   })
   const acceptFallback = value => {
+    contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
     fallbackStatus = 'ready'
     fallback = {
       status: 'ready',
@@ -424,6 +450,9 @@ function createPreferenceController(scope, rpc) {
         ),
         [SEARCH_PROVIDER_FIELD]: normalizeSearchProvider(value?.[SEARCH_PROVIDER_FIELD]),
         [SPEED_MODE_FIELD]: normalizeSpeedMode(value?.[SPEED_MODE_FIELD]),
+        [CONTEXT_MODE_FIELD]: normalizeContextMode(value?.[CONTEXT_MODE_FIELD]),
+        [CUSTOM_CONTEXT_WINDOW_FIELD]: normalizeCustomContextWindow(value?.[CUSTOM_CONTEXT_WINDOW_FIELD]),
+        ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [field, normalizeCustomContextWindow(value?.[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])])),
       },
       writable: value?.writable === true,
     }
@@ -436,11 +465,11 @@ function createPreferenceController(scope, rpc) {
     error = false
     publish()
     const native = nativeSnapshot()
-    if (native.status === 'ready') return
     try {
       const value = unwrap(await rpc.call(CHANNEL, 'preferences/status', {}))
-      if (current !== generation || nativeSnapshot().status === 'ready') return
-      acceptFallback(value)
+      if (current !== generation) return
+      if (nativeSnapshot().status === 'ready') contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
+      else acceptFallback(value)
       publish()
     } catch {
       if (current !== generation || nativeSnapshot().status === 'ready') return
@@ -570,10 +599,50 @@ function SearchProviderPreference({ preference, t }) {
   </div>
 }
 
+function ContextWindowPreference({ preference, t }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  const writable = snapshot.status === 'ready' && snapshot.writable === true
+  const [menuOpen, setMenuOpen] = useState(false)
+  const modelRows = snapshot.contextModels.filter(model => model.fixed !== true)
+  const fixedRows = snapshot.contextModels.filter(model => model.fixed === true)
+  const [drafts, setDrafts] = useState({})
+  useEffect(() => setDrafts(Object.fromEntries(modelRows.map(model => [model.key, String(snapshot.customContextWindows[model.key])]))), [snapshot.customContextWindows, snapshot.contextModels])
+  const hint = snapshot.contextMode === CONTEXT_MODE_EXTENDED
+    ? t('contextExtendedHint')
+    : snapshot.contextMode === CONTEXT_MODE_CUSTOM
+      ? t('contextCustomHint')
+      : t('contextStandardHint')
+  const commit = modelKey => {
+    const parsed = parseContextWindow(drafts[modelKey])
+    if (!Number.isInteger(parsed)) {
+      setDrafts(current => ({ ...current, [modelKey]: String(snapshot.customContextWindows[modelKey]) }))
+      return
+    }
+    const value = normalizeCustomContextWindow(parsed, CUSTOM_CONTEXT_MODEL_CAPS[modelKey])
+    setDrafts(current => ({ ...current, [modelKey]: String(value) }))
+    if (value !== snapshot.customContextWindows[modelKey]) void preference.set({ [CUSTOM_CONTEXT_MODEL_FIELDS[modelKey]]: value })
+  }
+  const contextModeItems = [
+    { id: CONTEXT_MODE_STANDARD, label: t('contextStandard') },
+    { id: CONTEXT_MODE_EXTENDED, label: t('contextExtended') },
+    { id: CONTEXT_MODE_CUSTOM, label: t('contextCustom') },
+  ]
+  const selectedMode = contextModeItems.find(item => item.id === snapshot.contextMode)?.label ?? t('contextStandard')
+  return <div className="codexSubscriptionContext">
+    <div className="codexSubscriptionContextHead">
+      <div className="codexSubscriptionContextCopy"><span className="codexSubscriptionPreferenceLabel">{t('contextTitle')}</span><span className="codexSubscriptionContextHint">{hint}</span></div>
+      <Menu open={menuOpen} items={contextModeItems} selectedId={snapshot.contextMode} onSelect={value => { setMenuOpen(false); void preference.set({ [CONTEXT_MODE_FIELD]: value }) }} onClose={() => setMenuOpen(false)} align="end" side="bottom" portal compact anchor={<button className="codexSubscriptionContextTrigger" type="button" aria-label={t('contextTitle')} aria-haspopup="menu" aria-expanded={menuOpen} disabled={!writable} onClick={() => setMenuOpen(value => !value)}><span>{selectedMode}</span><IconChevronDownOutline14 /></button>} />
+    </div>
+    {snapshot.contextMode === CONTEXT_MODE_CUSTOM ? <div className="codexSubscriptionContextModels">{modelRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextMaximum'), { value: String(model.maximum) })}</span></span><Input aria-label={`${model.label} ${t('contextTokens')}`} className="codexSubscriptionContextInput" type="number" inputMode="numeric" min={MIN_CUSTOM_CONTEXT_WINDOW} max={model.maximum} step={1} value={drafts[model.key] ?? ''} disabled={!writable} onChange={event => { const nextValue = event.currentTarget.value; setDrafts(current => ({ ...current, [model.key]: nextValue })) }} onBlur={() => commit(model.key)} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /></div>)}{fixedRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextFixed'), { value: formatContextWindow(model.maximum) })}</span></span><span className="codexSubscriptionContextHint">{formatContextWindow(model.maximum)}</span></div>)}</div> : null}
+  </div>
+}
+
 function PreferencesCard({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   return <div className="codexSubscriptionCard codexSubscriptionPreferencesCard">
     <SearchProviderPreference preference={preference} t={t} />
+    <div className="codexSubscriptionDivider" />
+    <ContextWindowPreference preference={preference} t={t} />
     <div className="codexSubscriptionDivider" />
     <QuickQuotaPreference preference={preference} t={t} />
     {snapshot.error ? <div className="codexSubscriptionRecover" role="alert"><p className="codexSubscriptionError">{t('preferenceFailed')}</p><Button type="button" variant="outline" onClick={() => { void preference.retry() }}>{t('preferenceRetry')}</Button></div> : null}

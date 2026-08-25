@@ -7,7 +7,7 @@ import z from '@deepseek-ai/schemastery'
 import { createCodexAuthService, DshOAuthCredentialStore } from './credential-store.js'
 import { openCodexAuthUrl } from './external-url.js'
 import { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinator.js'
-import { withCodexOAuthNetwork } from './oauth-network.js'
+import { createCodexNetworkTransport } from './oauth-network.js'
 import {
   createModels,
   openaiCodexSubscriptionProvider,
@@ -16,6 +16,17 @@ import { CODEX_SEARCH_PROVIDER_ID, createCodexSearchProvider } from './codex-sea
 import { createCodexImageTool } from './codex-images.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
 import {
+  CONTEXT_MODE_CUSTOM,
+  CONTEXT_MODE_EXTENDED,
+  CONTEXT_MODE_FIELD,
+  CONTEXT_MODE_STANDARD,
+  contextModelGroups,
+  CUSTOM_CONTEXT_MODEL_CAPS,
+  CUSTOM_CONTEXT_MODEL_DEFAULTS,
+  CUSTOM_CONTEXT_MODEL_FIELDS,
+  CUSTOM_CONTEXT_WINDOW_FIELD,
+  DEFAULT_CONTEXT_MODE,
+  DEFAULT_CUSTOM_CONTEXT_WINDOW,
   LEGACY_QUICK_QUOTA_FIELD,
   normalizeQuickQuotaMode,
   DEFAULT_SEARCH_PROVIDER,
@@ -31,6 +42,8 @@ import {
   SPEED_MODE_FAST,
   SPEED_MODE_FIELD,
   SPEED_MODE_STANDARD,
+  normalizeContextMode,
+  normalizeCustomContextWindow,
 } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 import { createCodexResetCreditService } from './reset-credits.js'
@@ -86,6 +99,25 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
               return publicError('internal', 'Invalid speed mode preference')
             }
             patch[SPEED_MODE_FIELD] = payload[SPEED_MODE_FIELD]
+          }
+          if (Object.hasOwn(payload ?? {}, CONTEXT_MODE_FIELD)) {
+            if (![CONTEXT_MODE_STANDARD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM].includes(payload[CONTEXT_MODE_FIELD])) {
+              return publicError('internal', 'Invalid context mode preference')
+            }
+            patch[CONTEXT_MODE_FIELD] = payload[CONTEXT_MODE_FIELD]
+          }
+          if (Object.hasOwn(payload ?? {}, CUSTOM_CONTEXT_WINDOW_FIELD)) {
+            if (normalizeCustomContextWindow(payload[CUSTOM_CONTEXT_WINDOW_FIELD]) !== payload[CUSTOM_CONTEXT_WINDOW_FIELD]) {
+              return publicError('internal', 'Invalid custom context window')
+            }
+            patch[CUSTOM_CONTEXT_WINDOW_FIELD] = payload[CUSTOM_CONTEXT_WINDOW_FIELD]
+          }
+          for (const [modelKey, field] of Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS)) {
+            if (!Object.hasOwn(payload ?? {}, field)) continue
+            if (normalizeCustomContextWindow(payload[field], CUSTOM_CONTEXT_MODEL_CAPS[modelKey]) !== payload[field]) {
+              return publicError('internal', 'Invalid custom model context window')
+            }
+            patch[field] = payload[field]
           }
           if (Object.keys(patch).length === 0) {
             return publicError('internal', 'Invalid preference update')
@@ -186,8 +218,21 @@ export function apply(ctx) {
     [LEGACY_QUICK_QUOTA_FIELD]: z.boolean(),
     [SEARCH_PROVIDER_FIELD]: z.union([SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX]).default(DEFAULT_SEARCH_PROVIDER),
     [SPEED_MODE_FIELD]: z.union([SPEED_MODE_STANDARD, SPEED_MODE_FAST]).default(DEFAULT_SPEED_MODE),
+    [CONTEXT_MODE_FIELD]: z.union([CONTEXT_MODE_STANDARD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM]).default(DEFAULT_CONTEXT_MODE),
+    [CUSTOM_CONTEXT_WINDOW_FIELD]: z.number().step(1).min(128_000).max(1_000_000).default(DEFAULT_CUSTOM_CONTEXT_WINDOW),
+    ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [field, z.number().step(1).min(128_000).max(CUSTOM_CONTEXT_MODEL_CAPS[modelKey]).default(CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey])])),
   }))
   const searchProvider = createSearchProviderSwitcher(ctx.loader)
+  const network = createCodexNetworkTransport()
+  const provider = openaiCodexSubscriptionProvider({
+    resolveSpeedMode: () => settings.get()[SPEED_MODE_FIELD],
+    resolveContextMode: () => normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]),
+    resolveCustomContextWindow: modelKey => {
+      const field = CUSTOM_CONTEXT_MODEL_FIELDS[modelKey]
+      return normalizeCustomContextWindow(settings.get()[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])
+    },
+    runNetwork: network.run,
+  })
   const preferences = {
     status: () => ({
       [QUICK_QUOTA_MODE_FIELD]: normalizeQuickQuotaMode(
@@ -196,15 +241,16 @@ export function apply(ctx) {
       ),
       [SEARCH_PROVIDER_FIELD]: settings.get()[SEARCH_PROVIDER_FIELD],
       [SPEED_MODE_FIELD]: settings.get()[SPEED_MODE_FIELD],
+      [CONTEXT_MODE_FIELD]: normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]),
+      [CUSTOM_CONTEXT_WINDOW_FIELD]: normalizeCustomContextWindow(settings.get()[CUSTOM_CONTEXT_WINDOW_FIELD]),
+      ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [field, normalizeCustomContextWindow(settings.get()[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])])),
+      contextModels: contextModelGroups(provider.getModels()),
       writable: ctx.settings.writable,
     }),
     update: patch => settings.update(patch),
   }
 
   const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF])
-  const provider = openaiCodexSubscriptionProvider({
-    resolveSpeedMode: () => settings.get()[SPEED_MODE_FIELD],
-  })
   const authModels = createModels({ credentials: store })
   authModels.setProvider(provider)
   const profile = Object.freeze({
@@ -225,7 +271,16 @@ export function apply(ctx) {
     // session only. SSE avoids cross-account connection reuse after sign-out.
     transport: 'sse',
   })
-  const profiles = new Map([[PROVIDER, profile]])
+  let profileKey
+  let profileSnapshot
+  const profiles = () => {
+    const key = [normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]), ...Object.values(CUSTOM_CONTEXT_MODEL_FIELDS).map(field => settings.get()[field])].join(':')
+    if (key !== profileKey) {
+      profileKey = key
+      profileSnapshot = new Map([[PROVIDER, profile]])
+    }
+    return profileSnapshot
+  }
   const resolveAuth = () => authModels.getAuth(PROVIDER)
   const adapterAuth = Object.freeze({
     credentials: store,
@@ -238,9 +293,10 @@ export function apply(ctx) {
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     attachments: ctx.attachments,
+    fetch: (input, init) => network.fetch('image', input, init),
   }))
   const adapter = new PiAiAdapter({
-    profiles: () => profiles,
+    profiles,
     resolveApiKey: async () => {
       let resolved
       try {
@@ -266,6 +322,7 @@ export function apply(ctx) {
       return request?.provider === PROVIDER ? request.model : undefined
     },
     resolveSessionId: () => currentAgent()?.session.id,
+    fetch: (input, init) => network.fetch('search', input, init),
   }))
   ctx.effect(() => {
     const select = async value => {
@@ -279,23 +336,25 @@ export function apply(ctx) {
     return settings.watch(select)
   }, 'codex-subscription: search provider selection')
 
-  const auth = createCodexAuthService(authModels, store, { runLogin: withCodexOAuthNetwork })
+  const auth = createCodexAuthService(authModels, store, { runLogin: operation => network.run('login', operation) })
   const coordinator = new CodexLoginCoordinator(auth)
   const usageReader = createCodexUsageReader({
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
+    fetch: (input, init) => network.fetch('quota', input, init),
   })
   const resetCreditService = createCodexResetCreditService({
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     usageReader,
+    fetch: (input, init) => network.fetch('quota-reset', input, init),
   })
   const handler = createSubscriptionRpcHandler({
     authHandler: createCodexRpcHandler(coordinator, { openExternal: openCodexAuthUrl }),
     usageReader,
     resetCreditService,
     preferences,
-    diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState() }),
+    diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network }),
   })
 
   ctx.effect(
@@ -306,6 +365,7 @@ export function apply(ctx) {
 
 export { createCodexAuthService, DshOAuthCredentialStore } from './credential-store.js'
 export { createSubscriptionDiagnostics } from './diagnostics.js'
+export { normalizeContextMode, normalizeCustomContextWindow } from './settings-contract.js'
 export { assertCodexAuthUrl, commandForCodexAuthUrl, openCodexAuthUrl } from './external-url.js'
 export { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinator.js'
 export { CODEX_USAGE_URL, createCodexUsageReader, parseCodexUsage } from './usage.js'

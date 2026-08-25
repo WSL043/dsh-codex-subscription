@@ -1,14 +1,20 @@
 import { execFile } from 'node:child_process'
 import { request as httpsRequest } from 'node:https'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { Readable } from 'node:stream'
 import { promisify } from 'node:util'
 
 import { HttpsProxyAgent } from 'https-proxy-agent'
 
 const execFileAsync = promisify(execFile)
 const CODEX_AUTH_HOST = 'auth.openai.com'
-const MAX_RESPONSE_BYTES = 2 * 1024 * 1024
+const CODEX_SUBSCRIPTION_HOST = 'chatgpt.com'
+const CODEX_HOSTS = new Set([CODEX_AUTH_HOST, CODEX_SUBSCRIPTION_HOST])
 
-let patchQueue = Promise.resolve()
+const networkScope = new AsyncLocalStorage()
+let activeScopes = 0
+let baseFetch
+let scopedFetch
 
 function normalizeProxy(raw) {
   if (typeof raw !== 'string' || raw.trim() === '') return undefined
@@ -79,12 +85,24 @@ async function macSystemProxy(options = {}) {
 }
 
 export async function resolveCodexOAuthProxy(options = {}) {
-  const envProxy = proxyFromEnvironment(options.env)
-  if (envProxy) return envProxy
+  return (await resolveCodexProxy(options)).url
+}
+
+async function resolveCodexProxy(options = {}) {
+  const target = options.target ?? new URL(`https://${CODEX_AUTH_HOST}/`)
+  const env = options.env ?? process.env
+  if (bypassesProxy(target.hostname.toLowerCase(), target.port || '443', env.NO_PROXY ?? env.no_proxy)) {
+    return { url: undefined, source: 'bypass' }
+  }
+  const envProxy = proxyFromEnvironment(env, target)
+  if (envProxy) return { url: envProxy, source: 'environment' }
   const platform = options.platform ?? process.platform
-  if (platform === 'win32') return windowsSystemProxy(options)
-  if (platform === 'darwin') return macSystemProxy(options)
-  return undefined
+  const system = platform === 'win32'
+    ? await windowsSystemProxy(options)
+    : platform === 'darwin'
+      ? await macSystemProxy(options)
+      : undefined
+  return system ? { url: system, source: 'system' } : { url: undefined, source: 'direct' }
 }
 
 function bodyBytes(body) {
@@ -107,21 +125,18 @@ export function fetchThroughProxy(input, init, proxyUrl) {
       agent: new HttpsProxyAgent(proxyUrl),
       signal: init?.signal,
     }, response => {
-      const chunks = []
-      let total = 0
-      response.on('data', chunk => {
-        total += chunk.length
-        if (total > MAX_RESPONSE_BYTES) {
-          request.destroy(new Error('Codex OAuth response exceeded the safety limit'))
-          return
-        }
-        chunks.push(chunk)
-      })
-      response.on('end', () => resolve(new Response(Buffer.concat(chunks), {
-        status: response.statusCode ?? 500,
+      const responseHeaders = new Headers()
+      for (const [name, value] of Object.entries(response.headers)) {
+        if (Array.isArray(value)) value.forEach(item => responseHeaders.append(name, item))
+        else if (value !== undefined) responseHeaders.set(name, value)
+      }
+      const status = response.statusCode ?? 500
+      const empty = init?.method === 'HEAD' || [204, 205, 304].includes(status)
+      resolve(new Response(empty ? null : Readable.toWeb(response), {
+        status,
         statusText: response.statusMessage,
-        headers: response.headers,
-      })))
+        headers: responseHeaders,
+      }))
     })
     request.on('error', reject)
     if (body) request.write(body)
@@ -129,30 +144,85 @@ export function fetchThroughProxy(input, init, proxyUrl) {
   })
 }
 
-export async function withCodexOAuthNetwork(run, options = {}) {
-  const previous = patchQueue
-  let release
-  patchQueue = new Promise(resolve => { release = resolve })
-  await previous
-
-  const proxyUrl = await resolveCodexOAuthProxy(options)
-  const original = globalThis.fetch
-  const proxyFetch = options.fetchThroughProxy ?? fetchThroughProxy
-  const wrapper = proxyUrl
-    ? (input, init) => {
-        const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url)
-        return target.protocol === 'https:' && target.hostname === CODEX_AUTH_HOST
-          ? proxyFetch(input, init, proxyUrl)
-          : original(input, init)
+export async function withCodexNetwork(run, options = {}) {
+  if (activeScopes === 0) {
+    baseFetch = globalThis.fetch
+    scopedFetch = async (input, init) => {
+      const scope = networkScope.getStore()
+      if (scope === undefined) return baseFetch(input, init)
+      const { options: scopedOptions, allowedHosts, resolved } = scope
+      const proxyFetch = scopedOptions.fetchThroughProxy ?? fetchThroughProxy
+      const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url)
+      if (target.protocol !== 'https:' || !allowedHosts.has(target.hostname)) return baseFetch(input, init)
+      let proxy = resolved.get(target.hostname)
+      if (proxy === undefined) {
+        proxy = resolveCodexProxy({ ...scopedOptions, target })
+        resolved.set(target.hostname, proxy)
       }
-    : original
-  globalThis.fetch = wrapper
-  try {
-    return await run()
-  } finally {
-    if (globalThis.fetch === wrapper) {
-      globalThis.fetch = original
+      const route = await proxy
+      scopedOptions.onRoute?.(route.source)
+      return route.url === undefined ? baseFetch(input, init) : proxyFetch(input, init, route.url)
     }
-    release()
+    globalThis.fetch = scopedFetch
   }
+  activeScopes += 1
+  const scope = {
+    options,
+    allowedHosts: options.hosts ?? CODEX_HOSTS,
+    resolved: new Map(),
+  }
+  try {
+    return await networkScope.run(scope, run)
+  } finally {
+    activeScopes -= 1
+    if (activeScopes === 0) {
+      if (globalThis.fetch === scopedFetch) globalThis.fetch = baseFetch
+      baseFetch = undefined
+      scopedFetch = undefined
+    }
+  }
+}
+
+export const withCodexOAuthNetwork = (run, options = {}) => withCodexNetwork(run, {
+  ...options,
+  hosts: new Set([CODEX_AUTH_HOST]),
+})
+
+function classifyTransportError(error) {
+  const name = error?.name
+  const code = String(error?.code ?? error?.cause?.code ?? '')
+  if (name === 'AbortError' || name === 'TimeoutError' || /ETIMEDOUT|UND_ERR_CONNECT_TIMEOUT/u.test(code)) return 'timeout'
+  if (/ENOTFOUND|EAI_AGAIN/u.test(code)) return 'dns'
+  if (/CERT_|TLS|SSL/u.test(code)) return 'tls'
+  if (/ECONN|EPIPE|UND_ERR_SOCKET/u.test(code)) return 'connection'
+  return 'network'
+}
+
+const elapsedBucket = elapsed => elapsed < 1_000 ? 'under-1s' : elapsed < 5_000 ? '1-5s' : elapsed < 15_000 ? '5-15s' : 'over-15s'
+
+export function createCodexNetworkTransport(options = {}) {
+  const attempts = new Map()
+  const now = options.now ?? Date.now
+  const run = async (area, operation) => {
+    const startedAt = now()
+    let route = attempts.get(area)?.route ?? 'direct'
+    let routed = false
+    try {
+      const value = await withCodexNetwork(operation, { ...options, onRoute: source => { route = source; routed = true } })
+      if (value instanceof Response && !value.ok) {
+        attempts.set(area, { status: 'failed', stage: 'http', code: 'http-error', httpStatus: value.status, route, elapsed: elapsedBucket(now() - startedAt) })
+      } else if (routed || value instanceof Response) {
+        attempts.set(area, { status: 'ok', route, elapsed: elapsedBucket(now() - startedAt) })
+      }
+      return value
+    } catch (error) {
+      if (routed) attempts.set(area, { status: 'failed', stage: 'transport', code: classifyTransportError(error), route, elapsed: elapsedBucket(now() - startedAt) })
+      throw error
+    }
+  }
+  return Object.freeze({
+    run,
+    fetch: (area, input, init) => run(area, () => globalThis.fetch(input, init)),
+    snapshot: () => Object.fromEntries([...attempts].map(([area, value]) => [area, { ...value }])),
+  })
 }

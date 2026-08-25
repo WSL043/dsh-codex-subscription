@@ -22,10 +22,6 @@ on:
         description: Comma-separated merged contributor PR numbers to credit
         required: false
         type: string
-      reported_issues:
-        description: Comma-separated issue numbers to credit
-        required: false
-        type: string
       release_notes_en:
         description: English user-facing release summary (required for feature and bugfix releases)
         required: false
@@ -229,7 +225,6 @@ jobs:
           RELEASE_KIND: ${{ inputs.release_kind }}
           REQUESTED_DSH_VERSION: ${{ inputs.dsh_version }}
           CONTRIBUTOR_PRS: ${{ inputs.contributor_prs }}
-          REPORTED_ISSUES: ${{ inputs.reported_issues }}
           RELEASE_NOTES_EN: ${{ inputs.release_notes_en }}
           RELEASE_NOTES_ZH: ${{ inputs.release_notes_zh }}
           GH_TOKEN: ${{ github.token }}
@@ -264,31 +259,6 @@ jobs:
           NOTES
             done
           }
-          prepare_reporters() {
-            : > .release/reporters.en.md
-            : > .release/reporters.zh-CN.md
-            [[ -z "${REPORTED_ISSUES:-}" ]] && return 0
-            local raw_issue issue_number issue_json author number url
-            IFS=',' read -ra reported_issue_numbers <<< "$REPORTED_ISSUES"
-            for raw_issue in "${reported_issue_numbers[@]}"; do
-              issue_number="$(xargs <<< "$raw_issue")"
-              [[ "$issue_number" =~ ^[1-9][0-9]*$ ]] || {
-                echo "Invalid reported issue number: $raw_issue" >&2
-                return 1
-              }
-              issue_json="$(gh issue view "$issue_number" --repo "$GITHUB_REPOSITORY" --json author,number,url)"
-              author="$(jq -r '.author.login' <<< "$issue_json")"
-              number="$(jq -r '.number' <<< "$issue_json")"
-              url="$(jq -r '.url' <<< "$issue_json")"
-              test -n "$author"
-              cat >> .release/reporters.en.md <<NOTES
-          - Thanks to [@$author](https://github.com/$author) for reporting [#$number]($url).
-          NOTES
-              cat >> .release/reporters.zh-CN.md <<NOTES
-          - 感谢 [@$author](https://github.com/$author) 在 [#$number]($url) 报告问题。
-          NOTES
-            done
-          }
           append_contributors() {
             local language="$1" heading file
             if [[ "$language" == 'en' ]]; then
@@ -302,21 +272,7 @@ jobs:
             printf '\n## %s\n\n' "$heading" >> .release/install.md
             cat "$file" >> .release/install.md
           }
-          append_reporters() {
-            local language="$1" heading file
-            if [[ "$language" == 'en' ]]; then
-              heading='Issue reporters'
-              file=.release/reporters.en.md
-            else
-              heading='问题报告者'
-              file=.release/reporters.zh-CN.md
-            fi
-            [[ -s "$file" ]] || return 0
-            printf '\n## %s\n\n' "$heading" >> .release/install.md
-            cat "$file" >> .release/install.md
-          }
           prepare_contributors
-          prepare_reporters
           if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
             test -n "${REQUESTED_DSH_VERSION:-}"
             test "$REQUESTED_DSH_VERSION" = "$current_dsh"
@@ -346,7 +302,6 @@ jobs:
           \`\`\`
           NOTES
             append_contributors en
-            append_reporters en
             cat >> .release/install.md <<NOTES
 
           ## 中文
@@ -373,7 +328,6 @@ jobs:
           \`\`\`
           NOTES
             append_contributors zh-CN
-            append_reporters zh-CN
             exit 0
           fi
           if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
@@ -394,7 +348,6 @@ jobs:
             printf '\n%s\n' "$RELEASE_NOTES_EN" >> .release/install.md
           fi
           append_contributors en
-          append_reporters en
           cat >> .release/install.md <<'NOTES'
 
           <!-- dsh-codex-install -->
@@ -449,7 +402,6 @@ jobs:
             printf '\n%s\n' "$RELEASE_NOTES_ZH" >> .release/install.md
           fi
           append_contributors zh-CN
-          append_reporters zh-CN
           cat >> .release/install.md <<'NOTES'
 
           ## 安装

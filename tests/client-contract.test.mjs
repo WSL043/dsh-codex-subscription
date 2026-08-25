@@ -109,6 +109,35 @@ test('settings offer explicit search and formal composer quota display modes', a
   assert.doesNotMatch(source, /quickQuotaBeta/u)
 })
 
+test('settings offer ready-to-use context presets and keep custom limits out of the composer', async () => {
+  const source = await readFile(new URL('../src/client.jsx', import.meta.url), 'utf8')
+  const contract = await readFile(new URL('../src/settings-contract.js', import.meta.url), 'utf8')
+
+  assert.match(contract, /CONTEXT_MODE_STANDARD\s*=\s*['"]standard['"]/u)
+  assert.match(contract, /CONTEXT_MODE_EXTENDED\s*=\s*['"]extended['"]/u)
+  assert.match(contract, /CONTEXT_MODE_CUSTOM\s*=\s*['"]custom['"]/u)
+  assert.match(source, /function ContextWindowPreference/u)
+  assert.match(source, /<Menu[\s\S]*?selectedId=\{snapshot\.contextMode\}/u)
+  assert.match(source, /contextModeItems/u)
+  assert.doesNotMatch(source, /<select[^>]*codexSubscriptionContext/u)
+  assert.match(source, /contextStandardHint/u)
+  assert.match(source, /contextExtendedHint/u)
+  assert.match(source, /customContextWindow/u)
+  assert.match(source, /type=['"]number['"]/u)
+  assert.match(source, /inputMode=['"]numeric['"]/u)
+  assert.match(source, /min=\{MIN_CUSTOM_CONTEXT_WINDOW\}/u)
+  assert.match(source, /max=\{model\.maximum\}/u)
+  assert.match(source, /CUSTOM_CONTEXT_MODEL_CAPS\[modelKey\]/u)
+  assert.match(source, /snapshot\.contextModels/u)
+  assert.match(source, /formatContextWindow/u)
+  assert.match(source, /parseContextWindow/u)
+  assert.match(source, /const nextValue = event\.currentTarget\.value/u)
+  assert.doesNotMatch(source, /setDrafts\([^\n]*event\.currentTarget\.value/u, 'React must not retain a pooled input event inside a deferred state updater')
+
+  const composer = source.slice(source.indexOf('function CodexComposerQuota'), source.indexOf('function ModelOption'))
+  assert.doesNotMatch(composer, /customContextWindow|contextMode/u)
+})
+
 test('stable speed control is persisted inside the model menu and hidden from the composer while standard', async () => {
   const [client, host, contract] = await Promise.all([
     text('src/client.jsx'), text('src/index.js'), text('src/settings-contract.js'),
