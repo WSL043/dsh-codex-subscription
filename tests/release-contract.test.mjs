@@ -3,6 +3,11 @@ import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const text = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
+const pngDimensions = path => {
+  const png = readFileSync(new URL(`../${path}`, import.meta.url))
+  assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
+  return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) }
+}
 const manifest = JSON.parse(text('package.json'))
 const compatibility = JSON.parse(text('compatibility.json'))
 
@@ -112,6 +117,11 @@ test('GitHub defaults to English and links a complete separate Chinese README', 
   for (const asset of ['settings.png', 'settings-en.png']) {
     const png = readFileSync(new URL(`../docs/assets/${asset}`, import.meta.url))
     assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
+  }
+  for (const asset of ['context-settings.png', 'context-settings-en.png']) {
+    const { width, height } = pngDimensions(`docs/assets/${asset}`)
+    assert.ok(width >= 700, `${asset} must remain legible in the README`)
+    assert.ok(height >= 800, `${asset} must include the complete signed-in settings page`)
   }
   assert.equal(existsSync(new URL('../docs/assets/sidebar.png', import.meta.url)), false)
   assert.equal(existsSync(new URL('../docs/assets/sidebar-en.png', import.meta.url)), false)
