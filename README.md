@@ -48,7 +48,7 @@ DSH-Portable exposes the same standard plugin command, so the command above also
 | **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate |
 | **Composer quota** | Choose a compact percentage, progress bar, or no inline quota display |
 | **Safe quota reset** | See the next expiry and deliberately try a reset with a cooldown and acknowledgement |
-| **Subscription search** | Explicitly choose DSH default search or Codex subscription search |
+| **Subscription search** | Explicitly route search globally through DSH default search or the signed-in Codex subscription |
 | **Codex image generation and editing (Beta)** | Generate without references, or explicitly edit one selected image; preview, zoom, annotate regions, download the original, and continue in the same composer |
 | **Fast mode** | Switch between Standard and Fast directly in the composer |
 | **Model-aware context** | Keep catalog defaults, use each model's supported extended window, or enter a full numeric token limit for each model |
@@ -137,7 +137,7 @@ Restart DSH manually after installation, then:
 
 - ChatGPT OAuth sign-in with credentials kept on the host;
 - Codex models and Beta image generation/editing directly inside DSH conversations;
-- A clear choice between DSH default search and Codex subscription search;
+- A clear global choice between DSH default search and Codex subscription search; it applies to every model and session rather than following the selected model;
 - Actual backend-provided quota, reset time, and freshness;
 - Separate standard Codex, Codex-Spark, Credits, and other independent limits;
 - Visible quota-reset count and earliest expiry, with deliberate early redemption, layered confirmation, and no automatic retry;

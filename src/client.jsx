@@ -58,8 +58,9 @@ const zh = {
   failed: '登录失败，请重试。', loadFailed: '无法读取账户状态。', accountRetry: '重试',
   diagnostics: '支持诊断', diagnosticsHint: '生成不含凭据、账号标识和授权时间的诊断信息。', diagnosticsLoad: '生成诊断', diagnosticsCopy: '复制诊断', diagnosticsCopied: '已复制', diagnosticsFailed: '无法生成诊断信息。', feedbackOpen: '反馈问题',
   searchTitle: '搜索来源',
-  searchDsh: 'DSH 默认', searchDshHint: '当前搜索服务',
-  searchCodex: 'Codex 订阅', searchCodexHint: 'ChatGPT 订阅搜索',
+  searchScope: '此设置对所有模型和会话生效，不会随当前模型自动切换。',
+  searchDsh: 'DSH 默认', searchDshHint: '所有模型使用 DSH 当前搜索服务',
+  searchCodex: 'Codex 订阅', searchCodexHint: '所有模型通过已登录的 ChatGPT 订阅搜索',
   preferenceFailed: '设置未保存。', preferenceRetry: '重试',
   usage: '订阅额度',
   refresh: '刷新', refreshing: '刷新中…', noUsage: '登录后可读取 ChatGPT 返回的额度窗口。',
@@ -106,8 +107,9 @@ const en = {
   failed: 'Sign-in failed. Try again.', loadFailed: 'Could not read account status.', accountRetry: 'Retry',
   diagnostics: 'Support diagnostics', diagnosticsHint: 'Create a report without credentials, account identifiers, or authorization timestamps.', diagnosticsLoad: 'Create report', diagnosticsCopy: 'Copy report', diagnosticsCopied: 'Copied', diagnosticsFailed: 'Could not create diagnostics.', feedbackOpen: 'Report a problem',
   searchTitle: 'Search source',
-  searchDsh: 'DSH default', searchDshHint: 'Current search service',
-  searchCodex: 'Codex subscription', searchCodexHint: 'ChatGPT subscription search',
+  searchScope: 'Applies to every model and session; it does not switch with the selected model.',
+  searchDsh: 'DSH default', searchDshHint: 'Use DSH\'s current search service for every model',
+  searchCodex: 'Codex subscription', searchCodexHint: 'Search through the signed-in ChatGPT subscription for every model',
   preferenceFailed: 'The setting was not saved.', preferenceRetry: 'Retry',
   usage: 'Subscription quota',
   refresh: 'Refresh', refreshing: 'Refreshing…', noUsage: 'Sign in to read quota windows reported by ChatGPT.',
@@ -144,6 +146,7 @@ const en = {
 }
 
 const STYLE = `
+.codexSubscriptionSearchHead{display:flex;flex-direction:column;gap:1px}.codexSubscriptionSearchScope{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscription{display:flex;flex-direction:column;gap:10px;max-width:720px;color:var(--dsw-alias-label-primary);container-type:inline-size}
 .codexSubscription h2,.codexSubscription h3,.codexSubscription p{margin:0}.codexSubscriptionHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .codexSubscription h2{font-size:16px;line-height:24px;font-weight:500}.codexSubscription h3{font-size:14px;line-height:22px;font-weight:500}
@@ -613,7 +616,7 @@ function SearchProviderPreference({ preference, t }) {
   const writable = snapshot.status === 'ready' && snapshot.writable === true
   const choice = (value, label, hint) => <label className="codexSubscriptionSearchChoice"><input className="codexSubscriptionSearchInput" type="radio" name="codex-subscription-search-provider" checked={snapshot.searchProvider === value} disabled={!writable} onChange={() => { void preference.set({ [SEARCH_PROVIDER_FIELD]: value }) }} /><span className="codexSubscriptionSearchCopy"><strong>{label}</strong><span>{hint}</span></span></label>
   return <div className="codexSubscriptionSearch">
-    <h3>{t('searchTitle')}</h3>
+    <div className="codexSubscriptionSearchHead"><h3>{t('searchTitle')}</h3><span className="codexSubscriptionSearchScope">{t('searchScope')}</span></div>
     <div className="codexSubscriptionSearchChoices" role="radiogroup" aria-label={t('searchTitle')}>
       {choice(SEARCH_PROVIDER_DSH, t('searchDsh'), t('searchDshHint'))}
       {choice(SEARCH_PROVIDER_CODEX, t('searchCodex'), t('searchCodexHint'))}
