@@ -342,6 +342,10 @@ jobs:
             # Feature and bugfix releases require explicit bilingual release notes.
             test -n "${RELEASE_NOTES_EN:-}"
             test -n "${RELEASE_NOTES_ZH:-}"
+            if [[ "$RELEASE_NOTES_EN" == *'\n'* || "$RELEASE_NOTES_ZH" == *'\n'* ]]; then
+              echo 'Release notes must contain real line breaks, not literal \n sequences.' >&2
+              exit 1
+            fi
             cat > .release/install.md <<'NOTES'
           ## What's new
           NOTES
@@ -476,7 +480,7 @@ jobs:
           gh release create "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$TARGET_SHA" \
-            --title "$RELEASE_TAG" \
+            --title "DSH Codex Subscription $RELEASE_TAG" \
             --notes-file .release/install.md \
             --draft "${flags[@]}"
 
