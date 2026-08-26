@@ -18,6 +18,7 @@ import {
   normalizeCustomContextWindow,
   formatContextWindow,
   normalizeQuickQuotaMode,
+  normalizeOutputVerbosity,
   normalizeSpeedMode,
   normalizeSearchProvider,
   parseContextWindow,
@@ -25,6 +26,12 @@ import {
   QUICK_QUOTA_MODE_FIELD,
   QUICK_QUOTA_MODE_OFF,
   QUICK_QUOTA_MODE_PERCENT,
+  OUTPUT_VERBOSITY_DEFAULT,
+  OUTPUT_VERBOSITY_FIELD,
+  OUTPUT_VERBOSITY_HIGH,
+  OUTPUT_VERBOSITY_LOW,
+  OUTPUT_VERBOSITY_MEDIUM,
+  SEARCH_PROVIDER_AUTO,
   SEARCH_PROVIDER_CODEX,
   SEARCH_PROVIDER_DSH,
   SEARCH_PROVIDER_FIELD,
@@ -58,7 +65,8 @@ const zh = {
   failed: '登录失败，请重试。', loadFailed: '无法读取账户状态。', accountRetry: '重试',
   diagnostics: '支持诊断', diagnosticsHint: '生成不含凭据、账号标识和授权时间的诊断信息。', diagnosticsLoad: '生成诊断', diagnosticsCopy: '复制诊断', diagnosticsCopied: '已复制', diagnosticsFailed: '无法生成诊断信息。', feedbackOpen: '反馈问题',
   searchTitle: '搜索来源',
-  searchScope: '此设置对所有模型和会话生效，不会随当前模型自动切换。',
+  searchScope: '自动按当前会话模型分流；手动选择会覆盖所有模型和会话。',
+  searchAuto: '自动', searchAutoHint: 'Codex 模型用订阅搜索，其他模型用 DSH',
   searchDsh: 'DSH 默认', searchDshHint: '所有模型使用 DSH 当前搜索服务',
   searchCodex: 'Codex 订阅', searchCodexHint: '所有模型通过已登录的 ChatGPT 订阅搜索',
   preferenceFailed: '设置未保存。', preferenceRetry: '重试',
@@ -89,7 +97,8 @@ const zh = {
   quickQuotaStatus: 'Codex 剩余额度 {value}%',
   speedTitle: '速度', speedStandard: '标准', speedStandardHint: '标准速度',
   speedFast: '高速', speedFastHint: '1.5 倍，消耗更多 Credits',
-  modelMenuAria: '模型、推理等级与速度', modelLabel: '模型', effortLabel: '推理等级', providerDefault: 'Default', selectModel: '选择模型',
+  verbosityTitle: '输出详略', verbosityDefault: '模型默认', verbosityDefaultHint: '使用官方模型目录推荐值', verbosityLow: '简洁', verbosityLowHint: '更短、更直接', verbosityMedium: '均衡', verbosityMediumHint: '兼顾完整性与长度', verbosityHigh: '详细', verbosityHighHint: '更充分的说明与结构',
+  modelMenuAria: '模型、推理等级、速度与输出详略', modelLabel: '模型', effortLabel: '推理等级', providerDefault: 'Default', selectModel: '选择模型',
   modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
   imageGenerate: '生成图片', imageBeta: 'Beta', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
   imageLabel: '生成的图片', imageOpen: '查看原图', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imageClosePreview: '关闭预览', imageDownload: '下载原图', imageZoomOut: '缩小', imageZoomIn: '放大', imageFit: '适合窗口',
@@ -107,7 +116,8 @@ const en = {
   failed: 'Sign-in failed. Try again.', loadFailed: 'Could not read account status.', accountRetry: 'Retry',
   diagnostics: 'Support diagnostics', diagnosticsHint: 'Create a report without credentials, account identifiers, or authorization timestamps.', diagnosticsLoad: 'Create report', diagnosticsCopy: 'Copy report', diagnosticsCopied: 'Copied', diagnosticsFailed: 'Could not create diagnostics.', feedbackOpen: 'Report a problem',
   searchTitle: 'Search source',
-  searchScope: 'Applies to every model and session; it does not switch with the selected model.',
+  searchScope: 'Auto follows the current session model; an explicit choice overrides every model and session.',
+  searchAuto: 'Auto', searchAutoHint: 'Codex models use subscription search; other models use DSH',
   searchDsh: 'DSH default', searchDshHint: 'Use DSH\'s current search service for every model',
   searchCodex: 'Codex subscription', searchCodexHint: 'Search through the signed-in ChatGPT subscription for every model',
   preferenceFailed: 'The setting was not saved.', preferenceRetry: 'Retry',
@@ -138,7 +148,8 @@ const en = {
   quickQuotaStatus: 'Codex quota: {value}% remaining',
   speedTitle: 'Speed', speedStandard: 'Standard', speedStandardHint: 'Standard speed',
   speedFast: 'Fast', speedFastHint: '1.5x; higher Credits use',
-  modelMenuAria: 'Model, effort, and speed', modelLabel: 'Model', effortLabel: 'Effort', providerDefault: 'Default', selectModel: 'Select model',
+  verbosityTitle: 'Output detail', verbosityDefault: 'Model default', verbosityDefaultHint: 'Use the official model catalog recommendation', verbosityLow: 'Concise', verbosityLowHint: 'Shorter and more direct', verbosityMedium: 'Balanced', verbosityMediumHint: 'Balance completeness and length', verbosityHigh: 'Detailed', verbosityHighHint: 'More explanation and structure',
+  modelMenuAria: 'Model, effort, speed, and output detail', modelLabel: 'Model', effortLabel: 'Effort', providerDefault: 'Default', selectModel: 'Select model',
   modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
   imageGenerate: 'Generate image', imageBeta: 'Beta', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
   imageLabel: 'Generated image', imageOpen: 'View original', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imageClosePreview: 'Close preview', imageDownload: 'Download original', imageZoomOut: 'Zoom out', imageZoomIn: 'Zoom in', imageFit: 'Fit to window',
@@ -157,7 +168,7 @@ const STYLE = `
 .codexSubscriptionQuotaModes{display:flex;align-items:center;gap:3px;padding:2px;border-radius:9px;background:var(--dsw-alias-bg-module-platform)}.codexSubscriptionQuotaMode{position:relative;display:flex;align-items:center;justify-content:center;min-height:26px;padding:0 9px;border-radius:7px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;cursor:pointer}.codexSubscriptionQuotaMode:has(input:checked){background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);box-shadow:0 0 0 1px var(--dsw-alias-border-l3)}.codexSubscriptionQuotaMode:has(input:focus-visible){outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px}.codexSubscriptionQuotaMode:has(input:disabled){cursor:not-allowed;opacity:.5}.codexSubscriptionQuotaMode input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .codexSubscriptionContext{display:flex;flex-direction:column;gap:8px}.codexSubscriptionContextHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.codexSubscriptionContextCopy{display:flex;min-width:0;flex:1;flex-direction:column;gap:2px}.codexSubscriptionContextHint{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionContextTrigger{height:32px;min-width:108px;display:inline-flex;align-items:center;justify-content:space-between;gap:10px;padding:0 10px 0 12px;border:0;border-radius:999px;outline:0;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}.codexSubscriptionContextTrigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.codexSubscriptionContextTrigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}.codexSubscriptionContextTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:not-allowed}.codexSubscriptionContextTrigger svg{color:var(--dsw-alias-label-tertiary);transition:transform 120ms var(--ds-ease-in-out)}.codexSubscriptionContextTrigger[aria-expanded=true] svg{transform:rotate(180deg)}.codexSubscriptionContextModels{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.codexSubscriptionContextModel{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--dsw-alias-border-l2)}.codexSubscriptionContextModel:last-child{border-bottom:0}.codexSubscriptionContextModelCopy{display:flex;min-width:0;flex-direction:column}.codexSubscriptionContextModelCopy strong{font-size:12px;line-height:18px;font-weight:500}.codexSubscriptionContextModelCopy span{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionContextInput{width:116px}
 .codexSubscriptionSwitch{position:relative;flex:0 0 auto;width:32px;height:18px;padding:0;border:1px solid var(--dsw-alias-border-l3);border-radius:999px;background:var(--dsw-alias-bg-module-platform);cursor:pointer}.codexSubscriptionSwitch:disabled{cursor:not-allowed;opacity:.5}.codexSubscriptionSwitch[aria-checked=true]{background:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-label-secondary)}.codexSubscriptionSwitchKnob{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--dsw-alias-bg-layer-1);transition:transform 120ms var(--ds-ease-in-out)}.codexSubscriptionSwitch[aria-checked=true] .codexSubscriptionSwitchKnob{transform:translateX(14px)}
-.codexSubscriptionSearch{display:flex;flex-direction:column;gap:7px}.codexSubscriptionSearchChoices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.codexSubscriptionSearchChoice{display:grid;grid-template-columns:14px minmax(0,1fr);align-items:center;column-gap:8px;min-width:0;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);padding:9px 10px;text-align:left;cursor:pointer}.codexSubscriptionSearchChoice:has(input:disabled){cursor:not-allowed;opacity:.5}.codexSubscriptionSearchChoice:has(input:checked){border-color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}.codexSubscriptionSearchChoice:has(input:focus-visible){outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}.codexSubscriptionSearchInput{width:14px;height:14px;margin:0;accent-color:var(--dsw-alias-label-primary);cursor:inherit}.codexSubscriptionSearchCopy{display:block;min-width:0;pointer-events:none}.codexSubscriptionSearchCopy strong,.codexSubscriptionSearchCopy span{display:block}.codexSubscriptionSearchCopy strong{font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary)}.codexSubscriptionSearchChoice:has(input:checked) strong{color:var(--dsw-alias-label-primary)}.codexSubscriptionSearchCopy span{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionDivider{height:1px;background:var(--dsw-alias-border-l2)}
+.codexSubscriptionSearch{display:flex;flex-direction:column;gap:7px}.codexSubscriptionSearchChoices{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}.codexSubscriptionSearchChoice{display:grid;grid-template-columns:14px minmax(0,1fr);align-items:center;column-gap:8px;min-width:0;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);padding:9px 10px;text-align:left;cursor:pointer}.codexSubscriptionSearchChoice:has(input:disabled){cursor:not-allowed;opacity:.5}.codexSubscriptionSearchChoice:has(input:checked){border-color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}.codexSubscriptionSearchChoice:has(input:focus-visible){outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}.codexSubscriptionSearchInput{width:14px;height:14px;margin:0;accent-color:var(--dsw-alias-label-primary);cursor:inherit}.codexSubscriptionSearchCopy{display:block;min-width:0;pointer-events:none}.codexSubscriptionSearchCopy strong,.codexSubscriptionSearchCopy span{display:block}.codexSubscriptionSearchCopy strong{font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary)}.codexSubscriptionSearchChoice:has(input:checked) strong{color:var(--dsw-alias-label-primary)}.codexSubscriptionSearchCopy span{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionDivider{height:1px;background:var(--dsw-alias-border-l2)}
 .codexSubscriptionAccountRow,.codexSubscriptionSectionHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.codexSubscriptionStatus{display:flex;align-items:center;gap:8px;font-size:14px;line-height:22px;font-weight:500}
 .codexSubscriptionDot{width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-label-dimmed)}.codexSubscriptionDot[data-state=connected]{background:var(--dsw-alias-state-success-primary)}.codexSubscriptionDot[data-state=disconnected]{background:var(--dsw-alias-state-error-primary)}
 .codexSubscriptionActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.codexSubscriptionFlow{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
@@ -428,6 +439,7 @@ function createPreferenceController(scope, rpc) {
   let failedPatch
   let generation = 0
   let contextModels = []
+  let verbosityModels = []
   const nativeSnapshot = () => scope.getSnapshot()
   const read = () => {
     const native = nativeSnapshot()
@@ -444,10 +456,12 @@ function createPreferenceController(scope, rpc) {
       ),
       searchProvider: normalizeSearchProvider(current.value?.[SEARCH_PROVIDER_FIELD]),
       speedMode: normalizeSpeedMode(current.value?.[SPEED_MODE_FIELD]),
+      outputVerbosity: normalizeOutputVerbosity(current.value?.[OUTPUT_VERBOSITY_FIELD]),
       contextMode: normalizeContextMode(current.value?.[CONTEXT_MODE_FIELD]),
       customContextWindow: normalizeCustomContextWindow(current.value?.[CUSTOM_CONTEXT_WINDOW_FIELD]),
       customContextWindows: Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [modelKey, normalizeCustomContextWindow(current.value?.[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])])),
       contextModels,
+      verbosityModels,
       writable: !updating && current.status === 'ready' && current.writable === true,
       error,
     })
@@ -465,6 +479,7 @@ function createPreferenceController(scope, rpc) {
   })
   const acceptFallback = value => {
     contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
+    verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
     fallbackStatus = 'ready'
     fallback = {
       status: 'ready',
@@ -475,6 +490,7 @@ function createPreferenceController(scope, rpc) {
         ),
         [SEARCH_PROVIDER_FIELD]: normalizeSearchProvider(value?.[SEARCH_PROVIDER_FIELD]),
         [SPEED_MODE_FIELD]: normalizeSpeedMode(value?.[SPEED_MODE_FIELD]),
+        [OUTPUT_VERBOSITY_FIELD]: normalizeOutputVerbosity(value?.[OUTPUT_VERBOSITY_FIELD]),
         [CONTEXT_MODE_FIELD]: normalizeContextMode(value?.[CONTEXT_MODE_FIELD]),
         [CUSTOM_CONTEXT_WINDOW_FIELD]: normalizeCustomContextWindow(value?.[CUSTOM_CONTEXT_WINDOW_FIELD]),
         ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [field, normalizeCustomContextWindow(value?.[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])])),
@@ -493,7 +509,10 @@ function createPreferenceController(scope, rpc) {
     try {
       const value = unwrap(await rpc.call(CHANNEL, 'preferences/status', {}))
       if (current !== generation) return
-      if (nativeSnapshot().status === 'ready') contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
+      if (nativeSnapshot().status === 'ready') {
+        contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
+        verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
+      }
       else acceptFallback(value)
       publish()
     } catch {
@@ -618,6 +637,7 @@ function SearchProviderPreference({ preference, t }) {
   return <div className="codexSubscriptionSearch">
     <div className="codexSubscriptionSearchHead"><h3>{t('searchTitle')}</h3><span className="codexSubscriptionSearchScope">{t('searchScope')}</span></div>
     <div className="codexSubscriptionSearchChoices" role="radiogroup" aria-label={t('searchTitle')}>
+      {choice(SEARCH_PROVIDER_AUTO, t('searchAuto'), t('searchAutoHint'))}
       {choice(SEARCH_PROVIDER_DSH, t('searchDsh'), t('searchDshHint'))}
       {choice(SEARCH_PROVIDER_CODEX, t('searchCodex'), t('searchCodexHint'))}
     </div>
@@ -729,6 +749,15 @@ function CodexModelSelect({ locked, available, directory, load, select, preferen
   const speedSupported = state.current?.provider === 'openai-codex' && supportsCodexFastMode(state.current?.model)
   const speedWritable = preferenceSnapshot.status === 'ready' && preferenceSnapshot.writable === true
   const fast = speedSupported && preferenceSnapshot.speedMode === SPEED_MODE_FAST
+  const verbositySupported = state.current?.provider === 'openai-codex' && preferenceSnapshot.verbosityModels.includes(state.current?.model)
+  const verbosityWritable = preferenceSnapshot.status === 'ready' && preferenceSnapshot.writable === true
+  const verbosityItems = [
+    { id: OUTPUT_VERBOSITY_DEFAULT, label: t('verbosityDefault'), description: t('verbosityDefaultHint') },
+    { id: OUTPUT_VERBOSITY_LOW, label: t('verbosityLow'), description: t('verbosityLowHint') },
+    { id: OUTPUT_VERBOSITY_MEDIUM, label: t('verbosityMedium'), description: t('verbosityMediumHint') },
+    { id: OUTPUT_VERBOSITY_HIGH, label: t('verbosityHigh'), description: t('verbosityHighHint') },
+  ]
+  const verbosityLabel = verbosityItems.find(item => item.id === preferenceSnapshot.outputVerbosity)?.label ?? t('verbosityDefault')
   const busy = state.status === 'selecting'
 
   useEffect(() => {
@@ -747,7 +776,8 @@ function CodexModelSelect({ locked, available, directory, load, select, preferen
   }, [open])
   useEffect(() => {
     if (!speedSupported && pane === 'speed') setPane('root')
-  }, [pane, speedSupported])
+    if (!verbositySupported && pane === 'verbosity') setPane('root')
+  }, [pane, speedSupported, verbositySupported])
   if (!available) return null
 
   const close = (restoreFocus = false) => {
@@ -780,6 +810,10 @@ function CodexModelSelect({ locked, available, directory, load, select, preferen
   const chooseSpeed = speedMode => {
     close(true)
     void preference.set({ [SPEED_MODE_FIELD]: speedMode })
+  }
+  const chooseVerbosity = outputVerbosity => {
+    close(true)
+    void preference.set({ [OUTPUT_VERBOSITY_FIELD]: outputVerbosity })
   }
   const option = ({ key, label, description, selected, disabled, onClick }) => <button
     key={key}
@@ -842,6 +876,10 @@ function CodexModelSelect({ locked, available, directory, load, select, preferen
       {option({ key: SPEED_MODE_STANDARD, label: t('speedStandard'), description: t('speedStandardHint'), selected: !fast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_STANDARD) })}
       {option({ key: SPEED_MODE_FAST, label: t('speedFast'), description: t('speedFastHint'), selected: fast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_FAST) })}
     </div>
+  } else if (pane === 'verbosity') {
+    submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('verbosityTitle')}>
+      {verbosityItems.map(item => option({ key: item.id, label: item.label, description: item.description, selected: preferenceSnapshot.outputVerbosity === item.id, disabled: !verbosityWritable, onClick: () => chooseVerbosity(item.id) }))}
+    </div>
   }
 
   return <div className="codexModelSelect" ref={rootRef} onKeyDown={event => {
@@ -871,6 +909,7 @@ function CodexModelSelect({ locked, available, directory, load, select, preferen
       {cell('model', t('modelLabel'), modelLabel)}
       {reasoning === undefined ? null : cell('effort', t('effortLabel'), effortLabel)}
       {speedSupported && cell('speed', t('speedTitle'), t(fast ? 'speedFast' : 'speedStandard'))}
+      {verbositySupported && cell('verbosity', t('verbosityTitle'), verbosityLabel)}
       {submenu}
     </div> : null}
   </div>

@@ -6,6 +6,7 @@ import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
   customContextModelKey,
+  OUTPUT_VERBOSITY_DEFAULT,
   SPEED_MODE_FAST,
   normalizeCustomContextWindow,
   supportsCodexFastMode,
@@ -39,8 +40,10 @@ const EXTENDED_CONTEXT_WINDOWS = Object.freeze({
 
 export function openaiCodexSubscriptionProvider({
   resolveSpeedMode = () => undefined,
+  resolveOutputVerbosity = () => OUTPUT_VERBOSITY_DEFAULT,
   resolveContextMode = () => undefined,
   resolveCustomContextWindow = () => undefined,
+  catalog,
   runNetwork = (_area, operation) => operation(),
 } = {}) {
   const provider = createOpenAICodexProvider()
@@ -52,20 +55,39 @@ export function openaiCodexSubscriptionProvider({
       return { auth: { apiKey: token }, source: 'DSH-managed OAuth request' }
     },
   })
-  const withSpeed = (model, options = {}) => {
-    if (resolveSpeedMode() !== SPEED_MODE_FAST || !supportsCodexFastMode(model?.id)) return options
+  const modelMetadata = model => catalog?.metadata(model?.id)
+  const supportsVerbosity = model => modelMetadata(model)?.supportVerbosity ?? model?.id !== 'gpt-5.3-codex-spark'
+  const withPreferences = (model, options = {}) => {
+    const metadata = modelMetadata(model)
+    const requestedVerbosity = resolveOutputVerbosity()
+    const textVerbosity = supportsVerbosity(model)
+      ? requestedVerbosity === OUTPUT_VERBOSITY_DEFAULT
+        ? metadata?.defaultVerbosity ?? 'medium'
+        : requestedVerbosity
+      : undefined
+    const fast = resolveSpeedMode() === SPEED_MODE_FAST
+      && (metadata?.supportsFast ?? supportsCodexFastMode(model?.id))
     const onPayload = options.onPayload
     return {
       ...options,
-      serviceTier: FAST_SERVICE_TIER,
+      ...(textVerbosity === undefined ? {} : { textVerbosity }),
+      ...(fast ? { serviceTier: FAST_SERVICE_TIER } : {}),
       async onPayload(payload, requestModel) {
-        const fastPayload = { ...payload, service_tier: FAST_SERVICE_TIER }
-        const next = await onPayload?.(fastPayload, requestModel)
-        return { ...(next ?? fastPayload), service_tier: FAST_SERVICE_TIER }
+        const preferred = {
+          ...payload,
+          ...(textVerbosity === undefined ? {} : { text: { ...(payload.text ?? {}), verbosity: textVerbosity } }),
+          ...(fast ? { service_tier: FAST_SERVICE_TIER } : {}),
+        }
+        const next = await onPayload?.(preferred, requestModel)
+        return {
+          ...(next ?? preferred),
+          ...(textVerbosity === undefined ? {} : { text: { ...((next ?? preferred).text ?? {}), verbosity: textVerbosity } }),
+          ...(fast ? { service_tier: FAST_SERVICE_TIER } : {}),
+        }
       },
     }
   }
-  const getModels = () => provider.getModels().map(model => {
+  const getModels = () => (catalog?.getModels(provider.getModels()) ?? provider.getModels()).map(model => {
     const maximum = EXTENDED_CONTEXT_WINDOWS[model.id]
     const mode = resolveContextMode()
     if (maximum === undefined || ![CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM].includes(mode)) return model
@@ -89,8 +111,8 @@ export function openaiCodexSubscriptionProvider({
     ...provider,
     auth: Object.freeze({ ...provider.auth, apiKey: requestToken }),
     getModels,
-    stream: (model, context, options) => networkIterable(() => provider.stream(model, context, withSpeed(model, options))),
-    streamSimple: (model, context, options) => networkIterable(() => provider.streamSimple(model, context, withSpeed(model, options))),
+    stream: (model, context, options) => networkIterable(() => provider.stream(model, context, withPreferences(model, options))),
+    streamSimple: (model, context, options) => networkIterable(() => provider.streamSimple(model, context, withPreferences(model, options))),
   })
 }
 

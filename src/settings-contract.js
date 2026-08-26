@@ -6,13 +6,20 @@ export const QUICK_QUOTA_MODE_PERCENT = 'percent'
 export const QUICK_QUOTA_MODE_BAR = 'bar'
 export const DEFAULT_QUICK_QUOTA_MODE = QUICK_QUOTA_MODE_OFF
 export const SEARCH_PROVIDER_FIELD = 'searchProvider'
+export const SEARCH_PROVIDER_AUTO = 'auto'
 export const SEARCH_PROVIDER_DSH = 'dsh'
 export const SEARCH_PROVIDER_CODEX = 'codex'
-export const DEFAULT_SEARCH_PROVIDER = SEARCH_PROVIDER_DSH
+export const DEFAULT_SEARCH_PROVIDER = SEARCH_PROVIDER_AUTO
 export const SPEED_MODE_FIELD = 'speedMode'
 export const SPEED_MODE_STANDARD = 'standard'
 export const SPEED_MODE_FAST = 'fast'
 export const DEFAULT_SPEED_MODE = SPEED_MODE_STANDARD
+export const OUTPUT_VERBOSITY_FIELD = 'outputVerbosity'
+export const OUTPUT_VERBOSITY_DEFAULT = 'default'
+export const OUTPUT_VERBOSITY_LOW = 'low'
+export const OUTPUT_VERBOSITY_MEDIUM = 'medium'
+export const OUTPUT_VERBOSITY_HIGH = 'high'
+export const DEFAULT_OUTPUT_VERBOSITY = OUTPUT_VERBOSITY_DEFAULT
 export const CONTEXT_MODE_FIELD = 'contextMode'
 export const CONTEXT_MODE_STANDARD = 'standard'
 export const CONTEXT_MODE_EXTENDED = 'extended'
@@ -41,9 +48,16 @@ export const CUSTOM_CONTEXT_MODEL_DEFAULTS = Object.freeze({
   'gpt-5.6': 272_000,
 })
 
-export const normalizeSearchProvider = value => [SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX].includes(value)
+export const normalizeSearchProvider = value => [SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX].includes(value)
   ? value
   : DEFAULT_SEARCH_PROVIDER
+
+export const normalizeOutputVerbosity = value => [
+  OUTPUT_VERBOSITY_DEFAULT,
+  OUTPUT_VERBOSITY_LOW,
+  OUTPUT_VERBOSITY_MEDIUM,
+  OUTPUT_VERBOSITY_HIGH,
+].includes(value) ? value : DEFAULT_OUTPUT_VERBOSITY
 
 export const normalizeSpeedMode = value => [SPEED_MODE_STANDARD, SPEED_MODE_FAST].includes(value)
   ? value

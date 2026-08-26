@@ -10,9 +10,11 @@ import { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinato
 import { createCodexNetworkTransport } from './oauth-network.js'
 import {
   createModels,
+  openaiCodexProvider,
   openaiCodexSubscriptionProvider,
 } from './pi-ai-runtime.js'
-import { CODEX_SEARCH_PROVIDER_ID, createCodexSearchProvider } from './codex-search.js'
+import { createOfficialModelCatalog } from './model-catalog.js'
+import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
 import { createCodexImageTool } from './codex-images.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
 import {
@@ -27,14 +29,22 @@ import {
   CUSTOM_CONTEXT_WINDOW_FIELD,
   DEFAULT_CONTEXT_MODE,
   DEFAULT_CUSTOM_CONTEXT_WINDOW,
+  DEFAULT_OUTPUT_VERBOSITY,
   LEGACY_QUICK_QUOTA_FIELD,
   normalizeQuickQuotaMode,
+  normalizeOutputVerbosity,
   DEFAULT_SEARCH_PROVIDER,
   DEFAULT_SPEED_MODE,
   QUICK_QUOTA_MODE_BAR,
   QUICK_QUOTA_MODE_FIELD,
   QUICK_QUOTA_MODE_OFF,
   QUICK_QUOTA_MODE_PERCENT,
+  OUTPUT_VERBOSITY_DEFAULT,
+  OUTPUT_VERBOSITY_FIELD,
+  OUTPUT_VERBOSITY_HIGH,
+  OUTPUT_VERBOSITY_LOW,
+  OUTPUT_VERBOSITY_MEDIUM,
+  SEARCH_PROVIDER_AUTO,
   SEARCH_PROVIDER_CODEX,
   SEARCH_PROVIDER_DSH,
   SEARCH_PROVIDER_FIELD,
@@ -66,7 +76,7 @@ const publicError = (code, message) => ({
   error: { code, message, details: { issues: [] } },
 })
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, diagnosticsReader }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, diagnosticsReader, modelCatalog }) {
   return async (endpoint, payload, signal) => {
     if (endpoint === 'diagnostics') {
       try {
@@ -89,7 +99,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
             patch[QUICK_QUOTA_MODE_FIELD] = payload[QUICK_QUOTA_MODE_FIELD]
           }
           if (Object.hasOwn(payload ?? {}, SEARCH_PROVIDER_FIELD)) {
-            if (![SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX].includes(payload[SEARCH_PROVIDER_FIELD])) {
+            if (![SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX].includes(payload[SEARCH_PROVIDER_FIELD])) {
               return publicError('internal', 'Invalid search provider preference')
             }
             patch[SEARCH_PROVIDER_FIELD] = payload[SEARCH_PROVIDER_FIELD]
@@ -99,6 +109,12 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
               return publicError('internal', 'Invalid speed mode preference')
             }
             patch[SPEED_MODE_FIELD] = payload[SPEED_MODE_FIELD]
+          }
+          if (Object.hasOwn(payload ?? {}, OUTPUT_VERBOSITY_FIELD)) {
+            if (![OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, OUTPUT_VERBOSITY_HIGH].includes(payload[OUTPUT_VERBOSITY_FIELD])) {
+              return publicError('internal', 'Invalid output verbosity preference')
+            }
+            patch[OUTPUT_VERBOSITY_FIELD] = payload[OUTPUT_VERBOSITY_FIELD]
           }
           if (Object.hasOwn(payload ?? {}, CONTEXT_MODE_FIELD)) {
             if (![CONTEXT_MODE_STANDARD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM].includes(payload[CONTEXT_MODE_FIELD])) {
@@ -186,6 +202,9 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
     if (endpoint === 'logout' && result.ok === true) {
       usageReader.clear()
       resetCreditService.clear()
+      modelCatalog?.clear()
+    } else if (result.ok === true && (endpoint === 'status' || result.value?.authenticated === true)) {
+      void modelCatalog?.refresh({ signal: undefined }).catch(() => {})
     }
     return result
   }
@@ -193,7 +212,14 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
 
 export function createSearchProviderSwitcher(loader) {
   const webEntry = () => [...loader.entries()].find(entry => entry.options?.id === WEB_ENTRY_ID)
+  const dshProviderId = () => {
+    const baseConfig = webEntry()?.options?.config ?? {}
+    return typeof baseConfig.searchProvider === 'string' && baseConfig.searchProvider.length > 0
+      ? baseConfig.searchProvider
+      : DSH_SEARCH_PROVIDER_FALLBACK
+  }
   return Object.freeze({
+    dshProviderId,
     async select(selection) {
       const entry = webEntry()
       const fiber = entry?.fiber
@@ -202,10 +228,12 @@ export function createSearchProviderSwitcher(loader) {
       }
       const baseConfig = entry.options?.config ?? {}
       const currentConfig = fiber.config ?? baseConfig
-      const dshProvider = typeof baseConfig.searchProvider === 'string' && baseConfig.searchProvider.length > 0
-        ? baseConfig.searchProvider
-        : DSH_SEARCH_PROVIDER_FALLBACK
-      const provider = selection === SEARCH_PROVIDER_CODEX ? CODEX_SEARCH_PROVIDER_ID : dshProvider
+      const dshProvider = dshProviderId()
+      const provider = selection === SEARCH_PROVIDER_CODEX
+        ? CODEX_SEARCH_PROVIDER_ID
+        : selection === SEARCH_PROVIDER_AUTO
+          ? CODEX_AUTO_SEARCH_PROVIDER_ID
+          : dshProvider
       if (currentConfig.searchProvider === provider) return
       await fiber.update({ ...currentConfig, searchProvider: provider }, true)
     },
@@ -216,21 +244,33 @@ export function apply(ctx) {
   const settings = ctx.settings.register(settingsNamespace(SETTINGS_NAMESPACE), z.object({
     [QUICK_QUOTA_MODE_FIELD]: z.union([QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR]),
     [LEGACY_QUICK_QUOTA_FIELD]: z.boolean(),
-    [SEARCH_PROVIDER_FIELD]: z.union([SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX]).default(DEFAULT_SEARCH_PROVIDER),
+    [SEARCH_PROVIDER_FIELD]: z.union([SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX]).default(DEFAULT_SEARCH_PROVIDER),
     [SPEED_MODE_FIELD]: z.union([SPEED_MODE_STANDARD, SPEED_MODE_FAST]).default(DEFAULT_SPEED_MODE),
+    [OUTPUT_VERBOSITY_FIELD]: z.union([OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, OUTPUT_VERBOSITY_HIGH]).default(DEFAULT_OUTPUT_VERBOSITY),
     [CONTEXT_MODE_FIELD]: z.union([CONTEXT_MODE_STANDARD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM]).default(DEFAULT_CONTEXT_MODE),
     [CUSTOM_CONTEXT_WINDOW_FIELD]: z.number().step(1).min(128_000).max(1_000_000).default(DEFAULT_CUSTOM_CONTEXT_WINDOW),
     ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [field, z.number().step(1).min(128_000).max(CUSTOM_CONTEXT_MODEL_CAPS[modelKey]).default(CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey])])),
   }))
   const searchProvider = createSearchProviderSwitcher(ctx.loader)
   const network = createCodexNetworkTransport()
+  const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF])
+  const baseProvider = openaiCodexProvider()
+  let resolveAuth = async () => undefined
+  const modelCatalog = createOfficialModelCatalog({
+    getAuth: options => resolveAuth(options),
+    readCredential: options => store.read(PROVIDER, options),
+    baseModels: () => baseProvider.getModels(),
+    fetch: (input, init) => network.fetch('catalog', input, init),
+  })
   const provider = openaiCodexSubscriptionProvider({
     resolveSpeedMode: () => settings.get()[SPEED_MODE_FIELD],
+    resolveOutputVerbosity: () => normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
     resolveContextMode: () => normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]),
     resolveCustomContextWindow: modelKey => {
       const field = CUSTOM_CONTEXT_MODEL_FIELDS[modelKey]
       return normalizeCustomContextWindow(settings.get()[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])
     },
+    catalog: modelCatalog,
     runNetwork: network.run,
   })
   const preferences = {
@@ -241,16 +281,17 @@ export function apply(ctx) {
       ),
       [SEARCH_PROVIDER_FIELD]: settings.get()[SEARCH_PROVIDER_FIELD],
       [SPEED_MODE_FIELD]: settings.get()[SPEED_MODE_FIELD],
+      [OUTPUT_VERBOSITY_FIELD]: normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
       [CONTEXT_MODE_FIELD]: normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]),
       [CUSTOM_CONTEXT_WINDOW_FIELD]: normalizeCustomContextWindow(settings.get()[CUSTOM_CONTEXT_WINDOW_FIELD]),
       ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [field, normalizeCustomContextWindow(settings.get()[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])])),
       contextModels: contextModelGroups(provider.getModels()),
+      verbosityModels: provider.getModels().filter(model => modelCatalog.metadata(model.id)?.supportVerbosity ?? model.id !== 'gpt-5.3-codex-spark').map(model => model.id),
       writable: ctx.settings.writable,
     }),
     update: patch => settings.update(patch),
   }
 
-  const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF])
   const authModels = createModels({ credentials: store })
   authModels.setProvider(provider)
   const profile = Object.freeze({
@@ -274,14 +315,14 @@ export function apply(ctx) {
   let profileKey
   let profileSnapshot
   const profiles = () => {
-    const key = [normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]), ...Object.values(CUSTOM_CONTEXT_MODEL_FIELDS).map(field => settings.get()[field])].join(':')
+    const key = [modelCatalog.revision(), normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]), ...Object.values(CUSTOM_CONTEXT_MODEL_FIELDS).map(field => settings.get()[field])].join(':')
     if (key !== profileKey) {
       profileKey = key
       profileSnapshot = new Map([[PROVIDER, profile]])
     }
     return profileSnapshot
   }
-  const resolveAuth = () => authModels.getAuth(PROVIDER)
+  resolveAuth = () => authModels.getAuth(PROVIDER)
   const adapterAuth = Object.freeze({
     credentials: store,
     authContext: Object.freeze({
@@ -314,7 +355,7 @@ export function apply(ctx) {
   })
   ctx.llm.registerAdapter([PROVIDER], adapter)
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
-  ctx.web.registerSearchProvider(createCodexSearchProvider({
+  const codexSearch = createCodexSearchProvider({
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     resolveModel: () => {
@@ -323,6 +364,12 @@ export function apply(ctx) {
     },
     resolveSessionId: () => currentAgent()?.session.id,
     fetch: (input, init) => network.fetch('search', input, init),
+  })
+  ctx.web.registerSearchProvider(codexSearch)
+  ctx.web.registerSearchProvider(createCodexAutoSearchProvider({
+    codex: codexSearch,
+    resolveModelProvider: () => currentAgent()?.session.requestContext?.()?.provider,
+    resolveDshProvider: () => ctx.web.searchProviders?.get(searchProvider.dshProviderId()),
   }))
   ctx.effect(() => {
     const select = async value => {
@@ -355,7 +402,12 @@ export function apply(ctx) {
     resetCreditService,
     preferences,
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network }),
+    modelCatalog,
   })
+
+  ctx.effect(() => {
+    void modelCatalog.refresh().catch(error => ctx.logger?.debug?.('could not refresh Codex model catalog: %s', error.message))
+  }, 'codex-subscription: official model catalog')
 
   ctx.effect(
     () => ctx.connection.rpc.handle(CHANNEL, handler, { authority: 'loopback' }),

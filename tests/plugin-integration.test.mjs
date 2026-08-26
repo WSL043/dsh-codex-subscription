@@ -18,6 +18,9 @@ import {
   QUICK_QUOTA_MODE_BAR,
   QUICK_QUOTA_MODE_OFF,
   QUICK_QUOTA_MODE_PERCENT,
+  OUTPUT_VERBOSITY_DEFAULT,
+  OUTPUT_VERBOSITY_FIELD,
+  SEARCH_PROVIDER_AUTO,
   SEARCH_PROVIDER_CODEX,
   SEARCH_PROVIDER_DSH,
   SPEED_MODE_FAST,
@@ -81,7 +84,7 @@ function fakeContext() {
   const settings = []
   const webUpdates = []
   const provided = new Map()
-  let preference = { quickQuotaVisible: false, searchProvider: 'dsh', speedMode: SPEED_MODE_STANDARD, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 1_000_000, customContextGpt56: 1_000_000 }
+  let preference = { quickQuotaVisible: false, searchProvider: SEARCH_PROVIDER_AUTO, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, speedMode: SPEED_MODE_STANDARD, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 1_000_000, customContextGpt56: 1_000_000 }
   const preferenceWatchers = new Set()
   let credential
   const webEntry = {
@@ -94,6 +97,7 @@ function fakeContext() {
       },
     },
   }
+  const searchProviderMap = new Map([['deepseek-official', { id: 'deepseek-official', available: () => true, async search() { return { sources: [], truncated: false } } }]])
   const ctx = {
     credentials: {
       async resolve() { return credential === undefined ? undefined : { value: credential } },
@@ -121,8 +125,10 @@ function fakeContext() {
       },
     },
     web: {
+      searchProviders: searchProviderMap,
       registerSearchProvider(provider) {
         searchProviders.push(provider)
+        searchProviderMap.set(provider.id, provider)
         return () => {}
       },
     },
@@ -186,7 +192,7 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
     requestImagePixelBudget: 2048 * 2048,
     requestImageMaxBytes: 1024 * 1024,
   })
-  assert.deepEqual(host.searchProviders.map(provider => provider.id), ['codex-subscription'])
+  assert.deepEqual(host.searchProviders.map(provider => provider.id), ['codex-subscription', 'codex-subscription-auto'])
   assert.deepEqual(host.tools.map(tool => tool.name), ['codex_image_generate'])
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
   const models = await host.registered[0].adapter.listModels('openai-codex')
@@ -227,7 +233,8 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
       configuration: {
         contextMode: CONTEXT_MODE_STANDARD,
         quickQuotaMode: QUICK_QUOTA_MODE_OFF,
-        searchProvider: 'dsh',
+        outputVerbosity: OUTPUT_VERBOSITY_DEFAULT,
+        searchProvider: SEARCH_PROVIDER_AUTO,
         speedMode: SPEED_MODE_STANDARD,
         writable: true,
       },
@@ -237,9 +244,15 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
   assert.doesNotMatch(JSON.stringify(diagnostics), /access|refresh|accountId|expiresAt/)
 
   await host.updateSettings({ quickQuotaVisible: true })
-  assert.deepEqual(host.webUpdates, [], 'quota-only settings must not touch the web provider')
+  assert.deepEqual(host.webUpdates, [{
+    config: { searchProvider: 'codex-subscription-auto', fetchProvider: 'local' },
+    noSave: true,
+  }], 'quota-only settings must not touch the web provider after automatic routing is selected')
   await host.updateSettings({ searchProvider: 'codex' })
   assert.deepEqual(host.webUpdates, [{
+    config: { searchProvider: 'codex-subscription-auto', fetchProvider: 'local' },
+    noSave: true,
+  }, {
     config: { searchProvider: 'codex-subscription', fetchProvider: 'local' },
     noSave: true,
   }])
@@ -252,9 +265,10 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
     { key: 'gpt-5.5', label: 'GPT-5.5', maximum: 1_000_000 },
     { key: 'gpt-5.6', label: 'GPT-5.6 Luna / Sol / Terra', maximum: 1_000_000 },
   ]
+  const verbosityModels = ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.5', 'gpt-5.6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra']
   assert.deepEqual(preferenceStatus, {
     ok: true,
-    value: { quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000, contextModels: activeContextModels, writable: true },
+    value: { quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000, contextModels: activeContextModels, verbosityModels, writable: true },
   })
   const preferenceUpdate = await host.handled[0].handler('preferences/update', {
     quickQuotaMode: QUICK_QUOTA_MODE_BAR,
@@ -266,7 +280,7 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
   }, signal)
   assert.deepEqual(preferenceUpdate, {
     ok: true,
-    value: { quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 272_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 272_000, contextModels: activeContextModels, writable: true },
+    value: { quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 272_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 272_000, contextModels: activeContextModels, verbosityModels, writable: true },
   })
   assert.deepEqual(host.webUpdates.at(-1), {
     config: { searchProvider: 'deepseek-official', fetchProvider: 'local' },
@@ -368,9 +382,10 @@ test('diagnostics includes bounded request failures and excludes proxy or creden
   assert.doesNotMatch(JSON.stringify(report), /proxy|bearer|token|accountId/iu)
 })
 
-test('unknown browser search preferences fail safe to the DSH default', () => {
+test('unknown browser search preferences fail safe to automatic routing', () => {
+  assert.equal(normalizeSearchProvider(SEARCH_PROVIDER_AUTO), SEARCH_PROVIDER_AUTO)
   assert.equal(normalizeSearchProvider(SEARCH_PROVIDER_DSH), SEARCH_PROVIDER_DSH)
   assert.equal(normalizeSearchProvider(SEARCH_PROVIDER_CODEX), SEARCH_PROVIDER_CODEX)
-  assert.equal(normalizeSearchProvider(undefined), SEARCH_PROVIDER_DSH)
-  assert.equal(normalizeSearchProvider('unexpected-provider'), SEARCH_PROVIDER_DSH)
+  assert.equal(normalizeSearchProvider(undefined), SEARCH_PROVIDER_AUTO)
+  assert.equal(normalizeSearchProvider('unexpected-provider'), SEARCH_PROVIDER_AUTO)
 })
