@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } fro
 import { createPortal } from 'react-dom'
 import { BoltIcon } from '@heroicons/react/16/solid'
 import { Button, IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, IconDownloadOutline16, IconFullscreenOutline16, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
-import { buildImageEditDraft, IMAGE_REFERENCE_ROLES } from './image-edit.js'
+import { buildImageEditDraft } from './image-edit.js'
 import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
@@ -93,7 +93,6 @@ const zh = {
   imageGenerate: '生成图片', imageBeta: 'Beta', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
   imageLabel: '生成的图片', imageOpen: '查看原图', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imageClosePreview: '关闭预览', imageDownload: '下载原图', imageZoomOut: '缩小', imageZoomIn: '放大', imageFit: '适合窗口',
   imageAnnotate: '标注部位', imageAnnotateHint: '点击图片添加编号标注', imageAnnotation: '标注 {value}', imageAnnotationPlaceholder: '描述这个部位要修改什么', imageEditPrompt: '描述你想怎样修改这张图', imageEditDefault: '编辑这张图片。', imageRegionNotes: '部位修改：', imageEdit: '在输入框中继续编辑', imageEditPreparing: '正在添加到输入框…', imageEditFailed: '无法把图片添加到输入框。', imageRemoveAnnotation: '删除标注',
-  imageReferenceRole: '图片用途', imageRoleEdit: '直接编辑', imageRoleSubject: '主体参考', imageRoleStyle: '风格参考', imageRoleComposition: '构图参考', imageRoleSubjectPrompt: '将这张图片作为主体参考。', imageRoleStylePrompt: '将这张图片作为风格参考。', imageRoleCompositionPrompt: '将这张图片作为构图参考。',
 }
 
 const en = {
@@ -142,7 +141,6 @@ const en = {
   imageGenerate: 'Generate image', imageBeta: 'Beta', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
   imageLabel: 'Generated image', imageOpen: 'View original', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imageClosePreview: 'Close preview', imageDownload: 'Download original', imageZoomOut: 'Zoom out', imageZoomIn: 'Zoom in', imageFit: 'Fit to window',
   imageAnnotate: 'Annotate', imageAnnotateHint: 'Click the image to add a numbered note', imageAnnotation: 'Note {value}', imageAnnotationPlaceholder: 'Describe what should change in this area', imageEditPrompt: 'Describe how you want to change this image', imageEditDefault: 'Edit this image.', imageRegionNotes: 'Region changes:', imageEdit: 'Continue editing in composer', imageEditPreparing: 'Adding to composer…', imageEditFailed: 'Could not add the image to the composer.', imageRemoveAnnotation: 'Remove note',
-  imageReferenceRole: 'Image role', imageRoleEdit: 'Edit directly', imageRoleSubject: 'Subject reference', imageRoleStyle: 'Style reference', imageRoleComposition: 'Composition reference', imageRoleSubjectPrompt: 'Use this image as the subject reference.', imageRoleStylePrompt: 'Use this image as the style reference.', imageRoleCompositionPrompt: 'Use this image as the composition reference.',
 }
 
 const STYLE = `
@@ -199,7 +197,6 @@ const IMAGE_LAYOUT_STYLE = String.raw`
 .codexGeneratedImageCommentList{display:flex;flex-direction:column;gap:8px}.codexGeneratedImageCommentList article{display:grid;grid-template-columns:24px minmax(0,1fr) 24px;align-items:start;gap:7px;padding:9px;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-3)}.codexGeneratedImageCommentList article.is-active{border-color:var(--dsw-alias-state-business-primary,#3964fe)}
 .codexGeneratedImageCommentList article>span{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-base,#111);font-size:10px;font-weight:700}.codexGeneratedImageCommentList textarea{box-sizing:border-box;width:100%;min-height:64px;resize:vertical;border:0;outline:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:18px}.codexGeneratedImageCommentList textarea::placeholder{color:var(--dsw-alias-label-dimmed)}
 .codexGeneratedImageCommentList article>button{display:grid;place-items:center;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:17px;cursor:pointer}.codexGeneratedImageCommentList article>button:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.codexGeneratedImageRole{display:flex;align-items:center;gap:6px;width:min(820px,100%);margin:0 auto}.codexGeneratedImageRole>span{flex:none;color:var(--dsw-alias-label-tertiary);font-size:11px}.codexGeneratedImageRole>div{display:flex;min-width:0;gap:2px;overflow-x:auto;padding:2px;border-radius:9px;background:var(--dsw-alias-bg-module-platform)}.codexGeneratedImageRole button{flex:none;height:28px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;cursor:pointer}.codexGeneratedImageRole button:hover{color:var(--dsw-alias-label-primary)}.codexGeneratedImageRole button.is-active{background:var(--dsw-alias-bg-layer-3);color:var(--dsw-alias-label-primary)}
 @media(max-width:760px){.codexGeneratedImageWorkspace.has-comments{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(118px,34vh)}.codexGeneratedImageComments{border-top:1px solid var(--dsw-alias-border-l2);border-left:0;padding:10px 12px}}
 `
 
@@ -247,7 +244,6 @@ function CodexGeneratedImage({ attachment, loadImage, attachForEdit, t }) {
   const [annotations, setAnnotations] = useState([])
   const [selectedAnnotation, setSelectedAnnotation] = useState()
   const [prompt, setPrompt] = useState('')
-  const [referenceRole, setReferenceRole] = useState('edit')
   const [editBusy, setEditBusy] = useState(false)
   const [editError, setEditError] = useState(false)
   const triggerRef = useRef(null)
@@ -316,7 +312,7 @@ function CodexGeneratedImage({ attachment, loadImage, attachForEdit, t }) {
     setEditBusy(true)
     setEditError(false)
     try {
-      await attachForEdit(src, downloadName, buildImageEditDraft({ prompt, annotations, referenceRole, translate: t }))
+      await attachForEdit(src, downloadName, buildImageEditDraft({ prompt, annotations, translate: t }))
       close()
     } catch {
       setEditError(true)
@@ -359,7 +355,6 @@ function CodexGeneratedImage({ attachment, loadImage, attachForEdit, t }) {
         </aside> : null}
       </div>
       <footer className="codexGeneratedImageEditDock">
-        <div className="codexGeneratedImageRole" role="group" aria-label={t('imageReferenceRole')}><span>{t('imageReferenceRole')}</span><div>{IMAGE_REFERENCE_ROLES.map(role => <button type="button" className={referenceRole === role.id ? 'is-active' : ''} aria-pressed={referenceRole === role.id} onClick={() => setReferenceRole(role.id)} key={role.id}>{t(role.label)}</button>)}</div></div>
         <div className="codexGeneratedImagePrompt"><Input value={prompt} placeholder={t('imageEditPrompt')} onChange={event => setPrompt(event.target.value)} onKeyDown={event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void continueEditing() } }} /><Button type="button" disabled={editBusy} onClick={() => { void continueEditing() }}>{editBusy ? t('imageEditPreparing') : t('imageEdit')}</Button></div>
         {editError ? <div className="codexGeneratedImageEditError" role="alert">{t('imageEditFailed')}</div> : null}
       </footer>
