@@ -66,7 +66,7 @@ DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的�
 
 ## 准备 DSH
 
-本插件当前适配到 DeepSeek Harness `0.1.1-rc.2`，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
+本插件支持软件包元数据中记录的最新版 DeepSeek Harness，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
 
 - 不想配置 Node.js：使用 [DSH-Portable](https://github.com/WSL043/DSH-Portable)。这是面向 Windows、macOS 和 Linux 的社区便携桌面分发；
 - 想按官方方式运行：查看 [DeepSeek Harness 官方说明](https://github.com/deepseek-ai/deepseek-harness#run)。
