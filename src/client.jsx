@@ -234,7 +234,7 @@ const imageByteSize = bytes => bytes < 1024 * 1024
   ? `${Math.max(0.1, bytes / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} KB`
   : `${(bytes / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} MB`
 
-function CodexGeneratedImage({ attachment, loadImage, attachForEdit, t }) {
+function CodexGeneratedImage({ attachment, loadImage, attachForEdit, getImageViewer, t }) {
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState(false)
   const [open, setOpen] = useState(false)
@@ -320,6 +320,36 @@ function CodexGeneratedImage({ attachment, loadImage, attachForEdit, t }) {
       setEditBusy(false)
     }
   }
+  const openImage = () => {
+    if (src === undefined) return
+    const viewer = getImageViewer?.()
+    if (viewer?.open?.({
+      items: [{
+        id: attachment.attachmentId ?? downloadName,
+        src,
+        name: label,
+        width: attachment.width,
+        height: attachment.height,
+        bytes: attachment.bytes,
+      }],
+      opener: triggerRef.current,
+      source: 'codex-generated',
+      annotations: true,
+      editor: {
+        label: t('imageEdit'),
+        busyLabel: t('imageEditPreparing'),
+        errorLabel: t('imageEditFailed'),
+        placeholder: t('imageEditPrompt'),
+        onSubmit: ({ prompt: nextPrompt, annotations: nextAnnotations }) => attachForEdit(
+          src,
+          downloadName,
+          buildImageEditDraft({ prompt: nextPrompt, annotations: nextAnnotations, translate: t }),
+        ),
+      },
+    }) === true) return
+    setZoom(1)
+    setOpen(true)
+  }
   if (error) {
     return <button type="button" className="codexGeneratedImageRetry" onClick={() => setAttempt(value => value + 1)}>{t('imageLoadFailed')}</button>
   }
@@ -362,14 +392,14 @@ function CodexGeneratedImage({ attachment, loadImage, attachForEdit, t }) {
     document.body,
   )
   return <>
-    <button ref={triggerRef} type="button" className="codexGeneratedImageFrame" title={t('imageOpen')} aria-label={fill(t('imageOpenNamed'), { value: label })} onClick={() => { if (src !== undefined) { setZoom(1); setOpen(true) } }}>
+    <button ref={triggerRef} type="button" className="codexGeneratedImageFrame" title={t('imageOpen')} aria-label={fill(t('imageOpenNamed'), { value: label })} onClick={openImage}>
       {src === undefined ? <span>{t('imageLoading')}</span> : <img src={src} alt={label} />}
     </button>
     {lightbox}
   </>
 }
 
-function CodexImageToolRow({ block, loadImage, attachForEdit, t }) {
+function CodexImageToolRow({ block, loadImage, attachForEdit, getImageViewer, t }) {
   const settled = block?.kind === 'tool-result'
   const image = settled
     ? block.content.find(item => item?.type === 'image' && item.attachment !== undefined)
@@ -382,7 +412,7 @@ function CodexImageToolRow({ block, loadImage, attachForEdit, t }) {
     : undefined
   return <div className="codexImageTool" data-state={state}>
     <div className="codexImageToolRow"><span className="codexImageToolIcon" aria-hidden="true" /><span className="codexImageToolTitle">{t('imageGenerate')}</span><span className="codexImageBeta">{t('imageBeta')}</span><span className="codexImageToolState">{status}</span></div>
-    {image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage attachment={image.attachment} loadImage={loadImage} attachForEdit={attachForEdit} t={t} /></div>}
+    {image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage attachment={image.attachment} loadImage={loadImage} attachForEdit={attachForEdit} getImageViewer={getImageViewer} t={t} /></div>}
     {error === undefined ? null : <p className="codexImageToolError">{error}</p>}
   </div>
 }
@@ -1210,6 +1240,13 @@ export function apply(ctx) {
     inject: sessionId => ({
       t,
       loadImage: attachment => conversation.resolveImage(sessionId, attachment),
+      getImageViewer: () => {
+        try {
+          return ctx.get('nativeImageViewer')
+        } catch {
+          return undefined
+        }
+      },
       attachForEdit: async (src, filename, draft) => {
         const actx = sessions.scope(sessionId)
         if (actx === undefined || typeof conversation.createDraftImages !== 'function' || conversation.input?.for === undefined) {
