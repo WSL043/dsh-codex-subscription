@@ -65,7 +65,7 @@ Captured from the installed official DeepSeek Harness `0.1.1-rc.2` product with 
 
 ## Prepare DSH
 
-This plugin is currently compatible through DeepSeek Harness `0.1.1-rc.2` and requires a ChatGPT account that currently has Codex access.
+This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 
 - Do not want to configure Node.js? Use [DSH-Portable](https://github.com/WSL043/DSH-Portable), a community portable desktop distribution for Windows, macOS, and Linux.
 - Prefer the official route? Follow the [DeepSeek Harness run guide](https://github.com/deepseek-ai/deepseek-harness#run).
@@ -224,4 +224,4 @@ Read [SECURITY.md](SECURITY.md) before reporting sensitive issues.
 
 If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex-subscription/stargazers) helps more DSH users find it.
 
-[简体中文](README.md) · [MIT](LICENSE)
+[简体中文](README.zh-CN.md) · [MIT](LICENSE)
