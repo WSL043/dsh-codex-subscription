@@ -177,6 +177,44 @@ test('subscription fast mode reaches only officially supported Codex model reque
   }
 })
 
+test('output detail reaches only verbosity-capable Codex requests', async () => {
+  const previousFetch = globalThis.fetch
+  const wires = []
+  globalThis.fetch = async (_input, init) => {
+    wires.push(JSON.parse(zstdDecompressSync(Buffer.from(init.body)).toString('utf8')))
+    return new Response(sse([
+      { type: 'response.created', response: { id: `resp_v${wires.length}` } },
+      { type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: `msg_v${wires.length}`, role: 'assistant', content: [] } },
+      { type: 'response.output_text.delta', output_index: 0, content_index: 0, delta: 'ok' },
+      { type: 'response.output_item.done', output_index: 0, item: { type: 'message', id: `msg_v${wires.length}`, role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'ok', annotations: [] }] } },
+      { type: 'response.done', response: { id: `resp_v${wires.length}`, status: 'completed', output: [], usage: { input_tokens: 2, output_tokens: 1, total_tokens: 3 } } },
+    ]), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+  }
+  try {
+    let outputVerbosity = 'high'
+    const provider = openaiCodexSubscriptionProvider({ resolveOutputVerbosity: () => outputVerbosity })
+    const profiles = new Map([['openai-codex', {
+      provider: 'openai-codex', displayName: 'ChatGPT subscription', piProvider: provider,
+      configuredMaxTokens: new Map(), transport: 'sse', streamIdleTimeoutMs: 10_000,
+    }]])
+    const adapter = new PiAiAdapter({ profiles: () => profiles, resolveApiKey: async () => jwt('account-verbosity') })
+    const run = async model => {
+      for await (const _chunk of adapter.stream({
+        provider: 'openai-codex', model, messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }], sessionId: `verbosity-${model}-${wires.length}`,
+      })) {}
+    }
+    await run('gpt-5.6-sol')
+    outputVerbosity = 'low'
+    await run('gpt-5.6-sol')
+    await run('gpt-5.3-codex-spark')
+    assert.equal(wires[0].text.verbosity, 'high')
+    assert.equal(wires[1].text.verbosity, 'low')
+    assert.equal(wires[2].text.verbosity, 'low', 'Spark retains the audited pi-ai wire default when the catalog does not advertise verbosity')
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
 test('context presets preserve catalog defaults and cap every supported model independently', () => {
   let contextMode = CONTEXT_MODE_STANDARD
   let customContextWindow = 500_000

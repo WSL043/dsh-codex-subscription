@@ -7,7 +7,19 @@ import {
   CODEX_IMAGE_TOOL_NAME,
   createCodexImageTool,
   decodeCodexPng,
+  normalizeImageOptions,
 } from '../src/codex-images.js'
+
+test('GPT Image 2 options default safely and validate flexible output constraints', () => {
+  assert.deepEqual(normalizeImageOptions({}), { quality: 'auto', background: 'auto', size: 'auto' })
+  assert.deepEqual(normalizeImageOptions({ quality: 'high', background: 'transparent', size: '1536x1024' }), {
+    quality: 'high', background: 'transparent', size: '1536x1024',
+  })
+  assert.throws(() => normalizeImageOptions({ quality: 'ultra' }), /quality/u)
+  assert.throws(() => normalizeImageOptions({ background: 'blurred' }), /background/u)
+  assert.throws(() => normalizeImageOptions({ size: '1000x1000' }), /valid GPT Image 2/u)
+  assert.throws(() => normalizeImageOptions({ size: '3840x1024' }), /valid GPT Image 2/u)
+})
 
 const ONE_PIXEL_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
 const IMAGE_REF = Object.freeze({
@@ -89,6 +101,20 @@ test('image tool uses the Codex subscription endpoint and fixed safe defaults', 
     background: 'opaque',
     quality: 'medium',
     size: '1024x1024',
+  })
+})
+
+test('image tool forwards an explicit valid size, quality, and background without hidden settings', async () => {
+  const { requests, tool } = fixture()
+  await tool.execute({ prompt: 'transparent product icon', size: '1536x1024', quality: 'high', background: 'transparent' }, {
+    callId: 'call-options', signal: new AbortController().signal,
+  })
+  assert.deepEqual(JSON.parse(requests[0].init.body), {
+    prompt: 'transparent product icon',
+    background: 'transparent',
+    model: 'gpt-image-2',
+    quality: 'high',
+    size: '1536x1024',
   })
 })
 

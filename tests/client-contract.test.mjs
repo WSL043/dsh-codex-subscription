@@ -65,7 +65,7 @@ test('composer quota modes use the public composer slot before the model selecto
   assert.match(contract, /QUICK_QUOTA_MODE_FIELD\s*=\s*['"]quickQuotaMode['"]/u)
   assert.match(contract, /LEGACY_QUICK_QUOTA_FIELD\s*=\s*['"]quickQuotaVisible['"]/u)
   assert.match(contract, /DEFAULT_QUICK_QUOTA_MODE\s*=\s*QUICK_QUOTA_MODE_OFF/u)
-  assert.match(contract, /DEFAULT_SEARCH_PROVIDER\s*=\s*SEARCH_PROVIDER_DSH/u)
+  assert.match(contract, /DEFAULT_SEARCH_PROVIDER\s*=\s*SEARCH_PROVIDER_AUTO/u)
 })
 
 test('composer quota is neutral and the detailed quota grid is compact', async () => {
@@ -90,14 +90,15 @@ test('composer quota is neutral and the detailed quota grid is compact', async (
   assert.doesNotMatch(source, /fill\(t\(['"]used['"]\),\s*\{\s*value:\s*percent\(window\.usedPercent\)/u)
 })
 
-test('settings offer explicit search and formal composer quota display modes', async () => {
+test('settings offer automatic and explicit search plus formal composer quota display modes', async () => {
   const source = await text('src/client.jsx')
   assert.match(source, /searchProvider/u)
   assert.match(source, /searchDsh/u)
   assert.match(source, /searchCodex/u)
+  assert.match(source, /searchAuto/u)
   assert.match(source, /searchScope/u)
-  assert.match(source, /对所有模型和会话生效/u)
-  assert.match(source, /every model and session/u)
+  assert.match(source, /自动按当前会话模型分流/u)
+  assert.match(source, /Auto follows the current session model/u)
   assert.match(source, /role=['"]radiogroup['"]/u)
   assert.match(source, /type=['"]radio['"]/u)
   assert.match(source, /className=['"]codexSubscriptionSearchInput['"]/u)

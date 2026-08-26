@@ -5,8 +5,32 @@ import test from 'node:test'
 import {
   CODEX_SEARCH_PROVIDER_ID,
   CODEX_SEARCH_URL,
+  createCodexAutoSearchProvider,
   createCodexSearchProvider,
 } from '../src/codex-search.js'
+
+test('automatic search routes Codex sessions to subscription and other sessions to DSH', async () => {
+  const calls = []
+  let modelProvider = 'openai-codex'
+  const auto = createCodexAutoSearchProvider({
+    codex: { async search(request) { calls.push(['codex', request.query]); return { sources: [{ url: 'https://codex.example', title: 'Codex' }], truncated: false } } },
+    resolveModelProvider: () => modelProvider,
+    resolveDshProvider: () => ({ id: 'deepseek-official', available: () => true, async search(request) { calls.push(['dsh', request.query]); return { sources: [{ url: 'https://dsh.example', title: 'DSH' }], truncated: false } } }),
+  })
+  assert.equal((await auto.search({ query: 'one' })).sources[0].title, 'Codex')
+  modelProvider = 'deepseek-official'
+  assert.equal((await auto.search({ query: 'two' })).sources[0].title, 'DSH')
+  assert.deepEqual(calls, [['codex', 'one'], ['dsh', 'two']])
+})
+
+test('automatic search fails closed when the DSH route is unavailable', async () => {
+  const auto = createCodexAutoSearchProvider({
+    codex: { async search() { throw new Error('not used') } },
+    resolveModelProvider: () => 'another-provider',
+    resolveDshProvider: () => undefined,
+  })
+  await assert.rejects(auto.search({ query: 'test' }), error => error?.code === 'WEB_PROVIDER_UNAVAILABLE')
+})
 
 test('Codex search uses refreshed subscription OAuth and returns structured citeable sources', async () => {
   const requests = []

@@ -9,10 +9,33 @@ export const CODEX_IMAGE_EDIT_URL = 'https://chatgpt.com/backend-api/codex/image
 const IMAGE_MODEL = 'gpt-image-2'
 const MAX_REFERENCE_IMAGES = 5
 const RESPONSE_ENVELOPE_BYTES = 1024 * 1024
+const IMAGE_QUALITIES = new Set(['auto', 'low', 'medium', 'high'])
+const IMAGE_BACKGROUNDS = new Set(['auto', 'transparent', 'opaque'])
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 const nonEmpty = value => typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
+
+export function normalizeImageOptions(args) {
+  const quality = nonEmpty(args?.quality) ?? 'auto'
+  const background = nonEmpty(args?.background) ?? 'auto'
+  const size = nonEmpty(args?.size) ?? 'auto'
+  if (!IMAGE_QUALITIES.has(quality)) throw new Error('quality must be auto, low, medium, or high')
+  if (!IMAGE_BACKGROUNDS.has(background)) throw new Error('background must be auto, transparent, or opaque')
+  if (size !== 'auto') {
+    const match = /^(\d+)x(\d+)$/u.exec(size)
+    const width = Number(match?.[1])
+    const height = Number(match?.[2])
+    const short = Math.min(width, height)
+    const long = Math.max(width, height)
+    const pixels = width * height
+    if (match === null || width % 16 !== 0 || height % 16 !== 0 || long > 3840 || long > short * 3
+      || pixels < 655_360 || pixels > 8_294_400) {
+      throw new Error('size must be auto or a valid GPT Image 2 widthxheight resolution')
+    }
+  }
+  return { quality, background, size }
+}
 
 function encodedLimit(decodedBytes) {
   return Math.ceil(decodedBytes / 3) * 4
@@ -182,6 +205,20 @@ export function createCodexImageTool(options) {
         required: true,
         description: 'A complete, production-ready description of the image to generate.',
       },
+      size: {
+        type: 'string',
+        description: 'Optional GPT Image 2 output size. Use auto unless the user requests an exact valid widthxheight resolution.',
+      },
+      quality: {
+        type: 'string',
+        enum: ['auto', 'low', 'medium', 'high'],
+        description: 'Optional rendering quality. Use auto unless the user requests draft speed or final quality.',
+      },
+      background: {
+        type: 'string',
+        enum: ['auto', 'transparent', 'opaque'],
+        description: 'Optional background mode. Request transparent only when the user needs transparency.',
+      },
       referenceImages: {
         type: 'array',
         description: 'Optional explicit references to 1-5 prior images to edit. Omit for a new image.',
@@ -208,6 +245,7 @@ export function createCodexImageTool(options) {
     async execute(args, exec) {
       const prompt = nonEmpty(args.prompt)
       if (prompt === undefined) throw new Error('prompt must be a non-empty string')
+      const imageOptions = normalizeImageOptions(args)
       const auth = await options.getAuth({ signal: exec.signal })
       const credential = await options.readCredential({ signal: exec.signal })
       const access = auth?.auth?.apiKey
@@ -244,10 +282,10 @@ export function createCodexImageTool(options) {
           body: JSON.stringify({
             ...(images === undefined ? {} : { images }),
             prompt,
-            background: 'auto',
+            background: imageOptions.background,
             model: IMAGE_MODEL,
-            quality: 'auto',
-            size: 'auto',
+            quality: imageOptions.quality,
+            size: imageOptions.size,
           }),
           signal: exec.signal,
         })

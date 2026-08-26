@@ -4,6 +4,7 @@ import { WebError } from '@deepseek-ai/dsh-web'
 import { USER_AGENT } from './version.js'
 
 export const CODEX_SEARCH_PROVIDER_ID = 'codex-subscription'
+export const CODEX_AUTO_SEARCH_PROVIDER_ID = 'codex-subscription-auto'
 export const CODEX_SEARCH_URL = 'https://chatgpt.com/backend-api/codex/alpha/search'
 
 const DEFAULT_MODEL = 'gpt-5.6-luna'
@@ -132,6 +133,24 @@ export function createCodexSearchProvider(options) {
       } catch (error) {
         throw new WebError('Codex returned a malformed search response', 'WEB_PROVIDER_ERROR', { cause: error })
       }
+    },
+  })
+}
+
+/** Route each request by its initiating model without changing the user's explicit overrides. */
+export function createCodexAutoSearchProvider(options) {
+  return Object.freeze({
+    id: CODEX_AUTO_SEARCH_PROVIDER_ID,
+    available: () => true,
+    async search(request, signal) {
+      if (options.resolveModelProvider?.() === 'openai-codex') {
+        return options.codex.search(request, signal)
+      }
+      const provider = options.resolveDshProvider?.()
+      if (provider === undefined || provider.id === CODEX_AUTO_SEARCH_PROVIDER_ID || provider.id === CODEX_SEARCH_PROVIDER_ID || provider.available() !== true) {
+        throw new WebError('DSH default search is unavailable', 'WEB_PROVIDER_UNAVAILABLE')
+      }
+      return provider.search(request, signal)
     },
   })
 }
