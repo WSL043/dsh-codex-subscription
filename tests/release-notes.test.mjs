@@ -33,6 +33,10 @@ test('GitHub Release notes stay user-facing and exclude internal maintenance evi
   assert.match(releaseWorkflow, /release_notes_en:[\s\S]*English user-facing release summary/u)
   assert.match(releaseWorkflow, /release_notes_zh:[\s\S]*Chinese user-facing release summary/u)
   assert.match(notesStep, /Feature and bugfix releases require explicit bilingual release notes/u)
+  assert.match(
+    notesStep,
+    /if \[\[ "\$RELEASE_NOTES_EN" == \*'\\n'\* \|\| "\$RELEASE_NOTES_ZH" == \*'\\n'\* \]\]; then/u,
+  )
   assert.match(notesStep, /real line breaks, not literal/u)
 })
 
