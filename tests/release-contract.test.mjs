@@ -168,12 +168,14 @@ test('Windows manager updates from a checksum-verified immutable release asset',
 
 test('per-user command PATH changes notify the Windows shell', () => {
   const manager = text('dsh-codex.ps1')
-  const workflow = text('.github/workflows/ci.yml')
+  const ci = text('.github/workflows/ci.yml')
+  const release = text('.github/workflows/publish.yml')
   assert.match(manager, /SetEnvironmentVariable\('Path',[\s\S]*'User'\)/u)
   assert.match(manager, /SendMessageTimeout/u)
   assert.match(manager, /WM_SETTINGCHANGE|0x001A/u)
-  assert.match(workflow, /os: \[windows-2022, windows-2025\]/u)
-  assert.match(workflow, /DSH_CODEX_TEST_USER_PATH:\s*'1'/u)
+  assert.match(ci, /runs-on: windows-2025/u)
+  assert.match(ci, /DSH_CODEX_TEST_USER_PATH:\s*'1'/u)
+  assert.match(release, /os: \[windows-2022, windows-2025\]/u)
 })
 
 test('uninstall never recursively deletes a caller-selected command directory', () => {
@@ -253,9 +255,9 @@ test('CI uploads the hidden release artifact only after asserting it exists', ()
   assert.match(workflow, /test -s "\$artifact"/u)
   assert.match(workflow, /path:\s*\|[\s\S]*\.artifacts\/\*\.tgz/u)
   assert.match(workflow, /include-hidden-files:\s*true/u)
-  assert.match(workflow, /sha256sum dsh-codex\.ps1/u)
-  assert.match(workflow, /\.artifacts\/dsh-codex\.ps1\.sha256/u)
-  assert.match(workflow, /\.artifacts\/dsh-codex-setup\.ps1/u)
+  assert.match(workflow, /pnpm run test:behavior/u)
+  assert.match(workflow, /ci-change-plan\.mjs/u)
+  assert.doesNotMatch(workflow, /sha256sum dsh-codex\.ps1/u, 'ordinary CI should upload only the candidate package; release assets are built by the release gate')
 })
 
 test('official DSH install and web startup are hard gates before a release', () => {

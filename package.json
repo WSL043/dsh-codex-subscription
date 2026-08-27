@@ -43,6 +43,8 @@
   },
   "scripts": {
     "build": "tsdown --config tsdown.config.mjs",
+    "test:behavior": "node --test tests/auth-security.test.mjs tests/cache-contract.test.mjs tests/codex-images.test.mjs tests/codex-search.test.mjs tests/image-edit.test.mjs tests/model-catalog.test.mjs tests/oauth-network.test.mjs tests/pi-ai-runtime.test.mjs tests/plugin-integration.test.mjs tests/reset-credits.test.mjs tests/sidebar-quota.test.mjs tests/transport-contract.test.mjs tests/usage.test.mjs",
+    "test:delivery": "node --test tests/ci-change-plan.test.mjs tests/client-contract.test.mjs tests/prepare-compat-release.test.mjs tests/publish-idempotency.test.mjs tests/release-contract.test.mjs tests/release-notes.test.mjs tests/support-intake.test.mjs",
     "test": "node --test tests/*.test.mjs",
     "check": "pnpm run test && pnpm run build && pnpm pack --pack-destination .artifacts"
   },
