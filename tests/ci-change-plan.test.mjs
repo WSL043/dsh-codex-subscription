@@ -15,17 +15,19 @@ function plan(files, packageVersion = '1.10.0', publishedVersion = '1.10.0') {
   ], { encoding: 'utf8' })
 }
 
-test('documentation changes run delivery checks without pretending runtime changed', () => {
-  const result = plan(['README.md'])
-  assert.equal(result.status, 0, result.stderr)
-  const output = JSON.parse(result.stdout)
-  assert.deepEqual(output.plan, {
-    behavior: false,
-    delivery: true,
-    manager: false,
-    official: false,
-    runtime: false,
-  })
+test('documentation and marketplace screenshot changes run delivery checks without pretending runtime changed', () => {
+  for (const file of ['README.md', 'screenshots.json']) {
+    const result = plan([file])
+    assert.equal(result.status, 0, result.stderr)
+    const output = JSON.parse(result.stdout)
+    assert.deepEqual(output.plan, {
+      behavior: false,
+      delivery: true,
+      manager: false,
+      official: false,
+      runtime: false,
+    }, file)
+  }
 })
 
 test('runtime changes cannot remain on the already-published version', () => {

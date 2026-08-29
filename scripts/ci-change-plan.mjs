@@ -57,6 +57,7 @@ const manager = plannerChanged || matches([
 const delivery = plannerChanged || matches([
   /^\.github\//u,
   /^(?:README(?:\.zh-CN)?|DIRECTORY|AGENTS|SECURITY|THIRD_PARTY_NOTICES|LICENSE)\.md$/u,
+  /^screenshots\.json$/u,
   /^compatibility\.json$/u,
   /^package\.json$/u,
   /^pnpm-lock\.yaml$/u,
