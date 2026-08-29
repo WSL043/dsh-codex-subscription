@@ -9,6 +9,7 @@ const DEFAULT_CONFIRM_DELAY_MS = 5_000
 const DEFAULT_CHALLENGE_TTL_MS = 60_000
 const DEFAULT_TIMEOUT_MS = 15_000
 const MAX_COPY_LENGTH = 240
+const UNCERTAIN_RESET_RESULT = 'Quota reset result is uncertain; retry this confirmation to check the same request'
 
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 
@@ -105,8 +106,8 @@ export function createCodexResetCreditService(options) {
     await readCredential({ signal }),
   )
 
-  const readDetails = async signal => {
-    const { access, accountId } = await resolveCredentials(signal)
+  const readDetails = async (signal, credentials) => {
+    const { access, accountId } = credentials ?? await resolveCredentials(signal)
     const response = await fetchReset(CODEX_RESET_CREDITS_URL, {
       method: 'GET',
       redirect: 'error',
@@ -139,7 +140,24 @@ export function createCodexResetCreditService(options) {
     },
 
     async prepare({ signal } = {}) {
-      const { accountId, details } = await readDetails(signal)
+      const credentials = await resolveCredentials(signal)
+      for (const [challengeId, challenge] of challenges) {
+        if (challenge.accountId !== credentials.accountId || challenge.uncertain !== true) continue
+        if (now() > challenge.expiresAt) {
+          challenges.delete(challengeId)
+          continue
+        }
+        return {
+          challengeId,
+          availableCount: challenge.availableCount,
+          readyAt: challenge.readyAt,
+          expiresAt: challenge.expiresAt,
+          ...(challenge.creditExpiresAt === undefined ? {} : { creditExpiresAt: challenge.creditExpiresAt }),
+          ...(challenge.title === undefined ? {} : { title: challenge.title }),
+          ...(challenge.description === undefined ? {} : { description: challenge.description }),
+        }
+      }
+      const { accountId, details } = await readDetails(signal, credentials)
       const preparedAt = now()
       const readyAt = preparedAt + confirmDelayMs
       const expiresAt = Math.min(preparedAt + challengeTtlMs, details.creditExpiresAt ?? Number.MAX_SAFE_INTEGER)
@@ -152,6 +170,11 @@ export function createCodexResetCreditService(options) {
         redeemRequestId: randomUUID(),
         readyAt,
         expiresAt,
+        availableCount: details.availableCount,
+        creditExpiresAt: details.creditExpiresAt,
+        title: details.title,
+        description: details.description,
+        uncertain: false,
       })
       return {
         challengeId,
@@ -178,40 +201,65 @@ export function createCodexResetCreditService(options) {
       // Set the gate synchronously before the first await so rapid clicks and
       // concurrent RPC calls can never create more than one provider POST.
       challenge.state = 'pending'
+      let retryable = challenge.uncertain === true
       try {
         const { access, accountId } = await resolveCredentials(signal)
-        if (accountId !== challenge.accountId) throw new Error('The signed-in ChatGPT account changed')
-        const response = await fetchReset(CODEX_RESET_CONSUME_URL, {
-          method: 'POST',
-          redirect: 'error',
-          headers: {
-            authorization: `Bearer ${access}`,
-            'chatgpt-account-id': accountId,
-            accept: 'application/json',
-            'content-type': 'application/json',
-            'cache-control': 'no-store',
-            'user-agent': USER_AGENT,
-          },
-          body: JSON.stringify({
-            redeem_request_id: challenge.redeemRequestId,
-            credit_id: challenge.creditId,
-          }),
-          signal: requestSignal(signal, timeoutMs),
-        })
+        if (accountId !== challenge.accountId) {
+          retryable = false
+          throw new Error('The signed-in ChatGPT account changed')
+        }
+        let response
+        try {
+          response = await fetchReset(CODEX_RESET_CONSUME_URL, {
+            method: 'POST',
+            redirect: 'error',
+            headers: {
+              authorization: `Bearer ${access}`,
+              'chatgpt-account-id': accountId,
+              accept: 'application/json',
+              'content-type': 'application/json',
+              'cache-control': 'no-store',
+              'user-agent': USER_AGENT,
+            },
+            body: JSON.stringify({
+              redeem_request_id: challenge.redeemRequestId,
+              credit_id: challenge.creditId,
+            }),
+            signal: requestSignal(signal, timeoutMs),
+          })
+        } catch {
+          retryable = true
+          throw new Error(UNCERTAIN_RESET_RESULT)
+        }
         if (!response.ok) {
+          if (response.status >= 500) {
+            retryable = true
+            throw new Error(UNCERTAIN_RESET_RESULT)
+          }
+          if (response.status !== 401 && response.status !== 403) retryable = false
           throw new Error(response.status === 401 || response.status === 403
             ? 'ChatGPT sign-in needs to be renewed'
             : `ChatGPT quota reset request failed (HTTP ${response.status})`)
         }
         let raw
-        try { raw = await response.json() } catch { throw new Error('ChatGPT returned an unreadable quota reset response') }
-        const result = parseConsumeResult(raw)
+        try { raw = await response.json() } catch {
+          retryable = true
+          throw new Error(UNCERTAIN_RESET_RESULT)
+        }
+        let result
+        try { result = parseConsumeResult(raw) } catch {
+          retryable = true
+          throw new Error(UNCERTAIN_RESET_RESULT)
+        }
+        retryable = false
         usageReader.clear()
         return result
       } finally {
-        // Deliberately no automatic retry after an ambiguous network result.
-        // A fresh read-only prepare is required for every subsequent attempt.
-        challenges.delete(challengeId)
+        if (retryable && now() <= challenge.expiresAt) {
+          challenge.state = 'prepared'
+          challenge.uncertain = true
+        }
+        else challenges.delete(challengeId)
       }
     },
 
