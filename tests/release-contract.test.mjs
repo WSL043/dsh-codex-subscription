@@ -130,6 +130,20 @@ test('GitHub defaults to English and links a complete separate Chinese README', 
   assert.equal(existsSync(new URL('../docs/assets/sidebar-en.png', import.meta.url)), false)
 })
 
+test('plugin-owned marketplace screenshots stay valid and show both product languages', () => {
+  const screenshots = JSON.parse(text('screenshots.json'))
+  assert.ok(screenshots.length >= 1 && screenshots.length <= 8, 'marketplace accepts 1-8 screenshots')
+  for (const path of screenshots) {
+    assert.equal(existsSync(new URL(`../${path}`, import.meta.url)), true, `marketplace screenshot must exist: ${path}`)
+  }
+  for (const path of [
+    'docs/assets/context-settings-en.png',
+    'docs/assets/image-preview-annotations-en.png',
+    'docs/assets/context-settings.png',
+    'docs/assets/image-preview-annotations.png',
+  ]) assert.equal(screenshots.includes(path), true, `marketplace must show ${path}`)
+})
+
 test('each README stays in one language and links to the complete translation', () => {
   const readme = text('README.md')
   const readmeZh = text('README.zh-CN.md')
