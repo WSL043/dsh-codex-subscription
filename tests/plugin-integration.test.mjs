@@ -16,6 +16,7 @@ import {
   normalizeSearchProvider,
   parseContextWindow,
   QUICK_QUOTA_MODE_BAR,
+  QUICK_QUOTA_MODE_FORECAST,
   QUICK_QUOTA_MODE_OFF,
   QUICK_QUOTA_MODE_PERCENT,
   OUTPUT_VERBOSITY_DEFAULT,
@@ -33,6 +34,7 @@ test('composer quota mode normalizes formal values and legacy booleans', () => {
   assert.equal(normalizeQuickQuotaMode(QUICK_QUOTA_MODE_OFF), QUICK_QUOTA_MODE_OFF)
   assert.equal(normalizeQuickQuotaMode(QUICK_QUOTA_MODE_PERCENT), QUICK_QUOTA_MODE_PERCENT)
   assert.equal(normalizeQuickQuotaMode(QUICK_QUOTA_MODE_BAR), QUICK_QUOTA_MODE_BAR)
+  assert.equal(normalizeQuickQuotaMode(QUICK_QUOTA_MODE_FORECAST), QUICK_QUOTA_MODE_FORECAST)
   assert.equal(normalizeQuickQuotaMode(undefined, true), QUICK_QUOTA_MODE_PERCENT)
   assert.equal(normalizeQuickQuotaMode(undefined, false), QUICK_QUOTA_MODE_OFF)
   assert.equal(normalizeQuickQuotaMode('invalid', true), QUICK_QUOTA_MODE_PERCENT)
@@ -176,7 +178,7 @@ function fakeContext() {
   }
 }
 
-test('plugin registers one Codex route, subscription image tool, and loopback-only redacted RPC', async () => {
+test('plugin registers one Codex route, subscription image tool, and DSH-trusted redacted RPC', async () => {
   const host = fakeContext()
   applyPlugin(host.ctx)
 
@@ -206,7 +208,7 @@ test('plugin registers one Codex route, subscription image tool, and loopback-on
   await host.updateSettings({ [CONTEXT_MODE_FIELD]: CONTEXT_MODE_STANDARD, [CUSTOM_CONTEXT_WINDOW_FIELD]: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000 })
   assert.equal(host.handled.length, 1)
   assert.equal(host.handled[0].channel, '/codex-subscription')
-  assert.deepEqual(host.handled[0].options, { authority: 'loopback' })
+  assert.deepEqual(host.handled[0].options, { authority: 'trusted-host' })
   assert.equal(host.settings.length, 1)
   assert.equal(host.provided.size, 0, 'the plugin should not publish undocumented host services')
   assert.equal('CodexCacheTelemetry' in plugin, false, 'cache diagnostics are outside the subscription route boundary')
@@ -307,6 +309,39 @@ test('usage failures use a DSH-supported bounded RPC error', async () => {
     error: { code: 'internal', message: 'Could not read ChatGPT usage', details: { issues: [] } },
   })
   assert.doesNotMatch(JSON.stringify(result), /host secret/)
+})
+
+test('original image RPC delegates only a bounded session-owned chunk request', async () => {
+  const calls = []
+  const inherited = { assetId: 'img_0123456789abcdef0123456789abcdef', sha256: 'a'.repeat(64) }
+  const handler = plugin.createSubscriptionRpcHandler({
+    originalImages: {
+      async chunk(sessionId, assetId, offset, access) {
+        calls.push({ sessionId, assetId, offset, access })
+        return sessionId === 'session-a' ? { ref: { assetId }, offset, encoded: 'AA==', done: true } : undefined
+      },
+    },
+    resolveInheritedOriginal(sessionId, assetId) {
+      return sessionId === 'session-a' && assetId === inherited.assetId ? inherited : undefined
+    },
+  })
+  const signal = new AbortController().signal
+  assert.deepEqual(await handler('image/original/chunk', {
+    sessionId: 'session-a', assetId: 'img_0123456789abcdef0123456789abcdef', offset: 0,
+  }, signal), {
+    ok: true,
+    value: { ref: { assetId: 'img_0123456789abcdef0123456789abcdef' }, offset: 0, encoded: 'AA==', done: true },
+  })
+  assert.equal(calls.length, 1)
+  assert.deepEqual(calls[0], {
+    sessionId: 'session-a', assetId: inherited.assetId, offset: 0, access: inherited,
+  })
+  assert.deepEqual(await handler('image/original/chunk', { sessionId: 'session-b', assetId: 'img_0123456789abcdef0123456789abcdef', offset: 0 }, signal), {
+    ok: false, error: { code: 'not-found', message: 'Original image is unavailable', details: { issues: [] } },
+  })
+  assert.deepEqual(await handler('image/original/chunk', { sessionId: 'session-a', assetId: 'same', offset: -1 }, signal), {
+    ok: false, error: { code: 'invalid-input', message: 'Invalid original image request', details: { issues: [] } },
+  })
 })
 
 test('quota reset RPC exposes bounded inspection, prepare, and consume results', async () => {

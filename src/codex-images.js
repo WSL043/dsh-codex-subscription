@@ -1,5 +1,6 @@
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import { ORIGINAL_IMAGE_SCHEMA_VERSION } from './image-original-contract.js'
 import { USER_AGENT } from './version.js'
 
 export const CODEX_IMAGE_TOOL_NAME = 'codex_image_generate'
@@ -173,6 +174,20 @@ function imageOutputSchema() {
           name: { type: 'string' },
         },
       },
+      original: {
+        type: 'object',
+        required: true,
+        additionalProperties: false,
+        properties: {
+          assetId: { type: 'string', required: true },
+          mediaType: { type: 'string', enum: ['image/png'], required: true },
+          bytes: { type: 'integer', required: true },
+          width: { type: 'integer', required: true },
+          height: { type: 'integer', required: true },
+          name: { type: 'string', required: true },
+          sha256: { type: 'string', required: true },
+        },
+      },
       background: { type: 'string' },
       quality: { type: 'string' },
       size: { type: 'string' },
@@ -239,6 +254,11 @@ export function createCodexImageTool(options) {
     output: {
       schema: imageOutputSchema(),
       render: (_args, value) => imageContent(value),
+      presentationMeta: (_args, value) => ({
+        kind: 'codex-subscription-image',
+        schemaVersion: ORIGINAL_IMAGE_SCHEMA_VERSION,
+        original: value.original,
+      }),
     },
     timeoutMs: 5 * 60 * 1000,
     isConcurrencySafe: () => false,
@@ -306,13 +326,23 @@ export function createCodexImageTool(options) {
       )
       const metadata = responseMetadata(value)
       const data = decodeCodexPng(metadata.encoded, maximumBytes)
-      const ref = await attachments.saveImage({
-        data,
-        mediaType: 'image/png',
-        name: 'codex-generated.png',
-      })
+      const sessionId = exec.agent?.id
+      if (sessionId === undefined) throw new Error('Codex image generation requires a session-owned tool call')
+      const original = await options.originalImages.save(String(sessionId), data)
+      let ref
+      try {
+        ref = await attachments.saveImage({
+          data,
+          mediaType: 'image/png',
+          name: 'codex-generated.png',
+        })
+      } catch (error) {
+        await options.originalImages.remove(original)
+        throw error
+      }
       const result = {
         image: imageReference(ref),
+        original,
         ...(metadata.background === undefined ? {} : { background: metadata.background }),
         ...(metadata.quality === undefined ? {} : { quality: metadata.quality }),
         ...(metadata.size === undefined ? {} : { size: metadata.size }),

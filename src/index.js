@@ -16,6 +16,8 @@ import {
 import { createOfficialModelCatalog } from './model-catalog.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
 import { createCodexImageTool } from './codex-images.js'
+import { OriginalImageStore } from './image-original-store.js'
+import { inheritedOriginalImageRef, ORIGINAL_IMAGE_CHUNK_BYTES, ORIGINAL_IMAGE_ID_PATTERN } from './image-original-contract.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
 import {
   CONTEXT_MODE_CUSTOM,
@@ -36,6 +38,7 @@ import {
   DEFAULT_SEARCH_PROVIDER,
   DEFAULT_SPEED_MODE,
   QUICK_QUOTA_MODE_BAR,
+  QUICK_QUOTA_MODE_FORECAST,
   QUICK_QUOTA_MODE_FIELD,
   QUICK_QUOTA_MODE_OFF,
   QUICK_QUOTA_MODE_PERCENT,
@@ -56,6 +59,7 @@ import {
   normalizeCustomContextWindow,
 } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
+import { createQuotaForecastReader } from './quota-forecast.js'
 import { createCodexResetCreditService } from './reset-credits.js'
 
 export const name = 'codex-subscription'
@@ -76,8 +80,25 @@ const publicError = (code, message) => ({
   error: { code, message, details: { issues: [] } },
 })
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, diagnosticsReader, modelCatalog }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal }) {
   return async (endpoint, payload, signal) => {
+    if (endpoint === 'image/original/chunk') {
+      try {
+        signal.throwIfAborted()
+        if (typeof payload?.sessionId !== 'string' || payload.sessionId.length === 0 || payload.sessionId.length > 512
+          || typeof payload?.assetId !== 'string' || !ORIGINAL_IMAGE_ID_PATTERN.test(payload.assetId)
+          || !Number.isSafeInteger(payload?.offset) || payload.offset < 0 || payload.offset % ORIGINAL_IMAGE_CHUNK_BYTES !== 0) {
+          return publicError('invalid-input', 'Invalid original image request')
+        }
+        const inherited = resolveInheritedOriginal?.(payload.sessionId, payload.assetId)
+        const chunk = await originalImages?.chunk(payload.sessionId, payload.assetId, payload.offset, inherited)
+        if (chunk === undefined) return publicError('not-found', 'Original image is unavailable')
+        return { ok: true, value: chunk }
+      } catch (error) {
+        if (signal.aborted) throw error
+        return publicError('internal', 'Could not read the original image')
+      }
+    }
     if (endpoint === 'diagnostics') {
       try {
         signal.throwIfAborted()
@@ -93,7 +114,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
         if (endpoint === 'preferences/update') {
           const patch = {}
           if (Object.hasOwn(payload ?? {}, QUICK_QUOTA_MODE_FIELD)) {
-            if (![QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR].includes(payload[QUICK_QUOTA_MODE_FIELD])) {
+            if (![QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST].includes(payload[QUICK_QUOTA_MODE_FIELD])) {
               return publicError('internal', 'Invalid quick quota preference')
             }
             patch[QUICK_QUOTA_MODE_FIELD] = payload[QUICK_QUOTA_MODE_FIELD]
@@ -242,7 +263,7 @@ export function createSearchProviderSwitcher(loader) {
 
 export function apply(ctx) {
   const settings = ctx.settings.register(settingsNamespace(SETTINGS_NAMESPACE), z.object({
-    [QUICK_QUOTA_MODE_FIELD]: z.union([QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR]),
+    [QUICK_QUOTA_MODE_FIELD]: z.union([QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST]),
     [LEGACY_QUICK_QUOTA_FIELD]: z.boolean(),
     [SEARCH_PROVIDER_FIELD]: z.union([SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX]).default(DEFAULT_SEARCH_PROVIDER),
     [SPEED_MODE_FIELD]: z.union([SPEED_MODE_STANDARD, SPEED_MODE_FAST]).default(DEFAULT_SPEED_MODE),
@@ -253,6 +274,7 @@ export function apply(ctx) {
   }))
   const searchProvider = createSearchProviderSwitcher(ctx.loader)
   const network = createCodexNetworkTransport()
+  const originalImages = new OriginalImageStore()
   const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF])
   const baseProvider = openaiCodexProvider()
   let resolveAuth = async () => undefined
@@ -334,6 +356,7 @@ export function apply(ctx) {
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     attachments: ctx.attachments,
+    originalImages,
     fetch: (input, init) => network.fetch('image', input, init),
   }))
   const adapter = new PiAiAdapter({
@@ -385,10 +408,14 @@ export function apply(ctx) {
 
   const auth = createCodexAuthService(authModels, store, { runLogin: operation => network.run('login', operation) })
   const coordinator = new CodexLoginCoordinator(auth)
-  const usageReader = createCodexUsageReader({
+  const baseUsageReader = createCodexUsageReader({
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     fetch: (input, init) => network.fetch('quota', input, init),
+  })
+  const usageReader = createQuotaForecastReader({
+    reader: baseUsageReader,
+    enabled: () => normalizeQuickQuotaMode(settings.get()[QUICK_QUOTA_MODE_FIELD], settings.get()[LEGACY_QUICK_QUOTA_FIELD]) === QUICK_QUOTA_MODE_FORECAST,
   })
   const resetCreditService = createCodexResetCreditService({
     getAuth: resolveAuth,
@@ -403,6 +430,11 @@ export function apply(ctx) {
     preferences,
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network }),
     modelCatalog,
+    originalImages,
+    resolveInheritedOriginal: (sessionId, assetId) => inheritedOriginalImageRef(
+      ctx.get?.('sessions')?.get?.(sessionId),
+      assetId,
+    ),
   })
 
   ctx.effect(() => {
@@ -410,8 +442,8 @@ export function apply(ctx) {
   }, 'codex-subscription: official model catalog')
 
   ctx.effect(
-    () => ctx.connection.rpc.handle(CHANNEL, handler, { authority: 'loopback' }),
-    'codex-subscription: loopback account RPC',
+    () => ctx.connection.rpc.handle(CHANNEL, handler, { authority: 'trusted-host' }),
+    'codex-subscription: DSH-trusted account RPC',
   )
 }
 

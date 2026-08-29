@@ -127,7 +127,7 @@ Restart DSH manually after installation, then:
 - Actual backend-provided quota, reset time, and freshness;
 - Separate standard Codex, Codex-Spark, Credits, and other independent limits;
 - Visible quota-reset count and earliest expiry, with deliberate early redemption, layered confirmation, and no automatic retry;
-- Optional percentage or progress bar for the selected Codex model (off by default);
+- Optional percentage, progress bar, or Beta runway estimate for the selected Codex model (off by default);
 - Standard or Fast mode for supported Codex models directly in the composer;
 - Standard, Extended, and per-model Custom context windows; Custom accepts a full numeric token count, stays within each audited model capacity, and feeds DSH's native agent compaction policy;
 - A copyable support report and direct feedback link in Settings; the report includes bounded request stages, HTTP/transport classes, elapsed ranges, and route source types while excluding OAuth credentials, account identifiers, proxy addresses, and authorization timestamps;
@@ -141,7 +141,7 @@ The plugin can follow an existing HTTPS proxy from the process environment or op
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota-en.png" width="800" alt="Codex quota inside the composer">
 </p>
 
-Choose Off, Percent, or Progress bar in Settings. The compact display appears only for a selected Codex model.
+Choose Off, Percent, Progress bar, or Beta Runway in Settings. The compact display appears only for a selected Codex model. Runway is opt-in and estimates the current pace only from official remaining-percentage observations kept in local runtime memory; it stays quiet with insufficient evidence and recalibrates after a reset, account change, or disable.
 Standard Codex uses the lowest remaining window returned by the service; Spark uses its independent quota. The plugin does not hard-code a
 “5-hour + weekly” layout or invent Credits and spending caps that the service did not return.
 
@@ -155,14 +155,19 @@ clicks are single-flight, and an uncertain network result is never retried autom
 
 ### Image generation and editing (Beta)
 
-Generated images open in a DSH-native preview with zoom, fit, dimensions, **Download original**, and numbered region notes.
+When `dsh-image-viewer` is installed, generated images delegate to its unified preview first. The subscription viewer is only a fallback when that service is absent or declines the request, so the two plugins never compete for the same entry point. Image Viewer owns zoom, pan, fit, preview downloads, and region notes; this plugin owns Codex image generation/editing, exact-original authorization, and the continue-editing handoff.
+Both paths expose dimensions and numbered region notes. The standard **Download** action retrieves the permission- and integrity-checked exact original by default; only legacy sessions without an exact original fall back to the conversation preview.
+Press **Enter** to save and collapse a region note; use **Shift+Enter** for a new line. Notes remain available when the
+same image is reopened during the current DSH page session.
 **Continue editing in composer** attaches exactly the image you opened and writes the region notes into the draft without
 sending it. A new image request does not silently include earlier images. GPT Image 2 can take longer than a normal text
 turn, and detailed text, exact composition, or repeated-character consistency may still need another pass.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/image-preview-annotations-en.png" width="900" alt="DSH-native generated-image preview with zoom, original download, and numbered region annotations">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/image-preview-annotations-en.png" width="800" alt="Generated image, region note, and continue editing inside the DSH Image Viewer">
 </p>
+
+The exact bytes returned by GPT Image are stored separately under the current DSH home because DSH may normalize the conversation preview for display and later model input. Original files are integrity-checked and available only to the creating session or a fork that inherited that image result; forks created earlier and unrelated sessions are denied. Raw image bytes are never placed in the session log. Uninstalling the plugin does not delete already generated originals.
 
 ### Composer speed
 

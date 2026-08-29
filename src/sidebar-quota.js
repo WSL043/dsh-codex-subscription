@@ -29,5 +29,6 @@ export function selectModelQuota(usage, model) {
     remainingPercent: selected.remainingPercent,
     windowSeconds: selected.windowSeconds,
     ...(Number.isSafeInteger(selected.resetsAt) ? { resetsAt: selected.resetsAt } : {}),
+    ...(selected.forecast === undefined ? {} : { forecast: selected.forecast }),
   }
 }
