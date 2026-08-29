@@ -30,6 +30,13 @@ const IMAGE_REF = Object.freeze({
   height: 1,
   name: 'codex-generated.png',
 })
+const ORIGINAL_REF = Object.freeze({
+  assetId: 'img_0123456789abcdef0123456789abcdef',
+  mediaType: 'image/png', bytes: 68, width: 1, height: 1,
+  name: 'codex-generated-original.png',
+  sha256: 'fixture-sha256'.padEnd(64, '0'),
+})
+const execContext = (callId, signal = new AbortController().signal) => ({ callId, signal, agent: { id: 'session-image' } })
 
 function fixture(overrides = {}) {
   const requests = []
@@ -51,6 +58,14 @@ function fixture(overrides = {}) {
   }
   const tool = createCodexImageTool({
     attachments,
+    originalImages: {
+      async save(sessionId, data) {
+        assert.equal(sessionId, 'session-image')
+        assert.equal(data.byteLength, 68)
+        return ORIGINAL_REF
+      },
+      async remove() {},
+    },
     async getAuth() { return { auth: { apiKey: 'oauth-access-token' } } },
     async readCredential() { return { type: 'oauth', accountId: 'account-123' } },
     async fetch(url, init) {
@@ -72,9 +87,7 @@ test('image tool uses the Codex subscription endpoint and fixed safe defaults', 
   const { requests, saves, tool } = fixture()
   const signal = new AbortController().signal
 
-  const value = await tool.execute({ prompt: 'a small blue circle on white' }, {
-    callId: 'call-7', signal,
-  })
+  const value = await tool.execute({ prompt: 'a small blue circle on white' }, execContext('call-7', signal))
 
   assert.equal(tool.name, CODEX_IMAGE_TOOL_NAME)
   assert.equal(requests.length, 1, 'generation is not blindly retried')
@@ -98,6 +111,7 @@ test('image tool uses the Codex subscription endpoint and fixed safe defaults', 
   assert.equal(Buffer.from(saves[0].data).subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
   assert.deepEqual(value, {
     image: IMAGE_REF,
+    original: ORIGINAL_REF,
     background: 'opaque',
     quality: 'medium',
     size: '1024x1024',
@@ -106,9 +120,7 @@ test('image tool uses the Codex subscription endpoint and fixed safe defaults', 
 
 test('image tool forwards an explicit valid size, quality, and background without hidden settings', async () => {
   const { requests, tool } = fixture()
-  await tool.execute({ prompt: 'transparent product icon', size: '1536x1024', quality: 'high', background: 'transparent' }, {
-    callId: 'call-options', signal: new AbortController().signal,
-  })
+  await tool.execute({ prompt: 'transparent product icon', size: '1536x1024', quality: 'high', background: 'transparent' }, execContext('call-options'))
   assert.deepEqual(JSON.parse(requests[0].init.body), {
     prompt: 'transparent product icon',
     background: 'transparent',
@@ -122,6 +134,7 @@ test('tool result contains a durable image block without base64 or credentials',
   const { tool } = fixture()
   const content = tool.output.render({ prompt: 'secret prompt' }, {
     image: IMAGE_REF,
+    original: ORIGINAL_REF,
     background: 'opaque',
     quality: 'medium',
     size: '1024x1024',
@@ -132,6 +145,25 @@ test('tool result contains a durable image block without base64 or credentials',
     { type: 'image', attachment: IMAGE_REF },
   ])
   assert.doesNotMatch(JSON.stringify(content), /oauth-access-token|account-123|iVBOR/)
+  assert.deepEqual(tool.output.presentationMeta({}, { image: IMAGE_REF, original: ORIGINAL_REF }), {
+    kind: 'codex-subscription-image', schemaVersion: 1, original: ORIGINAL_REF,
+  })
+})
+
+test('preview persistence failure removes the unpublished exact original', async () => {
+  const removed = []
+  const { tool } = fixture({
+    attachments: {
+      imageLimits: { maxImageBytes: 10 * 1024 * 1024, maxMessageImageBytes: 10 * 1024 * 1024, mediaTypes: ['image/png'] },
+      async saveImage() { throw new Error('preview failed') },
+    },
+    originalImages: {
+      async save() { return ORIGINAL_REF },
+      async remove(ref) { removed.push(ref) },
+    },
+  })
+  await assert.rejects(tool.execute({ prompt: 'rollback' }, execContext('call-rollback')), /preview failed/u)
+  assert.deepEqual(removed, [ORIGINAL_REF])
 })
 
 test('image editing is opt-in and sends only explicitly selected durable references', async () => {
@@ -141,7 +173,7 @@ test('image editing is opt-in and sends only explicitly selected durable referen
   await tool.execute({
     prompt: 'keep the composition and make the circle red',
     referenceImages: [IMAGE_REF],
-  }, { callId: 'call-edit', signal })
+  }, execContext('call-edit', signal))
 
   assert.equal(requests[0].url, CODEX_IMAGE_EDIT_URL)
   assert.deepEqual(JSON.parse(requests[0].init.body), {
@@ -163,7 +195,7 @@ test('new generation never includes a previous image unless references are provi
       async readImage() { reads += 1; throw new Error('must not read history') },
     },
   })
-  await tool.execute({ prompt: 'a completely new landscape' }, { callId: 'call-new', signal: new AbortController().signal })
+  await tool.execute({ prompt: 'a completely new landscape' }, execContext('call-new'))
   assert.equal(requests[0].url, CODEX_IMAGE_GENERATION_URL)
   assert.equal(reads, 0)
   assert.equal('images' in JSON.parse(requests[0].init.body), false)

@@ -4,6 +4,7 @@ export const LEGACY_QUICK_QUOTA_FIELD = 'quickQuotaVisible'
 export const QUICK_QUOTA_MODE_OFF = 'off'
 export const QUICK_QUOTA_MODE_PERCENT = 'percent'
 export const QUICK_QUOTA_MODE_BAR = 'bar'
+export const QUICK_QUOTA_MODE_FORECAST = 'forecast'
 export const DEFAULT_QUICK_QUOTA_MODE = QUICK_QUOTA_MODE_OFF
 export const SEARCH_PROVIDER_FIELD = 'searchProvider'
 export const SEARCH_PROVIDER_AUTO = 'auto'
@@ -107,7 +108,7 @@ export function contextModelGroups(models) {
 }
 
 export const normalizeQuickQuotaMode = (value, legacyVisible = false) => (
-  [QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR].includes(value)
+  [QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST].includes(value)
     ? value
     : legacyVisible === true
       ? QUICK_QUOTA_MODE_PERCENT
