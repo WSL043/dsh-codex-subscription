@@ -471,7 +471,7 @@ jobs:
           gh release create "$RELEASE_TAG" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$TARGET_SHA" \
-            --title "DSH Codex Subscription $RELEASE_TAG" \
+            --title "$RELEASE_TAG" \
             --notes-file .release/install.md \
             --draft "${flags[@]}"
 

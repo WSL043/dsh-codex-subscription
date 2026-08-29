@@ -65,6 +65,7 @@ test('immutable releases are drafted, verified with the package and optional man
   assert.match(releaseWorkflow, /Create draft GitHub Release/u)
   assert.match(releaseWorkflow, /gh release create "\$RELEASE_TAG"/u)
   assert.match(releaseWorkflow, /--draft/u)
+  assert.match(releaseWorkflow, /--title "\$RELEASE_TAG"/u)
   assert.match(releaseWorkflow, /--target "\$TARGET_SHA"/u)
   assert.match(releaseWorkflow, /--notes-file \.release\/install\.md/u)
   assert.doesNotMatch(releaseWorkflow, /--generate-notes/u)
