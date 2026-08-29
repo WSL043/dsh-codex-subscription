@@ -13,7 +13,7 @@
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[三步开始](#三步开始) · [交给 Agent 安装](#交给-agent推荐) · [更新与卸载](#更新与卸载) · [English](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md)
+[三步开始](#三步开始) · [安装](#安装) · [更新与卸载](#更新与卸载) · [English](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md)
 
 </div>
 
@@ -23,20 +23,14 @@
 
 ## 三步开始
 
-1. **安装插件**：Windows 打开 PowerShell，运行下面一行；已有 `dsh` 或 DSH-Portable 的用户也可使用后面的标准命令。
+1. **安装插件**：直接运行 DSH 标准 bundle 命令：
 
-   ```powershell
-   irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
+   ```sh
+   dsh plugin --profile web add dsh-codex-subscription
    ```
 
 2. **登录订阅**：手动重启 DSH，打开 **设置 -> Codex 订阅**，点击浏览器登录。无需 Codex CLI，也不要粘贴 token。
 3. **开始使用**：在模型选择器中选择 Codex；额度、订阅搜索、图片生成和高速模式都在 DSH 内使用。
-
-已有 `dsh` 命令时，标准安装命令是：
-
-```sh
-dsh plugin --profile web add dsh-codex-subscription
-```
 
 DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的命令。完整的官方 npm、Agent 安装、更新和卸载方式见下文。
 
@@ -73,7 +67,15 @@ DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的�
 
 ## 安装
 
-### 交给 Agent（推荐）
+### DSH 标准命令
+
+```sh
+dsh plugin --profile web add dsh-codex-subscription
+```
+
+目标选择、profile 锁、依赖解析和 bundle 激活均由 DSH 负责；这是插件唯一的安装路径。
+
+### 交给 Agent
 
 把这个链接直接发给 Agent：
 
@@ -84,21 +86,6 @@ https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
 ```
 
 Agent 文档包含安装、更新、卸载和验收步骤，并要求保留 DSH profile、登录信息和其他插件。
-
-### Windows 手动安装
-
-打开 PowerShell，只需要复制这一行：
-
-```powershell
-irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
-```
-
-这个轻量助手会检查当前目录、系统命令、常见位置以及正在运行的官方 DSH 或
-[DSH-Portable](https://github.com/WSL043/DSH-Portable)；存在多个目标时会先让用户选择。
-Portable 继续使用它的公开启动器。安装到官方 DSH 时，助手会使用选定的配置目录和固定到已验收
-DSH 版本的 pnpm 助手；系统没有可用 pnpm 时，会在当前 Windows 用户目录下缓存经过校验的副本。
-它不会递归扫盘、创建常驻命令、保存 profile 快照、要求管理员权限或擅自重启 DSH。只有识别到
-发布时间策略拦截时，才会仅对同一个固定安装命令重试一次。
 
 <details>
 <summary>官方 npm 方式（已安装 Node.js）</summary>
@@ -182,19 +169,7 @@ ChatGPT 返回可用重置卡时，设置页会用紧凑的一行显示数量和
 
 ## 更新与卸载
 
-Windows 用户重新运行上面的单行助手即可更新。官方 npm 用户使用：
-
-```sh
-npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web update dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.1-rc.2 --profile web --dump-config
-npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web remove dsh-codex-subscription
-```
-
-这些操作会保留 DSH profile、其他插件和登录信息。
-
-<details>
-<summary>使用现有 <code>dsh</code> 命令更新或卸载</summary>
+更新、校验和卸载继续使用同一套 DSH 插件生命周期：
 
 ```sh
 dsh plugin --profile web update dsh-codex-subscription
@@ -203,12 +178,24 @@ dsh --profile web --dump-config
 dsh plugin --profile web remove dsh-codex-subscription
 ```
 
+这些操作会保留 DSH profile、其他插件和登录信息。
+
+<details>
+<summary>官方 npm 备用方式</summary>
+
+```sh
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web update dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 --profile web --dump-config
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web remove dsh-codex-subscription
+```
+
 </details>
 
 ## 常见问题
 
 - **`dsh` 无法识别**：官方 npm 方式本来就不会创建全局 `dsh` 命令，请使用上面的完整 `npx -y @deepseek-ai/dsh@0.1.1-rc.2 ...` 命令；
-- **电脑上有多个 DSH**：请在目标 DSH 环境中运行标准命令；交给 Agent 时明确目标，或传入 `-DshPath`；
+- **电脑上有多个 DSH**：请从目标 DSH 环境运行标准命令，由该产品自身选择对应 profile；
 - **安装仍然失败**：把上面的 Agent 文档链接发给 Agent，不要删除 profile 或随意修改系统 PATH。
 - **需要提交问题**：在设置页底部生成“支持诊断”，然后打开[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)。报告包含系统/运行时、有限的登录阶段和安全的请求失败分类，但不含凭据、账号标识、代理地址、原始响应或完整日志；请粘贴到必填诊断栏，且不要附上登录链接、授权码或浏览器回调地址。
 

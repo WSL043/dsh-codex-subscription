@@ -22,7 +22,7 @@ test('documentation changes run delivery checks without pretending runtime chang
   assert.deepEqual(output.plan, {
     behavior: false,
     delivery: true,
-    installer: false,
+    manager: false,
     official: false,
     runtime: false,
   })

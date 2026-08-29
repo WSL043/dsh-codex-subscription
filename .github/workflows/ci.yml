@@ -20,7 +20,7 @@ jobs:
     outputs:
       behavior: ${{ steps.plan.outputs.behavior }}
       delivery: ${{ steps.plan.outputs.delivery }}
-      installer: ${{ steps.plan.outputs.installer }}
+      manager: ${{ steps.plan.outputs.manager }}
       official: ${{ steps.plan.outputs.official }}
       runtime: ${{ steps.plan.outputs.runtime }}
     steps:
@@ -96,10 +96,10 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm run test:delivery
 
-  windows-installer:
-    name: Windows installer risk
+  windows-manager:
+    name: Optional Windows manager risk
     needs: plan
-    if: needs.plan.outputs.installer == 'true'
+    if: needs.plan.outputs.manager == 'true'
     runs-on: windows-2025
     timeout-minutes: 10
     steps:
@@ -108,9 +108,9 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - name: Exercise discovery, install, update, cancel, and failure paths
+      - name: Exercise manager discovery, update, cancel, and failure paths
         shell: powershell
-        run: node --test tests/powershell-manager.test.mjs tests/thin-installer.test.mjs
+        run: node --test tests/powershell-manager.test.mjs
         env:
           DSH_CODEX_TEST_USER_PATH: '1'
 

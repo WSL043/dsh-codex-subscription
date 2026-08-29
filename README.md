@@ -12,7 +12,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Three-step start](#three-step-start) · [Agent install](#let-an-agent-install-it-recommended) · [Update and uninstall](#update-and-uninstall) · [简体中文](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.zh-CN.md)
+[Three-step start](#three-step-start) · [Install](#install) · [Update and uninstall](#update-and-uninstall) · [简体中文](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.zh-CN.md)
 
 </div>
 
@@ -22,20 +22,14 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 
 ## Three-step start
 
-1. **Install the plugin.** On Windows, open PowerShell and run the line below. Existing `dsh` and DSH-Portable users can use the standard command that follows.
+1. **Install the plugin.** Run the standard DSH bundle command:
 
-   ```powershell
-   irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
+   ```sh
+   dsh plugin --profile web add dsh-codex-subscription
    ```
 
 2. **Sign in.** Restart DSH yourself, open **Settings -> Codex**, and choose browser sign-in. No Codex CLI and no pasted token are required.
 3. **Use Codex.** Select a Codex model. Quota, subscription search, image generation, and Fast mode remain inside DSH.
-
-With an existing `dsh` command, install with:
-
-```sh
-dsh plugin --profile web add dsh-codex-subscription
-```
 
 DSH-Portable exposes the same standard plugin command, so the command above also applies there. See below for the complete official npm, Agent, update, and uninstall routes.
 
@@ -72,7 +66,15 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 
 ## Install
 
-### Let an Agent install it (recommended)
+### Standard DSH command
+
+```sh
+dsh plugin --profile web add dsh-codex-subscription
+```
+
+DSH owns target selection, profile locking, dependency resolution, and bundle activation; this is the plugin's only installation path.
+
+### Let an Agent install it
 
 Send this link directly to your Agent:
 
@@ -83,22 +85,6 @@ https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
 ```
 
 The guide includes verification steps and tells the Agent to preserve the DSH profile, sign-in, and other plugins.
-
-### Manual Windows install
-
-Open PowerShell and paste this one line:
-
-```powershell
-irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
-```
-
-The lightweight setup checks the current folder, the system command, common locations, and running official DSH or
-[DSH-Portable](https://github.com/WSL043/DSH-Portable). It asks before choosing when more than one target is available.
-Portable keeps using its public launcher. For official DSH, setup uses the selected profile home and a checksum-verified
-pnpm helper pinned to the accepted DSH release; the helper is cached under the current Windows user when no working pnpm
-command is available. It does not recursively scan disks, create a resident command, snapshot a profile, require
-administrator access, or restart DSH. A recognized release-age rejection may retry the same pinned add once for that
-command only.
 
 <details>
 <summary>Official npm route (Node.js installed)</summary>
@@ -186,19 +172,7 @@ see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-
 
 ## Update and uninstall
 
-On Windows, rerun the one-line setup above to update. For the official npm route, use:
-
-```sh
-npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web update dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.1-rc.2 --profile web --dump-config
-npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web remove dsh-codex-subscription
-```
-
-These operations preserve the DSH profile, other plugins, and saved sign-in.
-
-<details>
-<summary>Update or uninstall with an existing <code>dsh</code> command</summary>
+Use the same DSH plugin lifecycle to update, verify, or uninstall:
 
 ```sh
 dsh plugin --profile web update dsh-codex-subscription
@@ -207,12 +181,24 @@ dsh --profile web --dump-config
 dsh plugin --profile web remove dsh-codex-subscription
 ```
 
+These operations preserve the DSH profile, other plugins, and saved sign-in.
+
+<details>
+<summary>Official npm fallback</summary>
+
+```sh
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web update dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 --profile web --dump-config
+npx -y @deepseek-ai/dsh@0.1.1-rc.2 plugin --profile web remove dsh-codex-subscription
+```
+
 </details>
 
 ## Troubleshooting
 
 - **`dsh` is not recognized:** the official npm route does not create a global `dsh` command; use the complete `npx -y @deepseek-ai/dsh@0.1.1-rc.2 ...` command above;
-- **More than one DSH exists:** run the standard command from the intended DSH environment. For an Agent, specify the target or pass `-DshPath` explicitly;
+- **More than one DSH exists:** run the standard command from the intended DSH environment so that product selects the corresponding profile;
 - **Setup still fails:** send the Agent guide above to an Agent. Do not delete the profile or change the system PATH to force an install.
 - **Need to report a problem:** generate a **Support diagnostics** report at the bottom of Settings, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The report includes the OS/runtime, bounded sign-in phase, and safe request-failure categories, but excludes credentials, account identifiers, proxy addresses, raw responses, and full logs. Paste it into the required diagnostics field; never attach sign-in URLs, authorization codes, or browser callback addresses.
 

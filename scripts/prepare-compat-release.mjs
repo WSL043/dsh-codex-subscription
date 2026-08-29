@@ -132,7 +132,6 @@ async function prepare(root, candidate) {
     'README.zh-CN.md',
     'AGENTS.md',
     'dsh-codex.ps1',
-    'dsh-codex-setup.ps1',
     '.github/scripts/accept-official-release.ps1',
   ]
   const sources = await Promise.all(boundedPaths.map(path => readFile(resolve(root, path), 'utf8')))
