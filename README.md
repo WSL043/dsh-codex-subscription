@@ -46,6 +46,7 @@ DSH-Portable exposes the same standard plugin command, so the command above also
 | **Codex image generation and editing (Beta)** | Generate without references, or explicitly edit one selected image; preview, zoom, annotate regions, download the original, and continue in the same composer |
 | **Fast mode** | Switch between Standard and Fast directly in the composer |
 | **Model-aware context** | Keep catalog defaults, use each model's supported extended window, or enter a full numeric token limit for each model |
+| **Headless runs** | Use the same signed-in Codex provider for one-shot DSH tasks that print their answer and exit |
 
 These capabilities reuse the same local ChatGPT sign-in. Subscription routing failures stay visible and never silently switch to another paid route.
 
@@ -73,6 +74,15 @@ dsh plugin --profile web add dsh-codex-subscription
 ```
 
 DSH owns target selection, profile locking, dependency resolution, and bundle activation; this is the plugin's only installation path.
+
+### Headless
+
+After signing in and selecting a Codex model in Web once, install the same plugin in DSH's standard Headless profile:
+
+```sh
+dsh plugin --profile headless add dsh-codex-subscription
+dsh --profile headless "Reply with only the word: ok"
+```
 
 ### Let an Agent install it
 
