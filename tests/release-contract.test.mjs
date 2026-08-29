@@ -18,6 +18,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'lib/*.js',
     'cordis.patch.yml',
     'README.md',
+    'README.en.md',
     'README.zh-CN.md',
     'AGENTS.md',
     'compatibility.json',
@@ -52,7 +53,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
 })
 
 test('public docs contain only user-facing product and operation information', () => {
-  const docs = `${text('README.md')}\n${text('README.zh-CN.md')}`
+  const docs = `${text('README.md')}\n${text('README.en.md')}\n${text('README.zh-CN.md')}`
   assert.match(docs, /silent fallback[\s\S]*paid route|不会静默切换[\s\S]*付费路由/iu)
   assert.match(docs, /reset time|重置时间/iu)
   assert.match(docs, /AGENTS\.md/u)
@@ -79,12 +80,15 @@ test('shipped agent guide owns install, pinned update, verification, and uninsta
   assert.match(guide, /Do not[\s\S]*add a resident manager/iu)
 })
 
-test('GitHub defaults to English and links a complete separate Chinese README', () => {
-  const readme = text('README.md')
-  const readmeZh = text('README.zh-CN.md')
-  assert.match(readme, /^<div align="center">[\s\S]*Use your ChatGPT \/ Codex subscription directly/u)
-  assert.match(readme, /\[简体中文\]\(https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/blob\/main\/README\.zh-CN\.md\)/u)
-  assert.match(readmeZh, /\[English\]\(https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/blob\/main\/README\.md\)/u)
+test('GitHub defaults to Chinese, links a complete English README, and preserves the old Chinese URL', () => {
+  const readmeZh = text('README.md')
+  const readme = text('README.en.md')
+  const legacyZh = text('README.zh-CN.md')
+  assert.match(readmeZh, /^# DSH Codex Subscription[\s\S]*把 ChatGPT \/ Codex 订阅直接接入 DeepSeek Harness/u)
+  assert.match(readmeZh, /\[English\]\(https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/blob\/main\/README\.en\.md\)/u)
+  assert.match(readme, /\[简体中文\]\(https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/blob\/main\/README\.md\)/u)
+  assert.match(legacyZh, /\[打开完整中文说明\]\(README\.md\)/u)
+  assert.match(legacyZh, /dsh plugin --profile web add dsh-codex-subscription/u)
   for (const doc of [readme, readmeZh]) {
     assert.match(doc, /img\.shields\.io\/npm\/v\/dsh-codex-subscription/u)
     assert.match(doc, /img\.shields\.io\/npm\/dt\/dsh-codex-subscription/u)
@@ -144,18 +148,18 @@ test('plugin-owned marketplace screenshots stay valid and show both product lang
   ]) assert.equal(screenshots.includes(path), true, `marketplace must show ${path}`)
 })
 
-test('each README stays in one language and links to the complete translation', () => {
-  const readme = text('README.md')
-  const readmeZh = text('README.zh-CN.md')
+test('each complete README stays in one language and links to the complete translation', () => {
+  const readmeZh = text('README.md')
+  const readme = text('README.en.md')
   assert.doesNotMatch(readme, /^## English$/mu)
   assert.doesNotMatch(readmeZh, /^## (?:简体中文|中文)$/mu)
-  assert.match(readme, /README\.zh-CN\.md/u)
-  assert.match(readmeZh, /README\.md/u)
+  assert.match(readme, /README\.md/u)
+  assert.match(readmeZh, /README\.en\.md/u)
 })
 
 test('public readmes provide explicit update commands and verification', () => {
-  const readmeEn = text('README.md')
-  const readmeZh = text('README.zh-CN.md')
+  const readmeEn = text('README.en.md')
+  const readmeZh = text('README.md')
   assert.match(readmeZh, /## 更新与卸载[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
   assert.match(readmeEn, /## Update and uninstall[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
   assert.match(readmeZh, /dsh plugin --profile web add dsh-codex-subscription/u)
@@ -201,8 +205,8 @@ test('uninstall never recursively deletes a caller-selected command directory', 
 
 test('docs explain dynamic quota buckets without exposing maintenance internals', () => {
   const agent = readFileSync(new URL('../AGENTS.md', import.meta.url), 'utf8')
-  const readmeEn = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
-  const readmeZh = readFileSync(new URL('../README.zh-CN.md', import.meta.url), 'utf8')
+  const readmeEn = readFileSync(new URL('../README.en.md', import.meta.url), 'utf8')
+  const readmeZh = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
   for (const text of [readmeZh, readmeEn]) {
     assert.match(text, /Spark/u)
     assert.match(text, /backend-provided|actual.*returned|服务端实际返回/iu)
