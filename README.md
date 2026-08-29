@@ -2,6 +2,8 @@
 
 # DSH Codex Subscription
 
+**English** · [简体中文](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.zh-CN.md)
+
 **Use your ChatGPT / Codex subscription directly in DeepSeek Harness**
 
 No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay inside DSH.
@@ -12,7 +14,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Three-step start](#three-step-start) · [Install](#install) · [Contribute](CONTRIBUTING.md) · [Update and uninstall](#update-and-uninstall) · [简体中文](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.zh-CN.md)
+[Three-step start](#three-step-start) · [Install](#install) · [Contribute](CONTRIBUTING.md) · [Update and uninstall](#update-and-uninstall)
 
 </div>
 
