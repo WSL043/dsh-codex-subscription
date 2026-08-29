@@ -2,6 +2,8 @@
 
 <div align="center">
 
+[English](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md) · **简体中文**
+
 **把 ChatGPT / Codex 订阅直接接入 DeepSeek Harness**
 
 在 DeepSeek Harness 中直接登录 ChatGPT 并使用 Codex 订阅。无需 OpenAI API Key，也不依赖 Codex CLI；
@@ -13,7 +15,7 @@
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[三步开始](#三步开始) · [安装](#安装) · [参与贡献](CONTRIBUTING.md) · [更新与卸载](#更新与卸载) · [English](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md)
+[三步开始](#三步开始) · [安装](#安装) · [参与贡献](CONTRIBUTING.md) · [更新与卸载](#更新与卸载)
 
 </div>
 
