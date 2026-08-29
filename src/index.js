@@ -63,7 +63,7 @@ import { createQuotaForecastReader } from './quota-forecast.js'
 import { createCodexResetCreditService } from './reset-credits.js'
 
 export const name = 'codex-subscription'
-export const inject = ['llm', 'credentials', 'connection', 'settings', 'web', 'loader', 'tools', 'attachments']
+export const inject = ['llm', 'credentials', 'settings', 'web', 'loader', 'tools', 'attachments']
 
 const PROVIDER = 'openai-codex'
 const CREDENTIAL_REF = credentialRef('OPENAI_CODEX_SUBSCRIPTION_OAUTH')
@@ -441,10 +441,10 @@ export function apply(ctx) {
     void modelCatalog.refresh().catch(error => ctx.logger?.debug?.('could not refresh Codex model catalog: %s', error.message))
   }, 'codex-subscription: official model catalog')
 
-  ctx.effect(
-    () => ctx.connection.rpc.handle(CHANNEL, handler, { authority: 'trusted-host' }),
+  ctx.inject(['connection'], connectionContext => connectionContext.effect(
+    () => connectionContext.connection.rpc.handle(CHANNEL, handler, { authority: 'trusted-host' }),
     'codex-subscription: DSH-trusted account RPC',
-  )
+  ))
 }
 
 export { createCodexAuthService, DshOAuthCredentialStore } from './credential-store.js'

@@ -78,7 +78,7 @@ test('custom context rows follow the active upstream model catalog', () => {
   ])
 })
 
-function fakeContext() {
+function fakeContext({ connection = true } = {}) {
   const registered = []
   const handled = []
   const searchProviders = []
@@ -134,14 +134,14 @@ function fakeContext() {
         return () => {}
       },
     },
-    connection: {
+    connection: connection ? {
       rpc: {
         handle(channel, handler, options) {
           handled.push({ channel, handler, options })
           return () => {}
         },
       },
-    },
+    } : undefined,
     settings: {
       writable: true,
       register(namespace, schema) {
@@ -163,7 +163,9 @@ function fakeContext() {
     loader: {
       * entries() { yield webEntry },
     },
-    inject(_services, callback) { callback(ctx) },
+    inject(services, callback) {
+      if (services.every(service => ctx[service] !== undefined)) callback(ctx)
+    },
     get(name) { return provided.get(name) },
     provide(name, value) { provided.set(name, value) },
     effect(register) { return register() },
@@ -177,6 +179,14 @@ function fakeContext() {
     },
   }
 }
+
+test('plugin activates without the web connection service in Headless mode', () => {
+  const host = fakeContext({ connection: false })
+
+  assert.doesNotThrow(() => applyPlugin(host.ctx))
+  assert.deepEqual(host.registered.map(item => item.providers), [['openai-codex']])
+  assert.equal(host.handled.length, 0)
+})
 
 test('plugin registers one Codex route, subscription image tool, and DSH-trusted redacted RPC', async () => {
   const host = fakeContext()
