@@ -90,6 +90,7 @@ const zh = {
   resetRenewLogin: '登录状态已失效，请重新登录。', resetExpired: '本次确认已失效，请重新开始。',
   resetInProgress: '额度重置正在处理中。', resetTooEarly: '请等待冷静期结束后再确认。', resetAcknowledgeRequired: '请先确认已了解这次操作可能消耗重置次数。',
   resetAccountChanged: '登录账号已变更，请重新开始。',
+  resetUncertain: '服务端返回结果不确定。请再次确认，插件会复用同一个请求，不会另外发起一次重置。',
   creditsNote: '仅显示 Codex 为此账户或工作区实际返回的额外 Credits、消费上限或额度重置次数；三者不是同一项。',
   creditsUsed: '已用 {used} / {limit} credits', spendReached: 'Credits 月度消费上限已用尽。', unavailable: '暂无数据',
   quickQuotaSetting: '输入框额度', quickQuotaOff: '关闭', quickQuotaPercent: '百分比', quickQuotaBar: '进度条', quickQuotaForecast: '续航预测', quickQuotaBeta: 'Beta',
@@ -144,6 +145,7 @@ const en = {
   resetRenewLogin: 'Your sign-in expired. Sign in again.', resetExpired: 'This confirmation expired. Start again.',
   resetInProgress: 'A quota reset is already in progress.', resetTooEarly: 'Wait for the cooldown before confirming.', resetAcknowledgeRequired: 'Confirm that you understand this may consume a reset.',
   resetAccountChanged: 'The signed-in account changed. Start again.',
+  resetUncertain: 'The server result is uncertain. Confirm again to check the same request; the plugin will not start a separate reset.',
   creditsNote: 'Shows only extra Credits, spending caps, or quota resets returned for this account or workspace; these are separate items.',
   creditsUsed: '{used} / {limit} credits used', spendReached: 'The monthly Credits spending cap has been reached.', unavailable: 'No data yet',
   quickQuotaSetting: 'Composer quota', quickQuotaOff: 'Off', quickQuotaPercent: 'Percent', quickQuotaBar: 'Progress bar', quickQuotaForecast: 'Runway', quickQuotaBeta: 'Beta',
@@ -1237,6 +1239,7 @@ function resetCreditErrorText(error, t) {
     ['Wait before confirming this quota reset', 'resetTooEarly'],
     ['You must acknowledge that this may consume one quota reset', 'resetAcknowledgeRequired'],
     ['The signed-in ChatGPT account changed', 'resetAccountChanged'],
+    ['Quota reset result is uncertain; retry this confirmation to check the same request', 'resetUncertain'],
   ]).get(error instanceof Error ? error.message : '')
   return t(key ?? 'resetFailed')
 }

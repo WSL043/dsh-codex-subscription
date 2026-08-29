@@ -189,6 +189,126 @@ test('concurrent and repeated confirmation performs exactly one explicit idempot
   assert.equal(requests.filter(request => request.init.method === 'POST').length, 1)
 })
 
+test('an uncertain result retries the same logical redemption id instead of creating a second reset', async () => {
+  let attempt = 0
+  const { service, requests, advance } = fixture({
+    options: {
+      async fetch(url, init) {
+        requests.push({ url, init })
+        if (init.method === 'GET') return response({
+          available_count: 1,
+          credits: [{ id: 'credit-secret', status: 'available', reset_type: 'rate_limit' }],
+        })
+        attempt += 1
+        if (attempt === 1) throw new TypeError('connection closed after dispatch')
+        return response({ code: 'already_redeemed', windows_reset: [] })
+      },
+    },
+  })
+  const prepared = await service.prepare({ signal })
+  advance(5_000)
+
+  await assert.rejects(
+    service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }),
+    /result is uncertain/i,
+  )
+  assert.deepEqual(await service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }), {
+    code: 'already_redeemed', windowsReset: [],
+  })
+  const posts = requests.filter(request => request.init.method === 'POST')
+  assert.equal(posts.length, 2)
+  assert.equal(JSON.parse(posts[0].init.body).redeem_request_id, JSON.parse(posts[1].init.body).redeem_request_id)
+})
+
+test('prepare recovers the same uncertain confirmation after the client loses its local challenge', async () => {
+  let sequence = 0
+  const { service, requests, advance } = fixture({
+    options: {
+      randomUUID: () => `request-${++sequence}`,
+      async fetch(url, init) {
+        requests.push({ url, init })
+        if (init.method === 'GET') return response({
+          available_count: 1,
+          credits: [{ id: 'credit-secret', status: 'available', reset_type: 'rate_limit' }],
+        })
+        throw new TypeError('connection closed after dispatch')
+      },
+    },
+  })
+  const first = await service.prepare({ signal })
+  advance(5_000)
+  await assert.rejects(
+    service.consume({ challengeId: first.challengeId, acknowledged: true, signal }),
+    /result is uncertain/i,
+  )
+
+  const recovered = await service.prepare({ signal })
+  assert.equal(recovered.challengeId, first.challengeId)
+  assert.equal(requests.filter(request => request.init.method === 'GET').length, 1)
+})
+
+test('a server error keeps the same redemption confirmation available for an idempotent retry', async () => {
+  let attempt = 0
+  const { service, requests, advance } = fixture({
+    options: {
+      async fetch(url, init) {
+        requests.push({ url, init })
+        if (init.method === 'GET') return response({
+          available_count: 1,
+          credits: [{ id: 'credit-secret', status: 'available', reset_type: 'rate_limit' }],
+        })
+        attempt += 1
+        return attempt === 1
+          ? response({}, { ok: false, status: 503 })
+          : response({ code: 'reset', windows_reset: ['primary'] })
+      },
+    },
+  })
+  const prepared = await service.prepare({ signal })
+  advance(5_000)
+
+  await assert.rejects(
+    service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }),
+    /result is uncertain/i,
+  )
+  await service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal })
+  const posts = requests.filter(request => request.init.method === 'POST')
+  assert.equal(JSON.parse(posts[0].init.body).redeem_request_id, JSON.parse(posts[1].init.body).redeem_request_id)
+})
+
+test('renewing sign-in after an uncertain result does not discard the original redemption id', async () => {
+  let attempt = 0
+  const { service, requests, advance } = fixture({
+    options: {
+      async fetch(url, init) {
+        requests.push({ url, init })
+        if (init.method === 'GET') return response({
+          available_count: 1,
+          credits: [{ id: 'credit-secret', status: 'available', reset_type: 'rate_limit' }],
+        })
+        attempt += 1
+        if (attempt === 1) throw new TypeError('connection closed after dispatch')
+        if (attempt === 2) return response({}, { ok: false, status: 401 })
+        return response({ code: 'already_redeemed', windows_reset: [] })
+      },
+    },
+  })
+  const prepared = await service.prepare({ signal })
+  advance(5_000)
+
+  await assert.rejects(
+    service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }),
+    /result is uncertain/i,
+  )
+  await assert.rejects(
+    service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }),
+    /sign-in needs to be renewed/i,
+  )
+  await service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal })
+  const posts = requests.filter(request => request.init.method === 'POST')
+  assert.equal(JSON.parse(posts[0].init.body).redeem_request_id, JSON.parse(posts[2].init.body).redeem_request_id)
+})
+
 test('clear invalidates prepared challenges without a POST', async () => {
   const { service, requests, advance } = fixture()
   const prepared = await service.prepare({ signal })
@@ -215,7 +335,7 @@ test('provider failures are bounded and do not leak response bodies or credentia
   await assert.rejects(
     service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal }),
     error => {
-      assert.match(error.message, /failed \(HTTP 503\)/)
+      assert.match(error.message, /result is uncertain/i)
       assert.doesNotMatch(error.message, /provider-secret|credit-secret|bearer-secret/)
       return true
     },
