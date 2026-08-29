@@ -7,13 +7,12 @@ const releaseWorkflow = readFileSync(new URL('../.github/workflows/publish.yml',
 test('GitHub Releases include beginner-facing install, update, and uninstall instructions before publish', () => {
   assert.match(releaseWorkflow, /<!-- dsh-codex-install -->/u)
   assert.match(releaseWorkflow, /## Installation[\s\S]*## 中文[\s\S]*## 安装/u)
-  assert.match(releaseWorkflow, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
-  assert.match(releaseWorkflow, /### Official npm route[\s\S]*### 官方 npm 方式/u)
+  assert.match(releaseWorkflow, /### Standard DSH command[\s\S]*### DSH 标准命令/u)
+  assert.match(releaseWorkflow, /dsh plugin --profile web add dsh-codex-subscription/u)
   assert.match(releaseWorkflow, /npx -y @deepseek-ai\/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription/u)
-  assert.match(releaseWorkflow, /dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription/u)
+  assert.doesNotMatch(releaseWorkflow, /\birm\b|dsh-codex-setup\.ps1/iu)
   assert.match(releaseWorkflow, /dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription/u)
   assert.match(releaseWorkflow, /sed -i "s\/__DSH_VERSION__\/\$current_dsh\/g" \.release\/install\.md/u)
-  assert.match(releaseWorkflow, /release-age rejection may retry the same pinned add once/u)
   assert.match(releaseWorkflow, /release_kind:[\s\S]*compatibility/u)
   assert.match(releaseWorkflow, /Added support for DeepSeek Harness/u)
   assert.equal(existsSync(new URL('../.github/workflows/release-notes.yml', import.meta.url)), false)
@@ -62,7 +61,7 @@ test('release notes present complete English before a separate Chinese translati
   assert.doesNotMatch(notesStep, /提交贡献 \/ Thanks to/u)
 })
 
-test('immutable releases are drafted, verified with all four assets, then published', () => {
+test('immutable releases are drafted, verified with the package and optional manager assets, then published', () => {
   assert.match(releaseWorkflow, /Create draft GitHub Release/u)
   assert.match(releaseWorkflow, /gh release create "\$RELEASE_TAG"/u)
   assert.match(releaseWorkflow, /--draft/u)
@@ -75,7 +74,6 @@ test('immutable releases are drafted, verified with all four assets, then publis
     'dsh-codex-subscription.tgz',
     'dsh-codex.ps1',
     'dsh-codex.ps1.sha256',
-    'dsh-codex-setup.ps1',
   ]) assert.match(releaseWorkflow, new RegExp(asset.replaceAll('.', '\\.')))
   assert.match(releaseWorkflow, /Verify draft release before publish/u)
   assert.match(releaseWorkflow, /gh release view "\$RELEASE_TAG"[\s\S]*isDraft[\s\S]*assets/u)

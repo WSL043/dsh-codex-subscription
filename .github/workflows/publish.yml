@@ -152,9 +152,9 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - name: Verify Windows manager compatibility and thin setup lifecycle
+      - name: Verify optional Windows manager compatibility
         shell: powershell
-        run: node --test tests/powershell-manager.test.mjs tests/thin-installer.test.mjs
+        run: node --test tests/powershell-manager.test.mjs
         env:
           DSH_CODEX_TEST_USER_PATH: '1'
 
@@ -357,17 +357,13 @@ jobs:
           <!-- dsh-codex-install -->
           ## Installation
 
-          ### Windows guided install
+          ### Standard DSH command
 
-          Open PowerShell and paste this one line:
-
-          ```powershell
-          irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
+          ```sh
+          dsh plugin --profile web add dsh-codex-subscription
           ```
 
-          Setup detects official DSH and DSH-Portable independently and asks before choosing when multiple targets exist. Portable uses its public launcher; official DSH uses the selected profile home and a checksum-verified pnpm helper. A recognized release-age rejection may retry the same pinned add once. Setup needs no administrator access and does not restart DSH.
-
-          ### Official npm route
+          ### Official npm route when `dsh` is not installed globally
 
           ```sh
           npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription
@@ -410,17 +406,13 @@ jobs:
 
           ## 安装
 
-          ### Windows 安装助手
+          ### DSH 标准命令
 
-          打开 PowerShell，只复制这一行：
-
-          ```powershell
-          irm 'https://github.com/WSL043/dsh-codex-subscription/releases/latest/download/dsh-codex-setup.ps1' | iex
+          ```sh
+          dsh plugin --profile web add dsh-codex-subscription
           ```
 
-          助手会分别识别官方 DSH 与 DSH-Portable，存在多个目标时先让用户选择。Portable 使用公开启动器；官方 DSH 使用选定的配置目录和经过校验的 pnpm 助手。识别到发布时间策略拦截时，可能只对同一个固定命令重试一次。无需管理员权限，完成后请手动重启 DSH。
-
-          ### 官方 npm 方式
+          ### 未全局安装 `dsh` 时的官方 npm 方式
 
           ```sh
           npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription
@@ -458,9 +450,8 @@ jobs:
           test -s .artifacts/dsh-codex-subscription.tgz
           if [[ "$IS_PRERELEASE" != 'true' ]]; then
             cp dsh-codex.ps1 .artifacts/dsh-codex.ps1
-            cp dsh-codex-setup.ps1 .artifacts/dsh-codex-setup.ps1
             (cd .artifacts && sha256sum dsh-codex.ps1 > dsh-codex.ps1.sha256)
-            for asset in dsh-codex.ps1 dsh-codex.ps1.sha256 dsh-codex-setup.ps1; do
+            for asset in dsh-codex.ps1 dsh-codex.ps1.sha256; do
               test -s ".artifacts/$asset"
             done
           fi
@@ -508,8 +499,8 @@ jobs:
           expected=1
           assets=(dsh-codex-subscription.tgz)
           if [[ "$IS_PRERELEASE" != 'true' ]]; then
-            expected=4
-            assets+=(dsh-codex.ps1 dsh-codex.ps1.sha256 dsh-codex-setup.ps1)
+            expected=3
+            assets+=(dsh-codex.ps1 dsh-codex.ps1.sha256)
           fi
           jq -e --argjson expected "$expected" '.assets | length == $expected' .release/draft.json >/dev/null
           for asset in "${assets[@]}"; do
@@ -593,7 +584,7 @@ jobs:
           assets="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
           required=(dsh-codex-subscription.tgz)
           if [[ "$IS_PRERELEASE" != 'true' ]]; then
-            required+=(dsh-codex.ps1 dsh-codex.ps1.sha256 dsh-codex-setup.ps1)
+            required+=(dsh-codex.ps1 dsh-codex.ps1.sha256)
           fi
           for asset in "${required[@]}"
           do

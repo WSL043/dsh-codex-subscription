@@ -148,7 +148,7 @@ jobs:
         shell: powershell
         env:
           DSH_CODEX_TEST_USER_PATH: '1'
-        run: node --test tests/powershell-manager.test.mjs tests/thin-installer.test.mjs
+        run: node --test tests/powershell-manager.test.mjs
       - name: Accept install, update, Web startup, and uninstall in official DSH
         shell: powershell
         run: |
@@ -218,7 +218,7 @@ jobs:
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -- .github/scripts/accept-official-release.ps1 AGENTS.md README.md README.zh-CN.md compatibility.json dsh-codex-setup.ps1 dsh-codex.ps1 lib package.json pnpm-lock.yaml pnpm-workspace.yaml
+          git add -- .github/scripts/accept-official-release.ps1 AGENTS.md README.md README.zh-CN.md compatibility.json dsh-codex.ps1 lib package.json pnpm-lock.yaml pnpm-workspace.yaml
           git commit -m "chore: support DSH $DSH_VERSION"
           git push origin HEAD:main
       - name: Dispatch and await the verified release workflow

@@ -91,16 +91,13 @@ test('GitHub defaults to English and links a complete separate Chinese README', 
     assert.doesNotMatch(doc, /img\.shields\.io\/npm\/d(?:m|w|y)\/dsh-codex-subscription/u)
     assert.match(doc, /npmjs\.com\/package\/dsh-codex-subscription/u)
   }
-  assert.match(readmeZh, /## 准备 DSH[\s\S]*DSH-Portable[\s\S]*Windows、macOS 和 Linux[\s\S]*社区便携桌面分发[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## 安装[\s\S]*### 交给 Agent（推荐）[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md[\s\S]*### Windows 手动安装/u)
-  assert.match(readme, /## Prepare DSH[\s\S]*DSH-Portable[\s\S]*community portable desktop distribution for Windows, macOS, and Linux[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## Install[\s\S]*### Let an Agent install it \(recommended\)[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md[\s\S]*### Manual Windows install/u)
+  assert.match(readmeZh, /## 准备 DSH[\s\S]*DSH-Portable[\s\S]*Windows、macOS 和 Linux[\s\S]*社区便携桌面分发[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## 安装[\s\S]*### DSH 标准命令[\s\S]*### 交给 Agent[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md/u)
+  assert.match(readme, /## Prepare DSH[\s\S]*DSH-Portable[\s\S]*community portable desktop distribution for Windows, macOS, and Linux[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## Install[\s\S]*### Standard DSH command[\s\S]*### Let an Agent install it[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md/u)
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /社区便携包|community DSH-Portable package/iu)
   assert.match(readmeZh, /本项目的问题反馈[\s\S]*github\.com\/WSL043\/dsh-codex-subscription\/issues[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
   assert.match(readme, /project feedback[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
-  assert.match(readmeZh, /只需要复制这一行/u)
-  assert.match(readme, /paste this one line/u)
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /依次粘贴下面两行|paste these two lines in order|下面三行|three lines/iu)
-  assert.match(readme, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
-  assert.match(readmeZh, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
+  assert.doesNotMatch(`${readme}\n${readmeZh}`, /\birm\b|dsh-codex-setup\.ps1/iu)
   assert.doesNotMatch(readmeZh, /提示词/u)
   assert.match(readmeZh, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings\.png/u)
   assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings-en\.png/u)
@@ -148,12 +145,7 @@ test('public readmes provide explicit update commands and verification', () => {
     assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web list dsh-codex-subscription --depth 0`), true)
     assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} --profile web --dump-config`), true)
   }
-  for (const readme of [readmeZh, readmeEn]) {
-    assert.match(readme, /releases\/latest\/download\/dsh-codex-setup\.ps1/u)
-    assert.doesNotMatch(readme, /Invoke-WebRequest/iu)
-    assert.doesNotMatch(readme, /scriptblock|Invoke-Expression/iu)
-    assert.match(readme, /\birm\b[\s\S]*\biex\b/iu)
-  }
+  assert.doesNotMatch(`${readmeZh}\n${readmeEn}`, /\birm\b|dsh-codex-setup\.ps1/iu)
 })
 
 test('Windows manager updates from a checksum-verified immutable release asset', () => {
@@ -302,7 +294,7 @@ test('one explicit trusted workflow creates the immutable release and publishes 
   assert.match(workflow, /gh release view/u)
   assert.match(workflow, /gh release create/u)
   assert.match(workflow, /dsh-codex-subscription\.tgz/u)
-  assert.match(workflow, /dsh-codex-setup\.ps1/u)
+  assert.doesNotMatch(workflow, /dsh-codex-setup\.ps1|\birm\b/iu)
   assert.match(workflow, /needs\.preflight\.outputs\.needed == 'false' \|\| needs\.release\.result == 'success'/u)
   assert.match(workflow, /run-name:\s*Release \$\{\{ inputs\.request_id \|\| github\.sha \}\}/u)
   assert.doesNotMatch(workflow, /--generate-notes/u)
@@ -318,7 +310,6 @@ test('npm publishing is release-gated and uses OIDC without a stored npm token',
     'dsh-codex-subscription.tgz',
     'dsh-codex.ps1',
     'dsh-codex.ps1.sha256',
-    'dsh-codex-setup.ps1',
   ]) assert.match(workflow, new RegExp(asset.replaceAll('.', '\\.')))
   for (const asset of [
     'settings.png',

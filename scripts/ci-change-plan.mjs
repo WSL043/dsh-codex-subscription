@@ -49,9 +49,9 @@ const runtime = matches([
   /^cordis\.patch\.yml$/u,
   /^tsdown\.config\.mjs$/u,
 ])
-const installer = plannerChanged || matches([
-  /^dsh-codex(?:-setup)?\.ps1$/u,
-  /^tests\/(?:powershell-manager|thin-installer)\.test\.mjs$/u,
+const manager = plannerChanged || matches([
+  /^dsh-codex\.ps1$/u,
+  /^tests\/powershell-manager\.test\.mjs$/u,
   /^\.github\/scripts\/accept-official-release\.ps1$/u,
 ])
 const delivery = plannerChanged || matches([
@@ -84,7 +84,7 @@ if (runtime && publishedVersion && compareVersions(packageVersion, publishedVers
   process.exit(1)
 }
 
-const plan = { behavior, delivery, installer, official, runtime }
+const plan = { behavior, delivery, manager, official, runtime }
 console.log(JSON.stringify({ base, files, packageVersion, publishedVersion, plan }, null, 2))
 
 if (process.env.GITHUB_OUTPUT && existsSync(process.env.GITHUB_OUTPUT)) {
