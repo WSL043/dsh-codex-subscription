@@ -101,7 +101,8 @@ test('GitHub defaults to English and links a complete separate Chinese README', 
   assert.doesNotMatch(readmeZh, /提示词/u)
   assert.match(readmeZh, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings\.png/u)
   assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings-en\.png/u)
-  assert.match(readmeZh, /raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/composer-quota-en\.png/u)
+  assert.match(readmeZh, /raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/composer-quota\.png/u)
+  assert.doesNotMatch(readmeZh, /docs\/assets\/composer-quota-en\.png/u)
   for (const doc of [readme, readmeZh]) {
     for (const match of doc.matchAll(/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/([^\s)]+\.png)/gu)) {
       const asset = match[1]
@@ -119,6 +120,11 @@ test('GitHub defaults to English and links a complete separate Chinese README', 
     const { width, height } = pngDimensions(`docs/assets/${asset}`)
     assert.ok(width >= 700, `${asset} must remain legible in the README`)
     assert.ok(height >= 800, `${asset} must include the complete signed-in settings page`)
+  }
+  {
+    const { width, height } = pngDimensions('docs/assets/composer-quota.png')
+    assert.ok(width >= 1000, 'Chinese composer quota screenshot must remain legible')
+    assert.ok(height >= 600, 'Chinese composer quota screenshot must show the real DSH composer')
   }
   assert.equal(existsSync(new URL('../docs/assets/sidebar.png', import.meta.url)), false)
   assert.equal(existsSync(new URL('../docs/assets/sidebar-en.png', import.meta.url)), false)
@@ -314,6 +320,7 @@ test('npm publishing is release-gated and uses OIDC without a stored npm token',
   for (const asset of [
     'settings.png',
     'settings-en.png',
+    'composer-quota.png',
     'composer-quota-en.png',
   ]) assert.doesNotMatch(workflow, new RegExp(asset.replaceAll('.', '\\.')))
   assert.match(workflow, /gh release download[\s\S]*dsh-codex-subscription\.tgz/u)

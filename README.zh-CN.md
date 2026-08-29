@@ -139,7 +139,7 @@ dsh --profile web --dump-config
 ### 输入框额度
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota-en.png" width="800" alt="输入框内的 Codex 剩余额度">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota.png" width="800" alt="中文 DSH 输入框内的 Codex 剩余额度进度条">
 </p>
 
 可在设置中选择关闭、百分比、进度条或 Beta 续航预测；紧凑额度只在选择 Codex 模型时显示。续航预测仅在用户主动选择后，根据本机运行内存中观察到的官方剩余百分比估算当前消耗速度；样本不足时保持安静，额度重置、登录变化或关闭功能后会重新校准。普通 Codex 使用服务端返回窗口中剩余最少的一项，
