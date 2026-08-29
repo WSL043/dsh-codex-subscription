@@ -47,6 +47,7 @@ DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的�
 | **Codex 图片生成与编辑（Beta）** | 可无参考图全新生成，也可明确选择会话图片继续编辑；支持预览、缩放、区域备注、下载原图并衔接回当前输入框 |
 | **高速模式** | 直接在输入框切换标准或高速，无需离开当前会话 |
 | **模型感知上下文** | 可保留目录默认值、按模型启用扩展窗口，或为每个模型填写完整数字 Token 上限 |
+| **Headless 任务** | 使用同一份已登录的 Codex Provider 运行一次性 DSH 任务，输出答案后自动退出 |
 
 这些能力共用同一份本机 ChatGPT 登录。订阅路由失败时会明确报错，不会静默切换到其他付费路由。
 
@@ -74,6 +75,15 @@ dsh plugin --profile web add dsh-codex-subscription
 ```
 
 目标选择、profile 锁、依赖解析和 bundle 激活均由 DSH 负责；这是插件唯一的安装路径。
+
+### Headless
+
+先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 DSH 的标准 Headless profile：
+
+```sh
+dsh plugin --profile headless add dsh-codex-subscription
+dsh --profile headless "只回复：ok"
+```
 
 ### 交给 Agent
 
