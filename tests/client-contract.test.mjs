@@ -72,6 +72,24 @@ test('composer quota modes use the public composer slot before the model selecto
   assert.match(contract, /DEFAULT_SEARCH_PROVIDER\s*=\s*SEARCH_PROVIDER_AUTO/u)
 })
 
+test('runway mode names calibration, idle, and reset-safe states instead of falling back to a bare percentage', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /quickQuotaForecastHint/u)
+  assert.match(source, /quickQuotaForecastCalibrating/u)
+  assert.match(source, /quickQuotaForecastIdle/u)
+  assert.match(source, /quickQuotaForecastUntilReset/u)
+  assert.match(source, /quotaForecastCalibrating/u)
+  assert.match(source, /quotaForecastIdle/u)
+  assert.match(source, /quotaForecastUntilReset/u)
+  assert.match(source, /forecast\?\.status === ['"]calibrating['"]/u)
+  assert.match(source, /forecast\?\.status === ['"]idle['"]/u)
+  assert.match(source, /forecast\.survivesReset/u)
+  assert.match(source, /正在校准/u)
+  assert.match(source, /足够用到重置/u)
+  assert.match(source, /Calibrating/u)
+  assert.match(source, /Enough until reset/u)
+})
+
 test('composer quota is neutral and the detailed quota grid is compact', async () => {
   const source = await text('src/client.jsx')
   const composerRule = source.match(/\.codexComposerQuota\{[^}]+\}/u)?.[0]
