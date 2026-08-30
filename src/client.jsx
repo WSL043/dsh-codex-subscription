@@ -94,12 +94,17 @@ const zh = {
   creditsNote: '仅显示 Codex 为此账户或工作区实际返回的额外 Credits、消费上限或额度重置次数；三者不是同一项。',
   creditsUsed: '已用 {used} / {limit} credits', spendReached: 'Credits 月度消费上限已用尽。', unavailable: '暂无数据',
   quickQuotaSetting: '输入框额度', quickQuotaOff: '关闭', quickQuotaPercent: '百分比', quickQuotaBar: '进度条', quickQuotaForecast: '续航预测', quickQuotaBeta: 'Beta',
+  quickQuotaForecastHint: '至少观察 30 分钟且额度变化 1% 后显示；重启 DSH 后重新校准。',
   contextTitle: '上下文窗口', contextStandard: '标准', contextStandardHint: '使用模型目录默认值；官方 Agent 预设会自动管理上下文。',
   contextExtended: '扩展', contextExtendedHint: '按模型使用 400K 或 1M；超过 272K 后可能消耗更多额度。',
   contextCustom: '自定义', contextCustomHint: '输入完整 Token 数值；较低数值会让官方 Agent 预设更早压缩上下文。', contextTokens: 'Token 上限', contextFixed: '固定 {value}', contextMaximum: '范围 128000–{value}',
   quickQuotaStatus: 'Codex 剩余额度 {value}%',
   quickQuotaForecastStatus: 'Codex 剩余额度 {value}%，按当前速度预计可用 {duration}',
+  quickQuotaForecastCalibrating: '校准中', quickQuotaForecastCalibratingStatus: 'Codex 剩余额度 {value}%，续航预测正在校准',
+  quickQuotaForecastIdle: '用量稳定', quickQuotaForecastIdleStatus: 'Codex 剩余额度 {value}%，当前没有可测量的消耗速度',
+  quickQuotaForecastUntilReset: '够用到重置', quickQuotaForecastUntilResetStatus: 'Codex 剩余额度 {value}%，按当前速度足够用到重置',
   quotaForecast: '按当前速度 {symbol}{duration}',
+  quotaForecastCalibrating: '续航正在校准', quotaForecastIdle: '当前用量稳定', quotaForecastUntilReset: '按当前速度足够用到重置',
   runwayDaysHours: '{days} 天 {hours} 小时', runwayDays: '{days} 天', runwayHours: '{hours} 小时', runwayMinutes: '{minutes} 分钟',
   speedTitle: '速度', speedStandard: '标准', speedStandardHint: '标准速度',
   speedFast: '高速', speedFastHint: '1.5 倍，消耗更多 Credits',
@@ -149,12 +154,17 @@ const en = {
   creditsNote: 'Shows only extra Credits, spending caps, or quota resets returned for this account or workspace; these are separate items.',
   creditsUsed: '{used} / {limit} credits used', spendReached: 'The monthly Credits spending cap has been reached.', unavailable: 'No data yet',
   quickQuotaSetting: 'Composer quota', quickQuotaOff: 'Off', quickQuotaPercent: 'Percent', quickQuotaBar: 'Progress bar', quickQuotaForecast: 'Runway', quickQuotaBeta: 'Beta',
+  quickQuotaForecastHint: 'Appears after at least 30 minutes and a 1% quota change; restarting DSH recalibrates it.',
   contextTitle: 'Context window', contextStandard: 'Standard', contextStandardHint: 'Use the model catalog default; official agent presets manage context automatically.',
   contextExtended: 'Extended', contextExtendedHint: 'Uses 400K or 1M by model; usage above 272K may consume more quota.',
   contextCustom: 'Custom', contextCustomHint: 'Enter the full token count; lower values make official agent presets compact sooner.', contextTokens: 'Token limit', contextFixed: 'Fixed {value}', contextMaximum: '128000–{value}',
   quickQuotaStatus: 'Codex quota: {value}% remaining',
   quickQuotaForecastStatus: 'Codex quota: {value}% remaining; about {duration} at the current pace',
+  quickQuotaForecastCalibrating: 'Calibrating', quickQuotaForecastCalibratingStatus: 'Codex quota: {value}% remaining; runway is calibrating',
+  quickQuotaForecastIdle: 'Usage stable', quickQuotaForecastIdleStatus: 'Codex quota: {value}% remaining; no measurable consumption pace',
+  quickQuotaForecastUntilReset: 'Enough until reset', quickQuotaForecastUntilResetStatus: 'Codex quota: {value}% remaining; enough until reset at the current pace',
   quotaForecast: 'At current pace {symbol}{duration}',
+  quotaForecastCalibrating: 'Runway calibrating', quotaForecastIdle: 'Usage currently stable', quotaForecastUntilReset: 'Enough until reset at current pace',
   runwayDaysHours: '{days}d {hours}h', runwayDays: '{days}d', runwayHours: '{hours}h', runwayMinutes: '{minutes}m',
   speedTitle: 'Speed', speedStandard: 'Standard', speedStandardHint: 'Standard speed',
   speedFast: 'Fast', speedFastHint: '1.5x; higher Credits use',
@@ -174,7 +184,7 @@ const STYLE = `
 .codexSubscriptionTag{border:1px solid var(--dsw-alias-border-l3);border-radius:4px;padding:1px 6px;font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}
 .codexSubscriptionNote{font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionCard{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-1);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
-.codexSubscriptionUsageCard{padding:12px 14px;gap:9px}.codexSubscriptionPreferencesCard{padding:12px 14px;gap:10px}.codexSubscriptionPreference{min-height:32px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}.codexSubscriptionPreferenceCopy{display:flex;min-width:0;flex-direction:column;gap:2px}.codexSubscriptionPreferenceLabel{display:flex;align-items:center;gap:6px}
+.codexSubscriptionUsageCard{padding:12px 14px;gap:9px}.codexSubscriptionPreferencesCard{padding:12px 14px;gap:10px}.codexSubscriptionPreference{min-height:32px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}.codexSubscriptionPreferenceCopy{display:flex;min-width:0;flex-direction:column;gap:2px}.codexSubscriptionPreferenceLabel{display:flex;align-items:center;gap:6px}.codexSubscriptionPreferenceHint{max-width:300px;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionQuotaModes{display:flex;align-items:center;gap:3px;padding:2px;border-radius:9px;background:var(--dsw-alias-bg-module-platform)}.codexSubscriptionQuotaMode{position:relative;display:flex;align-items:center;justify-content:center;min-height:26px;padding:0 9px;border-radius:7px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;cursor:pointer;white-space:nowrap}.codexSubscriptionQuotaMode small{margin-left:3px;font-size:9px;line-height:1;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionQuotaMode:has(input:checked){background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);box-shadow:0 0 0 1px var(--dsw-alias-border-l3)}.codexSubscriptionQuotaMode:has(input:focus-visible){outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px}.codexSubscriptionQuotaMode:has(input:disabled){cursor:not-allowed;opacity:.5}.codexSubscriptionQuotaMode input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .codexSubscriptionContext{display:flex;flex-direction:column;gap:8px}.codexSubscriptionContextHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.codexSubscriptionContextCopy{display:flex;min-width:0;flex:1;flex-direction:column;gap:2px}.codexSubscriptionContextHint{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionContextTrigger{height:32px;min-width:108px;display:inline-flex;align-items:center;justify-content:space-between;gap:10px;padding:0 10px 0 12px;border:0;border-radius:999px;outline:0;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}.codexSubscriptionContextTrigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.codexSubscriptionContextTrigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}.codexSubscriptionContextTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:not-allowed}.codexSubscriptionContextTrigger svg{color:var(--dsw-alias-label-tertiary);transition:transform 120ms var(--ds-ease-in-out)}.codexSubscriptionContextTrigger[aria-expanded=true] svg{transform:rotate(180deg)}.codexSubscriptionContextModels{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.codexSubscriptionContextModel{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--dsw-alias-border-l2)}.codexSubscriptionContextModel:last-child{border-bottom:0}.codexSubscriptionContextModelCopy{display:flex;min-width:0;flex-direction:column}.codexSubscriptionContextModelCopy strong{font-size:12px;line-height:18px;font-weight:500}.codexSubscriptionContextModelCopy span{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionContextInput{width:116px}
 .codexSubscriptionSwitch{position:relative;flex:0 0 auto;width:32px;height:18px;padding:0;border:1px solid var(--dsw-alias-border-l3);border-radius:999px;background:var(--dsw-alias-bg-module-platform);cursor:pointer}.codexSubscriptionSwitch:disabled{cursor:not-allowed;opacity:.5}.codexSubscriptionSwitch[aria-checked=true]{background:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-label-secondary)}.codexSubscriptionSwitchKnob{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--dsw-alias-bg-layer-1);transition:transform 120ms var(--ds-ease-in-out)}.codexSubscriptionSwitch[aria-checked=true] .codexSubscriptionSwitchKnob{transform:translateX(14px)}
@@ -676,6 +686,15 @@ const formatRunway = (seconds, t) => {
   return fill(t('runwayMinutes'), { minutes })
 }
 
+const formatQuotaForecast = (forecast, t) => {
+  if (forecast?.status === 'calibrating') return t('quotaForecastCalibrating')
+  if (forecast?.status === 'idle') return t('quotaForecastIdle')
+  if (forecast?.status !== 'ready') return undefined
+  if (forecast.survivesReset) return t('quotaForecastUntilReset')
+  const duration = formatRunway(forecast.runwaySeconds, t)
+  return duration === undefined ? undefined : fill(t('quotaForecast'), { symbol: '≈', duration })
+}
+
 function useQuickQuota(rpc, enabled, model) {
   const [quota, setQuota] = useState()
   useEffect(() => {
@@ -721,7 +740,7 @@ function QuickQuotaPreference({ preference, t }) {
   const writable = snapshot.status === 'ready' && snapshot.writable === true
   const choice = (value, label) => <label className="codexSubscriptionQuotaMode"><input type="radio" name="codex-subscription-quota-mode" checked={snapshot.quickQuotaMode === value} disabled={!writable} onChange={() => { void preference.set({ [QUICK_QUOTA_MODE_FIELD]: value }) }} /><span>{label}</span></label>
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('quickQuotaSetting')}</span></div>
+    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('quickQuotaSetting')}</span>{snapshot.quickQuotaMode === QUICK_QUOTA_MODE_FORECAST ? <span className="codexSubscriptionPreferenceHint">{t('quickQuotaForecastHint')}</span> : null}</div>
     <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('quickQuotaSetting')}>
       {choice(QUICK_QUOTA_MODE_OFF, t('quickQuotaOff'))}
       {choice(QUICK_QUOTA_MODE_PERCENT, t('quickQuotaPercent'))}
@@ -809,13 +828,28 @@ function CodexComposerQuota({ preference, rpc, t, directory }) {
   if (!quotaEnabled || quota === undefined) return null
   const value = Math.round(Number(quota.remainingPercent) * 10) / 10
   const display = percent(value)
-  const duration = quota.forecast?.status === 'ready' ? formatRunway(quota.forecast.runwaySeconds, t) : undefined
-  const label = duration === undefined ? fill(t('quickQuotaStatus'), { value: display }) : fill(t('quickQuotaForecastStatus'), { value: display, duration })
+  const forecast = forecastMode ? quota.forecast : undefined
+  const duration = forecast?.status === 'ready' && !forecast.survivesReset ? formatRunway(forecast.runwaySeconds, t) : undefined
+  const label = forecast?.status === 'calibrating'
+    ? fill(t('quickQuotaForecastCalibratingStatus'), { value: display })
+    : forecast?.status === 'idle'
+      ? fill(t('quickQuotaForecastIdleStatus'), { value: display })
+      : forecast?.status === 'ready' && forecast.survivesReset
+        ? fill(t('quickQuotaForecastUntilResetStatus'), { value: display })
+        : duration === undefined
+          ? fill(t('quickQuotaStatus'), { value: display })
+          : fill(t('quickQuotaForecastStatus'), { value: display, duration })
   const content = preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR
     ? <progress className="codexComposerQuotaBar" max={100} value={value} aria-hidden="true" />
-    : forecastMode && duration !== undefined
-      ? `${display}% · ${quota.forecast.survivesReset ? '≥' : '≈'}${duration}`
-      : `${display}%`
+    : forecast?.status === 'calibrating'
+      ? `${display}% · ${t('quickQuotaForecastCalibrating')}`
+      : forecast?.status === 'idle'
+        ? `${display}% · ${t('quickQuotaForecastIdle')}`
+        : forecast?.status === 'ready' && forecast.survivesReset
+          ? `${display}% · ${t('quickQuotaForecastUntilReset')}`
+          : forecastMode && duration !== undefined
+            ? `${display}% · ≈${duration}`
+            : `${display}%`
   return <span className="codexComposerQuota" role="status" aria-label={label} title={label}>{content}</span>
 }
 
@@ -1290,7 +1324,7 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
     {limits.length === 0 ? null : <div className="codexSubscriptionLimits">{limits.flatMap(limit => limit.windows.map((window, index) => <div className="codexSubscriptionLimit" key={`${limit.id}-${window.windowSeconds}-${index}`}>
         <div className="codexSubscriptionLimitTop"><span className="codexSubscriptionLimitLabel">{limit.name ?? limit.id}</span><strong>{percent(window.remainingPercent)}%</strong></div>
         <progress max="100" value={window.remainingPercent} aria-label={`${limit.name ?? limit.id} ${fill(t('remaining'), { value: percent(window.remainingPercent) })}`} />
-        <div className="codexSubscriptionLimitMeta"><span>{window.forecast?.status === 'ready' ? fill(t('quotaForecast'), { symbol: window.forecast.survivesReset ? '≥' : '≈', duration: formatRunway(window.forecast.runwaySeconds, t) }) : windowLabel(window.windowSeconds, t)}</span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
+        <div className="codexSubscriptionLimitMeta"><span>{formatQuotaForecast(window.forecast, t) ?? windowLabel(window.windowSeconds, t)}</span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
       </div>))}</div>}
     {visibleUsage?.credits === undefined && visibleUsage?.individualLimit === undefined && !(visibleUsage?.resetCredits?.availableCount > 0) ? null : <div className="codexSubscriptionCreditSection">
       <p className="codexSubscriptionCreditNote">{t('creditsNote')}</p>
