@@ -32,7 +32,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
-  const supportedDshReleases = compatibility.supported.join(' || ')
+  const supportedDshReleases = [...compatibility.supported, ...compatibility.previews].join(' || ')
   for (const [name, version] of Object.entries(pkg.peerDependencies)) {
     if (name.startsWith('@deepseek-ai/dsh-')) assert.equal(version, supportedDshReleases, name)
   }
@@ -50,6 +50,17 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(existsSync(new URL('../.github/workflows/ci.yml', import.meta.url)), true)
   assert.equal(existsSync(new URL('../.github/workflows/release.yml', import.meta.url)), false)
   assert.equal(existsSync(new URL('../.github/workflows/publish.yml', import.meta.url)), true)
+})
+
+test('settings registration works across stable and preview DSH exports', () => {
+  const source = text('src/index.js')
+  assert.doesNotMatch(source, /import\s*\{[^}]*settingsNamespace[^}]*\}\s*from\s*['"]@deepseek-ai\/dsh-settings['"]/u)
+  assert.match(source, /ctx\.settings\.register\(SETTINGS_NAMESPACE,/u)
+})
+
+test('compatibility metadata keeps stable and preview DSH lanes explicit', () => {
+  assert.equal(compatibility.latestTested, '0.1.1-rc.2')
+  assert.deepEqual(compatibility.previews, ['0.1.2-alpha.2'])
 })
 
 test('public docs contain only user-facing product and operation information', () => {

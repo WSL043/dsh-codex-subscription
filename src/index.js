@@ -1,7 +1,6 @@
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import z from '@deepseek-ai/schemastery'
 
 import { createCodexAuthService, DshOAuthCredentialStore } from './credential-store.js'
@@ -262,7 +261,7 @@ export function createSearchProviderSwitcher(loader) {
 }
 
 export function apply(ctx) {
-  const settings = ctx.settings.register(settingsNamespace(SETTINGS_NAMESPACE), z.object({
+  const settings = ctx.settings.register(SETTINGS_NAMESPACE, z.object({
     [QUICK_QUOTA_MODE_FIELD]: z.union([QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST]),
     [LEGACY_QUICK_QUOTA_FIELD]: z.boolean(),
     [SEARCH_PROVIDER_FIELD]: z.union([SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX]).default(DEFAULT_SEARCH_PROVIDER),
