@@ -79,13 +79,17 @@ function Start-And-ProbeWeb {
     try {
         $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
         $response = $null
+        $webSession = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
         while ([DateTime]::UtcNow -lt $deadline) {
             if ($process.HasExited) {
                 $details = "$(Get-Content -LiteralPath $stdout -Raw -ErrorAction SilentlyContinue)`n$(Get-Content -LiteralPath $stderr -Raw -ErrorAction SilentlyContinue)"
                 throw "DSH web exited before readiness. $details"
             }
             try {
-                $response = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:$port/" -TimeoutSec 2
+                $startupLog = Get-Content -LiteralPath $stdout -Raw -ErrorAction SilentlyContinue
+                $loggedUrl = [regex]::Match([string] $startupLog, 'dsh web:\s+(http://127\.0\.0\.1:' + $port + '/(?:\?token=[A-Za-z0-9_-]+)?)')
+                $readinessUrl = if ($loggedUrl.Success) { $loggedUrl.Groups[1].Value } else { "http://127.0.0.1:$port/" }
+                $response = Invoke-WebRequest -UseBasicParsing $readinessUrl -WebSession $webSession -TimeoutSec 2
                 if ($response.StatusCode -eq 200) { break }
             } catch {
                 Start-Sleep -Milliseconds 250
