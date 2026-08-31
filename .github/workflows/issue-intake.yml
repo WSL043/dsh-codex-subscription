@@ -43,14 +43,14 @@ jobs:
             if (context.payload.action === 'opened' && isBug) {
               await commentOnce(
                 '<!-- dsh-maintenance-ack -->',
-                'Thanks for the report. It will be reproduced and reviewed against the supported release before any fix or closure decision.',
+                'Thanks for the report. We\'ll reproduce it on the reported plugin and DSH versions, then follow up here with what we find.\n\n感谢反馈。我们会按你提供的插件和 DSH 版本复现，并在这里同步核查结果。',
               )
             }
 
             if (context.payload.action === 'opened' && isFeature) {
               await commentOnce(
                 '<!-- dsh-feature-ack -->',
-                'Thanks for the focused suggestion. It will be reviewed against existing DSH capabilities and this plugin\'s scope before any implementation decision.',
+                'Thanks for the suggestion. We\'ll first check whether DSH already provides this capability and whether it fits this plugin\'s scope, then follow up here.\n\n感谢建议。我们会先确认 DSH 是否已有对应能力，以及它是否适合由本插件负责，再在这里回复。',
               )
             }
 

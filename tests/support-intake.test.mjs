@@ -50,11 +50,16 @@ test("issue intake acknowledges only recognized bug and feature reports", async 
   assert.match(workflow, /context\.payload\.action === 'opened' && isBug/);
   assert.match(workflow, /context\.payload\.action === 'opened' && isFeature/);
   assert.doesNotMatch(workflow, /context\.payload\.action === 'opened'\) \{\s*await commentOnce\(\s*'<!-- dsh-maintenance-ack -->'/u);
+  assert.match(workflow, /we\\?'ll reproduce it[\s\S]*follow up here/i);
+  assert.match(workflow, /感谢反馈[\s\S]*同步核查结果/u);
+  assert.match(workflow, /Thanks for the suggestion[\s\S]*fits this plugin\\?'s scope/i);
+  assert.match(workflow, /感谢建议[\s\S]*适合由本插件负责/u);
+  assert.doesNotMatch(workflow, /maintenance queue|implementation decision/i);
   assert.match(workflow, /dsh-version-check/);
   assert.match(workflow, /### Plugin version/);
   assert.match(workflow, /registry\.npmjs\.org\/dsh-codex-subscription\/latest/);
   assert.match(workflow, /github\.rest\.issues\.createComment/);
-  assert.match(workflow, /reviewed against the supported release/);
+  assert.match(workflow, /the current release is \$\{latest\}/);
   assert.doesNotMatch(workflow, /schedule:|close|state:\s*closed|merge/i);
 });
 
