@@ -17,6 +17,13 @@ jobs:
       - uses: actions/github-script@v8
         with:
           script: |
+            const labelNames = new Set(
+              (context.payload.issue.labels ?? []).map(label => typeof label === 'string' ? label : label.name),
+            )
+            const isBug = labelNames.has('bug')
+            const isFeature = labelNames.has('enhancement')
+            if (!isBug && !isFeature) return
+
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -33,14 +40,20 @@ jobs:
               })
             }
 
-            if (context.payload.action === 'opened') {
+            if (context.payload.action === 'opened' && isBug) {
               await commentOnce(
                 '<!-- dsh-maintenance-ack -->',
                 'Thanks for the report. It will be reproduced and reviewed against the supported release before any fix or closure decision.',
               )
             }
 
-            const isBug = context.payload.issue.labels?.some(label => (typeof label === 'string' ? label : label.name) === 'bug')
+            if (context.payload.action === 'opened' && isFeature) {
+              await commentOnce(
+                '<!-- dsh-feature-ack -->',
+                'Thanks for the focused suggestion. It will be reviewed against existing DSH capabilities and this plugin\'s scope before any implementation decision.',
+              )
+            }
+
             if (!isBug) return
             const body = context.payload.issue.body ?? ''
             const value = /^### Plugin version\s*\n+([^\n]+)/imu.exec(body)?.[1]?.trim()
