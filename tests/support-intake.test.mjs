@@ -41,11 +41,15 @@ test('issue forms default to concise English without forced title prefixes', asy
   assert.match(feature, /^name: Feature request$/mu);
 });
 
-test("bug issues receive one acknowledgement and bounded version guidance on open or edit", async () => {
+test("issue intake acknowledges only recognized bug and feature reports", async () => {
   const workflow = await readFile(acknowledgementWorkflow, "utf8");
   assert.match(workflow, /issues:\s*write/);
   assert.match(workflow, /types:\s*\[opened, edited\]/);
   assert.match(workflow, /dsh-maintenance-ack/);
+  assert.match(workflow, /dsh-feature-ack/);
+  assert.match(workflow, /context\.payload\.action === 'opened' && isBug/);
+  assert.match(workflow, /context\.payload\.action === 'opened' && isFeature/);
+  assert.doesNotMatch(workflow, /context\.payload\.action === 'opened'\) \{\s*await commentOnce\(\s*'<!-- dsh-maintenance-ack -->'/u);
   assert.match(workflow, /dsh-version-check/);
   assert.match(workflow, /### Plugin version/);
   assert.match(workflow, /registry\.npmjs\.org\/dsh-codex-subscription\/latest/);
