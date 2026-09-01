@@ -61,6 +61,7 @@ const zh = {
   title: 'Codex 订阅',
   connected: '已登录', disconnected: '未登录', accountLoading: '正在读取账户状态…',
   browserLogin: '浏览器登录', deviceLogin: '设备代码登录', logout: '退出登录',
+  addAccount: '添加账号', accountLabel: '账号名称', switchAccount: '切换', removeAccount: '移除', removeConfirm: '确认移除', removeCancel: '保留', signOutAll: '退出全部账号',
   cancel: '取消', submit: '提交授权码', openLogin: '打开登录页',
   manualCode: '若浏览器回调没有自动完成，请粘贴授权码或完整重定向地址。',
   deviceHint: '在登录页输入此设备代码：', waiting: '正在等待登录完成…',
@@ -94,7 +95,7 @@ const zh = {
   creditsNote: '仅显示 Codex 为此账户或工作区实际返回的额外 Credits、消费上限或额度重置次数；三者不是同一项。',
   creditsUsed: '已用 {used} / {limit} credits', spendReached: 'Credits 月度消费上限已用尽。', unavailable: '暂无数据',
   quickQuotaSetting: '输入框额度', quickQuotaOff: '关闭', quickQuotaPercent: '百分比', quickQuotaBar: '进度条', quickQuotaForecast: '续航预测', quickQuotaBeta: 'Beta',
-  quickQuotaForecastHint: '至少观察 30 分钟且额度变化 1% 后显示；重启 DSH 后重新校准。',
+  quickQuotaForecastHint: '按消耗速度自适应校准；高消耗通常 5–10 分钟可估算，低消耗会显示用量稳定。进度会在本机保留。',
   contextTitle: '上下文窗口', contextStandard: '标准', contextStandardHint: '使用模型目录默认值；官方 Agent 预设会自动管理上下文。',
   contextExtended: '扩展', contextExtendedHint: '按模型使用 400K 或 1M；超过 272K 后可能消耗更多额度。',
   contextCustom: '自定义', contextCustomHint: '输入完整 Token 数值；较低数值会让官方 Agent 预设更早压缩上下文。', contextTokens: 'Token 上限', contextFixed: '固定 {value}', contextMaximum: '范围 128000–{value}',
@@ -121,6 +122,7 @@ const en = {
   title: 'Codex subscription',
   connected: 'Signed in', disconnected: 'Not signed in', accountLoading: 'Reading account status…',
   browserLogin: 'Browser sign-in', deviceLogin: 'Device-code sign-in', logout: 'Sign out',
+  addAccount: 'Add account', accountLabel: 'Account name', switchAccount: 'Switch', removeAccount: 'Remove', removeConfirm: 'Confirm remove', removeCancel: 'Keep', signOutAll: 'Sign out all',
   cancel: 'Cancel', submit: 'Submit authorization code', openLogin: 'Open sign-in page',
   manualCode: 'If the browser callback did not finish automatically, paste the code or full redirect URL.',
   deviceHint: 'Enter this device code on the sign-in page:', waiting: 'Waiting for sign-in to finish…',
@@ -154,7 +156,7 @@ const en = {
   creditsNote: 'Shows only extra Credits, spending caps, or quota resets returned for this account or workspace; these are separate items.',
   creditsUsed: '{used} / {limit} credits used', spendReached: 'The monthly Credits spending cap has been reached.', unavailable: 'No data yet',
   quickQuotaSetting: 'Composer quota', quickQuotaOff: 'Off', quickQuotaPercent: 'Percent', quickQuotaBar: 'Progress bar', quickQuotaForecast: 'Runway', quickQuotaBeta: 'Beta',
-  quickQuotaForecastHint: 'Appears after at least 30 minutes and a 1% quota change; restarting DSH recalibrates it.',
+  quickQuotaForecastHint: 'Calibrates to actual consumption: high use is usually estimated in 5–10 minutes, while low use is shown as stable. Progress is kept locally.',
   contextTitle: 'Context window', contextStandard: 'Standard', contextStandardHint: 'Use the model catalog default; official agent presets manage context automatically.',
   contextExtended: 'Extended', contextExtendedHint: 'Uses 400K or 1M by model; usage above 272K may consume more quota.',
   contextCustom: 'Custom', contextCustomHint: 'Enter the full token count; lower values make official agent presets compact sooner.', contextTokens: 'Token limit', contextFixed: 'Fixed {value}', contextMaximum: '128000–{value}',
@@ -190,6 +192,7 @@ const STYLE = `
 .codexSubscriptionSwitch{position:relative;flex:0 0 auto;width:32px;height:18px;padding:0;border:1px solid var(--dsw-alias-border-l3);border-radius:999px;background:var(--dsw-alias-bg-module-platform);cursor:pointer}.codexSubscriptionSwitch:disabled{cursor:not-allowed;opacity:.5}.codexSubscriptionSwitch[aria-checked=true]{background:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-label-secondary)}.codexSubscriptionSwitchKnob{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--dsw-alias-bg-layer-1);transition:transform 120ms var(--ds-ease-in-out)}.codexSubscriptionSwitch[aria-checked=true] .codexSubscriptionSwitchKnob{transform:translateX(14px)}
 .codexSubscriptionSearch{display:flex;flex-direction:column;gap:7px}.codexSubscriptionSearchChoices{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}.codexSubscriptionSearchChoice{display:grid;grid-template-columns:14px minmax(0,1fr);align-items:center;column-gap:8px;min-width:0;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);padding:9px 10px;text-align:left;cursor:pointer}.codexSubscriptionSearchChoice:has(input:disabled){cursor:not-allowed;opacity:.5}.codexSubscriptionSearchChoice:has(input:checked){border-color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}.codexSubscriptionSearchChoice:has(input:focus-visible){outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}.codexSubscriptionSearchInput{width:14px;height:14px;margin:0;accent-color:var(--dsw-alias-label-primary);cursor:inherit}.codexSubscriptionSearchCopy{display:block;min-width:0;pointer-events:none}.codexSubscriptionSearchCopy strong,.codexSubscriptionSearchCopy span{display:block}.codexSubscriptionSearchCopy strong{font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary)}.codexSubscriptionSearchChoice:has(input:checked) strong{color:var(--dsw-alias-label-primary)}.codexSubscriptionSearchCopy span{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionDivider{height:1px;background:var(--dsw-alias-border-l2)}
 .codexSubscriptionAccountRow,.codexSubscriptionSectionHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.codexSubscriptionStatus{display:flex;align-items:center;gap:8px;font-size:14px;line-height:22px;font-weight:500}
+.codexSubscriptionAccounts{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.codexSubscriptionAccount{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:42px;border-bottom:1px solid var(--dsw-alias-border-l2);font-size:13px}.codexSubscriptionAccount:last-child{border-bottom:0}.codexSubscriptionAccount[data-active=true]>span{font-weight:600}.codexSubscriptionFlow label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary)}
 .codexSubscriptionDot{width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-label-dimmed)}.codexSubscriptionDot[data-state=connected]{background:var(--dsw-alias-state-success-primary)}.codexSubscriptionDot[data-state=disconnected]{background:var(--dsw-alias-state-error-primary)}
 .codexSubscriptionActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.codexSubscriptionFlow{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionFlow p{font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCode{width:max-content;max-width:100%;font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;overflow-wrap:anywhere}
@@ -1060,6 +1063,9 @@ function CodexModelSelect({ locked, available, directory, load, select, preferen
 function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   const [flow, setFlow] = useState()
   const [manualCode, setManualCode] = useState('')
+  const [adding, setAdding] = useState(false)
+  const [accountLabel, setAccountLabel] = useState('')
+  const [removeId, setRemoveId] = useState()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState()
   const call = (endpoint, payload = {}) => rpc.call(CHANNEL, endpoint, payload).then(unwrap)
@@ -1067,32 +1073,44 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   useEffect(() => {
     if (flow?.id === undefined || ['authenticated', 'failed', 'cancelled'].includes(flow.phase)) return undefined
     const timer = window.setInterval(() => {
-      void readLoginProgress({
-        flow,
-        readFlow: () => call('login/status', { id: flow.id }),
-        readAccount: () => call('status'),
-      }).then(next => {
+      const read = adding
+        ? call('login/status', { id: flow.id }).then(async nextFlow => ({
+            flow: nextFlow,
+            account: nextFlow.phase === 'authenticated' ? await call('status') : undefined,
+          }))
+        : readLoginProgress({
+            flow,
+            readFlow: () => call('login/status', { id: flow.id }),
+            readAccount: () => call('status'),
+          })
+      void read.then(next => {
         setFlow(next.flow)
         setError(undefined)
         if (next.account !== undefined) {
           setAccount(next.account)
+          onSignedOut()
+          setAdding(false)
+          setAccountLabel('')
+          setFlow(undefined)
           notifyQuickQuota()
         }
       }).catch(() => setError(t('failed')))
     }, 800)
     return () => window.clearInterval(timer)
-  }, [flow?.id, flow?.phase])
+  }, [flow?.id, flow?.phase, adding])
 
-  const begin = method => {
+  const begin = (method, label) => {
     setFlow(undefined); setBusy(true); setError(undefined)
-    void call('login/start', { method, openExternal: true }).then(setFlow)
+    void call('login/start', { method, openExternal: true, ...(label === undefined ? {} : { label }) }).then(setFlow)
       .catch(() => setError(t('failed'))).finally(() => setBusy(false))
   }
   const cancel = () => {
     if (flow?.id === undefined) return
     setBusy(true)
     void call('login/cancel', { id: flow.id }).then(next => {
-      setFlow(next)
+      setFlow(adding ? undefined : next)
+      if (adding) { setAdding(false); setAccountLabel('') }
+      if (adding) return undefined
       return call('status').then(account => {
         if (account.authenticated === true) {
           setAccount(account)
@@ -1117,17 +1135,35 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
       setAccount(next); setFlow(undefined); onSignedOut(); notifyQuickQuota()
     }).catch(() => setError(t('failed'))).finally(() => setBusy(false))
   }
+  const selectAccount = id => {
+    setBusy(true); setError(undefined)
+    void call('account/select', { id }).then(next => {
+      setAccount(next); onSignedOut(); notifyQuickQuota()
+    }).catch(() => setError(t('failed'))).finally(() => setBusy(false))
+  }
+  const removeAccount = id => {
+    if (removeId !== id) { setRemoveId(id); return }
+    setBusy(true); setError(undefined)
+    void call('account/remove', { id }).then(next => {
+      setAccount(next); setRemoveId(undefined); onSignedOut(); notifyQuickQuota()
+    }).catch(() => setError(t('failed'))).finally(() => setBusy(false))
+  }
   const signedIn = account?.authenticated === true
   const accountReady = account !== undefined
+  const accounts = account?.accounts ?? []
+  const activeAccount = accounts.find(candidate => candidate.active)
+  const loginVisible = flow !== undefined && !['authenticated', 'failed', 'cancelled'].includes(flow.phase)
 
   return <div className="codexSubscriptionCard">
     <div className="codexSubscriptionAccountRow">
-      <div className="codexSubscriptionStatus" role="status" aria-live="polite"><span className="codexSubscriptionDot" data-state={accountReady ? signedIn ? 'connected' : 'disconnected' : 'loading'} aria-hidden="true" />{accountReady ? signedIn ? t('connected') : t('disconnected') : t('accountLoading')}</div>
-      <div className="codexSubscriptionActions">{signedIn ? <Button type="button" variant="outline" disabled={busy} onClick={logout}>{t('logout')}</Button> : accountReady && (flow === undefined || ['failed', 'cancelled'].includes(flow.phase)) ? <><Button type="button" variant="primary" disabled={busy} onClick={() => begin('browser')}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => begin('device_code')}>{t('deviceLogin')}</Button></> : null}</div>
+      <div className="codexSubscriptionStatus" role="status" aria-live="polite"><span className="codexSubscriptionDot" data-state={accountReady ? signedIn ? 'connected' : 'disconnected' : 'loading'} aria-hidden="true" />{accountReady ? signedIn ? activeAccount?.label ?? t('connected') : t('disconnected') : t('accountLoading')}</div>
+      <div className="codexSubscriptionActions">{signedIn ? <><Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => { setFlow(undefined); setAdding(true); setAccountLabel(`Account ${accounts.length + 1}`) }}>{t('addAccount')}</Button><Button type="button" variant="outline" disabled={busy || loginVisible} onClick={logout}>{t('signOutAll')}</Button></> : accountReady && (flow === undefined || ['failed', 'cancelled'].includes(flow.phase)) ? <><Button type="button" variant="primary" disabled={busy} onClick={() => begin('browser')}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => begin('device_code')}>{t('deviceLogin')}</Button></> : null}</div>
     </div>
-    {!signedIn && flow?.phase === 'waiting_device' ? <div className="codexSubscriptionFlow"><p>{t('deviceHint')}</p><code className="codexSubscriptionCode">{flow.deviceCode?.userCode}</code><a href={flow.deviceCode?.verificationUri} target="_blank" rel="noreferrer">{t('openLogin')}</a><p>{t('waiting')}</p></div> : null}
-    {!signedIn && flow?.phase === 'waiting_input' ? <form className="codexSubscriptionFlow" onSubmit={submit}><p>{t('manualCode')}</p><Input className="codexSubscriptionInput" value={manualCode} onChange={event => setManualCode(event.currentTarget.value)} autoComplete="off" spellCheck={false} /><div className="codexSubscriptionActions"><Button type="submit" variant="primary" disabled={busy || manualCode.trim() === ''}>{t('submit')}</Button><Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div></form> : null}
-    {!signedIn && flow !== undefined && ['starting', 'waiting_browser'].includes(flow.phase) ? <div className="codexSubscriptionFlow"><p>{t('waiting')}</p>{flow.authUrl === undefined ? null : <a href={flow.authUrl} target="_blank" rel="noreferrer">{t('openLogin')}</a>}<Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div> : null}
+    {signedIn && accounts.length > 0 ? <div className="codexSubscriptionAccounts">{accounts.map(candidate => <div className="codexSubscriptionAccount" data-active={candidate.active} key={candidate.id}><span>{candidate.label}</span><div className="codexSubscriptionActions">{candidate.active ? null : <Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => selectAccount(candidate.id)}>{t('switchAccount')}</Button>}{accounts.length > 1 ? <Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => removeAccount(candidate.id)}>{removeId === candidate.id ? t('removeConfirm') : t('removeAccount')}</Button> : null}{removeId === candidate.id ? <Button type="button" variant="outline" disabled={busy} onClick={() => setRemoveId(undefined)}>{t('removeCancel')}</Button> : null}</div></div>)}</div> : null}
+    {signedIn && adding && flow === undefined ? <div className="codexSubscriptionFlow"><label>{t('accountLabel')}<Input className="codexSubscriptionInput" value={accountLabel} maxLength={48} onChange={event => setAccountLabel(event.currentTarget.value)} /></label><div className="codexSubscriptionActions"><Button type="button" variant="primary" disabled={busy || accountLabel.trim() === ''} onClick={() => begin('browser', accountLabel.trim())}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy || accountLabel.trim() === ''} onClick={() => begin('device_code', accountLabel.trim())}>{t('deviceLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => { setAdding(false); setAccountLabel('') }}>{t('cancel')}</Button></div></div> : null}
+    {flow?.phase === 'waiting_device' ? <div className="codexSubscriptionFlow"><p>{t('deviceHint')}</p><code className="codexSubscriptionCode">{flow.deviceCode?.userCode}</code><a href={flow.deviceCode?.verificationUri} target="_blank" rel="noreferrer">{t('openLogin')}</a><p>{t('waiting')}</p></div> : null}
+    {flow?.phase === 'waiting_input' ? <form className="codexSubscriptionFlow" onSubmit={submit}><p>{t('manualCode')}</p><Input className="codexSubscriptionInput" value={manualCode} onChange={event => setManualCode(event.currentTarget.value)} autoComplete="off" spellCheck={false} /><div className="codexSubscriptionActions"><Button type="submit" variant="primary" disabled={busy || manualCode.trim() === ''}>{t('submit')}</Button><Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div></form> : null}
+    {flow !== undefined && ['starting', 'waiting_browser'].includes(flow.phase) ? <div className="codexSubscriptionFlow"><p>{t('waiting')}</p>{flow.authUrl === undefined ? null : <a href={flow.authUrl} target="_blank" rel="noreferrer">{t('openLogin')}</a>}<Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div> : null}
     {flow?.phase === 'failed' || error !== undefined ? <p className="codexSubscriptionError" role="alert">{error ?? t('failed')}</p> : null}
   </div>
 }

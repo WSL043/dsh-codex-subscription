@@ -252,7 +252,17 @@ test('quota reset redemption requires deliberate multi-step confirmation and nev
 
 test('a fresh sign-in attempt clears stale client flow state before starting', async () => {
   const source = await text('src/client.jsx')
-  assert.match(source, /const begin = method => \{\s*setFlow\(undefined\);\s*setBusy\(true\); setError\(undefined\)/u)
+  assert.match(source, /const begin = \(method, label\) => \{\s*setFlow\(undefined\);\s*setBusy\(true\); setError\(undefined\)/u)
+})
+
+test('settings exposes manual multi-account switching with an explicit remove confirmation', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /addAccount: '添加账号'/u)
+  assert.match(source, /call\('account\/select', \{ id \}\)/u)
+  assert.match(source, /call\('account\/remove', \{ id \}\)/u)
+  assert.match(source, /if \(removeId !== id\) \{ setRemoveId\(id\); return \}/u)
+  assert.match(source, /removeId === candidate\.id \? t\('removeConfirm'\)/u)
+  assert.doesNotMatch(source, /accountId|\.access\b|\.refresh\b/u)
 })
 
 test('generated image preview uses a native full-screen canvas and explicit edit handoff', async () => {

@@ -61,8 +61,11 @@ export class CodexLoginCoordinator {
     }
   }
 
-  async start({ method }) {
+  async start({ method, label }) {
     if (!LOGIN_METHODS.has(method)) throw new Error(`unsupported Codex login method: ${String(method)}`)
+    if (label !== undefined && (typeof label !== 'string' || label.trim().length === 0 || label.trim().length > 48)) {
+      throw new Error('unsupported Codex account label')
+    }
     const active = this.#activeId === undefined ? undefined : this.#sessions.get(this.#activeId)
     if (active !== undefined && !TERMINAL_PHASES.has(active.view.phase)) {
       active.view = {
@@ -150,7 +153,7 @@ export class CodexLoginCoordinator {
     }
 
     session.run = Promise.resolve()
-      .then(() => this.auth.login(interaction))
+      .then(() => this.auth.login(interaction, label === undefined ? {} : { label: label.trim() }))
       .then(async () => {
         if (controller.signal.aborted) return
         const status = await this.auth.status()
@@ -175,6 +178,7 @@ export class CodexLoginCoordinator {
           return
         }
         try {
+          if (label !== undefined) throw error
           const status = await this.auth.status()
           if (status.authenticated === true) {
             session.view = {
@@ -254,6 +258,14 @@ export class CodexLoginCoordinator {
     await this.auth.logout(options)
     return this.accountStatus(options)
   }
+
+  async selectAccount(id) {
+    return publicClone(await this.auth.select(id))
+  }
+
+  async removeAccount(id) {
+    return publicClone(await this.auth.remove(id))
+  }
 }
 
 /** Map the loopback-only DSH Connection channel onto the coordinator. */
@@ -265,7 +277,7 @@ export function createCodexRpcHandler(coordinator, options = {}) {
       const input = asObject(payload)
       if (endpoint === 'status') return ok(await coordinator.accountStatus({ signal }))
       if (endpoint === 'login/start') {
-        const started = await coordinator.start({ method: input.method })
+        const started = await coordinator.start({ method: input.method, label: input.label })
         if (input.openExternal !== true) return ok(started)
         const url = started.authUrl ?? started.deviceCode?.verificationUri
         if (typeof url !== 'string' || openExternal === undefined) {
@@ -282,6 +294,8 @@ export function createCodexRpcHandler(coordinator, options = {}) {
       if (endpoint === 'login/submit') return ok(await coordinator.submit({ id: input.id, value: input.value }))
       if (endpoint === 'login/cancel') return ok(await coordinator.cancel(input.id))
       if (endpoint === 'logout') return ok(await coordinator.logout({ signal }))
+      if (endpoint === 'account/select') return ok(await coordinator.selectAccount(input.id))
+      if (endpoint === 'account/remove') return ok(await coordinator.removeAccount(input.id))
       return badRequest(`unknown Codex auth endpoint: ${endpoint}`)
     } catch (error) {
       if (signal.aborted) throw error

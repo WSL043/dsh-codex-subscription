@@ -346,3 +346,27 @@ test('cancelling acknowledges immediately even when the provider login does not 
   assert.notEqual(result, 'timeout')
   assert.equal(result.phase, 'cancelled')
 })
+
+test('account RPC selects and removes only opaque local account ids', async () => {
+  const calls = []
+  const coordinator = new CodexLoginCoordinator({
+    async status() { return { authenticated: true, provider: 'openai-codex', accounts: [] } },
+    async select(id) { calls.push(['select', id]); return this.status() },
+    async remove(id) { calls.push(['remove', id]); return this.status() },
+  })
+  const handler = createCodexRpcHandler(coordinator)
+  const signal = new AbortController().signal
+  assert.equal((await handler('account/select', { id: 'local-a' }, signal)).ok, true)
+  assert.equal((await handler('account/remove', { id: 'local-b' }, signal)).ok, true)
+  assert.deepEqual(calls, [['select', 'local-a'], ['remove', 'local-b']])
+})
+
+test('failed add-account login cannot be mistaken for the already active account', async () => {
+  const coordinator = new CodexLoginCoordinator({
+    async login() { throw new Error('second account token exchange failed') },
+    async status() { return { authenticated: true, provider: 'openai-codex' } },
+  }, { createId: () => 'add-account' })
+  await coordinator.start({ method: 'browser', label: 'Work' })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(coordinator.read('add-account').phase, 'failed')
+})

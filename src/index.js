@@ -1,9 +1,11 @@
-import { credentialRef } from '@deepseek-ai/dsh-credentials'
+import * as dshCredentials from '@deepseek-ai/dsh-credentials'
+import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import z from '@deepseek-ai/schemastery'
 
 import { createCodexAuthService, DshOAuthCredentialStore } from './credential-store.js'
+import { DshOAuthAccountVault } from './account-vault.js'
 import { openCodexAuthUrl } from './external-url.js'
 import { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinator.js'
 import { createCodexNetworkTransport } from './oauth-network.js'
@@ -59,6 +61,7 @@ import {
 } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 import { createQuotaForecastReader } from './quota-forecast.js'
+import { QuotaForecastStateStore } from './quota-forecast-store.js'
 import { createCodexResetCreditService } from './reset-credits.js'
 
 export const name = 'codex-subscription'
@@ -66,8 +69,11 @@ export const inject = ['llm', 'credentials', 'settings', 'web', 'loader', 'tools
 
 const PROVIDER = 'openai-codex'
 const OAUTH_EXPIRY_SKEW_MS = 60_000
-const CREDENTIAL_REF = credentialRef('OPENAI_CODEX_SUBSCRIPTION_OAUTH')
-const LEGACY_CREDENTIAL_REF = credentialRef('WSL043_OPENAI_CODEX_OAUTH')
+const CREDENTIAL_REF = dshCredentials.credentialRef('OPENAI_CODEX_SUBSCRIPTION_OAUTH')
+const LEGACY_CREDENTIAL_REF = dshCredentials.credentialRef('WSL043_OPENAI_CODEX_OAUTH')
+const ACCOUNT_VAULT_KEY = typeof dshCredentials.credentialKey === 'function'
+  ? dshCredentials.credentialKey('codex-subscription', 'accounts')
+  : undefined
 const CHANNEL = '/codex-subscription'
 const WEB_ENTRY_ID = 'web'
 const DSH_SEARCH_PROVIDER_FALLBACK = 'deepseek-official'
@@ -220,10 +226,19 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
       }
     }
     const result = await authHandler(endpoint, payload, signal)
+    if (endpoint === 'account/remove' && result.ok === true && typeof payload?.id === 'string') {
+      await usageReader.clearScope(payload.id)
+    }
     if (endpoint === 'logout' && result.ok === true) {
-      usageReader.clear()
+      await usageReader.clear()
       resetCreditService.clear()
       modelCatalog?.clear()
+    } else if (result.ok === true && (endpoint === 'account/select' || endpoint === 'account/remove'
+      || (endpoint === 'login/status' && result.value?.authenticated === true))) {
+      usageReader.clearCache()
+      resetCreditService.clear()
+      modelCatalog?.clear()
+      void modelCatalog?.refresh({ signal: undefined }).catch(() => {})
     } else if (result.ok === true && (endpoint === 'status' || result.value?.authenticated === true)) {
       void modelCatalog?.refresh({ signal: undefined }).catch(() => {})
     }
@@ -275,8 +290,19 @@ export function apply(ctx) {
   const searchProvider = createSearchProviderSwitcher(ctx.loader)
   const network = createCodexNetworkTransport()
   const originalImages = new OriginalImageStore()
+  const accountVault = ACCOUNT_VAULT_KEY !== undefined
+    && typeof ctx.credentials.readRecord === 'function'
+    && typeof ctx.credentials.modifyRecord === 'function'
+    && typeof ctx.credentials.deleteRecord === 'function'
+    ? new DshOAuthAccountVault(ctx.credentials, {
+        key: ACCOUNT_VAULT_KEY,
+        legacyRef: CREDENTIAL_REF,
+        legacyRefs: [LEGACY_CREDENTIAL_REF],
+      })
+    : undefined
   const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF], {
     expirySkewMs: OAUTH_EXPIRY_SKEW_MS,
+    vault: accountVault,
   })
   const baseProvider = openaiCodexProvider()
   let resolveAuth = async () => undefined
@@ -408,7 +434,15 @@ export function apply(ctx) {
     return settings.watch(select)
   }, 'codex-subscription: search provider selection')
 
-  const auth = createCodexAuthService(authModels, store, { runLogin: operation => network.run('login', operation) })
+  const auth = createCodexAuthService(authModels, store, {
+    runLogin: operation => network.run('login', operation),
+    accountVault,
+    createLoginModels: credentials => {
+      const loginModels = createModels({ credentials })
+      loginModels.setProvider(provider)
+      return loginModels
+    },
+  })
   const coordinator = new CodexLoginCoordinator(auth)
   const baseUsageReader = createCodexUsageReader({
     getAuth: resolveAuth,
@@ -418,7 +452,19 @@ export function apply(ctx) {
   const usageReader = createQuotaForecastReader({
     reader: baseUsageReader,
     enabled: () => normalizeQuickQuotaMode(settings.get()[QUICK_QUOTA_MODE_FIELD], settings.get()[LEGACY_QUICK_QUOTA_FIELD]) === QUICK_QUOTA_MODE_FORECAST,
+    scope: async () => await accountVault?.activeId() ?? 'legacy',
+    stateStore: new QuotaForecastStateStore({
+      filename: dshHomePath('state', 'codex-subscription', 'quota-forecast.json'),
+    }),
   })
+  ctx.effect(() => {
+    const warmForecast = value => {
+      if (normalizeQuickQuotaMode(value[QUICK_QUOTA_MODE_FIELD], value[LEGACY_QUICK_QUOTA_FIELD]) !== QUICK_QUOTA_MODE_FORECAST) return
+      void usageReader.read().catch(error => ctx.logger?.debug?.('could not warm Codex quota forecast: %s', error.message))
+    }
+    warmForecast(settings.get())
+    return settings.watch(warmForecast)
+  }, 'codex-subscription: quota forecast warm-up')
   const resetCreditService = createCodexResetCreditService({
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
