@@ -11,6 +11,21 @@ const pngDimensions = path => {
 const manifest = JSON.parse(text('package.json'))
 const compatibility = JSON.parse(text('compatibility.json'))
 
+test('official DSH acceptance allows only the reviewed pnpm build dependencies', () => {
+  const script = text('.github/scripts/accept-official-release.ps1')
+  for (const dependency of ['@deepseek-ai/dsh-subprocess-local', '@google/genai', 'koffi', 'node-pty', 'protobufjs']) {
+    assert.equal(script.includes(`--allow-build=${dependency}`), true, dependency)
+  }
+  assert.equal(script.includes('dangerously-allow-all-builds'), false)
+})
+
+test('official DSH acceptance materializes one exact runner instead of resolving dlx for every lifecycle command', () => {
+  const script = text('.github/scripts/accept-official-release.ps1')
+  assert.doesNotMatch(script, /['"]dlx['"]/u)
+  assert.match(script, /node_modules[\\/]\.bin[\\/]dsh\.cmd/u)
+  assert.match(script, /package\.json[\s\S]{0,160}\.version/u)
+})
+
 test('release is a prebuilt, documented, removable DSH bundle', () => {
   const pkg = JSON.parse(text('package.json'))
   const included = new Set(pkg.files)
@@ -28,7 +43,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal([...included].some(path => path.startsWith('docs/assets')), false, 'README screenshots stay on GitHub and out of the runtime package')
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.match(pkg.version, /^\d+\.\d+\.\d+$/u)
+  assert.match(pkg.version, /^\d+\.\d+\.\d+(?:-beta\.\d+)?$/u)
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
@@ -60,7 +75,7 @@ test('settings registration works across stable and preview DSH exports', () => 
 
 test('compatibility metadata keeps stable and preview DSH lanes explicit', () => {
   assert.equal(compatibility.latestTested, '0.1.1-rc.2')
-  assert.deepEqual(compatibility.previews, ['0.1.2-alpha.2'])
+  assert.deepEqual(compatibility.previews, ['0.1.2-alpha.2', '0.1.2-alpha.3'])
 })
 
 test('public docs contain only user-facing product and operation information', () => {
@@ -300,7 +315,7 @@ test('official DSH install and web startup are hard gates before a release', () 
   assert.match(smoke, /Invoke-Dsh @\('plugin', '--profile', \$Profile, 'remove'/u)
   assert.match(smoke, /dsh web:|Invoke-WebRequest/u)
   assert.match(smoke, /dsh-codex-subscription@/u)
-  assert.match(smoke, /--config\.minimum-release-age=0[\s\S]*dlx/u)
+  assert.match(smoke, /--config\.minimum-release-age=0[\s\S]*add[\s\S]*@deepseek-ai\/dsh@\$DshVersion/u)
   assert.match(smoke, /Remove-Item -LiteralPath \$resolvedAcceptance -Recurse -Force/u)
 
   for (const workflow of [ci, publish]) {

@@ -65,6 +65,7 @@ export const name = 'codex-subscription'
 export const inject = ['llm', 'credentials', 'settings', 'web', 'loader', 'tools', 'attachments']
 
 const PROVIDER = 'openai-codex'
+const OAUTH_EXPIRY_SKEW_MS = 60_000
 const CREDENTIAL_REF = credentialRef('OPENAI_CODEX_SUBSCRIPTION_OAUTH')
 const LEGACY_CREDENTIAL_REF = credentialRef('WSL043_OPENAI_CODEX_OAUTH')
 const CHANNEL = '/codex-subscription'
@@ -274,7 +275,9 @@ export function apply(ctx) {
   const searchProvider = createSearchProviderSwitcher(ctx.loader)
   const network = createCodexNetworkTransport()
   const originalImages = new OriginalImageStore()
-  const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF])
+  const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF], {
+    expirySkewMs: OAUTH_EXPIRY_SKEW_MS,
+  })
   const baseProvider = openaiCodexProvider()
   let resolveAuth = async () => undefined
   const modelCatalog = createOfficialModelCatalog({

@@ -55,12 +55,19 @@ jobs:
             mapfile -t candidates < <(node --input-type=module -e '
               import { readFileSync } from "node:fs";
               import { compareVersions } from "./scripts/prepare-compat-release.mjs";
-              const current = process.argv[2];
+              const compatibility = JSON.parse(readFileSync(process.argv[2], "utf8"));
+              const current = compatibility.latestTested;
+              const tested = new Set([...(compatibility.supported ?? []), ...(compatibility.previews ?? [])]);
+              const previewFloor = [...(compatibility.previews ?? [])].sort(compareVersions).at(-1) ?? current;
               const versions = [...new Set(JSON.parse(readFileSync(process.argv[1], "utf8")))]
-                .filter(version => typeof version === "string" && compareVersions(version, current) > 0)
+                .filter(version => {
+                  const preview = /-(?:alpha|beta)(?:\.|$)/u.test(version);
+                  return typeof version === "string" && !tested.has(version)
+                    && compareVersions(version, preview ? previewFloor : current) > 0;
+                })
                 .sort(compareVersions);
               process.stdout.write(versions.join("\n"));
-            ' "$RUNNER_TEMP/dsh-versions.json" "$current")
+            ' "$RUNNER_TEMP/dsh-versions.json" compatibility.json)
             candidate=''
             for version in "${candidates[@]}"; do
               if test "$(pnpm view "@deepseek-ai/dsh@$version" version 2>/dev/null || true)" = "$version" &&

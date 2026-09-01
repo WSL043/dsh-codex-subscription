@@ -38,13 +38,18 @@ function parseOAuthCredential(value) {
 export class DshOAuthCredentialStore {
   #chains = new Map()
 
-  constructor(credentials, ref, legacyRefs = []) {
+  constructor(credentials, ref, legacyRefs = [], options = {}) {
     if (credentials === undefined || credentials === null) {
       throw new Error('Codex OAuth requires the DSH credentials service')
+    }
+    const expirySkewMs = options.expirySkewMs ?? 0
+    if (!Number.isFinite(expirySkewMs) || expirySkewMs < 0) {
+      throw new Error('Codex OAuth expiry skew must be a non-negative finite number')
     }
     this.credentials = credentials
     this.ref = ref
     this.legacyRefs = Object.freeze([...legacyRefs])
+    this.expirySkewMs = expirySkewMs
   }
 
   #enqueue(providerId, operation, options) {
@@ -81,7 +86,10 @@ export class DshOAuthCredentialStore {
     }
     abortIfNeeded(options)
     if (hit?.value === undefined || hit.value === '') return undefined
-    return parseOAuthCredential(hit.value)
+    const credential = parseOAuthCredential(hit.value)
+    return this.expirySkewMs === 0
+      ? credential
+      : { ...credential, expires: credential.expires - this.expirySkewMs }
   }
 
   read(providerId, options) {
