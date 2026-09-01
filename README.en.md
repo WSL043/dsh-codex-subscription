@@ -133,7 +133,7 @@ Restart DSH manually after installation, then:
 
 ## Features
 
-- ChatGPT OAuth sign-in with credentials kept on the host;
+- ChatGPT OAuth sign-in with credentials kept on the host; manually add, switch, and remove accounts without automatic rotation or quota pooling;
 - Codex models and Beta image generation/editing directly inside DSH conversations;
 - A clear global choice between DSH default search and Codex subscription search; it applies to every model and session rather than following the selected model;
 - Actual backend-provided quota, reset time, and freshness;
@@ -153,7 +153,7 @@ The plugin can follow an existing HTTPS proxy from the process environment or op
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota-en.png" width="800" alt="Codex quota inside the composer">
 </p>
 
-Choose Off, Percent, Progress bar, or Beta Runway in Settings. The compact display appears only for a selected Codex model. Runway is opt-in and estimates the current pace only from official remaining-percentage observations kept in local runtime memory; it stays quiet with insufficient evidence and recalibrates after a reset, account change, or disable.
+Choose Off, Percent, Progress bar, or Beta Runway in Settings. The compact display appears only for a selected Codex model. Runway is opt-in and estimates pace only from official remaining-percentage observations. It needs at least three samples; sustained high use usually produces a range in 5–10 minutes, while low use takes longer or reports a stable state. Non-sensitive observations from the last 24 hours are kept locally so calibration can continue after restart; a quota reset, account switch, or disabling the feature starts a new calibration period.
 Standard Codex uses the lowest remaining window returned by the service; Spark uses its independent quota. The plugin does not hard-code a
 “5-hour + weekly” layout or invent Credits and spending caps that the service did not return.
 

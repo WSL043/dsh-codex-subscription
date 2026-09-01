@@ -1,3 +1,5 @@
+import { PendingOAuthCredentialStore } from './account-vault.js'
+
 const PROVIDER = 'openai-codex'
 
 const abortIfNeeded = options => options?.signal?.throwIfAborted()
@@ -50,6 +52,7 @@ export class DshOAuthCredentialStore {
     this.ref = ref
     this.legacyRefs = Object.freeze([...legacyRefs])
     this.expirySkewMs = expirySkewMs
+    this.vault = options.vault
   }
 
   #enqueue(providerId, operation, options) {
@@ -72,6 +75,11 @@ export class DshOAuthCredentialStore {
   async #read(providerId, options) {
     assertProvider(providerId)
     abortIfNeeded(options)
+    if (this.vault !== undefined) {
+      const current = await this.vault.readActive()
+      if (current === undefined) return undefined
+      return this.expirySkewMs === 0 ? current : { ...current, expires: current.expires - this.expirySkewMs }
+    }
     let hit = await this.credentials.resolve(this.ref)
     if (hit?.value === undefined || hit.value === '') {
       for (const legacyRef of this.legacyRefs) {
@@ -104,6 +112,17 @@ export class DshOAuthCredentialStore {
 
   modify(providerId, update, options) {
     return this.#enqueue(providerId, async () => {
+      if (this.vault !== undefined) {
+        const next = await this.vault.modifyActive(async current => {
+          const visible = current === undefined || this.expirySkewMs === 0
+            ? current
+            : { ...current, expires: current.expires - this.expirySkewMs }
+          const updated = await update(clone(visible))
+          return updated === undefined ? undefined : assertOAuthCredential(updated)
+        })
+        abortIfNeeded(options)
+        return clone(next)
+      }
       const current = await this.#read(providerId, options)
       const next = await update(clone(current))
       abortIfNeeded(options)
@@ -118,6 +137,11 @@ export class DshOAuthCredentialStore {
 
   delete(providerId, options) {
     return this.#enqueue(providerId, async () => {
+      if (this.vault !== undefined) {
+        await this.vault.deleteAll()
+        abortIfNeeded(options)
+        return
+      }
       await this.credentials.unset(this.ref)
       for (const legacyRef of this.legacyRefs) await this.credentials.unset(legacyRef)
       abortIfNeeded(options)
@@ -128,19 +152,45 @@ export class DshOAuthCredentialStore {
 /** Return only account state that is safe to expose to the browser client. */
 export function createCodexAuthService(models, store, options = {}) {
   const runLogin = options.runLogin ?? (run => run())
+  const accountVault = options.accountVault
+  const createLoginModels = options.createLoginModels
+  const createPendingStore = options.createPendingStore ?? (() => new PendingOAuthCredentialStore())
   return Object.freeze({
     async status(options) {
       const current = await store.read(PROVIDER, options)
-      if (current === undefined) return { authenticated: false, provider: PROVIDER }
+      const accounts = await accountVault?.list()
+      if (current === undefined) return { authenticated: false, provider: PROVIDER, ...(accounts === undefined ? {} : { accounts }) }
       return {
         authenticated: true,
         provider: PROVIDER,
         type: 'oauth',
         expiresAt: current.expires,
+        ...(accounts === undefined ? {} : { accounts }),
       }
     },
-    login(interaction) {
+    login(interaction, input = {}) {
+      if (input.label !== undefined) {
+        if (accountVault === undefined || createLoginModels === undefined) throw new Error('Codex multi-account is unavailable')
+        return runLogin(async () => {
+          const pending = createPendingStore()
+          const loginModels = createLoginModels(pending)
+          await loginModels.login(PROVIDER, 'oauth', interaction)
+          const credential = pending.credential()
+          if (credential === undefined) throw new Error('Codex login did not return credentials')
+          await accountVault.add(input.label, credential)
+        })
+      }
       return runLogin(() => models.login(PROVIDER, 'oauth', interaction))
+    },
+    async select(id) {
+      if (accountVault === undefined) throw new Error('Codex multi-account is unavailable')
+      await accountVault.select(id)
+      return this.status()
+    },
+    async remove(id) {
+      if (accountVault === undefined) throw new Error('Codex multi-account is unavailable')
+      await accountVault.remove(id)
+      return this.status()
     },
     logout(options) {
       return models.logout(PROVIDER, options)
