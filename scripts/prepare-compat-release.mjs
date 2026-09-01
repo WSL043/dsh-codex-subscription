@@ -102,8 +102,10 @@ export function planCompatibilityUpdate(state, candidate) {
   const manifest = structuredClone(state.manifest)
   const previousPluginVersion = manifest.version
   manifest.version = preview ? nextBetaVersion(previousPluginVersion) : nextStableVersion(previousPluginVersion)
-  for (const name of Object.keys(manifest.devDependencies ?? {})) {
-    if (name.startsWith('@deepseek-ai/dsh-')) manifest.devDependencies[name] = candidate
+  if (!preview) {
+    for (const name of Object.keys(manifest.devDependencies ?? {})) {
+      if (name.startsWith('@deepseek-ai/dsh-')) manifest.devDependencies[name] = candidate
+    }
   }
   const supportedRange = [...compatibility.supported, ...compatibility.previews].sort(compareVersions).join(' || ')
   for (const name of Object.keys(manifest.peerDependencies ?? {})) {
