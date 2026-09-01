@@ -2,11 +2,13 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  boundedArtifactPaths,
   compareVersions,
   extractDeepSeekReleaseAgeSelectors,
   planCompatibilityUpdate,
   rewriteBoundedVersions,
   rewriteReleaseAgeCohort,
+  rewriteWorkspaceCohort,
   selectNextUntestedVersion,
 } from '../scripts/prepare-compat-release.mjs'
 
@@ -71,6 +73,8 @@ test('plans preview DSH support as a plugin beta without moving the stable lane'
     update.manifest.peerDependencies['@deepseek-ai/dsh-web'],
     '0.1.1-rc.2 || 0.1.2-alpha.1 || 0.1.2-alpha.2 || 0.1.2-alpha.3',
   )
+  assert.deepEqual(boundedArtifactPaths(update), [])
+  assert.equal(rewriteWorkspaceCohort('stable release-age policy', update), 'stable release-age policy')
 })
 
 test('increments repeated plugin betas and promotes the same patch when DSH leaves preview', () => {
@@ -91,6 +95,17 @@ test('plans one stable plugin patch for one newly accepted DSH version', () => {
   )
   assert.equal(update.manifest.devDependencies.react, '18.3.1')
   assert.equal(update.manifest.peerDependencies.react, '^18.2.0')
+  assert.deepEqual(boundedArtifactPaths(update), [
+    'README.md',
+    'README.en.md',
+    'AGENTS.md',
+    'dsh-codex.ps1',
+    '.github/scripts/accept-official-release.ps1',
+  ])
+  assert.equal(
+    rewriteWorkspaceCohort('cohort 0.1.0-rc.8', update),
+    'cohort 0.1.1-rc.1',
+  )
 })
 
 test('is idempotent for an accepted version and refuses rollback', () => {
