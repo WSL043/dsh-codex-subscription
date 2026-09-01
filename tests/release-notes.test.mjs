@@ -15,6 +15,10 @@ test('GitHub Releases include beginner-facing install, update, and uninstall ins
   assert.match(releaseWorkflow, /sed -i "s\/__DSH_VERSION__\/\$current_dsh\/g" \.release\/install\.md/u)
   assert.match(releaseWorkflow, /release_kind:[\s\S]*compatibility/u)
   assert.match(releaseWorkflow, /Added support for DeepSeek Harness/u)
+  assert.match(releaseWorkflow, /compatibility\.previews/u)
+  assert.match(releaseWorkflow, /current_dsh="\$REQUESTED_DSH_VERSION"/u)
+  assert.match(releaseWorkflow, /Added compatibility with DeepSeek Harness/u)
+  assert.match(releaseWorkflow, /新增对 DeepSeek Harness/u)
   assert.equal(existsSync(new URL('../.github/workflows/release-notes.yml', import.meta.url)), false)
 })
 

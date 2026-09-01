@@ -275,14 +275,33 @@ jobs:
           prepare_contributors
           if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
             test -n "${REQUESTED_DSH_VERSION:-}"
-            test "$REQUESTED_DSH_VERSION" = "$current_dsh"
+            node --input-type=module -e '
+              import compatibility from "./compatibility.json" with { type: "json" };
+              const accepted = [...compatibility.supported, ...compatibility.previews];
+              if (!accepted.includes(process.argv[1])) process.exit(1);
+            ' "$REQUESTED_DSH_VERSION"
+            current_dsh="$REQUESTED_DSH_VERSION"
           fi
           if [[ "$IS_PRERELEASE" == 'true' ]]; then
+            if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
+              beta_notes_en="$(printf '%s\n%s' \
+                "- Added compatibility with DeepSeek Harness \`$current_dsh\`." \
+                '- Stable installation guidance remains unchanged.')"
+              beta_notes_zh="$(printf '%s\n%s' \
+                "- 新增对 DeepSeek Harness \`$current_dsh\` 的兼容支持。" \
+                '- 稳定版安装说明保持不变。')"
+            else
+              beta_notes_en="$(printf '%s\n%s' \
+                '- Switch supported Codex models between Standard and Fast in the composer.' \
+                '- Fast is shown as a lightning icon; Spark hides the unsupported control.')"
+              beta_notes_zh="$(printf '%s\n%s' \
+                '- 输入框支持为兼容的 Codex 模型切换标准或高速。' \
+                '- 高速模式显示为闪电，Spark 会自动隐藏不适用的入口。')"
+            fi
             cat > .release/install.md <<NOTES
           ## Beta preview
 
-          - Switch supported Codex models between Standard and Fast in the composer.
-          - Fast is shown as a lightning icon; Spark hides the unsupported control.
+          $beta_notes_en
 
           <!-- dsh-codex-install -->
           ## Install the Beta
@@ -308,8 +327,7 @@ jobs:
 
           ## Beta 更新
 
-          - 输入框支持为兼容的 Codex 模型切换标准或高速。
-          - 高速模式显示为闪电，Spark 会自动隐藏不适用的入口。
+          $beta_notes_zh
 
           ## 安装 Beta
 
