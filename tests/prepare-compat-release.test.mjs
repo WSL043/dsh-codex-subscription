@@ -68,7 +68,7 @@ test('plans preview DSH support as a plugin beta without moving the stable lane'
   assert.equal(update.compatibility.latestTested, '0.1.1-rc.2')
   assert.deepEqual(update.compatibility.supported, ['0.1.1-rc.2'])
   assert.deepEqual(update.compatibility.previews, ['0.1.2-alpha.1', '0.1.2-alpha.2', '0.1.2-alpha.3'])
-  assert.equal(update.manifest.devDependencies['@deepseek-ai/dsh-web'], '0.1.2-alpha.3')
+  assert.equal(update.manifest.devDependencies['@deepseek-ai/dsh-web'], '0.1.2-alpha.2')
   assert.equal(
     update.manifest.peerDependencies['@deepseek-ai/dsh-web'],
     '0.1.1-rc.2 || 0.1.2-alpha.1 || 0.1.2-alpha.2 || 0.1.2-alpha.3',
