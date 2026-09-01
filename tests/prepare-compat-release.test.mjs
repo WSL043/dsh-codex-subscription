@@ -28,11 +28,56 @@ const fixture = () => ({
   },
 })
 
+const previewFixture = (version = '1.11.3') => ({
+  compatibility: {
+    latestTested: '0.1.1-rc.2',
+    supported: ['0.1.1-rc.2'],
+    previews: ['0.1.2-alpha.1', '0.1.2-alpha.2'],
+  },
+  manifest: {
+    version,
+    devDependencies: {
+      '@deepseek-ai/dsh-web': '0.1.2-alpha.2',
+      react: '18.3.1',
+    },
+    peerDependencies: {
+      '@deepseek-ai/dsh-web': '0.1.1-rc.2 || 0.1.2-alpha.1 || 0.1.2-alpha.2',
+      react: '^18.2.0',
+    },
+  },
+})
+
 test('queues the oldest untested official registry version', () => {
   const versions = ['0.1.1-rc.2', '0.1.0-rc.8', '0.1.1-rc.1']
   assert.equal(selectNextUntestedVersion(versions, '0.1.0-rc.8'), '0.1.1-rc.1')
   assert.equal(selectNextUntestedVersion(versions, '0.1.1-rc.2'), null)
   assert.ok(compareVersions('0.1.1-rc.1', '0.1.0-rc.8') > 0)
+})
+
+test('skips every accepted stable and preview version when selecting compatibility work', () => {
+  const versions = ['0.1.1-rc.2', '0.1.2-alpha.1', '0.1.2-alpha.2', '0.1.2-alpha.3']
+  assert.equal(selectNextUntestedVersion(versions, previewFixture().compatibility), '0.1.2-alpha.3')
+  assert.equal(selectNextUntestedVersion(versions.slice(0, 3), previewFixture().compatibility), null)
+})
+
+test('plans preview DSH support as a plugin beta without moving the stable lane', () => {
+  const update = planCompatibilityUpdate(previewFixture(), '0.1.2-alpha.3')
+  assert.equal(update.pluginVersion, '1.11.4-beta.0')
+  assert.equal(update.compatibility.latestTested, '0.1.1-rc.2')
+  assert.deepEqual(update.compatibility.supported, ['0.1.1-rc.2'])
+  assert.deepEqual(update.compatibility.previews, ['0.1.2-alpha.1', '0.1.2-alpha.2', '0.1.2-alpha.3'])
+  assert.equal(update.manifest.devDependencies['@deepseek-ai/dsh-web'], '0.1.2-alpha.3')
+  assert.equal(
+    update.manifest.peerDependencies['@deepseek-ai/dsh-web'],
+    '0.1.1-rc.2 || 0.1.2-alpha.1 || 0.1.2-alpha.2 || 0.1.2-alpha.3',
+  )
+})
+
+test('increments repeated plugin betas and promotes the same patch when DSH leaves preview', () => {
+  assert.equal(planCompatibilityUpdate(previewFixture('1.11.4-beta.0'), '0.1.2-alpha.3').pluginVersion, '1.11.4-beta.1')
+  const stable = planCompatibilityUpdate(previewFixture('1.11.4-beta.1'), '0.1.2')
+  assert.equal(stable.pluginVersion, '1.11.4')
+  assert.equal(stable.compatibility.latestTested, '0.1.2')
 })
 
 test('plans one stable plugin patch for one newly accepted DSH version', () => {

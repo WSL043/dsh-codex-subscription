@@ -5,7 +5,8 @@ import { zstdDecompressSync } from 'node:zlib'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { openaiCodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 
-import { openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
+import { DshOAuthCredentialStore } from '../src/credential-store.js'
+import { createModels, openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
 import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
@@ -20,6 +21,16 @@ const jwt = accountId => {
 }
 
 const sse = events => `${events.map(event => `data: ${JSON.stringify(event)}`).join('\n\n')}\n\n`
+
+const memoryCredentials = initial => {
+  let value = initial
+  return {
+    async resolve() { return value === undefined ? undefined : { value } },
+    async set(_ref, next) { value = next },
+    async unset() { value = undefined },
+    read() { return value },
+  }
+}
 
 test('pi-ai Codex wire keeps a stable cache key, stateless storage, and server cache usage', async () => {
   const previousFetch = globalThis.fetch
@@ -117,6 +128,83 @@ test('DSH PiAiAdapter can execute the OAuth-only Codex provider with a refreshed
     assert.equal(request.headers.get('chatgpt-account-id'), 'account-dsh')
     assert.ok(networkAreas.length > 0)
     assert.deepEqual(new Set(networkAreas), new Set(['model']))
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
+test('a near-expiry OAuth token refreshes before the first model request is dispatched', async () => {
+  const previousFetch = globalThis.fetch
+  const oldAccess = jwt('account-old')
+  const refreshedAccess = jwt('account-refreshed')
+  const persisted = memoryCredentials(JSON.stringify({
+    type: 'oauth',
+    access: oldAccess,
+    refresh: 'refresh-old',
+    expires: Date.now() + 30_000,
+    accountId: 'account-old',
+  }))
+  const store = new DshOAuthCredentialStore(persisted, 'CODEX_OAUTH', [], { expirySkewMs: 60_000 })
+  const requestOrder = []
+  const baseAuthProvider = openaiCodexSubscriptionProvider()
+  const authProvider = {
+    ...baseAuthProvider,
+    auth: {
+      ...baseAuthProvider.auth,
+      oauth: {
+        ...baseAuthProvider.auth.oauth,
+        async refresh() {
+          requestOrder.push('refresh')
+          return {
+            type: 'oauth',
+            access: refreshedAccess,
+            refresh: 'refresh-new',
+            expires: Date.now() + 3_600_000,
+            accountId: 'account-refreshed',
+          }
+        },
+      },
+    },
+  }
+  const authModels = createModels({ credentials: store })
+  authModels.setProvider(authProvider)
+
+  globalThis.fetch = async (_input, init) => {
+    requestOrder.push('model')
+    const headers = new Headers(init.headers)
+    assert.equal(headers.get('chatgpt-account-id'), 'account-refreshed')
+    return new Response(sse([
+      { type: 'response.created', response: { id: 'resp_refresh' } },
+      { type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: 'msg_refresh', role: 'assistant', content: [] } },
+      { type: 'response.output_text.delta', output_index: 0, content_index: 0, delta: 'ok' },
+      { type: 'response.output_item.done', output_index: 0, item: { type: 'message', id: 'msg_refresh', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'ok', annotations: [] }] } },
+      { type: 'response.done', response: { id: 'resp_refresh', status: 'completed', output: [], usage: { input_tokens: 2, output_tokens: 1, total_tokens: 3 } } },
+    ]), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+  }
+
+  try {
+    const requestProvider = openaiCodexSubscriptionProvider()
+    const profiles = new Map([['openai-codex', {
+      provider: 'openai-codex',
+      displayName: 'ChatGPT subscription',
+      piProvider: requestProvider,
+      configuredMaxTokens: new Map(),
+      transport: 'sse',
+      streamIdleTimeoutMs: 10_000,
+    }]])
+    const adapter = new PiAiAdapter({
+      profiles: () => profiles,
+      resolveApiKey: async () => (await authModels.getAuth('openai-codex'))?.auth.apiKey,
+    })
+    for await (const _chunk of adapter.stream({
+      provider: 'openai-codex',
+      model: 'gpt-5.6-luna',
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }],
+      sessionId: 'refresh-before-request',
+    })) {}
+
+    assert.deepEqual(requestOrder, ['refresh', 'model'])
+    assert.equal(JSON.parse(persisted.read()).refresh, 'refresh-new')
   } finally {
     globalThis.fetch = previousFetch
   }

@@ -238,6 +238,66 @@ test('clearing usage invalidates an older in-flight account request', async () =
   assert.equal(requests, 2)
 })
 
+test('usage reader cools down repeated failures and honors bounded retry-after on 429', async () => {
+  let now = 1_000
+  let requests = 0
+  const reader = createCodexUsageReader({
+    now: () => now,
+    failureTtlMs: 5_000,
+    maxRetryAfterMs: 60_000,
+    async getAuth() { return { auth: { apiKey: 'account-token' } } },
+    async readCredential() { return { type: 'oauth', accountId: 'account-id' } },
+    async fetch() {
+      requests += 1
+      if (requests === 1) {
+        return {
+          ok: false,
+          status: 429,
+          headers: new Headers({ 'retry-after': '120' }),
+        }
+      }
+      return {
+        ok: true,
+        async json() {
+          return { rate_limit: { primary_window: { used_percent: 50, limit_window_seconds: 604_800 } } }
+        },
+      }
+    },
+  })
+
+  await assert.rejects(reader.read(), /HTTP 429/u)
+  await assert.rejects(reader.read({ force: true }), /HTTP 429/u)
+  assert.equal(requests, 1, 'manual refresh must not hammer an active provider cooldown')
+
+  now += 59_999
+  await assert.rejects(reader.read(), /HTTP 429/u)
+  assert.equal(requests, 1)
+
+  now += 1
+  assert.equal((await reader.read()).rateLimits[0].windows[0].remainingPercent, 50)
+  assert.equal(requests, 2)
+})
+
+test('usage reader briefly negative-caches transport failures and clear removes the cooldown', async () => {
+  let requests = 0
+  const reader = createCodexUsageReader({
+    failureTtlMs: 5_000,
+    async getAuth() { return { auth: { apiKey: 'account-token' } } },
+    async readCredential() { return { type: 'oauth', accountId: 'account-id' } },
+    async fetch() {
+      requests += 1
+      throw new Error('private proxy address')
+    },
+  })
+
+  await assert.rejects(reader.read(), /private proxy address/u)
+  await assert.rejects(reader.read({ force: true }), /private proxy address/u)
+  assert.equal(requests, 1)
+  reader.clear()
+  await assert.rejects(reader.read(), /private proxy address/u)
+  assert.equal(requests, 2)
+})
+
 test('usage reader fails closed with bounded public errors', async () => {
   const signedOut = createCodexUsageReader({
     async getAuth() { return { auth: {} } },
