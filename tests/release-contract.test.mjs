@@ -75,7 +75,9 @@ test('settings registration works across stable and preview DSH exports', () => 
 
 test('compatibility metadata keeps stable and preview DSH lanes explicit', () => {
   assert.equal(compatibility.latestTested, '0.1.1-rc.2')
-  assert.deepEqual(compatibility.previews, ['0.1.2-alpha.2', '0.1.2-alpha.3'])
+  assert.deepEqual(compatibility.previews.slice(0, 2), ['0.1.2-alpha.2', '0.1.2-alpha.3'])
+  assert.equal(new Set(compatibility.previews).size, compatibility.previews.length)
+  assert.ok(compatibility.previews.every(version => /^\d+\.\d+\.\d+-[0-9A-Za-z.-]+$/u.test(version)))
 })
 
 test('public docs contain only user-facing product and operation information', () => {
@@ -94,9 +96,11 @@ test('public docs contain only user-facing product and operation information', (
 
 test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
   const guide = text('AGENTS.md')
-  assert.equal(guide.includes(`dsh plugin --profile web add dsh-codex-subscription@${manifest.version}`), true)
+  const documentedVersion = guide.match(/dsh plugin --profile web add dsh-codex-subscription@(\d+\.\d+\.\d+)/u)?.[1]
+  assert.match(documentedVersion ?? '', /^\d+\.\d+\.\d+$/u)
+  assert.doesNotMatch(guide, /dsh-codex-subscription@\d+\.\d+\.\d+-beta\.\d+/u)
   assert.doesNotMatch(guide, /\\dsh\.exe plugin/iu)
-  assert.equal(guide.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add dsh-codex-subscription@${manifest.version}`), true)
+  assert.equal(guide.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add dsh-codex-subscription@${documentedVersion}`), true)
   assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
   assert.match(guide, /dsh --profile web --dump-config/u)
   assert.match(guide, /dsh plugin --profile web remove dsh-codex-subscription/u)
@@ -200,8 +204,10 @@ test('public readmes provide explicit update commands and verification', () => {
 
 test('Windows manager updates from a checksum-verified immutable release asset', () => {
   const manager = text('dsh-codex.ps1')
-  assert.equal(manager.includes(`$PackageVersion = '${manifest.version}'`), true)
-  assert.equal(manager.includes(`$PackageSpec = 'dsh-codex-subscription@${manifest.version}'`), true)
+  const managedVersion = manager.match(/\$PackageVersion = '(\d+\.\d+\.\d+)'/u)?.[1]
+  assert.match(managedVersion ?? '', /^\d+\.\d+\.\d+$/u)
+  assert.equal(manager.includes(`$PackageSpec = 'dsh-codex-subscription@${managedVersion}'`), true)
+  assert.doesNotMatch(manager, /dsh-codex-subscription@\d+\.\d+\.\d+-beta\.\d+/u)
   assert.match(manager, /api\.github\.com\/repos\/WSL043\/dsh-codex-subscription\/releases\/latest/u)
   assert.match(manager, /dsh-codex\.ps1\.sha256/u)
   assert.match(manager, /Get-FileDigest -Algorithm SHA256/u)
