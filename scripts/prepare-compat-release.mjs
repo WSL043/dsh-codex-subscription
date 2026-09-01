@@ -129,6 +129,24 @@ export function rewriteBoundedVersions(source, update, label) {
   return rewritten
 }
 
+export function boundedArtifactPaths(update) {
+  if (!update.updateStableReferences) return []
+  return [
+    'README.md',
+    'README.en.md',
+    'AGENTS.md',
+    'dsh-codex.ps1',
+    '.github/scripts/accept-official-release.ps1',
+  ]
+}
+
+export function rewriteWorkspaceCohort(workspace, update) {
+  if (!update.updateStableReferences) return workspace
+  const rewritten = workspace.replaceAll(update.previousDshVersion, update.dshVersion)
+  if (rewritten === workspace) throw new Error(`DSH release cohort ${update.previousDshVersion} was not found`)
+  return rewritten
+}
+
 export function extractDeepSeekReleaseAgeSelectors(lockfile) {
   const packagesStart = lockfile.indexOf('\npackages:\n')
   const snapshotsStart = lockfile.indexOf('\nsnapshots:\n')
@@ -164,21 +182,13 @@ async function prepare(root, candidate) {
   const update = planCompatibilityUpdate({ compatibility, manifest }, candidate)
   if (update === null) return { changed: false, dshVersion: candidate, pluginVersion: manifest.version }
 
-  const boundedPaths = [
-    'README.md',
-    'README.en.md',
-    'AGENTS.md',
-    'dsh-codex.ps1',
-    '.github/scripts/accept-official-release.ps1',
-  ]
+  const boundedPaths = boundedArtifactPaths(update)
   const sources = await Promise.all(boundedPaths.map(path => readFile(resolve(root, path), 'utf8')))
   const rewritten = sources.map((source, index) => rewriteBoundedVersions(source, update, boundedPaths[index]))
 
   const workspacePath = resolve(root, 'pnpm-workspace.yaml')
   const workspace = await readFile(workspacePath, 'utf8')
-  const nextWorkspace = workspace
-    .replaceAll(update.previousDshVersion, update.dshVersion)
-  if (nextWorkspace === workspace) throw new Error(`DSH release cohort ${update.previousDshVersion} was not found`)
+  const nextWorkspace = rewriteWorkspaceCohort(workspace, update)
 
   await Promise.all([
     writeFile(compatibilityPath, `${JSON.stringify(update.compatibility, null, 2)}\n`),
