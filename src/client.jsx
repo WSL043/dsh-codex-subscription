@@ -67,7 +67,7 @@ const zh = {
   manualCode: '若浏览器回调没有自动完成，请粘贴授权码或完整重定向地址。',
   deviceHint: '在登录页输入此设备代码：', waiting: '正在等待登录完成…',
   failed: '登录失败，请重试。', loadFailed: '无法读取账户状态。', accountRetry: '重试',
-  diagnostics: '支持诊断', diagnosticsHint: '仅含环境与请求状态，不含凭据。', diagnosticsOpen: '展开', diagnosticsClose: '收起', diagnosticsLoad: '生成诊断', diagnosticsCopy: '复制诊断', diagnosticsCopied: '已复制', diagnosticsFailed: '无法生成诊断信息。', feedbackOpen: '反馈问题',
+  diagnostics: '支持诊断', diagnosticsLoad: '生成诊断', diagnosticsLoading: '生成中…', diagnosticsCopy: '复制诊断', diagnosticsCopied: '已复制', diagnosticsFailed: '无法生成诊断信息。', feedbackOpen: '反馈问题',
   showEmail: '显示完整邮箱', hideEmail: '隐藏邮箱', emailUnavailable: '邮箱不可用',
   searchTitle: '搜索来源',
   searchScope: '自动按当前会话模型分流；手动选择会覆盖所有模型和会话。',
@@ -129,7 +129,7 @@ const en = {
   manualCode: 'If the browser callback did not finish automatically, paste the code or full redirect URL.',
   deviceHint: 'Enter this device code on the sign-in page:', waiting: 'Waiting for sign-in to finish…',
   failed: 'Sign-in failed. Try again.', loadFailed: 'Could not read account status.', accountRetry: 'Retry',
-  diagnostics: 'Support diagnostics', diagnosticsHint: 'Environment and request status only; no credentials.', diagnosticsOpen: 'Show', diagnosticsClose: 'Hide', diagnosticsLoad: 'Create report', diagnosticsCopy: 'Copy report', diagnosticsCopied: 'Copied', diagnosticsFailed: 'Could not create diagnostics.', feedbackOpen: 'Report a problem',
+  diagnostics: 'Support diagnostics', diagnosticsLoad: 'Create report', diagnosticsLoading: 'Creating…', diagnosticsCopy: 'Copy report', diagnosticsCopied: 'Copied', diagnosticsFailed: 'Could not create diagnostics.', feedbackOpen: 'Report a problem',
   showEmail: 'Show full email', hideEmail: 'Hide email', emailUnavailable: 'Email unavailable',
   searchTitle: 'Search source',
   searchScope: 'Auto follows the current session model; an explicit choice overrides every model and session.',
@@ -202,7 +202,7 @@ const STYLE = `
 .codexSubscriptionFlow p{font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCode{width:max-content;max-width:100%;font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;overflow-wrap:anywhere}
 .codexSubscriptionError{font-size:13px;line-height:20px;color:var(--dsw-alias-state-error-primary)}.codexSubscriptionInput{width:100%;box-sizing:border-box}
 .codexSubscriptionRecover{display:flex;align-items:center;justify-content:space-between;gap:12px}.codexSubscriptionRecover .codexSubscriptionError{flex:1}.codexSubscriptionRecover button{flex:0 0 auto}
-.codexSubscriptionDiagnostics{padding:10px 12px;gap:8px;background:transparent;color:var(--dsw-alias-label-secondary)}.codexSubscriptionDiagnostics pre{max-height:240px;margin:0;padding:10px 12px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/17px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--dsw-alias-label-secondary)}.codexSubscriptionDiagnostics .codexSubscriptionNote{font-size:11px;line-height:17px}.codexSubscriptionDiagnosticsToggle{min-height:28px!important;padding:0 8px!important;border:0!important;color:var(--dsw-alias-label-tertiary)!important}.codexSubscriptionDiagnosticsToggle:hover{background:var(--dsw-alias-interactive-bg-hover)}.codexSubscriptionLink{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 13px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-decoration:none;white-space:nowrap}.codexSubscriptionLink:hover{background:var(--dsw-alias-bg-module-platform)}.codexSubscriptionLink:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}
+.codexSubscriptionDiagnostics{padding:8px 12px;gap:8px;background:transparent;color:var(--dsw-alias-label-secondary)}.codexSubscriptionDiagnostics pre{max-height:240px;margin:0;padding:10px 12px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/17px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--dsw-alias-label-secondary)}.codexSubscriptionLink{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 13px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-decoration:none;white-space:nowrap}.codexSubscriptionLink:hover{background:var(--dsw-alias-bg-module-platform)}.codexSubscriptionLink:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}
 .codexSubscriptionSectionTitle{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.codexSubscriptionFreshness{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionRefresh{flex:0 0 auto;min-width:72px;width:max-content;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;writing-mode:horizontal-tb!important}.codexSubscriptionRefresh *{white-space:nowrap!important;word-break:keep-all!important;writing-mode:horizontal-tb!important}
 .codexSubscriptionEmpty{padding:18px;border:1px dashed var(--dsw-alias-border-l3);border-radius:10px;text-align:center;font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}
@@ -1073,7 +1073,6 @@ function AccountFailureCard({ retry, t }) {
 }
 
 function DiagnosticsCard({ rpc, t }) {
-  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
   const [report, setReport] = useState()
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -1090,14 +1089,10 @@ function DiagnosticsCard({ rpc, t }) {
   return <div className="codexSubscriptionCard codexSubscriptionDiagnostics">
     <div className="codexSubscriptionSectionHead">
       <div className="codexSubscriptionSectionTitle"><h3>{t('diagnostics')}</h3></div>
-      <div className="codexSubscriptionActions"><Button className="codexSubscriptionDiagnosticsToggle" type="button" variant="outline" aria-expanded={diagnosticsOpen} onClick={() => setDiagnosticsOpen(value => !value)}>{t(diagnosticsOpen ? 'diagnosticsClose' : 'diagnosticsOpen')}</Button><a className="codexSubscriptionLink" href={SUPPORT_ISSUE_URL} target="_blank" rel="noreferrer">{t('feedbackOpen')}</a></div>
+      <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{busy ? t('diagnosticsLoading') : t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={copy}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}<a className="codexSubscriptionLink" href={SUPPORT_ISSUE_URL} target="_blank" rel="noreferrer">{t('feedbackOpen')}</a></div>
     </div>
-    {diagnosticsOpen ? <>
-      <p className="codexSubscriptionNote">{t('diagnosticsHint')}</p>
-      <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{busy ? t('resetPreparing') : t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={copy}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}</div>
-      {report === undefined ? null : <pre>{JSON.stringify(report, null, 2)}</pre>}
-      {error ? <p className="codexSubscriptionError" role="alert">{t('diagnosticsFailed')}</p> : null}
-    </> : null}
+    {report === undefined ? null : <pre>{JSON.stringify(report, null, 2)}</pre>}
+    {error ? <p className="codexSubscriptionError" role="alert">{t('diagnosticsFailed')}</p> : null}
   </div>
 }
 

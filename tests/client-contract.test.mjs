@@ -337,12 +337,11 @@ test('preference writes keep ready surfaces mounted while persistence is pending
   assert.match(client, /\.codexSubscriptionSearchChoices\[data-saving=true\].*opacity:1/u)
 })
 
-test('support diagnostics stay collapsed until requested and then offer report actions', async () => {
+test('support diagnostics stay compact without an extra expand step', async () => {
   const source = await text('src/client.jsx')
-  assert.match(source, /diagnosticsOpen/u)
-  assert.match(source, /aria-expanded=\{diagnosticsOpen\}/u)
-  assert.match(source, /setDiagnosticsOpen/u)
-  assert.match(source, /diagnosticsOpen \? /u)
+  assert.doesNotMatch(source, /diagnosticsOpen|diagnosticsClose|setDiagnosticsOpen|aria-expanded=\{diagnosticsOpen\}/u)
+  assert.match(source, /codexSubscriptionDiagnostics[\s\S]*t\('diagnosticsLoad'\)/u)
+  assert.match(source, /report === undefined \? null : <pre>/u)
   assert.match(source, /diagnosticsCopy/u)
 })
 
@@ -382,7 +381,7 @@ test('support diagnostics includes a direct repository feedback action', async (
 test('settings keep support diagnostics actionable and omit internal cache or route policy copy', async () => {
   const source = await text('src/client.jsx')
   assert.doesNotMatch(source, /CacheDiagnostics|Technical diagnostics|技术诊断|codexSubscriptionSafety/u)
-  assert.match(source, /diagnosticsHint/u)
+  assert.match(source, /diagnosticsLoad/u)
   assert.doesNotMatch(source, /routePolicy|noFallback|searchIntro|quickQuotaHint|usageIntro|codexSubscriptionIntro|codexSubscriptionRoutePolicy/u)
 })
 

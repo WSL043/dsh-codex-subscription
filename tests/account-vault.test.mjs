@@ -133,21 +133,27 @@ test('account status exposes a sanitized email for each account without provider
   assert.doesNotMatch(JSON.stringify(status), /access-|refresh-|account-one|account-two/u)
 })
 
-test('account vault extracts only the root email claim from the access JWT and tolerates missing or malformed claims', async () => {
+test('account vault extracts the real namespaced profile email from the access JWT and tolerates malformed claims', async () => {
   const jwt = payload => `header.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.signature`
   const backend = memoryCredentials({ refs: {
-    CODEX_OAUTH: JSON.stringify({ ...oauth('jwt'), access: jwt({ email: 'jwt@example.com' }) }),
+    CODEX_OAUTH: JSON.stringify({ ...oauth('jwt'), access: jwt({
+      'https://api.openai.com/profile': { email: 'jwt@example.com', email_verified: true },
+    }) }),
   } })
   const vault = new DshOAuthAccountVault(backend, {
     key: 'dsh-codex-subscription/accounts', legacyRef: 'CODEX_OAUTH', createId: () => 'local-jwt',
   })
 
   assert.equal((await vault.list())[0].email, 'jwt@example.com')
-  await vault.modifyActive(current => ({ ...current, access: jwt({ email: 'new@example.com' }) }))
+  await vault.modifyActive(current => ({ ...current, access: jwt({
+    'https://api.openai.com/profile': { email: 'new@example.com', email_verified: true },
+  }) }))
   assert.equal((await vault.list())[0].email, 'new@example.com')
 
   const malformed = new DshOAuthAccountVault(memoryCredentials({ refs: {
-    CODEX_OAUTH: JSON.stringify({ ...oauth('bad'), access: jwt({ email: 'not-an-email' }) }),
+    CODEX_OAUTH: JSON.stringify({ ...oauth('bad'), access: jwt({
+      'https://api.openai.com/profile': { email: 'not-an-email' },
+    }) }),
   } }), {
     key: 'dsh-codex-subscription/accounts', legacyRef: 'CODEX_OAUTH', createId: () => 'local-bad',
   })
