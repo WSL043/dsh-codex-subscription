@@ -28,7 +28,9 @@ function decodeJwtPayload(access) {
 
 function emailFromAccessToken(access) {
   const payload = decodeJwtPayload(access)
-  return normalizeAccountEmail(payload?.email)
+  return normalizeAccountEmail(
+    payload?.['https://api.openai.com/profile']?.email ?? payload?.email,
+  )
 }
 
 /** Normalize the one non-secret account attribute that may cross the UI boundary. */
