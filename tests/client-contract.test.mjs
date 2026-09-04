@@ -311,6 +311,7 @@ test('quota resets render one compact action per returned credit without exposin
   assert.match(host, /creditId/u)
   assert.match(host, /creditRef[\s\S]*creditId|creditId[\s\S]*creditRef/u)
   assert.match(usage, /credits:\s*available/u)
+  assert.doesNotMatch(client, /resetCreditsValue|codexSubscriptionResetSummary/u)
   assert.doesNotMatch(client, /credit\.id|creditId/u)
 })
 
