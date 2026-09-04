@@ -45,6 +45,7 @@ import {
 } from './settings-contract.js'
 import { selectModelQuota } from './sidebar-quota.js'
 import { readLoginProgress } from './login-progress.js'
+import { createPreferenceController } from './preference-controller.js'
 
 export const inject = [
   'slots', 'locale', 'connection', 'remote', 'settingsScope', 'modelDirectories', 'conversation', 'sessions',
@@ -61,12 +62,13 @@ const zh = {
   title: 'Codex 订阅',
   connected: '已登录', disconnected: '未登录', accountLoading: '正在读取账户状态…',
   browserLogin: '浏览器登录', deviceLogin: '设备代码登录', logout: '退出登录',
-  addAccount: '添加账号', accountLabel: '账号名称', switchAccount: '切换', removeAccount: '移除', removeConfirm: '确认移除', removeCancel: '保留', signOutAll: '退出全部账号',
+  addAccount: '添加账号', switchAccount: '切换', removeAccount: '移除', removeConfirm: '确认移除', removeCancel: '保留', signOutAll: '退出全部账号',
   cancel: '取消', submit: '提交授权码', openLogin: '打开登录页',
   manualCode: '若浏览器回调没有自动完成，请粘贴授权码或完整重定向地址。',
   deviceHint: '在登录页输入此设备代码：', waiting: '正在等待登录完成…',
   failed: '登录失败，请重试。', loadFailed: '无法读取账户状态。', accountRetry: '重试',
-  diagnostics: '支持诊断', diagnosticsHint: '生成不含凭据、账号标识和授权时间的诊断信息。', diagnosticsLoad: '生成诊断', diagnosticsCopy: '复制诊断', diagnosticsCopied: '已复制', diagnosticsFailed: '无法生成诊断信息。', feedbackOpen: '反馈问题',
+  diagnostics: '支持诊断', diagnosticsHint: '仅含环境与请求状态，不含凭据。', diagnosticsOpen: '展开', diagnosticsClose: '收起', diagnosticsLoad: '生成诊断', diagnosticsCopy: '复制诊断', diagnosticsCopied: '已复制', diagnosticsFailed: '无法生成诊断信息。', feedbackOpen: '反馈问题',
+  showEmail: '显示完整邮箱', hideEmail: '隐藏邮箱', emailUnavailable: '邮箱不可用',
   searchTitle: '搜索来源',
   searchScope: '自动按当前会话模型分流；手动选择会覆盖所有模型和会话。',
   searchAuto: '自动', searchAutoHint: 'Codex 模型用订阅搜索，其他模型用 DSH',
@@ -80,19 +82,19 @@ const zh = {
   windowFiveHours: '5 小时额度', windowDaily: '每日额度', windowWeekly: '每周额度', windowMonthly: '每月额度', windowAnnual: '年度额度',
   windowHours: '{value} 小时额度', windowDays: '{value} 天额度', resets: '重置于 {value}', resetUnknown: '重置时间未提供',
   creditsBalance: '额外 Credits 余额', creditsUnit: 'credits', unlimited: '不限额', monthlyCreditLimit: 'Credits 月度消费上限',
-  resetCredits: '可用额度重置次数', resetCreditsValue: '{count} 次',
-  resetUse: '使用重置',
-  resetPreparing: '正在读取重置详情…', resetConfirmTitle: '确认使用额度重置',
-  resetWarning: '若 ChatGPT 执行重置，将立即消耗 1 次且无法撤销。', resetEarlyWarning: '当前模型额度尚未用尽；ChatGPT 可能执行重置，也可能判定暂无需重置且不消耗次数。',
+  resetCredits: '额度重置', resetCreditsValue: '{count} 次可用', resetCreditDefaultName: '额度重置',
+  resetUse: '使用',
+  resetPreparing: '准备中…', resetConfirmTitle: '确认使用额度重置',
+  resetWarning: '执行后会消耗 1 次，且无法撤销。', resetEarlyWarning: '当前额度未用尽，服务可能不执行重置。',
   resetAcknowledge: '我知道这次操作可能立即消耗 1 次重置', resetCreditExpires: '到期：{value}', resetCreditExpiryUnknown: '到期时间未提供', resetCreditExpiryLoading: '正在读取到期时间…', resetCreditExpiryFailed: '无法读取到期时间',
-  resetWait: '请再等待 {count} 秒', resetFinal: '消耗 1 次并重置额度', resetUsing: '正在重置…',
+  resetWait: '请等待 {count} 秒', resetFinal: '确认使用', resetUsing: '使用中…',
   resetSuccess: '额度重置已完成。', resetNothing: '当前没有可重置的额度，未消耗新的重置次数。',
   resetNoCredit: '没有可用的额度重置。', resetAlready: '这次重置请求已处理。', resetFailed: '无法使用额度重置。',
   resetRenewLogin: '登录状态已失效，请重新登录。', resetExpired: '本次确认已失效，请重新开始。',
   resetInProgress: '额度重置正在处理中。', resetTooEarly: '请等待冷静期结束后再确认。', resetAcknowledgeRequired: '请先确认已了解这次操作可能消耗重置次数。',
   resetAccountChanged: '登录账号已变更，请重新开始。',
   resetUncertain: '服务端返回结果不确定。请再次确认，插件会复用同一个请求，不会另外发起一次重置。',
-  creditsNote: '仅显示 Codex 为此账户或工作区实际返回的额外 Credits、消费上限或额度重置次数；三者不是同一项。',
+  creditsNote: '额外 Credits、消费上限、重置次数分别显示。',
   creditsUsed: '已用 {used} / {limit} credits', spendReached: 'Credits 月度消费上限已用尽。', unavailable: '暂无数据',
   quickQuotaSetting: '输入框额度', quickQuotaOff: '关闭', quickQuotaPercent: '百分比', quickQuotaBar: '进度条', quickQuotaForecast: '续航预测', quickQuotaBeta: 'Beta',
   quickQuotaForecastHint: '按消耗速度自适应校准；高消耗通常 5–10 分钟可估算，低消耗会显示用量稳定。进度会在本机保留。',
@@ -122,12 +124,13 @@ const en = {
   title: 'Codex subscription',
   connected: 'Signed in', disconnected: 'Not signed in', accountLoading: 'Reading account status…',
   browserLogin: 'Browser sign-in', deviceLogin: 'Device-code sign-in', logout: 'Sign out',
-  addAccount: 'Add account', accountLabel: 'Account name', switchAccount: 'Switch', removeAccount: 'Remove', removeConfirm: 'Confirm remove', removeCancel: 'Keep', signOutAll: 'Sign out all',
+  addAccount: 'Add account', switchAccount: 'Switch', removeAccount: 'Remove', removeConfirm: 'Confirm remove', removeCancel: 'Keep', signOutAll: 'Sign out all',
   cancel: 'Cancel', submit: 'Submit authorization code', openLogin: 'Open sign-in page',
   manualCode: 'If the browser callback did not finish automatically, paste the code or full redirect URL.',
   deviceHint: 'Enter this device code on the sign-in page:', waiting: 'Waiting for sign-in to finish…',
   failed: 'Sign-in failed. Try again.', loadFailed: 'Could not read account status.', accountRetry: 'Retry',
-  diagnostics: 'Support diagnostics', diagnosticsHint: 'Create a report without credentials, account identifiers, or authorization timestamps.', diagnosticsLoad: 'Create report', diagnosticsCopy: 'Copy report', diagnosticsCopied: 'Copied', diagnosticsFailed: 'Could not create diagnostics.', feedbackOpen: 'Report a problem',
+  diagnostics: 'Support diagnostics', diagnosticsHint: 'Environment and request status only; no credentials.', diagnosticsOpen: 'Show', diagnosticsClose: 'Hide', diagnosticsLoad: 'Create report', diagnosticsCopy: 'Copy report', diagnosticsCopied: 'Copied', diagnosticsFailed: 'Could not create diagnostics.', feedbackOpen: 'Report a problem',
+  showEmail: 'Show full email', hideEmail: 'Hide email', emailUnavailable: 'Email unavailable',
   searchTitle: 'Search source',
   searchScope: 'Auto follows the current session model; an explicit choice overrides every model and session.',
   searchAuto: 'Auto', searchAutoHint: 'Codex models use subscription search; other models use DSH',
@@ -141,19 +144,19 @@ const en = {
   windowFiveHours: '5-hour quota', windowDaily: 'Daily quota', windowWeekly: 'Weekly quota', windowMonthly: 'Monthly quota', windowAnnual: 'Annual quota',
   windowHours: '{value}-hour quota', windowDays: '{value}-day quota', resets: 'Resets {value}', resetUnknown: 'Reset time not provided',
   creditsBalance: 'Extra Credits balance', creditsUnit: 'credits', unlimited: 'Unlimited', monthlyCreditLimit: 'Monthly Credits spending cap',
-  resetCredits: 'Available quota resets', resetCreditsValue: '{count} available',
-  resetUse: 'Use reset',
-  resetPreparing: 'Reading reset details…', resetConfirmTitle: 'Confirm quota reset',
-  resetWarning: 'If ChatGPT performs the reset, one reset is consumed immediately and cannot be restored.', resetEarlyWarning: 'No model quota is exhausted. ChatGPT may reset it, or report that nothing needs resetting without consuming a reset.',
+  resetCredits: 'Quota resets', resetCreditsValue: '{count} available', resetCreditDefaultName: 'Quota reset',
+  resetUse: 'Use',
+  resetPreparing: 'Preparing…', resetConfirmTitle: 'Confirm quota reset',
+  resetWarning: 'This consumes one reset and cannot be undone.', resetEarlyWarning: 'Quota remains. The service may decline the reset.',
   resetAcknowledge: 'I understand this may consume one reset now', resetCreditExpires: 'Expires {value}', resetCreditExpiryUnknown: 'Expiration time not provided', resetCreditExpiryLoading: 'Reading expiration…', resetCreditExpiryFailed: 'Could not read expiration',
-  resetWait: 'Wait {count} more seconds', resetFinal: 'Consume one reset', resetUsing: 'Resetting…',
+  resetWait: 'Wait {count} seconds', resetFinal: 'Confirm use', resetUsing: 'Using…',
   resetSuccess: 'Quota reset completed.', resetNothing: 'There is currently nothing to reset; no new reset was consumed.',
   resetNoCredit: 'No quota reset is available.', resetAlready: 'This reset request was already processed.', resetFailed: 'Could not use the quota reset.',
   resetRenewLogin: 'Your sign-in expired. Sign in again.', resetExpired: 'This confirmation expired. Start again.',
   resetInProgress: 'A quota reset is already in progress.', resetTooEarly: 'Wait for the cooldown before confirming.', resetAcknowledgeRequired: 'Confirm that you understand this may consume a reset.',
   resetAccountChanged: 'The signed-in account changed. Start again.',
   resetUncertain: 'The server result is uncertain. Confirm again to check the same request; the plugin will not start a separate reset.',
-  creditsNote: 'Shows only extra Credits, spending caps, or quota resets returned for this account or workspace; these are separate items.',
+  creditsNote: 'Extra Credits, spending caps, and resets are separate items.',
   creditsUsed: '{used} / {limit} credits used', spendReached: 'The monthly Credits spending cap has been reached.', unavailable: 'No data yet',
   quickQuotaSetting: 'Composer quota', quickQuotaOff: 'Off', quickQuotaPercent: 'Percent', quickQuotaBar: 'Progress bar', quickQuotaForecast: 'Runway', quickQuotaBeta: 'Beta',
   quickQuotaForecastHint: 'Calibrates to actual consumption: high use is usually estimated in 5–10 minutes, while low use is shown as stable. Progress is kept locally.',
@@ -191,14 +194,15 @@ const STYLE = `
 .codexSubscriptionContext{display:flex;flex-direction:column;gap:8px}.codexSubscriptionContextHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.codexSubscriptionContextCopy{display:flex;min-width:0;flex:1;flex-direction:column;gap:2px}.codexSubscriptionContextHint{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionContextTrigger{height:32px;min-width:108px;display:inline-flex;align-items:center;justify-content:space-between;gap:10px;padding:0 10px 0 12px;border:0;border-radius:999px;outline:0;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}.codexSubscriptionContextTrigger:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.codexSubscriptionContextTrigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}.codexSubscriptionContextTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:not-allowed}.codexSubscriptionContextTrigger svg{color:var(--dsw-alias-label-tertiary);transition:transform 120ms var(--ds-ease-in-out)}.codexSubscriptionContextTrigger[aria-expanded=true] svg{transform:rotate(180deg)}.codexSubscriptionContextModels{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.codexSubscriptionContextModel{min-height:42px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--dsw-alias-border-l2)}.codexSubscriptionContextModel:last-child{border-bottom:0}.codexSubscriptionContextModelCopy{display:flex;min-width:0;flex-direction:column}.codexSubscriptionContextModelCopy strong{font-size:12px;line-height:18px;font-weight:500}.codexSubscriptionContextModelCopy span{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionContextInput{width:116px}
 .codexSubscriptionSwitch{position:relative;flex:0 0 auto;width:32px;height:18px;padding:0;border:1px solid var(--dsw-alias-border-l3);border-radius:999px;background:var(--dsw-alias-bg-module-platform);cursor:pointer}.codexSubscriptionSwitch:disabled{cursor:not-allowed;opacity:.5}.codexSubscriptionSwitch[aria-checked=true]{background:var(--dsw-alias-label-secondary);border-color:var(--dsw-alias-label-secondary)}.codexSubscriptionSwitchKnob{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:var(--dsw-alias-bg-layer-1);transition:transform 120ms var(--ds-ease-in-out)}.codexSubscriptionSwitch[aria-checked=true] .codexSubscriptionSwitchKnob{transform:translateX(14px)}
 .codexSubscriptionSearch{display:flex;flex-direction:column;gap:7px}.codexSubscriptionSearchChoices{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:6px}.codexSubscriptionSearchChoice{display:grid;grid-template-columns:14px minmax(0,1fr);align-items:center;column-gap:8px;min-width:0;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);padding:9px 10px;text-align:left;cursor:pointer}.codexSubscriptionSearchChoice:has(input:disabled){cursor:not-allowed;opacity:.5}.codexSubscriptionSearchChoice:has(input:checked){border-color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}.codexSubscriptionSearchChoice:has(input:focus-visible){outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}.codexSubscriptionSearchInput{width:14px;height:14px;margin:0;accent-color:var(--dsw-alias-label-primary);cursor:inherit}.codexSubscriptionSearchCopy{display:block;min-width:0;pointer-events:none}.codexSubscriptionSearchCopy strong,.codexSubscriptionSearchCopy span{display:block}.codexSubscriptionSearchCopy strong{font-size:12px;line-height:18px;font-weight:500;color:var(--dsw-alias-label-secondary)}.codexSubscriptionSearchChoice:has(input:checked) strong{color:var(--dsw-alias-label-primary)}.codexSubscriptionSearchCopy span{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionDivider{height:1px;background:var(--dsw-alias-border-l2)}
+.codexSubscriptionQuotaModes[data-saving=true] .codexSubscriptionQuotaMode:has(input:disabled){cursor:wait;opacity:1}.codexSubscriptionSearchChoices[data-saving=true] .codexSubscriptionSearchChoice:has(input:disabled){cursor:wait;opacity:1}
 .codexSubscriptionAccountRow,.codexSubscriptionSectionHead{display:flex;align-items:center;justify-content:space-between;gap:12px}.codexSubscriptionStatus{display:flex;align-items:center;gap:8px;font-size:14px;line-height:22px;font-weight:500}
-.codexSubscriptionAccounts{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.codexSubscriptionAccount{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:42px;border-bottom:1px solid var(--dsw-alias-border-l2);font-size:13px}.codexSubscriptionAccount:last-child{border-bottom:0}.codexSubscriptionAccount[data-active=true]>span{font-weight:600}.codexSubscriptionFlow label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionAccounts{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}.codexSubscriptionAccount{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:42px;border-bottom:1px solid var(--dsw-alias-border-l2);font-size:13px}.codexSubscriptionAccount:last-child{border-bottom:0}.codexSubscriptionAccount[data-active=true] .codexSubscriptionEmail,.codexSubscriptionAccount[data-active=true]>span{font-weight:600}.codexSubscriptionEmail{max-width:100%;overflow:hidden;padding:2px 4px;border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;text-align:left;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}.codexSubscriptionEmail:hover{background:var(--dsw-alias-interactive-bg-hover)}.codexSubscriptionEmail:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px}.codexSubscriptionFlow label{display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--dsw-alias-label-secondary)}
 .codexSubscriptionDot{width:8px;height:8px;border-radius:50%;background:var(--dsw-alias-label-dimmed)}.codexSubscriptionDot[data-state=connected]{background:var(--dsw-alias-state-success-primary)}.codexSubscriptionDot[data-state=disconnected]{background:var(--dsw-alias-state-error-primary)}
 .codexSubscriptionActions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.codexSubscriptionFlow{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionFlow p{font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCode{width:max-content;max-width:100%;font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em;overflow-wrap:anywhere}
 .codexSubscriptionError{font-size:13px;line-height:20px;color:var(--dsw-alias-state-error-primary)}.codexSubscriptionInput{width:100%;box-sizing:border-box}
 .codexSubscriptionRecover{display:flex;align-items:center;justify-content:space-between;gap:12px}.codexSubscriptionRecover .codexSubscriptionError{flex:1}.codexSubscriptionRecover button{flex:0 0 auto}
-.codexSubscriptionDiagnostics pre{max-height:240px;margin:0;padding:10px 12px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/17px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--dsw-alias-label-secondary)}.codexSubscriptionLink{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 13px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-decoration:none;white-space:nowrap}.codexSubscriptionLink:hover{background:var(--dsw-alias-bg-module-platform)}.codexSubscriptionLink:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}
+.codexSubscriptionDiagnostics{padding:10px 12px;gap:8px;background:transparent;color:var(--dsw-alias-label-secondary)}.codexSubscriptionDiagnostics pre{max-height:240px;margin:0;padding:10px 12px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/17px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--dsw-alias-label-secondary)}.codexSubscriptionDiagnostics .codexSubscriptionNote{font-size:11px;line-height:17px}.codexSubscriptionDiagnosticsToggle{min-height:28px!important;padding:0 8px!important;border:0!important;color:var(--dsw-alias-label-tertiary)!important}.codexSubscriptionDiagnosticsToggle:hover{background:var(--dsw-alias-interactive-bg-hover)}.codexSubscriptionLink{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 13px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-decoration:none;white-space:nowrap}.codexSubscriptionLink:hover{background:var(--dsw-alias-bg-module-platform)}.codexSubscriptionLink:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}
 .codexSubscriptionSectionTitle{display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}.codexSubscriptionFreshness{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionRefresh{flex:0 0 auto;min-width:72px;width:max-content;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;writing-mode:horizontal-tb!important}.codexSubscriptionRefresh *{white-space:nowrap!important;word-break:keep-all!important;writing-mode:horizontal-tb!important}
 .codexSubscriptionEmpty{padding:18px;border:1px dashed var(--dsw-alias-border-l3);border-radius:10px;text-align:center;font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}
@@ -208,7 +212,7 @@ const STYLE = `
 .codexSubscriptionLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionLimitMeta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionCreditSection{display:flex;flex-direction:column;gap:7px}.codexSubscriptionCreditNote{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionCreditRows{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.codexSubscriptionCreditBalance,.codexSubscriptionSpendLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionCreditBalance{display:flex;flex-direction:column;gap:6px}.codexSubscriptionCreditBalance span,.codexSubscriptionCreditLabel{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.codexSubscriptionResetSummary{display:flex;align-items:center;justify-content:space-between;gap:10px}.codexSubscriptionResetMeta{display:flex;min-width:0;flex-direction:column;gap:1px}.codexSubscriptionResetBalance{display:flex;flex-direction:column;gap:8px}.codexSubscriptionResetBalance .codexSubscriptionActions{justify-content:flex-start}.codexSubscriptionResetFlow{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:10px}.codexSubscriptionResetFlow h4{margin:0;font-size:13px;line-height:20px;font-weight:500}.codexSubscriptionResetWarning{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionResetExpiry{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionResetCheck{display:flex;align-items:flex-start;gap:8px;padding:9px 10px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);cursor:pointer}.codexSubscriptionResetCheck input{margin:3px 0 0;accent-color:var(--dsw-alias-label-primary)}.codexSubscriptionResetFinal{border-color:var(--dsw-alias-state-error-primary)!important;color:var(--dsw-alias-state-error-primary)!important}.codexSubscriptionResetResult{font-size:12px;line-height:18px;color:var(--dsw-alias-state-success-primary)}
+.codexSubscriptionCreditRows{display:flex;flex-direction:column;gap:6px}.codexSubscriptionResetSummary{display:flex;align-items:center;justify-content:space-between;gap:10px}.codexSubscriptionResetMeta{display:flex;min-width:0;flex-direction:column;gap:1px}.codexSubscriptionResetBalance{display:flex;flex-direction:column;gap:8px}.codexSubscriptionResetCard{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;padding:9px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:9px;background:var(--dsw-alias-bg-module-platform)}.codexSubscriptionResetCard .codexSubscriptionResetMeta{flex:1}.codexSubscriptionResetCard strong{overflow:hidden;font-size:12px;line-height:18px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}.codexSubscriptionResetCard .codexSubscriptionActions{flex:0 0 auto}.codexSubscriptionResetCard .codexSubscriptionResetUse{min-height:28px;padding:0 10px}.codexSubscriptionResetBalance .codexSubscriptionActions{justify-content:flex-start}.codexSubscriptionResetFlow{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:10px}.codexSubscriptionResetFlow h4{margin:0;font-size:13px;line-height:20px;font-weight:500}.codexSubscriptionResetWarning{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionResetExpiry{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionResetCheck{display:flex;align-items:flex-start;gap:8px;padding:9px 10px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);cursor:pointer}.codexSubscriptionResetCheck input{margin:3px 0 0;accent-color:var(--dsw-alias-label-primary)}.codexSubscriptionResetFinal{border-color:var(--dsw-alias-state-error-primary)!important;color:var(--dsw-alias-state-error-primary)!important}.codexSubscriptionResetResult{font-size:12px;line-height:18px;color:var(--dsw-alias-state-success-primary)}
 .codexSubscriptionResetUse:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.codexSubscriptionResetUse:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px}
 .codexSubscriptionSpendLimit{display:flex;flex-direction:column;gap:8px}.codexSubscriptionSpendTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionSpendTop strong{font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.codexSubscriptionSpendLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}.codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexComposerQuota{display:inline-flex;align-items:center;flex:0 0 auto;height:28px;box-sizing:border-box;padding:0;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}.codexComposerQuotaBar{display:block;width:40px;height:4px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-label-secondary);-webkit-appearance:none;appearance:none}.codexComposerQuotaBar::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexComposerQuotaBar::-webkit-progress-value{background:var(--dsw-alias-label-secondary);border-radius:999px}.codexComposerQuotaBar::-moz-progress-bar{background:var(--dsw-alias-label-secondary);border-radius:999px}
@@ -243,6 +247,12 @@ const unwrap = response => {
   return response.value
 }
 const fill = (text, values) => Object.entries(values).reduce((next, [key, value]) => next.replace(`{${key}}`, String(value)), text)
+const maskEmail = value => {
+  if (typeof value !== 'string' || !value.includes('@')) return '••••'
+  const [local, domain] = value.split('@', 2)
+  if (local.length <= 2) return `${local.slice(0, 1)}••@${domain}`
+  return `${local[0]}•••${local.at(-1)}@${domain}`
+}
 const hours = seconds => Math.round((seconds / 3600) * 10) / 10
 const percent = value => Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })
 const isApproximateWindow = (seconds, expected) => seconds >= expected * 0.95 && seconds <= expected * 1.05
@@ -534,144 +544,6 @@ function CodexImageToolRow({ block, sessionId, rpc, loadImage, attachForEdit, ge
   </div>
 }
 
-function createPreferenceController(scope, rpc) {
-  let updating = false
-  let error = false
-  let fallbackStatus = 'loading'
-  let fallback
-  let failedPatch
-  let generation = 0
-  let contextModels = []
-  let verbosityModels = []
-  const nativeSnapshot = () => scope.getSnapshot()
-  const read = () => {
-    const native = nativeSnapshot()
-    const current = native.status === 'ready'
-      ? native
-      : fallbackStatus === 'ready'
-        ? fallback
-        : native
-    return Object.freeze({
-      status: updating ? 'updating' : current.status,
-      quickQuotaMode: normalizeQuickQuotaMode(
-        current.value?.[QUICK_QUOTA_MODE_FIELD],
-        current.value?.[LEGACY_QUICK_QUOTA_FIELD],
-      ),
-      searchProvider: normalizeSearchProvider(current.value?.[SEARCH_PROVIDER_FIELD]),
-      speedMode: normalizeSpeedMode(current.value?.[SPEED_MODE_FIELD]),
-      outputVerbosity: normalizeOutputVerbosity(current.value?.[OUTPUT_VERBOSITY_FIELD]),
-      contextMode: normalizeContextMode(current.value?.[CONTEXT_MODE_FIELD]),
-      customContextWindow: normalizeCustomContextWindow(current.value?.[CUSTOM_CONTEXT_WINDOW_FIELD]),
-      customContextWindows: Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [modelKey, normalizeCustomContextWindow(current.value?.[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])])),
-      contextModels,
-      verbosityModels,
-      writable: !updating && current.status === 'ready' && current.writable === true,
-      error,
-    })
-  }
-  let snapshot = read()
-  const listeners = new Set()
-  const publish = () => {
-    snapshot = read()
-    for (const listener of listeners) listener()
-  }
-  const disposeScope = scope.subscribe(() => {
-    error = false
-    failedPatch = undefined
-    publish()
-  })
-  const acceptFallback = value => {
-    contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
-    verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
-    fallbackStatus = 'ready'
-    fallback = {
-      status: 'ready',
-      value: {
-        [QUICK_QUOTA_MODE_FIELD]: normalizeQuickQuotaMode(
-          value?.[QUICK_QUOTA_MODE_FIELD],
-          value?.[LEGACY_QUICK_QUOTA_FIELD],
-        ),
-        [SEARCH_PROVIDER_FIELD]: normalizeSearchProvider(value?.[SEARCH_PROVIDER_FIELD]),
-        [SPEED_MODE_FIELD]: normalizeSpeedMode(value?.[SPEED_MODE_FIELD]),
-        [OUTPUT_VERBOSITY_FIELD]: normalizeOutputVerbosity(value?.[OUTPUT_VERBOSITY_FIELD]),
-        [CONTEXT_MODE_FIELD]: normalizeContextMode(value?.[CONTEXT_MODE_FIELD]),
-        [CUSTOM_CONTEXT_WINDOW_FIELD]: normalizeCustomContextWindow(value?.[CUSTOM_CONTEXT_WINDOW_FIELD]),
-        ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [field, normalizeCustomContextWindow(value?.[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])])),
-      },
-      writable: value?.writable === true,
-    }
-  }
-  const load = async () => {
-    const current = ++generation
-    updating = false
-    fallbackStatus = 'loading'
-    fallback = undefined
-    error = false
-    publish()
-    const native = nativeSnapshot()
-    try {
-      const value = unwrap(await rpc.call(CHANNEL, 'preferences/status', {}))
-      if (current !== generation) return
-      if (nativeSnapshot().status === 'ready') {
-        contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
-        verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
-      }
-      else acceptFallback(value)
-      publish()
-    } catch {
-      if (current !== generation || nativeSnapshot().status === 'ready') return
-      fallbackStatus = 'unavailable'
-      publish()
-    }
-  }
-  const set = async patch => {
-    if (snapshot.status !== 'ready' || snapshot.writable !== true) return
-    const current = ++generation
-    const entries = Object.entries(patch)
-    updating = true
-    error = false
-    failedPatch = undefined
-    publish()
-    try {
-      const native = nativeSnapshot()
-      if (native.status === 'ready') {
-        for (const [field, value] of entries) {
-          if (current !== generation) return
-          await scope.set(field, value)
-        }
-        if (current !== generation) return
-        const accepted = nativeSnapshot().value
-        error = entries.some(([field, value]) => accepted?.[field] !== value)
-      } else {
-        const value = unwrap(await rpc.call(CHANNEL, 'preferences/update', patch))
-        if (current !== generation) return
-        acceptFallback(value)
-      }
-    } catch {
-      if (current === generation) {
-        error = true
-        failedPatch = patch
-      }
-    } finally {
-      if (current === generation) {
-        updating = false
-        publish()
-      }
-    }
-  }
-  return {
-    getSnapshot: () => snapshot,
-    subscribe: listener => {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
-    },
-    load,
-    set,
-    retry: () => failedPatch === undefined ? load() : set(failedPatch),
-    dispose: disposeScope,
-  }
-}
-
 const usePreferenceSnapshot = preference => useSyncExternalStore(
   preference.subscribe,
   preference.getSnapshot,
@@ -744,7 +616,7 @@ function QuickQuotaPreference({ preference, t }) {
   const choice = (value, label) => <label className="codexSubscriptionQuotaMode"><input type="radio" name="codex-subscription-quota-mode" checked={snapshot.quickQuotaMode === value} disabled={!writable} onChange={() => { void preference.set({ [QUICK_QUOTA_MODE_FIELD]: value }) }} /><span>{label}</span></label>
   return <div className="codexSubscriptionPreference">
     <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('quickQuotaSetting')}</span>{snapshot.quickQuotaMode === QUICK_QUOTA_MODE_FORECAST ? <span className="codexSubscriptionPreferenceHint">{t('quickQuotaForecastHint')}</span> : null}</div>
-    <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('quickQuotaSetting')}>
+    <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('quickQuotaSetting')}>
       {choice(QUICK_QUOTA_MODE_OFF, t('quickQuotaOff'))}
       {choice(QUICK_QUOTA_MODE_PERCENT, t('quickQuotaPercent'))}
       {choice(QUICK_QUOTA_MODE_BAR, t('quickQuotaBar'))}
@@ -759,7 +631,7 @@ function SearchProviderPreference({ preference, t }) {
   const choice = (value, label, hint) => <label className="codexSubscriptionSearchChoice"><input className="codexSubscriptionSearchInput" type="radio" name="codex-subscription-search-provider" checked={snapshot.searchProvider === value} disabled={!writable} onChange={() => { void preference.set({ [SEARCH_PROVIDER_FIELD]: value }) }} /><span className="codexSubscriptionSearchCopy"><strong>{label}</strong><span>{hint}</span></span></label>
   return <div className="codexSubscriptionSearch">
     <div className="codexSubscriptionSearchHead"><h3>{t('searchTitle')}</h3><span className="codexSubscriptionSearchScope">{t('searchScope')}</span></div>
-    <div className="codexSubscriptionSearchChoices" role="radiogroup" aria-label={t('searchTitle')}>
+    <div className="codexSubscriptionSearchChoices" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('searchTitle')}>
       {choice(SEARCH_PROVIDER_AUTO, t('searchAuto'), t('searchAutoHint'))}
       {choice(SEARCH_PROVIDER_DSH, t('searchDsh'), t('searchDshHint'))}
       {choice(SEARCH_PROVIDER_CODEX, t('searchCodex'), t('searchCodexHint'))}
@@ -1060,15 +932,37 @@ function CodexModelSelect({ locked, available, directory, load, select, preferen
   </div>
 }
 
+function AccountEmail({ candidate, fallback, t, emailVisible, onClick }) {
+  if (typeof candidate?.email !== 'string' || candidate.email.length === 0) {
+    return <span title={t('emailUnavailable')}>{fallback ?? candidate?.label ?? t('emailUnavailable')}</span>
+  }
+  return <button
+    type="button"
+    className="codexSubscriptionEmail"
+    aria-label={t(emailVisible ? 'hideEmail' : 'showEmail')}
+    aria-pressed={emailVisible}
+    onClick={onClick}
+  >{emailVisible ? candidate.email : maskEmail(candidate.email)}</button>
+}
+
 function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   const [flow, setFlow] = useState()
   const [manualCode, setManualCode] = useState('')
   const [adding, setAdding] = useState(false)
-  const [accountLabel, setAccountLabel] = useState('')
   const [removeId, setRemoveId] = useState()
+  const [emailVisible, setEmailVisible] = useState(false)
+  const accounts = account?.accounts ?? []
+  const accountVisibilityKey = `${account?.authenticated === true ? 'signed-in' : 'signed-out'}:${accounts.map(candidate => `${candidate.id ?? ''}:${candidate.active === true}:${candidate.email ?? ''}`).join('|')}`
+  const [emailVisibilityKey, setEmailVisibilityKey] = useState(accountVisibilityKey)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState()
   const call = (endpoint, payload = {}) => rpc.call(CHANNEL, endpoint, payload).then(unwrap)
+
+  useEffect(() => {
+    if (emailVisibilityKey === accountVisibilityKey) return
+    setEmailVisible(false)
+    setEmailVisibilityKey(accountVisibilityKey)
+  }, [accountVisibilityKey, emailVisibilityKey])
 
   useEffect(() => {
     if (flow?.id === undefined || ['authenticated', 'failed', 'cancelled'].includes(flow.phase)) return undefined
@@ -1090,7 +984,6 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
           setAccount(next.account)
           onSignedOut()
           setAdding(false)
-          setAccountLabel('')
           setFlow(undefined)
           notifyQuickQuota()
         }
@@ -1101,7 +994,8 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
 
   const begin = (method, label) => {
     setFlow(undefined); setBusy(true); setError(undefined)
-    void call('login/start', { method, openExternal: true, ...(label === undefined ? {} : { label }) }).then(setFlow)
+    const loginLabel = adding && label === undefined ? `Account ${accounts.length + 1}` : label
+    void call('login/start', { method, openExternal: true, ...(loginLabel === undefined ? {} : { label: loginLabel }) }).then(setFlow)
       .catch(() => setError(t('failed'))).finally(() => setBusy(false))
   }
   const cancel = () => {
@@ -1109,7 +1003,7 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
     setBusy(true)
     void call('login/cancel', { id: flow.id }).then(next => {
       setFlow(adding ? undefined : next)
-      if (adding) { setAdding(false); setAccountLabel('') }
+      if (adding) setAdding(false)
       if (adding) return undefined
       return call('status').then(account => {
         if (account.authenticated === true) {
@@ -1150,17 +1044,20 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   }
   const signedIn = account?.authenticated === true
   const accountReady = account !== undefined
-  const accounts = account?.accounts ?? []
-  const activeAccount = accounts.find(candidate => candidate.active)
   const loginVisible = flow !== undefined && !['authenticated', 'failed', 'cancelled'].includes(flow.phase)
 
+  const toggleEmail = () => {
+    setEmailVisibilityKey(accountVisibilityKey)
+    setEmailVisible(value => emailVisibilityKey === accountVisibilityKey ? !value : true)
+  }
+  const emailVisibleForAccount = emailVisible && emailVisibilityKey === accountVisibilityKey
   return <div className="codexSubscriptionCard">
     <div className="codexSubscriptionAccountRow">
-      <div className="codexSubscriptionStatus" role="status" aria-live="polite"><span className="codexSubscriptionDot" data-state={accountReady ? signedIn ? 'connected' : 'disconnected' : 'loading'} aria-hidden="true" />{accountReady ? signedIn ? activeAccount?.label ?? t('connected') : t('disconnected') : t('accountLoading')}</div>
-      <div className="codexSubscriptionActions">{signedIn ? <><Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => { setFlow(undefined); setAdding(true); setAccountLabel(`Account ${accounts.length + 1}`) }}>{t('addAccount')}</Button><Button type="button" variant="outline" disabled={busy || loginVisible} onClick={logout}>{t('signOutAll')}</Button></> : accountReady && (flow === undefined || ['failed', 'cancelled'].includes(flow.phase)) ? <><Button type="button" variant="primary" disabled={busy} onClick={() => begin('browser')}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => begin('device_code')}>{t('deviceLogin')}</Button></> : null}</div>
+      <div className="codexSubscriptionStatus" role="status" aria-live="polite"><span className="codexSubscriptionDot" data-state={accountReady ? signedIn ? 'connected' : 'disconnected' : 'loading'} aria-hidden="true" />{accountReady ? signedIn ? t('connected') : t('disconnected') : t('accountLoading')}</div>
+      <div className="codexSubscriptionActions">{signedIn ? <><Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => { setFlow(undefined); setAdding(true) }}>{t('addAccount')}</Button><Button type="button" variant="outline" disabled={busy || loginVisible} onClick={logout}>{t('signOutAll')}</Button></> : accountReady && (flow === undefined || ['failed', 'cancelled'].includes(flow.phase)) ? <><Button type="button" variant="primary" disabled={busy} onClick={() => begin('browser')}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => begin('device_code')}>{t('deviceLogin')}</Button></> : null}</div>
     </div>
-    {signedIn && accounts.length > 0 ? <div className="codexSubscriptionAccounts">{accounts.map(candidate => <div className="codexSubscriptionAccount" data-active={candidate.active} key={candidate.id}><span>{candidate.label}</span><div className="codexSubscriptionActions">{candidate.active ? null : <Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => selectAccount(candidate.id)}>{t('switchAccount')}</Button>}{accounts.length > 1 ? <Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => removeAccount(candidate.id)}>{removeId === candidate.id ? t('removeConfirm') : t('removeAccount')}</Button> : null}{removeId === candidate.id ? <Button type="button" variant="outline" disabled={busy} onClick={() => setRemoveId(undefined)}>{t('removeCancel')}</Button> : null}</div></div>)}</div> : null}
-    {signedIn && adding && flow === undefined ? <div className="codexSubscriptionFlow"><label>{t('accountLabel')}<Input className="codexSubscriptionInput" value={accountLabel} maxLength={48} onChange={event => setAccountLabel(event.currentTarget.value)} /></label><div className="codexSubscriptionActions"><Button type="button" variant="primary" disabled={busy || accountLabel.trim() === ''} onClick={() => begin('browser', accountLabel.trim())}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy || accountLabel.trim() === ''} onClick={() => begin('device_code', accountLabel.trim())}>{t('deviceLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => { setAdding(false); setAccountLabel('') }}>{t('cancel')}</Button></div></div> : null}
+     {signedIn && accounts.length > 0 ? <div className="codexSubscriptionAccounts">{accounts.map(candidate => <div className="codexSubscriptionAccount" data-active={candidate.active} key={candidate.id}><AccountEmail candidate={candidate} fallback={candidate.label} t={t} emailVisible={emailVisibleForAccount} onClick={toggleEmail} /><div className="codexSubscriptionActions">{candidate.active ? null : <Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => selectAccount(candidate.id)}>{t('switchAccount')}</Button>}{accounts.length > 1 ? <Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => removeAccount(candidate.id)}>{removeId === candidate.id ? t('removeConfirm') : t('removeAccount')}</Button> : null}{removeId === candidate.id ? <Button type="button" variant="outline" disabled={busy} onClick={() => setRemoveId(undefined)}>{t('removeCancel')}</Button> : null}</div></div>)}</div> : null}
+    {signedIn && adding && flow === undefined ? <div className="codexSubscriptionFlow"><div className="codexSubscriptionActions"><Button type="button" variant="primary" disabled={busy} onClick={() => begin('browser')}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => begin('device_code')}>{t('deviceLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setAdding(false)}>{t('cancel')}</Button></div></div> : null}
     {flow?.phase === 'waiting_device' ? <div className="codexSubscriptionFlow"><p>{t('deviceHint')}</p><code className="codexSubscriptionCode">{flow.deviceCode?.userCode}</code><a href={flow.deviceCode?.verificationUri} target="_blank" rel="noreferrer">{t('openLogin')}</a><p>{t('waiting')}</p></div> : null}
     {flow?.phase === 'waiting_input' ? <form className="codexSubscriptionFlow" onSubmit={submit}><p>{t('manualCode')}</p><Input className="codexSubscriptionInput" value={manualCode} onChange={event => setManualCode(event.currentTarget.value)} autoComplete="off" spellCheck={false} /><div className="codexSubscriptionActions"><Button type="submit" variant="primary" disabled={busy || manualCode.trim() === ''}>{t('submit')}</Button><Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div></form> : null}
     {flow !== undefined && ['starting', 'waiting_browser'].includes(flow.phase) ? <div className="codexSubscriptionFlow"><p>{t('waiting')}</p>{flow.authUrl === undefined ? null : <a href={flow.authUrl} target="_blank" rel="noreferrer">{t('openLogin')}</a>}<Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div> : null}
@@ -1176,6 +1073,7 @@ function AccountFailureCard({ retry, t }) {
 }
 
 function DiagnosticsCard({ rpc, t }) {
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
   const [report, setReport] = useState()
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -1191,11 +1089,15 @@ function DiagnosticsCard({ rpc, t }) {
   }
   return <div className="codexSubscriptionCard codexSubscriptionDiagnostics">
     <div className="codexSubscriptionSectionHead">
-      <div className="codexSubscriptionSectionTitle"><h3>{t('diagnostics')}</h3><p className="codexSubscriptionNote">{t('diagnosticsHint')}</p></div>
-      <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={copy}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}<a className="codexSubscriptionLink" href={SUPPORT_ISSUE_URL} target="_blank" rel="noreferrer">{t('feedbackOpen')}</a></div>
+      <div className="codexSubscriptionSectionTitle"><h3>{t('diagnostics')}</h3></div>
+      <div className="codexSubscriptionActions"><Button className="codexSubscriptionDiagnosticsToggle" type="button" variant="outline" aria-expanded={diagnosticsOpen} onClick={() => setDiagnosticsOpen(value => !value)}>{t(diagnosticsOpen ? 'diagnosticsClose' : 'diagnosticsOpen')}</Button><a className="codexSubscriptionLink" href={SUPPORT_ISSUE_URL} target="_blank" rel="noreferrer">{t('feedbackOpen')}</a></div>
     </div>
-    {report === undefined ? null : <pre>{JSON.stringify(report, null, 2)}</pre>}
-    {error ? <p className="codexSubscriptionError" role="alert">{t('diagnosticsFailed')}</p> : null}
+    {diagnosticsOpen ? <>
+      <p className="codexSubscriptionNote">{t('diagnosticsHint')}</p>
+      <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{busy ? t('resetPreparing') : t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={copy}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}</div>
+      {report === undefined ? null : <pre>{JSON.stringify(report, null, 2)}</pre>}
+      {error ? <p className="codexSubscriptionError" role="alert">{t('diagnosticsFailed')}</p> : null}
+    </> : null}
   </div>
 }
 
@@ -1213,33 +1115,38 @@ function ResetCreditExpiry({ expiresAt, t }) {
   return <span className="codexSubscriptionResetExpiry">{date === undefined ? t('resetCreditExpiryUnknown') : <time dateTime={date.toISOString()} title={date.toLocaleString()}>{fill(t('resetCreditExpires'), { value: date.toLocaleString() })}</time>}</span>
 }
 
-function ResetCreditControl({ rpc, t, count, nextExpiresAt, hasExhaustedQuota, onConsumed }) {
+function ResetCreditList({ rpc, t, count, nextExpiresAt, initialCredits, refreshKey, hasExhaustedQuota, onConsumed }) {
+  const fallbackCredits = initialCredits ?? (nextExpiresAt === undefined ? [] : [{ expiresAt: nextExpiresAt }])
+  const [credits, setCredits] = useState(fallbackCredits)
+  const [state, setState] = useState('loading')
+
+  useEffect(() => {
+    let live = true
+    setState('loading')
+    setCredits([])
+    void rpc.call(CHANNEL, 'reset-credit/inspect', {}).then(unwrap).then(value => {
+      if (!live) return
+      setCredits(Array.isArray(value.credits) ? value.credits : [])
+      setState('ready')
+    }).catch(() => {
+      if (live) setState('error')
+    })
+    return () => { live = false }
+  }, [rpc, count, refreshKey])
+
+  return <div className="codexSubscriptionResetBalance" aria-label={t('resetCredits')}>
+    {credits.length === 0 ? <p className="codexSubscriptionCreditNote" role="status">{state === 'loading' ? t('resetCreditExpiryLoading') : t('resetCreditExpiryFailed')}</p> : credits.map((credit, index) => <ResetCreditControl key={credit.ref ?? `pending-${index}`} rpc={rpc} t={t} credit={credit} hasExhaustedQuota={hasExhaustedQuota} onConsumed={onConsumed} />)}
+    {state === 'error' ? <p className="codexSubscriptionCreditNote" role="status">{t('resetCreditExpiryFailed')}</p> : null}
+  </div>
+}
+
+function ResetCreditControl({ rpc, t, credit, hasExhaustedQuota, onConsumed }) {
   const [challenge, setChallenge] = useState()
   const [resetBusy, setResetBusy] = useState(false)
   const [resetAcknowledged, setResetAcknowledged] = useState(false)
   const [resetCountdown, setResetCountdown] = useState(0)
   const [resetError, setResetError] = useState()
   const [resetResult, setResetResult] = useState()
-  const [inspectedExpiry, setInspectedExpiry] = useState(nextExpiresAt)
-  const [expiryState, setExpiryState] = useState(nextExpiresAt === undefined ? 'loading' : 'ready')
-
-  useEffect(() => {
-    if (nextExpiresAt !== undefined) {
-      setInspectedExpiry(nextExpiresAt)
-      setExpiryState('ready')
-      return undefined
-    }
-    let live = true
-    setExpiryState('loading')
-    void rpc.call(CHANNEL, 'reset-credit/inspect', {}).then(unwrap).then(value => {
-      if (!live) return
-      setInspectedExpiry(value.nextExpiresAt)
-      setExpiryState('ready')
-    }).catch(() => {
-      if (live) setExpiryState('error')
-    })
-    return () => { live = false }
-  }, [rpc, count, nextExpiresAt])
 
   useEffect(() => {
     if (challenge === undefined) { setResetCountdown(0); return undefined }
@@ -1250,9 +1157,9 @@ function ResetCreditControl({ rpc, t, count, nextExpiresAt, hasExhaustedQuota, o
   }, [challenge])
 
   const prepareReset = () => {
-    if (resetBusy) return
+    if (resetBusy || typeof credit.ref !== 'string') return
     setResetBusy(true); setResetError(undefined); setResetResult(undefined)
-    void rpc.call(CHANNEL, 'reset-credit/prepare', {}).then(unwrap)
+    void rpc.call(CHANNEL, 'reset-credit/prepare', { creditRef: credit.ref }).then(unwrap)
       .then(next => { setChallenge(next); setResetAcknowledged(false) })
       .catch(error => setResetError(resetCreditErrorText(error, t)))
       .finally(() => setResetBusy(false))
@@ -1280,9 +1187,9 @@ function ResetCreditControl({ rpc, t, count, nextExpiresAt, hasExhaustedQuota, o
     }).catch(error => setResetError(resetCreditErrorText(error, t))).finally(() => setResetBusy(false))
   }
 
-  return <div className="codexSubscriptionResetBalance">
+  return <div className="codexSubscriptionResetCard">
     {challenge === undefined ? <>
-      <div className="codexSubscriptionResetSummary"><div className="codexSubscriptionResetMeta"><strong>{fill(t('resetCreditsValue'), { count })}</strong>{expiryState === 'loading' ? <span className="codexSubscriptionResetExpiry" role="status">{t('resetCreditExpiryLoading')}</span> : expiryState === 'error' ? <span className="codexSubscriptionResetExpiry">{t('resetCreditExpiryFailed')}</span> : <ResetCreditExpiry expiresAt={inspectedExpiry} t={t} />}</div><div className="codexSubscriptionActions"><Button className="codexSubscriptionResetUse" type="button" variant="outline" disabled={resetBusy} aria-busy={resetBusy} onClick={prepareReset}>{resetBusy ? t('resetPreparing') : t('resetUse')}</Button></div></div>
+      <div className="codexSubscriptionResetMeta"><strong>{credit.name ?? t('resetCreditDefaultName')}</strong><ResetCreditExpiry expiresAt={credit.expiresAt} t={t} /></div><div className="codexSubscriptionActions"><Button className="codexSubscriptionResetUse" type="button" variant="outline" disabled={resetBusy || typeof credit.ref !== 'string'} aria-busy={resetBusy} onClick={prepareReset}>{resetBusy ? t('resetPreparing') : t('resetUse')}</Button></div>
     </> : <div className="codexSubscriptionResetFlow" role="group" aria-labelledby="codex-reset-confirm-title">
       <h4 id="codex-reset-confirm-title">{challenge.title ?? t('resetConfirmTitle')}</h4>
       {challenge.description ? <p className="codexSubscriptionResetWarning">{challenge.description}</p> : null}
@@ -1316,6 +1223,7 @@ function resetCreditErrorText(error, t) {
 
 function UsageCard({ rpc, t, signedIn, resetKey }) {
   const [usage, setUsage] = useState()
+  const [usageRefreshGeneration, setUsageRefreshGeneration] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState()
   const request = useRef(0)
@@ -1327,6 +1235,7 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
       .then(next => {
         if (request.current === id) {
           setUsage(next)
+          setUsageRefreshGeneration(value => value + 1)
           if (force) notifyQuickQuota()
         }
       })
@@ -1366,7 +1275,7 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
       <p className="codexSubscriptionCreditNote">{t('creditsNote')}</p>
       <div className="codexSubscriptionCreditRows">
         {visibleUsage?.credits ? <div className="codexSubscriptionCreditBalance"><span>{t('creditsBalance')}</span><strong>{visibleUsage.credits.unlimited ? t('unlimited') : `${visibleUsage.credits.balance ?? t('unavailable')} ${t('creditsUnit')}`}</strong></div> : null}
-        {visibleUsage?.resetCredits?.availableCount > 0 ? <div className="codexSubscriptionCreditBalance"><span>{t('resetCredits')}</span><ResetCreditControl rpc={rpc} t={t} count={visibleUsage.resetCredits.availableCount} nextExpiresAt={visibleUsage.resetCredits.nextExpiresAt} hasExhaustedQuota={exhausted} onConsumed={() => load(true)} /></div> : null}
+         {visibleUsage?.resetCredits?.availableCount > 0 ? <div className="codexSubscriptionCreditBalance"><div className="codexSubscriptionResetSummary"><span>{t('resetCredits')}</span><strong>{fill(t('resetCreditsValue'), { count: visibleUsage.resetCredits.availableCount })}</strong></div><ResetCreditList rpc={rpc} t={t} count={visibleUsage.resetCredits.availableCount} nextExpiresAt={visibleUsage.resetCredits.nextExpiresAt} initialCredits={visibleUsage.resetCredits.credits} refreshKey={`${resetKey}:${usageRefreshGeneration}`} hasExhaustedQuota={exhausted} onConsumed={() => load(true)} /></div> : null}
         {visibleUsage?.individualLimit ? <div className="codexSubscriptionSpendLimit">
           <div className="codexSubscriptionSpendTop"><span className="codexSubscriptionCreditLabel">{t('monthlyCreditLimit')}</span><strong>{fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}</strong></div>
           <progress max="100" value={visibleUsage.individualLimit.remainingPercent} aria-label={`${t('monthlyCreditLimit')} ${fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}`} />

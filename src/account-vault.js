@@ -3,6 +3,44 @@ import { randomUUID } from 'node:crypto'
 const VERSION = 1
 const DEFAULT_LABEL = 'Account 1'
 const clone = value => value === undefined ? undefined : structuredClone(value)
+const EMAIL_MAX_LENGTH = 254
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/u
+
+/** Keep only a bounded, display-safe email address from a trusted OAuth result. */
+export function normalizeAccountEmail(value) {
+  if (typeof value !== 'string') return undefined
+  const email = value.trim()
+  return email.length > 0 && email.length <= EMAIL_MAX_LENGTH && EMAIL_PATTERN.test(email)
+    ? email
+    : undefined
+}
+
+function decodeJwtPayload(access) {
+  if (typeof access !== 'string') return undefined
+  const encoded = access.split('.')[1]
+  if (typeof encoded !== 'string' || encoded.length === 0) return undefined
+  try {
+    return JSON.parse(Buffer.from(encoded, 'base64url').toString('utf8'))
+  } catch {
+    return undefined
+  }
+}
+
+function emailFromAccessToken(access) {
+  const payload = decodeJwtPayload(access)
+  return normalizeAccountEmail(payload?.email)
+}
+
+/** Normalize the one non-secret account attribute that may cross the UI boundary. */
+export function sanitizeOAuthCredential(value) {
+  const credential = assertOAuthCredential(value)
+  const email = emailFromAccessToken(credential.access) ?? normalizeAccountEmail(credential.email)
+  if (email === undefined) {
+    delete credential.email
+    return credential
+  }
+  return { ...credential, email }
+}
 
 function assertOAuthCredential(value) {
   if (value === null || typeof value !== 'object'
@@ -45,7 +83,7 @@ function assertVaultRecord(record) {
     return {
       id: account.id,
       label: normalizeLabel(account.label),
-      credential: assertOAuthCredential(account.credential),
+      credential: sanitizeOAuthCredential(account.credential),
     }
   })
   if (!ids.has(record.payload.activeId)) throw new Error('Codex account vault active account is missing')
@@ -78,7 +116,7 @@ export class PendingOAuthCredentialStore {
   async modify(providerId, update) {
     if (providerId !== 'openai-codex') throw new Error('Pending Codex login received an unknown provider')
     const next = await update(clone(this.#credential))
-    if (next !== undefined) this.#credential = assertOAuthCredential(next)
+    if (next !== undefined) this.#credential = sanitizeOAuthCredential(next)
     return clone(this.#credential)
   }
 
@@ -182,6 +220,7 @@ export class DshOAuthAccountVault {
         label: account.label,
         active: account.id === payload.activeId,
         expiresAt: account.credential.expires,
+        ...(account.credential.email === undefined ? {} : { email: account.credential.email }),
       }))
     })
   }
@@ -200,7 +239,7 @@ export class DshOAuthAccountVault {
   add(label, credential) {
     return this.#enqueue(async () => {
       const normalizedLabel = normalizeLabel(label)
-      const validated = assertOAuthCredential(credential)
+      const validated = sanitizeOAuthCredential(credential)
       await this.#ensurePayload()
       const id = this.createId()
       const payload = await this.#modifyPayload(current => ({
@@ -209,7 +248,13 @@ export class DshOAuthAccountVault {
         accounts: [...current.accounts, { id, label: normalizedLabel, credential: validated }],
       }))
       const account = payload.accounts.find(candidate => candidate.id === id)
-      return { id, label: account.label, active: true, expiresAt: account.credential.expires }
+      return {
+        id,
+        label: account.label,
+        active: true,
+        expiresAt: account.credential.expires,
+        ...(account.credential.email === undefined ? {} : { email: account.credential.email }),
+      }
     })
   }
 
@@ -228,7 +273,7 @@ export class DshOAuthAccountVault {
       if (existing === undefined) {
         const initial = await update(undefined)
         if (initial === undefined) return undefined
-        const credential = assertOAuthCredential(initial)
+        const credential = sanitizeOAuthCredential(initial)
         await this.credentials.set(this.legacyRef, JSON.stringify(credential))
         await this.#ensurePayload()
         return clone(credential)
@@ -242,7 +287,8 @@ export class DshOAuthAccountVault {
           result = previous
           return current
         }
-        const credential = assertOAuthCredential(next)
+        const credential = sanitizeOAuthCredential(next)
+        if (credential.email === undefined && previous.email !== undefined) credential.email = previous.email
         const accounts = [...current.accounts]
         accounts[index] = { ...accounts[index], credential }
         result = clone(credential)
