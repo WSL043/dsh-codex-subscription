@@ -82,6 +82,10 @@ test('increments repeated plugin betas and promotes the same patch when DSH leav
   const stable = planCompatibilityUpdate(previewFixture('1.11.4-beta.1'), '0.1.2')
   assert.equal(stable.pluginVersion, '1.11.4')
   assert.equal(stable.compatibility.latestTested, '0.1.2')
+  assert.equal(
+    rewriteBoundedVersions('plugin 1.11.3 on DSH 0.1.1-rc.2', stable, 'fixture'),
+    'plugin 1.11.4 on DSH 0.1.2',
+  )
 })
 
 test('plans one stable plugin patch for one newly accepted DSH version', () => {
