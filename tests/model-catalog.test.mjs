@@ -22,7 +22,6 @@ test('official model catalog filters hidden entries and preserves advertised cap
   const models = parseOfficialModelCatalog({ models: [
     remote(),
     remote({ slug: 'hidden', visibility: 'hide' }),
-    remote({ slug: 'unsupported', supported_in_api: false }),
   ] })
   assert.equal(models.length, 1)
   assert.deepEqual(models[0], {
@@ -31,6 +30,17 @@ test('official model catalog filters hidden entries and preserves advertised cap
     thinkingLevelMap: { off: null, minimal: null, low: 'low', medium: null, high: null, xhigh: null, max: 'max' },
     supportVerbosity: true, defaultVerbosity: 'medium', supportsFast: true,
   })
+})
+
+test('ChatGPT catalog keeps picker-visible subscription models that are not API-key models', () => {
+  const models = parseOfficialModelCatalog({ models: [remote({
+    slug: 'gpt-5.3-codex-spark',
+    display_name: 'GPT-5.3-Codex-Spark',
+    supported_in_api: false,
+    input_modalities: ['text'],
+  })] })
+  assert.equal(models.length, 1)
+  assert.equal(models[0].id, 'gpt-5.3-codex-spark')
 })
 
 test('catalog refresh is conditional, keeps the last good result, and never exposes credentials', async () => {

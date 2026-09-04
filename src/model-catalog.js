@@ -22,7 +22,7 @@ function reasoningMap(levels) {
 function visibleModel(value) {
   if (!record(value)) return undefined
   const id = nonEmpty(value.slug)
-  if (id === undefined || value.supported_in_api !== true || value.visibility !== 'list') return undefined
+  if (id === undefined || value.visibility !== 'list') return undefined
   const supported = Array.isArray(value.supported_reasoning_levels) ? value.supported_reasoning_levels : []
   const input = Array.isArray(value.input_modalities)
     ? value.input_modalities.filter(item => ['text', 'image'].includes(item))
