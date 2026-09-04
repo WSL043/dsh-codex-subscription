@@ -43,7 +43,7 @@ DSH-Portable exposes the same standard plugin command, so the command above also
 | **Recoverable and diagnosable** | Sign-in state reconciles automatically; Settings can create a support report without credentials or account identifiers |
 | **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate |
 | **Composer quota** | Choose a compact percentage, progress bar, or no inline quota display |
-| **Safe quota reset** | See the next expiry and deliberately try a reset with a cooldown and acknowledgement |
+| **Safe quota reset** | See each reset credit separately and deliberately try one with a cooldown and acknowledgement |
 | **Subscription search** | Explicitly route search globally through DSH default search or the signed-in Codex subscription |
 | **Codex image generation and editing (Beta)** | Generate without references, or explicitly edit one selected image; preview, zoom, annotate regions, download the original, and continue in the same composer |
 | **Fast mode** | Switch between Standard and Fast directly in the composer |
@@ -133,12 +133,12 @@ Restart DSH manually after installation, then:
 
 ## Features
 
-- ChatGPT OAuth sign-in with credentials kept on the host; manually add, switch, and remove accounts without automatic rotation or quota pooling;
+- ChatGPT OAuth sign-in with credentials kept on the host; accounts are identified by a privacy-masked email that can be clicked to reveal, and can be manually added, switched, or removed without automatic rotation or quota pooling;
 - Codex models and Beta image generation/editing directly inside DSH conversations;
 - A clear global choice between DSH default search and Codex subscription search; it applies to every model and session rather than following the selected model;
 - Actual backend-provided quota, reset time, and freshness;
 - Separate standard Codex, Codex-Spark, Credits, and other independent limits;
-- Visible quota-reset count and earliest expiry, with deliberate early redemption, layered confirmation, and no automatic retry;
+- One row per available quota reset with its disclosed name and expiry, plus deliberate early redemption, layered confirmation, and no automatic retry;
 - Optional percentage, progress bar, or Beta runway estimate for the selected Codex model (off by default);
 - Standard or Fast mode for supported Codex models directly in the composer;
 - Standard, Extended, and per-model Custom context windows; Custom accepts a full numeric token count, stays within each audited model capacity, and feeds DSH's native agent compaction policy;
@@ -159,7 +159,7 @@ Standard Codex uses the lowest remaining window returned by the service; Spark u
 
 ### Safe quota reset
 
-If ChatGPT reports an available quota reset, Settings shows its count and earliest disclosed expiry in a compact row.
+If ChatGPT reports available quota resets, Settings shows each one in its own compact row with its disclosed name and expiry.
 You may deliberately try it before a quota reaches 100%, which is useful for a reset nearing expiry. ChatGPT still
 decides whether a window needs resetting and may return **nothing to reset** without spending the reset. The final
 action requires an acknowledgement checkbox and five-second cooldown. Cancel never consumes a reset, rapid repeated

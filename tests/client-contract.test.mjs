@@ -33,8 +33,8 @@ test('the English settings navigation label fits the DSH sidebar', async () => {
 })
 
 test('composer quota modes use the public composer slot before the model selector', async () => {
-  const [client, host, contract] = await Promise.all([
-    text('src/client.jsx'), text('src/index.js'), text('src/settings-contract.js'),
+  const [client, host, contract, controller] = await Promise.all([
+    text('src/client.jsx'), text('src/index.js'), text('src/settings-contract.js'), text('src/preference-controller.js'),
   ])
   assert.match(client, /slots\.inject\(['"]conversation\.input\.right['"]/u)
   assert.match(client, /name:\s*['"]conversation\.input\.right['"]/u)
@@ -45,10 +45,10 @@ test('composer quota modes use the public composer slot before the model selecto
   assert.match(client, /scope\.get\(['"]modelDirectories['"]\)/u)
   assert.doesNotMatch(client, /sidebar\.footer\.action/u)
   assert.match(client, /settingsScope\.bind\(\{\s*namespace:\s*SETTINGS_NAMESPACE\s*\}\)/u)
-  assert.match(client, /scope\.set\(field,\s*value\)/u)
-  assert.match(client, /preferences\/status/u)
-  assert.match(client, /preferences\/update/u)
-  assert.match(client, /native\.status === ['"]ready['"]/u)
+  assert.match(controller, /scope\.set\(field,\s*value\)/u)
+  assert.match(controller, /preferences\/status/u)
+  assert.match(controller, /preferences\/update/u)
+  assert.match(controller, /native\.status === ['"]ready['"]/u)
   assert.match(client, /QUICK_QUOTA_MODE_FIELD/u)
   assert.match(client, /QUICK_QUOTA_MODE_OFF/u)
   assert.match(client, /QUICK_QUOTA_MODE_PERCENT/u)
@@ -263,6 +263,87 @@ test('settings exposes manual multi-account switching with an explicit remove co
   assert.match(source, /if \(removeId !== id\) \{ setRemoveId\(id\); return \}/u)
   assert.match(source, /removeId === candidate\.id \? t\('removeConfirm'\)/u)
   assert.doesNotMatch(source, /accountId|\.access\b|\.refresh\b/u)
+})
+
+test('account settings identify accounts by sanitized clickable email with privacy masking by default', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /candidate\.email/u)
+  assert.match(source, /maskEmail/u)
+  assert.match(source, /emailVisible/u)
+  assert.match(source, /aria-pressed=\{emailVisible\}/u)
+  assert.match(source, /setEmailVisible/u)
+  assert.match(source, /emailVisible \? candidate\.email/u)
+  assert.doesNotMatch(source, /accountId|accessToken|refreshToken/u)
+})
+
+test('email privacy mode resets when the signed-in account or account set changes', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /emailVisibilityKey/u)
+  assert.match(source, /setEmailVisible\(false\)/u)
+  assert.match(source, /emailVisible && emailVisibilityKey === accountVisibilityKey/u)
+})
+
+test('account status stays concise and leaves email identification to the account list', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /accountReady \? signedIn \? t\('connected'\) : t\('disconnected'\) : t\('accountLoading'\)/u)
+  const status = source.match(/<div className="codexSubscriptionStatus"[\s\S]*?<\/div>/u)?.[0] ?? ''
+  assert.doesNotMatch(status, /AccountEmail/u)
+})
+
+test('adding an account offers only login methods and assigns an internal fallback label', async () => {
+  const source = await text('src/client.jsx')
+  assert.doesNotMatch(source, /accountLabel|setAccountLabel|t\('accountLabel'\)/u)
+  assert.match(source, /adding && label === undefined \? `Account \$\{accounts\.length \+ 1\}` : label/u)
+  assert.match(source, /onClick=\{\(\) => begin\('browser'\)\}>\{t\('browserLogin'\)\}/u)
+  assert.match(source, /onClick=\{\(\) => begin\('device_code'\)\}>\{t\('deviceLogin'\)\}/u)
+})
+
+test('quota resets render one compact action per returned credit without exposing its provider id', async () => {
+  const [client, host, usage] = await Promise.all([
+    text('src/client.jsx'), text('src/reset-credits.js'), text('src/usage.js'),
+  ])
+  assert.match(client, /resetCredits\.credits/u)
+  assert.match(client, /credit\.ref/u)
+  assert.match(client, /credit\.name/u)
+  assert.match(client, /credit\.expiresAt/u)
+  assert.match(client, /reset-credit\/prepare['"],\s*\{\s*creditRef/u)
+  assert.match(host, /creditRef/u)
+  assert.match(host, /creditId/u)
+  assert.match(host, /creditRef[\s\S]*creditId|creditId[\s\S]*creditRef/u)
+  assert.match(usage, /credits:\s*available/u)
+  assert.doesNotMatch(client, /credit\.id|creditId/u)
+})
+
+test('quota reset inspection refreshes when the account or usage snapshot changes', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /usageRefreshGeneration/u)
+  assert.match(source, /refreshKey=\{`\$\{resetKey\}:\$\{usageRefreshGeneration\}`\}/u)
+  assert.match(source, /\}, \[rpc, count, refreshKey\]\)/u)
+  assert.match(source, /setCredits\(\[\]\)/u)
+})
+
+test('preference writes keep ready surfaces mounted while persistence is pending', async () => {
+  const [client, controller] = await Promise.all([text('src/client.jsx'), text('src/preference-controller.js')])
+  assert.match(controller, /status: current\.status/u)
+  assert.doesNotMatch(controller, /status: updating \? ['"]updating['"] : current\.status/u)
+  assert.match(controller, /pendingPatch/u)
+  assert.match(controller, /const value = pendingPatch === undefined \? current\.value/u)
+  assert.match(controller, /saving: updating/u)
+  assert.match(controller, /if \(!updating\) failedPatch = undefined/u)
+  assert.match(client, /quotaEnabled = preferenceSnapshot\.status === ['"]ready['"]/u)
+  assert.match(client, /codexSubscriptionQuotaModes[^\n]*data-saving=\{snapshot\.saving/u)
+  assert.match(client, /codexSubscriptionSearchChoices[^\n]*data-saving=\{snapshot\.saving/u)
+  assert.match(client, /\.codexSubscriptionQuotaModes\[data-saving=true\].*opacity:1/u)
+  assert.match(client, /\.codexSubscriptionSearchChoices\[data-saving=true\].*opacity:1/u)
+})
+
+test('support diagnostics stay collapsed until requested and then offer report actions', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /diagnosticsOpen/u)
+  assert.match(source, /aria-expanded=\{diagnosticsOpen\}/u)
+  assert.match(source, /setDiagnosticsOpen/u)
+  assert.match(source, /diagnosticsOpen \? /u)
+  assert.match(source, /diagnosticsCopy/u)
 })
 
 test('generated image preview uses a native full-screen canvas and explicit edit handoff', async () => {
