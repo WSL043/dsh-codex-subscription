@@ -63,10 +63,13 @@ function parseDetails(value, now) {
   if (available.length === 0) throw new Error('No usable quota reset is available')
   return {
     availableCount: value.available_count,
-    creditId: available[0].credit.id,
-    title: safeCopy(available[0].credit.title),
-    description: safeCopy(available[0].credit.description),
-    creditExpiresAt: available[0].expiresAt,
+    credits: available.map(({ credit, expiresAt }, index) => ({
+      creditId: credit.id,
+      title: safeCopy(credit.title),
+      description: safeCopy(credit.description),
+      creditExpiresAt: expiresAt,
+      index,
+    })),
   }
 }
 
@@ -100,6 +103,25 @@ export function createCodexResetCreditService(options) {
   const challengeTtlMs = options.challengeTtlMs ?? DEFAULT_CHALLENGE_TTL_MS
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const challenges = new Map()
+  const creditRefs = new Map()
+  let creditRefSequence = 0
+
+  const rememberCreditRef = (accountId, credit) => {
+    const ref = `${randomUUID()}-${++creditRefSequence}`
+    creditRefs.set(ref, {
+      accountId,
+      creditId: credit.creditId,
+      index: credit.index,
+    })
+    while (creditRefs.size > 64) creditRefs.delete(creditRefs.keys().next().value)
+    return ref
+  }
+
+  const publicCredit = (accountId, credit) => ({
+    ref: rememberCreditRef(accountId, credit),
+    ...(credit.title === undefined ? {} : { name: credit.title }),
+    ...(credit.creditExpiresAt === undefined ? {} : { expiresAt: credit.creditExpiresAt }),
+  })
 
   const resolveCredentials = async signal => credentialsOf(
     await getAuth({ signal }),
@@ -132,17 +154,35 @@ export function createCodexResetCreditService(options) {
 
   return Object.freeze({
     async inspect({ signal } = {}) {
-      const { details } = await readDetails(signal)
+      const { accountId, details } = await readDetails(signal)
       return {
         availableCount: details.availableCount,
-        ...(details.creditExpiresAt === undefined ? {} : { nextExpiresAt: details.creditExpiresAt }),
+        credits: details.credits.map(credit => publicCredit(accountId, credit)),
+        ...(details.credits[0]?.creditExpiresAt === undefined ? {} : { nextExpiresAt: details.credits[0].creditExpiresAt }),
       }
     },
 
-    async prepare({ signal } = {}) {
+    async prepare({ creditRef, signal } = {}) {
       const credentials = await resolveCredentials(signal)
       for (const [challengeId, challenge] of challenges) {
-        if (challenge.accountId !== credentials.accountId || challenge.uncertain !== true) continue
+        if (challenge.accountId === credentials.accountId && challenge.uncertain === false
+          && challenge.creditRef === creditRef) {
+          if (now() > challenge.expiresAt) {
+            challenges.delete(challengeId)
+          } else {
+            return {
+              challengeId,
+              availableCount: challenge.availableCount,
+              readyAt: challenge.readyAt,
+              expiresAt: challenge.expiresAt,
+              ...(challenge.creditExpiresAt === undefined ? {} : { creditExpiresAt: challenge.creditExpiresAt }),
+              ...(challenge.title === undefined ? {} : { title: challenge.title }),
+              ...(challenge.description === undefined ? {} : { description: challenge.description }),
+            }
+          }
+        }
+        if (challenge.accountId !== credentials.accountId || challenge.uncertain !== true
+          || (creditRef !== undefined && challenge.creditRef !== creditRef)) continue
         if (now() > challenge.expiresAt) {
           challenges.delete(challengeId)
           continue
@@ -158,22 +198,34 @@ export function createCodexResetCreditService(options) {
         }
       }
       const { accountId, details } = await readDetails(signal, credentials)
+      let selected = details.credits[0]
+      if (creditRef !== undefined) {
+        const reference = typeof creditRef === 'string' ? creditRefs.get(creditRef) : undefined
+        if (reference === undefined || reference.accountId !== accountId) {
+          throw new Error('This quota reset confirmation is no longer valid')
+        }
+        selected = details.credits.find(credit => credit.creditId === reference.creditId
+          && credit.index === reference.index)
+        if (selected === undefined) throw new Error('This quota reset confirmation is no longer valid')
+      }
+      if (selected === undefined) throw new Error('No usable quota reset is available')
       const preparedAt = now()
       const readyAt = preparedAt + confirmDelayMs
-      const expiresAt = Math.min(preparedAt + challengeTtlMs, details.creditExpiresAt ?? Number.MAX_SAFE_INTEGER)
+      const expiresAt = Math.min(preparedAt + challengeTtlMs, selected.creditExpiresAt ?? Number.MAX_SAFE_INTEGER)
       if (expiresAt <= readyAt) throw new Error('The available quota reset expires too soon')
       const challengeId = randomUUID()
       challenges.set(challengeId, {
         state: 'prepared',
         accountId,
-        creditId: details.creditId,
+        creditRef,
+        creditId: selected.creditId,
         redeemRequestId: randomUUID(),
         readyAt,
         expiresAt,
         availableCount: details.availableCount,
-        creditExpiresAt: details.creditExpiresAt,
-        title: details.title,
-        description: details.description,
+        creditExpiresAt: selected.creditExpiresAt,
+        title: selected.title,
+        description: selected.description,
         uncertain: false,
       })
       return {
@@ -181,9 +233,9 @@ export function createCodexResetCreditService(options) {
         availableCount: details.availableCount,
         readyAt,
         expiresAt,
-        ...(details.creditExpiresAt === undefined ? {} : { creditExpiresAt: details.creditExpiresAt }),
-        ...(details.title === undefined ? {} : { title: details.title }),
-        ...(details.description === undefined ? {} : { description: details.description }),
+        ...(selected.creditExpiresAt === undefined ? {} : { creditExpiresAt: selected.creditExpiresAt }),
+        ...(selected.title === undefined ? {} : { title: selected.title }),
+        ...(selected.description === undefined ? {} : { description: selected.description }),
       }
     },
 
@@ -265,6 +317,7 @@ export function createCodexResetCreditService(options) {
 
     clear() {
       challenges.clear()
+      creditRefs.clear()
     },
   })
 }

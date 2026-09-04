@@ -74,7 +74,11 @@ test('usage parser returns secret-free remaining quota windows and exact disclos
     resetsAt: 1_802_592_000,
   })
   assert.equal(parsed.spendControlReached, false)
-  assert.deepEqual(parsed.resetCredits, { availableCount: 2, nextExpiresAt: 1_800_003_600_000 })
+  assert.deepEqual(parsed.resetCredits, {
+    availableCount: 2,
+    credits: [{ expiresAt: 1_800_007_200_000 }, { expiresAt: 1_800_003_600_000 }],
+    nextExpiresAt: 1_800_003_600_000,
+  })
   assert.doesNotMatch(JSON.stringify(parsed), /must-not-leak|access_token/)
 })
 

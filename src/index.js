@@ -195,7 +195,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
         const value = endpoint === 'reset-credit/inspect'
           ? await resetCreditService.inspect({ signal })
           : endpoint === 'reset-credit/prepare'
-            ? await resetCreditService.prepare({ signal })
+            ? await resetCreditService.prepare({ creditRef: payload?.creditRef, signal })
             : await resetCreditService.consume({
             challengeId: payload?.challengeId,
             acknowledged: payload?.acknowledged,

@@ -111,6 +111,49 @@ test('account vault rejects unsafe labels and cannot remove the last account', a
   await assert.rejects(() => vault.remove('local-1'), /last account/i)
 })
 
+test('account status exposes a sanitized email for each account without provider identifiers', async () => {
+  const first = { ...oauth('one'), email: 'alice@example.com' }
+  const second = { ...oauth('two'), email: 'bob@example.net' }
+  const backend = memoryCredentials({ refs: { CODEX_OAUTH: JSON.stringify(first) } })
+  const ids = ['local-1', 'local-2']
+  const vault = new DshOAuthAccountVault(backend, {
+    key: 'dsh-codex-subscription/accounts', legacyRef: 'CODEX_OAUTH', createId: () => ids.shift(),
+  })
+  const store = new DshOAuthCredentialStore(backend, 'CODEX_OAUTH', [], { vault })
+  const service = createCodexAuthService({ async login() {}, async logout() {} }, store, { accountVault: vault })
+
+  await vault.list()
+  await vault.add('Work', second)
+  const status = await service.status()
+
+  assert.deepEqual(status.accounts.map(({ email, label, active }) => ({ email, label, active })), [
+    { email: 'alice@example.com', label: 'Account 1', active: false },
+    { email: 'bob@example.net', label: 'Work', active: true },
+  ])
+  assert.doesNotMatch(JSON.stringify(status), /access-|refresh-|account-one|account-two/u)
+})
+
+test('account vault extracts only the root email claim from the access JWT and tolerates missing or malformed claims', async () => {
+  const jwt = payload => `header.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.signature`
+  const backend = memoryCredentials({ refs: {
+    CODEX_OAUTH: JSON.stringify({ ...oauth('jwt'), access: jwt({ email: 'jwt@example.com' }) }),
+  } })
+  const vault = new DshOAuthAccountVault(backend, {
+    key: 'dsh-codex-subscription/accounts', legacyRef: 'CODEX_OAUTH', createId: () => 'local-jwt',
+  })
+
+  assert.equal((await vault.list())[0].email, 'jwt@example.com')
+  await vault.modifyActive(current => ({ ...current, access: jwt({ email: 'new@example.com' }) }))
+  assert.equal((await vault.list())[0].email, 'new@example.com')
+
+  const malformed = new DshOAuthAccountVault(memoryCredentials({ refs: {
+    CODEX_OAUTH: JSON.stringify({ ...oauth('bad'), access: jwt({ email: 'not-an-email' }) }),
+  } }), {
+    key: 'dsh-codex-subscription/accounts', legacyRef: 'CODEX_OAUTH', createId: () => 'local-bad',
+  })
+  assert.equal((await malformed.list())[0].email, undefined)
+})
+
 test('pi credential adapter can create and delete the first vault account', async () => {
   const backend = memoryCredentials()
   const vault = new DshOAuthAccountVault(backend, {

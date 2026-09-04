@@ -90,19 +90,24 @@ function resetCreditsOf(value) {
   if (value.credits !== undefined && value.credits !== null && !Array.isArray(value.credits)) {
     throw new Error('Codex returned malformed reset credit details')
   }
-  const expirations = (value.credits ?? [])
+  const available = (value.credits ?? [])
     .filter(credit => record(credit) && credit.status?.toLowerCase?.() === 'available')
     .map(credit => {
-      if (Number.isSafeInteger(credit.expires_at) && credit.expires_at > 0) return credit.expires_at * 1_000
-      if (typeof credit.expires_at === 'string' && credit.expires_at.length <= 64) {
+      const name = typeof credit.title === 'string' && credit.title.trim().length > 0
+        ? credit.title.trim().slice(0, 120)
+        : undefined
+      let expiresAt
+      if (Number.isSafeInteger(credit.expires_at) && credit.expires_at > 0) expiresAt = credit.expires_at * 1_000
+      else if (typeof credit.expires_at === 'string' && credit.expires_at.length <= 64) {
         const parsed = Date.parse(credit.expires_at)
-        if (Number.isFinite(parsed) && parsed > 0) return parsed
+        if (Number.isFinite(parsed) && parsed > 0) expiresAt = parsed
       }
-      return undefined
+      return { ...(name === undefined ? {} : { name }), ...(expiresAt === undefined ? {} : { expiresAt }) }
     })
-    .filter(expiration => expiration !== undefined)
+  const expirations = available.map(credit => credit.expiresAt).filter(expiration => expiration !== undefined)
   return {
     availableCount: value.available_count,
+    ...(available.length === 0 ? {} : { credits: available }),
     ...(expirations.length === 0 ? {} : { nextExpiresAt: Math.min(...expirations) }),
   }
 }

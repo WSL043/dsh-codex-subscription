@@ -382,6 +382,24 @@ test('quota reset RPC exposes bounded inspection, prepare, and consume results',
   assert.equal(calls.length, 3)
 })
 
+test('quota reset RPC forwards only the opaque credit reference to host prepare', async () => {
+  let prepared
+  const handler = plugin.createSubscriptionRpcHandler({
+    async authHandler() { throw new Error('not used') },
+    usageReader: { async read() {}, clear() {} },
+    resetCreditService: {
+      async inspect() { return { availableCount: 2, credits: [] } },
+      async prepare(value) { prepared = value; return { challengeId: 'opaque', readyAt: 5 } },
+      async consume() { return { code: 'reset', windowsReset: [] } },
+      clear() {},
+    },
+  })
+  const controller = new AbortController()
+  await handler('reset-credit/prepare', { creditRef: 'opaque-ref' }, controller.signal)
+  assert.equal(prepared.creditRef, 'opaque-ref')
+  assert.equal(prepared.creditId, undefined)
+})
+
 test('quota reset RPC bounds host failures and logout invalidates pending challenges', async () => {
   let cleared = 0
   const handler = plugin.createSubscriptionRpcHandler({

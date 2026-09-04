@@ -71,14 +71,67 @@ test('prepare is read-only and returns a bounded browser-safe challenge', async 
 test('inspect exposes the earliest reset expiry without creating a confirmation challenge', async () => {
   const { service, requests } = fixture()
 
-  assert.deepEqual(await service.inspect({ signal }), {
+  const inspected = await service.inspect({ signal })
+  assert.deepEqual({ availableCount: inspected.availableCount, nextExpiresAt: inspected.nextExpiresAt }, {
     availableCount: 1,
     nextExpiresAt: 1_800_003_600_000,
   })
+  assert.deepEqual(inspected.credits.map(({ name, expiresAt }) => ({ name, expiresAt })), [
+    { name: 'Quota reset', expiresAt: 1_800_003_600_000 },
+  ])
   assert.equal(requests.length, 1)
   assert.equal(requests[0].url, CODEX_RESET_CREDITS_URL)
   assert.equal(requests[0].init.method, 'GET')
   assert.doesNotMatch(JSON.stringify(await service.inspect({ signal })), /challengeId|credit-secret|bearer-secret/)
+})
+
+test('inspect exposes each available credit through an opaque handle and prepare keeps its provider id host-only', async () => {
+  let sequence = 0
+  const { service, requests, advance } = fixture({
+    options: {
+      randomUUID: () => `opaque-${++sequence}`,
+      async fetch(_url, init) {
+        requests.push({ url: _url, init })
+        if (init.method === 'GET') return response({
+          available_count: 2,
+          credits: [
+            { id: 'credit-first-secret', status: 'available', title: 'First reset', expires_at: 1_800_003_600 },
+            { id: 'credit-second-secret', status: 'available', title: 'Second reset', expires_at: 1_800_007_200 },
+          ],
+        })
+        return response({ code: 'reset', windows_reset: ['primary'] })
+      },
+    },
+  })
+
+  const inspected = await service.inspect({ signal })
+  assert.equal(inspected.availableCount, 2)
+  assert.equal(inspected.credits.length, 2)
+  assert.deepEqual(inspected.credits.map(({ name, expiresAt }) => ({ name, expiresAt })), [
+    { name: 'First reset', expiresAt: 1_800_003_600_000 },
+    { name: 'Second reset', expiresAt: 1_800_007_200_000 },
+  ])
+  assert.ok(inspected.credits.every(credit => typeof credit.ref === 'string' && credit.ref.length > 0))
+  assert.doesNotMatch(JSON.stringify(inspected), /credit-first-secret|credit-second-secret|bearer-secret|account-secret/u)
+
+  const prepared = await service.prepare({ creditRef: inspected.credits[1].ref, signal })
+  assert.equal(prepared.creditExpiresAt, 1_800_007_200_000)
+  advance(5_000)
+  await service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal })
+  const post = requests.find(request => request.init.method === 'POST')
+  assert.equal(JSON.parse(post.init.body).credit_id, 'credit-second-secret')
+})
+
+test('preparing the same credit repeatedly reuses one host challenge', async () => {
+  let sequence = 0
+  const { service, requests } = fixture({
+    options: { randomUUID: () => `unique-${++sequence}` },
+  })
+  const inspected = await service.inspect({ signal })
+  const first = await service.prepare({ creditRef: inspected.credits[0].ref, signal })
+  const duplicate = await service.prepare({ creditRef: inspected.credits[0].ref, signal })
+  assert.equal(duplicate.challengeId, first.challengeId)
+  assert.equal(requests.filter(request => request.init.method === 'GET').length, 2)
 })
 
 test('prepare accepts the ISO expiration shape returned by current Codex clients', async () => {
