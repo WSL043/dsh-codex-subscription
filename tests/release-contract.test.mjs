@@ -47,14 +47,21 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
-  const supportedDshReleases = [...compatibility.supported, ...compatibility.previews].join(' || ')
+  const supportedDshReleases = new Set([...compatibility.supported, ...compatibility.previews])
   for (const [name, version] of Object.entries(pkg.peerDependencies)) {
-    if (name.startsWith('@deepseek-ai/dsh-')) assert.equal(version, supportedDshReleases, name)
+    if (name.startsWith('@deepseek-ai/dsh-')) assert.deepEqual(new Set(version.split(' || ')), supportedDshReleases, name)
   }
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-llm-pi-ai'], compatibility.latestTested)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-api-remotes'], compatibility.latestTested)
+  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-invariants'], compatibility.latestTested)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-client-ui-attachment'], undefined)
+  assert.equal(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-runtime'), false)
+  assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-client-runtime'], undefined)
+  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-client-runtime'], undefined)
   assert.equal(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-api-remotes'), true)
+  assert.equal(pkg.devDependencies['@deepseek-ai/cordis'], '4.0.2')
+  assert.equal(pkg.devDependencies['@deepseek-ai/schemastery'], '3.18.2')
+  assert.equal(pkg.peerDependencies['@deepseek-ai/schemastery'], '3.18.1 || ^3.18.2')
   assert.equal(pkg.peerDependencies['@earendil-works/pi-ai'], '0.82.1')
   assert.equal(pkg.packageManager, 'pnpm@11.19.0')
   assert.equal(existsSync(new URL('../lib/index.js', import.meta.url)), true)
@@ -74,7 +81,7 @@ test('settings registration works across stable and preview DSH exports', () => 
 })
 
 test('compatibility metadata keeps stable and preview DSH lanes explicit', () => {
-  assert.equal(compatibility.latestTested, '0.1.1-rc.2')
+  assert.equal(compatibility.latestTested, '0.1.2-rc.1')
   assert.deepEqual(compatibility.previews.slice(0, 2), ['0.1.2-alpha.2', '0.1.2-alpha.3'])
   assert.equal(new Set(compatibility.previews).size, compatibility.previews.length)
   assert.ok(compatibility.previews.every(version => /^\d+\.\d+\.\d+-[0-9A-Za-z.-]+$/u.test(version)))
