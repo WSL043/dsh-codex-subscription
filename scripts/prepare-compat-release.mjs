@@ -79,6 +79,16 @@ function nextBetaVersion(version) {
   return `${parsed.core.join('.')}-beta.${parsed.prerelease[1] + 1}`
 }
 
+function previousDocumentedPluginVersion(version) {
+  const parsed = parseVersion(version)
+  if (parsed.prerelease.length === 0) return version
+  if (parsed.prerelease.length !== 2 || parsed.prerelease[0] !== 'beta'
+    || !Number.isInteger(parsed.prerelease[1]) || parsed.core[2] === 0) {
+    throw new Error(`unsupported plugin prerelease: ${version}`)
+  }
+  return `${parsed.core[0]}.${parsed.core[1]}.${parsed.core[2] - 1}`
+}
+
 export function planCompatibilityUpdate(state, candidate) {
   parseVersion(candidate)
   const preview = isPreviewVersion(candidate)
@@ -116,6 +126,7 @@ export function planCompatibilityUpdate(state, candidate) {
     previousDshVersion,
     dshVersion: candidate,
     previousPluginVersion,
+    previousDocumentedPluginVersion: previousDocumentedPluginVersion(previousPluginVersion),
     pluginVersion: manifest.version,
     updateStableReferences: !preview,
     compatibility,
@@ -124,10 +135,11 @@ export function planCompatibilityUpdate(state, candidate) {
 }
 
 export function rewriteBoundedVersions(source, update, label) {
-  let rewritten = source.replaceAll(update.previousPluginVersion, update.pluginVersion)
+  const previousVersion = update.previousDocumentedPluginVersion ?? update.previousPluginVersion
+  let rewritten = source.replaceAll(previousVersion, update.pluginVersion)
   if (update.updateStableReferences) rewritten = rewritten.replaceAll(update.previousDshVersion, update.dshVersion)
   if (rewritten === source) throw new Error(`no bounded version reference changed in ${label}`)
-  if (rewritten.includes(update.previousPluginVersion)) throw new Error(`stale plugin version remains in ${label}`)
+  if (rewritten.includes(previousVersion)) throw new Error(`stale plugin version remains in ${label}`)
   return rewritten
 }
 
