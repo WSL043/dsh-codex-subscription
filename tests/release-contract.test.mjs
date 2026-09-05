@@ -189,8 +189,8 @@ test('public readmes provide explicit update commands and verification', () => {
     assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web list dsh-codex-subscription --depth 0`), true)
     assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} --profile web --dump-config`), true)
   }
-  assert.match(readmeZh, /1\.13\.2[\s\S]*(?:图片预览|原图路径)/u)
-  assert.match(readmeEn, /1\.13\.2[\s\S]*(?:image preview|original path)/iu)
+  assert.ok(readmeZh.includes(`## ${manifest.version} 重点变化`))
+  assert.ok(readmeEn.includes(`## What's included in ${manifest.version}`))
   assert.doesNotMatch(`${readmeZh}\n${readmeEn}`, /\birm\b|dsh-codex-setup\.ps1/iu)
 })
 

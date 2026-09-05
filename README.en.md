@@ -22,7 +22,9 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
 </p>
 
-## What's included in 1.13.2
+## What's included in 1.14.0
+
+- Built-in image viewer: a bottom toolbar, wheel zoom, drag to pan, on-image notes, copy notes, and continue editing, without another plugin.
 
 - Fixes generated-image previews that could not open in DSH Web, so generated images can be viewed in the conversation again.
 - New and edited images now return the exact original path on the current DSH host in the tool result, so a model or Agent can read or copy the file; preview and download remain session-authorized.
@@ -160,7 +162,7 @@ clicks are single-flight, and an uncertain network result is never retried autom
 
 ### Image generation and editing (Beta)
 
-When `dsh-image-viewer` is installed, generated images use its unified preview first; when it is unavailable or declines, the plugin uses its own viewer. You can zoom, pan, fit, add region notes, and download the image. The standard **Download** action retrieves the permission- and integrity-checked exact original by default; only legacy sessions without an exact original fall back to the conversation preview.
+A basic viewer derived from `dsh-image-viewer` is now built in, with no extra installation required. If `dsh-image-viewer` is installed, its unified preview still takes priority; otherwise, or if it declines, the built-in viewer opens. You can zoom, pan, fit, add region notes, and download the image. The standard **Download** action retrieves the permission- and integrity-checked exact original by default; only legacy sessions without an exact original fall back to the conversation preview.
 
 New and edited images return the exact original path on the current DSH host in the tool result, so a model or Agent can read or copy the file. The path is on the host running DSH, not a browser download link; original downloads remain session-authorized. Uninstalling the plugin does not delete generated originals.
 
@@ -172,7 +174,7 @@ A new image request does not silently include earlier images. GPT Image 2 can ta
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/image-preview-annotations-en.png" width="800" alt="Generated image, region note, and continue editing inside the DSH Image Viewer">
 </p>
 
-The screenshot above shows the unified viewer provided by the optional `dsh-image-viewer` plugin. With only this plugin installed, the built-in viewer has a top toolbar and a right-hand annotation panel. The different appearance does not mean an older version is installed.
+The screenshot above illustrates image viewing and on-image notes. Version 1.14.0 includes the same basic experience; available buttons can vary with the image and installed viewer version.
 
 ### Composer speed
 

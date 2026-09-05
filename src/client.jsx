@@ -1,9 +1,11 @@
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { createPortal } from 'react-dom'
 import { BoltIcon } from '@heroicons/react/16/solid'
-import { Button, IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, IconDownloadOutline16, IconFullscreenOutline16, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import { buildImageEditDraft } from './image-edit.js'
 import { decodeImagePresentation, decodeOriginalImageRef, ORIGINAL_IMAGE_CHUNK_BYTES } from './image-original-contract.js'
+import { SubscriptionImageViewerOverlay } from './subscription-image-viewer.jsx'
+import { SUBSCRIPTION_IMAGE_VIEWER_CSS } from './subscription-image-viewer-styles.js'
+import { SubscriptionImageViewerService } from './subscription-image-viewer.js'
 import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
@@ -116,7 +118,7 @@ const zh = {
   modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
   imageGenerate: '生成图片', imageBeta: 'Beta', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
   imageLabel: '生成的图片', imageOpen: '查看图片', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imagePreviewShort: '预览图', imageClosePreview: '关闭预览', imageDownload: '下载', imageDownloadPreparing: '正在准备原图…', imageDownloadFailed: '下载失败，重试', imageZoomOut: '缩小', imageZoomIn: '放大', imageFit: '适合窗口',
-  imageAnnotate: '标注部位', imageAnnotateHint: '点击图片添加编号标注', imageAnnotation: '标注 {value}', imageAnnotationPlaceholder: '描述这个部位要修改什么', imageEditPrompt: '描述你想怎样修改这张图', imageEditDefault: '编辑这张图片。', imageRegionNotes: '部位修改：', imageEdit: '在输入框中继续编辑', imageEditPreparing: '正在添加到输入框…', imageEditFailed: '无法把图片添加到输入框。', imageRemoveAnnotation: '删除标注',
+  imageAnnotate: '标注部位', imageAnnotateCancel: '取消标注', imageAnnotateHint: '点击图片添加编号标注', imageAnnotation: '标注 {value}', imageAnnotationPlaceholder: '描述这个部位要修改什么', imageRegions: '区域备注', imageCopyNotes: '复制备注', imageCopied: '已复制', imagePrevious: '上一张图片', imageNext: '下一张图片', imageZoomHint: '滚轮缩放 · 拖动查看 · 双击切换原始大小', imageActual: '原始大小', imageEditPrompt: '描述你想怎样修改这张图', imageEditDefault: '编辑这张图片。', imageRegionNotes: '部位修改：', imageEdit: '在输入框中继续编辑', imageEditPreparing: '正在添加到输入框…', imageEditFailed: '无法把图片添加到输入框。', imageRemoveAnnotation: '删除标注',
 }
 
 const en = {
@@ -178,7 +180,7 @@ const en = {
   modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
   imageGenerate: 'Generate image', imageBeta: 'Beta', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
   imageLabel: 'Generated image', imageOpen: 'View image', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imagePreviewShort: 'Preview', imageClosePreview: 'Close preview', imageDownload: 'Download', imageDownloadPreparing: 'Preparing original…', imageDownloadFailed: 'Download failed. Retry', imageZoomOut: 'Zoom out', imageZoomIn: 'Zoom in', imageFit: 'Fit to window',
-  imageAnnotate: 'Annotate', imageAnnotateHint: 'Click the image to add a numbered note', imageAnnotation: 'Note {value}', imageAnnotationPlaceholder: 'Describe what should change in this area', imageEditPrompt: 'Describe how you want to change this image', imageEditDefault: 'Edit this image.', imageRegionNotes: 'Region changes:', imageEdit: 'Continue editing in composer', imageEditPreparing: 'Adding to composer…', imageEditFailed: 'Could not add the image to the composer.', imageRemoveAnnotation: 'Remove note',
+  imageAnnotate: 'Annotate', imageAnnotateCancel: 'Cancel marking', imageAnnotateHint: 'Click the image to add a numbered note', imageAnnotation: 'Note {value}', imageAnnotationPlaceholder: 'Describe what should change in this area', imageRegions: 'Region notes', imageCopyNotes: 'Copy notes', imageCopied: 'Copied', imagePrevious: 'Previous image', imageNext: 'Next image', imageZoomHint: 'Wheel to zoom · drag to pan · double-click for 100%', imageActual: '100%', imageEditPrompt: 'Describe how you want to change this image', imageEditDefault: 'Edit this image.', imageRegionNotes: 'Region changes:', imageEdit: 'Continue editing in composer', imageEditPreparing: 'Adding to composer…', imageEditFailed: 'Could not add the image to the composer.', imageRemoveAnnotation: 'Remove note',
 }
 
 const STYLE = `
@@ -227,21 +229,6 @@ const STYLE = `
 @media(max-width:640px){.codexSubscriptionCard{padding:14px}}
 `
 
-const IMAGE_STYLE = String.raw`
-.codexGeneratedImageLightbox{position:fixed;inset:0;z-index:1000;display:grid;grid-template-rows:auto minmax(0,1fr);background:var(--dsw-alias-bg-base,#111);color:var(--dsw-alias-label-primary);outline:0}.codexGeneratedImageTopbar{display:flex;align-items:center;justify-content:space-between;gap:20px;min-height:58px;padding:8px 14px;border-bottom:1px solid var(--dsw-alias-border-l2);background:color-mix(in srgb,var(--dsw-alias-bg-base,#111) 92%,transparent);backdrop-filter:blur(18px)}.codexGeneratedImageTopbar>div:first-child{display:flex;min-width:0;flex-direction:column}.codexGeneratedImageTopbar strong{overflow:hidden;font-size:13px;font-weight:600;line-height:20px;text-overflow:ellipsis;white-space:nowrap}.codexGeneratedImageTopbar small{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:17px}.codexGeneratedImageActions{display:flex;align-items:center;gap:6px}.codexGeneratedImageActions button,.codexGeneratedImageActions a{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:5px;height:32px;padding:0 10px;border:1px solid transparent;border-radius:16px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;text-decoration:none;cursor:pointer}.codexGeneratedImageActions button:hover,.codexGeneratedImageActions a:hover,.codexGeneratedImageActions button.is-active{background:var(--dsw-alias-interactive-bg-hover)}.codexGeneratedImageActions button:focus-visible,.codexGeneratedImageActions a:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px}.codexGeneratedImageActions button:disabled{opacity:.4;cursor:default}.codexGeneratedImageActions>span{min-width:38px;color:var(--dsw-alias-label-tertiary);font-size:11px;text-align:center}.codexGeneratedImageClose{font-size:20px!important}.codexGeneratedImageCanvas{position:relative;display:grid;place-items:center;min-height:0;overflow:auto;padding:24px;background:var(--dsw-alias-bg-base,#111)}.codexGeneratedImageSurface{position:relative;display:inline-flex;max-width:calc(100vw - 48px);max-height:calc(100vh - 150px);transform-origin:center;transition:transform 120ms ease}.codexGeneratedImageSurface img{display:block;max-width:100%;max-height:calc(100vh - 150px);border-radius:12px;object-fit:contain}.codexGeneratedImageCanvas.is-annotating .codexGeneratedImageSurface{cursor:crosshair}.codexGeneratedImagePin{position:absolute;display:grid;place-items:center;width:24px;height:24px;padding:0;border:2px solid white;border-radius:50%;background:var(--dsw-alias-label-primary);box-shadow:0 1px 4px rgba(0,0,0,.35);color:var(--dsw-alias-bg-base,#111);font:inherit;font-size:11px;font-weight:700;transform:translate(-50%,-50%);cursor:pointer}.codexGeneratedImagePin.is-active{background:var(--dsw-alias-state-business-primary,#3964fe);color:white}.codexGeneratedImageAnnotateHint{position:absolute;bottom:14px;left:50%;padding:6px 10px;border-radius:14px;background:color-mix(in srgb,var(--dsw-alias-bg-layer-3) 90%,transparent);box-shadow:var(--dsw-shadow-lv2);color:var(--dsw-alias-label-secondary);font-size:11px;transform:translateX(-50%)}@media(max-width:760px){.codexGeneratedImageTopbar{align-items:flex-start;flex-direction:column}.codexGeneratedImageActions{width:100%;overflow-x:auto}.codexGeneratedImageActions>span{display:none}.codexGeneratedImageCanvas{padding:12px}.codexGeneratedImageSurface{max-width:calc(100vw - 24px);max-height:calc(100vh - 180px)}.codexGeneratedImageSurface img{max-height:calc(100vh - 180px)}}
-`
-
-const IMAGE_LAYOUT_STYLE = String.raw`
-.codexGeneratedImageWorkspace{display:grid;min-height:0;grid-template-columns:minmax(0,1fr)}
-.codexGeneratedImageWorkspace.has-comments{grid-template-columns:minmax(0,1fr) 296px}
-.codexGeneratedImageComments{display:flex;min-width:0;flex-direction:column;gap:12px;overflow:auto;padding:18px 14px;border-left:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-base))}
-.codexGeneratedImageComments>header{display:flex;flex-direction:column;gap:2px}.codexGeneratedImageComments>header strong{font-size:13px;font-weight:600;line-height:20px}.codexGeneratedImageComments>header small{color:var(--dsw-alias-label-tertiary);font-size:11px;line-height:17px}
-.codexGeneratedImageCommentList{display:flex;flex-direction:column;gap:8px}.codexGeneratedImageCommentList article{display:grid;grid-template-columns:24px minmax(0,1fr) 24px;align-items:start;gap:7px;padding:9px;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-3)}.codexGeneratedImageCommentList article.is-active{border-color:var(--dsw-alias-state-business-primary,#3964fe)}
-.codexGeneratedImageCommentList article>span{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:var(--dsw-alias-label-primary);color:var(--dsw-alias-bg-base,#111);font-size:10px;font-weight:700}.codexGeneratedImageCommentList textarea{box-sizing:border-box;width:100%;min-height:64px;resize:vertical;border:0;outline:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;line-height:18px}.codexGeneratedImageCommentList textarea::placeholder{color:var(--dsw-alias-label-dimmed)}
-.codexGeneratedImageCommentList article>button{display:grid;place-items:center;width:22px;height:22px;padding:0;border:0;border-radius:50%;background:transparent;color:var(--dsw-alias-label-tertiary);font:inherit;font-size:17px;cursor:pointer}.codexGeneratedImageCommentList article>button:hover{background:var(--dsw-alias-interactive-bg-hover)}
-@media(max-width:760px){.codexGeneratedImageWorkspace.has-comments{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) minmax(118px,34vh)}.codexGeneratedImageComments{border-top:1px solid var(--dsw-alias-border-l2);border-left:0;padding:10px 12px}}
-`
-
 const unwrap = response => {
   if (!response?.ok) throw new Error(response?.error?.message ?? 'Codex RPC failed')
   return response.value
@@ -277,10 +264,6 @@ const imageDownloadName = attachment => {
   if (cleaned === '') return fallback
   return cleaned.toLowerCase().endsWith('.png') ? cleaned : `${cleaned}.png`
 }
-
-const imageByteSize = bytes => bytes < 1024 * 1024
-  ? `${Math.max(0.1, bytes / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} KB`
-  : `${(bytes / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 1 })} MB`
 
 const originalRefMatches = (left, right) => left.assetId === right.assetId
   && left.mediaType === right.mediaType && left.bytes === right.bytes
@@ -333,20 +316,11 @@ function triggerBlobDownload(data, mediaType, filename) {
   try { anchor.click() } finally { anchor.remove(); URL.revokeObjectURL(url) }
 }
 
-function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, attachForEdit, getImageViewer, t }) {
+function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, attachForEdit, getImageViewer, getInternalImageViewer, t }) {
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState(false)
-  const [open, setOpen] = useState(false)
   const [src, setSrc] = useState()
-  const [zoom, setZoom] = useState(1)
-  const [annotationMode, setAnnotationMode] = useState(false)
-  const [annotations, setAnnotations] = useState([])
-  const [selectedAnnotation, setSelectedAnnotation] = useState()
-  const [editBusy, setEditBusy] = useState(false)
-  const [editError, setEditError] = useState(false)
-  const [downloadState, setDownloadState] = useState('idle')
   const triggerRef = useRef(null)
-  const dialogRef = useRef(null)
   useEffect(() => {
     let live = true
     setError(false)
@@ -356,100 +330,15 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
       .catch(() => { if (live) setError(true) })
     return () => { live = false }
   }, [attachment, loadImage, attempt])
-  const close = () => {
-    setOpen(false)
-    window.requestAnimationFrame(() => triggerRef.current?.focus())
-  }
-  useEffect(() => {
-    if (!open) return undefined
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    dialogRef.current?.focus()
-    const keydown = event => {
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        close()
-        return
-      }
-      if (event.key === 'Tab') {
-        const focusable = [...dialogRef.current.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')]
-        if (focusable.length === 0) return
-        const first = focusable[0]
-        const last = focusable.at(-1)
-        if (event.shiftKey && document.activeElement === first) {
-          event.preventDefault()
-          last.focus()
-        } else if (!event.shiftKey && document.activeElement === last) {
-          event.preventDefault()
-          first.focus()
-        }
-      }
-    }
-    document.addEventListener('keydown', keydown)
-    return () => {
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', keydown)
-    }
-  }, [open])
   const label = attachment.name ?? t('imageLabel')
   const downloadName = imageDownloadName(attachment)
-  const previewMeta = attachment.width + ' × ' + attachment.height + ' · ' + imageByteSize(attachment.bytes)
-  const imageMeta = original === undefined
-    ? previewMeta
-    : original.width + ' × ' + original.height + ' · ' + imageByteSize(original.bytes) + ' · ' + t('imagePreviewShort') + ' ' + previewMeta
-  const addAnnotation = event => {
-    if (!annotationMode || event.target.closest('.codexGeneratedImagePin')) return
-    const bounds = event.currentTarget.getBoundingClientRect()
-    const annotation = {
-      id: crypto.randomUUID(),
-      x: Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width)),
-      y: Math.max(0, Math.min(1, (event.clientY - bounds.top) / bounds.height)),
-      note: '',
-    }
-    setAnnotations(value => [...value, annotation])
-    setSelectedAnnotation(annotation.id)
-  }
-  const continueEditing = async () => {
-    if (editBusy || src === undefined) return
-    setEditBusy(true)
-    setEditError(false)
-    try {
-      await attachForEdit(src, downloadName, buildImageEditDraft({ annotations, translate: t }))
-      close()
-    } catch {
-      setEditError(true)
-    } finally {
-      setEditBusy(false)
-    }
-  }
   const downloadOriginal = async () => {
-    if (downloadState === 'pending' || original === undefined) return
-    setDownloadState('pending')
-    try {
-      triggerBlobDownload(await readOriginalImage(rpc, sessionId, original), original.mediaType, original.name)
-      setDownloadState('idle')
-    } catch {
-      setDownloadState('failed')
-      throw new Error('original image download failed')
-    }
+    if (original === undefined) return
+    triggerBlobDownload(await readOriginalImage(rpc, sessionId, original), original.mediaType, original.name)
   }
   const openImage = () => {
     if (src === undefined) return
-    const viewer = getImageViewer?.()
-    const actions = []
-    actions.push({
-      id: 'continue-editing',
-      label: t('imageEdit'),
-      pendingLabel: t('imageEditPreparing'),
-      errorLabel: t('imageEditFailed'),
-      closeOnSuccess: true,
-      onInvoke: ({ annotations: nextAnnotations }) => attachForEdit(
-        src,
-        downloadName,
-        buildImageEditDraft({ annotations: nextAnnotations, translate: t }),
-      ),
-    })
-    if (viewer?.open?.({
+    const request = {
       items: [{
         id: attachment.attachmentId ?? downloadName,
         src,
@@ -462,70 +351,36 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
           errorLabel: t('imageDownloadFailed'),
           onInvoke: downloadOriginal,
         },
-        actions,
+        actions: [{
+          id: 'continue-editing',
+          label: t('imageEdit'),
+          pendingLabel: t('imageEditPreparing'),
+          errorLabel: t('imageEditFailed'),
+          closeOnSuccess: true,
+          onInvoke: ({ annotations }) => attachForEdit(
+            src,
+            downloadName,
+            buildImageEditDraft({ annotations, translate: t }),
+          ),
+        }],
       }],
       opener: triggerRef.current,
       source: 'codex-generated',
       annotations: true,
-    }) === true) return
-    setZoom(1)
-    setOpen(true)
+    }
+    const viewer = getImageViewer?.()
+    if (viewer?.open?.(request) === true) return
+    getInternalImageViewer?.()?.open?.(request)
   }
   if (error) {
     return <button type="button" className="codexGeneratedImageRetry" onClick={() => setAttempt(value => value + 1)}>{t('imageLoadFailed')}</button>
   }
-  const lightbox = !open || src === undefined ? null : createPortal(
-    <div ref={dialogRef} className="codexGeneratedImageLightbox" role="dialog" aria-modal="true" aria-label={t('imagePreview')} tabIndex={-1}>
-      <header className="codexGeneratedImageTopbar">
-        <div><strong>{label}</strong><small>{imageMeta}</small></div>
-        <div className="codexGeneratedImageActions">
-          <button type="button" className={annotationMode ? 'is-active' : ''} aria-pressed={annotationMode} onClick={() => setAnnotationMode(value => !value)}>{t('imageAnnotate')}</button>
-          <button type="button" aria-label={t('imageZoomOut')} disabled={zoom <= 0.5} onClick={() => setZoom(value => Math.max(0.5, value - 0.25))}>−</button>
-          <span>{Math.round(zoom * 100)}%</span>
-          <button type="button" aria-label={t('imageZoomIn')} disabled={zoom >= 3} onClick={() => setZoom(value => Math.min(3, value + 0.25))}>+</button>
-          <button type="button" onClick={() => setZoom(1)}><IconFullscreenOutline16 aria-hidden="true" />{t('imageFit')}</button>
-          {original === undefined
-            ? <a href={src} download={downloadName}><IconDownloadOutline16 aria-hidden="true" />{t('imageDownload')}</a>
-            : <button type="button" disabled={downloadState === 'pending'} onClick={() => { void downloadOriginal().catch(() => undefined) }}><IconDownloadOutline16 aria-hidden="true" />{downloadState === 'pending' ? t('imageDownloadPreparing') : downloadState === 'failed' ? t('imageDownloadFailed') : t('imageDownload')}</button>}
-          <button type="button" disabled={editBusy} onClick={() => { void continueEditing() }}>{editBusy ? t('imageEditPreparing') : editError ? t('imageEditFailed') : t('imageEdit')}</button>
-          <button type="button" className="codexGeneratedImageClose" aria-label={t('imageClosePreview')} onClick={close}>×</button>
-        </div>
-      </header>
-      <div className={'codexGeneratedImageWorkspace ' + (annotationMode || annotations.length > 0 ? 'has-comments' : '')}>
-        <main className={'codexGeneratedImageCanvas ' + (annotationMode ? 'is-annotating' : '')}>
-          <div className="codexGeneratedImageSurface" onClick={addAnnotation} style={{ transform: 'scale(' + zoom + ')' }}>
-            <img src={src} alt={label} />
-            {annotations.map((annotation, index) => <button type="button" className={'codexGeneratedImagePin ' + (annotation.id === selectedAnnotation ? 'is-active' : '')} aria-label={fill(t('imageAnnotation'), { value: index + 1 })} style={{ left: (annotation.x * 100) + '%', top: (annotation.y * 100) + '%' }} onClick={event => { event.stopPropagation(); setSelectedAnnotation(annotation.id) }} key={annotation.id}>{index + 1}</button>)}
-          </div>
-          {annotationMode ? <div className="codexGeneratedImageAnnotateHint">{t('imageAnnotateHint')}</div> : null}
-        </main>
-        {annotationMode || annotations.length > 0 ? <aside className="codexGeneratedImageComments" aria-label={t('imageAnnotate')}>
-          <header><strong>{t('imageAnnotate')}</strong><small>{t('imageAnnotateHint')}</small></header>
-          <div className="codexGeneratedImageCommentList">{annotations.map((annotation, index) => <article className={annotation.id === selectedAnnotation ? 'is-active' : ''} key={annotation.id} onClick={() => setSelectedAnnotation(annotation.id)}>
-            <span>{index + 1}</span>
-            <textarea value={annotation.note} rows={3} aria-label={fill(t('imageAnnotation'), { value: index + 1 })} placeholder={t('imageAnnotationPlaceholder')} onFocus={() => setSelectedAnnotation(annotation.id)} onChange={event => { const note = event.target.value; setAnnotations(value => value.map(item => item.id === annotation.id ? { ...item, note } : item)) }} onKeyDown={event => {
-              if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Escape') {
-                event.preventDefault()
-                event.stopPropagation()
-                setSelectedAnnotation(undefined)
-              }
-            }} />
-            <button type="button" aria-label={t('imageRemoveAnnotation')} onClick={event => { event.stopPropagation(); setAnnotations(value => value.filter(item => item.id !== annotation.id)); if (selectedAnnotation === annotation.id) setSelectedAnnotation(undefined) }}>×</button>
-          </article>)}</div>
-        </aside> : null}
-      </div>
-    </div>,
-    document.body,
-  )
-  return <>
-    <button ref={triggerRef} type="button" className="codexGeneratedImageFrame" title={t('imageOpen')} aria-label={fill(t('imageOpenNamed'), { value: label })} onClick={openImage}>
-      {src === undefined ? <span>{t('imageLoading')}</span> : <img src={src} alt={label} />}
-    </button>
-    {lightbox}
-  </>
+  return <button ref={triggerRef} type="button" className="codexGeneratedImageFrame" title={t('imageOpen')} aria-label={fill(t('imageOpenNamed'), { value: label })} onClick={openImage}>
+    {src === undefined ? <span>{t('imageLoading')}</span> : <img src={src} alt={label} />}
+  </button>
 }
 
-function CodexImageToolRow({ block, sessionId, rpc, loadImage, attachForEdit, getImageViewer, t }) {
+function CodexImageToolRow({ block, sessionId, rpc, loadImage, attachForEdit, getImageViewer, getInternalImageViewer, t }) {
   const settled = block?.kind === 'tool-result'
   const image = settled
     ? block.content.find(item => item?.type === 'image' && item.attachment !== undefined)
@@ -539,7 +394,7 @@ function CodexImageToolRow({ block, sessionId, rpc, loadImage, attachForEdit, ge
   const original = decodeImagePresentation(block?.meta)?.original
   return <div className="codexImageTool" data-state={state}>
     <div className="codexImageToolRow"><span className="codexImageToolIcon" aria-hidden="true" /><span className="codexImageToolTitle">{t('imageGenerate')}</span><span className="codexImageBeta">{t('imageBeta')}</span><span className="codexImageToolState">{status}</span></div>
-    {image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage attachment={image.attachment} original={original} rpc={rpc} sessionId={sessionId} loadImage={loadImage} attachForEdit={attachForEdit} getImageViewer={getImageViewer} t={t} /></div>}
+    {image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage attachment={image.attachment} original={original} rpc={rpc} sessionId={sessionId} loadImage={loadImage} attachForEdit={attachForEdit} getImageViewer={getImageViewer} getInternalImageViewer={getInternalImageViewer} t={t} /></div>}
     {error === undefined ? null : <p className="codexImageToolError">{error}</p>}
   </div>
 }
@@ -1310,11 +1165,12 @@ function CodexSection({ preference, rpc, t }) {
 }
 
 export function apply(ctx) {
+  const imageViewer = new SubscriptionImageViewerService()
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'codex-subscription: copy')
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = 'dsh-codex-subscription'
-    tag.textContent = STYLE + IMAGE_STYLE + IMAGE_LAYOUT_STYLE
+    tag.textContent = STYLE + SUBSCRIPTION_IMAGE_VIEWER_CSS
     document.head.append(tag)
     return () => tag.remove()
   }, 'codex-subscription: style')
@@ -1330,6 +1186,10 @@ export function apply(ctx) {
     }
   }, 'codex-subscription: preferences')
   const t = ctx.locale.bind(NS)
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay', id: 'codex-subscription-image-viewer', order: 20,
+    inject: () => ({ service: imageViewer, t }),
+  }, SubscriptionImageViewerOverlay))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'codex-subscription', order: 15,
     label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: connection.rpc, t }),
@@ -1380,6 +1240,7 @@ export function apply(ctx) {
           return undefined
         }
       },
+      getInternalImageViewer: () => imageViewer,
       attachForEdit: async (src, filename, draft) => {
         const actx = sessions.scope(sessionId)
         if (actx === undefined || typeof conversation.createDraftImages !== 'function' || conversation.input?.for === undefined) {
