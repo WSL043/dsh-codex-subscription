@@ -351,7 +351,7 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
     let live = true
     setError(false)
     setSrc(undefined)
-    void loadImage(attachment)
+    void Promise.resolve().then(() => loadImage(attachment))
       .then(value => { if (live) setSrc(value) })
       .catch(() => { if (live) setError(true) })
     return () => { live = false }
@@ -1371,7 +1371,7 @@ export function apply(ctx) {
       sessionId,
       rpc: connection.rpc,
       t,
-      loadImage: attachment => conversation.resolveImage(sessionId, attachment),
+      loadImage: attachment => conversation.imageUrl(sessionId, attachment),
       getImageViewer: () => {
         try {
           return ctx.get('nativeImageViewer')

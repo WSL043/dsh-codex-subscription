@@ -4,6 +4,15 @@ import test from 'node:test'
 
 const text = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
+test('generated image loader uses an API declared by the installed DSH conversation service', async () => {
+  const source = await text('src/client.jsx')
+  const method = /loadImage: attachment => conversation\.(\w+)\(sessionId, attachment\)/u.exec(source)?.[1]
+  assert.ok(method)
+  const contract = await readFile(new URL('./lib/types/client/conversation/assembly.d.ts', import.meta.resolve('@deepseek-ai/dsh-client-ui-conversation/package.json')), 'utf8')
+  assert.ok(contract.includes(`${method}(sessionId: SessionId, attachment: ImageAttachmentRef): Promise<string>`))
+  assert.match(source, /Promise\.resolve\(\)\.then\(\(\) => loadImage\(attachment\)\)/u)
+})
+
 test('client is one removable DSH settings section, not a second application shell', async () => {
   const source = await text('src/client.jsx')
   assert.match(source, /slots\.inject\(['"]settings\.section['"]/)
@@ -437,7 +446,7 @@ test('generated Codex images use a DSH-tokenized native viewer across supported 
   assert.match(source, /aria-modal=['"]true['"]/u)
   assert.match(source, /tool\.call\.toolview/u)
   assert.match(source, /key:\s*['"]codex_image_generate['"]/u)
-  assert.match(source, /resolveImage\(sessionId,\s*attachment\)/u)
+  assert.match(source, /imageUrl\(sessionId,\s*attachment\)/u)
   assert.match(source, /block\.content/u)
   assert.match(manifest, /@deepseek-ai\/dsh-client-ui-tool/u)
   assert.doesNotMatch(config, /@deepseek-ai\/dsh-client-ui-attachment/u)
