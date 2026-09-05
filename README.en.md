@@ -22,6 +22,13 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
 </p>
 
+## What's included in 1.14.0
+
+- Built-in image viewer: a bottom toolbar, wheel zoom, drag to pan, on-image notes, copy notes, and continue editing, without another plugin.
+
+- Fixes generated-image previews that could not open in DSH Web, so generated images can be viewed in the conversation again.
+- New and edited images now return the exact original path on the current DSH host in the tool result, so a model or Agent can read or copy the file; preview and download remain session-authorized.
+
 ## Three-step start
 
 1. **Install the plugin.** Run the standard DSH bundle command:
@@ -33,7 +40,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 2. **Sign in.** Restart DSH yourself, open **Settings -> Codex**, and choose browser sign-in. No Codex CLI and no pasted token are required.
 3. **Use Codex.** Select a Codex model. Quota, subscription search, image generation, and Fast mode remain inside DSH.
 
-DSH-Portable exposes the same standard plugin command, so the command above also applies there. See below for the complete official npm, Agent, update, and uninstall routes.
+DSH-Portable exposes the same standard plugin command, so the command above also applies there. See below for the complete official npm, update, and uninstall routes.
 
 ## Why this plugin
 
@@ -45,7 +52,7 @@ DSH-Portable exposes the same standard plugin command, so the command above also
 | **Composer quota** | Choose a compact percentage, progress bar, or no inline quota display |
 | **Safe quota reset** | See each reset credit separately and deliberately try one with a cooldown and acknowledgement |
 | **Subscription search** | Explicitly route search globally through DSH default search or the signed-in Codex subscription |
-| **Codex image generation and editing (Beta)** | Generate without references, or explicitly edit one selected image; preview, zoom, annotate regions, download the original, and continue in the same composer |
+| **Codex image generation and editing (Beta)** | Generate without references, or explicitly edit one selected image; preview, zoom, annotate regions, download the original, and get the original host path for new or edited images |
 | **Fast mode** | Switch between Standard and Fast directly in the composer |
 | **Model-aware context** | Keep catalog defaults, use each model's supported extended window, or enter a full numeric token limit for each model |
 | **Headless runs** | Use the same signed-in Codex provider for one-shot DSH tasks that print their answer and exit |
@@ -58,7 +65,7 @@ These capabilities reuse the same local ChatGPT sign-in. Subscription routing fa
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/context-settings-en.png" width="820" alt="Current Codex subscription settings in DeepSeek Harness with search, model-aware context, composer quota, and support diagnostics">
 </p>
 
-Captured from the installed official DeepSeek Harness `0.1.2-rc.1` product with the current plugin build.
+The screenshot illustrates the settings layout; available options can vary by DSH and plugin version.
 
 ## Prepare DSH
 
@@ -85,18 +92,6 @@ After signing in and selecting a Codex model in Web once, install the same plugi
 dsh plugin --profile headless add dsh-codex-subscription
 dsh --profile headless "Reply with only the word: ok"
 ```
-
-### Let an Agent install it
-
-Send this link directly to your Agent:
-
-**[Agent install, update, and uninstall guide](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md)**
-
-```text
-https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
-```
-
-The guide includes verification steps and tells the Agent to preserve the DSH profile, sign-in, and other plugins.
 
 <details>
 <summary>Official npm route (Node.js installed)</summary>
@@ -167,19 +162,19 @@ clicks are single-flight, and an uncertain network result is never retried autom
 
 ### Image generation and editing (Beta)
 
-When `dsh-image-viewer` is installed, generated images delegate to its unified preview first. The subscription viewer is only a fallback when that service is absent or declines the request, so the two plugins never compete for the same entry point. Image Viewer owns zoom, pan, fit, preview downloads, and region notes; this plugin owns Codex image generation/editing, exact-original authorization, and the continue-editing handoff.
-Both paths expose dimensions and numbered region notes. The standard **Download** action retrieves the permission- and integrity-checked exact original by default; only legacy sessions without an exact original fall back to the conversation preview.
-Press **Enter** to save and collapse a region note; use **Shift+Enter** for a new line. Notes remain available when the
-same image is reopened during the current DSH page session.
-**Continue editing in composer** attaches exactly the image you opened and writes the region notes into the draft without
-sending it. A new image request does not silently include earlier images. GPT Image 2 can take longer than a normal text
-turn, and detailed text, exact composition, or repeated-character consistency may still need another pass.
+A basic viewer derived from `dsh-image-viewer` is now built in, with no extra installation required. If `dsh-image-viewer` is installed, its unified preview still takes priority; otherwise, or if it declines, the built-in viewer opens. You can zoom, pan, fit, add region notes, and download the image. The standard **Download** action retrieves the permission- and integrity-checked exact original by default; only legacy sessions without an exact original fall back to the conversation preview.
+
+New and edited images return the exact original path on the current DSH host in the tool result, so a model or Agent can read or copy the file. The path is on the host running DSH, not a browser download link; original downloads remain session-authorized. Uninstalling the plugin does not delete generated originals.
+
+**Continue editing in composer** attaches exactly the image you opened and writes the region notes into the draft without sending it. Press **Enter** to save and collapse a region note; use **Shift+Enter** for a new line. Notes remain available when the same image is reopened during the current DSH page session.
+
+A new image request does not silently include earlier images. GPT Image 2 can take longer than a normal text turn, and detailed text, exact composition, or repeated-character consistency may still need another pass.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/image-preview-annotations-en.png" width="800" alt="Generated image, region note, and continue editing inside the DSH Image Viewer">
 </p>
 
-The exact bytes returned by GPT Image are stored separately under the current DSH home because DSH may normalize the conversation preview for display and later model input. Original files are integrity-checked and available only to the creating session or a fork that inherited that image result; forks created earlier and unrelated sessions are denied. Raw image bytes are never placed in the session log. Uninstalling the plugin does not delete already generated originals.
+The screenshot above illustrates image viewing and on-image notes. Version 1.14.0 includes the same basic experience; available buttons can vary with the image and installed viewer version.
 
 ### Composer speed
 
@@ -189,12 +184,19 @@ see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-
 
 ## Update and uninstall
 
-Use the same DSH plugin lifecycle to update, verify, or uninstall:
+### Update and verify
 
 ```sh
 dsh plugin --profile web update dsh-codex-subscription
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
+```
+
+### Uninstall
+
+Run this only when you want to remove the plugin:
+
+```sh
 dsh plugin --profile web remove dsh-codex-subscription
 ```
 
@@ -203,10 +205,17 @@ These operations preserve the DSH profile, other plugins, and saved sign-in.
 <details>
 <summary>Official npm fallback</summary>
 
+### Update and verify
+
 ```sh
 npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web update dsh-codex-subscription
 npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
 npx -y @deepseek-ai/dsh@0.1.2-rc.1 --profile web --dump-config
+```
+
+### Uninstall
+
+```sh
 npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web remove dsh-codex-subscription
 ```
 
@@ -216,7 +225,7 @@ npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web remove dsh-codex-subscri
 
 - **`dsh` is not recognized:** the official npm route does not create a global `dsh` command; use the complete `npx -y @deepseek-ai/dsh@0.1.2-rc.1 ...` command above;
 - **More than one DSH exists:** run the standard command from the intended DSH environment so that product selects the corresponding profile;
-- **Setup still fails:** send the Agent guide above to an Agent. Do not delete the profile or change the system PATH to force an install.
+- **Setup still fails:** confirm the command is running in the intended DSH environment. Do not delete the profile or change the system PATH to force an install.
 - **Need to report a problem:** generate a **Support diagnostics** report at the bottom of Settings, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The report includes the OS/runtime, bounded sign-in phase, and safe request-failure categories, but excludes credentials, account identifiers, proxy addresses, raw responses, and full logs. Paste it into the required diagnostics field; never attach sign-in URLs, authorization codes, or browser callback addresses.
 
 The ChatGPT Codex backend and DSH can change independently. This community project is not affiliated with or endorsed by DeepSeek or OpenAI.

@@ -4,6 +4,21 @@ import test from 'node:test'
 
 const text = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
+test('generated image loader uses the installed DSH UI conversation image API', async () => {
+  const source = await text('src/client.jsx')
+  assert.match(source, /['"]uiConversation['"]/u)
+  const method = /loadImage: attachment => uiConversation\.(\w+)\(sessionId, attachment\)/u.exec(source)?.[1]
+  assert.equal(method, 'imageUrl')
+  const packageUrl = import.meta.resolve('@deepseek-ai/dsh-client-ui-conversation/package.json')
+  const [assembly, client] = await Promise.all([
+    readFile(new URL('./lib/types/client/conversation/assembly.d.ts', packageUrl), 'utf8'),
+    readFile(new URL('./lib/types/client/index.d.ts', packageUrl), 'utf8'),
+  ])
+  assert.ok(assembly.includes(`${method}(sessionId: SessionId, attachment: ImageAttachmentRef): Promise<string>`))
+  assert.match(client, /uiConversation:\s*import\('\.\/conversation\/assembly\.ts'\)\.UiConversation/u)
+  assert.match(source, /Promise\.resolve\(\)\.then\(\(\) => loadImage\(attachment\)\)/u)
+})
+
 test('client is one removable DSH settings section, not a second application shell', async () => {
   const source = await text('src/client.jsx')
   assert.match(source, /slots\.inject\(['"]settings\.section['"]/)
@@ -347,29 +362,30 @@ test('support diagnostics stay compact without an extra expand step', async () =
 })
 
 test('generated image preview uses a native full-screen canvas and explicit edit handoff', async () => {
-  const source = await text('src/client.jsx')
-  assert.match(source, /createPortal/u)
-  assert.match(source, /IconDownloadOutline16/u)
+  const [source, viewer, styles] = await Promise.all([
+    text('src/client.jsx'), text('src/subscription-image-viewer.jsx'), text('src/subscription-image-viewer-styles.js'),
+  ])
   assert.match(source, /imageDownload/u)
-  assert.match(source, /download=\{downloadName\}/u)
+  assert.match(viewer, /download=\{downloadName\(item\.name\)\}/u)
   assert.match(source, /imageBeta/u)
-  assert.match(source, /codexGeneratedImageLightbox/u)
-  assert.match(source, /imageAnnotation/u)
+  assert.match(viewer, /IconDownloadOutline16/u)
+  assert.match(viewer, /imageAnnotation/u)
   assert.match(source, /attachForEdit/u)
   assert.match(source, /createDraftImages/u)
   assert.match(source, /input\.addImages/u)
   assert.match(source, /input\.setDraft/u)
   assert.match(source, /imageEditDefault/u)
   assert.match(source, /imageRegionNotes/u)
-  assert.match(source, /event\.key === 'Enter' && !event\.shiftKey/u)
-  assert.match(source, /event\.stopPropagation\(\)\s+setSelectedAnnotation\(undefined\)/u)
+  assert.match(viewer, /event\.key === 'Enter' && !event\.shiftKey/u)
+  assert.match(viewer, /event\.stopPropagation\(\)\s+event\.nativeEvent/u)
   assert.doesNotMatch(source, /imageReferenceRole|IMAGE_REFERENCE_ROLES|referenceRole === role\.id/u)
   assert.match(source, /buildImageEditDraft/u)
-  assert.match(source, /event\.key === ['"]Tab['"]/u)
-  assert.match(source, /querySelectorAll\(/u)
-  assert.match(source, /border-radius:16px/u)
-  assert.match(source, /object-fit:cover/u)
+  assert.match(viewer, /event\.key === ['"]Tab['"]/u)
+  assert.match(viewer, /querySelectorAll\(/u)
+  assert.match(styles, /border-radius:999px/u)
+  assert.match(styles, /object-fit:contain/u)
   assert.doesNotMatch(source, /continue refining this image|继续在当前会话描述修改内容/u)
+  assert.doesNotMatch(source, /codexGeneratedImageLightbox|codexGeneratedImageTopbar|codexGeneratedImageComments/u)
 })
 
 test('support diagnostics includes a direct repository feedback action', async () => {
@@ -409,8 +425,8 @@ test('build emits host entries and a DSH module-loader client', async () => {
 })
 
 test('generated Codex images use a DSH-tokenized native viewer across supported releases', async () => {
-  const [source, manifest, config] = await Promise.all([
-    text('src/client.jsx'), text('package.json'), text('tsdown.config.mjs'),
+  const [source, viewer, manifest, config] = await Promise.all([
+    text('src/client.jsx'), text('src/subscription-image-viewer.jsx'), text('package.json'), text('tsdown.config.mjs'),
   ])
   assert.doesNotMatch(source, /from ['"]@deepseek-ai\/dsh-client-ui-attachment['"]/u)
   assert.match(source, /function CodexGeneratedImage/u)
@@ -424,20 +440,19 @@ test('generated Codex images use a DSH-tokenized native viewer across supported 
   assert.match(source, /onInvoke: downloadOriginal/u)
   assert.doesNotMatch(source, /id: 'download-original'|imageDownloadOriginal|OriginalImageDownload/u)
   assert.match(source, /id: 'continue-editing'/u)
-  assert.match(source, /onInvoke:\s*\(\{ annotations: nextAnnotations \}\)/u)
+  assert.match(source, /onInvoke:\s*\(\{ annotations \}\)/u)
   assert.match(source, /closeOnSuccess: true/u)
   assert.doesNotMatch(source, /codexGeneratedImageEditDock|request\.editor|imageEditPrompt\}\s*onChange/u)
-  const viewerOpen = source.indexOf('viewer?.open?.({')
-  const fallbackOpen = source.indexOf('setOpen(true)', viewerOpen)
+  const viewerOpen = source.indexOf('viewer?.open?.(request)')
+  const fallbackOpen = source.indexOf('getInternalImageViewer', viewerOpen)
   assert.ok(viewerOpen >= 0 && fallbackOpen > viewerOpen, 'the optional image viewer must run before the subscription fallback')
-  assert.match(source.slice(viewerOpen, fallbackOpen), /\}\) === true\) return/u)
-  assert.match(source, /createPortal\(/u)
-  assert.match(source, /event\.key === ['"]Escape['"]/u)
-  assert.match(source, /role=['"]dialog['"]/u)
-  assert.match(source, /aria-modal=['"]true['"]/u)
+  assert.match(source.slice(viewerOpen, fallbackOpen), /\(request\) === true\) return/u)
+  assert.match(viewer, /event\.key === ['"]Escape['"]/u)
+  assert.match(viewer, /role=['"]dialog['"]/u)
+  assert.match(viewer, /aria-modal=['"]true['"]/u)
   assert.match(source, /tool\.call\.toolview/u)
   assert.match(source, /key:\s*['"]codex_image_generate['"]/u)
-  assert.match(source, /resolveImage\(sessionId,\s*attachment\)/u)
+  assert.match(source, /imageUrl\(sessionId,\s*attachment\)/u)
   assert.match(source, /block\.content/u)
   assert.match(manifest, /@deepseek-ai\/dsh-client-ui-tool/u)
   assert.doesNotMatch(config, /@deepseek-ai\/dsh-client-ui-attachment/u)

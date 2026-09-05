@@ -282,6 +282,16 @@ jobs:
             ' "$REQUESTED_DSH_VERSION"
             current_dsh="$REQUESTED_DSH_VERSION"
           fi
+          if [[ "${RELEASE_KIND:-feature}" != 'compatibility' ]]; then
+            # Feature and bugfix releases require explicit bilingual release notes,
+            # including prereleases. Compatibility releases generate their notes below.
+            test -n "${RELEASE_NOTES_EN:-}"
+            test -n "${RELEASE_NOTES_ZH:-}"
+            if [[ "$RELEASE_NOTES_EN" == *'\n'* || "$RELEASE_NOTES_ZH" == *'\n'* ]]; then
+              echo 'Release notes must contain real line breaks, not literal \n sequences.' >&2
+              exit 1
+            fi
+          fi
           if [[ "$IS_PRERELEASE" == 'true' ]]; then
             if [[ "${RELEASE_KIND:-feature}" == 'compatibility' ]]; then
               beta_notes_en="$(printf '%s\n%s' \
@@ -291,12 +301,8 @@ jobs:
                 "- 新增对 DeepSeek Harness \`$current_dsh\` 的兼容支持。" \
                 '- 稳定版安装说明保持不变。')"
             else
-              beta_notes_en="$(printf '%s\n%s' \
-                '- Switch supported Codex models between Standard and Fast in the composer.' \
-                '- Fast is shown as a lightning icon; Spark hides the unsupported control.')"
-              beta_notes_zh="$(printf '%s\n%s' \
-                '- 输入框支持为兼容的 Codex 模型切换标准或高速。' \
-                '- 高速模式显示为闪电，Spark 会自动隐藏不适用的入口。')"
+              beta_notes_en="$RELEASE_NOTES_EN"
+              beta_notes_zh="$RELEASE_NOTES_ZH"
             fi
             cat > .release/install.md <<NOTES
           ## Beta preview
@@ -304,15 +310,15 @@ jobs:
           $beta_notes_en
 
           <!-- dsh-codex-install -->
-          ## Install the Beta
+          ## Install or update the Beta
 
           \`\`\`sh
           npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
-          npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh@$current_dsh --profile web --dump-config
           \`\`\`
 
           Restart DSH manually. This Beta does not replace npm's stable tag.
+
+          Use this exact-version command for both installation and update. See the [English README](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.en.md) for complete use and uninstall instructions.
 
           ## Uninstall
 
@@ -329,15 +335,15 @@ jobs:
 
           $beta_notes_zh
 
-          ## 安装 Beta
+          ## 安装或更新 Beta
 
           \`\`\`sh
           npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
-          npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh@$current_dsh --profile web --dump-config
           \`\`\`
 
           安装后手动重启 DSH。Beta 不会替换 npm 的稳定版标签。
+
+          这条精确版本命令同时用于安装和更新。完整的使用和卸载说明见[中文 README](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md)。
 
           ## 卸载
 
@@ -357,13 +363,6 @@ jobs:
 
           NOTES
           else
-            # Feature and bugfix releases require explicit bilingual release notes.
-            test -n "${RELEASE_NOTES_EN:-}"
-            test -n "${RELEASE_NOTES_ZH:-}"
-            if [[ "$RELEASE_NOTES_EN" == *'\n'* || "$RELEASE_NOTES_ZH" == *'\n'* ]]; then
-              echo 'Release notes must contain real line breaks, not literal \n sequences.' >&2
-              exit 1
-            fi
             cat > .release/install.md <<'NOTES'
           ## What's new
           NOTES
@@ -385,18 +384,21 @@ jobs:
 
           ```sh
           npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ --profile web --dump-config
           ```
 
-          Restart DSH manually. The plugin list should contain one `dsh-codex-subscription`, and the config should contain one `codex-subscription` entry.
+          Restart DSH manually after installation.
 
-          ### Universal update and uninstall
+          ### Update
 
           ```sh
           npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ --profile web --dump-config
+          ```
+
+          See the [English README](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.en.md) for complete use and uninstall instructions.
+
+          ### Uninstall
+
+          ```sh
           npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription
           ```
           NOTES
@@ -434,18 +436,21 @@ jobs:
 
           ```sh
           npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ --profile web --dump-config
           ```
 
-          安装后手动重启 DSH。列表中应只有一个 `dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
+          安装后手动重启 DSH。
 
-          ### 通用更新与卸载
+          ### 更新
 
           ```sh
           npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web list dsh-codex-subscription --depth 0
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ --profile web --dump-config
+          ```
+
+          完整的使用和卸载说明见[中文 README](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md)。
+
+          ### 卸载
+
+          ```sh
           npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription
           ```
           NOTES

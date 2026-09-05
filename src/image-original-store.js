@@ -58,6 +58,10 @@ export class OriginalImageStore {
     return join(this.root, assetId.slice(4, 6), assetId)
   }
 
+  originalPath(assetId) {
+    return join(this.directory(assetId), 'original')
+  }
+
   async save(sessionId, data, name = 'codex-generated-original.png') {
     if (!validSessionId(sessionId) || !(data instanceof Uint8Array) || data.byteLength === 0 || data.byteLength > 48 * 1024 * 1024) {
       throw new TypeError('invalid original image input')

@@ -151,7 +151,7 @@ function imageContent(value) {
     ? `Generated a ${value.size} image.`
     : 'Generated an image.'
   return [
-    { type: 'text', text: label },
+    { type: 'text', text: value.localPath === undefined ? label : `${label}\nOriginal PNG saved on the DSH host at: ${JSON.stringify(value.localPath)}. Read this file or copy it to the workspace with a .png extension; this host path is not a browser URL.` },
     { type: 'image', attachment: imageReference(value.image) },
   ]
 }
@@ -189,6 +189,7 @@ function imageOutputSchema() {
         },
       },
       background: { type: 'string' },
+      localPath: { type: 'string', required: true, description: 'Absolute path to the original PNG on the DSH host.' },
       quality: { type: 'string' },
       size: { type: 'string' },
     },
@@ -343,6 +344,7 @@ export function createCodexImageTool(options) {
       const result = {
         image: imageReference(ref),
         original,
+        localPath: options.originalImages.originalPath(original.assetId),
         ...(metadata.background === undefined ? {} : { background: metadata.background }),
         ...(metadata.quality === undefined ? {} : { quality: metadata.quality }),
         ...(metadata.size === undefined ? {} : { size: metadata.size }),

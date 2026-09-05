@@ -148,7 +148,6 @@ export function boundedArtifactPaths(update) {
   return [
     'README.md',
     'README.en.md',
-    'AGENTS.md',
     'dsh-codex.ps1',
     '.github/scripts/accept-official-release.ps1',
   ]
