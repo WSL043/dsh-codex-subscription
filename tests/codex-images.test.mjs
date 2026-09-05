@@ -232,6 +232,28 @@ test('new generation never includes a previous image unless references are provi
   assert.equal('images' in JSON.parse(requests[0].init.body), false)
 })
 
+test('annotation edits forward both explicit images and the complete location prompt to the provider', async () => {
+  const reference = { ...IMAGE_REF, attachmentId: 'sha256:marked-reference', name: 'annotations.png', bytes: 69 }
+  const originalBytes = Buffer.from(ONE_PIXEL_PNG, 'base64')
+  const referenceBytes = Buffer.concat([originalBytes, Buffer.from([0])])
+  const reads = []
+  const base = fixture()
+  const { requests, tool } = fixture({ attachments: {
+    ...base.attachments,
+    async readImage(ref) {
+      reads.push(ref.attachmentId)
+      return { ref, data: ref.attachmentId === IMAGE_REF.attachmentId ? originalBytes : referenceBytes }
+    },
+  } })
+  const prompt = 'Edit source.png using annotations.png only for locations. Marker 1: x=25%, y=75%, change the cup to blue. Do not reproduce markers.'
+  await tool.execute({ prompt, referenceImages: [IMAGE_REF, reference] }, execContext('annotated-edit'))
+  assert.deepEqual(reads, [IMAGE_REF.attachmentId, reference.attachmentId])
+  assert.equal(requests[0].url, CODEX_IMAGE_EDIT_URL)
+  const body = JSON.parse(requests[0].init.body)
+  assert.equal(body.prompt, prompt)
+  assert.deepEqual(body.images, [originalBytes, referenceBytes].map(bytes => ({ image_url: `data:image/png;base64,${bytes.toString('base64')}` })))
+})
+
 test('malformed and oversized image payloads fail before attachment persistence', async () => {
   assert.throws(() => decodeCodexPng('not base64', 1024), /valid base64 PNG/)
   assert.throws(() => decodeCodexPng(Buffer.from('plain text').toString('base64'), 1024), /valid PNG/)

@@ -214,7 +214,7 @@ export function createCodexImageTool(options) {
   const attachments = options.attachments
   return defineTool({
     name: CODEX_IMAGE_TOOL_NAME,
-    description: 'Create a new image or explicitly edit selected prior images using the signed-in Codex subscription. Omit referenceImages for a completely new image. Include only the exact prior image references the user asked to edit; never assume every image in the conversation is a reference.',
+    description: 'Create a new image or explicitly edit selected prior images using the signed-in Codex subscription. Omit referenceImages for a completely new image. Include only the exact prior image references the user asked to edit; never assume every image in the conversation is a reference. For annotation-guided edits, include both the named clean source and its numbered location reference, and preserve the numbered coordinates and requested changes in the prompt. The location-reference markers are guidance only and must not appear in the result. If those references cannot be identified, do not substitute unrelated images or silently ignore the annotations.',
     parameters: {
       prompt: {
         type: 'string',

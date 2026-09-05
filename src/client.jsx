@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } fro
 import { BoltIcon } from '@heroicons/react/16/solid'
 import { Button, IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import { buildImageEditDraft } from './image-edit.js'
+import { createAnnotatedImageReference } from './image-edit-reference.js'
 import { decodeImagePresentation, decodeOriginalImageRef, ORIGINAL_IMAGE_CHUNK_BYTES } from './image-original-contract.js'
 import { SubscriptionImageViewerOverlay } from './subscription-image-viewer.jsx'
 import { SUBSCRIPTION_IMAGE_VIEWER_CSS } from './subscription-image-viewer-styles.js'
@@ -60,6 +61,8 @@ const QUICK_QUOTA_REFRESH_EVENT = 'dsh-codex-subscription:refresh-quick-quota'
 const QUICK_QUOTA_REFRESH_MS = 60_000
 
 const zh = {
+  imageEditLocation: '位置',
+  imageEditReferenceGuide: '本次编辑的干净源图为「{sourceName}」，编号定位参考图为「{referenceName}」。坐标以图片左上角为原点，x 向右、y 向下，百分比相对于整张图片。请查看这两张图片，将它们同时作为编辑工具的参考图，并在工具提示词中完整保留下方编号、位置和修改要求。只修改源图中对应位置的内容；定位参考图上的编号、圆点和引线仅用于定位，不得绘入最终结果。若无法读取两张图片或确定位置，请说明问题，不要猜测或忽略标注。',
   nav: 'Codex 订阅',
   title: 'Codex 订阅',
   connected: '已登录', disconnected: '未登录', accountLoading: '正在读取账户状态…',
@@ -118,10 +121,12 @@ const zh = {
   modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
   imageGenerate: '生成图片', imageBeta: 'Beta', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
   imageLabel: '生成的图片', imageOpen: '查看图片', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imagePreviewShort: '预览图', imageClosePreview: '关闭预览', imageDownload: '下载', imageDownloadPreparing: '正在准备原图…', imageDownloadFailed: '下载失败，重试', imageZoomOut: '缩小', imageZoomIn: '放大', imageFit: '适合窗口',
-  imageAnnotate: '标注部位', imageAnnotateCancel: '取消标注', imageAnnotateHint: '点击图片添加编号标注', imageAnnotation: '标注 {value}', imageAnnotationPlaceholder: '描述这个部位要修改什么', imageRegions: '区域备注', imageCopyNotes: '复制备注', imageCopied: '已复制', imagePrevious: '上一张图片', imageNext: '下一张图片', imageZoomHint: '滚轮缩放 · 拖动查看 · 双击切换原始大小', imageActual: '原始大小', imageEditPrompt: '描述你想怎样修改这张图', imageEditDefault: '编辑这张图片。', imageRegionNotes: '部位修改：', imageEdit: '在输入框中继续编辑', imageEditPreparing: '正在添加到输入框…', imageEditFailed: '无法把图片添加到输入框。', imageRemoveAnnotation: '删除标注',
+  imageAnnotate: '标注部位', imageAnnotateCancel: '取消标注', imageAnnotateHint: '点击图片添加编号标注', imageAnnotation: '标注 {value}', imageAnnotationPlaceholder: '描述这个部位要修改什么', imageRegions: '区域备注', imageCopyNotes: '复制备注', imageCopied: '已复制', imagePrevious: '上一张图片', imageNext: '下一张图片', imageZoomHint: '滚轮缩放 · 拖动查看 · 双击切换原始大小', imageActual: '原始大小', imageEditPrompt: '描述你想怎样修改这张图', imageEditDefault: '编辑这张图片。', imageRegionNotes: '部位修改：', imageEdit: '在输入框中继续编辑', imageEditPreparing: '正在添加到输入框…', imageEditFailed: '回填失败：请填写每个标记的备注，并确认输入框可接收图片后重试。', imageRemoveAnnotation: '删除标注',
 }
 
 const en = {
+  imageEditLocation: 'Location',
+  imageEditReferenceGuide: 'The clean source for this edit is "{sourceName}"; "{referenceName}" is the numbered location reference. Coordinates start at the top-left, x increases rightward and y downward; percentages refer to the whole image. Inspect both images and pass both as references to the image-editing tool. Preserve every number, position and requested change below in the tool prompt. Edit the corresponding content in the clean source; numbers, dots and leader lines on the location reference are guidance only and must not appear in the final result. If either image cannot be read or a location is unclear, explain the problem instead of guessing or ignoring annotations.',
   nav: 'Codex',
   title: 'Codex subscription',
   connected: 'Signed in', disconnected: 'Not signed in', accountLoading: 'Reading account status…',
@@ -180,7 +185,7 @@ const en = {
   modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
   imageGenerate: 'Generate image', imageBeta: 'Beta', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
   imageLabel: 'Generated image', imageOpen: 'View image', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imagePreviewShort: 'Preview', imageClosePreview: 'Close preview', imageDownload: 'Download', imageDownloadPreparing: 'Preparing original…', imageDownloadFailed: 'Download failed. Retry', imageZoomOut: 'Zoom out', imageZoomIn: 'Zoom in', imageFit: 'Fit to window',
-  imageAnnotate: 'Annotate', imageAnnotateCancel: 'Cancel marking', imageAnnotateHint: 'Click the image to add a numbered note', imageAnnotation: 'Note {value}', imageAnnotationPlaceholder: 'Describe what should change in this area', imageRegions: 'Region notes', imageCopyNotes: 'Copy notes', imageCopied: 'Copied', imagePrevious: 'Previous image', imageNext: 'Next image', imageZoomHint: 'Wheel to zoom · drag to pan · double-click for 100%', imageActual: '100%', imageEditPrompt: 'Describe how you want to change this image', imageEditDefault: 'Edit this image.', imageRegionNotes: 'Region changes:', imageEdit: 'Continue editing in composer', imageEditPreparing: 'Adding to composer…', imageEditFailed: 'Could not add the image to the composer.', imageRemoveAnnotation: 'Remove note',
+  imageAnnotate: 'Annotate', imageAnnotateCancel: 'Cancel marking', imageAnnotateHint: 'Click the image to add a numbered note', imageAnnotation: 'Note {value}', imageAnnotationPlaceholder: 'Describe what should change in this area', imageRegions: 'Region notes', imageCopyNotes: 'Copy notes', imageCopied: 'Copied', imagePrevious: 'Previous image', imageNext: 'Next image', imageZoomHint: 'Wheel to zoom · drag to pan · double-click for 100%', imageActual: '100%', imageEditPrompt: 'Describe how you want to change this image', imageEditDefault: 'Edit this image.', imageRegionNotes: 'Region changes:', imageEdit: 'Continue editing in composer', imageEditPreparing: 'Adding to composer…', imageEditFailed: 'Handoff failed. Add a note to every marker and ensure the composer accepts images, then retry.', imageRemoveAnnotation: 'Remove note',
 }
 
 const STYLE = `
@@ -357,11 +362,15 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
           pendingLabel: t('imageEditPreparing'),
           errorLabel: t('imageEditFailed'),
           closeOnSuccess: true,
-          onInvoke: ({ annotations }) => attachForEdit(
-            src,
-            downloadName,
-            buildImageEditDraft({ annotations, translate: t }),
-          ),
+          onInvoke: ({ annotations = [] }) => {
+            const imageKey = String(attachment.attachmentId ?? 'image').replace(/[^a-zA-Z0-9_-]/g, '_')
+            const sourceName = annotations.length === 0 ? downloadName : `codex-edit-${imageKey}-source.png`
+            const referenceName = `codex-edit-${imageKey}-annotations.png`
+            return attachForEdit(src, sourceName, buildImageEditDraft({
+              annotations, translate: t, width: attachment.width, height: attachment.height,
+              sourceName, referenceName,
+            }), annotations, referenceName)
+          },
         }],
       }],
       opener: triggerRef.current,
@@ -1241,7 +1250,7 @@ export function apply(ctx) {
         }
       },
       getInternalImageViewer: () => imageViewer,
-      attachForEdit: async (src, filename, draft) => {
+      attachForEdit: async (src, filename, draft, annotations = [], referenceName) => {
         const actx = sessions.scope(sessionId)
         if (actx === undefined || typeof conversation.createDraftImages !== 'function' || conversation.input?.for === undefined) {
           throw new Error('This DSH version does not provide the image composer bridge')
@@ -1249,7 +1258,12 @@ export function apply(ctx) {
         const response = await fetch(src)
         if (!response.ok) throw new Error('Could not read generated image')
         const blob = await response.blob()
-        const created = conversation.createDraftImages([new File([blob], filename, { type: blob.type || 'image/png' })])
+        const files = [new File([blob], filename, { type: blob.type || 'image/png' })]
+        if (annotations.length > 0) {
+          const reference = await createAnnotatedImageReference(blob, annotations)
+          files.push(new File([reference], referenceName, { type: 'image/png' }))
+        }
+        const created = conversation.createDraftImages(files)
         const input = conversation.input.for(actx)
         if (!input.addImages(created.map(item => item.id))) {
           conversation.releaseDraftImages(created)

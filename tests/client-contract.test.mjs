@@ -440,7 +440,7 @@ test('generated Codex images use a DSH-tokenized native viewer across supported 
   assert.match(source, /onInvoke: downloadOriginal/u)
   assert.doesNotMatch(source, /id: 'download-original'|imageDownloadOriginal|OriginalImageDownload/u)
   assert.match(source, /id: 'continue-editing'/u)
-  assert.match(source, /onInvoke:\s*\(\{ annotations \}\)/u)
+  assert.match(source, /onInvoke:\s*\(\{ annotations = \[\] \}\)/u)
   assert.match(source, /closeOnSuccess: true/u)
   assert.doesNotMatch(source, /codexGeneratedImageEditDock|request\.editor|imageEditPrompt\}\s*onChange/u)
   const viewerOpen = source.indexOf('viewer?.open?.(request)')
