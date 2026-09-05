@@ -170,6 +170,8 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/image-preview-annotations.png" width="800" alt="DSH 图片查看器中的生成图、区域备注和继续编辑">
 </p>
 
+上图展示额外安装 `dsh-image-viewer` 后的统一查看器。仅安装本插件时会显示自带查看器：工具栏位于顶部，标注备注位于右侧；外观差异不代表插件版本较旧。
+
 ### 输入框速度
 
 选择支持的 Codex 模型后，可在输入框的模型菜单中切换标准与高速。标准模式不增加图标，
