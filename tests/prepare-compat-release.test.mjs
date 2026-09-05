@@ -102,7 +102,6 @@ test('plans one stable plugin patch for one newly accepted DSH version', () => {
   assert.deepEqual(boundedArtifactPaths(update), [
     'README.md',
     'README.en.md',
-    'AGENTS.md',
     'dsh-codex.ps1',
     '.github/scripts/accept-official-release.ps1',
   ])

@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { isAbsolute, join } from 'node:path'
+import { OriginalImageStore } from '../src/image-original-store.js'
 
 import {
   CODEX_IMAGE_EDIT_URL,
@@ -59,6 +63,7 @@ function fixture(overrides = {}) {
   const tool = createCodexImageTool({
     attachments,
     originalImages: {
+      originalPath: () => 'C:\\DSH home\\images\\original',
       async save(sessionId, data) {
         assert.equal(sessionId, 'session-image')
         assert.equal(data.byteLength, 68)
@@ -115,7 +120,33 @@ test('image tool uses the Codex subscription endpoint and fixed safe defaults', 
     background: 'opaque',
     quality: 'medium',
     size: '1024x1024',
+    localPath: 'C:\\DSH home\\images\\original',
   })
+})
+
+test('generated and edited images expose a readable host path in model-visible content', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'codex image path '))
+  try {
+    const store = new OriginalImageStore(root)
+    const { tool } = fixture({ originalImages: store })
+    for (const referenceImages of [undefined, [IMAGE_REF]]) {
+      const deferred = []
+      const args = { prompt: 'path regression', ...(referenceImages ? { referenceImages } : {}) }
+      const value = await tool.execute(args, {
+        ...execContext('path-test'), parent: 'parent-call', deferContext: message => deferred.push(message),
+      })
+      assert.equal(isAbsolute(value.localPath), true)
+      assert.deepEqual(await readFile(value.localPath), Buffer.from(ONE_PIXEL_PNG, 'base64'))
+      const content = tool.output.render(args, value)
+      assert.ok(content[0].text.includes(JSON.stringify(value.localPath)))
+      assert.match(content[0].text, /DSH host/u)
+      assert.equal(content[1].type, 'image')
+      assert.ok(JSON.stringify(deferred).includes('Original PNG saved'))
+      assert.equal('localPath' in tool.output.presentationMeta(args, value), false)
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
 })
 
 test('image tool forwards an explicit valid size, quality, and background without hidden settings', async () => {
