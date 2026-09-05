@@ -4,12 +4,18 @@ import test from 'node:test'
 
 const text = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
-test('generated image loader uses an API declared by the installed DSH conversation service', async () => {
+test('generated image loader uses the installed DSH UI conversation image API', async () => {
   const source = await text('src/client.jsx')
-  const method = /loadImage: attachment => conversation\.(\w+)\(sessionId, attachment\)/u.exec(source)?.[1]
-  assert.ok(method)
-  const contract = await readFile(new URL('./lib/types/client/conversation/assembly.d.ts', import.meta.resolve('@deepseek-ai/dsh-client-ui-conversation/package.json')), 'utf8')
-  assert.ok(contract.includes(`${method}(sessionId: SessionId, attachment: ImageAttachmentRef): Promise<string>`))
+  assert.match(source, /['"]uiConversation['"]/u)
+  const method = /loadImage: attachment => uiConversation\.(\w+)\(sessionId, attachment\)/u.exec(source)?.[1]
+  assert.equal(method, 'imageUrl')
+  const packageUrl = import.meta.resolve('@deepseek-ai/dsh-client-ui-conversation/package.json')
+  const [assembly, client] = await Promise.all([
+    readFile(new URL('./lib/types/client/conversation/assembly.d.ts', packageUrl), 'utf8'),
+    readFile(new URL('./lib/types/client/index.d.ts', packageUrl), 'utf8'),
+  ])
+  assert.ok(assembly.includes(`${method}(sessionId: SessionId, attachment: ImageAttachmentRef): Promise<string>`))
+  assert.match(client, /uiConversation:\s*import\('\.\/conversation\/assembly\.ts'\)\.UiConversation/u)
   assert.match(source, /Promise\.resolve\(\)\.then\(\(\) => loadImage\(attachment\)\)/u)
 })
 

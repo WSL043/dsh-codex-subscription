@@ -48,7 +48,7 @@ import { readLoginProgress } from './login-progress.js'
 import { createPreferenceController } from './preference-controller.js'
 
 export const inject = [
-  'slots', 'locale', 'connection', 'remote', 'settingsScope', 'modelDirectories', 'conversation', 'sessions',
+  'slots', 'locale', 'connection', 'remote', 'settingsScope', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
 ]
 
 const NS = 'settings.codexSubscription'
@@ -1365,13 +1365,14 @@ export function apply(ctx) {
   if (ctx.get('remote.session') === undefined) installDirectorySlots(ctx)
   else ctx.inject(['remote.session'], installDirectorySlots)
   const conversation = ctx.get('conversation')
+  const uiConversation = ctx.get('uiConversation')
   ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
     name: 'tool.call.toolview', key: 'codex_image_generate', locale: NS,
     inject: sessionId => ({
       sessionId,
       rpc: connection.rpc,
       t,
-      loadImage: attachment => conversation.imageUrl(sessionId, attachment),
+      loadImage: attachment => uiConversation.imageUrl(sessionId, attachment),
       getImageViewer: () => {
         try {
           return ctx.get('nativeImageViewer')
