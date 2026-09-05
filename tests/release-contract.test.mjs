@@ -35,7 +35,6 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'README.md',
     'README.en.md',
     'README.zh-CN.md',
-    'AGENTS.md',
     'compatibility.json',
     'LICENSE',
     'SECURITY.md',
@@ -91,7 +90,7 @@ test('public docs contain only user-facing product and operation information', (
   const docs = `${text('README.md')}\n${text('README.en.md')}\n${text('README.zh-CN.md')}`
   assert.match(docs, /silent fallback[\s\S]*paid route|不会静默切换[\s\S]*付费路由/iu)
   assert.match(docs, /reset time|重置时间/iu)
-  assert.match(docs, /AGENTS\.md/u)
+  assert.doesNotMatch(docs, /AGENTS\.md/u)
   assert.doesNotMatch(docs, /prompt_cache_key|previous_response_id|backend-api|autoInstallPeers|profiles\/node_modules/iu)
   assert.doesNotMatch(docs, /github\.com\/WSL043\/(?!(?:dsh-codex-subscription|DSH-Portable)(?:[\/)#]|$))[\w.-]+/iu)
   assert.doesNotMatch(docs, /安装提示词|更新提示词|卸载提示词|install prompt|update prompt|uninstall prompt/iu)
@@ -99,22 +98,6 @@ test('public docs contain only user-facing product and operation information', (
   assert.equal(docs.includes(compatibility.latestTested), true)
   assert.doesNotMatch(docs, /0\.1\.0-rc\.(?:6|7)|v0\.2\.1|1\.1\.0-beta\.0/iu)
   assert.equal(existsSync(new URL('../docs/CACHE.md', import.meta.url)), false)
-})
-
-test('shipped agent guide owns install, pinned update, verification, and uninstall', () => {
-  const guide = text('AGENTS.md')
-  const documentedVersion = guide.match(/dsh plugin --profile web add dsh-codex-subscription@(\d+\.\d+\.\d+)/u)?.[1]
-  assert.match(documentedVersion ?? '', /^\d+\.\d+\.\d+$/u)
-  assert.doesNotMatch(guide, /dsh-codex-subscription@\d+\.\d+\.\d+-beta\.\d+/u)
-  assert.doesNotMatch(guide, /\\dsh\.exe plugin/iu)
-  assert.equal(guide.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add dsh-codex-subscription@${documentedVersion}`), true)
-  assert.match(guide, /dsh plugin --profile web list dsh-codex-subscription --depth 0/u)
-  assert.match(guide, /dsh --profile web --dump-config/u)
-  assert.match(guide, /dsh plugin --profile web remove dsh-codex-subscription/u)
-  assert.doesNotMatch(guide, /scriptblock|Invoke-Expression|\biex\b/iu)
-  assert.match(guide, /do not.*wipe.*profile|preserve the DSH profile/iu)
-  assert.doesNotMatch(guide, /autoInstallPeers|profiles\/node_modules|checked-out development|pnpm install/iu)
-  assert.match(guide, /Do not[\s\S]*add a resident manager/iu)
 })
 
 test('GitHub defaults to Chinese, links a complete English README, and preserves the old Chinese URL', () => {
@@ -132,8 +115,8 @@ test('GitHub defaults to Chinese, links a complete English README, and preserves
     assert.doesNotMatch(doc, /img\.shields\.io\/npm\/d(?:m|w|y)\/dsh-codex-subscription/u)
     assert.match(doc, /npmjs\.com\/package\/dsh-codex-subscription/u)
   }
-  assert.match(readmeZh, /## 准备 DSH[\s\S]*DSH-Portable[\s\S]*Windows、macOS 和 Linux[\s\S]*社区便携桌面分发[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## 安装[\s\S]*### DSH 标准命令[\s\S]*### 交给 Agent[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md/u)
-  assert.match(readme, /## Prepare DSH[\s\S]*DSH-Portable[\s\S]*community portable desktop distribution for Windows, macOS, and Linux[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## Install[\s\S]*### Standard DSH command[\s\S]*### Let an Agent install it[\s\S]*https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/AGENTS\.md/u)
+  assert.match(readmeZh, /## 准备 DSH[\s\S]*DSH-Portable[\s\S]*Windows、macOS 和 Linux[\s\S]*社区便携桌面分发[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## 安装[\s\S]*### DSH 标准命令/u)
+  assert.match(readme, /## Prepare DSH[\s\S]*DSH-Portable[\s\S]*community portable desktop distribution for Windows, macOS, and Linux[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## Install[\s\S]*### Standard DSH command/u)
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /社区便携包|community DSH-Portable package/iu)
   assert.match(readmeZh, /本项目的问题反馈[\s\S]*github\.com\/WSL043\/dsh-codex-subscription\/issues[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
   assert.match(readme, /project feedback[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
@@ -197,8 +180,8 @@ test('each complete README stays in one language and links to the complete trans
 test('public readmes provide explicit update commands and verification', () => {
   const readmeEn = text('README.en.md')
   const readmeZh = text('README.md')
-  assert.match(readmeZh, /## 更新与卸载[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
-  assert.match(readmeEn, /## Update and uninstall[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
+  assert.match(readmeZh, /## 更新与卸载[\s\S]*### 更新并检查[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*### 卸载[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
+  assert.match(readmeEn, /## Update and uninstall[\s\S]*### Update and verify[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*### Uninstall[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
   assert.match(readmeZh, /dsh plugin --profile web add dsh-codex-subscription/u)
   assert.match(readmeEn, /dsh plugin --profile web add dsh-codex-subscription/u)
   for (const readme of [readmeZh, readmeEn]) {
@@ -206,6 +189,8 @@ test('public readmes provide explicit update commands and verification', () => {
     assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web list dsh-codex-subscription --depth 0`), true)
     assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} --profile web --dump-config`), true)
   }
+  assert.match(readmeZh, /1\.13\.2[\s\S]*(?:图片预览|原图路径)/u)
+  assert.match(readmeEn, /1\.13\.2[\s\S]*(?:image preview|original path)/iu)
   assert.doesNotMatch(`${readmeZh}\n${readmeEn}`, /\birm\b|dsh-codex-setup\.ps1/iu)
 })
 
@@ -243,14 +228,12 @@ test('uninstall never recursively deletes a caller-selected command directory', 
 })
 
 test('docs explain dynamic quota buckets without exposing maintenance internals', () => {
-  const agent = readFileSync(new URL('../AGENTS.md', import.meta.url), 'utf8')
   const readmeEn = readFileSync(new URL('../README.en.md', import.meta.url), 'utf8')
   const readmeZh = readFileSync(new URL('../README.md', import.meta.url), 'utf8')
   for (const text of [readmeZh, readmeEn]) {
     assert.match(text, /Spark/u)
     assert.match(text, /backend-provided|actual.*returned|服务端实际返回/iu)
   }
-  assert.match(agent, /Codex subscription/u)
 })
 
 test('release-age exceptions are pinned to the audited DeepSeek preview graph', () => {
@@ -282,7 +265,8 @@ test('official DSH compatibility updates are detected, accepted, and then dispat
   assert.match(workflow, /test "\$\(git rev-parse origin\/main\)" = "\$GITHUB_SHA"/u)
   assert.match(workflow, /git push origin HEAD:main[\s\S]*gh workflow run publish\.yml/u)
   assert.match(workflow, /release_kind=compatibility/u)
-  assert.match(workflow, /git add --[^\n]*AGENTS\.md[^\n]*README\.md[^\n]*README\.zh-CN\.md[^\n]*compatibility\.json/u)
+  assert.match(workflow, /git add --[^\n]*README\.md[^\n]*README\.zh-CN\.md[^\n]*compatibility\.json/u)
+  assert.doesNotMatch(workflow, /git add --[^\n]*AGENTS\.md/u)
   assert.doesNotMatch(workflow, /git add --[^\n]*\.github\/workflows\/publish\.yml/u)
   assert.match(workflow, /request_id="compat-\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}"/u)
   assert.match(workflow, /gh run watch "\$release_run"[\s\S]*--exit-status/u)

@@ -23,6 +23,11 @@
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero.webp" width="900" alt="Codex 订阅直接用在 DSH：订阅模型、联网搜索、额度与安全重置、图片生成和高速模式">
 </p>
 
+## 1.13.2 重点变化
+
+- 修复 DSH Web 中生成图片预览无法打开的问题，生成图片可以继续在会话中查看。
+- 新生成或编辑的图片会在工具结果中返回当前 DSH 主机上的原图路径，方便模型或 Agent 读取或复制；预览和下载仍按会话权限处理。
+
 ## 三步开始
 
 1. **安装插件**：直接运行 DSH 标准 bundle 命令：
@@ -34,7 +39,7 @@
 2. **登录订阅**：手动重启 DSH，打开 **设置 -> Codex 订阅**，点击浏览器登录。无需 Codex CLI，也不要粘贴 token。
 3. **开始使用**：在模型选择器中选择 Codex；额度、订阅搜索、图片生成和高速模式都在 DSH 内使用。
 
-DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的命令。完整的官方 npm、Agent 安装、更新和卸载方式见下文。
+DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的命令。完整的官方 npm、更新和卸载方式见下文。
 
 ## 核心优势
 
@@ -46,7 +51,7 @@ DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的�
 | **输入框额度** | 可选择紧凑百分比、进度条或完全关闭输入框额度显示 |
 | **安全额度重置** | 每张重置卡单独显示，并通过冷静期和知情确认主动尝试重置 |
 | **订阅搜索** | 可将全部模型的搜索明确路由到 DSH 默认搜索或已登录的 Codex 订阅 |
-| **Codex 图片生成与编辑（Beta）** | 可无参考图全新生成，也可明确选择会话图片继续编辑；支持预览、缩放、区域备注、下载原图并衔接回当前输入框 |
+| **Codex 图片生成与编辑（Beta）** | 可无参考图全新生成，也可明确选择会话图片继续编辑；支持预览、缩放、区域备注、下载原图，并为新生成或编辑的图片提供 DSH 主机上的原图路径 |
 | **高速模式** | 直接在输入框切换标准或高速，无需离开当前会话 |
 | **模型感知上下文** | 可保留目录默认值、按模型启用扩展窗口，或为每个模型填写完整数字 Token 上限 |
 | **Headless 任务** | 使用同一份已登录的 Codex Provider 运行一次性 DSH 任务，输出答案后自动退出 |
@@ -59,7 +64,7 @@ DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的�
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/context-settings.png" width="820" alt="当前 DeepSeek Harness Codex 订阅设置，包含搜索来源、模型感知上下文、输入框额度和支持诊断">
 </p>
 
-图片来自已安装的官方 DeepSeek Harness `0.1.2-rc.1` 与当前插件构建。
+截图用于说明设置页布局；可用选项会随 DSH 与插件版本变化。
 
 ## 准备 DSH
 
@@ -86,18 +91,6 @@ dsh plugin --profile web add dsh-codex-subscription
 dsh plugin --profile headless add dsh-codex-subscription
 dsh --profile headless "只回复：ok"
 ```
-
-### 交给 Agent
-
-把这个链接直接发给 Agent：
-
-**[Agent 安装、更新与卸载文档](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md)**
-
-```text
-https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/AGENTS.md
-```
-
-Agent 文档包含安装、更新、卸载和验收步骤，并要求保留 DSH profile、登录信息和其他插件。
 
 <details>
 <summary>官方 npm 方式（已安装 Node.js）</summary>
@@ -165,17 +158,17 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 
 ### 图片生成与编辑（Beta）
 
-如果安装了 `dsh-image-viewer`，生成图片会优先交给它统一预览；订阅插件自己的查看器仅在该服务不存在或拒绝打开时兜底，不会与图片查看器争抢入口。图片查看器负责缩放、拖动、适合窗口、会话预览下载和区域备注，订阅插件只负责 Codex 图片生成/编辑、精确原图权限和“继续编辑”交接。
-两条路径都支持查看尺寸和编号区域备注；标准“下载”按钮默认获取经过权限与完整性校验的精确原图，只有旧会话没有精确原图时才下载会话预览图。
-按 Enter 保存并收起当前备注，Shift+Enter 可以换行；在当前 DSH 页面会话内重新打开同一张图片时，备注仍会保留。
-点击“在输入框中继续编辑”时，只会附上当前打开的这一张图，并把部位标注写入草稿，不会自动发送。
-新的图片请求不会静默带入历史图片。GPT Image 2 的耗时可能明显长于文本回复，复杂文字、精确构图和连续角色一致性也可能需要再次调整。
+如果安装了 `dsh-image-viewer`，生成图片会优先使用它的统一预览；没有该服务或其拒绝打开时，插件使用自己的查看器。你可以缩放、拖动、适合窗口、添加区域备注并下载图片。标准“下载”默认获取经过权限与完整性校验的精确原图；旧会话没有精确原图时才下载会话预览图。
+
+新生成或编辑的图片会在工具结果中返回当前 DSH 主机上的原图路径，模型或 Agent 可以读取或复制该文件。该路径位于运行 DSH 的主机，并非浏览器下载链接；原图下载仍按会话授权。卸载插件不会删除已生成的原图。
+
+点击“在输入框中继续编辑”只附上当前打开的图片，并把部位标注写入草稿，不会自动发送。按 Enter 保存并收起备注，Shift+Enter 换行；在当前 DSH 页面重新打开同一张图片时，备注仍会保留。
+
+新的图片请求不会静默带入历史图片。GPT Image 2 可能比文本回复耗时更长，复杂文字、精确构图和连续角色一致性也可能需要再次调整。
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/image-preview-annotations.png" width="800" alt="DSH 图片查看器中的生成图、区域备注和继续编辑">
 </p>
-
-GPT Image 返回的精确字节会单独保存在当前 DSH 主目录中，因为 DSH 可能为会话展示和后续模型输入规范化预览图。原图下载前会校验完整性，只允许创建会话或确实继承了该图片结果的 Fork 会话访问；提前创建的 Fork 和无关会话会被拒绝。原图字节不会写入会话日志，卸载插件也不会删除已经生成的原图。
 
 ### 输入框速度
 
@@ -185,12 +178,19 @@ GPT Image 返回的精确字节会单独保存在当前 DSH 主目录中，因�
 
 ## 更新与卸载
 
-更新、校验和卸载继续使用同一套 DSH 插件生命周期：
+### 更新并检查
 
 ```sh
 dsh plugin --profile web update dsh-codex-subscription
 dsh plugin --profile web list dsh-codex-subscription --depth 0
 dsh --profile web --dump-config
+```
+
+### 卸载
+
+确认需要移除插件后再运行：
+
+```sh
 dsh plugin --profile web remove dsh-codex-subscription
 ```
 
@@ -199,10 +199,17 @@ dsh plugin --profile web remove dsh-codex-subscription
 <details>
 <summary>官方 npm 备用方式</summary>
 
+### 更新并检查
+
 ```sh
 npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web update dsh-codex-subscription
 npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
 npx -y @deepseek-ai/dsh@0.1.2-rc.1 --profile web --dump-config
+```
+
+### 卸载
+
+```sh
 npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web remove dsh-codex-subscription
 ```
 
@@ -212,7 +219,7 @@ npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web remove dsh-codex-subscri
 
 - **`dsh` 无法识别**：官方 npm 方式本来就不会创建全局 `dsh` 命令，请使用上面的完整 `npx -y @deepseek-ai/dsh@0.1.2-rc.1 ...` 命令；
 - **电脑上有多个 DSH**：请从目标 DSH 环境运行标准命令，由该产品自身选择对应 profile；
-- **安装仍然失败**：把上面的 Agent 文档链接发给 Agent，不要删除 profile 或随意修改系统 PATH。
+- **安装仍然失败**：确认命令是在目标 DSH 环境中运行，不要删除 profile 或随意修改系统 PATH。
 - **需要提交问题**：在设置页底部生成“支持诊断”，然后打开[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)。报告包含系统/运行时、有限的登录阶段和安全的请求失败分类，但不含凭据、账号标识、代理地址、原始响应或完整日志；请粘贴到必填诊断栏，且不要附上登录链接、授权码或浏览器回调地址。
 
 ## 边界与支持

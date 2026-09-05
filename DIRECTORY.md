@@ -18,7 +18,7 @@ Use a ChatGPT subscription in DeepSeek Harness through independent OAuth sign-in
 - Codex CLI required: no
 - OpenAI API key required: no
 - Platforms: official DSH plus DSH-Portable product forms for Windows, macOS, and Linux
-- Main capabilities: Codex models, model-aware context windows, quota and expiring resets, web search, Beta image generation/editing with explicit references and native preview/download, optional composer quota, Fast mode, existing-proxy adaptation, secret-free actionable support diagnostics, and direct feedback
+- Main capabilities: Codex models, model-aware context windows, quota and expiring resets, web search, Beta image generation/editing with explicit references, native preview/download, and original host paths for new images, optional composer quota, Fast mode, existing-proxy adaptation, secret-free actionable support diagnostics, and direct feedback
 - Safety boundary: subscription failures remain visible and never silently fall back to another paid provider
 
 ## Install

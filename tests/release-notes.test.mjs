@@ -36,11 +36,39 @@ test('GitHub Release notes stay user-facing and exclude internal maintenance evi
   assert.match(releaseWorkflow, /release_notes_en:[\s\S]*English user-facing release summary/u)
   assert.match(releaseWorkflow, /release_notes_zh:[\s\S]*Chinese user-facing release summary/u)
   assert.match(notesStep, /Feature and bugfix releases require explicit bilingual release notes/u)
+  assert.match(notesStep, /beta_notes_en="\$RELEASE_NOTES_EN"/u)
+  assert.match(notesStep, /beta_notes_zh="\$RELEASE_NOTES_ZH"/u)
+  assert.doesNotMatch(notesStep, /Switch supported Codex models between Standard and Fast|输入框支持为兼容的 Codex 模型切换标准或高速/u)
+  assert.match(notesStep, /## Install or update the Beta[\s\S]*dsh-codex-subscription@\$RELEASE_VERSION/u)
+  assert.match(notesStep, /## 安装或更新 Beta[\s\S]*dsh-codex-subscription@\$RELEASE_VERSION/u)
   assert.match(
     notesStep,
     /if \[\[ "\$RELEASE_NOTES_EN" == \*'\\n'\* \|\| "\$RELEASE_NOTES_ZH" == \*'\\n'\* \]\]; then/u,
   )
   assert.match(notesStep, /real line breaks, not literal/u)
+  const validationStart = notesStep.indexOf("if [[ \"${RELEASE_KIND:-feature}\" != 'compatibility' ]]")
+  const prereleaseStart = notesStep.indexOf('if [[ "$IS_PRERELEASE" == \'true\' ]]')
+  assert.ok(validationStart >= 0 && prereleaseStart > validationStart, 'bilingual note validation must precede prerelease branching')
+})
+
+test('release lifecycle commands keep update and uninstall in separate sections', () => {
+  const notesStart = releaseWorkflow.indexOf('- name: Prepare beginner-facing release notes')
+  const notesEnd = releaseWorkflow.indexOf('- name: Build immutable release assets')
+  const notesStep = releaseWorkflow.slice(notesStart, notesEnd)
+  for (const [updateHeading, uninstallHeading, updateCommand, uninstallCommand] of [
+    ['### Update', '### Uninstall', 'npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription', 'npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription'],
+    ['### 更新', '### 卸载', 'npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription', 'npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription'],
+  ]) {
+    const updateStart = notesStep.indexOf(updateHeading)
+    const uninstallStart = notesStep.indexOf(uninstallHeading, updateStart + updateHeading.length)
+    assert.ok(updateStart >= 0 && uninstallStart > updateStart, `${updateHeading} must precede ${uninstallHeading}`)
+    const updateSection = notesStep.slice(updateStart, uninstallStart)
+    const uninstallSection = notesStep.slice(uninstallStart)
+    assert.match(updateSection, new RegExp(updateCommand.replaceAll(/[.*+?^${}()|[\]\\]/gu, '\\$&')))
+    assert.doesNotMatch(updateSection, /plugin --profile web remove dsh-codex-subscription/u)
+    assert.match(uninstallSection, new RegExp(uninstallCommand.replaceAll(/[.*+?^${}()|[\]\\]/gu, '\\$&')))
+  }
+  assert.doesNotMatch(notesStep, /list dsh-codex-subscription|--dump-config/u)
 })
 
 test('feature releases credit merged contributor PRs with verified authors and links', () => {
