@@ -22,7 +22,11 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
 </p>
 
-## What's included in 1.14.1
+## What's included in 1.14.2
+
+- GPT-6 Astra now supports model-catalog context settings: Standard preserves the catalog default, Extended uses 872K, and Custom is bounded to 128K–872K.
+
+### From 1.14.1
 
 - The composer shows both 5-hour and weekly quota windows when returned by the service, so neither window is hidden.
 - Image edits validate attachment references, normalize bare SHA-256 digests, and resolve the actual attachment metadata from the current session. Paths produce an actionable error asking the model to obtain the correct reference with `read_image` and retry.

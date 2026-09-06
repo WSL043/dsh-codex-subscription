@@ -23,7 +23,11 @@
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero.webp" width="900" alt="Codex 订阅直接用在 DSH：订阅模型、联网搜索、额度与安全重置、图片生成和高速模式">
 </p>
 
-## 1.14.1 重点变化
+## 1.14.2 重点变化
+
+- GPT-6 Astra 支持模型目录上下文设置：标准模式保留目录默认值，扩展模式使用 872K，自定义模式限制为 128K–872K。
+
+### 1.14.1 更新回顾
 
 - 输入框同时显示服务端返回的 5 小时与每周额度，避免其中一个额度窗口被隐藏。
 - 图片编辑会检查附件引用，自动补全裸 SHA-256，并从当前会话取回真实附件元数据；误填路径时提示模型通过 `read_image` 获取正确引用并重试。
