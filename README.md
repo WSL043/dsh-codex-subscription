@@ -169,7 +169,7 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/image-preview-annotations.png" width="800" alt="DSH 图片查看器中的生成图、区域备注和继续编辑">
 </p>
 
-上图展示图片查看与图上备注的基本交互。1.14.0 已内置相同的基础体验；具体按钮会随图片和所安装的查看器版本变化。
+上图展示图片查看与图上备注的基本交互；具体按钮会随图片和所安装的查看器版本变化。
 
 ### 输入框速度
 

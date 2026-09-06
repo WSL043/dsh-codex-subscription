@@ -171,7 +171,7 @@ A new image request does not silently include earlier images. GPT Image 2 can ta
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/image-preview-annotations-en.png" width="800" alt="Generated image, region note, and continue editing inside the DSH Image Viewer">
 </p>
 
-The screenshot above illustrates image viewing and on-image notes. Version 1.14.0 includes the same basic experience; available buttons can vary with the image and installed viewer version.
+The screenshot above illustrates image viewing and on-image notes; available buttons can vary with the image and installed viewer version.
 
 ### Composer speed
 
