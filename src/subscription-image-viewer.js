@@ -51,9 +51,8 @@ const copyAnnotations = annotations => annotations.map(annotation => ({ ...annot
 /**
  * Local image viewer state for subscription-generated images.
  *
- * This deliberately stays private to the subscription client. An installed
- * native image viewer can take the request first, while this service provides
- * the same baseline experience when that optional plugin is absent.
+ * This stays private to subscription image cards, which need annotation and
+ * edit actions that a host's generic native viewer may not implement.
  */
 export class SubscriptionImageViewerService {
   #listeners = new Set()

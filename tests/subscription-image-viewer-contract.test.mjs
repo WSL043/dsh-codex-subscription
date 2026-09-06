@@ -4,7 +4,7 @@ import test from 'node:test'
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
-test('subscription client keeps external viewer priority and owns only its local overlay', async () => {
+test('subscription client preserves editing actions in its own local overlay', async () => {
   const source = await read('src/client.jsx')
   const viewer = await read('src/subscription-image-viewer.jsx')
   const styles = await read('src/subscription-image-viewer-styles.js')
@@ -12,7 +12,7 @@ test('subscription client keeps external viewer priority and owns only its local
   assert.match(source, /SubscriptionImageViewerService/u)
   assert.match(source, /slots\.inject\(['"]shell\.overlay['"]/u)
   assert.match(source, /getImageViewer\?\.\(\)/u)
-  assert.match(source, /viewer\?\.open\?\.\(request\) === true[\s\S]*?getInternalImageViewer/u)
+  assert.match(source, /getInternalImageViewer\?\.\(\)\?\.open\?\.\(request\) === true[\s\S]*?viewer\?\.open\?\.\(request\)/u)
   assert.doesNotMatch(source, /installOfficialImageBridge|nativeImageButton|reflect\.provide\(['"]nativeImageViewer/u)
   assert.doesNotMatch(source, /codexGeneratedImageLightbox|codexGeneratedImageTopbar|codexGeneratedImageComments/u)
   assert.match(viewer, /addEventListener\('wheel', onWheel, \{ passive: false \}\)/u)

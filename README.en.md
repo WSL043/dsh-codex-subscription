@@ -161,7 +161,7 @@ clicks are single-flight, and an uncertain network result is never retried autom
 
 ### Image generation and editing (Beta)
 
-A basic viewer derived from `dsh-image-viewer` is now built in, with no extra installation required. If `dsh-image-viewer` is installed, its unified preview still takes priority; otherwise, or if it declines, the built-in viewer opens. You can zoom, pan, fit, add region notes, and download the image. The standard **Download** action retrieves the permission- and integrity-checked exact original by default; only legacy sessions without an exact original fall back to the conversation preview.
+A basic viewer derived from `dsh-image-viewer` is now built in, with no extra installation required. Plugin-generated image cards use the built-in viewer to keep annotation and continue-editing actions available. You can zoom, pan, fit, add region notes, and download the image. The standard **Download** action retrieves the permission- and integrity-checked exact original by default; only legacy sessions without an exact original fall back to the conversation preview.
 
 New and edited images return the exact original path on the current DSH host in the tool result, so a model or Agent can read or copy the file. The path is on the host running DSH, not a browser download link; original downloads remain session-authorized. Uninstalling the plugin does not delete generated originals.
 

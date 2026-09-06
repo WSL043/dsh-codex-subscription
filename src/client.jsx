@@ -377,9 +377,9 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
       source: 'codex-generated',
       annotations: true,
     }
+    if (getInternalImageViewer?.()?.open?.(request) === true) return
     const viewer = getImageViewer?.()
-    if (viewer?.open?.(request) === true) return
-    getInternalImageViewer?.()?.open?.(request)
+    viewer?.open?.(request)
   }
   if (error) {
     return <button type="button" className="codexGeneratedImageRetry" onClick={() => setAttempt(value => value + 1)}>{t('imageLoadFailed')}</button>
