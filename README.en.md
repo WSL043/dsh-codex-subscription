@@ -25,7 +25,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 ## What's included in 1.14.1
 
 - The composer shows both 5-hour and weekly quota windows when returned by the service, so neither window is hidden.
-- Image edits validate attachment references and normalize bare SHA-256 digests. Paths produce an actionable error asking the model to obtain the correct reference with `read_image` and retry.
+- Image edits validate attachment references, normalize bare SHA-256 digests, and resolve the actual attachment metadata from the current session. Paths produce an actionable error asking the model to obtain the correct reference with `read_image` and retry.
 - Location edits attach the clean source, a numbered annotation image, and coordinate instructions so the model can match each requested change to its location.
 
 ## Three-step start

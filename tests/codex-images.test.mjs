@@ -342,6 +342,65 @@ test('annotation edits forward both explicit images and the complete location pr
   assert.deepEqual(body.images, [originalBytes, referenceBytes].map(bytes => ({ image_url: `data:image/png;base64,${bytes.toString('base64')}` })))
 })
 
+test('session image references replace model-supplied annotation metadata before storage reads', async () => {
+  const annotation = { ...IMAGE_REF, attachmentId: `sha256:${'b'.repeat(64)}`, name: 'annotations.png', bytes: 69, originalDimensions: { width: 2, height: 2 } }
+  const reads = []
+  const sessions = []
+  const base = fixture()
+  const { requests, tool } = fixture({
+    async getSessionMessages(sessionId) {
+      sessions.push(sessionId)
+      return [{ role: 'user', content: [IMAGE_REF, annotation].map(attachment => ({ type: 'image', attachment })) }]
+    },
+    attachments: {
+      ...base.attachments,
+      async readImage(ref) {
+        reads.push(ref)
+        return { ref, data: Buffer.from(ONE_PIXEL_PNG, 'base64') }
+      },
+    },
+  })
+  await tool.execute({ prompt: 'make marker 1 red', referenceImages: [IMAGE_REF, { ...annotation, bytes: IMAGE_REF.bytes, name: 'wrong-name.png', originalDimensions: { width: 9, height: 9 } }] }, execContext('session-metadata'))
+  assert.deepEqual(sessions, ['session-image'])
+  assert.deepEqual(reads, [IMAGE_REF, annotation])
+  assert.equal(requests.length, 1)
+  assert.equal(JSON.parse(requests[0].init.body).images.length, 2)
+})
+
+test('references absent from the current session fail before any storage read or provider call', async () => {
+  const foreign = { ...IMAGE_REF, attachmentId: `sha256:${'c'.repeat(64)}` }
+  const sessions = new Map([
+    ['session-image', [{ role: 'user', content: [{ type: 'image', attachment: IMAGE_REF }] }]],
+    ['other-session', [{ role: 'user', content: [{ type: 'image', attachment: foreign }] }]],
+  ])
+  for (const selected of [foreign, { ...IMAGE_REF, attachmentId: `sha256:${'d'.repeat(64)}` }]) {
+    const reads = []
+    const base = fixture()
+    const { requests, tool } = fixture({
+      async getSessionMessages(sessionId) { return sessions.get(sessionId) },
+      attachments: { ...base.attachments, async readImage(ref) { reads.push(ref); return { ref, data: Buffer.from(ONE_PIXEL_PNG, 'base64') } } },
+    })
+    await assert.rejects(tool.execute({ prompt: 'edit', referenceImages: [IMAGE_REF, selected] }, execContext('session-missing')), /cannot be found in the current session/i)
+    assert.deepEqual(reads, [])
+    assert.equal(requests.length, 0)
+  }
+})
+
+test('nested tool-result image references match a normalized bare digest', async () => {
+  const reads = []
+  const base = fixture()
+  const { requests, tool } = fixture({
+    async getSessionMessages(sessionId) {
+      assert.equal(sessionId, 'session-image')
+      return [{ role: 'tool', content: [{ type: 'tool-result', callId: 'generated', content: [{ type: 'text', text: 'Generated image' }, { type: 'image', attachment: IMAGE_REF }] }] }]
+    },
+    attachments: { ...base.attachments, async readImage(ref) { reads.push(ref); return { ref, data: Buffer.from(ONE_PIXEL_PNG, 'base64') } } },
+  })
+  await tool.execute({ prompt: 'edit nested result', referenceImages: [{ ...IMAGE_REF, attachmentId: IMAGE_DIGEST.toUpperCase(), bytes: 100 }] }, execContext('session-nested'))
+  assert.deepEqual(reads, [IMAGE_REF])
+  assert.equal(requests.length, 1)
+})
+
 test('malformed and oversized image payloads fail before attachment persistence', async () => {
   assert.throws(() => decodeCodexPng('not base64', 1024), /valid base64 PNG/)
   assert.throws(() => decodeCodexPng(Buffer.from('plain text').toString('base64'), 1024), /valid PNG/)

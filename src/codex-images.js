@@ -151,11 +151,36 @@ function referenceOf(value, attachments) {
   return imageReference({ ...value, attachmentId })
 }
 
-async function editImages(values, attachments, signal) {
+function sessionImageReferences(messages) {
+  const references = new Map()
+  const visit = content => {
+    if (!Array.isArray(content)) return
+    for (const block of content) {
+      if (block?.type === 'image' && record(block.attachment)) {
+        const id = normalizeAttachmentId(block.attachment.attachmentId)
+        if (id !== undefined) references.set(id, block.attachment)
+      } else if (block?.type === 'tool-result') visit(block.content)
+    }
+  }
+  for (const message of messages ?? []) visit(message?.content)
+  return references
+}
+
+async function editImages(values, attachments, signal, messages) {
   if (!Array.isArray(values) || values.length === 0 || values.length > MAX_REFERENCE_IMAGES) {
     throw new Error(`referenceImages must contain between 1 and ${MAX_REFERENCE_IMAGES} images`)
   }
-  const references = values.map(value => referenceOf(value, attachments))
+  const available = messages === undefined ? undefined : sessionImageReferences(messages)
+  const references = values.map(value => {
+    const id = normalizeAttachmentId(value?.attachmentId)
+    if (id === undefined) invalidAttachmentId(value)
+    if (available === undefined) return referenceOf(value, attachments)
+    const selected = available.get(id)
+    if (selected === undefined) {
+      throw new Error('The selected image attachment cannot be found in the current session. Call read_image on the intended image and retry with its returned reference. Do not omit referenceImages or substitute another image.')
+    }
+    return referenceOf(selected, attachments)
+  })
   if (new Set(references.map(value => value.attachmentId)).size !== references.length) {
     throw new Error('referenceImages must not contain duplicates')
   }
@@ -331,8 +356,11 @@ export function createCodexImageTool(options) {
         attachments.imageLimits.maxMessageImageBytes,
       )
       const editing = args.referenceImages !== undefined
+      const sessionMessages = editing && typeof options.getSessionMessages === 'function'
+        ? await options.getSessionMessages(exec.agent?.id)
+        : undefined
       const images = editing
-        ? await editImages(args.referenceImages, attachments, exec.signal)
+        ? await editImages(args.referenceImages, attachments, exec.signal, sessionMessages ?? (options.getSessionMessages ? [] : undefined))
         : undefined
       let response
       try {
