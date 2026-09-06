@@ -149,8 +149,8 @@ The plugin can follow an existing HTTPS proxy from the process environment or op
 </p>
 
 Choose Off, Percent, Progress bar, or Beta Runway in Settings. The compact display appears only for a selected Codex model. Runway is opt-in and estimates pace only from official remaining-percentage observations. It needs at least three samples; sustained high use usually produces a range in 5–10 minutes, while low use takes longer or reports a stable state. Non-sensitive observations from the last 24 hours are kept locally so calibration can continue after restart; a quota reset, account switch, or disabling the feature starts a new calibration period.
-Standard Codex uses the lowest remaining window returned by the service; Spark uses its independent quota. The plugin does not hard-code a
-“5-hour + weekly” layout or invent Credits and spending caps that the service did not return.
+The composer shows each returned quota window with its duration. When Plus returns both five-hour and weekly limits, both are visible. Spark keeps its independent quota. Accounts with only a weekly window still show only that window; the plugin does not invent a
+five-hour limit, Credits, or spending caps that the service did not return.
 
 ### Safe quota reset
 
