@@ -22,22 +22,6 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
 </p>
 
-## What's included in 1.14.3
-
-- Fix delayed model-catalog refresh when Settings opens or the account changes: the completed refresh shows the current subscription models, including GPT-6 Astra, and can be retried after a failure.
-- Account-status retry now sends a real new request; timeouts, stale responses from an old account, and connection resets cannot overwrite current state or remove saved sign-in data.
-- Model-catalog refresh no longer interrupts an unsaved context-settings draft.
-
-### From 1.14.2
-
-- GPT-6 Astra now supports model-catalog context settings: Standard preserves the catalog default, Extended uses 872K, and Custom is bounded to 128K–872K.
-
-### From 1.14.1
-
-- The composer shows both 5-hour and weekly quota windows when returned by the service, so neither window is hidden.
-- Image edits validate attachment references, normalize bare SHA-256 digests, and resolve the actual attachment metadata from the current session. Paths produce an actionable error asking the model to obtain the correct reference with `read_image` and retry.
-- Location edits attach the clean source, a numbered annotation image, and coordinate instructions so the model can match each requested change to its location.
-
 ## Three-step start
 
 1. **Install the plugin.** Run the standard DSH bundle command:
@@ -56,14 +40,14 @@ DSH-Portable exposes the same standard plugin command, so the command above also
 | Capability | What you get |
 | --- | --- |
 | **Subscription models** | Sign in to ChatGPT and use Codex without an OpenAI API key or Codex CLI |
-| **Recoverable and diagnosable** | Sign-in state reconciles automatically; Settings can create a support report without credentials or account identifiers |
+| **Recoverable and diagnosable** | Sign-in state reconciles automatically; failed reads can be retried in place, while timeouts and stale account responses cannot overwrite current state; Settings can create a support report without credentials or account identifiers |
 | **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate |
 | **Composer quota** | Choose a compact percentage, progress bar, or no inline quota display |
 | **Safe quota reset** | See each reset credit separately and deliberately try one with a cooldown and acknowledgement |
 | **Subscription search** | Explicitly route search globally through DSH default search or the signed-in Codex subscription |
 | **Codex image generation and editing (Beta)** | Generate without references, or explicitly edit one selected image; preview, zoom, annotate regions, download the original, and get the original host path for new or edited images |
 | **Fast mode** | Switch between Standard and Fast directly in the composer |
-| **Model-aware context** | Keep catalog defaults, use each model's supported extended window, or enter a full numeric token limit for each model |
+| **Model-aware context** | Keep catalog defaults, use each model's supported extended window, or enter a full numeric token limit for each model; Settings refreshes the model directory on open, account changes, and connection resets without overwriting an unsaved draft |
 | **Headless runs** | Use the same signed-in Codex provider for one-shot DSH tasks that print their answer and exit |
 
 These capabilities reuse the same local ChatGPT sign-in. Subscription routing failures stay visible and never silently switch to another paid route.
