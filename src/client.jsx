@@ -530,10 +530,11 @@ function ContextWindowPreference({ preference, t }) {
   const draftSeed = modelRows.map(model => `${model.key}\u0000${snapshot.customContextWindows[model.key]}`).join('\u0001')
   useEffect(() => {
     const savedValues = Object.fromEntries(modelRows.map(model => [model.key, String(snapshot.customContextWindows[model.key])]))
+    const previous = previousSavedValues.current
     setDrafts(current => reconcileContextDrafts({
       modelRows,
       drafts: current,
-      previousSavedValues: previousSavedValues.current,
+      previousSavedValues: previous,
       savedValues,
     }))
     previousSavedValues.current = savedValues
