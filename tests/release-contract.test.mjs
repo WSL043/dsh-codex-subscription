@@ -189,8 +189,10 @@ test('public readmes provide explicit update commands and verification', () => {
     assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web list dsh-codex-subscription --depth 0`), true)
     assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} --profile web --dump-config`), true)
   }
-  assert.ok(readmeZh.includes(`## ${manifest.version} 重点变化`))
-  assert.ok(readmeEn.includes(`## What's included in ${manifest.version}`))
+  assert.doesNotMatch(readmeZh, /^## \d+\.\d+\.\d+ 重点变化$/mu)
+  assert.doesNotMatch(readmeEn, /^## What's included in \d+\.\d+\.\d+$/mu)
+  assert.match(readmeZh, /\*\*模型感知上下文\*\*[\s\S]*模型目录[\s\S]*未保存的草稿/u)
+  assert.match(readmeEn, /\*\*Model-aware context\*\*[\s\S]*model directory[\s\S]*unsaved draft/u)
   assert.doesNotMatch(`${readmeZh}\n${readmeEn}`, /\birm\b|dsh-codex-setup\.ps1/iu)
 })
 
