@@ -22,12 +22,11 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
 </p>
 
-## What's included in 1.14.0
+## What's included in 1.14.1
 
-- Built-in image viewer: a bottom toolbar, wheel zoom, drag to pan, on-image notes, copy notes, and continue editing, without another plugin.
-
-- Fixes generated-image previews that could not open in DSH Web, so generated images can be viewed in the conversation again.
-- New and edited images now return the exact original path on the current DSH host in the tool result, so a model or Agent can read or copy the file; preview and download remain session-authorized.
+- The composer shows both 5-hour and weekly quota windows when returned by the service, so neither window is hidden.
+- Image edits validate attachment references and normalize bare SHA-256 digests. Paths produce an actionable error asking the model to obtain the correct reference with `read_image` and retry.
+- Location edits attach the clean source, a numbered annotation image, and coordinate instructions so the model can match each requested change to its location.
 
 ## Three-step start
 
