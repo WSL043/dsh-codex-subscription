@@ -114,6 +114,26 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
         return publicError('internal', 'Could not create support diagnostics')
       }
     }
+    if (endpoint === 'preferences/models') {
+      try {
+        signal.throwIfAborted()
+        if (typeof modelCatalog?.refresh !== 'function' || typeof preferences?.status !== 'function') {
+          return publicError('internal', 'Could not refresh Codex model catalog')
+        }
+        await modelCatalog.refresh({ signal })
+        const value = preferences.status()
+        return {
+          ok: true,
+          value: {
+            contextModels: Array.isArray(value?.contextModels) ? value.contextModels : [],
+            verbosityModels: Array.isArray(value?.verbosityModels) ? value.verbosityModels : [],
+          },
+        }
+      } catch (error) {
+        if (signal.aborted) throw error
+        return publicError('internal', 'Could not refresh Codex model catalog')
+      }
+    }
     if (endpoint === 'preferences/status' || endpoint === 'preferences/update') {
       try {
         signal.throwIfAborted()

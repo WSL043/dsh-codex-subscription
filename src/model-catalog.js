@@ -3,6 +3,7 @@ import { PACKAGE_VERSION, USER_AGENT } from './version.js'
 export const CODEX_MODELS_URL = `https://chatgpt.com/backend-api/codex/models?client_version=${encodeURIComponent(PACKAGE_VERSION)}`
 
 const LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+const DEFAULT_REFRESH_TIMEOUT_MS = 10_000
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 const nonEmpty = value => typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
 const positiveInteger = value => Number.isSafeInteger(value) && value > 0 ? value : undefined
@@ -73,17 +74,35 @@ function mergeModel(baseModels, remote) {
 
 export function createOfficialModelCatalog(options = {}) {
   const fetchCatalog = options.fetch ?? fetch
+  const scheduleTimeout = options.setTimeout ?? setTimeout
+  const cancelTimeout = options.clearTimeout ?? clearTimeout
+  const timeoutMs = Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
+    ? options.timeoutMs
+    : DEFAULT_REFRESH_TIMEOUT_MS
   let models
   let metadata = new Map()
   let etag
   let revision = 0
   let refreshing
+  let generation = 0
 
-  const refresh = async ({ signal } = {}) => {
-    if (refreshing !== undefined) return refreshing
-    refreshing = (async () => {
-      const auth = await options.getAuth({ signal })
-      const credential = await options.readCredential({ signal })
+  const refresh = ({ signal } = {}) => {
+    if (signal?.aborted) return Promise.reject(signal.reason ?? new Error('Codex model catalog refresh aborted'))
+    if (refreshing?.generation === generation) return refreshing.promise
+    const currentGeneration = generation
+    const controller = new AbortController()
+    const abort = () => {
+      if (!controller.signal.aborted) controller.abort(signal?.reason ?? new Error('Codex model catalog refresh aborted'))
+    }
+    signal?.addEventListener('abort', abort, { once: true })
+    const requestSignal = controller.signal
+    let timer
+    const timeoutError = new Error('Codex model catalog refresh timed out')
+    const work = (async () => {
+      const auth = await options.getAuth({ signal: requestSignal })
+      if (currentGeneration !== generation || requestSignal.aborted) return false
+      const credential = await options.readCredential({ signal: requestSignal })
+      if (currentGeneration !== generation || requestSignal.aborted) return false
       const access = auth?.auth?.apiKey
       const accountId = credential?.type === 'oauth' ? credential.accountId : undefined
       if (typeof access !== 'string' || access.length === 0 || typeof accountId !== 'string' || accountId.length === 0) {
@@ -97,21 +116,39 @@ export function createOfficialModelCatalog(options = {}) {
         'user-agent': USER_AGENT,
         ...(etag === undefined ? {} : { 'if-none-match': etag }),
       }
-      const response = await fetchCatalog(CODEX_MODELS_URL, { method: 'GET', redirect: 'error', headers, signal })
+      const response = await fetchCatalog(CODEX_MODELS_URL, { method: 'GET', redirect: 'error', headers, signal: requestSignal })
+      if (currentGeneration !== generation || requestSignal.aborted) return false
       if (response.status === 304) return false
       if (!response.ok) throw new Error(`Codex model catalog failed (HTTP ${response.status})`)
       const remote = parseOfficialModelCatalog(await response.json())
+      if (currentGeneration !== generation || requestSignal.aborted) return false
       if (remote.length === 0) throw new Error('Codex returned an empty model catalog')
       const baseModels = options.baseModels()
       const next = remote.map(model => mergeModel(baseModels, model)).filter(Boolean)
       if (next.length === 0) throw new Error('Codex model catalog has no compatible models')
+      if (currentGeneration !== generation || requestSignal.aborted) return false
       models = next
       metadata = new Map(remote.map(model => [model.id, model]))
       etag = nonEmpty(response.headers.get('etag')) ?? etag
       revision += 1
       return true
-    })().finally(() => { refreshing = undefined })
-    return refreshing
+    })()
+    let rejectAborted
+    const abortPromise = new Promise((_, reject) => {
+      rejectAborted = () => reject(requestSignal.reason ?? new Error('Codex model catalog refresh aborted'))
+      if (requestSignal.aborted) rejectAborted()
+      else requestSignal.addEventListener('abort', rejectAborted, { once: true })
+    })
+    timer = scheduleTimeout(() => controller.abort(timeoutError), timeoutMs)
+    timer.unref?.()
+    const promise = Promise.race([work, abortPromise]).finally(() => {
+      cancelTimeout(timer)
+      signal?.removeEventListener('abort', abort)
+      requestSignal.removeEventListener('abort', rejectAborted)
+      if (refreshing?.promise === promise) refreshing = undefined
+    })
+    refreshing = { generation: currentGeneration, promise, cancel: () => controller.abort() }
+    return promise
   }
 
   return Object.freeze({
@@ -120,6 +157,10 @@ export function createOfficialModelCatalog(options = {}) {
     metadata: modelId => metadata.get(modelId),
     revision: () => revision,
     clear() {
+      generation += 1
+      const flight = refreshing
+      refreshing = undefined
+      flight?.cancel()
       models = undefined
       metadata = new Map()
       etag = undefined

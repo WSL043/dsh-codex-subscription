@@ -118,7 +118,7 @@ const zh = {
   speedFast: '高速', speedFastHint: '1.5 倍，消耗更多 Credits',
   verbosityTitle: '输出详略', verbosityDefault: '模型默认', verbosityDefaultHint: '使用官方模型目录推荐值', verbosityLow: '简洁', verbosityLowHint: '更短、更直接', verbosityMedium: '均衡', verbosityMediumHint: '兼顾完整性与长度', verbosityHigh: '详细', verbosityHighHint: '更充分的说明与结构',
   modelMenuAria: '模型、推理等级、速度与输出详略', modelLabel: '模型', effortLabel: '推理等级', providerDefault: 'Default', selectModel: '选择模型',
-  modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
+  modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelDirectoryFailed: '模型目录加载失败，请重试。', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
   imageGenerate: '生成图片', imageBeta: 'Beta', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
   imageLabel: '生成的图片', imageOpen: '查看图片', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imagePreviewShort: '预览图', imageClosePreview: '关闭预览', imageDownload: '下载', imageDownloadPreparing: '正在准备原图…', imageDownloadFailed: '下载失败，重试', imageZoomOut: '缩小', imageZoomIn: '放大', imageFit: '适合窗口',
   imageAnnotate: '标注部位', imageAnnotateCancel: '取消标注', imageAnnotateHint: '点击图片添加编号标注', imageAnnotation: '标注 {value}', imageAnnotationPlaceholder: '描述这个部位要修改什么', imageRegions: '区域备注', imageCopyNotes: '复制备注', imageCopied: '已复制', imagePrevious: '上一张图片', imageNext: '下一张图片', imageZoomHint: '滚轮缩放 · 拖动查看 · 双击切换原始大小', imageActual: '原始大小', imageEditPrompt: '描述你想怎样修改这张图', imageEditDefault: '编辑这张图片。', imageRegionNotes: '部位修改：', imageEdit: '在输入框中继续编辑', imageEditPreparing: '正在添加到输入框…', imageEditFailed: '回填失败：请填写每个标记的备注，并确认输入框可接收图片后重试。', imageRemoveAnnotation: '删除标注',
@@ -182,7 +182,7 @@ const en = {
   speedFast: 'Fast', speedFastHint: '1.5x; higher Credits use',
   verbosityTitle: 'Output detail', verbosityDefault: 'Model default', verbosityDefaultHint: 'Use the official model catalog recommendation', verbosityLow: 'Concise', verbosityLowHint: 'Shorter and more direct', verbosityMedium: 'Balanced', verbosityMediumHint: 'Balance completeness and length', verbosityHigh: 'Detailed', verbosityHighHint: 'More explanation and structure',
   modelMenuAria: 'Model, effort, speed, and output detail', modelLabel: 'Model', effortLabel: 'Effort', providerDefault: 'Default', selectModel: 'Select model',
-  modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
+  modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelDirectoryFailed: 'Could not load the model directory. Try again.', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
   imageGenerate: 'Generate image', imageBeta: 'Beta', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
   imageLabel: 'Generated image', imageOpen: 'View image', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imagePreviewShort: 'Preview', imageClosePreview: 'Close preview', imageDownload: 'Download', imageDownloadPreparing: 'Preparing original…', imageDownloadFailed: 'Download failed. Retry', imageZoomOut: 'Zoom out', imageZoomIn: 'Zoom in', imageFit: 'Fit to window',
   imageAnnotate: 'Annotate', imageAnnotateCancel: 'Cancel marking', imageAnnotateHint: 'Click the image to add a numbered note', imageAnnotation: 'Note {value}', imageAnnotationPlaceholder: 'Describe what should change in this area', imageRegions: 'Region notes', imageCopyNotes: 'Copy notes', imageCopied: 'Copied', imagePrevious: 'Previous image', imageNext: 'Next image', imageZoomHint: 'Wheel to zoom · drag to pan · double-click for 100%', imageActual: '100%', imageEditPrompt: 'Describe how you want to change this image', imageEditDefault: 'Edit this image.', imageRegionNotes: 'Region changes:', imageEdit: 'Continue editing in composer', imageEditPreparing: 'Adding to composer…', imageEditFailed: 'Handoff failed. Add a note to every marker and ensure the composer accepts images, then retry.', imageRemoveAnnotation: 'Remove note',
@@ -510,7 +510,8 @@ function ContextWindowPreference({ preference, t }) {
   const modelRows = snapshot.contextModels.filter(model => model.fixed !== true)
   const fixedRows = snapshot.contextModels.filter(model => model.fixed === true)
   const [drafts, setDrafts] = useState({})
-  useEffect(() => setDrafts(Object.fromEntries(modelRows.map(model => [model.key, String(snapshot.customContextWindows[model.key])]))), [snapshot.customContextWindows, snapshot.contextModels])
+  const draftSeed = modelRows.map(model => `${model.key}\u0000${snapshot.customContextWindows[model.key]}`).join('\u0001')
+  useEffect(() => setDrafts(Object.fromEntries(modelRows.map(model => [model.key, String(snapshot.customContextWindows[model.key])]))), [draftSeed])
   const hint = snapshot.contextMode === CONTEXT_MODE_EXTENDED
     ? t('contextExtendedHint')
     : snapshot.contextMode === CONTEXT_MODE_CUSTOM
@@ -538,6 +539,7 @@ function ContextWindowPreference({ preference, t }) {
       <Menu open={menuOpen} items={contextModeItems} selectedId={snapshot.contextMode} onSelect={value => { setMenuOpen(false); void preference.set({ [CONTEXT_MODE_FIELD]: value }) }} onClose={() => setMenuOpen(false)} align="end" side="bottom" portal compact anchor={<button className="codexSubscriptionContextTrigger" type="button" aria-label={t('contextTitle')} aria-haspopup="menu" aria-expanded={menuOpen} disabled={!writable} onClick={() => setMenuOpen(value => !value)}><span>{selectedMode}</span><IconChevronDownOutline14 /></button>} />
     </div>
     {snapshot.contextMode === CONTEXT_MODE_CUSTOM ? <div className="codexSubscriptionContextModels">{modelRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextMaximum'), { value: String(model.maximum) })}</span></span><Input aria-label={`${model.label} ${t('contextTokens')}`} className="codexSubscriptionContextInput" type="number" inputMode="numeric" min={MIN_CUSTOM_CONTEXT_WINDOW} max={model.maximum} step={1} value={drafts[model.key] ?? ''} disabled={!writable} onChange={event => { const nextValue = event.currentTarget.value; setDrafts(current => ({ ...current, [model.key]: nextValue })) }} onBlur={() => commit(model.key)} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /></div>)}{fixedRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextFixed'), { value: formatContextWindow(model.maximum) })}</span></span><span className="codexSubscriptionContextHint">{formatContextWindow(model.maximum)}</span></div>)}</div> : null}
+    {snapshot.modelError ? <div className="codexSubscriptionRecover" role="alert"><p className="codexSubscriptionError">{t('modelDirectoryFailed')}</p><Button type="button" variant="outline" onClick={() => { void preference.refreshModels() }}>{t('modelRetry')}</Button></div> : null}
   </div>
 }
 
@@ -1166,13 +1168,18 @@ function CodexSection({ preference, rpc, t }) {
       if (accountRequest.current === id) setAccountError(true)
     })
   }
+  const accountChanged = () => {
+    setResetKey(value => value + 1)
+    void preference.refreshModels()
+  }
   useEffect(() => {
     loadAccount()
+    void preference.refreshModels()
     return () => { accountRequest.current += 1 }
   }, [])
   return <section className="codexSubscription">
     <div className="codexSubscriptionHead"><h2>{t('title')}</h2></div>
-    {accountError === undefined ? <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={() => setResetKey(value => value + 1)} /> : <AccountFailureCard retry={loadAccount} t={t} />}
+    {accountError === undefined ? <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} /> : <AccountFailureCard retry={loadAccount} t={t} />}
     <PreferencesCard preference={preference} t={t} />
     {account === undefined ? null : <UsageCard rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} />}
     <DiagnosticsCard rpc={rpc} t={t} />
@@ -1194,7 +1201,7 @@ export function apply(ctx) {
   const preference = createPreferenceController(scope, connection.rpc)
   ctx.effect(() => {
     void preference.load()
-    const disposeReset = ctx.on('connection/reset', () => { void preference.load() })
+    const disposeReset = ctx.on('connection/reset', () => { void preference.load(); void preference.refreshModels() })
     return () => {
       disposeReset?.()
       preference.dispose()
