@@ -141,6 +141,10 @@ Restart DSH manually after installation, then:
 
 The plugin can follow an existing HTTPS proxy from the process environment or operating-system proxy settings for official OpenAI and ChatGPT requests. It does not provide a proxy, relay, node list, or system-proxy configuration.
 
+### GPT-6 Astra context
+
+When the official model catalog exposes GPT-6 Astra, Standard preserves the catalog window, Extended uses 872000 tokens, and Custom accepts 128000–872000 tokens (initially 272000). This limit follows the [official Codex model catalog](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34), not the API model's total context capacity. These settings only adjust DSH's local context budget; they do not grant model access or guarantee an account's server-side capacity. Actual availability remains subject to the service.
+
 ### Composer quota
 
 <p align="center">
