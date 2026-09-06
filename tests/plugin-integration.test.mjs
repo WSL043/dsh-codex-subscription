@@ -56,6 +56,7 @@ test('custom context starts from the audited Codex default and accepts plain tok
     'gpt-5.4-mini': 272_000,
     'gpt-5.5': 272_000,
     'gpt-5.6': 272_000,
+    'gpt-6-astra': 272_000,
   })
   assert.equal(formatContextWindow(1_000_000), '1M')
   assert.equal(formatContextWindow(400_000), '400K')
@@ -70,10 +71,12 @@ test('custom context rows follow the active upstream model catalog', () => {
     { id: 'gpt-5.4', name: 'GPT-5.4' },
     { id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol' },
     { id: 'gpt-5.6-terra', name: 'GPT-5.6 Terra' },
+    { id: 'gpt-6-astra', name: 'GPT-6 Astra' },
     { id: 'gpt-5.3-codex-spark', name: 'GPT-5.3 Codex Spark' },
   ]), [
     { key: 'gpt-5.4', label: 'GPT-5.4', maximum: 1_000_000 },
     { key: 'gpt-5.6', label: 'GPT-5.6 Sol / Terra', maximum: 1_000_000 },
+    { key: 'gpt-6-astra', label: 'GPT-6 Astra', maximum: 872_000 },
     { key: 'gpt-5.3-codex-spark', label: 'GPT-5.3 Codex Spark', maximum: 128_000, fixed: true },
   ])
 })
@@ -280,7 +283,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   const verbosityModels = ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.5', 'gpt-5.6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra']
   assert.deepEqual(preferenceStatus, {
     ok: true,
-    value: { quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000, contextModels: activeContextModels, verbosityModels, writable: true },
+    value: { quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, verbosityModels, writable: true },
   })
   const preferenceUpdate = await host.handled[0].handler('preferences/update', {
     quickQuotaMode: QUICK_QUOTA_MODE_BAR,
@@ -292,7 +295,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   }, signal)
   assert.deepEqual(preferenceUpdate, {
     ok: true,
-    value: { quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 272_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 272_000, contextModels: activeContextModels, verbosityModels, writable: true },
+    value: { quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 272_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, verbosityModels, writable: true },
   })
   assert.deepEqual(host.webUpdates.at(-1), {
     config: { searchProvider: 'deepseek-official', fetchProvider: 'local' },
@@ -305,6 +308,25 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
     ok: false,
     error: { code: 'internal', message: 'Invalid quick quota preference', details: { issues: [] } },
   })
+})
+
+test('Astra custom context is persisted through settings RPC with its audited bounds', async () => {
+  const host = fakeContext()
+  applyPlugin(host.ctx)
+  const rpc = (method, payload = {}) => host.handled[0].handler(method, payload, new AbortController().signal)
+  assert.equal((await rpc('preferences/status')).value.customContextGpt6Astra, 272_000)
+  for (const value of [128_000, 500_000, 872_000]) {
+    const result = await rpc('preferences/update', { contextMode: 'custom', customContextGpt6Astra: value })
+    assert.equal(result.ok, true)
+    assert.equal(result.value.customContextGpt6Astra, value)
+    assert.equal((await rpc('preferences/status')).value.customContextGpt6Astra, value)
+  }
+  for (const value of [127_999, 872_001, 1_000_000, 500_000.5, '500000']) {
+    const result = await rpc('preferences/update', { customContextGpt6Astra: value })
+    assert.equal(result.ok, false)
+    assert.equal(result.error.message, 'Invalid custom model context window')
+    assert.equal((await rpc('preferences/status')).value.customContextGpt6Astra, 872_000)
+  }
 })
 
 test('usage failures use a DSH-supported bounded RPC error', async () => {

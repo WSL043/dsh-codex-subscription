@@ -35,18 +35,23 @@ export const CUSTOM_CONTEXT_MODEL_FIELDS = Object.freeze({
   'gpt-5.4-mini': 'customContextGpt54Mini',
   'gpt-5.5': 'customContextGpt55',
   'gpt-5.6': 'customContextGpt56',
+  'gpt-6-astra': 'customContextGpt6Astra',
 })
 export const CUSTOM_CONTEXT_MODEL_CAPS = Object.freeze({
   'gpt-5.4': 1_000_000,
   'gpt-5.4-mini': 400_000,
   'gpt-5.5': 1_000_000,
   'gpt-5.6': 1_000_000,
+  // Codex's audited override limit, not the API model's total context window.
+  // https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34
+  'gpt-6-astra': 872_000,
 })
 export const CUSTOM_CONTEXT_MODEL_DEFAULTS = Object.freeze({
   'gpt-5.4': 272_000,
   'gpt-5.4-mini': 272_000,
   'gpt-5.5': 272_000,
   'gpt-5.6': 272_000,
+  'gpt-6-astra': 272_000,
 })
 
 export const normalizeSearchProvider = value => [SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX].includes(value)

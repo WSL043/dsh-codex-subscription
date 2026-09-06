@@ -23,7 +23,11 @@
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero.webp" width="900" alt="Codex 订阅直接用在 DSH：订阅模型、联网搜索、额度与安全重置、图片生成和高速模式">
 </p>
 
-## 1.14.1 重点变化
+## 1.14.2 重点变化
+
+- GPT-6 Astra 支持模型目录上下文设置：标准模式保留目录默认值，扩展模式使用 872K，自定义模式限制为 128K–872K。
+
+### 1.14.1 更新回顾
 
 - 输入框同时显示服务端返回的 5 小时与每周额度，避免其中一个额度窗口被隐藏。
 - 图片编辑会检查附件引用，自动补全裸 SHA-256，并从当前会话取回真实附件元数据；误填路径时提示模型通过 `read_image` 获取正确引用并重试。
@@ -141,6 +145,10 @@ dsh --profile web --dump-config
 - 订阅路由不可用时明确报错，不会静默切换到其他付费路由。
 
 对于 OpenAI 与 ChatGPT 官方请求，插件可以沿用进程环境或操作系统中已有的 HTTPS 代理。插件本身不提供代理、转发服务、节点列表，也不会修改系统代理设置。
+
+### GPT-6 Astra 上下文
+
+当官方模型目录提供 GPT-6 Astra 时，标准模式保留目录默认窗口；扩展模式使用 872000 Token，自定义模式可设置 128000–872000 Token（初始值为 272000）。该上限依据 [Codex 官方模型目录](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34)，不是 API 模型的总上下文容量。这些设置只调整 DSH 的本地上下文预算，不授予模型访问权限，也不保证账号的服务端容量；实际可用性以服务端为准。
 
 ### 输入框额度
 

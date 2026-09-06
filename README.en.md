@@ -22,7 +22,11 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
 </p>
 
-## What's included in 1.14.1
+## What's included in 1.14.2
+
+- GPT-6 Astra now supports model-catalog context settings: Standard preserves the catalog default, Extended uses 872K, and Custom is bounded to 128K–872K.
+
+### From 1.14.1
 
 - The composer shows both 5-hour and weekly quota windows when returned by the service, so neither window is hidden.
 - Image edits validate attachment references, normalize bare SHA-256 digests, and resolve the actual attachment metadata from the current session. Paths produce an actionable error asking the model to obtain the correct reference with `read_image` and retry.
@@ -140,6 +144,10 @@ Restart DSH manually after installation, then:
 - Visible errors when subscription routing is unavailable, with no silent paid fallback.
 
 The plugin can follow an existing HTTPS proxy from the process environment or operating-system proxy settings for official OpenAI and ChatGPT requests. It does not provide a proxy, relay, node list, or system-proxy configuration.
+
+### GPT-6 Astra context
+
+When the official model catalog exposes GPT-6 Astra, Standard preserves the catalog window, Extended uses 872000 tokens, and Custom accepts 128000–872000 tokens (initially 272000). This limit follows the [official Codex model catalog](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34), not the API model's total context capacity. These settings only adjust DSH's local context budget; they do not grant model access or guarantee an account's server-side capacity. Actual availability remains subject to the service.
 
 ### Composer quota
 
