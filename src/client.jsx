@@ -50,6 +50,7 @@ import { selectModelQuotaWindows } from './sidebar-quota.js'
 import { readLoginProgress } from './login-progress.js'
 import { createPreferenceController } from './preference-controller.js'
 import { createAccountStatusController } from './account-status-controller.js'
+import { reconcileContextDrafts } from './context-draft-state.js'
 
 export const inject = [
   'slots', 'locale', 'connection', 'remote', 'settingsScope', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
@@ -525,8 +526,18 @@ function ContextWindowPreference({ preference, t }) {
   const modelRows = snapshot.contextModels.filter(model => model.fixed !== true)
   const fixedRows = snapshot.contextModels.filter(model => model.fixed === true)
   const [drafts, setDrafts] = useState({})
+  const previousSavedValues = useRef()
   const draftSeed = modelRows.map(model => `${model.key}\u0000${snapshot.customContextWindows[model.key]}`).join('\u0001')
-  useEffect(() => setDrafts(Object.fromEntries(modelRows.map(model => [model.key, String(snapshot.customContextWindows[model.key])]))), [draftSeed])
+  useEffect(() => {
+    const savedValues = Object.fromEntries(modelRows.map(model => [model.key, String(snapshot.customContextWindows[model.key])]))
+    setDrafts(current => reconcileContextDrafts({
+      modelRows,
+      drafts: current,
+      previousSavedValues: previousSavedValues.current,
+      savedValues,
+    }))
+    previousSavedValues.current = savedValues
+  }, [draftSeed])
   const hint = snapshot.contextMode === CONTEXT_MODE_EXTENDED
     ? t('contextExtendedHint')
     : snapshot.contextMode === CONTEXT_MODE_CUSTOM
