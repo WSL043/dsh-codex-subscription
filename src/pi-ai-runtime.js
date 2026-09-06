@@ -5,6 +5,7 @@ import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-work
 import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
+  CUSTOM_CONTEXT_MODEL_CAPS,
   customContextModelKey,
   OUTPUT_VERBOSITY_DEFAULT,
   SPEED_MODE_FAST,
@@ -36,6 +37,7 @@ const EXTENDED_CONTEXT_WINDOWS = Object.freeze({
   'gpt-5.6-luna': 1_000_000,
   'gpt-5.6-sol': 1_000_000,
   'gpt-5.6-terra': 1_000_000,
+  'gpt-6-astra': CUSTOM_CONTEXT_MODEL_CAPS['gpt-6-astra'],
 })
 
 export function openaiCodexSubscriptionProvider({
@@ -92,7 +94,9 @@ export function openaiCodexSubscriptionProvider({
     const mode = resolveContextMode()
     if (maximum === undefined || ![CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM].includes(mode)) return model
     if (mode === CONTEXT_MODE_EXTENDED) {
-      return { ...model, contextWindow: Math.max(model.contextWindow, maximum) }
+      // Keep historical presets unchanged; Astra uses the explicitly audited budget.
+      const contextWindow = model.id === 'gpt-6-astra' ? maximum : Math.max(model.contextWindow, maximum)
+      return { ...model, contextWindow }
     }
     const requested = normalizeCustomContextWindow(resolveCustomContextWindow(customContextModelKey(model.id)), maximum)
     return { ...model, contextWindow: requested }
