@@ -13,6 +13,10 @@ const RESPONSE_ENVELOPE_BYTES = 1024 * 1024
 const IMAGE_QUALITIES = new Set(['auto', 'low', 'medium', 'high'])
 const IMAGE_BACKGROUNDS = new Set(['auto', 'transparent', 'opaque'])
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
+const FULL_ATTACHMENT_ID = /^sha256:[0-9a-f]{64}$/u
+const BARE_ATTACHMENT_DIGEST = /^[0-9a-f]{64}$/iu
+const PATH_LIKE_ATTACHMENT_ID = /[\\/]/u
+const FILE_NAME_ATTACHMENT_ID = /\.[A-Za-z0-9]{1,16}$/u
 
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 const nonEmpty = value => typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
@@ -100,6 +104,9 @@ export function decodeCodexPng(value, maximumBytes) {
 }
 
 function imageReference(value) {
+  const originalDimensions = record(value.originalDimensions)
+    ? { width: value.originalDimensions.width, height: value.originalDimensions.height }
+    : undefined
   return {
     attachmentId: value.attachmentId,
     mediaType: value.mediaType,
@@ -107,20 +114,41 @@ function imageReference(value) {
     width: value.width,
     height: value.height,
     ...(value.name === undefined ? {} : { name: value.name }),
+    ...(originalDimensions === undefined ? {} : { originalDimensions }),
   }
 }
 
+function normalizeAttachmentId(value) {
+  if (typeof value !== 'string') return undefined
+  if (FULL_ATTACHMENT_ID.test(value)) return value
+  const bare = BARE_ATTACHMENT_DIGEST.exec(value)
+  return bare === null ? undefined : `sha256:${bare[0].toLowerCase()}`
+}
+
+function invalidAttachmentId(value) {
+  const attachmentId = value?.attachmentId
+  if (typeof attachmentId === 'string'
+    && (PATH_LIKE_ATTACHMENT_ID.test(attachmentId) || FILE_NAME_ATTACHMENT_ID.test(attachmentId))) {
+    throw new Error('referenceImages attachmentId is a file path or filename; call read_image on that file and retry with its complete sha256:<64 lowercase hex> attachment reference. Do not omit referenceImages or fall back to new image generation.')
+  }
+  throw new Error('referenceImages attachmentId must be sha256:<64 lowercase hex> copied from an image block or read_image result. Do not omit referenceImages or fall back to new image generation.')
+}
+
 function referenceOf(value, attachments) {
+  const attachmentId = normalizeAttachmentId(value?.attachmentId)
+  if (attachmentId === undefined) invalidAttachmentId(value)
   if (!record(value)
-    || typeof value.attachmentId !== 'string' || value.attachmentId.length === 0 || value.attachmentId.length > 256
     || !attachments.imageLimits.mediaTypes.includes(value.mediaType)
     || !Number.isSafeInteger(value.bytes) || value.bytes <= 0
     || !Number.isSafeInteger(value.width) || value.width <= 0
     || !Number.isSafeInteger(value.height) || value.height <= 0
-    || (value.name !== undefined && (typeof value.name !== 'string' || value.name.length > 256))) {
+    || (value.name !== undefined && (typeof value.name !== 'string' || value.name.length > 256))
+    || (value.originalDimensions !== undefined && (!record(value.originalDimensions)
+      || !Number.isSafeInteger(value.originalDimensions.width) || value.originalDimensions.width <= 0
+      || !Number.isSafeInteger(value.originalDimensions.height) || value.originalDimensions.height <= 0))) {
     throw new Error('referenceImages contains an invalid image reference')
   }
-  return imageReference(value)
+  return imageReference({ ...value, attachmentId })
 }
 
 async function editImages(values, attachments, signal) {
@@ -172,6 +200,14 @@ function imageOutputSchema() {
           width: { type: 'integer', required: true },
           height: { type: 'integer', required: true },
           name: { type: 'string' },
+          originalDimensions: {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              width: { type: 'integer', required: true },
+              height: { type: 'integer', required: true },
+            },
+          },
         },
       },
       original: {
@@ -214,7 +250,7 @@ export function createCodexImageTool(options) {
   const attachments = options.attachments
   return defineTool({
     name: CODEX_IMAGE_TOOL_NAME,
-    description: 'Create a new image or explicitly edit selected prior images using the signed-in Codex subscription. Omit referenceImages for a completely new image. Include only the exact prior image references the user asked to edit; never assume every image in the conversation is a reference. For annotation-guided edits, include both the named clean source and its numbered location reference, and preserve the numbered coordinates and requested changes in the prompt. The location-reference markers are guidance only and must not appear in the result. If those references cannot be identified, do not substitute unrelated images or silently ignore the annotations.',
+    description: 'Create a new image or explicitly edit selected prior images using the signed-in Codex subscription. Omit referenceImages only for a completely new image. For an edit, copy each complete image reference from the session image block or read_image result, including attachmentId in the exact form sha256:<64 lowercase hex>; never use a workspace path, absolute path, or filename, and do not omit the references to turn an edit into text-to-image generation. A bare 64-character hex digest is accepted and normalized to sha256:<64 lowercase hex>. If a reference is unavailable, call read_image and retry with its returned reference. Include only the exact prior image references the user asked to edit; never assume every image in the conversation is a reference. For annotation-guided edits, include both the named clean source and its numbered location reference, and preserve the numbered coordinates and requested changes in the prompt. The location-reference markers are guidance only and must not appear in the result. If those references cannot be identified, do not substitute unrelated images or silently ignore the annotations.',
     parameters: {
       prompt: {
         type: 'string',
@@ -237,17 +273,29 @@ export function createCodexImageTool(options) {
       },
       referenceImages: {
         type: 'array',
-        description: 'Optional explicit references to 1-5 prior images to edit. Omit for a new image.',
+        description: 'Optional explicit references to 1-5 prior images to edit. Copy each complete reference from the session image block or read_image result. Omit only for a new image; an invalid reference must be fixed and retried rather than omitted.',
         items: {
           type: 'object',
           additionalProperties: false,
           properties: {
-            attachmentId: { type: 'string', required: true },
+            attachmentId: {
+              type: 'string',
+              required: true,
+              description: 'Copy the complete attachmentId from the image block or read_image result: sha256:<64 lowercase hex>. Never pass a workspace path, absolute path, or filename. A bare 64-character hex digest is accepted and normalized to sha256:<64 lowercase hex>.',
+            },
             mediaType: { type: 'string', required: true },
             bytes: { type: 'integer', required: true },
             width: { type: 'integer', required: true },
             height: { type: 'integer', required: true },
             name: { type: 'string' },
+            originalDimensions: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                width: { type: 'integer', required: true },
+                height: { type: 'integer', required: true },
+              },
+            },
           },
         },
       },

@@ -26,8 +26,9 @@ test('GPT Image 2 options default safely and validate flexible output constraint
 })
 
 const ONE_PIXEL_PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+const IMAGE_DIGEST = 'a'.repeat(64)
 const IMAGE_REF = Object.freeze({
-  attachmentId: 'sha256:test-image',
+  attachmentId: `sha256:${IMAGE_DIGEST}`,
   mediaType: 'image/png',
   bytes: 68,
   width: 1,
@@ -217,6 +218,93 @@ test('image editing is opt-in and sends only explicitly selected durable referen
   })
 })
 
+test('bare attachment digests are normalized before the authorized image read', async () => {
+  const reads = []
+  const base = fixture()
+  const { requests, tool } = fixture({
+    attachments: {
+      ...base.attachments,
+      async readImage(ref, signal) {
+        reads.push({ ref, signal })
+        return { ref, data: Buffer.from(ONE_PIXEL_PNG, 'base64') }
+      },
+    },
+  })
+  const reference = { ...IMAGE_REF, attachmentId: IMAGE_DIGEST }
+  const signal = new AbortController().signal
+  await tool.execute({ prompt: 'edit this image', referenceImages: [reference] }, execContext('call-bare', signal))
+  assert.equal(reads.length, 1)
+  assert.equal(reads[0].ref.attachmentId, IMAGE_REF.attachmentId)
+  assert.deepEqual(reads[0].ref, IMAGE_REF)
+  assert.equal(reads[0].signal, signal)
+  assert.equal(requests.length, 1)
+})
+
+test('path and malformed attachment IDs fail before reads or provider requests', async () => {
+  const invalid = [
+    ['Images/Screenshot.png', /file path or filename.*read_image.*retry/u],
+    ['F:\\Pictures\\Screenshot.png', /file path or filename.*read_image.*retry/u],
+    ['Screenshot.png', /file path or filename.*read_image.*retry/u],
+    [`sha256:${'a'.repeat(63)}`, /sha256:<64 lowercase hex>/u],
+    [`sha256:${'A'.repeat(64)}`, /sha256:<64 lowercase hex>/u],
+    [`${'a'.repeat(63)}!`, /sha256:<64 lowercase hex>/u],
+  ]
+  for (const [attachmentId, message] of invalid) {
+    let reads = 0
+    const base = fixture()
+    const { requests, tool } = fixture({
+      attachments: {
+        ...base.attachments,
+        async readImage(...args) {
+          reads += 1
+          return base.attachments.readImage(...args)
+        },
+      },
+    })
+    await assert.rejects(
+      tool.execute({ prompt: 'edit this image', referenceImages: [{ ...IMAGE_REF, attachmentId }] }, execContext('call-invalid')),
+      message,
+    )
+    assert.equal(reads, 0, `attachment store must not read ${attachmentId}`)
+    assert.equal(requests.length, 0, `provider must not be called for ${attachmentId}`)
+  }
+})
+
+test('attachment reference metadata stays intact while its digest is normalized', async () => {
+  const reference = {
+    ...IMAGE_REF,
+    attachmentId: IMAGE_DIGEST.toUpperCase(),
+    originalDimensions: { width: 2, height: 3 },
+  }
+  const reads = []
+  const base = fixture()
+  const { requests, tool } = fixture({
+    attachments: {
+      ...base.attachments,
+      async readImage(ref, signal) {
+        reads.push({ ref, signal })
+        return { ref, data: Buffer.from(ONE_PIXEL_PNG, 'base64') }
+      },
+    },
+  })
+  await tool.execute({ prompt: 'edit this image', referenceImages: [reference] }, execContext('call-metadata'))
+  assert.equal(reads.length, 1)
+  assert.deepEqual(reads[0].ref, { ...reference, attachmentId: IMAGE_REF.attachmentId })
+  assert.equal(requests.length, 1)
+})
+
+test('duplicate references are detected after digest normalization before provider requests', async () => {
+  const { requests, tool } = fixture()
+  await assert.rejects(
+    tool.execute({
+      prompt: 'edit this image',
+      referenceImages: [IMAGE_REF, { ...IMAGE_REF, attachmentId: IMAGE_DIGEST, name: 'same-image-copy.png' }],
+    }, execContext('call-duplicate')),
+    /referenceImages must not contain duplicates/u,
+  )
+  assert.equal(requests.length, 0)
+})
+
 test('new generation never includes a previous image unless references are provided', async () => {
   let reads = 0
   const { requests, tool } = fixture({
@@ -233,7 +321,7 @@ test('new generation never includes a previous image unless references are provi
 })
 
 test('annotation edits forward both explicit images and the complete location prompt to the provider', async () => {
-  const reference = { ...IMAGE_REF, attachmentId: 'sha256:marked-reference', name: 'annotations.png', bytes: 69 }
+  const reference = { ...IMAGE_REF, attachmentId: `sha256:${'b'.repeat(64)}`, name: 'annotations.png', bytes: 69 }
   const originalBytes = Buffer.from(ONE_PIXEL_PNG, 'base64')
   const referenceBytes = Buffer.concat([originalBytes, Buffer.from([0])])
   const reads = []
