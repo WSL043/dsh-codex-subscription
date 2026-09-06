@@ -384,6 +384,7 @@ export function apply(ctx) {
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     attachments: ctx.attachments,
+    getSessionMessages: sessionId => ctx.get?.('sessions')?.get?.(sessionId)?.deriveMessages?.() ?? [],
     originalImages,
     fetch: (input, init) => network.fetch('image', input, init),
   }))

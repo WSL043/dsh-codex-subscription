@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } fro
 import { BoltIcon } from '@heroicons/react/16/solid'
 import { Button, IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import { buildImageEditDraft } from './image-edit.js'
+import { createAnnotatedImageReference } from './image-edit-reference.js'
 import { decodeImagePresentation, decodeOriginalImageRef, ORIGINAL_IMAGE_CHUNK_BYTES } from './image-original-contract.js'
 import { SubscriptionImageViewerOverlay } from './subscription-image-viewer.jsx'
 import { SUBSCRIPTION_IMAGE_VIEWER_CSS } from './subscription-image-viewer-styles.js'
@@ -45,7 +46,7 @@ import {
   SPEED_MODE_STANDARD,
   supportsCodexFastMode,
 } from './settings-contract.js'
-import { selectModelQuota } from './sidebar-quota.js'
+import { selectModelQuotaWindows } from './sidebar-quota.js'
 import { readLoginProgress } from './login-progress.js'
 import { createPreferenceController } from './preference-controller.js'
 
@@ -60,6 +61,8 @@ const QUICK_QUOTA_REFRESH_EVENT = 'dsh-codex-subscription:refresh-quick-quota'
 const QUICK_QUOTA_REFRESH_MS = 60_000
 
 const zh = {
+  imageEditLocation: '位置',
+  imageEditReferenceGuide: '本次编辑的干净源图为「{sourceName}」，编号定位参考图为「{referenceName}」。坐标以图片左上角为原点，x 向右、y 向下，百分比相对于整张图片。请查看这两张图片，将它们同时作为编辑工具的参考图，并在工具提示词中完整保留下方编号、位置和修改要求。只修改源图中对应位置的内容；定位参考图上的编号、圆点和引线仅用于定位，不得绘入最终结果。若无法读取两张图片或确定位置，请说明问题，不要猜测或忽略标注。',
   nav: 'Codex 订阅',
   title: 'Codex 订阅',
   connected: '已登录', disconnected: '未登录', accountLoading: '正在读取账户状态…',
@@ -118,10 +121,12 @@ const zh = {
   modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
   imageGenerate: '生成图片', imageBeta: 'Beta', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
   imageLabel: '生成的图片', imageOpen: '查看图片', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imagePreviewShort: '预览图', imageClosePreview: '关闭预览', imageDownload: '下载', imageDownloadPreparing: '正在准备原图…', imageDownloadFailed: '下载失败，重试', imageZoomOut: '缩小', imageZoomIn: '放大', imageFit: '适合窗口',
-  imageAnnotate: '标注部位', imageAnnotateCancel: '取消标注', imageAnnotateHint: '点击图片添加编号标注', imageAnnotation: '标注 {value}', imageAnnotationPlaceholder: '描述这个部位要修改什么', imageRegions: '区域备注', imageCopyNotes: '复制备注', imageCopied: '已复制', imagePrevious: '上一张图片', imageNext: '下一张图片', imageZoomHint: '滚轮缩放 · 拖动查看 · 双击切换原始大小', imageActual: '原始大小', imageEditPrompt: '描述你想怎样修改这张图', imageEditDefault: '编辑这张图片。', imageRegionNotes: '部位修改：', imageEdit: '在输入框中继续编辑', imageEditPreparing: '正在添加到输入框…', imageEditFailed: '无法把图片添加到输入框。', imageRemoveAnnotation: '删除标注',
+  imageAnnotate: '标注部位', imageAnnotateCancel: '取消标注', imageAnnotateHint: '点击图片添加编号标注', imageAnnotation: '标注 {value}', imageAnnotationPlaceholder: '描述这个部位要修改什么', imageRegions: '区域备注', imageCopyNotes: '复制备注', imageCopied: '已复制', imagePrevious: '上一张图片', imageNext: '下一张图片', imageZoomHint: '滚轮缩放 · 拖动查看 · 双击切换原始大小', imageActual: '原始大小', imageEditPrompt: '描述你想怎样修改这张图', imageEditDefault: '编辑这张图片。', imageRegionNotes: '部位修改：', imageEdit: '在输入框中继续编辑', imageEditPreparing: '正在添加到输入框…', imageEditFailed: '回填失败：请填写每个标记的备注，并确认输入框可接收图片后重试。', imageRemoveAnnotation: '删除标注',
 }
 
 const en = {
+  imageEditLocation: 'Location',
+  imageEditReferenceGuide: 'The clean source for this edit is "{sourceName}"; "{referenceName}" is the numbered location reference. Coordinates start at the top-left, x increases rightward and y downward; percentages refer to the whole image. Inspect both images and pass both as references to the image-editing tool. Preserve every number, position and requested change below in the tool prompt. Edit the corresponding content in the clean source; numbers, dots and leader lines on the location reference are guidance only and must not appear in the final result. If either image cannot be read or a location is unclear, explain the problem instead of guessing or ignoring annotations.',
   nav: 'Codex',
   title: 'Codex subscription',
   connected: 'Signed in', disconnected: 'Not signed in', accountLoading: 'Reading account status…',
@@ -180,7 +185,7 @@ const en = {
   modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
   imageGenerate: 'Generate image', imageBeta: 'Beta', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
   imageLabel: 'Generated image', imageOpen: 'View image', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imagePreviewShort: 'Preview', imageClosePreview: 'Close preview', imageDownload: 'Download', imageDownloadPreparing: 'Preparing original…', imageDownloadFailed: 'Download failed. Retry', imageZoomOut: 'Zoom out', imageZoomIn: 'Zoom in', imageFit: 'Fit to window',
-  imageAnnotate: 'Annotate', imageAnnotateCancel: 'Cancel marking', imageAnnotateHint: 'Click the image to add a numbered note', imageAnnotation: 'Note {value}', imageAnnotationPlaceholder: 'Describe what should change in this area', imageRegions: 'Region notes', imageCopyNotes: 'Copy notes', imageCopied: 'Copied', imagePrevious: 'Previous image', imageNext: 'Next image', imageZoomHint: 'Wheel to zoom · drag to pan · double-click for 100%', imageActual: '100%', imageEditPrompt: 'Describe how you want to change this image', imageEditDefault: 'Edit this image.', imageRegionNotes: 'Region changes:', imageEdit: 'Continue editing in composer', imageEditPreparing: 'Adding to composer…', imageEditFailed: 'Could not add the image to the composer.', imageRemoveAnnotation: 'Remove note',
+  imageAnnotate: 'Annotate', imageAnnotateCancel: 'Cancel marking', imageAnnotateHint: 'Click the image to add a numbered note', imageAnnotation: 'Note {value}', imageAnnotationPlaceholder: 'Describe what should change in this area', imageRegions: 'Region notes', imageCopyNotes: 'Copy notes', imageCopied: 'Copied', imagePrevious: 'Previous image', imageNext: 'Next image', imageZoomHint: 'Wheel to zoom · drag to pan · double-click for 100%', imageActual: '100%', imageEditPrompt: 'Describe how you want to change this image', imageEditDefault: 'Edit this image.', imageRegionNotes: 'Region changes:', imageEdit: 'Continue editing in composer', imageEditPreparing: 'Adding to composer…', imageEditFailed: 'Handoff failed. Add a note to every marker and ensure the composer accepts images, then retry.', imageRemoveAnnotation: 'Remove note',
 }
 
 const STYLE = `
@@ -217,7 +222,7 @@ const STYLE = `
 .codexSubscriptionCreditRows{display:flex;flex-direction:column;gap:6px}.codexSubscriptionResetMeta{display:flex;min-width:0;flex-direction:column;gap:1px}.codexSubscriptionResetBalance{display:flex;flex-direction:column;gap:8px}.codexSubscriptionResetCard{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;padding:9px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:9px;background:var(--dsw-alias-bg-module-platform)}.codexSubscriptionResetCard .codexSubscriptionResetMeta{flex:1}.codexSubscriptionResetCard strong{overflow:hidden;font-size:12px;line-height:18px;font-weight:500;text-overflow:ellipsis;white-space:nowrap}.codexSubscriptionResetCard .codexSubscriptionActions{flex:0 0 auto}.codexSubscriptionResetCard .codexSubscriptionResetUse{min-height:28px;padding:0 10px}.codexSubscriptionResetBalance .codexSubscriptionActions{justify-content:flex-start}.codexSubscriptionResetFlow{display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--dsw-alias-border-l2);padding-top:10px}.codexSubscriptionResetFlow h4{margin:0;font-size:13px;line-height:20px;font-weight:500}.codexSubscriptionResetWarning{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}.codexSubscriptionResetExpiry{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionResetCheck{display:flex;align-items:flex-start;gap:8px;padding:9px 10px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);font-size:12px;line-height:18px;color:var(--dsw-alias-label-primary);cursor:pointer}.codexSubscriptionResetCheck input{margin:3px 0 0;accent-color:var(--dsw-alias-label-primary)}.codexSubscriptionResetFinal{border-color:var(--dsw-alias-state-error-primary)!important;color:var(--dsw-alias-state-error-primary)!important}.codexSubscriptionResetResult{font-size:12px;line-height:18px;color:var(--dsw-alias-state-success-primary)}
 .codexSubscriptionResetUse:hover:not(:disabled){background:var(--dsw-alias-interactive-bg-hover)}.codexSubscriptionResetUse:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px}
 .codexSubscriptionSpendLimit{display:flex;flex-direction:column;gap:8px}.codexSubscriptionSpendTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.codexSubscriptionSpendTop strong{font:600 16px/22px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums}.codexSubscriptionSpendLimit progress{width:100%;height:6px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-brand-primary,#3964fe);-webkit-appearance:none;appearance:none}.codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}.codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
-.codexComposerQuota{display:inline-flex;align-items:center;flex:0 0 auto;height:28px;box-sizing:border-box;padding:0;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}.codexComposerQuotaBar{display:block;width:40px;height:4px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-label-secondary);-webkit-appearance:none;appearance:none}.codexComposerQuotaBar::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexComposerQuotaBar::-webkit-progress-value{background:var(--dsw-alias-label-secondary);border-radius:999px}.codexComposerQuotaBar::-moz-progress-bar{background:var(--dsw-alias-label-secondary);border-radius:999px}
+.codexComposerQuotaWindows{display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap}.codexComposerQuota{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;height:28px;box-sizing:border-box;padding:0;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}.codexComposerQuotaBar{display:block;width:40px;height:4px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-label-secondary);-webkit-appearance:none;appearance:none}.codexComposerQuotaBar::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}.codexComposerQuotaBar::-webkit-progress-value{background:var(--dsw-alias-label-secondary);border-radius:999px}.codexComposerQuotaBar::-moz-progress-bar{background:var(--dsw-alias-label-secondary);border-radius:999px}
 .codexModelSelect{position:relative;min-width:0}.codexModelSelectTrigger{display:flex;align-items:center;gap:4px;min-width:0;max-width:min(360px,45cqw);height:28px;padding:0 4px 0 8px;border:0;border-radius:24px;outline:0;background:transparent;color:var(--dsw-alias-label-secondary);font-size:13px;font-weight:500;line-height:20px;cursor:pointer}.codexModelSelectTrigger:hover:not(:disabled),.codexModelSelectTrigger[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover)}.codexModelSelectTrigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}.codexModelSelectTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectBolt{display:block;flex:none;width:14px;height:14px;color:var(--dsw-alias-label-primary)}.codexModelSelectLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectEffort{flex:none;color:var(--dsw-alias-label-caption)}.codexModelSelectChevron{flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms}.codexModelSelectTrigger[aria-expanded=true] .codexModelSelectChevron{transform:rotate(180deg)}
 .codexModelSelectMenu,.codexModelSelectSubmenu{position:absolute;z-index:30;box-sizing:border-box;width:max-content;min-width:min(240px,calc(100vw - 32px));max-width:min(420px,calc(100vw - 32px));max-height:min(360px,calc(100vh - 96px));padding:4px;border:1px solid var(--dsw-alias-border-inverted);border-radius:12px;background:var(--dsw-specific-menu);box-shadow:var(--dsw-shadow-lv3);color:var(--dsw-alias-label-primary);overflow:hidden}.codexModelSelectMenu{right:0;bottom:calc(100% + 8px)}.codexModelSelectSubmenu{right:calc(100% + 8px);bottom:0;min-width:min(230px,calc(100vw - 32px))}.codexModelSelectCell{display:flex;align-items:center;gap:8px;width:100%;min-width:100%;height:40px;box-sizing:border-box;padding:0 10px;border:0;border-radius:10px;background:transparent;color:inherit;font-size:14px;line-height:22px;text-align:left;cursor:pointer}.codexModelSelectCell:hover,.codexModelSelectCell:focus-visible,.codexModelSelectCell[data-open=true]{background:var(--dsw-alias-interactive-bg-hover);outline:0}.codexModelSelectCell:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectCellLabel{flex:none;white-space:nowrap}.codexModelSelectCellValue{flex:auto;min-width:0;overflow:hidden;color:var(--dsw-alias-label-tertiary);text-align:right;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectCellChevron{flex:none;color:var(--dsw-alias-label-tertiary)}.codexModelSelectGroups{min-height:0;max-height:352px;overflow-y:auto}.codexModelSelectGroup+.codexModelSelectGroup{margin-top:4px}.codexModelSelectGroupTitle{position:sticky;top:0;z-index:1;padding:5px 8px 3px;background:var(--dsw-specific-menu);color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:500;line-height:18px}.codexModelSelectOption{display:flex;align-items:center;gap:8px;width:100%;min-width:100%;min-height:38px;box-sizing:border-box;padding:6px 8px;border:0;border-radius:10px;outline:0;background:transparent;color:inherit;text-align:left;cursor:pointer}.codexModelSelectOption:hover:not(:disabled),.codexModelSelectOption:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}.codexModelSelectOption:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}.codexModelSelectOptionCopy{display:flex;flex:1;min-width:0;flex-direction:column}.codexModelSelectOptionName{overflow:hidden;color:inherit;font-size:14px;font-weight:500;line-height:20px;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectOptionDescription{overflow:hidden;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;text-overflow:ellipsis;white-space:nowrap}.codexModelSelectCheck{display:grid;place-items:center;flex:0 0 18px;color:var(--dsw-alias-label-primary)}.codexModelSelectStatus,.codexModelSelectEmpty{padding:10px;color:var(--dsw-alias-label-tertiary);font-size:13px;line-height:20px}.codexModelSelectError,.codexModelSelectWarning{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;padding:7px 8px;border-radius:8px;background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary);font-size:12px;line-height:18px}.codexModelSelectWarning{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-state-warn-label)}.codexModelSelectRetry{flex:none;padding:0;border:0;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}
 .codexModelSelectMenu{overflow:visible}
@@ -357,20 +362,24 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
           pendingLabel: t('imageEditPreparing'),
           errorLabel: t('imageEditFailed'),
           closeOnSuccess: true,
-          onInvoke: ({ annotations }) => attachForEdit(
-            src,
-            downloadName,
-            buildImageEditDraft({ annotations, translate: t }),
-          ),
+          onInvoke: ({ annotations = [] }) => {
+            const imageKey = String(attachment.attachmentId ?? 'image').replace(/[^a-zA-Z0-9_-]/g, '_')
+            const sourceName = annotations.length === 0 ? downloadName : `codex-edit-${imageKey}-source.png`
+            const referenceName = `codex-edit-${imageKey}-annotations.png`
+            return attachForEdit(src, sourceName, buildImageEditDraft({
+              annotations, translate: t, width: attachment.width, height: attachment.height,
+              sourceName, referenceName,
+            }), annotations, referenceName)
+          },
         }],
       }],
       opener: triggerRef.current,
       source: 'codex-generated',
       annotations: true,
     }
+    if (getInternalImageViewer?.()?.open?.(request) === true) return
     const viewer = getImageViewer?.()
-    if (viewer?.open?.(request) === true) return
-    getInternalImageViewer?.()?.open?.(request)
+    viewer?.open?.(request)
   }
   if (error) {
     return <button type="button" className="codexGeneratedImageRetry" onClick={() => setAttempt(value => value + 1)}>{t('imageLoadFailed')}</button>
@@ -445,7 +454,7 @@ function useQuickQuota(rpc, enabled, model) {
           return
         }
         const usage = unwrap(await rpc.call(CHANNEL, 'usage', { force: false }))
-        if (live) setQuota(selectModelQuota(usage, model))
+        if (live) setQuota(selectModelQuotaWindows(usage, model))
       } catch {
         if (live) setQuota(undefined)
       } finally {
@@ -554,8 +563,12 @@ function CodexComposerQuota({ preference, rpc, t, directory }) {
   const codex = current?.provider === 'openai-codex'
   const quotaEnabled = preferenceSnapshot.status === 'ready' && preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_OFF && codex
   const forecastMode = preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_FORECAST
-  const quota = useQuickQuota(rpc, quotaEnabled, current?.model)
-  if (!quotaEnabled || quota === undefined) return null
+  const quotas = useQuickQuota(rpc, quotaEnabled, current?.model)
+  if (!quotaEnabled || quotas === undefined || quotas.length === 0) return null
+  return <span className="codexComposerQuotaWindows">{quotas.map((quota, index) => <CodexComposerQuotaWindow key={`${quota.windowSeconds}-${index}`} quota={quota} mode={preferenceSnapshot.quickQuotaMode} forecastMode={forecastMode} t={t} />)}</span>
+}
+
+function CodexComposerQuotaWindow({ quota, mode, forecastMode, t }) {
   const value = Math.round(Number(quota.remainingPercent) * 10) / 10
   const display = percent(value)
   const forecast = forecastMode ? quota.forecast : undefined
@@ -569,7 +582,7 @@ function CodexComposerQuota({ preference, rpc, t, directory }) {
         : duration === undefined
           ? fill(t('quickQuotaStatus'), { value: display })
           : fill(t('quickQuotaForecastStatus'), { value: display, duration })
-  const content = preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR
+  const content = mode === QUICK_QUOTA_MODE_BAR
     ? <progress className="codexComposerQuotaBar" max={100} value={value} aria-hidden="true" />
     : forecast?.status === 'calibrating'
       ? `${display}% · ${t('quickQuotaForecastCalibrating')}`
@@ -580,7 +593,9 @@ function CodexComposerQuota({ preference, rpc, t, directory }) {
           : forecastMode && duration !== undefined
             ? `${display}% · ≈${duration}`
             : `${display}%`
-  return <span className="codexComposerQuota" role="status" aria-label={label} title={label}>{content}</span>
+  const durationLabel = windowLabel(quota.windowSeconds, t)
+  const accessibleLabel = `${durationLabel}: ${label}`
+  return <span className="codexComposerQuota" role="status" aria-label={accessibleLabel} title={accessibleLabel}><span>{durationLabel}</span>{content}</span>
 }
 
 function CodexModelSelect({ locked, available, directory, load, select, preference, t }) {
@@ -1241,7 +1256,7 @@ export function apply(ctx) {
         }
       },
       getInternalImageViewer: () => imageViewer,
-      attachForEdit: async (src, filename, draft) => {
+      attachForEdit: async (src, filename, draft, annotations = [], referenceName) => {
         const actx = sessions.scope(sessionId)
         if (actx === undefined || typeof conversation.createDraftImages !== 'function' || conversation.input?.for === undefined) {
           throw new Error('This DSH version does not provide the image composer bridge')
@@ -1249,7 +1264,12 @@ export function apply(ctx) {
         const response = await fetch(src)
         if (!response.ok) throw new Error('Could not read generated image')
         const blob = await response.blob()
-        const created = conversation.createDraftImages([new File([blob], filename, { type: blob.type || 'image/png' })])
+        const files = [new File([blob], filename, { type: blob.type || 'image/png' })]
+        if (annotations.length > 0) {
+          const reference = await createAnnotatedImageReference(blob, annotations)
+          files.push(new File([reference], referenceName, { type: 'image/png' }))
+        }
+        const created = conversation.createDraftImages(files)
         const input = conversation.input.for(actx)
         if (!input.addImages(created.map(item => item.id))) {
           conversation.releaseDraftImages(created)

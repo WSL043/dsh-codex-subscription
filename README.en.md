@@ -22,12 +22,11 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
 </p>
 
-## What's included in 1.14.0
+## What's included in 1.14.1
 
-- Built-in image viewer: a bottom toolbar, wheel zoom, drag to pan, on-image notes, copy notes, and continue editing, without another plugin.
-
-- Fixes generated-image previews that could not open in DSH Web, so generated images can be viewed in the conversation again.
-- New and edited images now return the exact original path on the current DSH host in the tool result, so a model or Agent can read or copy the file; preview and download remain session-authorized.
+- The composer shows both 5-hour and weekly quota windows when returned by the service, so neither window is hidden.
+- Image edits validate attachment references, normalize bare SHA-256 digests, and resolve the actual attachment metadata from the current session. Paths produce an actionable error asking the model to obtain the correct reference with `read_image` and retry.
+- Location edits attach the clean source, a numbered annotation image, and coordinate instructions so the model can match each requested change to its location.
 
 ## Three-step start
 
@@ -149,8 +148,8 @@ The plugin can follow an existing HTTPS proxy from the process environment or op
 </p>
 
 Choose Off, Percent, Progress bar, or Beta Runway in Settings. The compact display appears only for a selected Codex model. Runway is opt-in and estimates pace only from official remaining-percentage observations. It needs at least three samples; sustained high use usually produces a range in 5–10 minutes, while low use takes longer or reports a stable state. Non-sensitive observations from the last 24 hours are kept locally so calibration can continue after restart; a quota reset, account switch, or disabling the feature starts a new calibration period.
-Standard Codex uses the lowest remaining window returned by the service; Spark uses its independent quota. The plugin does not hard-code a
-“5-hour + weekly” layout or invent Credits and spending caps that the service did not return.
+The composer shows each returned quota window with its duration. When Plus returns both five-hour and weekly limits, both are visible. Spark keeps its independent quota. Accounts with only a weekly window still show only that window; the plugin does not invent a
+five-hour limit, Credits, or spending caps that the service did not return.
 
 ### Safe quota reset
 
@@ -162,11 +161,11 @@ clicks are single-flight, and an uncertain network result is never retried autom
 
 ### Image generation and editing (Beta)
 
-A basic viewer derived from `dsh-image-viewer` is now built in, with no extra installation required. If `dsh-image-viewer` is installed, its unified preview still takes priority; otherwise, or if it declines, the built-in viewer opens. You can zoom, pan, fit, add region notes, and download the image. The standard **Download** action retrieves the permission- and integrity-checked exact original by default; only legacy sessions without an exact original fall back to the conversation preview.
+A basic viewer derived from `dsh-image-viewer` is now built in, with no extra installation required. Plugin-generated image cards use the built-in viewer to keep annotation and continue-editing actions available. You can zoom, pan, fit, add region notes, and download the image. The standard **Download** action retrieves the permission- and integrity-checked exact original by default; only legacy sessions without an exact original fall back to the conversation preview.
 
 New and edited images return the exact original path on the current DSH host in the tool result, so a model or Agent can read or copy the file. The path is on the host running DSH, not a browser download link; original downloads remain session-authorized. Uninstalling the plugin does not delete generated originals.
 
-**Continue editing in composer** attaches exactly the image you opened and writes the region notes into the draft without sending it. Press **Enter** to save and collapse a region note; use **Shift+Enter** for a new line. Notes remain available when the same image is reopened during the current DSH page session.
+**Continue editing in composer** does not send automatically. With annotations, it attaches the clean source and a numbered location-reference image, and includes matching numbers, coordinates, notes, and instructions to exclude the markers from the result. Without annotations, it attaches only the opened image. Every marker needs a note; reference preparation failures stop the handoff. Press **Enter** to save and collapse a region note; use **Shift+Enter** for a new line. Notes remain available when the same image is reopened during the current DSH page session.
 
 A new image request does not silently include earlier images. GPT Image 2 can take longer than a normal text turn, and detailed text, exact composition, or repeated-character consistency may still need another pass.
 
