@@ -14,13 +14,23 @@ const limitMatchesModel = (limit, model) => {
   return limit?.id === 'codex'
 }
 
-export function selectModelQuota(usage, model) {
+export function selectModelQuotaWindows(usage, model) {
   const windows = Array.isArray(usage?.rateLimits)
     ? usage.rateLimits
       .filter(limit => limitMatchesModel(limit, model) && Array.isArray(limit.windows))
       .flatMap(limit => limit.windows)
       .filter(isDisplayableWindow)
     : []
+  return windows.map(selected => ({
+    remainingPercent: selected.remainingPercent,
+    windowSeconds: selected.windowSeconds,
+    ...(Number.isSafeInteger(selected.resetsAt) ? { resetsAt: selected.resetsAt } : {}),
+    ...(selected.forecast === undefined ? {} : { forecast: selected.forecast }),
+  })).sort((a, b) => a.windowSeconds - b.windowSeconds)
+}
+
+export function selectModelQuota(usage, model) {
+  const windows = selectModelQuotaWindows(usage, model)
   if (windows.length === 0) return undefined
   const selected = windows.reduce((lowest, candidate) => (
     candidate.remainingPercent < lowest.remainingPercent ? candidate : lowest
