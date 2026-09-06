@@ -153,6 +153,26 @@ test('login RPC exposes only public flow state and sanitizes host failures', asy
   assert.deepEqual(coordinator.supportState(), { method: 'browser', phase: 'failed', failure: 'provider' })
 })
 
+test('account status RPC uses the supported internal error shape with fixed safe messages', async () => {
+  const cases = [
+    [new Error('Codex account vault contains a malformed grant record with refresh-secret'), 'Codex account credentials are malformed'],
+    [new Error('credential service unavailable for account status'), 'Codex account credentials are unavailable'],
+    [Object.assign(new Error('socket closed at 127.0.0.1:7890'), { code: 'ECONNRESET' }), 'Codex account status service is unavailable'],
+    [new Error('provider response included access-secret'), 'Could not read Codex account status'],
+  ]
+  for (const [failure, message] of cases) {
+    const coordinator = new CodexLoginCoordinator({
+      async status() { throw failure },
+    })
+    const response = await createCodexRpcHandler(coordinator)('status', {}, new AbortController().signal)
+    assert.deepEqual(response, {
+      ok: false,
+      error: { code: 'internal', message, details: { issues: [] } },
+    })
+    assert.doesNotMatch(JSON.stringify(response), /secret|127\.0\.0\.1|7890/u)
+  }
+})
+
 test('support diagnostics expose only a bounded login phase', async () => {
   const auth = {
     async status() { return { authenticated: false, provider: 'openai-codex' } },

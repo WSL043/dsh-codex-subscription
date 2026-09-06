@@ -34,6 +34,13 @@ export function createPreferenceController(scope, rpc) {
   let generation = 0
   let contextModels = []
   let verbosityModels = []
+  let modelError = false
+  let modelRefreshGeneration = 0
+  let modelRefreshStarted = false
+  let disposed = false
+
+  const sameModels = (left, right) => left.length === right.length
+    && left.every((model, index) => JSON.stringify(model) === JSON.stringify(right[index]))
   const nativeSnapshot = () => scope.getSnapshot()
   const read = () => {
     const native = nativeSnapshot()
@@ -58,6 +65,7 @@ export function createPreferenceController(scope, rpc) {
       customContextWindows: Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [modelKey, normalizeCustomContextWindow(value?.[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])])),
       contextModels,
       verbosityModels,
+      modelError,
       writable: !updating && current.status === 'ready' && current.writable === true,
       saving: updating,
       error,
@@ -75,8 +83,10 @@ export function createPreferenceController(scope, rpc) {
     publish()
   })
   const acceptFallback = value => {
-    contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
-    verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
+    if (!modelRefreshStarted) {
+      contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
+      verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
+    }
     fallbackStatus = 'ready'
     fallback = {
       status: 'ready',
@@ -105,21 +115,51 @@ export function createPreferenceController(scope, rpc) {
     publish()
     try {
       const value = unwrap(await rpc.call(CHANNEL, 'preferences/status', {}))
-      if (current !== generation) return
+      if (current !== generation || disposed) return
       if (nativeSnapshot().status === 'ready') {
-        contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
-        verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
+        if (!modelRefreshStarted) {
+          contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
+          verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
+        }
       }
       else acceptFallback(value)
       publish()
     } catch {
-      if (current !== generation || nativeSnapshot().status === 'ready') return
+      if (current !== generation || disposed || nativeSnapshot().status === 'ready') return
       fallbackStatus = 'unavailable'
       publish()
     }
   }
+  const refreshModels = async () => {
+    const current = ++modelRefreshGeneration
+    modelRefreshStarted = true
+    const hadError = modelError
+    modelError = false
+    if (hadError) publish()
+    try {
+      const value = unwrap(await rpc.call(CHANNEL, 'preferences/models', {}))
+      if (disposed || current !== modelRefreshGeneration) return false
+      const nextContextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
+      const nextVerbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
+      const changed = !sameModels(contextModels, nextContextModels)
+        || !sameModels(verbosityModels, nextVerbosityModels)
+      if (changed) {
+        contextModels = nextContextModels
+        verbosityModels = nextVerbosityModels
+        publish()
+      }
+      return changed
+    } catch {
+      if (disposed || current !== modelRefreshGeneration) return false
+      if (!modelError) {
+        modelError = true
+        publish()
+      }
+      return false
+    }
+  }
   const set = async patch => {
-    if (snapshot.status !== 'ready' || snapshot.writable !== true) return
+    if (disposed || snapshot.status !== 'ready' || snapshot.writable !== true) return
     const current = ++generation
     const entries = Object.entries(patch)
     updating = true
@@ -167,6 +207,12 @@ export function createPreferenceController(scope, rpc) {
     load,
     set,
     retry: () => failedPatch === undefined ? load() : set(failedPatch),
-    dispose: disposeScope,
+    refreshModels,
+    dispose: () => {
+      disposed = true
+      generation += 1
+      modelRefreshGeneration += 1
+      disposeScope()
+    },
   }
 }

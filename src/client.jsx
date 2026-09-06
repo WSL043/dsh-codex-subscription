@@ -49,6 +49,8 @@ import {
 import { selectModelQuotaWindows } from './sidebar-quota.js'
 import { readLoginProgress } from './login-progress.js'
 import { createPreferenceController } from './preference-controller.js'
+import { createAccountStatusController } from './account-status-controller.js'
+import { reconcileContextDrafts } from './context-draft-state.js'
 
 export const inject = [
   'slots', 'locale', 'connection', 'remote', 'settingsScope', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
@@ -71,7 +73,7 @@ const zh = {
   cancel: '取消', submit: '提交授权码', openLogin: '打开登录页',
   manualCode: '若浏览器回调没有自动完成，请粘贴授权码或完整重定向地址。',
   deviceHint: '在登录页输入此设备代码：', waiting: '正在等待登录完成…',
-  failed: '登录失败，请重试。', loadFailed: '无法读取账户状态。', accountRetry: '重试',
+  failed: '登录失败，请重试。', loadFailed: '无法读取账户状态。', accountRetry: '重试', accountRetrying: '正在重试账户状态…', accountCredentialUnavailable: '登录凭据暂时不可用。请重试；不会删除已保存的登录信息。', accountCredentialMalformed: '登录凭据格式异常，无法读取账户状态。重试不会删除已保存的登录信息。', accountStatusTimeout: '读取账户状态超时，请重试。', accountStatusTransport: '无法连接账户服务，请检查连接后重试。', accountStatusUnknown: '无法读取账户状态，请重试。',
   diagnostics: '支持诊断', diagnosticsLoad: '生成诊断', diagnosticsLoading: '生成中…', diagnosticsCopy: '复制诊断', diagnosticsCopied: '已复制', diagnosticsFailed: '无法生成诊断信息。', feedbackOpen: '反馈问题',
   showEmail: '显示完整邮箱', hideEmail: '隐藏邮箱', emailUnavailable: '邮箱不可用',
   searchTitle: '搜索来源',
@@ -118,7 +120,7 @@ const zh = {
   speedFast: '高速', speedFastHint: '1.5 倍，消耗更多 Credits',
   verbosityTitle: '输出详略', verbosityDefault: '模型默认', verbosityDefaultHint: '使用官方模型目录推荐值', verbosityLow: '简洁', verbosityLowHint: '更短、更直接', verbosityMedium: '均衡', verbosityMediumHint: '兼顾完整性与长度', verbosityHigh: '详细', verbosityHighHint: '更充分的说明与结构',
   modelMenuAria: '模型、推理等级、速度与输出详略', modelLabel: '模型', effortLabel: '推理等级', providerDefault: 'Default', selectModel: '选择模型',
-  modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
+  modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelDirectoryFailed: '模型目录加载失败，请重试。', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
   imageGenerate: '生成图片', imageBeta: 'Beta', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
   imageLabel: '生成的图片', imageOpen: '查看图片', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览', imagePreviewShort: '预览图', imageClosePreview: '关闭预览', imageDownload: '下载', imageDownloadPreparing: '正在准备原图…', imageDownloadFailed: '下载失败，重试', imageZoomOut: '缩小', imageZoomIn: '放大', imageFit: '适合窗口',
   imageAnnotate: '标注部位', imageAnnotateCancel: '取消标注', imageAnnotateHint: '点击图片添加编号标注', imageAnnotation: '标注 {value}', imageAnnotationPlaceholder: '描述这个部位要修改什么', imageRegions: '区域备注', imageCopyNotes: '复制备注', imageCopied: '已复制', imagePrevious: '上一张图片', imageNext: '下一张图片', imageZoomHint: '滚轮缩放 · 拖动查看 · 双击切换原始大小', imageActual: '原始大小', imageEditPrompt: '描述你想怎样修改这张图', imageEditDefault: '编辑这张图片。', imageRegionNotes: '部位修改：', imageEdit: '在输入框中继续编辑', imageEditPreparing: '正在添加到输入框…', imageEditFailed: '回填失败：请填写每个标记的备注，并确认输入框可接收图片后重试。', imageRemoveAnnotation: '删除标注',
@@ -135,7 +137,7 @@ const en = {
   cancel: 'Cancel', submit: 'Submit authorization code', openLogin: 'Open sign-in page',
   manualCode: 'If the browser callback did not finish automatically, paste the code or full redirect URL.',
   deviceHint: 'Enter this device code on the sign-in page:', waiting: 'Waiting for sign-in to finish…',
-  failed: 'Sign-in failed. Try again.', loadFailed: 'Could not read account status.', accountRetry: 'Retry',
+  failed: 'Sign-in failed. Try again.', loadFailed: 'Could not read account status.', accountRetry: 'Retry', accountRetrying: 'Retrying account status…', accountCredentialUnavailable: 'The saved sign-in credentials are temporarily unavailable. Retry; saved sign-in information will not be deleted.', accountCredentialMalformed: 'The saved sign-in credentials are malformed, so account status cannot be read. Retrying will not delete saved sign-in information.', accountStatusTimeout: 'Reading account status timed out. Retry.', accountStatusTransport: 'The account service is unavailable. Check the connection and retry.', accountStatusUnknown: 'Could not read account status. Retry.',
   diagnostics: 'Support diagnostics', diagnosticsLoad: 'Create report', diagnosticsLoading: 'Creating…', diagnosticsCopy: 'Copy report', diagnosticsCopied: 'Copied', diagnosticsFailed: 'Could not create diagnostics.', feedbackOpen: 'Report a problem',
   showEmail: 'Show full email', hideEmail: 'Hide email', emailUnavailable: 'Email unavailable',
   searchTitle: 'Search source',
@@ -182,7 +184,7 @@ const en = {
   speedFast: 'Fast', speedFastHint: '1.5x; higher Credits use',
   verbosityTitle: 'Output detail', verbosityDefault: 'Model default', verbosityDefaultHint: 'Use the official model catalog recommendation', verbosityLow: 'Concise', verbosityLowHint: 'Shorter and more direct', verbosityMedium: 'Balanced', verbosityMediumHint: 'Balance completeness and length', verbosityHigh: 'Detailed', verbosityHighHint: 'More explanation and structure',
   modelMenuAria: 'Model, effort, speed, and output detail', modelLabel: 'Model', effortLabel: 'Effort', providerDefault: 'Default', selectModel: 'Select model',
-  modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
+  modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelDirectoryFailed: 'Could not load the model directory. Try again.', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
   imageGenerate: 'Generate image', imageBeta: 'Beta', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
   imageLabel: 'Generated image', imageOpen: 'View image', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview', imagePreviewShort: 'Preview', imageClosePreview: 'Close preview', imageDownload: 'Download', imageDownloadPreparing: 'Preparing original…', imageDownloadFailed: 'Download failed. Retry', imageZoomOut: 'Zoom out', imageZoomIn: 'Zoom in', imageFit: 'Fit to window',
   imageAnnotate: 'Annotate', imageAnnotateCancel: 'Cancel marking', imageAnnotateHint: 'Click the image to add a numbered note', imageAnnotation: 'Note {value}', imageAnnotationPlaceholder: 'Describe what should change in this area', imageRegions: 'Region notes', imageCopyNotes: 'Copy notes', imageCopied: 'Copied', imagePrevious: 'Previous image', imageNext: 'Next image', imageZoomHint: 'Wheel to zoom · drag to pan · double-click for 100%', imageActual: '100%', imageEditPrompt: 'Describe how you want to change this image', imageEditDefault: 'Edit this image.', imageRegionNotes: 'Region changes:', imageEdit: 'Continue editing in composer', imageEditPreparing: 'Adding to composer…', imageEditFailed: 'Handoff failed. Add a note to every marker and ensure the composer accepts images, then retry.', imageRemoveAnnotation: 'Remove note',
@@ -237,6 +239,16 @@ const STYLE = `
 const unwrap = response => {
   if (!response?.ok) throw new Error(response?.error?.message ?? 'Codex RPC failed')
   return response.value
+}
+const accountStatusErrorText = (error, t) => {
+  const key = {
+    'credential-unavailable': 'accountCredentialUnavailable',
+    'credential-malformed': 'accountCredentialMalformed',
+    timeout: 'accountStatusTimeout',
+    transport: 'accountStatusTransport',
+    unknown: 'accountStatusUnknown',
+  }[error?.code]
+  return t(key ?? 'accountStatusUnknown')
 }
 const fill = (text, values) => Object.entries(values).reduce((next, [key, value]) => next.replace(`{${key}}`, String(value)), text)
 const maskEmail = value => {
@@ -412,6 +424,10 @@ const usePreferenceSnapshot = preference => useSyncExternalStore(
   preference.subscribe,
   preference.getSnapshot,
 )
+const useAccountStatusSnapshot = accountStatus => useSyncExternalStore(
+  accountStatus.subscribe,
+  accountStatus.getSnapshot,
+)
 
 const notifyQuickQuota = () => window.dispatchEvent(new Event(QUICK_QUOTA_REFRESH_EVENT))
 
@@ -510,7 +526,19 @@ function ContextWindowPreference({ preference, t }) {
   const modelRows = snapshot.contextModels.filter(model => model.fixed !== true)
   const fixedRows = snapshot.contextModels.filter(model => model.fixed === true)
   const [drafts, setDrafts] = useState({})
-  useEffect(() => setDrafts(Object.fromEntries(modelRows.map(model => [model.key, String(snapshot.customContextWindows[model.key])]))), [snapshot.customContextWindows, snapshot.contextModels])
+  const previousSavedValues = useRef()
+  const draftSeed = modelRows.map(model => `${model.key}\u0000${snapshot.customContextWindows[model.key]}`).join('\u0001')
+  useEffect(() => {
+    const savedValues = Object.fromEntries(modelRows.map(model => [model.key, String(snapshot.customContextWindows[model.key])]))
+    const previous = previousSavedValues.current
+    setDrafts(current => reconcileContextDrafts({
+      modelRows,
+      drafts: current,
+      previousSavedValues: previous,
+      savedValues,
+    }))
+    previousSavedValues.current = savedValues
+  }, [draftSeed])
   const hint = snapshot.contextMode === CONTEXT_MODE_EXTENDED
     ? t('contextExtendedHint')
     : snapshot.contextMode === CONTEXT_MODE_CUSTOM
@@ -538,6 +566,7 @@ function ContextWindowPreference({ preference, t }) {
       <Menu open={menuOpen} items={contextModeItems} selectedId={snapshot.contextMode} onSelect={value => { setMenuOpen(false); void preference.set({ [CONTEXT_MODE_FIELD]: value }) }} onClose={() => setMenuOpen(false)} align="end" side="bottom" portal compact anchor={<button className="codexSubscriptionContextTrigger" type="button" aria-label={t('contextTitle')} aria-haspopup="menu" aria-expanded={menuOpen} disabled={!writable} onClick={() => setMenuOpen(value => !value)}><span>{selectedMode}</span><IconChevronDownOutline14 /></button>} />
     </div>
     {snapshot.contextMode === CONTEXT_MODE_CUSTOM ? <div className="codexSubscriptionContextModels">{modelRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextMaximum'), { value: String(model.maximum) })}</span></span><Input aria-label={`${model.label} ${t('contextTokens')}`} className="codexSubscriptionContextInput" type="number" inputMode="numeric" min={MIN_CUSTOM_CONTEXT_WINDOW} max={model.maximum} step={1} value={drafts[model.key] ?? ''} disabled={!writable} onChange={event => { const nextValue = event.currentTarget.value; setDrafts(current => ({ ...current, [model.key]: nextValue })) }} onBlur={() => commit(model.key)} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /></div>)}{fixedRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextFixed'), { value: formatContextWindow(model.maximum) })}</span></span><span className="codexSubscriptionContextHint">{formatContextWindow(model.maximum)}</span></div>)}</div> : null}
+    {snapshot.modelError ? <div className="codexSubscriptionRecover" role="alert"><p className="codexSubscriptionError">{t('modelDirectoryFailed')}</p><Button type="button" variant="outline" onClick={() => { void preference.refreshModels() }}>{t('modelRetry')}</Button></div> : null}
   </div>
 }
 
@@ -935,10 +964,11 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   </div>
 }
 
-function AccountFailureCard({ retry, t }) {
+function AccountFailureCard({ accountStatus, snapshot, t }) {
+  const retrying = snapshot.retrying === true
   return <div className="codexSubscriptionCard codexSubscriptionRecover" role="alert">
-    <p className="codexSubscriptionError">{t('loadFailed')}</p>
-    <Button type="button" variant="outline" onClick={retry}>{t('accountRetry')}</Button>
+    <p className="codexSubscriptionError">{retrying ? t('accountRetrying') : accountStatusErrorText(snapshot.error, t)}</p>
+    <Button type="button" variant="outline" disabled={retrying} aria-busy={retrying} onClick={() => { void accountStatus.retry() }}>{retrying ? t('accountRetrying') : t('accountRetry')}</Button>
   </div>
 }
 
@@ -1151,28 +1181,22 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
   </div>
 }
 
-function CodexSection({ preference, rpc, t }) {
-  const [account, setAccount] = useState()
-  const [accountError, setAccountError] = useState()
+function CodexSection({ preference, rpc, accountStatus, t }) {
+  const accountSnapshot = useAccountStatusSnapshot(accountStatus)
+  const account = accountSnapshot.account
   const [resetKey, setResetKey] = useState(0)
-  const accountRequest = useRef(0)
-  const loadAccount = () => {
-    const id = ++accountRequest.current
-    setAccount(undefined)
-    setAccountError(undefined)
-    void rpc.call(CHANNEL, 'status', {}).then(unwrap).then(next => {
-      if (accountRequest.current === id) setAccount(next)
-    }).catch(() => {
-      if (accountRequest.current === id) setAccountError(true)
-    })
+  const setAccount = accountStatus.acceptAccount
+  const accountChanged = () => {
+    setResetKey(value => value + 1)
+    void preference.refreshModels()
   }
   useEffect(() => {
-    loadAccount()
-    return () => { accountRequest.current += 1 }
-  }, [])
+    void accountStatus.load()
+    void preference.refreshModels()
+  }, [accountStatus, preference])
   return <section className="codexSubscription">
     <div className="codexSubscriptionHead"><h2>{t('title')}</h2></div>
-    {accountError === undefined ? <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={() => setResetKey(value => value + 1)} /> : <AccountFailureCard retry={loadAccount} t={t} />}
+    {accountSnapshot.status === 'error' ? <AccountFailureCard accountStatus={accountStatus} snapshot={accountSnapshot} t={t} /> : <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} />}
     <PreferencesCard preference={preference} t={t} />
     {account === undefined ? null : <UsageCard rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} />}
     <DiagnosticsCard rpc={rpc} t={t} />
@@ -1192,14 +1216,17 @@ export function apply(ctx) {
   const connection = ctx.get('connection')
   const scope = ctx.settingsScope.bind({ namespace: SETTINGS_NAMESPACE })
   const preference = createPreferenceController(scope, connection.rpc)
+  const accountStatus = createAccountStatusController(connection.rpc)
   ctx.effect(() => {
     void preference.load()
-    const disposeReset = ctx.on('connection/reset', () => { void preference.load() })
+    void accountStatus.load()
+    const disposeReset = ctx.on('connection/reset', () => { void preference.load(); void preference.refreshModels(); void accountStatus.reload() })
     return () => {
       disposeReset?.()
       preference.dispose()
+      accountStatus.dispose()
     }
-  }, 'codex-subscription: preferences')
+  }, 'codex-subscription: preferences and account status')
   const t = ctx.locale.bind(NS)
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'codex-subscription-image-viewer', order: 20,
@@ -1207,7 +1234,7 @@ export function apply(ctx) {
   }, SubscriptionImageViewerOverlay))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'codex-subscription', order: 15,
-    label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: connection.rpc, t }),
+    label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: connection.rpc, accountStatus, t }),
   }, CodexSection))
   const sessions = ctx.get('sessions')
   const installDirectorySlots = scope => {

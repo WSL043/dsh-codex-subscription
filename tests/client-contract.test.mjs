@@ -404,9 +404,15 @@ test('settings keep support diagnostics actionable and omit internal cache or ro
 
 test('account and preference failures stop loading and offer an in-place retry', async () => {
   const source = await text('src/client.jsx')
-  assert.match(source, /accountError === undefined\s*\?\s*<AccountCard/u)
+  assert.match(source, /accountSnapshot\.status === 'error'\s*\?\s*<AccountFailureCard/u)
   assert.match(source, /<AccountFailureCard/u)
   assert.match(source, /accountRetry/u)
+  assert.match(source, /accountRetrying/u)
+  assert.match(source, /accountStatus\.retry\(\)/u)
+  assert.match(source, /void accountStatus\.load\(\)/u)
+  assert.match(source, /void preference\.refreshModels\(\)/u)
+  assert.match(source, /accountStatus\.reload\(\)/u)
+  assert.match(source, /accountStatus\.dispose\(\)/u)
   assert.match(source, /preference\.retry\(\)/u)
   assert.match(source, /preferenceRetry/u)
   assert.match(source, /role=['"]alert['"][\s\S]*?Button/u)

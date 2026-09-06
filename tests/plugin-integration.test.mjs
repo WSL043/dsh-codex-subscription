@@ -329,6 +329,39 @@ test('Astra custom context is persisted through settings RPC with its audited bo
   }
 })
 
+test('preferences/models refreshes the catalog before returning the current model surfaces', async () => {
+  const calls = []
+  let fail = false
+  const handler = plugin.createSubscriptionRpcHandler({
+    modelCatalog: {
+      async refresh() {
+        calls.push('refresh')
+        if (fail) throw new Error('credential details must stay private')
+      },
+    },
+    preferences: {
+      status() {
+        calls.push('status')
+        return { contextModels: [{ key: 'gpt-6-astra' }], verbosityModels: ['gpt-6-astra'] }
+      },
+    },
+  })
+  const signal = new AbortController().signal
+  assert.deepEqual(await handler('preferences/models', {}, signal), {
+    ok: true,
+    value: { contextModels: [{ key: 'gpt-6-astra' }], verbosityModels: ['gpt-6-astra'] },
+  })
+  assert.deepEqual(calls, ['refresh', 'status'])
+
+  fail = true
+  const failed = await handler('preferences/models', {}, signal)
+  assert.deepEqual(failed, {
+    ok: false,
+    error: { code: 'internal', message: 'Could not refresh Codex model catalog', details: { issues: [] } },
+  })
+  assert.doesNotMatch(JSON.stringify(failed), /credential details/)
+})
+
 test('usage failures use a DSH-supported bounded RPC error', async () => {
   const handler = plugin.createSubscriptionRpcHandler({
     async authHandler() { throw new Error('not used') },
