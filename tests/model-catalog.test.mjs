@@ -122,3 +122,72 @@ test('catalog refresh is conditional, keeps the last good result, and never expo
   assert.equal(catalog.getModels(base)[0].id, 'gpt-next')
   assert.doesNotMatch(JSON.stringify(catalog.getModels(base)), /secret-token|secret-account/u)
 })
+
+test('catalog timeout rejects even when an injected request ignores abort and drops its late result', async () => {
+  let resolveFetch
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => base,
+    timeoutMs: 10,
+    async getAuth() { return { auth: { apiKey: 'test-token' } } },
+    async readCredential() { return { type: 'oauth', accountId: 'test-account' } },
+    async fetch() {
+      return new Promise(resolve => { resolveFetch = resolve })
+    },
+  })
+
+  await assert.rejects(catalog.refresh(), /timed out/u)
+  resolveFetch(Response.json({ models: [remote({ slug: 'late-model' })] }))
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(catalog.revision(), 0)
+  assert.equal(catalog.getModels(base), base)
+})
+
+test('clear aborts the old flight without letting its timer invalidate the replacement', async () => {
+  const fetches = []
+  const timers = []
+  let now = 0
+  const scheduleTimeout = (callback, delay) => {
+    const timer = { at: now + delay, callback, cleared: false }
+    timers.push(timer)
+    return timer
+  }
+  const cancelTimeout = timer => { timer.cleared = true }
+  const advanceTo = target => {
+    now = target
+    for (const timer of timers.filter(item => !item.cleared && item.at <= target)) {
+      timer.cleared = true
+      timer.callback()
+    }
+  }
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => base,
+    timeoutMs: 50,
+    setTimeout: scheduleTimeout,
+    clearTimeout: cancelTimeout,
+    async getAuth() { return { auth: { apiKey: 'test-token' } } },
+    async readCredential() { return { type: 'oauth', accountId: 'test-account' } },
+    async fetch() {
+      return new Promise(resolve => fetches.push(resolve))
+    },
+  })
+
+  const old = catalog.refresh()
+  await Promise.resolve()
+  await Promise.resolve()
+  assert.equal(fetches.length, 1)
+  now = 10
+  catalog.clear()
+  await assert.rejects(old)
+  const replacement = catalog.refresh()
+  await Promise.resolve()
+  await Promise.resolve()
+  assert.equal(timers.length, 2)
+  assert.equal(timers[0].cleared, true)
+  advanceTo(50)
+  assert.equal(fetches.length, 2)
+  fetches[1](Response.json({ models: [remote({ slug: 'replacement-model' })] }))
+  assert.equal(await replacement, true)
+  fetches[0](Response.json({ models: [remote({ slug: 'late-old-model' })] }))
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(catalog.getModels(base)[0].id, 'replacement-model')
+})

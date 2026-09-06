@@ -10,6 +10,29 @@ const badRequest = message => ({
   ok: false,
   error: { code: 'bad-request', message, details: { issues: [] } },
 })
+const accountStatusError = message => ({
+  ok: false,
+  error: { code: 'internal', message, details: { issues: [] } },
+})
+
+const classifyAccountStatusError = error => {
+  const message = error instanceof Error ? error.message : ''
+  if (/malformed (?:OAuth|grant|account vault)|received a malformed OAuth|contains malformed OAuth/iu.test(message)) {
+    return ['credential-malformed', 'Codex account credentials are malformed']
+  }
+  if (/credential|account vault|readRecord|credential store|credentials service/iu.test(message)) {
+    return ['credential-unavailable', 'Codex account credentials are unavailable']
+  }
+  const code = typeof error?.code === 'string' ? error.code.toUpperCase() : ''
+  if (error?.name === 'TimeoutError' || ['TIMEOUT', 'ETIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT'].includes(code)) {
+    return ['transport', 'Codex account status service is unavailable']
+  }
+  if (['ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'NETWORK', 'NETWORK_ERROR', 'TRANSPORT'].includes(code)
+    || error?.name === 'NetworkError') {
+    return ['transport', 'Codex account status service is unavailable']
+  }
+  return ['unknown', 'Could not read Codex account status']
+}
 
 const deferred = () => {
   let resolve
@@ -275,7 +298,15 @@ export function createCodexRpcHandler(coordinator, options = {}) {
     try {
       signal.throwIfAborted()
       const input = asObject(payload)
-      if (endpoint === 'status') return ok(await coordinator.accountStatus({ signal }))
+      if (endpoint === 'status') {
+        try {
+          return ok(await coordinator.accountStatus({ signal }))
+        } catch (error) {
+          if (signal.aborted) throw error
+          const [, message] = classifyAccountStatusError(error)
+          return accountStatusError(message)
+        }
+      }
       if (endpoint === 'login/start') {
         const started = await coordinator.start({ method: input.method, label: input.label })
         if (input.openExternal !== true) return ok(started)
