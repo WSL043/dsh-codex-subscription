@@ -49,6 +49,7 @@ import {
 import { selectModelQuotaWindows } from './sidebar-quota.js'
 import { readLoginProgress } from './login-progress.js'
 import { createPreferenceController } from './preference-controller.js'
+import { createAccountStatusController } from './account-status-controller.js'
 
 export const inject = [
   'slots', 'locale', 'connection', 'remote', 'settingsScope', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
@@ -71,7 +72,7 @@ const zh = {
   cancel: '取消', submit: '提交授权码', openLogin: '打开登录页',
   manualCode: '若浏览器回调没有自动完成，请粘贴授权码或完整重定向地址。',
   deviceHint: '在登录页输入此设备代码：', waiting: '正在等待登录完成…',
-  failed: '登录失败，请重试。', loadFailed: '无法读取账户状态。', accountRetry: '重试',
+  failed: '登录失败，请重试。', loadFailed: '无法读取账户状态。', accountRetry: '重试', accountRetrying: '正在重试账户状态…', accountCredentialUnavailable: '登录凭据暂时不可用。请重试；不会删除已保存的登录信息。', accountCredentialMalformed: '登录凭据格式异常，无法读取账户状态。重试不会删除已保存的登录信息。', accountStatusTimeout: '读取账户状态超时，请重试。', accountStatusTransport: '无法连接账户服务，请检查连接后重试。', accountStatusUnknown: '无法读取账户状态，请重试。',
   diagnostics: '支持诊断', diagnosticsLoad: '生成诊断', diagnosticsLoading: '生成中…', diagnosticsCopy: '复制诊断', diagnosticsCopied: '已复制', diagnosticsFailed: '无法生成诊断信息。', feedbackOpen: '反馈问题',
   showEmail: '显示完整邮箱', hideEmail: '隐藏邮箱', emailUnavailable: '邮箱不可用',
   searchTitle: '搜索来源',
@@ -135,7 +136,7 @@ const en = {
   cancel: 'Cancel', submit: 'Submit authorization code', openLogin: 'Open sign-in page',
   manualCode: 'If the browser callback did not finish automatically, paste the code or full redirect URL.',
   deviceHint: 'Enter this device code on the sign-in page:', waiting: 'Waiting for sign-in to finish…',
-  failed: 'Sign-in failed. Try again.', loadFailed: 'Could not read account status.', accountRetry: 'Retry',
+  failed: 'Sign-in failed. Try again.', loadFailed: 'Could not read account status.', accountRetry: 'Retry', accountRetrying: 'Retrying account status…', accountCredentialUnavailable: 'The saved sign-in credentials are temporarily unavailable. Retry; saved sign-in information will not be deleted.', accountCredentialMalformed: 'The saved sign-in credentials are malformed, so account status cannot be read. Retrying will not delete saved sign-in information.', accountStatusTimeout: 'Reading account status timed out. Retry.', accountStatusTransport: 'The account service is unavailable. Check the connection and retry.', accountStatusUnknown: 'Could not read account status. Retry.',
   diagnostics: 'Support diagnostics', diagnosticsLoad: 'Create report', diagnosticsLoading: 'Creating…', diagnosticsCopy: 'Copy report', diagnosticsCopied: 'Copied', diagnosticsFailed: 'Could not create diagnostics.', feedbackOpen: 'Report a problem',
   showEmail: 'Show full email', hideEmail: 'Hide email', emailUnavailable: 'Email unavailable',
   searchTitle: 'Search source',
@@ -237,6 +238,16 @@ const STYLE = `
 const unwrap = response => {
   if (!response?.ok) throw new Error(response?.error?.message ?? 'Codex RPC failed')
   return response.value
+}
+const accountStatusErrorText = (error, t) => {
+  const key = {
+    'credential-unavailable': 'accountCredentialUnavailable',
+    'credential-malformed': 'accountCredentialMalformed',
+    timeout: 'accountStatusTimeout',
+    transport: 'accountStatusTransport',
+    unknown: 'accountStatusUnknown',
+  }[error?.code]
+  return t(key ?? 'accountStatusUnknown')
 }
 const fill = (text, values) => Object.entries(values).reduce((next, [key, value]) => next.replace(`{${key}}`, String(value)), text)
 const maskEmail = value => {
@@ -411,6 +422,10 @@ function CodexImageToolRow({ block, sessionId, rpc, loadImage, attachForEdit, ge
 const usePreferenceSnapshot = preference => useSyncExternalStore(
   preference.subscribe,
   preference.getSnapshot,
+)
+const useAccountStatusSnapshot = accountStatus => useSyncExternalStore(
+  accountStatus.subscribe,
+  accountStatus.getSnapshot,
 )
 
 const notifyQuickQuota = () => window.dispatchEvent(new Event(QUICK_QUOTA_REFRESH_EVENT))
@@ -937,10 +952,11 @@ function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   </div>
 }
 
-function AccountFailureCard({ retry, t }) {
+function AccountFailureCard({ accountStatus, snapshot, t }) {
+  const retrying = snapshot.retrying === true
   return <div className="codexSubscriptionCard codexSubscriptionRecover" role="alert">
-    <p className="codexSubscriptionError">{t('loadFailed')}</p>
-    <Button type="button" variant="outline" onClick={retry}>{t('accountRetry')}</Button>
+    <p className="codexSubscriptionError">{retrying ? t('accountRetrying') : accountStatusErrorText(snapshot.error, t)}</p>
+    <Button type="button" variant="outline" disabled={retrying} aria-busy={retrying} onClick={() => { void accountStatus.retry() }}>{retrying ? t('accountRetrying') : t('accountRetry')}</Button>
   </div>
 }
 
@@ -1153,33 +1169,22 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
   </div>
 }
 
-function CodexSection({ preference, rpc, t }) {
-  const [account, setAccount] = useState()
-  const [accountError, setAccountError] = useState()
+function CodexSection({ preference, rpc, accountStatus, t }) {
+  const accountSnapshot = useAccountStatusSnapshot(accountStatus)
+  const account = accountSnapshot.account
   const [resetKey, setResetKey] = useState(0)
-  const accountRequest = useRef(0)
-  const loadAccount = () => {
-    const id = ++accountRequest.current
-    setAccount(undefined)
-    setAccountError(undefined)
-    void rpc.call(CHANNEL, 'status', {}).then(unwrap).then(next => {
-      if (accountRequest.current === id) setAccount(next)
-    }).catch(() => {
-      if (accountRequest.current === id) setAccountError(true)
-    })
-  }
+  const setAccount = accountStatus.acceptAccount
   const accountChanged = () => {
     setResetKey(value => value + 1)
     void preference.refreshModels()
   }
   useEffect(() => {
-    loadAccount()
+    void accountStatus.load()
     void preference.refreshModels()
-    return () => { accountRequest.current += 1 }
-  }, [])
+  }, [accountStatus, preference])
   return <section className="codexSubscription">
     <div className="codexSubscriptionHead"><h2>{t('title')}</h2></div>
-    {accountError === undefined ? <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} /> : <AccountFailureCard retry={loadAccount} t={t} />}
+    {accountSnapshot.status === 'error' ? <AccountFailureCard accountStatus={accountStatus} snapshot={accountSnapshot} t={t} /> : <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} />}
     <PreferencesCard preference={preference} t={t} />
     {account === undefined ? null : <UsageCard rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} />}
     <DiagnosticsCard rpc={rpc} t={t} />
@@ -1199,14 +1204,17 @@ export function apply(ctx) {
   const connection = ctx.get('connection')
   const scope = ctx.settingsScope.bind({ namespace: SETTINGS_NAMESPACE })
   const preference = createPreferenceController(scope, connection.rpc)
+  const accountStatus = createAccountStatusController(connection.rpc)
   ctx.effect(() => {
     void preference.load()
-    const disposeReset = ctx.on('connection/reset', () => { void preference.load(); void preference.refreshModels() })
+    void accountStatus.load()
+    const disposeReset = ctx.on('connection/reset', () => { void preference.load(); void preference.refreshModels(); void accountStatus.reload() })
     return () => {
       disposeReset?.()
       preference.dispose()
+      accountStatus.dispose()
     }
-  }, 'codex-subscription: preferences')
+  }, 'codex-subscription: preferences and account status')
   const t = ctx.locale.bind(NS)
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'codex-subscription-image-viewer', order: 20,
@@ -1214,7 +1222,7 @@ export function apply(ctx) {
   }, SubscriptionImageViewerOverlay))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'codex-subscription', order: 15,
-    label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: connection.rpc, t }),
+    label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: connection.rpc, accountStatus, t }),
   }, CodexSection))
   const sessions = ctx.get('sessions')
   const installDirectorySlots = scope => {
