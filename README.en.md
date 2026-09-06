@@ -22,7 +22,13 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
 </p>
 
-## What's included in 1.14.2
+## What's included in 1.14.3
+
+- Fix delayed model-catalog refresh when Settings opens or the account changes: the completed refresh shows the current subscription models, including GPT-6 Astra, and can be retried after a failure.
+- Account-status retry now sends a real new request; timeouts, stale responses from an old account, and connection resets cannot overwrite current state or remove saved sign-in data.
+- Model-catalog refresh no longer interrupts an unsaved context-settings draft.
+
+### From 1.14.2
 
 - GPT-6 Astra now supports model-catalog context settings: Standard preserves the catalog default, Extended uses 872K, and Custom is bounded to 128K–872K.
 
