@@ -94,6 +94,11 @@ export const STYLE = `
 .codexSubscriptionLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexSubscriptionLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexSubscriptionLimitMeta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionLimitPeriod{display:flex;gap:8px;flex-wrap:wrap}
+.codexSubscriptionSearchOptions{margin-top:10px;font-size:12px}
+.codexSubscriptionSearchOptions>summary{cursor:pointer;color:var(--dsw-alias-label-primary);padding:6px 0}
+.codexSubscriptionSearchOptions>summary>span{float:right;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionSearchOptions[open]>summary{margin-bottom:8px}
 .codexSubscriptionCreditSection{display:flex;flex-direction:column;gap:7px}
 .codexSubscriptionCreditNote{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionCreditRows{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}

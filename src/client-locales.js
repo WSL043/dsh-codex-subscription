@@ -1,4 +1,5 @@
 export const zh = {
+  searchOptions: '搜索选项', searchDomainCount: '个域名',
   catalogRefresh: '刷新模型', catalogOnline: '已加载账户在线模型目录', catalogFallback: '当前使用内置模型目录；登录后可刷新账户可用模型',
   searchMode: '订阅搜索模式', searchMode_live: '实时', searchMode_cached: '缓存（实验）', searchMode_disabled: '停用',
   searchModeHint: '仅影响 Codex 订阅搜索。缓存模式请求已有索引，需实机确认账户支持；失败时不会自动切换来源。',
@@ -69,6 +70,7 @@ export const zh = {
 }
 
 export const en = {
+  searchOptions: 'Search options', searchDomainCount: 'domains',
   catalogRefresh: 'Refresh models', catalogOnline: 'Account model catalog loaded', catalogFallback: 'Using the built-in catalog. Sign in to refresh account models.',
   searchMode: 'Subscription search mode', searchMode_live: 'Live', searchMode_cached: 'Cached (experimental)', searchMode_disabled: 'Disabled',
   searchModeHint: 'Applies only to Codex subscription search. Cached mode requests indexed results; account support needs live acceptance. Failures do not switch providers.',
