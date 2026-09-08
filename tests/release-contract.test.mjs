@@ -11,9 +11,18 @@ const pngDimensions = path => {
 const manifest = JSON.parse(text('package.json'))
 const compatibility = JSON.parse(text('compatibility.json'))
 
+test('scheduled compatibility checks cannot commit or release merely because upstream changed', () => {
+  const workflow = text('.github/workflows/upstream-compatibility.yml')
+  assert.match(workflow, /publish_compatibility:\s*\n\s*description:[^\n]*\n\s*required: false\s*\n\s*type: boolean\s*\n\s*default: false/u)
+  const promote = workflow.slice(workflow.indexOf('\n  promote:'))
+  assert.match(promote, /if: github\.event_name == 'workflow_dispatch' && inputs\.publish_compatibility == true && needs\.prepare\.outputs\.changed == 'true' && needs\.windows-acceptance\.result == 'success'/u)
+  assert.match(workflow, /\.sort\(compareVersions\)\.reverse\(\)/u, 'read-only checks must follow the newest release without requiring metadata commits')
+  assert.doesNotMatch(workflow.slice(0, workflow.indexOf('\n  promote:')), /contents: write|actions: write|git push|gh workflow run/u)
+})
+
 test('official DSH acceptance allows only the reviewed pnpm build dependencies', () => {
   const script = text('.github/scripts/accept-official-release.ps1')
-  for (const dependency of ['@deepseek-ai/dsh-subprocess-local', '@google/genai', 'koffi', 'node-pty', 'protobufjs']) {
+  for (const dependency of ['@deepseek-ai/dsh-subprocess-local', '@google/genai', 'fs-ext', 'koffi', 'node-pty', 'protobufjs']) {
     assert.equal(script.includes(`--allow-build=${dependency}`), true, dependency)
   }
   assert.equal(script.includes('dangerously-allow-all-builds'), false)
@@ -318,12 +327,15 @@ test('official DSH install and web startup are hard gates before a release', () 
   assert.match(smoke, /Remove-Item -LiteralPath \$resolvedAcceptance -Recurse -Force/u)
 
   for (const workflow of [ci, publish]) {
-    assert.match(workflow, /Official DSH end-to-end acceptance/u)
+    assert.match(workflow, /Official DSH acceptance/u)
+    assert.match(workflow, /channel: \[latest, alpha\]/u)
+    assert.match(workflow, /-DshVersion \$version/u)
     assert.match(workflow, /accept-official-release\.ps1/u)
     assert.match(workflow, /accept-official-release\.ps1 -PackagePath \$package -DshRunner pnpm/u)
     assert.match(workflow, /actions\/download-artifact@v8/u)
     assert.match(workflow, /official-acceptance:[\s\S]*?actions\/setup-node@v6[\s\S]*?package-manager-cache:\s*false/u)
   }
+  assert.match(smoke, /test-official-runtime\.mjs/u)
   assert.match(publish, /path:\s*\.candidate\/\*\.tgz[\s\S]*include-hidden-files:\s*true/u)
   assert.match(publish, /release:[\s\S]*actions\/download-artifact@v8[\s\S]*name:\s*release-candidate-\$\{\{ github\.sha \}\}[\s\S]*cp "\$package" \.artifacts\/dsh-codex-subscription\.tgz/u)
   assert.doesNotMatch(publish, /release:[\s\S]*pnpm pack --pack-destination \.artifacts/u)

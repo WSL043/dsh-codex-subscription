@@ -100,7 +100,8 @@ export class OriginalImageStore {
       const metadata = parseMetadata(await readFile(metadataFile, 'utf8'))
       if (metadata === undefined || metadata.image.assetId !== assetId
         || (metadata.sessionId !== sessionId && !originalImageRefsEqual(metadata.image, inherited))) return undefined
-      const data = new Uint8Array(await readFile(originalFile))
+      const buffer = await readFile(originalFile)
+      const data = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
       const dimensions = pngDimensions(data)
       if (data.byteLength !== metadata.image.bytes || digest(data) !== metadata.image.sha256
         || dimensions.width !== metadata.image.width || dimensions.height !== metadata.image.height) return undefined
@@ -115,6 +116,7 @@ export class OriginalImageStore {
     const stored = await this.read(sessionId, assetId, inherited)
     if (stored === undefined || offset >= stored.data.byteLength || offset % ORIGINAL_IMAGE_CHUNK_BYTES !== 0) return undefined
     const end = Math.min(stored.data.byteLength, offset + ORIGINAL_IMAGE_CHUNK_BYTES)
-    return { ref: stored.ref, offset, encoded: Buffer.from(stored.data.subarray(offset, end)).toString('base64'), done: end === stored.data.byteLength }
+    const chunk = Buffer.from(stored.data.buffer, stored.data.byteOffset + offset, end - offset)
+    return { ref: stored.ref, offset, encoded: chunk.toString('base64'), done: end === stored.data.byteLength }
   }
 }

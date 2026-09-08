@@ -235,6 +235,8 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.doesNotMatch(JSON.stringify(status), /access|refresh|accountId/)
 
   const diagnostics = await host.handled[0].handler('diagnostics', {}, signal)
+  assert.equal(diagnostics.value.catalog.source, 'fallback')
+  assert.ok(['idle', 'refreshing'].includes(diagnostics.value.catalog.refresh))
   assert.deepEqual(diagnostics, {
     ok: true,
     value: {
@@ -245,6 +247,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
       account: { status: 'signed-out' },
       login: { phase: 'idle' },
       requests: {},
+      catalog: diagnostics.value.catalog,
       configuration: {
         contextMode: CONTEXT_MODE_STANDARD,
         quickQuotaMode: QUICK_QUOTA_MODE_OFF,
@@ -256,7 +259,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
       issues: [],
     },
   })
-  assert.doesNotMatch(JSON.stringify(diagnostics), /access|refresh|accountId|expiresAt/)
+  assert.doesNotMatch(JSON.stringify(diagnostics), /access_token|refresh_token|accountId|expiresAt/)
 
   await host.updateSettings({ quickQuotaVisible: true })
   assert.deepEqual(host.webUpdates, [{
@@ -273,14 +276,21 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   }])
 
   const preferenceStatus = await host.handled[0].handler('preferences/status', {}, signal)
-  const activeContextModels = [
+  const activeContextModels = preferenceStatus.value.contextModels
+  assert.partialDeepStrictEqual(activeContextModels, [
     { key: 'gpt-5.3-codex-spark', label: 'GPT-5.3 Codex Spark', maximum: 128_000, fixed: true },
     { key: 'gpt-5.4', label: 'GPT-5.4', maximum: 1_000_000 },
     { key: 'gpt-5.4-mini', label: 'GPT-5.4 mini', maximum: 400_000 },
     { key: 'gpt-5.5', label: 'GPT-5.5', maximum: 1_000_000 },
     { key: 'gpt-5.6', label: 'GPT-5.6 Luna / Sol / Terra', maximum: 1_000_000 },
-  ]
-  const verbosityModels = ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.5', 'gpt-5.6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra']
+  ])
+  for (const model of activeContextModels) {
+    assert.equal(typeof model.label, 'string')
+    assert.ok(model.maximum > 0 && model.maximum <= 1_000_000)
+  }
+  const verbosityModels = preferenceStatus.value.verbosityModels
+  assert.partialDeepStrictEqual(verbosityModels, ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.5', 'gpt-5.6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra'])
+  assert.equal(verbosityModels.includes('gpt-5.3-codex-spark'), false)
   assert.deepEqual(preferenceStatus, {
     ok: true,
     value: { quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, verbosityModels, writable: true },
@@ -506,4 +516,16 @@ test('unknown browser search preferences fail safe to automatic routing', () => 
   assert.equal(normalizeSearchProvider(SEARCH_PROVIDER_CODEX), SEARCH_PROVIDER_CODEX)
   assert.equal(normalizeSearchProvider(undefined), SEARCH_PROVIDER_AUTO)
   assert.equal(normalizeSearchProvider('unexpected-provider'), SEARCH_PROVIDER_AUTO)
+})
+
+test('catalog diagnostics includes refresh failures without copying private metadata', async () => {
+  const report = await plugin.createSubscriptionDiagnostics({
+    auth: { status: async () => ({ authenticated: false }) },
+    preferences: { status: () => ({}) },
+    network: { snapshot: () => ({ catalog: { status: 'failed', stage: 'http', code: 'http-error', httpStatus: 403, route: 'direct', elapsed: 'under-1s', url: 'private-url' } }) },
+    modelCatalog: { status: () => ({ source: 'fallback', refresh: 'failed', accountId: 'private-account' }) },
+  })
+  assert.equal(report.requests.catalog.httpStatus, 403)
+  assert.deepEqual(report.catalog, { source: 'fallback', refresh: 'failed' })
+  assert.doesNotMatch(JSON.stringify(report), /private-|accountId|url/)
 })

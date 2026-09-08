@@ -313,7 +313,7 @@ test('context presets preserve catalog defaults and cap every supported model in
   })
   const contexts = () => Object.fromEntries(provider.getModels().map(model => [model.id, model.contextWindow]))
 
-  assert.deepEqual(contexts(), {
+  assert.partialDeepStrictEqual(contexts(), {
     'gpt-5.3-codex-spark': 128_000,
     'gpt-5.4': 272_000,
     'gpt-5.4-mini': 272_000,
@@ -323,8 +323,9 @@ test('context presets preserve catalog defaults and cap every supported model in
     'gpt-5.6-terra': 272_000,
   })
 
+  if ('gpt-6-astra' in contexts()) assert.equal(contexts()['gpt-6-astra'], 272_000)
   contextMode = CONTEXT_MODE_EXTENDED
-  assert.deepEqual(contexts(), {
+  assert.partialDeepStrictEqual(contexts(), {
     'gpt-5.3-codex-spark': 128_000,
     'gpt-5.4': 1_000_000,
     'gpt-5.4-mini': 400_000,
@@ -334,10 +335,11 @@ test('context presets preserve catalog defaults and cap every supported model in
     'gpt-5.6-terra': 1_000_000,
   })
 
+  if ('gpt-6-astra' in contexts()) assert.equal(contexts()['gpt-6-astra'], 872_000)
   contextMode = CONTEXT_MODE_CUSTOM
   perModel.set('gpt-5.4-mini', 300_000)
   perModel.set('gpt-5.6', 750_000)
-  assert.deepEqual(contexts(), {
+  assert.partialDeepStrictEqual(contexts(), {
     'gpt-5.3-codex-spark': 128_000,
     'gpt-5.4': 500_000,
     'gpt-5.4-mini': 300_000,
@@ -347,6 +349,7 @@ test('context presets preserve catalog defaults and cap every supported model in
     'gpt-5.6-terra': 750_000,
   })
 
+  if ('gpt-6-astra' in contexts()) assert.equal(contexts()['gpt-6-astra'], 500_000)
   customContextWindow = 64_000
   assert.equal(contexts()['gpt-5.4'], 128_000)
   perModel.set('gpt-5.4-mini', 200_000)

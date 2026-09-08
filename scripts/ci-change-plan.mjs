@@ -1,5 +1,6 @@
 import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
+import { testGroup } from './test-groups.mjs'
 
 function argument(name) {
   const index = process.argv.indexOf(name)
@@ -42,35 +43,34 @@ const files = (explicitFiles === undefined ? git('diff', '--name-only', `${base}
   .split(',').flatMap(value => value.split(/\r?\n/u)).map(value => value.trim()).filter(Boolean)
 const matches = patterns => files.some(file => patterns.some(pattern => pattern.test(file)))
 
-const plannerChanged = matches([/^scripts\/ci-change-plan\.mjs$/u, /^\.github\/workflows\/ci\.yml$/u])
+const plannerChanged = matches([/^scripts\/(?:ci-change-plan|test-groups|run-tests)\.mjs$/u, /^\.github\/workflows\/ci\.yml$/u,
+  /^\.github\/scripts\/(?:accept-official-release\.ps1|test-official-runtime\.mjs)$/u])
+const changedTest = group => files.some(file => testGroup(file) === group)
 const runtime = matches([
   /^src\//u,
   /^lib\//u,
   /^cordis\.patch\.yml$/u,
   /^tsdown\.config\.mjs$/u,
 ])
-const manager = plannerChanged || matches([
+const manager = plannerChanged || changedTest('manager') || matches([
   /^dsh-codex\.ps1$/u,
-  /^tests\/powershell-manager\.test\.mjs$/u,
   /^\.github\/scripts\/accept-official-release\.ps1$/u,
 ])
-const delivery = plannerChanged || matches([
+const delivery = plannerChanged || runtime || changedTest('delivery') || matches([
   /^\.github\//u,
-  /^(?:README(?:\.zh-CN)?|DIRECTORY|AGENTS|SECURITY|THIRD_PARTY_NOTICES|LICENSE)\.md$/u,
+  /^(?:README(?:\.zh-CN|\.en)?|CONTRIBUTING|DIRECTORY|AGENTS|SECURITY|THIRD_PARTY_NOTICES|LICENSE)\.md$/u,
   /^screenshots\.json$/u,
   /^compatibility\.json$/u,
   /^package\.json$/u,
   /^pnpm-lock\.yaml$/u,
   /^pnpm-workspace\.yaml$/u,
   /^scripts\/prepare-compat-release\.mjs$/u,
-  /^tests\/(?:ci-change-plan|client-contract|release-contract|release-notes|publish-idempotency|prepare-compat-release|support-intake)\.test\.mjs$/u,
 ])
-const behavior = plannerChanged || runtime || matches([
+const behavior = plannerChanged || runtime || changedTest('behavior') || matches([
   /^compatibility\.json$/u,
   /^package\.json$/u,
   /^pnpm-lock\.yaml$/u,
   /^pnpm-workspace\.yaml$/u,
-  /^tests\/(?:auth-security|cache-contract|codex-images|codex-search|image-edit|model-catalog|oauth-network|pi-ai-runtime|plugin-integration|reset-credits|sidebar-quota|transport-contract|usage)\.test\.mjs$/u,
 ])
 const official = plannerChanged || runtime || matches([
   /^compatibility\.json$/u,

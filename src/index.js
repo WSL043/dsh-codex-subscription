@@ -479,12 +479,23 @@ export function apply(ctx) {
     }),
   })
   ctx.effect(() => {
+    let forecasting = false
     const warmForecast = value => {
-      if (normalizeQuickQuotaMode(value[QUICK_QUOTA_MODE_FIELD], value[LEGACY_QUICK_QUOTA_FIELD]) !== QUICK_QUOTA_MODE_FORECAST) return
+      const next = normalizeQuickQuotaMode(value[QUICK_QUOTA_MODE_FIELD], value[LEGACY_QUICK_QUOTA_FIELD]) === QUICK_QUOTA_MODE_FORECAST
+      if (!next) {
+        if (forecasting) void usageReader.clear().catch(error => ctx.logger?.debug?.('could not clear Codex quota forecast: %s', error.message))
+        forecasting = false
+        return
+      }
+      forecasting = true
       void usageReader.read().catch(error => ctx.logger?.debug?.('could not warm Codex quota forecast: %s', error.message))
     }
     warmForecast(settings.get())
-    return settings.watch(warmForecast)
+    const unwatch = settings.watch(warmForecast)
+    return () => {
+      unwatch()
+      usageReader.clearCache()
+    }
   }, 'codex-subscription: quota forecast warm-up')
   const resetCreditService = createCodexResetCreditService({
     getAuth: resolveAuth,
@@ -497,7 +508,7 @@ export function apply(ctx) {
     usageReader,
     resetCreditService,
     preferences,
-    diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network }),
+    diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog }),
     modelCatalog,
     originalImages,
     resolveInheritedOriginal: (sessionId, assetId) => inheritedOriginalImageRef(

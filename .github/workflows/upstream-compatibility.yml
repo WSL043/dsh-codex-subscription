@@ -6,9 +6,14 @@ on:
   workflow_dispatch:
     inputs:
       dsh_version:
-        description: Exact official DSH version; empty selects the oldest untested version
+        description: Exact official DSH version; empty selects the newest untested version
         required: false
         type: string
+      publish_compatibility:
+        description: Publish an accepted compatibility update only when adaptation is required
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -65,7 +70,7 @@ jobs:
                   return typeof version === "string" && !tested.has(version)
                     && compareVersions(version, preview ? previewFloor : current) > 0;
                 })
-                .sort(compareVersions);
+                .sort(compareVersions).reverse();
               process.stdout.write(versions.join("\n"));
             ' "$RUNNER_TEMP/dsh-versions.json" compatibility.json)
             candidate=''
@@ -169,7 +174,7 @@ jobs:
 
   promote:
     needs: [prepare, windows-acceptance]
-    if: needs.prepare.outputs.changed == 'true' && needs.windows-acceptance.result == 'success'
+    if: github.event_name == 'workflow_dispatch' && inputs.publish_compatibility == true && needs.prepare.outputs.changed == 'true' && needs.windows-acceptance.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:

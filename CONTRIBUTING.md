@@ -26,6 +26,16 @@ pnpm run check
 affects the DSH UI or plugin lifecycle, also verify it in an actual supported
 DSH installation; source tests alone are not installed-product acceptance.
 
+Behavior tests are discovered automatically; new test files join that gate by
+default. CI and release acceptance resolve the official `latest` and `alpha`
+channels, test against their actual dependencies, and exercise the candidate
+package lifecycle. Keep existing model capability assertions when allowing
+legitimate additions to the upstream model catalog.
+
+Scheduled upstream checks do not publish automatically. Enable compatibility
+publication only for a reviewed update that needs adaptation; an upstream
+version change alone is not a reason to release.
+
 ## Pull requests
 
 Describe the user-visible problem, the smallest implemented change, the checks
