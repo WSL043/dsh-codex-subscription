@@ -131,42 +131,69 @@ export function forecastUsage(usage, state = { windows: {} }, now = Date.now(), 
 export function createQuotaForecastReader({ reader, enabled, now = Date.now, scope = () => 'default', stateStore }) {
   let state = { windows: {} }
   let loaded = false
+  let loading
+  let generation = 0
+  let historyGeneration = 0
+  let persistence = Promise.resolve()
+  const persist = operation => {
+    const pending = persistence.then(operation)
+    persistence = pending.catch(() => {})
+    return pending
+  }
   const load = async () => {
     if (loaded) return
+    if (loading) return loading
+    const current = historyGeneration
+    const pending = Promise.resolve().then(() => stateStore?.load?.()).then(restored => {
+      if (current !== historyGeneration) return
+      if (restored?.windows !== null && typeof restored?.windows === 'object') state = restored
+      loaded = true
+    }).finally(() => {
+      if (loading === pending) loading = undefined
+    })
+    loading = pending
+    return pending
+  }
+  const clearHistory = (clearReader = true) => {
+    generation += 1
+    historyGeneration += 1
+    state = { windows: {} }
     loaded = true
-    const restored = await stateStore?.load?.()
-    if (restored?.windows !== null && typeof restored?.windows === 'object') state = restored
+    if (clearReader) reader.clear()
+    return persist(() => stateStore?.clear?.())
   }
   return Object.freeze({
     async read(options) {
+      const current = generation
+      const account = await scope()
       const usage = await reader.read(options)
+      if (current !== generation) return usage
       await load()
+      const activeAccount = await scope()
+      if (current !== generation || account !== activeAccount) return usage
       if (!enabled()) {
-        state = { windows: {} }
-        await stateStore?.clear?.()
+        await clearHistory(false)
         return usage
       }
-      const forecast = forecastUsage(usage, state, now(), { scope: await scope() })
+      const forecast = forecastUsage(usage, state, now(), { scope: account })
       state = forecast.state
-      if (forecast.changed) await stateStore?.save?.(state)
-      return forecast.usage
+      if (forecast.changed) await persist(() => stateStore?.save?.(forecast.state))
+      return current === generation ? forecast.usage : usage
     },
-    async clear() {
-      state = { windows: {} }
-      loaded = true
-      reader.clear()
-      await stateStore?.clear?.()
-    },
+    clear: () => clearHistory(),
     clearCache() {
+      generation += 1
       reader.clear()
     },
     async clearScope(targetScope) {
+      generation += 1
       await load()
       const prefix = `[${JSON.stringify(cleanSegment(targetScope))},`
       state = {
         windows: Object.fromEntries(Object.entries(state.windows).filter(([key]) => !key.startsWith(prefix))),
       }
-      await stateStore?.save?.(state)
+      const snapshot = state
+      await persist(() => stateStore?.save?.(snapshot))
     },
   })
 }

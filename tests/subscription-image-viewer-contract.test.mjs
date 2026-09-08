@@ -5,7 +5,7 @@ import test from 'node:test'
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
 test('subscription client preserves editing actions in its own local overlay', async () => {
-  const source = await read('src/client.jsx')
+  const source = (await Promise.all(['src/client.jsx', 'src/client-images.jsx'].map(read))).join('\n')
   const viewer = await read('src/subscription-image-viewer.jsx')
   const styles = await read('src/subscription-image-viewer-styles.js')
 

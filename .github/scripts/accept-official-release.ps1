@@ -37,6 +37,7 @@ function Initialize-Runner {
         --save-exact `
         '--allow-build=@deepseek-ai/dsh-subprocess-local' `
         '--allow-build=@google/genai' `
+        '--allow-build=fs-ext' `
         '--allow-build=koffi' `
         '--allow-build=node-pty' `
         '--allow-build=protobufjs' `
@@ -51,6 +52,8 @@ function Initialize-Runner {
     $script:runner = Get-Command (Join-Path $runnerRoot 'node_modules\.bin\dsh.cmd') `
         -CommandType Application -ErrorAction Stop
     $script:runnerPrefix = @()
+    & node (Join-Path $PSScriptRoot 'test-official-runtime.mjs') $runnerRoot
+    if ($LASTEXITCODE -ne 0) { throw 'Subscription behavior failed against official DSH dependencies.' }
 }
 
 function Invoke-Dsh {

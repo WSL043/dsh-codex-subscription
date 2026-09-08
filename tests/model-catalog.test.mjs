@@ -191,3 +191,26 @@ test('clear aborts the old flight without letting its timer invalidate the repla
   await new Promise(resolve => setImmediate(resolve))
   assert.equal(catalog.getModels(base)[0].id, 'replacement-model')
 })
+
+test('catalog support state distinguishes fallback, successful refresh, and retained online data after failure', async () => {
+  let fail = true
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => base,
+    getAuth: async () => ({ auth: { apiKey: 'test-token' } }),
+    readCredential: async () => ({ type: 'oauth', accountId: 'test-account' }),
+    fetch: async () => fail ? new Response('', { status: 403 }) : Response.json({ models: [remote()] }),
+  })
+  assert.deepEqual(catalog.status(), { source: 'fallback', refresh: 'idle' })
+  const failed = catalog.refresh()
+  assert.equal(catalog.status().refresh, 'refreshing')
+  await assert.rejects(failed, /HTTP 403/)
+  assert.deepEqual(catalog.status(), { source: 'fallback', refresh: 'failed' })
+  fail = false
+  await catalog.refresh()
+  assert.deepEqual(catalog.status(), { source: 'online', refresh: 'ok' })
+  fail = true
+  await assert.rejects(catalog.refresh(), /HTTP 403/)
+  assert.deepEqual(catalog.status(), { source: 'online', refresh: 'failed' })
+  catalog.clear()
+  assert.deepEqual(catalog.status(), { source: 'fallback', refresh: 'idle' })
+})

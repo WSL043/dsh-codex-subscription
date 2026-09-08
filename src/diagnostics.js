@@ -1,6 +1,6 @@
 import { PACKAGE_VERSION } from './version.js'
 
-const requestAreas = new Set(['login', 'model', 'quota', 'quota-reset', 'search', 'image'])
+const requestAreas = new Set(['login', 'model', 'catalog', 'quota', 'quota-reset', 'search', 'image'])
 const statuses = new Set(['ok', 'failed'])
 const stages = new Set(['transport', 'http'])
 const codes = new Set(['timeout', 'dns', 'tls', 'connection', 'network', 'http-error'])
@@ -26,7 +26,7 @@ function safeRequests(network) {
 }
 
 /** Build a support report that deliberately excludes OAuth and account metadata. */
-export async function createSubscriptionDiagnostics({ auth, preferences, login = { phase: 'idle' }, network }) {
+export async function createSubscriptionDiagnostics({ auth, preferences, login = { phase: 'idle' }, network, modelCatalog }) {
   let account = { status: 'unknown' }
   const issues = []
   try {
@@ -37,6 +37,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
   }
 
   const preference = preferences.status()
+  const catalog = modelCatalog?.status?.()
   return {
     schemaVersion: 3,
     package: 'dsh-codex-subscription',
@@ -45,6 +46,9 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     account,
     login,
     requests: safeRequests(network),
+    ...(catalog && ['fallback', 'online'].includes(catalog.source)
+      && ['idle', 'refreshing', 'ok', 'failed'].includes(catalog.refresh)
+      ? { catalog: { source: catalog.source, refresh: catalog.refresh } } : {}),
     configuration: {
       contextMode: preference.contextMode,
       quickQuotaMode: preference.quickQuotaMode,
