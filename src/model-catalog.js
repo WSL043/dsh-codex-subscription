@@ -85,11 +85,14 @@ export function createOfficialModelCatalog(options = {}) {
   let revision = 0
   let refreshing
   let generation = 0
+  let refreshStatus = 'idle'
 
   const refresh = ({ signal } = {}) => {
     if (signal?.aborted) return Promise.reject(signal.reason ?? new Error('Codex model catalog refresh aborted'))
     if (refreshing?.generation === generation) return refreshing.promise
     const currentGeneration = generation
+    refreshStatus = 'refreshing'
+    let outcome = 'idle'
     const controller = new AbortController()
     const abort = () => {
       if (!controller.signal.aborted) controller.abort(signal?.reason ?? new Error('Codex model catalog refresh aborted'))
@@ -118,7 +121,10 @@ export function createOfficialModelCatalog(options = {}) {
       }
       const response = await fetchCatalog(CODEX_MODELS_URL, { method: 'GET', redirect: 'error', headers, signal: requestSignal })
       if (currentGeneration !== generation || requestSignal.aborted) return false
-      if (response.status === 304) return false
+      if (response.status === 304) {
+        outcome = 'ok'
+        return false
+      }
       if (!response.ok) throw new Error(`Codex model catalog failed (HTTP ${response.status})`)
       const remote = parseOfficialModelCatalog(await response.json())
       if (currentGeneration !== generation || requestSignal.aborted) return false
@@ -131,6 +137,7 @@ export function createOfficialModelCatalog(options = {}) {
       metadata = new Map(remote.map(model => [model.id, model]))
       etag = nonEmpty(response.headers.get('etag')) ?? etag
       revision += 1
+      outcome = 'ok'
       return true
     })()
     let rejectAborted
@@ -141,11 +148,17 @@ export function createOfficialModelCatalog(options = {}) {
     })
     timer = scheduleTimeout(() => controller.abort(timeoutError), timeoutMs)
     timer.unref?.()
-    const promise = Promise.race([work, abortPromise]).finally(() => {
+    const promise = Promise.race([work, abortPromise]).catch(error => {
+      outcome = 'failed'
+      throw error
+    }).finally(() => {
       cancelTimeout(timer)
       signal?.removeEventListener('abort', abort)
       requestSignal.removeEventListener('abort', rejectAborted)
-      if (refreshing?.promise === promise) refreshing = undefined
+      if (refreshing?.promise === promise) {
+        refreshing = undefined
+        refreshStatus = outcome
+      }
     })
     refreshing = { generation: currentGeneration, promise, cancel: () => controller.abort() }
     return promise
@@ -156,6 +169,7 @@ export function createOfficialModelCatalog(options = {}) {
     getModels: fallback => models ?? fallback,
     metadata: modelId => metadata.get(modelId),
     revision: () => revision,
+    status: () => ({ source: models === undefined ? 'fallback' : 'online', refresh: refreshStatus }),
     clear() {
       generation += 1
       const flight = refreshing
@@ -164,6 +178,7 @@ export function createOfficialModelCatalog(options = {}) {
       models = undefined
       metadata = new Map()
       etag = undefined
+      refreshStatus = 'idle'
       revision += 1
     },
   })

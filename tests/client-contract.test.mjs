@@ -2,7 +2,11 @@ import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 
-const text = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
+const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
+// These contracts cover the client entry and its authored copy, styles and download helper.
+const text = path => path === 'src/client.jsx'
+  ? Promise.all([path, 'src/client-locales.js', 'src/client-styles.js', 'src/client-images.jsx', 'src/original-image-download.js'].map(read)).then(parts => parts.join('\n'))
+  : read(path)
 
 test('generated image loader uses the installed DSH UI conversation image API', async () => {
   const source = await text('src/client.jsx')

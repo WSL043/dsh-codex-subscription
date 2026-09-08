@@ -116,3 +116,125 @@ test('reader restores persisted observations after restart and saves no provider
   await reader.clearScope('local-a')
   assert.deepEqual(persisted, { windows: {} })
 })
+
+const deferred = () => {
+  let resolve, reject
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no })
+  return { promise, resolve, reject }
+}
+
+test('concurrent first reads share history loading and clear invalidates an unfinished restore', async () => {
+  const gate = deferred()
+  const started = deferred()
+  let loads = 0
+  let saved
+  const reader = createQuotaForecastReader({
+    reader: { read: async () => usage(80), clear() {} }, enabled: () => true,
+    stateStore: {
+      load() { loads++; started.resolve(); return gate.promise },
+      save: async value => { saved = value }, clear: async () => { saved = undefined },
+    },
+  })
+  const first = reader.read()
+  const second = reader.read()
+  await started.promise
+  await reader.clear()
+  gate.resolve({ windows: { stale: { samples: [] } } })
+  const results = await Promise.all([first, second])
+  assert.equal(loads, 1)
+  assert.ok(results.every(result => result.rateLimits[0].windows[0].forecast === undefined))
+  await reader.clearScope('other')
+  assert.deepEqual(saved, { windows: {} })
+})
+
+test('account switches discard in-flight observations even when cache invalidation is delayed', async () => {
+  for (const invalidate of [false, true]) {
+    const gate = deferred(), started = deferred()
+    let account = 'a', saves = 0
+    const reader = createQuotaForecastReader({
+      reader: { read() { started.resolve(); return gate.promise }, clear() {} },
+      enabled: () => true, scope: () => account,
+      stateStore: { save: async () => { saves++ } },
+    })
+    const pending = reader.read()
+    await started.promise
+    account = 'b'
+    if (invalidate) reader.clearCache()
+    gate.resolve(usage(80))
+    assert.equal((await pending).rateLimits[0].windows[0].forecast, undefined)
+    assert.equal(saves, 0)
+  }
+})
+
+test('history clearing waits for an older save and cannot be undone by it', async () => {
+  const gate = deferred(), started = deferred()
+  let persisted
+  const reader = createQuotaForecastReader({
+    reader: { read: async () => usage(80), clear() {} }, enabled: () => true,
+    stateStore: {
+      async save(value) { started.resolve(); await gate.promise; persisted = value },
+      async clear() { persisted = undefined },
+    },
+  })
+  const reading = reader.read()
+  await started.promise
+  const clearing = reader.clear()
+  gate.resolve()
+  const [result] = await Promise.all([reading, clearing])
+  assert.equal(result.rateLimits[0].windows[0].forecast, undefined)
+  assert.equal(persisted, undefined)
+})
+
+test('failed history loads retry and a failed save does not poison later clearing', async () => {
+  let loads = 0, cleared = false
+  const reader = createQuotaForecastReader({
+    reader: { read: async () => usage(80), clear() {} }, enabled: () => true,
+    stateStore: {
+      async load() { if (++loads === 1) throw new Error('load failed') },
+      async save() { throw new Error('save failed') },
+      async clear() { cleared = true },
+    },
+  })
+  await assert.rejects(reader.read(), /load failed/)
+  await assert.rejects(reader.read(), /save failed/)
+  assert.equal(loads, 2)
+  await reader.clear()
+  assert.equal(cleared, true)
+})
+
+test('disabling forecast during a request discards its sample and clears persisted history', async () => {
+  const gate = deferred(), started = deferred()
+  let enabled = true, saved, clears = 0
+  const reader = createQuotaForecastReader({
+    reader: { read() { started.resolve(); return gate.promise }, clear() {} },
+    enabled: () => enabled,
+    stateStore: { save: async value => { saved = value }, clear: async () => { clears++ } },
+  })
+  const reading = reader.read()
+  await started.promise
+  enabled = false
+  gate.resolve(usage(80))
+  assert.equal((await reading).rateLimits[0].windows[0].forecast, undefined)
+  assert.equal(saved, undefined)
+  assert.equal(clears, 1)
+})
+
+test('removing one account preserves other histories and invalidates an older request', async () => {
+  const gate = deferred(), started = deferred()
+  let persisted
+  const initial = { windows: {
+    '["a","codex",604800]': { resetsAt: 2_000_000_000, samples: [] },
+    '["b","codex",604800]': { resetsAt: 2_000_000_000, samples: [] },
+  } }
+  const reader = createQuotaForecastReader({
+    reader: { read() { started.resolve(); return gate.promise }, clear() {} },
+    enabled: () => true, scope: () => 'a',
+    stateStore: { load: async () => initial, save: async value => { persisted = value } },
+  })
+  const reading = reader.read()
+  await started.promise
+  await reader.clearScope('a')
+  gate.resolve(usage(80))
+  await reading
+  assert.deepEqual(Object.keys(persisted.windows), ['["b","codex",604800]'])
+})
