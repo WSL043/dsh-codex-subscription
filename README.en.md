@@ -137,7 +137,7 @@ The plugin can follow an existing HTTPS proxy from the process environment or op
 
 ### GPT-6 Astra context
 
-When the official model catalog exposes GPT-6 Astra, Standard preserves the catalog window, Extended uses 872000 tokens, and Custom accepts 128000–872000 tokens (initially 272000). This limit follows the [official Codex model catalog](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34), not the API model's total context capacity. These settings only adjust DSH's local context budget; they do not grant model access or guarantee an account's server-side capacity. Actual availability remains subject to the service.
+Standard preserves the account catalog default. Extended prefers the explicit official maximum, and Custom is bounded by that maximum. New catalog models appear automatically; legacy settings remain readable. Without an explicit maximum, known offline models retain audited presets, including 872000 tokens for Astra. These settings control the local DSH context budget; they do not grant model access or guarantee account capacity.
 
 ### Composer quota
 
@@ -236,3 +236,10 @@ Read [SECURITY.md](SECURITY.md) before reporting sensitive issues.
 If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex-subscription/stargazers) helps more DSH users find it.
 
 [简体中文](README.md) · [MIT](LICENSE)
+
+## 1.15.0 usability improvements
+
+- Refresh account models manually and see online versus built-in catalog status. Fast availability follows model metadata.
+- Select live, cached (experimental), or disabled subscription search. Optional domain filtering applies to returned results, not the search service network access. Cached mode needs account acceptance; errors never switch providers.
+- Choose no quota alerts, alerts at 20% remaining, or early alerts at 50% for short windows. Data older than five minutes is excluded.
+- Original downloads show progress and can be cancelled while retaining full integrity verification. Cancellation stops subsequent chunks; an in-flight chunk may finish.

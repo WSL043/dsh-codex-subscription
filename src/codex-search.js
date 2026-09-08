@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 
 import { WebError } from '@deepseek-ai/dsh-web'
 import { USER_AGENT } from './version.js'
+import { readCapabilitySettings } from './capability-settings.js'
 
 export const CODEX_SEARCH_PROVIDER_ID = 'codex-subscription'
 export const CODEX_AUTO_SEARCH_PROVIDER_ID = 'codex-subscription-auto'
@@ -72,6 +73,9 @@ export function createCodexSearchProvider(options) {
     id: CODEX_SEARCH_PROVIDER_ID,
     available: () => true,
     async search(request, signal) {
+      signal?.throwIfAborted()
+      const preferences = readCapabilitySettings(options.resolvePreferences?.())
+      if (preferences.searchMode === 'disabled') throw new WebError('Codex search is disabled in subscription settings', 'WEB_PROVIDER_UNAVAILABLE')
       const auth = await options.getAuth({ signal })
       const credential = await options.readCredential({ signal })
       const access = auth?.auth?.apiKey
@@ -105,7 +109,7 @@ export function createCodexSearchProvider(options) {
             },
             settings: {
               allowed_callers: ['direct'],
-              external_web_access: true,
+              external_web_access: preferences.searchMode === 'live',
             },
             max_output_tokens: MAX_OUTPUT_TOKENS,
           }),
@@ -129,7 +133,14 @@ export function createCodexSearchProvider(options) {
         throw new WebError('Codex returned an unreadable search response', 'WEB_PROVIDER_ERROR', { cause: error })
       }
       try {
-        return parseSearchResponse(value)
+        const result = parseSearchResponse(value)
+        if (preferences.searchDomains.length > 0) {
+          result.sources = result.sources.filter(source => {
+            const hostname = new URL(source.url).hostname.toLowerCase()
+            return preferences.searchDomains.some(domain => hostname === domain || hostname.endsWith(`.${domain}`))
+          })
+        }
+        return result
       } catch (error) {
         throw new WebError('Codex returned a malformed search response', 'WEB_PROVIDER_ERROR', { cause: error })
       }

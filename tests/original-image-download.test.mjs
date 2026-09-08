@@ -42,6 +42,17 @@ test('rejects invalid original size before allocating or requesting data', async
   assert.equal(calls.length, 0)
 })
 
+test('download cancellation stops subsequent chunks and progress counts verified bytes', async () => {
+  const { original, rpc, calls } = fixture(Buffer.alloc(ORIGINAL_IMAGE_CHUNK_BYTES + 31, 7))
+  const controller = new AbortController()
+  const progress = []
+  await assert.rejects(readOriginalImage(rpc, 'session-1', original, { signal: controller.signal, onProgress: value => { progress.push(value); controller.abort() } }), { name: 'AbortError' })
+  assert.equal(calls.length, 1)
+  assert.deepEqual(progress, [{ loaded: ORIGINAL_IMAGE_CHUNK_BYTES, total: original.bytes }])
+  await assert.rejects(readOriginalImage(rpc, 'session-1', original, { signal: controller.signal }), { name: 'AbortError' })
+  assert.equal(calls.length, 1)
+})
+
 test('rejects changed metadata, reordered chunks, truncation, overflow and corrupt content', async () => {
   const cases = [
     [chunk => ({ ...chunk, ref: { ...chunk.ref, assetId: `img_${'b'.repeat(32)}` } }), /metadata changed/],

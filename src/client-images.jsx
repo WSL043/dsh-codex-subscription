@@ -37,9 +37,9 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
   }, [attachment, loadImage, attempt])
   const label = attachment.name ?? t('imageLabel')
   const downloadName = imageDownloadName(attachment)
-  const downloadOriginal = async () => {
+  const downloadOriginal = async ({ signal, onProgress } = {}) => {
     if (original === undefined) return
-    triggerBlobDownload(await readOriginalImage(rpc, sessionId, original), original.mediaType, original.name)
+    triggerBlobDownload(await readOriginalImage(rpc, sessionId, original, { signal, onProgress }), original.mediaType, original.name)
   }
   const openImage = () => {
     if (src === undefined) return
@@ -107,4 +107,3 @@ export function CodexImageToolRow({ block, sessionId, rpc, loadImage, attachForE
     {error === undefined ? null : <p className="codexImageToolError">{error}</p>}
   </div>
 }
-

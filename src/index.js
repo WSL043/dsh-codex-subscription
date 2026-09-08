@@ -15,6 +15,7 @@ import {
   openaiCodexSubscriptionProvider,
 } from './pi-ai-runtime.js'
 import { createOfficialModelCatalog } from './model-catalog.js'
+import { capabilityPatch, readCapabilitySettings, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, MAX_CONTEXT_BUDGET } from './capability-settings.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
 import { createCodexImageTool } from './codex-images.js'
 import { OriginalImageStore } from './image-original-store.js'
@@ -58,6 +59,7 @@ import {
   SPEED_MODE_STANDARD,
   normalizeContextMode,
   normalizeCustomContextWindow,
+  supportsCodexFastMode,
 } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 import { createQuotaForecastReader } from './quota-forecast.js'
@@ -127,6 +129,8 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
           value: {
             contextModels: Array.isArray(value?.contextModels) ? value.contextModels : [],
             verbosityModels: Array.isArray(value?.verbosityModels) ? value.verbosityModels : [],
+            fastModels: Array.isArray(value?.fastModels) ? value.fastModels : [],
+            catalogStatus: value?.catalogStatus,
           },
         }
       } catch (error) {
@@ -138,7 +142,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
       try {
         signal.throwIfAborted()
         if (endpoint === 'preferences/update') {
-          const patch = {}
+          const patch = capabilityPatch(payload)
           if (Object.hasOwn(payload ?? {}, QUICK_QUOTA_MODE_FIELD)) {
             if (![QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST].includes(payload[QUICK_QUOTA_MODE_FIELD])) {
               return publicError('internal', 'Invalid quick quota preference')
@@ -298,6 +302,10 @@ export function createSearchProviderSwitcher(loader) {
 
 export function apply(ctx) {
   const settings = ctx.settings.register(SETTINGS_NAMESPACE, z.object({
+    [CUSTOM_CONTEXT_OVERRIDES_FIELD]: z.dict(z.number().step(1).min(1).max(MAX_CONTEXT_BUDGET)).default({}),
+    [SEARCH_MODE_FIELD]: z.union(SEARCH_MODES).default('live'),
+    [SEARCH_DOMAINS_FIELD]: z.transform(z.array(z.string()).max(20), value => readCapabilitySettings({ searchDomains: value }).searchDomains).default([]),
+    [QUOTA_ALERTS_FIELD]: z.union(QUOTA_ALERT_MODES).default('important'),
     [QUICK_QUOTA_MODE_FIELD]: z.union([QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST]),
     [LEGACY_QUICK_QUOTA_FIELD]: z.boolean(),
     [SEARCH_PROVIDER_FIELD]: z.union([SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX]).default(DEFAULT_SEARCH_PROVIDER),
@@ -337,7 +345,10 @@ export function apply(ctx) {
     resolveOutputVerbosity: () => normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
     resolveContextMode: () => normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]),
     resolveCustomContextWindow: modelKey => {
+      const overrides = readCapabilitySettings(settings.get())[CUSTOM_CONTEXT_OVERRIDES_FIELD]
+      if (Object.hasOwn(overrides, modelKey)) return overrides[modelKey]
       const field = CUSTOM_CONTEXT_MODEL_FIELDS[modelKey]
+      if (field === undefined) return undefined
       return normalizeCustomContextWindow(settings.get()[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])
     },
     catalog: modelCatalog,
@@ -345,6 +356,7 @@ export function apply(ctx) {
   })
   const preferences = {
     status: () => ({
+      ...readCapabilitySettings(settings.get()),
       [QUICK_QUOTA_MODE_FIELD]: normalizeQuickQuotaMode(
         settings.get()[QUICK_QUOTA_MODE_FIELD],
         settings.get()[LEGACY_QUICK_QUOTA_FIELD],
@@ -355,8 +367,10 @@ export function apply(ctx) {
       [CONTEXT_MODE_FIELD]: normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]),
       [CUSTOM_CONTEXT_WINDOW_FIELD]: normalizeCustomContextWindow(settings.get()[CUSTOM_CONTEXT_WINDOW_FIELD]),
       ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [field, normalizeCustomContextWindow(settings.get()[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])])),
-      contextModels: contextModelGroups(provider.getModels()),
+      contextModels: contextModelGroups(modelCatalog.getModels(baseProvider.getModels())),
+      catalogStatus: modelCatalog.status(),
       verbosityModels: provider.getModels().filter(model => modelCatalog.metadata(model.id)?.supportVerbosity ?? model.id !== 'gpt-5.3-codex-spark').map(model => model.id),
+      fastModels: provider.getModels().filter(model => modelCatalog.metadata(model.id)?.supportsFast ?? supportsCodexFastMode(model.id)).map(model => model.id),
       writable: ctx.settings.writable,
     }),
     update: patch => settings.update(patch),
@@ -385,7 +399,7 @@ export function apply(ctx) {
   let profileKey
   let profileSnapshot
   const profiles = () => {
-    const key = [modelCatalog.revision(), normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]), ...Object.values(CUSTOM_CONTEXT_MODEL_FIELDS).map(field => settings.get()[field])].join(':')
+    const key = JSON.stringify([modelCatalog.revision(), normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]), settings.get()[CUSTOM_CONTEXT_OVERRIDES_FIELD], ...Object.values(CUSTOM_CONTEXT_MODEL_FIELDS).map(field => settings.get()[field])])
     if (key !== profileKey) {
       profileKey = key
       profileSnapshot = new Map([[PROVIDER, profile]])
@@ -428,6 +442,7 @@ export function apply(ctx) {
   ctx.llm.registerAdapter([PROVIDER], adapter)
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
   const codexSearch = createCodexSearchProvider({
+    resolvePreferences: () => readCapabilitySettings(settings.get()),
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     resolveModel: () => {

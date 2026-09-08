@@ -35,6 +35,7 @@ function visibleModel(value) {
     priority: Number.isFinite(value.priority) ? value.priority : 0,
     input: input.length > 0 ? input : ['text'],
     contextWindow: positiveInteger(value.context_window) ?? positiveInteger(value.max_context_window),
+    ...(positiveInteger(value.max_context_window) === undefined ? {} : { maxContextWindow: value.max_context_window }),
     reasoning: supported.length > 0,
     thinkingLevelMap: reasoningMap(supported),
     supportVerbosity: value.support_verbosity === true,
@@ -67,6 +68,7 @@ function mergeModel(baseModels, remote) {
     reasoning: remote.reasoning,
     thinkingLevelMap: remote.thinkingLevelMap,
     ...(remote.contextWindow === undefined ? {} : { contextWindow: remote.contextWindow }),
+    ...(remote.maxContextWindow === undefined ? {} : { maxContextWindow: remote.maxContextWindow }),
     // Subscription-backed models do not expose API billing to this plugin.
     ...(base.id === remote.id ? {} : { cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }),
   }

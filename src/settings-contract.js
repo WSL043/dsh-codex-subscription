@@ -1,3 +1,5 @@
+import { MAX_CONTEXT_BUDGET, validModelKey } from './capability-settings.js'
+
 export const SETTINGS_NAMESPACE = 'codex-subscription'
 export const QUICK_QUOTA_MODE_FIELD = 'quickQuotaMode'
 export const LEGACY_QUICK_QUOTA_FIELD = 'quickQuotaVisible'
@@ -88,6 +90,17 @@ export const parseContextWindow = value => {
 
 export const customContextModelKey = modelId => modelId?.startsWith('gpt-5.6-') ? 'gpt-5.6' : modelId
 
+export function modelContextMaximum(model) {
+  const explicit = Number.isSafeInteger(model?.maxContextWindow) && model.maxContextWindow > 0 ? model.maxContextWindow : undefined
+  const fallback = CUSTOM_CONTEXT_MODEL_CAPS[customContextModelKey(model?.id)] ?? model?.contextWindow
+  return Math.min(MAX_CONTEXT_BUDGET, explicit ?? fallback ?? DEFAULT_CUSTOM_CONTEXT_WINDOW)
+}
+
+export function clampModelContext(value, maximum, fallback = DEFAULT_CUSTOM_CONTEXT_WINDOW) {
+  const requested = Number.isSafeInteger(value) ? value : fallback
+  return Math.max(Math.min(MIN_CUSTOM_CONTEXT_WINDOW, maximum), Math.min(requested, maximum))
+}
+
 export function contextModelGroups(models) {
   const groups = new Map()
   for (const model of models ?? []) {
@@ -96,9 +109,12 @@ export function contextModelGroups(models) {
       continue
     }
     const key = customContextModelKey(model?.id)
-    if (!Object.hasOwn(CUSTOM_CONTEXT_MODEL_FIELDS, key)) continue
+    if (!validModelKey(key)) continue
+    const maximum = modelContextMaximum(model)
     if (key !== 'gpt-5.6') {
-      groups.set(key, { key, label: model.name ?? model.id, maximum: CUSTOM_CONTEXT_MODEL_CAPS[key] })
+      groups.set(key, { key, label: model.name ?? model.id, maximum,
+        ...(Object.hasOwn(CUSTOM_CONTEXT_MODEL_FIELDS, key) ? {} : { default: clampModelContext(model.contextWindow, maximum) }),
+      })
       continue
     }
     const variant = String(model.name ?? model.id).replace(/^GPT-5\.6[ -]/iu, '')
@@ -106,7 +122,7 @@ export function contextModelGroups(models) {
     groups.set(key, {
       key,
       label: `GPT-5.6 ${current === undefined ? variant : `${current.label.replace(/^GPT-5\.6 /u, '')} / ${variant}`}`,
-      maximum: CUSTOM_CONTEXT_MODEL_CAPS[key],
+      maximum: Math.min(current?.maximum ?? maximum, maximum),
     })
   }
   return [...groups.values()]
@@ -121,5 +137,5 @@ export const normalizeQuickQuotaMode = (value, legacyVisible = false) => (
 )
 
 export const supportsCodexFastMode = modelId => typeof modelId === 'string' && (
-  /^gpt-5\.(?:5|6)(?:$|-)/u.test(modelId) || modelId === 'gpt-5.4'
+  /^gpt-5\.(?:5|6)(?:$|-)/u.test(modelId) || modelId === 'gpt-5.4' || modelId === 'gpt-6-astra'
 )
