@@ -168,16 +168,18 @@ test('model refresh reports failure and a later retry can recover the directory'
   assert.deepEqual(controller.getSnapshot().contextModels, astraModels)
 })
 
-test('a no-op model refresh keeps the model arrays and emits no update', async () => {
+test('a no-op model refresh keeps the model arrays and reports loading transitions', async () => {
   const { controller, pendingModels } = deferredModelHarness()
   await controller.load()
   let notifications = 0
   const unsubscribe = controller.subscribe(() => { notifications += 1 })
 
   const refreshing = controller.refreshModels()
+  assert.equal(controller.getSnapshot().modelsLoading, true)
   pendingModels[0].resolve({ ok: true, value: { contextModels: [...fallbackModels], verbosityModels: ['gpt-5.5'] } })
   assert.equal(await refreshing, false)
-  assert.equal(notifications, 0)
+  assert.equal(notifications, 2)
+  assert.equal(controller.getSnapshot().modelsLoading, false)
   unsubscribe()
 })
 

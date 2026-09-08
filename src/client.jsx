@@ -1,4 +1,6 @@
 import { CodexImageToolRow } from './client-images.jsx'
+import { CapabilityPreferences } from './capability-preferences.jsx'
+import { quotaWarning } from './capability-settings.js'
 import { zh, en } from './client-locales.js'
 import { STYLE } from './client-styles.js'
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
@@ -13,10 +15,8 @@ import {
   CONTEXT_MODE_EXTENDED,
   CONTEXT_MODE_FIELD,
   CONTEXT_MODE_STANDARD,
-  CUSTOM_CONTEXT_MODEL_CAPS,
-  CUSTOM_CONTEXT_MODEL_FIELDS,
+  clampModelContext,
   MIN_CUSTOM_CONTEXT_WINDOW,
-  normalizeCustomContextWindow,
   formatContextWindow,
   parseContextWindow,
   QUICK_QUOTA_MODE_BAR,
@@ -189,6 +189,7 @@ function SearchProviderPreference({ preference, t }) {
       {choice(SEARCH_PROVIDER_DSH, t('searchDsh'), t('searchDshHint'))}
       {choice(SEARCH_PROVIDER_CODEX, t('searchCodex'), t('searchCodexHint'))}
     </div>
+    <CapabilityPreferences preference={preference} t={t} section="search" />
   </div>
 }
 
@@ -223,9 +224,9 @@ function ContextWindowPreference({ preference, t }) {
       setDrafts(current => ({ ...current, [modelKey]: String(snapshot.customContextWindows[modelKey]) }))
       return
     }
-    const value = normalizeCustomContextWindow(parsed, CUSTOM_CONTEXT_MODEL_CAPS[modelKey])
+    const value = clampModelContext(parsed, modelRows.find(model => model.key === modelKey).maximum)
     setDrafts(current => ({ ...current, [modelKey]: String(value) }))
-    if (value !== snapshot.customContextWindows[modelKey]) void preference.set({ [CUSTOM_CONTEXT_MODEL_FIELDS[modelKey]]: value })
+    if (value !== snapshot.customContextWindows[modelKey]) void preference.set({ customContextModels: { ...snapshot.customContextModels, [modelKey]: value } })
   }
   const contextModeItems = [
     { id: CONTEXT_MODE_STANDARD, label: t('contextStandard') },
@@ -238,8 +239,9 @@ function ContextWindowPreference({ preference, t }) {
       <div className="codexSubscriptionContextCopy"><span className="codexSubscriptionPreferenceLabel">{t('contextTitle')}</span><span className="codexSubscriptionContextHint">{hint}</span></div>
       <Menu open={menuOpen} items={contextModeItems} selectedId={snapshot.contextMode} onSelect={value => { setMenuOpen(false); void preference.set({ [CONTEXT_MODE_FIELD]: value }) }} onClose={() => setMenuOpen(false)} align="end" side="bottom" portal compact anchor={<button className="codexSubscriptionContextTrigger" type="button" aria-label={t('contextTitle')} aria-haspopup="menu" aria-expanded={menuOpen} disabled={!writable} onClick={() => setMenuOpen(value => !value)}><span>{selectedMode}</span><IconChevronDownOutline14 /></button>} />
     </div>
-    {snapshot.contextMode === CONTEXT_MODE_CUSTOM ? <div className="codexSubscriptionContextModels">{modelRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextMaximum'), { value: String(model.maximum) })}</span></span><Input aria-label={`${model.label} ${t('contextTokens')}`} className="codexSubscriptionContextInput" type="number" inputMode="numeric" min={MIN_CUSTOM_CONTEXT_WINDOW} max={model.maximum} step={1} value={drafts[model.key] ?? ''} disabled={!writable} onChange={event => { const nextValue = event.currentTarget.value; setDrafts(current => ({ ...current, [model.key]: nextValue })) }} onBlur={() => commit(model.key)} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /></div>)}{fixedRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextFixed'), { value: formatContextWindow(model.maximum) })}</span></span><span className="codexSubscriptionContextHint">{formatContextWindow(model.maximum)}</span></div>)}</div> : null}
-    {snapshot.modelError ? <div className="codexSubscriptionRecover" role="alert"><p className="codexSubscriptionError">{t('modelDirectoryFailed')}</p><Button type="button" variant="outline" onClick={() => { void preference.refreshModels() }}>{t('modelRetry')}</Button></div> : null}
+    {snapshot.contextMode === CONTEXT_MODE_CUSTOM ? <div className="codexSubscriptionContextModels">{modelRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextMaximum'), { minimum: String(Math.min(MIN_CUSTOM_CONTEXT_WINDOW, model.maximum)), value: String(model.maximum) })}</span></span><Input aria-label={`${model.label} ${t('contextTokens')}`} className="codexSubscriptionContextInput" type="number" inputMode="numeric" min={Math.min(MIN_CUSTOM_CONTEXT_WINDOW, model.maximum)} max={model.maximum} step={1} value={drafts[model.key] ?? ''} disabled={!writable} onChange={event => { const nextValue = event.currentTarget.value; setDrafts(current => ({ ...current, [model.key]: nextValue })) }} onBlur={() => commit(model.key)} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /></div>)}{fixedRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextFixed'), { value: formatContextWindow(model.maximum) })}</span></span><span className="codexSubscriptionContextHint">{formatContextWindow(model.maximum)}</span></div>)}</div> : null}
+    <div className="codexSubscriptionPreference"><span className="codexSubscriptionPreferenceHint">{t(snapshot.catalogStatus?.source === 'online' ? 'catalogOnline' : 'catalogFallback')}</span><Button type="button" variant="outline" disabled={snapshot.modelsLoading} aria-busy={snapshot.modelsLoading} onClick={() => { void preference.refreshModels() }}>{t(snapshot.modelsLoading ? 'refreshing' : 'catalogRefresh')}</Button></div>
+    {snapshot.modelError ? <p className="codexSubscriptionError" role="alert">{t('modelDirectoryFailed')}</p> : null}
   </div>
 }
 
@@ -251,6 +253,7 @@ function PreferencesCard({ preference, t }) {
     <ContextWindowPreference preference={preference} t={t} />
     <div className="codexSubscriptionDivider" />
     <QuickQuotaPreference preference={preference} t={t} />
+    <CapabilityPreferences preference={preference} t={t} section="quota" />
     {snapshot.error ? <div className="codexSubscriptionRecover" role="alert"><p className="codexSubscriptionError">{t('preferenceFailed')}</p><Button type="button" variant="outline" onClick={() => { void preference.retry() }}>{t('preferenceRetry')}</Button></div> : null}
   </div>
 }
@@ -335,7 +338,7 @@ function CodexModelSelect({ locked, available, directory, load, select, preferen
     })),
   ], [reasoning, t])
   const modelLabel = currentChoice?.model.name ?? t('selectModel')
-  const speedSupported = state.current?.provider === 'openai-codex' && supportsCodexFastMode(state.current?.model)
+  const speedSupported = state.current?.provider === 'openai-codex' && (preferenceSnapshot.fastModels?.includes(state.current?.model) ?? supportsCodexFastMode(state.current?.model))
   const speedWritable = preferenceSnapshot.status === 'ready' && preferenceSnapshot.writable === true
   const fast = speedSupported && preferenceSnapshot.speedMode === SPEED_MODE_FAST
   const verbositySupported = state.current?.provider === 'openai-codex' && preferenceSnapshot.verbosityModels.includes(state.current?.model)
@@ -463,7 +466,7 @@ function CodexModelSelect({ locked, available, directory, load, select, preferen
   } else if (pane === 'speed') {
     submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('speedTitle')}>
       {option({ key: SPEED_MODE_STANDARD, label: t('speedStandard'), description: t('speedStandardHint'), selected: !fast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_STANDARD) })}
-      {option({ key: SPEED_MODE_FAST, label: t('speedFast'), description: t('speedFastHint'), selected: fast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_FAST) })}
+      {option({ key: SPEED_MODE_FAST, label: t('speedFast'), description: t(state.current?.model === 'gpt-6-astra' ? 'speedFastAstraHint' : 'speedFastHint'), selected: fast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_FAST) })}
     </div>
   } else if (pane === 'verbosity') {
     submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('verbosityTitle')}>
@@ -789,7 +792,14 @@ function resetCreditErrorText(error, t) {
   return t(key ?? 'resetFailed')
 }
 
-function UsageCard({ rpc, t, signedIn, resetKey }) {
+function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
+  const preferenceSnapshot = usePreferenceSnapshot(preference)
+  const [now, setNow] = useState(Date.now)
+  useEffect(() => {
+    if (!signedIn) return
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [signedIn])
   const [usage, setUsage] = useState()
   const [usageRefreshGeneration, setUsageRefreshGeneration] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -803,6 +813,7 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
       .then(next => {
         if (request.current === id) {
           setUsage(next)
+          setNow(Date.now())
           setUsageRefreshGeneration(value => value + 1)
           if (force) notifyQuickQuota()
         }
@@ -811,12 +822,14 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
       .finally(() => { if (request.current === id) setBusy(false) })
   }
   useEffect(() => {
+    setUsage(undefined)
     if (signedIn) load(false)
     else { request.current += 1; setUsage(undefined); setError(undefined); setBusy(false) }
     return () => { request.current += 1 }
   }, [signedIn, resetKey])
   const visibleUsage = signedIn ? usage : undefined
   const limits = visibleUsage?.rateLimits ?? []
+  const warning = error === undefined ? quotaWarning(visibleUsage, preferenceSnapshot.quotaAlerts, now) : undefined
   const exhausted = limits.some(limit => limit.id !== 'code_review'
     && limit.windows.some(window => window.usedPercent >= 100))
   const hasUsageDetails = limits.length > 0 || visibleUsage?.credits !== undefined
@@ -833,6 +846,7 @@ function UsageCard({ rpc, t, signedIn, resetKey }) {
       {signedIn && !busy && error === undefined && usage !== undefined && !hasUsageDetails ? <p className="codexSubscriptionEmpty" role="status">{t('usageEmpty')}</p> : null}
     </div>
     {error === undefined ? null : <p className="codexSubscriptionError" role="alert">{error}</p>}
+    {warning === undefined ? null : <p className="codexSubscriptionError" role="status">{fill(t('quotaWarning'), { window: windowLabel(warning.windowSeconds, t), value: percent(warning.remainingPercent) })}</p>}
     {visibleUsage?.spendControlReached === true ? <p className="codexSubscriptionError" role="alert">{t('spendReached')}</p> : null}
     {limits.length === 0 ? null : <div className="codexSubscriptionLimits">{limits.flatMap(limit => limit.windows.map((window, index) => <div className="codexSubscriptionLimit" key={`${limit.id}-${window.windowSeconds}-${index}`}>
         <div className="codexSubscriptionLimitTop"><span className="codexSubscriptionLimitLabel">{limit.name ?? limit.id}</span><strong>{percent(window.remainingPercent)}%</strong></div>
@@ -871,7 +885,7 @@ function CodexSection({ preference, rpc, accountStatus, t }) {
     <div className="codexSubscriptionHead"><h2>{t('title')}</h2></div>
     {accountSnapshot.status === 'error' ? <AccountFailureCard accountStatus={accountStatus} snapshot={accountSnapshot} t={t} /> : <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} />}
     <PreferencesCard preference={preference} t={t} />
-    {account === undefined ? null : <UsageCard rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} />}
+    {account === undefined ? null : <UsageCard rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} preference={preference} />}
     <DiagnosticsCard rpc={rpc} t={t} />
   </section>
 }

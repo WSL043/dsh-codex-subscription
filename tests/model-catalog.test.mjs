@@ -91,7 +91,7 @@ test('Astra from the official catalog reaches DSH with the selected context wind
   await catalog.refresh()
   assert.equal(await contextWindow(), 1_000_000, 'Standard must preserve even a newer catalog window')
   contextMode = 'extended'
-  assert.equal(await contextWindow(), 872_000, 'Extended stays at the audited budget until explicitly re-audited')
+  assert.equal(await contextWindow(), 1_000_000, 'Extended follows the new explicit official catalog maximum')
 })
 
 test('catalog refresh is conditional, keeps the last good result, and never exposes credentials', async () => {

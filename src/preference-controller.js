@@ -1,4 +1,5 @@
 import {
+  clampModelContext,
   CONTEXT_MODE_FIELD,
   CUSTOM_CONTEXT_MODEL_CAPS,
   CUSTOM_CONTEXT_MODEL_DEFAULTS,
@@ -16,6 +17,7 @@ import {
   SEARCH_PROVIDER_FIELD,
   SPEED_MODE_FIELD,
 } from './settings-contract.js'
+import { readCapabilitySettings, CUSTOM_CONTEXT_OVERRIDES_FIELD } from './capability-settings.js'
 
 const CHANNEL = '/codex-subscription'
 
@@ -34,6 +36,9 @@ export function createPreferenceController(scope, rpc) {
   let generation = 0
   let contextModels = []
   let verbosityModels = []
+  let fastModels
+  let catalogStatus
+  let modelsLoading = false
   let modelError = false
   let modelRefreshGeneration = 0
   let modelRefreshStarted = false
@@ -50,9 +55,11 @@ export function createPreferenceController(scope, rpc) {
         ? fallback
         : native
     const value = pendingPatch === undefined ? current.value : { ...current.value, ...pendingPatch }
+    const capabilities = readCapabilitySettings(value)
     return Object.freeze({
       // Keep accepted ready surfaces mounted while a Host write is pending.
       status: current.status,
+      ...capabilities,
       quickQuotaMode: normalizeQuickQuotaMode(
         value?.[QUICK_QUOTA_MODE_FIELD],
         value?.[LEGACY_QUICK_QUOTA_FIELD],
@@ -62,9 +69,15 @@ export function createPreferenceController(scope, rpc) {
       outputVerbosity: normalizeOutputVerbosity(value?.[OUTPUT_VERBOSITY_FIELD]),
       contextMode: normalizeContextMode(value?.[CONTEXT_MODE_FIELD]),
       customContextWindow: normalizeCustomContextWindow(value?.[CUSTOM_CONTEXT_WINDOW_FIELD]),
-      customContextWindows: Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [modelKey, normalizeCustomContextWindow(value?.[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])])),
+      customContextWindows: {
+        ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [modelKey, normalizeCustomContextWindow(value?.[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])])),
+        ...Object.fromEntries(contextModels.map(model => [model.key, clampModelContext(capabilities[CUSTOM_CONTEXT_OVERRIDES_FIELD][model.key] ?? value?.[CUSTOM_CONTEXT_MODEL_FIELDS[model.key]], model.maximum, model.default ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[model.key])])),
+      },
       contextModels,
       verbosityModels,
+      fastModels,
+      catalogStatus,
+      modelsLoading,
       modelError,
       writable: !updating && current.status === 'ready' && current.writable === true,
       saving: updating,
@@ -86,11 +99,14 @@ export function createPreferenceController(scope, rpc) {
     if (!modelRefreshStarted) {
       contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
       verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
+      fastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
+      catalogStatus = value?.catalogStatus
     }
     fallbackStatus = 'ready'
     fallback = {
       status: 'ready',
       value: {
+        ...readCapabilitySettings(value),
         [QUICK_QUOTA_MODE_FIELD]: normalizeQuickQuotaMode(
           value?.[QUICK_QUOTA_MODE_FIELD],
           value?.[LEGACY_QUICK_QUOTA_FIELD],
@@ -120,6 +136,8 @@ export function createPreferenceController(scope, rpc) {
         if (!modelRefreshStarted) {
           contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
           verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
+          fastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
+          catalogStatus = value?.catalogStatus
         }
       }
       else acceptFallback(value)
@@ -133,19 +151,23 @@ export function createPreferenceController(scope, rpc) {
   const refreshModels = async () => {
     const current = ++modelRefreshGeneration
     modelRefreshStarted = true
-    const hadError = modelError
     modelError = false
-    if (hadError) publish()
+    modelsLoading = true
+    publish()
     try {
       const value = unwrap(await rpc.call(CHANNEL, 'preferences/models', {}))
       if (disposed || current !== modelRefreshGeneration) return false
       const nextContextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
       const nextVerbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
+      const nextFastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
+      catalogStatus = value?.catalogStatus
       const changed = !sameModels(contextModels, nextContextModels)
         || !sameModels(verbosityModels, nextVerbosityModels)
+        || JSON.stringify(fastModels) !== JSON.stringify(nextFastModels)
       if (changed) {
         contextModels = nextContextModels
         verbosityModels = nextVerbosityModels
+        fastModels = nextFastModels
         publish()
       }
       return changed
@@ -156,6 +178,8 @@ export function createPreferenceController(scope, rpc) {
         publish()
       }
       return false
+    } finally {
+      if (!disposed && current === modelRefreshGeneration) { modelsLoading = false; publish() }
     }
   }
   const set = async patch => {
@@ -176,7 +200,8 @@ export function createPreferenceController(scope, rpc) {
         }
         if (current !== generation) return
         const accepted = nativeSnapshot().value
-        error = entries.some(([field, value]) => accepted?.[field] !== value)
+        error = entries.some(([field, value]) => JSON.stringify(accepted?.[field]) !== JSON.stringify(value))
+        if (error) failedPatch = patch
         pendingPatch = undefined
       } else {
         const value = unwrap(await rpc.call(CHANNEL, 'preferences/update', patch))
