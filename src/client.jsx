@@ -851,7 +851,7 @@ function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
     {limits.length === 0 ? null : <div className="codexSubscriptionLimits">{limits.flatMap(limit => limit.windows.map((window, index) => <div className="codexSubscriptionLimit" key={`${limit.id}-${window.windowSeconds}-${index}`}>
         <div className="codexSubscriptionLimitTop"><span className="codexSubscriptionLimitLabel">{limit.name ?? limit.id}</span><strong>{percent(window.remainingPercent)}%</strong></div>
         <progress max="100" value={window.remainingPercent} aria-label={`${limit.name ?? limit.id} ${fill(t('remaining'), { value: percent(window.remainingPercent) })}`} />
-        <div className="codexSubscriptionLimitMeta"><span>{formatQuotaForecast(window.forecast, t) ?? windowLabel(window.windowSeconds, t)}</span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
+        <div className="codexSubscriptionLimitMeta"><span className="codexSubscriptionLimitPeriod"><span>{windowLabel(window.windowSeconds, t)}</span><span>{formatQuotaForecast(window.forecast, t)}</span></span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
       </div>))}</div>}
     {visibleUsage?.credits === undefined && visibleUsage?.individualLimit === undefined && !(visibleUsage?.resetCredits?.availableCount > 0) ? null : <div className="codexSubscriptionCreditSection">
       <p className="codexSubscriptionCreditNote">{t('creditsNote')}</p>
@@ -884,8 +884,8 @@ function CodexSection({ preference, rpc, accountStatus, t }) {
   return <section className="codexSubscription">
     <div className="codexSubscriptionHead"><h2>{t('title')}</h2></div>
     {accountSnapshot.status === 'error' ? <AccountFailureCard accountStatus={accountStatus} snapshot={accountSnapshot} t={t} /> : <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} />}
+    {account === undefined ? null : <UsageCard key={resetKey} rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} preference={preference} />}
     <PreferencesCard preference={preference} t={t} />
-    {account === undefined ? null : <UsageCard rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} preference={preference} />}
     <DiagnosticsCard rpc={rpc} t={t} />
   </section>
 }

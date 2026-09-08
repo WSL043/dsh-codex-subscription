@@ -17,10 +17,12 @@ export function CapabilityPreferences({ preference, t, section }) {
       if (JSON.stringify(next) !== JSON.stringify(snapshot.searchDomains)) void preference.set({ searchDomains: next })
     } catch { setInvalid(true) }
   }
-  return <div>
+  if (snapshot.searchProvider === 'dsh') return null
+  return <details className="codexSubscriptionSearchOptions">
+    <summary>{t('searchOptions')}<span>{t(`searchMode_${snapshot.searchMode}`)}{snapshot.searchDomains.length > 0 ? ` · ${snapshot.searchDomains.length} ${t('searchDomainCount')}` : ''}</span></summary>
     <div className="codexSubscriptionPreference"><span className="codexSubscriptionPreferenceLabel">{t('searchMode')}</span>{choices('searchMode', SEARCH_MODES)}</div>
     <p className="codexSubscriptionPreferenceHint">{t('searchModeHint')}</p>
     <label className="codexSubscriptionPreferenceCopy"><span>{t('searchDomains')}</span><Input aria-label={t('searchDomains')} aria-invalid={invalid} value={domains} disabled={!snapshot.writable} placeholder="example.com, example.org" onChange={event => setDomains(event.currentTarget.value)} onBlur={save} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /><span className="codexSubscriptionPreferenceHint">{t('searchDomainsHint')}</span></label>
     {invalid ? <p role="alert" className="codexSubscriptionError">{t('searchDomainsInvalid')}</p> : null}
-  </div>
+  </details>
 }
