@@ -42,7 +42,7 @@ DSH-Portable exposes the same standard plugin command, so the command above also
 | **Subscription models** | Sign in to ChatGPT and use Codex without an OpenAI API key or Codex CLI |
 | **Recoverable and diagnosable** | Sign-in state reconciles automatically; failed reads can be retried in place, while timeouts and stale account responses cannot overwrite current state; Settings can create a support report without credentials or account identifiers |
 | **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate |
-| **Composer quota** | Choose a compact percentage, progress bar, or no inline quota display |
+| **Composer quota** | Choose a compact percentage, progress bar, Beta runway forecast, or no inline display |
 | **Safe quota reset** | See each reset credit separately and deliberately try one with a cooldown and acknowledgement |
 | **Subscription search** | Explicitly route search globally through DSH default search or the signed-in Codex subscription |
 | **Codex image generation and editing (Beta)** | Generate without references, or explicitly edit one selected image; preview, zoom, annotate regions, download the original, and get the original host path for new or edited images |
@@ -55,10 +55,10 @@ These capabilities reuse the same local ChatGPT sign-in. Subscription routing fa
 ## Product screen
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/context-settings-en.png" width="820" alt="Current Codex subscription settings in DeepSeek Harness with search, model-aware context, composer quota, and support diagnostics">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/context-settings.png" width="820" alt="2.0.0 account and preference settings: sign-in, quota display and alerts">
 </p>
 
-The screenshot illustrates the settings layout; available options can vary by DSH and plugin version.
+2.0.0 groups settings into Account & preferences and Advanced & diagnostics. Screenshots use the Chinese UI, with the account label hidden and scrollable content expanded for readability. [View advanced settings](docs/assets/settings-advanced-2.0.png).
 
 ## Prepare DSH
 
@@ -142,12 +142,13 @@ When the official model catalog exposes GPT-6 Astra, Standard preserves the cata
 ### Composer quota
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota-en.png" width="800" alt="Codex quota inside the composer">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota.png" width="800" alt="Codex quota inside the composer">
 </p>
 
-Choose Off, Percent, Progress bar, or Beta Runway in Settings. The compact display appears only for a selected Codex model. Runway is opt-in and estimates pace only from official remaining-percentage observations. It needs at least three samples; sustained high use usually produces a range in 5–10 minutes, while low use takes longer or reports a stable state. Non-sensitive observations from the last 24 hours are kept locally so calibration can continue after restart; a quota reset, account switch, or disabling the feature starts a new calibration period.
-The composer shows each returned quota window with its duration. When Plus returns both five-hour and weekly limits, both are visible. Spark keeps its independent quota. Accounts with only a weekly window still show only that window; the plugin does not invent a
-five-hour limit, Credits, or spending caps that the service did not return.
+Choose Off, Percent, Progress bar, or Beta Runway under Account & preferences. When a five-hour window exists, the composer shows that window only; the popover retains all windows. A weekly-only display omits the week label and uses compact durations such as `36% · ≈10h–12h`.
+
+Runway uses official observations from the recent two hours, including unchanged readings. Repeated boundary crossings can refine the rate interval when the assumptions hold; insufficient evidence or changing intensity falls back to a conservative estimate. It remains Beta and is not a guarantee of working time. History is bounded and stored locally; resets, long gaps or disabling the feature restart calibration.
+Spark keeps its independent quota. The plugin does not invent five-hour limits, Credits, or spending caps that the service did not return.
 
 ### Safe quota reset
 
@@ -172,6 +173,14 @@ A new image request does not silently include earlier images. GPT Image 2 can ta
 </p>
 
 The screenshot above illustrates image viewing and on-image notes; available buttons can vary with the image and installed viewer version.
+
+### Sketch canvas (Beta)
+
+Open Sketch from the composer button or `@Sketch`, or choose Open in sketch from an enhanced image preview. Attachment intake and removal use the native DSH component.
+
+Sketch supports local drafts, image layers, aspect ratios, brushes, lines and shapes, two erasers, undo/redo, pan/zoom and configurable shortcuts. Smoothing processes a completed stroke only after release. Up to 20 drafts stay in the current browser; attaching a sketch never sends it automatically. Its image panel manages only the current sketch, not the conversation library.
+
+Flare / Sunburst request overrides remain experimental: successful generation does not confirm which image engine or quality the subscription backend used.
 
 ### Composer speed
 
