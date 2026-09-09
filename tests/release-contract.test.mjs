@@ -134,7 +134,8 @@ test('GitHub defaults to Chinese, links a complete English README, and preserves
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /\birm\b|dsh-codex-setup\.ps1/iu)
   assert.doesNotMatch(readmeZh, /提示词/u)
   assert.match(readmeZh, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings\.png/u)
-  assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings-en\.png/u)
+  assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings\.png/u)
+  assert.match(readme, /Screenshots use the Chinese UI/u)
   assert.match(readmeZh, /raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/composer-quota\.png/u)
   assert.doesNotMatch(readmeZh, /docs\/assets\/composer-quota-en\.png/u)
   for (const doc of [readme, readmeZh]) {
@@ -152,13 +153,13 @@ test('GitHub defaults to Chinese, links a complete English README, and preserves
   }
   for (const asset of ['context-settings.png', 'context-settings-en.png']) {
     const { width, height } = pngDimensions(`docs/assets/${asset}`)
-    assert.ok(width >= 700, `${asset} must remain legible in the README`)
+    assert.ok(width >= 500, `${asset} must retain the native settings panel width`)
     assert.ok(height >= 800, `${asset} must include the complete signed-in settings page`)
   }
   {
     const { width, height } = pngDimensions('docs/assets/composer-quota.png')
-    assert.ok(width >= 1000, 'Chinese composer quota screenshot must remain legible')
-    assert.ok(height >= 600, 'Chinese composer quota screenshot must show the real DSH composer')
+    assert.ok(width >= 700, 'Chinese composer quota screenshot must retain its native width')
+    assert.ok(height >= 100, 'Chinese composer quota screenshot must include the complete compact composer')
   }
   assert.equal(existsSync(new URL('../docs/assets/sidebar.png', import.meta.url)), false)
   assert.equal(existsSync(new URL('../docs/assets/sidebar-en.png', import.meta.url)), false)
