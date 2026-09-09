@@ -1,10 +1,12 @@
 export const zh = {
+  imageEditShort: '继续编辑', forecastResolution: '暂时估不准：读数变化不足以确定速度', forecastChanging: '使用强度变化，正在重新估计', forecastStale: '额度数据已过期，等待更新',
+  imageDropHere: '松开以添加参考图片', imageDropUnavailable: '当前无法添加图片', imageRemoveDraft: '移除图片',
   forecastInitial: '初估 ',
   recoveryClear: '清除登录信息', recoveryClearConfirm: '确认清除并重新登录', recoveryClearHint: '将移除本插件保存的所有订阅账号登录信息，保留会话和设置。完成后可重新登录。', recoveryHint: '重试仍失败时可清除登录信息。连接中断时请先恢复 DSH 服务；高级与诊断可生成本地诊断。', recoveryFailed: '清除未确认成功，请先恢复 DSH 服务，再重试。',
   quotaThresholdReached: '已达到额度提醒阈值',
   imageCapability: '图片生成与编辑', imageCapabilityHint: '允许模型按你的要求制作或修改图片。', imageCapability_on: '启用', imageCapability_off: '关闭',
   imageEntryPoints: '创作入口', imageEntryPointsHint: '@生图与草图 Beta；隐藏后仍可用自然语言生图。', imageEntryPoints_on: '显示', imageEntryPoints_off: '隐藏',
-  imageBrowsing: '图片浏览', imageBrowsingHint: '在生成结果中查看原图、标注并继续编辑。', imageBrowsing_on: '增强', imageBrowsing_off: 'DSH 默认', imageGroupMixed: '保留原设置',
+  imageBrowsing: '图片浏览', imageBrowsingHint: '预览粘贴图片与会话图片，标注后回到输入框编辑。', imageBrowsing_on: '增强', imageBrowsing_off: 'DSH 默认', imageGroupMixed: '保留原设置',
   imageQuality_auto: '自动', imageQuality_low: '低', imageQuality_medium: '中', imageQuality_high: '高', imageQuality_xhigh: '超高', imageQuality_max: '最高',
   imageWorkspaceMenu: '图片工具', imageCreateAction: '生成或编辑图片', imageCreateGroup: '创作',
   imageShortcut: '@生图快捷入口', imageCreateTitle: '描述你想要的图片', imageDraftHint: '填入草稿后由你发送。参考图可先附在输入框，不会自动生成或改写已有说明。', imageDraftFailed: '无法填入草稿。请保留说明，检查输入框是否正在发送或含有引用。',
@@ -96,12 +98,14 @@ export const zh = {
 }
 
 export const en = {
+  imageEditShort: 'Edit', forecastResolution: 'Not enough change to estimate the rate yet', forecastChanging: 'Usage intensity changed; estimating again', forecastStale: 'Quota data is stale; waiting for an update',
+  imageDropHere: 'Drop reference images here', imageDropUnavailable: 'Images cannot be added right now', imageRemoveDraft: 'Remove image',
   forecastInitial: 'Initial ',
   recoveryClear: 'Clear sign-in data', recoveryClearConfirm: 'Confirm clear and sign in again', recoveryClearHint: 'Removes all subscription sign-ins saved by this plugin. Conversations and settings remain. You can then sign in again.', recoveryHint: 'If retry fails, clear sign-in data. Restore the DSH service first if disconnected. Local diagnostics are available under Advanced.', recoveryFailed: 'Clearing was not confirmed. Restore the DSH service before retrying.',
   quotaThresholdReached: 'Quota alert threshold reached',
   imageCapability: 'Image generation and editing', imageCapabilityHint: 'Let the model create or edit images when you ask.', imageCapability_on: 'Enabled', imageCapability_off: 'Off',
   imageEntryPoints: 'Creative shortcuts', imageEntryPointsHint: '@Image and Sketch Beta. Natural-language image requests still work when hidden.', imageEntryPoints_on: 'Show', imageEntryPoints_off: 'Hide',
-  imageBrowsing: 'Image browsing', imageBrowsingHint: 'View originals, annotate and continue editing generated images.', imageBrowsing_on: 'Enhanced', imageBrowsing_off: 'DSH default', imageGroupMixed: 'Keep existing',
+  imageBrowsing: 'Image browsing', imageBrowsingHint: 'Preview pasted and conversation images, annotate and return to the composer.', imageBrowsing_on: 'Enhanced', imageBrowsing_off: 'DSH default', imageGroupMixed: 'Keep existing',
   imageQuality_auto: 'Auto', imageQuality_low: 'Low', imageQuality_medium: 'Medium', imageQuality_high: 'High', imageQuality_xhigh: 'Extra high', imageQuality_max: 'Maximum',
   imageWorkspaceMenu: 'Image tools', imageCreateAction: 'Generate or edit an image', imageCreateGroup: 'Create',
   imageShortcut: '@Image shortcut', imageCreateTitle: 'Describe your image', imageDraftHint: 'Add to your draft, then send when ready. Attach references in the composer. Nothing is generated or existing text replaced automatically.', imageDraftFailed: 'Could not update the draft. Keep your brief and check whether the composer is busy or contains references.',

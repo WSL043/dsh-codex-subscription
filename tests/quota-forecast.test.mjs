@@ -9,18 +9,16 @@ import {
 } from '../src/quota-forecast.js'
 
 const HOUR = 60 * 60 * 1000
-test('one whole-percent drop gives an explicitly provisional estimate from two observations', () => {
+test('one integer boundary crossing must not create a precise countdown', () => {
   const start = 1_900_000_000_000
   const windows = remaining => [{ remainingPercent: remaining, windowSeconds: 604800, resetsAt: 2_000_000_000 }]
   let state = observeQuotaForecast(undefined, windows(80), start).state
   state = observeQuotaForecast(state, windows(79), start + 120000).state
   const result = estimateQuotaForecast(state, windows(79)[0], start + 120000)
-  assert.equal(result.status, 'ready')
-  assert.equal(result.provisional, true)
-  assert.equal(result.pacePerHour, 30)
-  assert.equal(result.runwaySeconds, 9480)
-  assert.equal(result.survivesReset, false)
-  assert.equal(result.runwayMaxSeconds, null)
+  assert.equal(result.status, 'calibrating')
+  assert.equal(result.reason, 'resolution')
+  assert.equal(result.lowerPacePerHour, 0)
+  assert.equal(result.runwaySeconds, undefined)
 })
 const usage = (remainingPercent, resetsAt = 2_000_000_000) => ({
   rateLimits: [{ id: 'codex', windows: [{ remainingPercent, windowSeconds: 604_800, resetsAt }] }],
@@ -98,7 +96,7 @@ test('forecast separates accounts and every official quota bucket', () => {
   const accountA = forecastUsage(snapshot(86), state, start + 10 * 60_000, { scope: 'local-a' }).usage
   const accountB = forecastUsage(snapshot(86), state, start + 10 * 60_000, { scope: 'local-b' }).usage
   assert.equal(accountA.rateLimits[0].windows[0].forecast.status, 'ready')
-  assert.equal(accountA.rateLimits[1].windows[0].forecast.status, 'ready')
+  assert.equal(accountA.rateLimits[1].windows[0].forecast.reason, 'resolution')
   assert.equal(accountB.rateLimits[0].windows[0].forecast.status, 'calibrating')
 })
 

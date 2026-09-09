@@ -1,3 +1,4 @@
+import { ComposerImagePreviews, MessageImagePreviews, IMAGE_PREVIEWS_CSS } from './client-image-previews.jsx'
 import { CodexImageToolRow } from './client-images.jsx'
 import { SKETCH_CSS } from './sketch-workspace.jsx'
 import { ImageWorkspace } from './image-workspace.jsx'
@@ -28,7 +29,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = 'dsh-codex-subscription'
-    tag.textContent = STYLE + SUBSCRIPTION_IMAGE_VIEWER_CSS + SKETCH_CSS
+    tag.textContent = STYLE + SUBSCRIPTION_IMAGE_VIEWER_CSS + SKETCH_CSS + IMAGE_PREVIEWS_CSS
     document.head.append(tag)
     return () => tag.remove()
   }, 'codex-subscription: style')
@@ -117,6 +118,51 @@ export function apply(ctx) {
     if (!actx || typeof conversation.createDraftImages !== 'function' || !conversation.input?.for) throw new Error('Image composer is unavailable')
     return conversation.input.for(actx)
   }
+  const attachForEdit = sessionId => async (src, filename, draft, annotations = [], referenceName, sourceInDraft = false) => {
+    if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
+    const actx = sessions.scope(sessionId)
+    if (actx === undefined || typeof conversation.createDraftImages !== 'function' || conversation.input?.for === undefined) {
+      throw new Error('This DSH version does not provide the image composer bridge')
+    }
+    const response = await fetch(src)
+    if (!response.ok) throw new Error('Could not read generated image')
+    const blob = await response.blob()
+    const files = sourceInDraft ? [] : [new File([blob], filename, { type: blob.type || 'image/png' })]
+    if (annotations.length > 0) {
+      const reference = await createAnnotatedImageReference(blob, annotations)
+      files.push(new File([reference], referenceName, { type: 'image/png' }))
+    }
+    const input = conversation.input.for(actx)
+    if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
+    if (files.length) attachImageFiles(conversation, input, files)
+    sessions.open(sessionId)
+    // Preserve text typed while the asynchronous image preparation ran.
+    if (sourceInDraft && !annotations.length) return
+    if (!input.state.getSnapshot().draft.trim()) input.setDraft(draft)
+    else if (annotations.length) {
+      if (!input.state.getSnapshot().occurrences?.length) appendImagePrompt(input, draft)
+      else input.notify('info', draft)
+    }
+  }
+  // Use the host's attachment presentation slots; restore its own renderer when
+  // enhancement is off. Intake, validation and draft ownership stay with DSH.
+  for (const [name, component] of [
+    ['conversation.input.attachments', ComposerImagePreviews],
+    ['conversation.message.images', MessageImagePreviews],
+    ['conversation.trajectory.images', MessageImagePreviews],
+  ]) ctx.slots.inject(name, () => {
+    let dispose
+    const sync = () => {
+      if (preference.getSnapshot().imageViewer) {
+        dispose ??= ctx.slots.register({ name, priority: -10,
+          inject: sessionId => ({ preference, t, service: imageViewer, attachForEdit: attachForEdit(sessionId) }),
+        }, component)
+      } else { dispose?.(); dispose = undefined }
+    }
+    sync()
+    const unwatch = preference.subscribe(sync)
+    return () => { unwatch(); dispose?.() }
+  })
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
     name: 'conversation.input.left', id: 'codex-image-workspace', order: 30,
     inject: sessionId => ({
@@ -127,13 +173,6 @@ export function apply(ctx) {
         if (!current.imageSketch || !current.imageEditing) throw new Error('Sketch editing is disabled')
         attachImageFiles(conversation, sessionInput(sessionId), [new File([blob], 'sketch-reference.png', { type: 'image/png' })])
       },
-      appendPrompt: (text, mode) => {
-        const current = preference.getSnapshot()
-        const allowed = mode === 'image' && current.imageShortcut && (current.imageGeneration || current.imageEditing)
-        if (!allowed) throw new Error('Image input is disabled')
-        appendImagePrompt(sessionInput(sessionId), text)
-      },
-
     }),
   }, ImageWorkspace))
   ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
@@ -152,31 +191,7 @@ export function apply(ctx) {
         }
       },
       getInternalImageViewer: () => imageViewer,
-      attachForEdit: async (src, filename, draft, annotations = [], referenceName) => {
-        if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
-        const actx = sessions.scope(sessionId)
-        if (actx === undefined || typeof conversation.createDraftImages !== 'function' || conversation.input?.for === undefined) {
-          throw new Error('This DSH version does not provide the image composer bridge')
-        }
-        const response = await fetch(src)
-        if (!response.ok) throw new Error('Could not read generated image')
-        const blob = await response.blob()
-        const files = [new File([blob], filename, { type: blob.type || 'image/png' })]
-        if (annotations.length > 0) {
-          const reference = await createAnnotatedImageReference(blob, annotations)
-          files.push(new File([reference], referenceName, { type: 'image/png' }))
-        }
-        const input = conversation.input.for(actx)
-        if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
-        attachImageFiles(conversation, input, files)
-        sessions.open(sessionId)
-        // Preserve text typed while the asynchronous image preparation ran.
-        if (!input.state.getSnapshot().draft.trim()) input.setDraft(draft)
-        else if (annotations.length) {
-          if (!input.state.getSnapshot().occurrences?.length) appendImagePrompt(input, draft)
-          else input.notify('info', draft)
-        }
-      },
+      attachForEdit: attachForEdit(sessionId),
     }),
   }, CodexImageToolRow))
 }
