@@ -1,25 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createStrokeFilter, snapLine } from '../src/sketch-input.js'
+import { smoothStrokePoints, snapLine } from '../src/sketch-input.js'
 
-test('stabilization preserves raw input when disabled and reduces stationary jitter', () => {
-  const raw = createStrokeFilter(0), smooth = createStrokeFilter(75)
-  let rawError = 0, filteredError = 0
-  for (let i = 0; i < 120; i++) {
-    const point = { x: .5 + (i % 2 ? .002 : -.002), y: .5 }
-    assert.deepEqual(raw(point, i * 8), point)
-    const filtered = smooth(point, i * 8)
-    if (i > 10) {rawError += Math.abs(point.x-.5);filteredError += Math.abs(filtered.x-.5)}
-  }
-  assert.ok(filteredError < rawError / 2)
+test('completed-stroke smoothing preserves endpoints and reduces interior jitter without mutation', () => {
+  const points=Array.from({length:100},(_,i)=>({x:i/100,y:.5+(i%2?.01:-.01)}))
+  const before=structuredClone(points),result=smoothStrokePoints(points,75)
+  assert.deepEqual(result[0],points[0]);assert.deepEqual(result.at(-1),points.at(-1))
+  assert.deepEqual(points,before)
+  assert.ok(result.slice(5,-5).reduce((n,p)=>n+Math.abs(p.y-.5),0)<.3)
 })
 
-test('adaptive filter follows sustained fast motion rather than freezing the stroke', () => {
-  const filter = createStrokeFilter(75)
-  let point
-  for (let i = 0; i <= 60; i++) point = filter({x:i/60,y:.5}, i*8)
-  assert.ok(point.x > .94 && point.x <= 1)
-  assert.equal(point.y,.5)
+test('disabled smoothing retains the exact raw path, including short strokes', () => {
+  const points=[{x:0,y:0},{x:.1,y:.8},{x:1,y:1}]
+  assert.equal(smoothStrokePoints(points,0),points)
+  assert.equal(smoothStrokePoints(points.slice(0,1),75).length,1)
 })
 
 test('straight line snapping uses pixel geometry', () => {

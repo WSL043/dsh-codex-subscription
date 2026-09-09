@@ -2,16 +2,19 @@ import { useEffect, useRef, useState } from 'react'
 import { SKETCH_SIZE, MAX_SKETCH_STROKES, MAX_STROKE_POINTS, sketchPoint } from './sketch-document.js'
 import { createSketchLayers, changeSketchLayer, strokeCount, strokeHit, MAX_SKETCH_LAYERS, SKETCH_RATIOS, resizeSketch } from './sketch-layers.js'
 import { paintSketchLayers } from './sketch-layer-renderer.js'
-import { createStrokeFilter, snapLine } from './sketch-input.js'
+import { snapLine, smoothStrokePoints } from './sketch-input.js'
 import { sketchDrafts, decodeSketchImages, importSketchImage } from './sketch-drafts.js'
+import { useSketchView, SketchViewControls } from './sketch-view.jsx'
 import { SketchFiles } from './sketch-files.jsx'
 import { WorkspaceIcon } from './workspace-icons.jsx'
 const PALETTE = ['#18181b','#929398','#ff3936','#ff9500','#ffcc00','#34c759','#0088ff']
-export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
+export function SketchStudio({ open, onClose, attachSketch, enabled, t, incoming }) {
   const dialog = useRef(null), canvas = useRef(null), doc = useRef(createSketchLayers()), cache = useRef(new Map())
   const undo = useRef([]), redo = useRef([]), active = useRef(null), frame = useRef(null)
   const images = useRef(new Map()), saved = useRef(null), dirty = useRef(false), updateUi = useRef(false)
-  const [stability, setStability] = useState(0)
+  const [stability, setStability] = useState(0), [flow,setFlow] = useState(100), [picturesOpen,setPicturesOpen] = useState(false)
+  const pictureInput = useRef(null), received = useRef(null)
+  const navigation = useSketchView(canvas, open)
   const [revision, redraw] = useState(0), [tool, setTool] = useState('pen'), [brush, setBrush] = useState('pen')
   const [eraser, setEraser] = useState('pixel'), [color, setColor] = useState('#0088ff'), [width, setWidth] = useState(12)
   const [layersOpen, setLayersOpen] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('')
@@ -40,17 +43,21 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
   }
   const close = async () => { if (busy || active.current) return; setBusy(true); try { await saveChanges(); onClose() } catch { setError(t('sketchStorageFailed')) } finally {setBusy(false)} }
   const runFile = async operation => { if (busy || active.current) return;setBusy(true);setError('');try {await operation()} catch {setError(t('sketchStorageFailed'))} finally {setBusy(false)} }
+  useEffect(()=>{if(open && incoming && incoming!==received.current){received.current=incoming;void runFile(()=>importImage(incoming.file))}},[open,incoming])
   const keyDown = event => {
     if (event.target.closest('input,textarea,select,[contenteditable=true]') || event.isComposing || busy || active.current) return
+    if(!navigation.shortcuts)return
+    if(navigation.keyDown(event))return
     const key = event.key.toLowerCase(), command = event.ctrlKey || event.metaKey
     if (command && ['z','y','s'].includes(key)) { event.preventDefault();event.stopPropagation();if(key==='s')void runFile(()=>save());else history(key==='y'||event.shiftKey?'redo':'undo');return }
     if (command || event.altKey) return
-    const tools = {b:'pen',e:'eraser',l:'line',r:'rectangle',o:'circle'}
-    if (tools[key]) {event.preventDefault();setTool(tools[key]);if(key==='b')setBrush('pen')}
+    const tools = Object.fromEntries(['pen','eraser','line','rectangle','circle'].map(action=>[navigation.keys[action],action]))
+    if (tools[key]) {event.preventDefault();setTool(tools[key]);if(tools[key]==='pen')setBrush('pen')}
     if (key==='[' || key===']') {event.preventDefault();setWidth(value=>Math.max(2,Math.min(64,value+(key===']'?2:-2))))}
   }
   const current = doc.current.layers.find(layer => layer.id === doc.current.active)
   const move = event => {
+    if(navigation.move(event))return
     const gesture = active.current
     if (!gesture || gesture.id !== event.pointerId || busy) return
     const rect = canvas.current.getBoundingClientRect()
@@ -58,7 +65,6 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
     const events = native.getCoalescedEvents?.() ?? []
     for (const sample of events.length ? [...events, native] : [native]) {
       let point = sketchPoint(sample.clientX, sample.clientY, rect); if (!point) continue
-      if (gesture.filter) point = gesture.filter(point, sample.timeStamp)
       const layer = doc.current.layers.find(layer => layer.id === gesture.layer)
       if (gesture.eraseStroke) {
         const previous = gesture.last ?? point
@@ -79,8 +85,13 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
     schedule(false)
   }
   const end = (event, cancel = false) => {
+    if(navigation.end(event))return
     if (active.current?.id !== event.pointerId) return
-    if (!cancel) move(event)
+    if (!cancel) {
+      move(event)
+      const gesture=active.current,stroke=doc.current.layers.find(layer=>layer.id===gesture.layer)?.strokes.at(-1)
+      if(gesture.smoothing && stroke)stroke.points=smoothStrokePoints(stroke.points,gesture.smoothing)
+    }
     active.current = null
     if (canvas.current.hasPointerCapture(event.pointerId)) canvas.current.releasePointerCapture(event.pointerId)
     if (cancel) { doc.current = undo.current.pop() ?? doc.current }
@@ -88,7 +99,7 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
   }
   const history = direction => { if (busy || active.current) return; const source = direction === 'undo' ? undo : redo, target = direction === 'undo' ? redo : undo; if (!source.current.length) return; dirty.current = true; target.current.push(doc.current); doc.current = source.current.pop(); schedule() }
   const attach = async () => { if (!enabled || busy) return; setBusy(true);setError('');try { paint(); const blob = await new Promise((resolve,reject)=>canvas.current.toBlob(blob=>blob?resolve(blob):reject(Error('PNG')),'image/png')); await saveChanges(); await attachSketch(blob); onClose() } catch { setError(t('sketchFailed')) } finally { setBusy(false) } }
-  return <dialog ref={dialog} className="codexSketchDialog codexSketchStudio codexLayerStudio" aria-label={t('sketchTitle')} onKeyDown={keyDown} onPaste={event=>{if(event.target.closest('input,textarea'))return;const file=Array.from(event.clipboardData.items).find(item=>item.type.startsWith('image/'))?.getAsFile();if(file){event.preventDefault();void runFile(()=>importImage(file))}}} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();const file=event.dataTransfer.files[0];if(file)void runFile(()=>importImage(file))}} onCancel={event=>{event.preventDefault();close()}}>
+  return <dialog ref={dialog} className="codexSketchDialog codexSketchStudio codexLayerStudio" aria-label={t('sketchTitle')} onKeyDown={keyDown} onKeyUp={navigation.keyUp} onPaste={event=>{if(event.target.closest('input,textarea'))return;const file=Array.from(event.clipboardData.items).find(item=>item.type.startsWith('image/'))?.getAsFile();if(file){event.preventDefault();event.stopPropagation();void runFile(()=>importImage(file))}}} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();event.stopPropagation();const file=event.dataTransfer.files[0];if(file)void runFile(()=>importImage(file))}} onCancel={event=>{event.preventDefault();close()}}>
     <header className="codexSketchTop">
       <button className="codexSketchRound" type="button" aria-label={t('sketchCancel')} title={t('sketchCancel')} disabled={busy} onClick={close}><WorkspaceIcon name="close" /></button>
       <SketchFiles save={save} load={load} fresh={fresh} importImage={importImage} disabled={busy} t={t} report={setError} onWorking={setBusy} />
@@ -101,16 +112,19 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
       <button type="button" className="codexSketchConfirm" aria-label={t('sketchAttach')} disabled={busy||!enabled||!doc.current.layers.some(l=>l.visible&&(l.strokes.length||l.image))} onClick={()=>void attach()}><WorkspaceIcon name="check" size={18}/><span>{t('sketchAttachShort')}</span></button>
     </header>
     <div className={`codexLayerBody ${layersOpen?'withLayers':''}`}>
-      <canvas tabIndex={0} style={{'--sketch-ratio':(doc.current.width ?? SKETCH_SIZE)/(doc.current.height ?? SKETCH_SIZE)}} ref={canvas} width={SKETCH_SIZE} height={SKETCH_SIZE} aria-label={t('sketchTitle')} onPointerDown={event=>{
-        if (busy || !enabled || event.button!==0 || active.current) return
+      <canvas tabIndex={0} style={{transform:`translate(${navigation.view.x}px,${navigation.view.y}px) scale(${navigation.view.scale})`,cursor:navigation.space?'grab':undefined,'--sketch-ratio':(doc.current.width ?? SKETCH_SIZE)/(doc.current.height ?? SKETCH_SIZE)}} ref={canvas} width={SKETCH_SIZE} height={SKETCH_SIZE} aria-label={t('sketchTitle')} onPointerDown={event=>{
+        if (busy || !enabled || active.current) return
+        if(navigation.down(event))return
+        if(event.button!==0)return
         if (!current.visible) {setError(t('sketchHiddenLayer'));return}
         if (!(tool==='eraser'&&eraser==='stroke') && strokeCount(doc.current)>=MAX_SKETCH_STROKES) {setError(t('sketchLimit'));return}
         const start=sketchPoint(event.clientX,event.clientY,canvas.current.getBoundingClientRect());if(!start)return
         checkpoint(); const layers=doc.current.layers.map(layer=>layer.id===doc.current.active?{...layer,strokes:layer.strokes.slice()}:layer);doc.current={...doc.current,layers}
         const layer=layers.find(layer=>layer.id===doc.current.active);const eraseStroke=tool==='eraser'&&eraser==='stroke'
-        if(!eraseStroke)layer.strokes.push({color,shape:tool,width,brush:tool==='pen'?brush:'pen',pressure:event.pointerType==='pen'?Math.max(.2,event.pressure):1,points:[start]})
-        const filter=tool==='pen'?createStrokeFilter(stability):null;filter?.(start,event.timeStamp);active.current={id:event.pointerId,layer:layer.id,eraseStroke,last:start,filter};canvas.current.setPointerCapture(event.pointerId);setError('');move(event);schedule()
+        if(!eraseStroke)layer.strokes.push({color,opacity:flow/100,shape:tool,width,brush:tool==='pen'?brush:'pen',pressure:event.pointerType==='pen'?Math.max(.2,event.pressure):1,points:[start]})
+        active.current={id:event.pointerId,layer:layer.id,eraseStroke,last:start,smoothing:tool==='pen'?stability:0};canvas.current.setPointerCapture(event.pointerId);setError('');move(event);schedule()
       }} onPointerMove={move} onPointerUp={event=>end(event)} onPointerCancel={event=>end(event,true)} />
+      {picturesOpen?<aside className="codexSketchPictures"><header><strong>{t('sketchPictures')}</strong><button type="button" onClick={()=>pictureInput.current.click()}>{t('sketchPictureAdd')}</button></header><input ref={pictureInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void runFile(()=>importImage(file))}}/>{doc.current.layers.filter(layer=>layer.image).map(layer=><div key={layer.id} data-active={layer.id===doc.current.active}><button type="button" aria-label={`${t('sketchPictureSelect')} ${layer.name}`} onClick={()=>change('select',layer.id)}><img src={layer.image.src} alt={layer.name}/></button><button type="button" aria-label={`${t('sketchDeleteDraft')} ${layer.name}`} onClick={()=>change(doc.current.layers.length===1?'clear':'delete',layer.id)}>×</button></div>)}{!doc.current.layers.some(layer=>layer.image)?<small>{t('sketchPicturesEmpty')}</small>:null}</aside>:null}
       {layersOpen?<aside className="codexSketchLayers" aria-label={t('sketchLayers')}>
         <header><strong>{t('sketchLayers')}</strong><button type="button" title={t('sketchLayerAdd')} aria-label={t('sketchLayerAdd')} disabled={busy||doc.current.layers.length>=MAX_SKETCH_LAYERS} onClick={()=>change('add')}>＋</button></header>
         <div className="codexLayerList">{doc.current.layers.slice().reverse().map(layer=><div key={layer.id} className="codexLayerRow" data-active={layer.id===doc.current.active}>
@@ -124,6 +138,8 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
       </aside>:null}
     </div>
     <div className="codexSketchControls">
+      <button type="button" aria-expanded={picturesOpen} onClick={()=>setPicturesOpen(v=>!v)}>{t('sketchPictures')}</button>
+      <SketchViewControls navigation={navigation} t={t}/>
       <div className="codexSketchPill" role="toolbar" aria-label={t('sketchTitle')} title={t('sketchShortcuts')}>
         {['pen','pencil','marker','eraser','line','rectangle','circle'].map(name=>{
           const drawing=['pen','pencil','marker'].includes(name)
@@ -134,6 +150,7 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
       <div className="codexLayerBrush">
         {tool==='pen'?<label className="codexSketchStability">{t('sketchStability')}<select aria-label={t('sketchStability')} value={stability} disabled={busy} onChange={e=>setStability(Number(e.target.value))}>{[0,25,50,75].map(value=><option key={value} value={value}>{t(`sketchStability${value}`)}</option>)}</select></label>:null}
         {tool==='eraser'?<div className="codexSketchSegment" role="group" aria-label={t('sketchEraserMode')}>{['pixel','stroke'].map(value=><button key={value} type="button" aria-pressed={eraser===value} disabled={busy} onClick={()=>setEraser(value)}>{t(`sketchErase_${value}`)}</button>)}</div>:null}
+        {tool!=='eraser'?<label className="codexSketchWidth"><span>{t('sketchFlow')}</span><input type="range" min={5} max={100} step={5} value={flow} aria-label={t('sketchFlow')} onChange={e=>setFlow(Number(e.target.value))}/><output>{flow}</output></label>:null}
         <label className="codexSketchWidth"><span>{t('sketchWidth')}</span><input type="range" min={2} max={64} value={width} aria-label={t('sketchWidth')} onChange={e=>setWidth(Number(e.target.value))} disabled={busy}/><output>{width}</output></label>
       </div>
       <div className="codexSketchPalette" role="group" aria-label={t('sketchColor')}>

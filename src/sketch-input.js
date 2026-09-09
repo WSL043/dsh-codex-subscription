@@ -1,22 +1,18 @@
-// Speed-adaptive low-pass filter (1 Euro principle). Strength zero is raw input.
-export function createStrokeFilter(strength = 0) {
-  let last, filtered, velocity = 0, time
-  const alpha = (cutoff, dt) => 1 / (1 + 1 / (2 * Math.PI * cutoff * dt))
-  return (point, timestamp) => {
-    if (!last || !strength) { last = filtered = point; time = timestamp; return point }
-    const dt = Math.max(1 / 1000, Math.min(.1, (timestamp - time) / 1000))
-    const speed = Math.hypot(point.x - last.x, point.y - last.y) / dt
-    velocity += alpha(1, dt) * (speed - velocity)
-    const cutoff = 1 + (100 - strength) * .12 + velocity * 35
-    const a = alpha(cutoff, dt)
-    filtered = { x: filtered.x + a * (point.x - filtered.x), y: filtered.y + a * (point.y - filtered.y) }
-    last = point; time = timestamp
-    return filtered
-  }
-}
-
 export function snapLine(start, end) {
   const angle = Math.round(Math.atan2(end.y - start.y, end.x - start.x) / (Math.PI / 4)) * Math.PI / 4
   const length = Math.hypot(end.x - start.x, end.y - start.y)
   return { x: start.x + Math.cos(angle) * length, y: start.y + Math.sin(angle) * length }
+}
+// Geometric smoothing keeps the first and newest sample exact: no input delay.
+export function smoothStrokePoints(points, strength = 0) {
+  if (!strength || points.length < 3) return points
+  const radius = Math.max(1, Math.round(strength / 25)), amount = Math.min(1,strength/75)
+  return points.map((point,i)=>{
+    if(i===0 || i===points.length-1)return point
+    let x=0,y=0,weight=0
+    for(let j=Math.max(0,i-radius);j<=Math.min(points.length-1,i+radius);j++){
+      const w=radius+1-Math.abs(j-i);x+=points[j].x*w;y+=points[j].y*w;weight+=w
+    }
+    return {...point,x:point.x+(x/weight-point.x)*amount,y:point.y+(y/weight-point.y)*amount}
+  })
 }

@@ -17,7 +17,7 @@ export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = 
     const first = stroke.points[0]
     if (!first) continue
     context.globalCompositeOperation = stroke.shape === 'eraser' ? 'destination-out' : 'source-over'
-    context.globalAlpha = stroke.brush === 'marker' ? 0.28 : stroke.brush === 'pencil' ? 0.65 : 1
+    context.globalAlpha = (stroke.opacity ?? 1) * (stroke.brush === 'marker' ? 0.28 : stroke.brush === 'pencil' ? 0.65 : 1)
     context.strokeStyle = stroke.color
     context.fillStyle = stroke.color
     context.lineWidth = stroke.width * (stroke.brush === 'pencil' ? 0.55 : 1) * (stroke.pressure ?? 1)

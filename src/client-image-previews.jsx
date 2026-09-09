@@ -11,7 +11,7 @@ function openPreview(props, item, opener, sourceInDraft = false) {
     onInvoke: ({ annotations }) => attachForEdit(item.src, item.name,
       buildImageEditDraft({ annotations, translate: t, sourceName: item.name, referenceName }),
       annotations, referenceName, sourceInDraft),
-  }] : [] }], opener, source: sourceInDraft ? 'codex-draft' : 'codex-message',
+  }, ...(settings.imageSketch && props.openSketchImage ? [{id:'sketch',label:t('imageToSketch'),pendingLabel:t('imageEditPreparing'),errorLabel:t('imageEditFailed'),onInvoke:()=>props.openSketchImage(item.src,item.name)}] : [])] : [] }], opener, source: sourceInDraft ? 'codex-draft' : 'codex-message',
   annotations: settings.imageAnnotations })
 }
 
