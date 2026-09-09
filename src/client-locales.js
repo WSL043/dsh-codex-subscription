@@ -1,4 +1,8 @@
 export const zh = {
+  imageCapability: '图片生成与编辑', imageCapabilityHint: '允许模型按你的要求制作或修改图片。', imageCapability_on: '启用', imageCapability_off: '关闭',
+  imageEntryPoints: '创作入口', imageEntryPointsHint: '@生图、草图与模板；隐藏后仍可用自然语言生图。', imageEntryPoints_on: '显示', imageEntryPoints_off: '隐藏',
+  imageBrowsing: '图片浏览', imageBrowsingHint: '增强模式包含原图查看、标注、图库与对比。', imageBrowsing_on: '增强', imageBrowsing_off: 'DSH 默认', imageGroupMixed: '保留原设置',
+  imageQuality_auto: '自动', imageQuality_low: '低', imageQuality_medium: '中', imageQuality_high: '高', imageQuality_xhigh: '超高', imageQuality_max: '最高',
   imageShortcut: '@生图快捷入口', imageCreateTitle: '描述你想要的图片', imageDraftHint: '填入草稿后由你发送。参考图可先附在输入框，不会自动生成或改写已有说明。', imageDraftFailed: '无法填入草稿。请保留说明，检查输入框是否正在发送或含有引用。',
   imageCreatePrompt: '请使用订阅图片工具按以下要求制作图片；如附有参考图，请基于所附图片编辑：',
   templatePosterPrompt: '请按以下要求设计海报。建立清晰的主标题、主体和辅助信息层级；只使用我提供的文字，不编造日期、价格或联系方式。',
@@ -83,6 +87,10 @@ export const zh = {
 }
 
 export const en = {
+  imageCapability: 'Image generation and editing', imageCapabilityHint: 'Let the model create or edit images when you ask.', imageCapability_on: 'Enabled', imageCapability_off: 'Off',
+  imageEntryPoints: 'Creative shortcuts', imageEntryPointsHint: '@Image, sketch and templates. Natural-language image requests still work when hidden.', imageEntryPoints_on: 'Show', imageEntryPoints_off: 'Hide',
+  imageBrowsing: 'Image browsing', imageBrowsingHint: 'Enhanced mode includes originals, annotations, library and comparison.', imageBrowsing_on: 'Enhanced', imageBrowsing_off: 'DSH default', imageGroupMixed: 'Keep existing',
+  imageQuality_auto: 'Auto', imageQuality_low: 'Low', imageQuality_medium: 'Medium', imageQuality_high: 'High', imageQuality_xhigh: 'Extra high', imageQuality_max: 'Maximum',
   imageShortcut: '@Image shortcut', imageCreateTitle: 'Describe your image', imageDraftHint: 'Add to your draft, then send when ready. Attach references in the composer. Nothing is generated or existing text replaced automatically.', imageDraftFailed: 'Could not update the draft. Keep your brief and check whether the composer is busy or contains references.',
   imageCreatePrompt: 'Use the subscription image tool for the following request. If reference images are attached, edit those images:',
   templatePosterPrompt: 'Design a poster using the brief below. Create a clear hierarchy of headline, subject, and supporting information. Use only supplied text; do not invent dates, prices, or contact details.',

@@ -254,12 +254,13 @@ The official `dsh-subagent-codex` has some overlapping uses: it delegates a text
 
 Natural-language requests continue to work. Use `@Image` / `@生图` to open a short creative brief, or `@Sketch` / `@草图` to draw a reference. Confirming updates the visible draft or attaches a sketch; it never sends or generates automatically. The session image library accepts up to five references for one edit, or two images for side-by-side comparison.
 
-Settings → Codex Subscription → Image workspace provides independent switches for generation, editing, the shortcut, viewer, annotations, sketch, templates, library and comparison. Turning off the shortcut leaves natural-language generation available. Turning off both generation and editing removes the image tool from subsequent model requests while retaining historical images.
+Settings → Codex Subscription → Image workspace provides three groups: image generation and editing, creative shortcuts, and image browsing. Hiding shortcuts leaves natural-language generation available. Turning off generation and editing removes the image tool from subsequent model requests while retaining historical images. Browsing can use enhanced features or the DSH default. Mixed legacy preferences are preserved until you explicitly change their group.
 
 `@` makes intent explicit; it does not eliminate context or image usage. Unsent workspace drafts do not add chat messages. Sent instructions, references and generated results remain part of the conversation. Use a separate conversation for extensive image iterations. The conversation model, such as Luna, is separate from the image engine.
 
 Current 2.0 workspace screenshots (Chinese interface shown):
 
 ![Image brief](docs/assets/image-create-2.0.png)
-![Independent image controls](docs/assets/image-settings-2.0.png)
+![Image settings (light)](docs/assets/image-settings-2.0.png)
+![Image settings (dark)](docs/assets/image-settings-2.0-dark.png)
 ![Image comparison](docs/assets/image-compare-2.0.png)
