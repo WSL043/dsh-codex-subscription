@@ -1,3 +1,4 @@
+import { readImageFeatures, readImageDefaults, imageFeaturePatch } from './image-features.js'
 export const CUSTOM_CONTEXT_OVERRIDES_FIELD = 'customContextModels'
 export const SEARCH_MODE_FIELD = 'searchMode'
 export const SEARCH_DOMAINS_FIELD = 'searchDomains'
@@ -27,6 +28,8 @@ export function normalizeSearchDomains(value) {
 
 export function readCapabilitySettings(value = {}) {
   return {
+    ...readImageFeatures(value),
+    ...readImageDefaults(value),
     [CUSTOM_CONTEXT_OVERRIDES_FIELD]: normalizeContextOverrides(value[CUSTOM_CONTEXT_OVERRIDES_FIELD]),
     [SEARCH_MODE_FIELD]: SEARCH_MODES.includes(value[SEARCH_MODE_FIELD]) ? value[SEARCH_MODE_FIELD] : 'live',
     [SEARCH_DOMAINS_FIELD]: normalizeSearchDomains(value[SEARCH_DOMAINS_FIELD] ?? []),
@@ -35,7 +38,7 @@ export function readCapabilitySettings(value = {}) {
 }
 
 export function capabilityPatch(payload) {
-  const patch = {}
+  const patch = imageFeaturePatch(payload ?? {})
   for (const [key, choices] of [[SEARCH_MODE_FIELD, SEARCH_MODES], [QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES]]) {
     if (!Object.hasOwn(payload ?? {}, key)) continue
     if (!choices.includes(payload[key])) throw new Error('Invalid capability preference')

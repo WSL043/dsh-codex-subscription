@@ -1,3 +1,5 @@
+import { PREFERENCE_FIELDS } from './preference-fields.js'
+import { registerSubscriptionTransport } from './subscription-transport.js'
 import * as dshCredentials from '@deepseek-ai/dsh-credentials'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { LlmError } from '@deepseek-ai/dsh-llm'
@@ -9,58 +11,19 @@ import { DshOAuthAccountVault } from './account-vault.js'
 import { openCodexAuthUrl } from './external-url.js'
 import { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinator.js'
 import { createCodexNetworkTransport } from './oauth-network.js'
-import {
-  createModels,
-  openaiCodexProvider,
-  openaiCodexSubscriptionProvider,
-} from './pi-ai-runtime.js'
+import { createModels, openaiCodexProvider, openaiCodexSubscriptionProvider } from './pi-ai-runtime.js'
 import { createOfficialModelCatalog } from './model-catalog.js'
-import { capabilityPatch, readCapabilitySettings, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, MAX_CONTEXT_BUDGET } from './capability-settings.js'
+import { readCapabilitySettings, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, MAX_CONTEXT_BUDGET } from './capability-settings.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
 import { createCodexImageTool } from './codex-images.js'
+import { IMAGE_FEATURE_DEFAULTS } from './image-features.js'
+import { watchImageTool } from './image-tool-registration.js'
+import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL } from './image-models.js'
+import { sessionImageGallery } from './image-gallery.js'
 import { OriginalImageStore } from './image-original-store.js'
-import { inheritedOriginalImageRef, ORIGINAL_IMAGE_CHUNK_BYTES, ORIGINAL_IMAGE_ID_PATTERN } from './image-original-contract.js'
+import { inheritedOriginalImageRef } from './image-original-contract.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
-import {
-  CONTEXT_MODE_CUSTOM,
-  CONTEXT_MODE_EXTENDED,
-  CONTEXT_MODE_FIELD,
-  CONTEXT_MODE_STANDARD,
-  contextModelGroups,
-  CUSTOM_CONTEXT_MODEL_CAPS,
-  CUSTOM_CONTEXT_MODEL_DEFAULTS,
-  CUSTOM_CONTEXT_MODEL_FIELDS,
-  CUSTOM_CONTEXT_WINDOW_FIELD,
-  DEFAULT_CONTEXT_MODE,
-  DEFAULT_CUSTOM_CONTEXT_WINDOW,
-  DEFAULT_OUTPUT_VERBOSITY,
-  LEGACY_QUICK_QUOTA_FIELD,
-  normalizeQuickQuotaMode,
-  normalizeOutputVerbosity,
-  DEFAULT_SEARCH_PROVIDER,
-  DEFAULT_SPEED_MODE,
-  QUICK_QUOTA_MODE_BAR,
-  QUICK_QUOTA_MODE_FORECAST,
-  QUICK_QUOTA_MODE_FIELD,
-  QUICK_QUOTA_MODE_OFF,
-  QUICK_QUOTA_MODE_PERCENT,
-  OUTPUT_VERBOSITY_DEFAULT,
-  OUTPUT_VERBOSITY_FIELD,
-  OUTPUT_VERBOSITY_HIGH,
-  OUTPUT_VERBOSITY_LOW,
-  OUTPUT_VERBOSITY_MEDIUM,
-  SEARCH_PROVIDER_AUTO,
-  SEARCH_PROVIDER_CODEX,
-  SEARCH_PROVIDER_DSH,
-  SEARCH_PROVIDER_FIELD,
-  SETTINGS_NAMESPACE,
-  SPEED_MODE_FAST,
-  SPEED_MODE_FIELD,
-  SPEED_MODE_STANDARD,
-  normalizeContextMode,
-  normalizeCustomContextWindow,
-  supportsCodexFastMode,
-} from './settings-contract.js'
+import { CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_CUSTOM_CONTEXT_WINDOW, LEGACY_QUICK_QUOTA_FIELD, normalizeQuickQuotaMode, normalizeOutputVerbosity, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_FIELD, SETTINGS_NAMESPACE, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 import { createQuotaForecastReader } from './quota-forecast.js'
 import { QuotaForecastStateStore } from './quota-forecast-store.js'
@@ -76,199 +39,14 @@ const LEGACY_CREDENTIAL_REF = dshCredentials.credentialRef('WSL043_OPENAI_CODEX_
 const ACCOUNT_VAULT_KEY = typeof dshCredentials.credentialKey === 'function'
   ? dshCredentials.credentialKey('codex-subscription', 'accounts')
   : undefined
-const CHANNEL = '/codex-subscription'
 const WEB_ENTRY_ID = 'web'
 const DSH_SEARCH_PROVIDER_FALLBACK = 'deepseek-official'
 const MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
 const REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
 const REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 
-const publicError = (code, message) => ({
-  ok: false,
-  error: { code, message, details: { issues: [] } },
-})
-
-export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal }) {
-  return async (endpoint, payload, signal) => {
-    if (endpoint === 'image/original/chunk') {
-      try {
-        signal.throwIfAborted()
-        if (typeof payload?.sessionId !== 'string' || payload.sessionId.length === 0 || payload.sessionId.length > 512
-          || typeof payload?.assetId !== 'string' || !ORIGINAL_IMAGE_ID_PATTERN.test(payload.assetId)
-          || !Number.isSafeInteger(payload?.offset) || payload.offset < 0 || payload.offset % ORIGINAL_IMAGE_CHUNK_BYTES !== 0) {
-          return publicError('invalid-input', 'Invalid original image request')
-        }
-        const inherited = resolveInheritedOriginal?.(payload.sessionId, payload.assetId)
-        const chunk = await originalImages?.chunk(payload.sessionId, payload.assetId, payload.offset, inherited)
-        if (chunk === undefined) return publicError('not-found', 'Original image is unavailable')
-        return { ok: true, value: chunk }
-      } catch (error) {
-        if (signal.aborted) throw error
-        return publicError('internal', 'Could not read the original image')
-      }
-    }
-    if (endpoint === 'diagnostics') {
-      try {
-        signal.throwIfAborted()
-        return { ok: true, value: await diagnosticsReader() }
-      } catch (error) {
-        if (signal.aborted) throw error
-        return publicError('internal', 'Could not create support diagnostics')
-      }
-    }
-    if (endpoint === 'preferences/models') {
-      try {
-        signal.throwIfAborted()
-        if (typeof modelCatalog?.refresh !== 'function' || typeof preferences?.status !== 'function') {
-          return publicError('internal', 'Could not refresh Codex model catalog')
-        }
-        await modelCatalog.refresh({ signal })
-        const value = preferences.status()
-        return {
-          ok: true,
-          value: {
-            contextModels: Array.isArray(value?.contextModels) ? value.contextModels : [],
-            verbosityModels: Array.isArray(value?.verbosityModels) ? value.verbosityModels : [],
-            fastModels: Array.isArray(value?.fastModels) ? value.fastModels : [],
-            catalogStatus: value?.catalogStatus,
-          },
-        }
-      } catch (error) {
-        if (signal.aborted) throw error
-        return publicError('internal', 'Could not refresh Codex model catalog')
-      }
-    }
-    if (endpoint === 'preferences/status' || endpoint === 'preferences/update') {
-      try {
-        signal.throwIfAborted()
-        if (endpoint === 'preferences/update') {
-          const patch = capabilityPatch(payload)
-          if (Object.hasOwn(payload ?? {}, QUICK_QUOTA_MODE_FIELD)) {
-            if (![QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST].includes(payload[QUICK_QUOTA_MODE_FIELD])) {
-              return publicError('internal', 'Invalid quick quota preference')
-            }
-            patch[QUICK_QUOTA_MODE_FIELD] = payload[QUICK_QUOTA_MODE_FIELD]
-          }
-          if (Object.hasOwn(payload ?? {}, SEARCH_PROVIDER_FIELD)) {
-            if (![SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX].includes(payload[SEARCH_PROVIDER_FIELD])) {
-              return publicError('internal', 'Invalid search provider preference')
-            }
-            patch[SEARCH_PROVIDER_FIELD] = payload[SEARCH_PROVIDER_FIELD]
-          }
-          if (Object.hasOwn(payload ?? {}, SPEED_MODE_FIELD)) {
-            if (![SPEED_MODE_STANDARD, SPEED_MODE_FAST].includes(payload[SPEED_MODE_FIELD])) {
-              return publicError('internal', 'Invalid speed mode preference')
-            }
-            patch[SPEED_MODE_FIELD] = payload[SPEED_MODE_FIELD]
-          }
-          if (Object.hasOwn(payload ?? {}, OUTPUT_VERBOSITY_FIELD)) {
-            if (![OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, OUTPUT_VERBOSITY_HIGH].includes(payload[OUTPUT_VERBOSITY_FIELD])) {
-              return publicError('internal', 'Invalid output verbosity preference')
-            }
-            patch[OUTPUT_VERBOSITY_FIELD] = payload[OUTPUT_VERBOSITY_FIELD]
-          }
-          if (Object.hasOwn(payload ?? {}, CONTEXT_MODE_FIELD)) {
-            if (![CONTEXT_MODE_STANDARD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM].includes(payload[CONTEXT_MODE_FIELD])) {
-              return publicError('internal', 'Invalid context mode preference')
-            }
-            patch[CONTEXT_MODE_FIELD] = payload[CONTEXT_MODE_FIELD]
-          }
-          if (Object.hasOwn(payload ?? {}, CUSTOM_CONTEXT_WINDOW_FIELD)) {
-            if (normalizeCustomContextWindow(payload[CUSTOM_CONTEXT_WINDOW_FIELD]) !== payload[CUSTOM_CONTEXT_WINDOW_FIELD]) {
-              return publicError('internal', 'Invalid custom context window')
-            }
-            patch[CUSTOM_CONTEXT_WINDOW_FIELD] = payload[CUSTOM_CONTEXT_WINDOW_FIELD]
-          }
-          for (const [modelKey, field] of Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS)) {
-            if (!Object.hasOwn(payload ?? {}, field)) continue
-            if (normalizeCustomContextWindow(payload[field], CUSTOM_CONTEXT_MODEL_CAPS[modelKey]) !== payload[field]) {
-              return publicError('internal', 'Invalid custom model context window')
-            }
-            patch[field] = payload[field]
-          }
-          if (Object.keys(patch).length === 0) {
-            return publicError('internal', 'Invalid preference update')
-          }
-          await preferences.update(patch)
-        }
-        return { ok: true, value: preferences.status() }
-      } catch (error) {
-        if (signal.aborted) throw error
-        return publicError('internal', 'Could not update preferences')
-      }
-    }
-    if (endpoint === 'usage') {
-      try {
-        signal.throwIfAborted()
-        return { ok: true, value: await usageReader.read({ force: payload?.force === true, signal }) }
-      } catch (error) {
-        if (signal.aborted) throw error
-        const known = new Set([
-          'ChatGPT subscription is not signed in',
-          'ChatGPT sign-in needs to be renewed',
-        ])
-        const message = error instanceof Error && known.has(error.message)
-          ? error.message
-          : 'Could not read ChatGPT usage'
-        return publicError('internal', message)
-      }
-    }
-    if (endpoint === 'reset-credit/inspect' || endpoint === 'reset-credit/prepare' || endpoint === 'reset-credit/consume') {
-      try {
-        signal.throwIfAborted()
-        const value = endpoint === 'reset-credit/inspect'
-          ? await resetCreditService.inspect({ signal })
-          : endpoint === 'reset-credit/prepare'
-            ? await resetCreditService.prepare({ creditRef: payload?.creditRef, signal })
-            : await resetCreditService.consume({
-            challengeId: payload?.challengeId,
-            acknowledged: payload?.acknowledged,
-            signal,
-            })
-        return { ok: true, value }
-      } catch (error) {
-        if (signal.aborted) throw error
-        const known = new Set([
-          'ChatGPT subscription is not signed in',
-          'ChatGPT sign-in needs to be renewed',
-          'No quota reset is available',
-          'No usable quota reset is available',
-          'The available quota reset expires too soon',
-          'This quota reset confirmation is no longer valid',
-          'This quota reset is already in progress',
-          'Wait before confirming this quota reset',
-          'You must acknowledge that one quota reset will be consumed',
-          'The signed-in ChatGPT account changed',
-        ])
-        const fallback = endpoint === 'reset-credit/inspect'
-          ? 'Could not read quota reset details'
-          : endpoint === 'reset-credit/prepare'
-            ? 'Could not prepare a quota reset'
-            : 'Could not use the quota reset'
-        const message = error instanceof Error && known.has(error.message) ? error.message : fallback
-        return publicError('internal', message)
-      }
-    }
-    const result = await authHandler(endpoint, payload, signal)
-    if (endpoint === 'account/remove' && result.ok === true && typeof payload?.id === 'string') {
-      await usageReader.clearScope(payload.id)
-    }
-    if (endpoint === 'logout' && result.ok === true) {
-      await usageReader.clear()
-      resetCreditService.clear()
-      modelCatalog?.clear()
-    } else if (result.ok === true && (endpoint === 'account/select' || endpoint === 'account/remove'
-      || (endpoint === 'login/status' && result.value?.authenticated === true))) {
-      usageReader.clearCache()
-      resetCreditService.clear()
-      modelCatalog?.clear()
-      void modelCatalog?.refresh({ signal: undefined }).catch(() => {})
-    } else if (result.ok === true && (endpoint === 'status' || result.value?.authenticated === true)) {
-      void modelCatalog?.refresh({ signal: undefined }).catch(() => {})
-    }
-    return result
-  }
-}
+import { createSubscriptionRpcHandler } from './subscription-rpc.js'
+export { createSubscriptionRpcHandler } from './subscription-rpc.js'
 
 export function createSearchProviderSwitcher(loader) {
   const webEntry = () => [...loader.entries()].find(entry => entry.options?.id === WEB_ENTRY_ID)
@@ -302,16 +80,15 @@ export function createSearchProviderSwitcher(loader) {
 
 export function apply(ctx) {
   const settings = ctx.settings.register(SETTINGS_NAMESPACE, z.object({
+    ...Object.fromEntries(Object.entries(PREFERENCE_FIELDS).map(([field, rule]) => [field, rule.default === undefined ? z.union(rule.choices) : z.union(rule.choices).default(rule.default)])),
+    imageModel: z.union(Object.keys(IMAGE_MODELS)).default(DEFAULT_IMAGE_MODEL),
+    imageQuality: z.union(['auto','low','medium','high','xhigh','max']).default('auto'),
+    ...Object.fromEntries(Object.entries(IMAGE_FEATURE_DEFAULTS).map(([key, value]) => [key, z.boolean().default(value)])),
     [CUSTOM_CONTEXT_OVERRIDES_FIELD]: z.dict(z.number().step(1).min(1).max(MAX_CONTEXT_BUDGET)).default({}),
     [SEARCH_MODE_FIELD]: z.union(SEARCH_MODES).default('live'),
     [SEARCH_DOMAINS_FIELD]: z.transform(z.array(z.string()).max(20), value => readCapabilitySettings({ searchDomains: value }).searchDomains).default([]),
     [QUOTA_ALERTS_FIELD]: z.union(QUOTA_ALERT_MODES).default('important'),
-    [QUICK_QUOTA_MODE_FIELD]: z.union([QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST]),
     [LEGACY_QUICK_QUOTA_FIELD]: z.boolean(),
-    [SEARCH_PROVIDER_FIELD]: z.union([SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX]).default(DEFAULT_SEARCH_PROVIDER),
-    [SPEED_MODE_FIELD]: z.union([SPEED_MODE_STANDARD, SPEED_MODE_FAST]).default(DEFAULT_SPEED_MODE),
-    [OUTPUT_VERBOSITY_FIELD]: z.union([OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, OUTPUT_VERBOSITY_HIGH]).default(DEFAULT_OUTPUT_VERBOSITY),
-    [CONTEXT_MODE_FIELD]: z.union([CONTEXT_MODE_STANDARD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM]).default(DEFAULT_CONTEXT_MODE),
     [CUSTOM_CONTEXT_WINDOW_FIELD]: z.number().step(1).min(128_000).max(1_000_000).default(DEFAULT_CUSTOM_CONTEXT_WINDOW),
     ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [field, z.number().step(1).min(128_000).max(CUSTOM_CONTEXT_MODEL_CAPS[modelKey]).default(CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey])])),
   }))
@@ -414,14 +191,15 @@ export function apply(ctx) {
       fileExists: async () => false,
     }),
   })
-  ctx.tools.register(createCodexImageTool({
+  ctx.effect(() => watchImageTool(settings, () => ctx.tools.register(createCodexImageTool({
+    getFeatures: () => settings.get(),
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     attachments: ctx.attachments,
     getSessionMessages: sessionId => ctx.get?.('sessions')?.get?.(sessionId)?.deriveMessages?.() ?? [],
     originalImages,
     fetch: (input, init) => network.fetch('image', input, init),
-  }))
+  }))), 'codex-subscription: image tool availability')
   const adapter = new PiAiAdapter({
     profiles,
     resolveApiKey: async () => {
@@ -526,6 +304,11 @@ export function apply(ctx) {
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog }),
     modelCatalog,
     originalImages,
+    getImageGallery: sessionId => {
+      const session = ctx.get?.('sessions')?.get?.(sessionId)
+      if (!session) return undefined
+      return sessionImageGallery(session?.snapshotEvents?.() ?? session?.events ?? [])
+    },
     resolveInheritedOriginal: (sessionId, assetId) => inheritedOriginalImageRef(
       ctx.get?.('sessions')?.get?.(sessionId),
       assetId,
@@ -537,7 +320,7 @@ export function apply(ctx) {
   }, 'codex-subscription: official model catalog')
 
   ctx.inject(['connection'], connectionContext => connectionContext.effect(
-    () => connectionContext.connection.rpc.handle(CHANNEL, handler, { authority: 'trusted-host' }),
+    () => registerSubscriptionTransport(connectionContext.connection, handler),
     'codex-subscription: DSH-trusted account RPC',
   ))
 }

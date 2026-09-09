@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { RPC_ENDPOINTS } from '../src/rpc-contract.js'
+import { IMAGE_FEATURE_DEFAULTS } from '../src/image-features.js'
 import test from 'node:test'
 
 import * as plugin from '../src/index.js'
@@ -81,7 +83,7 @@ test('custom context rows follow the active upstream model catalog', () => {
   ])
 })
 
-function fakeContext({ connection = true } = {}) {
+function fakeContext({ connection = true, webServer = true } = {}) {
   const registered = []
   const handled = []
   const searchProviders = []
@@ -137,10 +139,11 @@ function fakeContext({ connection = true } = {}) {
         return () => {}
       },
     },
+    webServer: webServer ? {} : undefined,
     connection: connection ? {
-      rpc: {
-        handle(channel, handler, options) {
-          handled.push({ channel, handler, options })
+      fetch: {
+        register(route) {
+          handled.push(route)
           return () => {}
         },
       },
@@ -175,6 +178,12 @@ function fakeContext({ connection = true } = {}) {
   }
   return {
     ctx, registered, handled, provided, searchProviders, settings, tools, webUpdates,
+    async request(endpoint, payload, signal) {
+      const method = 'codex-subscription/' + endpoint
+      const route = handled.find(route => route.path === '/api/' + method)
+      const response = await route.fetch(new Request('http://localhost' + route.path, {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({type:'client-request',rpcId:'test-rpc',method,payload}), signal}))
+      return (await response.json()).result
+    },
     async updateSettings(patch) {
       const previous = preference
       preference = { ...preference, ...patch }
@@ -182,6 +191,13 @@ function fakeContext({ connection = true } = {}) {
     },
   }
 }
+
+test('account routes register without directly accessing the web server', () => {
+  const host = fakeContext({ webServer: false })
+  assert.doesNotThrow(() => applyPlugin(host.ctx))
+  assert.equal(host.handled.length, RPC_ENDPOINTS.length)
+  assert.equal(host.tools.length, 1)
+})
 
 test('plugin activates without the web connection service in Headless mode', () => {
   const host = fakeContext({ connection: false })
@@ -219,22 +235,22 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.equal((await host.registered[0].adapter.resolveModel('openai-codex', 'gpt-5.4-mini')).context.contextWindow, 400_000)
   assert.equal((await host.registered[0].adapter.resolveModel('openai-codex', 'gpt-5.5')).context.contextWindow, 500_000)
   await host.updateSettings({ [CONTEXT_MODE_FIELD]: CONTEXT_MODE_STANDARD, [CUSTOM_CONTEXT_WINDOW_FIELD]: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000 })
-  assert.equal(host.handled.length, 1)
-  assert.equal(host.handled[0].channel, '/codex-subscription')
-  assert.deepEqual(host.handled[0].options, { authority: 'trusted-host' })
+  assert.equal(host.handled.length, RPC_ENDPOINTS.length)
+  assert.equal(host.handled[0].path, '/api/codex-subscription/status')
+  assert.ok(host.handled.every(route => route.methods.length === 1 && route.methods[0] === 'POST'))
   assert.equal(host.settings.length, 1)
   assert.equal(host.provided.size, 0, 'the plugin should not publish undocumented host services')
   assert.equal('CodexCacheTelemetry' in plugin, false, 'cache diagnostics are outside the subscription route boundary')
 
   const signal = new AbortController().signal
-  const status = await host.handled[0].handler('status', {}, signal)
+  const status = await host.request('status', {}, signal)
   assert.deepEqual(status, {
     ok: true,
     value: { authenticated: false, provider: 'openai-codex' },
   })
   assert.doesNotMatch(JSON.stringify(status), /access|refresh|accountId/)
 
-  const diagnostics = await host.handled[0].handler('diagnostics', {}, signal)
+  const diagnostics = await host.request('diagnostics', {}, signal)
   assert.equal(diagnostics.value.catalog.source, 'fallback')
   assert.ok(['idle', 'refreshing'].includes(diagnostics.value.catalog.refresh))
   assert.deepEqual(diagnostics, {
@@ -275,7 +291,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
     noSave: true,
   }])
 
-  const preferenceStatus = await host.handled[0].handler('preferences/status', {}, signal)
+  const preferenceStatus = await host.request('preferences/status', {}, signal)
   const activeContextModels = preferenceStatus.value.contextModels
   assert.partialDeepStrictEqual(activeContextModels, [
     { key: 'gpt-5.3-codex-spark', label: 'GPT-5.3 Codex Spark', maximum: 128_000, fixed: true },
@@ -293,9 +309,9 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.equal(verbosityModels.includes('gpt-5.3-codex-spark'), false)
   assert.deepEqual(preferenceStatus, {
     ok: true,
-    value: { quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', writable: true },
+    value: { ...IMAGE_FEATURE_DEFAULTS, imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', writable: true },
   })
-  const preferenceUpdate = await host.handled[0].handler('preferences/update', {
+  const preferenceUpdate = await host.request('preferences/update', {
     quickQuotaMode: QUICK_QUOTA_MODE_BAR,
     searchProvider: 'dsh',
     speedMode: SPEED_MODE_FAST,
@@ -305,13 +321,13 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   }, signal)
   assert.deepEqual(preferenceUpdate, {
     ok: true,
-    value: { quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 272_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', writable: true },
+    value: { ...IMAGE_FEATURE_DEFAULTS, imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 272_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', writable: true },
   })
   assert.deepEqual(host.webUpdates.at(-1), {
     config: { searchProvider: 'deepseek-official', fetchProvider: 'local' },
     noSave: true,
   })
-  const invalidQuotaMode = await host.handled[0].handler('preferences/update', {
+  const invalidQuotaMode = await host.request('preferences/update', {
     quickQuotaMode: 'card',
   }, signal)
   assert.deepEqual(invalidQuotaMode, {
@@ -323,7 +339,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
 test('Astra custom context is persisted through settings RPC with its audited bounds', async () => {
   const host = fakeContext()
   applyPlugin(host.ctx)
-  const rpc = (method, payload = {}) => host.handled[0].handler(method, payload, new AbortController().signal)
+  const rpc = (method, payload = {}) => host.request(method, payload, new AbortController().signal)
   assert.equal((await rpc('preferences/status')).value.customContextGpt6Astra, 272_000)
   for (const value of [128_000, 500_000, 872_000]) {
     const result = await rpc('preferences/update', { contextMode: 'custom', customContextGpt6Astra: value })

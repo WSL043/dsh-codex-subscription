@@ -1,3 +1,4 @@
+import { CHANNEL, unwrap } from './rpc-contract.js'
 import {
   clampModelContext,
   CONTEXT_MODE_FIELD,
@@ -19,12 +20,7 @@ import {
 } from './settings-contract.js'
 import { readCapabilitySettings, CUSTOM_CONTEXT_OVERRIDES_FIELD } from './capability-settings.js'
 
-const CHANNEL = '/codex-subscription'
 
-const unwrap = response => {
-  if (!response?.ok) throw new Error(response?.error?.message ?? 'Codex RPC failed')
-  return response.value
-}
 
 export function createPreferenceController(scope, rpc) {
   let updating = false
