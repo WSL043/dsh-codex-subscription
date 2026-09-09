@@ -2,7 +2,7 @@ export const zh = {
   forecastCompactPending: '暂难估计', forecastCompactChanging: '重新估计', forecastCompactStale: '待更新',
   imageEditShort: '继续编辑', forecastResolution: '暂时估不准：读数变化不足以确定速度', forecastChanging: '使用强度变化，正在重新估计', forecastStale: '额度数据已过期，等待更新',
   imageDropHere: '松开以添加参考图片', imageDropUnavailable: '当前无法添加图片', imageRemoveDraft: '移除图片',
-  forecastInitial: '初估 ',
+  forecastInitial: '初估 ', forecastInitialHint: '按近期平均消耗初估，读数精度有限；不代表持续工作时间保证。',
   recoveryClear: '清除登录信息', recoveryClearConfirm: '确认清除并重新登录', recoveryClearHint: '将移除本插件保存的所有订阅账号登录信息，保留会话和设置。完成后可重新登录。', recoveryHint: '重试仍失败时可清除登录信息。连接中断时请先恢复 DSH 服务；高级与诊断可生成本地诊断。', recoveryFailed: '清除未确认成功，请先恢复 DSH 服务，再重试。',
   quotaThresholdReached: '已达到额度提醒阈值',
   imageCapability: '图片生成与编辑', imageCapabilityHint: '允许模型按你的要求制作或修改图片。', imageCapability_on: '启用', imageCapability_off: '关闭',
@@ -16,7 +16,7 @@ export const zh = {
 
 
   imageDetails: '图片信息', imageRequestedModel: '请求模型', imageReportedModel: '服务端报告模型', imageModelUnreported: '未报告', imageRequestedSize: '请求尺寸', imageActualSize: '实际尺寸',
-  imageModel: '请求型号', imageQuality: '请求质量', imageExperimental: '实验', imageModelHint: '订阅端未报告实际型号。2.5 参数为实验选项，出图成功不代表已按指定型号或质量执行。',
+  imageModel: '请求型号', imageQuality: '请求质量', imageExperimental: '实验', imageModelHint: '2.5 为实验选项：请求已成功出图，但尚无法确认指定型号或质量是否生效。',
   sketchTool_pen: '画笔', sketchTool_rectangle: '矩形', sketchTool_circle: '椭圆', sketchTool_eraser: '橡皮',
 
   imageSettings: '图片', imageGeneration: '生成新图片', imageEditing: '参考图编辑', imageViewer: '增强图片查看器', imageAnnotations: '图片标注', imageSketch: '草图画板 · Beta',
@@ -102,7 +102,7 @@ export const en = {
   forecastCompactPending: 'Estimating', forecastCompactChanging: 'Re-estimating', forecastCompactStale: 'Stale',
   imageEditShort: 'Edit', forecastResolution: 'Not enough change to estimate the rate yet', forecastChanging: 'Usage intensity changed; estimating again', forecastStale: 'Quota data is stale; waiting for an update',
   imageDropHere: 'Drop reference images here', imageDropUnavailable: 'Images cannot be added right now', imageRemoveDraft: 'Remove image',
-  forecastInitial: 'Initial ',
+  forecastInitial: 'Initial ', forecastInitialHint: 'Provisional recent-average estimate; quantized readings cannot guarantee remaining work time.',
   recoveryClear: 'Clear sign-in data', recoveryClearConfirm: 'Confirm clear and sign in again', recoveryClearHint: 'Removes all subscription sign-ins saved by this plugin. Conversations and settings remain. You can then sign in again.', recoveryHint: 'If retry fails, clear sign-in data. Restore the DSH service first if disconnected. Local diagnostics are available under Advanced.', recoveryFailed: 'Clearing was not confirmed. Restore the DSH service before retrying.',
   quotaThresholdReached: 'Quota alert threshold reached',
   imageCapability: 'Image generation and editing', imageCapabilityHint: 'Let the model create or edit images when you ask.', imageCapability_on: 'Enabled', imageCapability_off: 'Off',
@@ -116,7 +116,7 @@ export const en = {
 
 
   imageDetails: 'Image details', imageRequestedModel: 'Requested model', imageReportedModel: 'Server-reported model', imageModelUnreported: 'Not reported', imageRequestedSize: 'Requested size', imageActualSize: 'Actual size',
-  imageModel: 'Requested model', imageQuality: 'Requested quality', imageExperimental: 'Experimental', imageModelHint: 'The subscription endpoint has not reported the actual model. Image 2.5 parameters are experimental; successful generation does not confirm the requested model or quality was used.',
+  imageModel: 'Requested model', imageQuality: 'Requested quality', imageExperimental: 'Experimental', imageModelHint: 'Image 2.5 options are experimental: requests generated images successfully, but the requested model and quality are not confirmed.',
   sketchTool_pen: 'Pen', sketchTool_rectangle: 'Rectangle', sketchTool_circle: 'Ellipse', sketchTool_eraser: 'Eraser',
 
   imageSettings: 'Images', imageGeneration: 'Generate new images', imageEditing: 'Reference image editing', imageViewer: 'Enhanced image viewer', imageAnnotations: 'Image annotations', imageSketch: 'Sketch canvas · Beta',
