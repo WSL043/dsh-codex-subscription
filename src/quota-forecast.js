@@ -65,8 +65,18 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
     lowerPacePerHour: bounds.min * 60, upperPacePerHour: bounds.max * 60,
     changedIntensity }
   if (!bounds.feasible) return { ...common, status: 'calibrating', reason: 'changing-pace' }
-  // No finite upper runway exists while zero remains a feasible rate. Never
-  // turn an integer boundary crossing or a plateau into a precise countdown.
+  if (resetsAt !== null && resetsAt <= now / 1000) return { ...common, status: 'calibrating', reason: 'stale' }
+  // Quantization bounds may include zero even after several observed drops.
+  // Offer a clearly provisional whole-segment estimate, never a finite upper
+  // bound or a promise of surviving reset. Do not extrapolate a lone jump.
+  if (spanMs >= 5 * 60_000 && samples.length >= 3 && bounds.min <= 1e-9
+    && common.consumedPercent >= 1) {
+    const pacePerHour = common.consumedPercent / (spanMs / HOUR_MS)
+    return { ...common, status: 'ready', provisional: true, pacePerHour,
+      runwaySeconds: clampPercent(window.remainingPercent) / pacePerHour * 3600,
+      survivesReset: false }
+  }
+  // A flat trace or an isolated boundary crossing still cannot establish pace.
   if (spanMs < 60_000 || bounds.min <= 1e-9) return { ...common, status: 'calibrating', reason: 'resolution' }
   const pacePerHour = (bounds.min + bounds.max) * 30
   const remaining = clampPercent(window.remainingPercent)
