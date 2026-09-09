@@ -38,6 +38,8 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
     return () => document.removeEventListener('keydown', escape)
   }, [visible])
   if (!quotaEnabled || !quotas?.length) return null
+  const shortQuota = quotas.find(quota => Math.abs(quota.windowSeconds - 18000) < 60)
+  const compactQuotas = shortQuota ? [shortQuota] : quotas
   const forecastMode = preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_FORECAST
   const warning = quotaWarning({ fetchedAt: quotas[0]?.fetchedAt, rateLimits: [{ id: 'current', windows: quotas }] }, preferenceSnapshot.quotaAlerts, Date.now(), preferenceSnapshot)
   const label = quotas.map(quota => `${windowLabel(quota.windowSeconds, t)}: ${fill(t('remaining'), { value: percent(quota.remainingPercent) })}`).join('; ')
@@ -46,8 +48,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
       aria-haspopup="dialog" aria-expanded={visible} aria-controls={visible ? id : undefined}
       onMouseEnter={enter} onMouseLeave={leave}
       onClick={() => { if (pinned.current) dismiss(); else { pinned.current = true; setOpen(true); requestAnimationFrame(() => panel.current?.focus()) } }}>
-      {forecastMode ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg> : null}
-      {quotas.map((quota, index) => <span className="codexQuotaCompactWindow" key={`${quota.windowSeconds}-${index}`}>
+      {compactQuotas.map((quota, index) => <span className="codexQuotaCompactWindow" key={`${quota.windowSeconds}-${index}`}>
         {preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR && quotas.length === 1 && Math.abs(quota.windowSeconds - 604800) < 60 ? null : <span>{shortWindow(quota.windowSeconds, t)}</span>}
         {preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR ? <progress className="codexComposerQuotaBar" max={100} value={quota.remainingPercent} aria-hidden="true" /> : null}
         {preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_BAR ? <span>{`${percent(quota.remainingPercent)}%`}{forecastMode ? ` · ${forecastText(quota, t)}` : ''}</span> : null}
