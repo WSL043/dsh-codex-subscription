@@ -1,4 +1,8 @@
 export const STYLE = `
+.codexComposerQuota[data-warning=true]{color:var(--dsw-alias-state-error-primary)}
+.codexComposerQuota[data-warning=true] progress{accent-color:var(--dsw-alias-state-error-primary)}
+.codexComposerQuota[data-warning=true] progress::-webkit-progress-value{background:var(--dsw-alias-state-error-primary)}
+.codexQuotaWarning{margin:0 0 5px;color:var(--dsw-alias-state-error-primary);font-size:12px}
 .codexQuotaThresholds{display:flex;gap:14px;flex-wrap:wrap;font-size:12px}.codexQuotaThresholds label{display:flex;align-items:center;gap:5px}.codexQuotaThresholds input{width:64px}.codexQuotaThresholds [role=alert]{color:var(--dsw-alias-label-error)}
 .codexImageSettings{border-top:1px solid var(--dsw-alias-border-l2);padding-top:6px}
 .codexImageSettings>summary{font-weight:500}

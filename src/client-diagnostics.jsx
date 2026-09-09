@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import { CHANNEL, SUPPORT_ISSUE_URL, unwrap } from './client-shared.js'
+import { recoveryCall, clientDiagnostic } from './client-recovery.js'
 export function DiagnosticsCard({ rpc, t }) {
   const [report, setReport] = useState()
   const [busy, setBusy] = useState(false)
@@ -8,8 +9,8 @@ export function DiagnosticsCard({ rpc, t }) {
   const [error, setError] = useState(false)
   const load = () => {
     setBusy(true); setError(false); setCopied(false)
-    void rpc.call(CHANNEL, 'diagnostics', {}).then(unwrap).then(setReport)
-      .catch(() => setError(true)).finally(() => setBusy(false))
+    void recoveryCall(rpc, 'diagnostics').then(setReport)
+      .catch(error => { setReport(clientDiagnostic(error)); setError(true) }).finally(() => setBusy(false))
   }
   const copy = () => {
     if (report === undefined) return
@@ -24,4 +25,3 @@ export function DiagnosticsCard({ rpc, t }) {
     {error ? <p className="codexSubscriptionError" role="alert">{t('diagnosticsFailed')}</p> : null}
   </div>
 }
-

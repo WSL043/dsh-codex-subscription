@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { selectModelQuotaWindows } from './sidebar-quota.js'
+import { recoveryCall } from './client-recovery.js'
 import { CHANNEL, QUICK_QUOTA_REFRESH_EVENT, QUICK_QUOTA_REFRESH_MS, unwrap } from './client-shared.js'
 export function useQuickQuota(rpc, enabled, model) {
   const [quota, setQuota] = useState()
@@ -16,14 +17,14 @@ export function useQuickQuota(rpc, enabled, model) {
       if (loading) return
       loading = true
       try {
-        const account = unwrap(await rpc.call(CHANNEL, 'status', {}))
+        const account = await recoveryCall(rpc, 'status')
         if (!live) return
         if (account?.authenticated !== true) {
           setQuota(undefined)
           return
         }
-        const usage = unwrap(await rpc.call(CHANNEL, 'usage', { force: false }))
-        if (live) setQuota(selectModelQuotaWindows(usage, model))
+        const usage = await recoveryCall(rpc, 'usage', { force: false })
+        if (live) setQuota(selectModelQuotaWindows(usage, model)?.map(window => ({ ...window, fetchedAt: usage.fetchedAt })))
       } catch {
         if (live) setQuota(undefined)
       } finally {
@@ -42,4 +43,3 @@ export function useQuickQuota(rpc, enabled, model) {
   }, [rpc, enabled, model])
   return quota
 }
-

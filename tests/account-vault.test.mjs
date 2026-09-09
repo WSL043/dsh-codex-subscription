@@ -31,6 +31,15 @@ function memoryCredentials({ refs = {}, records = {} } = {}) {
   }
 }
 
+test('corrupt saved credentials can be cleared without reading or parsing them', async () => {
+  const backend = memoryCredentials({ refs: { CODEX_OAUTH: '{broken' }, records: { 'dsh-codex-subscription/accounts': { invalid: true } } })
+  const vault = new DshOAuthAccountVault(backend, { key: 'dsh-codex-subscription/accounts', legacyRef: 'CODEX_OAUTH' })
+  await assert.rejects(vault.readActive())
+  await vault.deleteAll()
+  assert.equal(await vault.readActive(), undefined)
+  assert.deepEqual(await vault.list(), [])
+})
+
 test('account vault imports the existing login without deleting or exposing it', async () => {
   const backend = memoryCredentials({ refs: { CODEX_OAUTH: JSON.stringify(oauth('legacy')) } })
   const vault = new DshOAuthAccountVault(backend, {

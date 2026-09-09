@@ -4,6 +4,7 @@ import { useAnchoredPosition, useDismissOnOutsidePointer } from '@deepseek-ai/ds
 import { QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
 import { fill, percent, windowLabel, usePreferenceSnapshot, formatRunway } from './client-shared.js'
 import { useQuickQuota } from './client-quota.jsx'
+import { quotaWarning } from './capability-settings.js'
 
 export function CodexComposerQuota({ preference, rpc, t, directory }) {
   const preferenceSnapshot = usePreferenceSnapshot(preference)
@@ -38,14 +39,15 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
   }, [visible])
   if (!quotaEnabled || !quotas?.length) return null
   const forecastMode = preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_FORECAST
+  const warning = quotaWarning({ fetchedAt: quotas[0]?.fetchedAt, rateLimits: [{ id: 'current', windows: quotas }] }, preferenceSnapshot.quotaAlerts, Date.now(), preferenceSnapshot)
   const label = quotas.map(quota => `${windowLabel(quota.windowSeconds, t)}: ${fill(t('remaining'), { value: percent(quota.remainingPercent) })}`).join('; ')
   return <>
-    <button ref={trigger} type="button" className="codexComposerQuota" aria-label={`${t('quotaDetails')}: ${label}`}
+    <button ref={trigger} type="button" className="codexComposerQuota" data-warning={warning ? true : undefined} aria-label={`${t('quotaDetails')}: ${label}${warning ? `; ${t('quotaThresholdReached')}` : ''}`}
       aria-haspopup="dialog" aria-expanded={visible} aria-controls={visible ? id : undefined}
       onMouseEnter={enter} onMouseLeave={leave}
       onClick={() => { if (pinned.current) dismiss(); else { pinned.current = true; setOpen(true); requestAnimationFrame(() => panel.current?.focus()) } }}>
       {quotas.map((quota, index) => <span className="codexQuotaCompactWindow" key={`${quota.windowSeconds}-${index}`}>
-        <span>{shortWindow(quota.windowSeconds, t)}</span>
+        {preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR && quotas.length === 1 && Math.abs(quota.windowSeconds - 604800) < 60 ? null : <span>{shortWindow(quota.windowSeconds, t)}</span>}
         {preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR ? <progress className="codexComposerQuotaBar" max={100} value={quota.remainingPercent} aria-hidden="true" /> : null}
         {preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_BAR ? <span>{forecastMode ? forecastText(quota, t) : `${percent(quota.remainingPercent)}%`}</span> : null}
       </span>)}
@@ -53,6 +55,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
     {visible ? createPortal(<section ref={panel} id={id} role="dialog" aria-label={t('quotaDetails')}
       className="codexQuotaPopover" tabIndex={-1} onMouseEnter={enter} onMouseLeave={leave}
       style={{ ...position, visibility: position ? 'visible' : 'hidden' }}>
+      {warning ? <p className="codexQuotaWarning" role="status">{t('quotaThresholdReached')}</p> : null}
       {quotas.map((quota, index) => <div className="codexQuotaDetail" key={`${quota.windowSeconds}-${index}`}>
         <div><span>{windowLabel(quota.windowSeconds, t)}</span><strong>{fill(t('remaining'), { value: percent(quota.remainingPercent) })}</strong><span className="codexQuotaReset">{shortReset(quota, t)}</span></div>
         {forecastMode ? <p>{forecastText(quota, t)}</p> : null}

@@ -1,4 +1,5 @@
 import { quotaWarning } from './capability-settings.js'
+import { recoveryCall } from './client-recovery.js'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import { CHANNEL, unwrap, fill, percent, windowLabel, validDate, usePreferenceSnapshot, notifyQuickQuota, formatQuotaForecast } from './client-shared.js'
@@ -139,7 +140,7 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
     if (!signedIn) return
     const id = ++request.current
     setBusy(true); setError(undefined)
-    void rpc.call(CHANNEL, 'usage', { force }).then(unwrap)
+    void recoveryCall(rpc, 'usage', { force })
       .then(next => {
         if (request.current === id) {
           setUsage(next)
@@ -197,4 +198,3 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
     </div>}
   </div>
 }
-

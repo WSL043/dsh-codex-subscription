@@ -3,7 +3,7 @@ const HISTORY_MS = 24 * HOUR_MS
 const MIN_SAMPLES = 3
 const PLATEAU_SAMPLE_MS = 15 * 60 * 1000
 
-const finite = value => Number.isFinite(Number(value))
+const finite = value => value !== null && value !== undefined && Number.isFinite(Number(value))
 const clampPercent = value => Math.max(0, Math.min(100, Number(value)))
 const cleanSegment = value => String(value ?? 'default').slice(0, 96)
 const keyFor = (window, context = {}) => JSON.stringify([
@@ -39,7 +39,8 @@ export function observeQuotaForecast(state, windows, now = Date.now(), context =
     )
     const last = previous?.samples?.at(-1)
     const quotaIncreased = last !== undefined && remainingPercent > last.remainingPercent + 0.5
-    const record = resetChanged || quotaIncreased
+    const observationGap = last !== undefined && now - last.at > 90 * 60_000
+    const record = resetChanged || quotaIncreased || observationGap
       ? { resetsAt, samples: [] }
       : { resetsAt, samples: [...(previous?.samples ?? [])] }
     const latest = record.samples.at(-1)
@@ -63,12 +64,15 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
   const resetsAt = finite(window.resetsAt) ? Number(window.resetsAt) : null
   if ((record.resetsAt === null) !== (resetsAt === null)
     || (resetsAt !== null && Math.abs(record.resetsAt - resetsAt) > 300)) return { status: 'calibrating' }
-  const samples = record.samples.filter(sample => sample.at >= now - HISTORY_MS && sample.at <= now + 60_000)
+  // Recent pace, not a daily average diluted by hours away from the computer.
+  const samples = record.samples.filter(sample => sample.at >= now - 2 * HOUR_MS && sample.at <= now)
   if (samples.length < MIN_SAMPLES) return { status: 'calibrating', sampleCount: samples.length }
   const first = samples[0]
   const last = samples.at(-1)
+  if (now - last.at > 20 * 60_000) return { status: 'calibrating', reason: 'stale' }
   const spanMs = last.at - first.at
   const consumedPercent = Math.max(0, first.remainingPercent - last.remainingPercent)
+  if (consumedPercent > 0 && consumedPercent < 1) return { status: 'calibrating', reason: 'resolution', sampleCount: samples.length }
   if (spanMs < requiredSpanMs(consumedPercent)) {
     return { status: 'calibrating', sampleCount: samples.length, observedSpanMs: spanMs, consumedPercent }
   }
@@ -77,7 +81,7 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
   for (let left = 0; left < samples.length - 1; left += 1) {
     for (let right = left + 1; right < samples.length; right += 1) {
       const hours = (samples[right].at - samples[left].at) / HOUR_MS
-      if (hours <= 0) continue
+      if (hours < 1 / 60) continue
       slopes.push((samples[left].remainingPercent - samples[right].remainingPercent) / hours)
     }
   }
@@ -87,7 +91,13 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
     return { status: 'idle', pacePerHour: 0, sampleCount: samples.length, observedSpanMs: spanMs, consumedPercent }
   }
   const deviations = positive.map(value => Math.abs(value - pacePerHour))
-  const uncertaintyPerHour = deviations.length === 0 ? 0 : median(deviations) * 1.4826
+  // Include reporting quantization even when the fitted samples form a perfect line.
+  const uncertaintyPerHour = Math.max(deviations.length === 0 ? 0 : median(deviations) * 1.4826, 0.5 / (spanMs / HOUR_MS))
+  const recent = samples.filter(sample => sample.at >= last.at - 30 * 60_000)
+  if (recent.length >= 3 && last.at - recent[0].at >= 5 * 60_000) {
+    const recentPace = (recent[0].remainingPercent - last.remainingPercent) / ((last.at - recent[0].at) / HOUR_MS)
+    if (recentPace > pacePerHour * 2 || recentPace < pacePerHour / 2) return { status: 'calibrating', reason: 'changing-pace', sampleCount: samples.length }
+  }
   const lowerPacePerHour = Math.max(0.02, pacePerHour - uncertaintyPerHour)
   const upperPacePerHour = pacePerHour + uncertaintyPerHour
   const remaining = clampPercent(window.remainingPercent)
@@ -110,11 +120,13 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
 }
 
 export function forecastUsage(usage, state = { windows: {} }, now = Date.now(), options = {}) {
+  const observedAt = Number.isFinite(usage?.fetchedAt) ? usage.fetchedAt : now
+  if (observedAt > now || now - observedAt > 5 * 60_000) return { state, changed: false, usage: { ...usage, rateLimits: (usage?.rateLimits ?? []).map(limit => ({ ...limit, windows: limit.windows.map(window => ({ ...window, forecast: { status: 'calibrating', reason: 'stale' } })) })) } }
   let nextState = state
   let changed = false
   const rateLimits = (usage?.rateLimits ?? []).map(limit => {
     const context = { scope: options.scope, limitId: limit.id }
-    const observed = observeQuotaForecast(nextState, limit.windows, now, context)
+    const observed = observeQuotaForecast(nextState, limit.windows, observedAt, context)
     nextState = observed.state
     changed ||= observed.changed
     return {

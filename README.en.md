@@ -271,3 +271,11 @@ Current 2.0 workspace screenshots (Chinese interface shown):
 One image icon menu groups creation actions and session images, replacing three persistent text buttons. `@Image` / `@Sketch` remain available and never send automatically.
 
 ![Compact composer](docs/assets/composer-2.0-light.png)
+
+### Recovery and quota estimates
+
+Settings now has two tabs: Account & preferences, and Advanced. A progress bar for a single weekly window omits its label; expanding shows the full details. Quota alerts highlight the current model indicator when fresh remaining quota reaches the selected threshold, and clear when it rises again.
+
+Failed account reads retain a confirmed clear-sign-in action. Clearing removes all plugin sign-ins but preserves conversations and preferences. A disconnected host must be restored first. If server diagnostics fail or time out, a local report with version, time and a safe error category remains available to copy.
+
+Runway estimates use the latest two hours, avoid resampling cached responses, and recalibrate after long gaps or pace changes. Details show a range that includes reporting resolution. This remains Beta pending real-world replay validation; recent pace cannot guarantee future task consumption.
