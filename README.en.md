@@ -150,7 +150,7 @@ Standard preserves the account catalog default. Extended prefers the explicit of
 </p>
 
 Choose Off, Percent, Progress bar, or Beta Runway in Settings. The compact display appears only for a selected Codex model. Runway is opt-in and estimates pace only from official remaining-percentage observations. It needs at least three samples; sustained high use usually produces a range in 5–10 minutes, while low use takes longer or reports a stable state. Non-sensitive observations from the last 24 hours are kept locally so calibration can continue after restart; a quota reset, account switch, or disabling the feature starts a new calibration period.
-The composer shows one compact summary using the lowest remaining percentage across the current model’s quota windows. Hover or keyboard focus reveals every window, reset time and enabled forecast; narrow screens omit the Quota caption. Spark keeps its independent quota. Accounts with only a weekly window still show only that window; the plugin does not invent a
+The composer labels each remaining percentage by window, such as “5h 80% · wk 54%”, without merging independent limits. Bar mode keeps the numbers. Click to inspect all windows, reset times and enabled forecasts with touch or keyboard support. Spark keeps its independent quota. Accounts with only a weekly window still show only that window; the plugin does not invent a
 five-hour limit, Credits, or spending caps that the service did not return.
 
 ### Safe quota reset

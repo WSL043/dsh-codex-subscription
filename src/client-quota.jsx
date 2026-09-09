@@ -8,6 +8,8 @@ export function useQuickQuota(rpc, enabled, model) {
       setQuota(undefined)
       return undefined
     }
+    // Do not show the previous model's quota while the new route loads.
+    setQuota(undefined)
     let live = true
     let loading = false
     const load = async () => {

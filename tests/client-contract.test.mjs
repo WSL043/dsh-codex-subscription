@@ -122,7 +122,7 @@ test('composer quota is neutral and the detailed quota grid is compact', async (
   assert.match(composerRule, /line-height:\s*20px/u)
   assert.doesNotMatch(composerRule, /brand|success|error|#[0-9a-f]{3,8}|rgb\(/iu)
   assert.match(source, /className=['"]codexComposerQuotaBar['"]/u)
-  assert.match(source, /<progress[^>]*max=\{100\}[^>]*value=\{value\}/u)
+  assert.match(source, /<progress[^>]*max=\{100\}[^>]*value=\{quota\.remainingPercent\}/u)
   assert.match(source, /\.codexComposerQuotaBar\{[^}]*width:\s*40px[^}]*height:\s*4px/u)
   assert.doesNotMatch(source.match(/\.codexComposerQuotaBar\{[^}]+\}/u)?.[0] ?? '', /brand|success|error|#[0-9a-f]{3,8}|rgb\(/iu)
   assert.match(source, /\.codexSubscriptionUsageCard\{[^}]*padding:\s*12px 14px[^}]*gap:\s*9px/u)
