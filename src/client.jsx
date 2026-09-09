@@ -119,6 +119,16 @@ export function apply(ctx) {
     if (!actx || typeof conversation.createDraftImages !== 'function' || !conversation.input?.for) throw new Error('Image composer is unavailable')
     return conversation.input.for(actx)
   }
+  const openSketchImage = sessionId => async (src, name) => {
+    const settings = preference.getSnapshot(), open = sketchOpeners.get(sessionId)
+    if (!settings.imageSketch || !settings.imageEditing || !open) throw Error('Sketch unavailable')
+    const response = await fetch(src)
+    if (!response.ok) throw Error('Image unavailable')
+    const blob = await response.blob()
+    if (blob.size > 20 * 1024 * 1024) throw Error('Image too large')
+    imageViewer.close()
+    open('sketch', document.activeElement, new File([blob], name || 'image.png', {type:blob.type || 'image/png'}))
+  }
   const attachForEdit = sessionId => async (src, filename, draft, annotations = [], referenceName, sourceInDraft = false) => {
     if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
     const actx = sessions.scope(sessionId)
@@ -156,7 +166,7 @@ export function apply(ctx) {
     const sync = () => {
       if (preference.getSnapshot().imageViewer) {
         dispose ??= ctx.slots.register({ name, priority: -10,
-          inject: sessionId => ({ preference, t, service: imageViewer, attachForEdit: attachForEdit(sessionId) }),
+          inject: sessionId => ({ preference, t, service: imageViewer, openSketchImage: openSketchImage(sessionId), attachForEdit: attachForEdit(sessionId) }),
         }, component)
       } else { dispose?.(); dispose = undefined }
     }
@@ -190,6 +200,7 @@ export function apply(ctx) {
         }
       },
       getInternalImageViewer: () => imageViewer,
+      openSketchImage: openSketchImage(sessionId),
       attachForEdit: attachForEdit(sessionId),
   })
   ctx.effect(() => uiConversation.events.register(imageConversationNode), 'codex-subscription: image results in chat')
