@@ -1,10 +1,6 @@
-The 2.0 candidate supports DSH **0.1.2-rc.1**, with **0.1.5-alpha.1** in the preview lane. Older DSH installations should upgrade the host or keep plugin 1.x.
-
 <div align="center">
 
 # DSH Codex Subscription
-
-> This working branch is an **unpublished 2.0.0 acceptance candidate**. It reorganizes account, quota, preferences, models and transport modules, and adds an `@Sketch` Beta canvas, inline image instructions and generated-image preview editing. Individual switches, image model and quality are under Settings → Codex Subscription → Advanced → Images. Image 2.5 models are experimental; GPT Image 2 remains the default. See the [architecture](docs/2.0.0-architecture.md) and [acceptance record](docs/2.0.0-acceptance.md).
 
 [简体中文](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md) · **English**
 
@@ -23,7 +19,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 </div>
 
 <p align="center">
-  <img src="docs/assets/sketch-2.0.png" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
 </p>
 
 ## Three-step start
@@ -141,17 +137,16 @@ The plugin can follow an existing HTTPS proxy from the process environment or op
 
 ### GPT-6 Astra context
 
-Standard preserves the account catalog default. Extended prefers the explicit official maximum, and Custom is bounded by that maximum. New catalog models appear automatically; legacy settings remain readable. Without an explicit maximum, known offline models retain audited presets, including 872000 tokens for Astra. These settings control the local DSH context budget; they do not grant model access or guarantee account capacity.
+When the official model catalog exposes GPT-6 Astra, Standard preserves the catalog window, Extended uses 872000 tokens, and Custom accepts 128000–872000 tokens (initially 272000). This limit follows the [official Codex model catalog](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34), not the API model's total context capacity. These settings only adjust DSH's local context budget; they do not grant model access or guarantee an account's server-side capacity. Actual availability remains subject to the service.
 
 ### Composer quota
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-2.0-light.png" width="800" alt="Codex quota inside the composer">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota-en.png" width="800" alt="Codex quota inside the composer">
 </p>
 
-The horizontal quota selector offers Off, Percent, Progress bar and Runway forecast. Percent shows the window and remaining value; the bar keeps its numeric value; Runway shows an estimate or calibration state. Hover and click share one compact detail surface, with one row per window for remaining quota and reset time.
-
-Settings uses Account & usage, Preferences and Advanced tabs. Quota appearance, alerts and images live in Preferences; search routing, context and diagnostics live in Advanced. Forecasting is opt-in and needs at least three samples. Spark keeps its independent quota. Accounts with only a weekly window still show only that window; the plugin does not invent a
+Choose Off, Percent, Progress bar, or Beta Runway in Settings. The compact display appears only for a selected Codex model. Runway is opt-in and estimates pace only from official remaining-percentage observations. It needs at least three samples; sustained high use usually produces a range in 5–10 minutes, while low use takes longer or reports a stable state. Non-sensitive observations from the last 24 hours are kept locally so calibration can continue after restart; a quota reset, account switch, or disabling the feature starts a new calibration period.
+The composer shows each returned quota window with its duration. When Plus returns both five-hour and weekly limits, both are visible. Spark keeps its independent quota. Accounts with only a weekly window still show only that window; the plugin does not invent a
 five-hour limit, Credits, or spending caps that the service did not return.
 
 ### Safe quota reset
@@ -241,41 +236,3 @@ Read [SECURITY.md](SECURITY.md) before reporting sensitive issues.
 If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex-subscription/stargazers) helps more DSH users find it.
 
 [简体中文](README.md) · [MIT](LICENSE)
-
-## 2.0.0 usability improvements
-
-- Refresh account models manually and see online versus built-in catalog status. Fast availability follows model metadata.
-- Select live, cached (experimental), or disabled subscription search. Optional domain filtering applies to returned results, not the search service network access. Cached mode needs account acceptance; errors never switch providers.
-- Choose no quota alerts, alerts at 20% remaining, or early alerts at 50% for short windows. Data older than five minutes is excluded.
-- Original downloads show progress and retain full integrity verification. Cancellation reaches the active request and stops subsequent chunks.
-
-### Choose your image workflow
-
-The official `dsh-subagent-codex` has some overlapping uses: it delegates a text task to a temporary native Codex thread using native authentication and configuration. This plugin integrates subscription models, accounts, quota, search and an image workspace directly into DSH conversations. For coding delegation alone, consider the [official subagent](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.1.5-alpha.1/packages/subagent/subagent-codex/README.md).
-
-Natural-language requests continue to work. `@Image` / `@生图` inserts an image instruction directly into the composer, preserving existing text and references. `@Sketch` / `@草图` opens the reference canvas. Neither sends automatically. The canvas offers pen, pencil and highlighter brushes, pixel and whole-stroke erasers, and up to eight layers with duplicate, rename, visibility, ordering, delete and undo/redo. Export includes visible layers only. Paste or drop references into the native DSH composer. Templates and the session image library have been removed.
-
-Settings → Codex Subscription → Advanced → Images provides three groups: image generation and editing, creative shortcuts, and image browsing. Hiding shortcuts leaves natural-language generation available. Turning off generation and editing removes the image tool from subsequent model requests while retaining historical images. Browsing can use enhanced features or the DSH default. Mixed legacy preferences are preserved until you explicitly change their group.
-
-`@` makes intent explicit; it does not eliminate context or image usage. Unsent workspace drafts do not add chat messages. Sent instructions, references and generated results remain part of the conversation. Use a separate conversation for extensive image iterations. The conversation model, such as Luna, is separate from the image engine.
-
-Current 2.0 workspace screenshots (Chinese interface shown):
-
-![Image brief](docs/assets/image-create-2.0.png)
-![Image settings (light)](docs/assets/image-settings-2.0.png)
-![Image settings (dark)](docs/assets/image-settings-2.0-dark.png)
-![Image comparison](docs/assets/image-compare-2.0.png)
-
-### Compact composer
-
-One image icon menu offers inline generation/editing and Sketch Beta. `@Image` / `@Sketch` remain available and never send automatically.
-
-![Compact composer](docs/assets/composer-2.0-light.png)
-
-### Recovery and quota estimates
-
-Settings now has two tabs: Account & preferences, and Advanced. A progress bar for a single weekly window omits its label; expanding shows the full details. Quota alerts only turn the current model indicator red; settings and popovers do not repeat the warning.
-
-Failed account reads retain a confirmed clear-sign-in action. Clearing removes all plugin sign-ins but preserves conversations and preferences. A disconnected host must be restored first. If server diagnostics fail or time out, a local report with version, time and a safe error category remains available to copy.
-
-Runway estimates use the latest two hours, avoid resampling cached responses, and recalibrate after long gaps or pace changes. Details show a range that includes reporting resolution. This remains Beta pending real-world replay validation; recent pace cannot guarantee future task consumption.

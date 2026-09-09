@@ -9,6 +9,19 @@ import {
 } from '../src/quota-forecast.js'
 
 const HOUR = 60 * 60 * 1000
+test('one whole-percent drop gives an explicitly provisional estimate from two observations', () => {
+  const start = 1_900_000_000_000
+  const windows = remaining => [{ remainingPercent: remaining, windowSeconds: 604800, resetsAt: 2_000_000_000 }]
+  let state = observeQuotaForecast(undefined, windows(80), start).state
+  state = observeQuotaForecast(state, windows(79), start + 120000).state
+  const result = estimateQuotaForecast(state, windows(79)[0], start + 120000)
+  assert.equal(result.status, 'ready')
+  assert.equal(result.provisional, true)
+  assert.equal(result.pacePerHour, 30)
+  assert.equal(result.runwaySeconds, 9480)
+  assert.equal(result.survivesReset, false)
+  assert.equal(result.runwayMaxSeconds, null)
+})
 const usage = (remainingPercent, resetsAt = 2_000_000_000) => ({
   rateLimits: [{ id: 'codex', windows: [{ remainingPercent, windowSeconds: 604_800, resetsAt }] }],
 })
