@@ -23,7 +23,9 @@ export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = 
     context.lineWidth = stroke.width * (stroke.brush === 'pencil' ? 0.55 : 1) * (stroke.pressure ?? 1)
     context.beginPath()
     const last = stroke.points.at(-1)
-    if (stroke.shape === 'rectangle') {
+    if (stroke.shape === 'line') {
+      context.moveTo(first.x * size, first.y * height); context.lineTo(last.x * size, last.y * height); context.stroke()
+    } else if (stroke.shape === 'rectangle') {
       context.rect(first.x * size, first.y * height, (last.x-first.x)*size, (last.y-first.y)*height)
       context.stroke()
     } else if (stroke.shape === 'circle') {
