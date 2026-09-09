@@ -155,6 +155,11 @@ export function apply(ctx) {
       else input.notify('info', draft)
     }
   }
+  const nativeAttachments = () => ctx.slots.entries('conversation.input.attachments').find(entry =>
+    entry.component !== ComposerImagePreviews && entry.locale === 'conversation' &&
+    !entry.inject && !entry.store && !entry.children)
+  const watchNativeAttachments = callback => ctx.slots.subscribe('conversation.input.attachments',callback)
+  const nativeTranslate = ctx.locale.bind('conversation')
   // Use the host's attachment presentation slots; restore its own renderer when
   // enhancement is off. Intake, validation and draft ownership stay with DSH.
   for (const [name, component] of [
@@ -166,7 +171,7 @@ export function apply(ctx) {
     const sync = () => {
       if (preference.getSnapshot().imageViewer) {
         dispose ??= ctx.slots.register({ name, priority: -10,
-          inject: sessionId => ({ preference, t, service: imageViewer, openSketchImage: openSketchImage(sessionId), attachForEdit: attachForEdit(sessionId) }),
+          inject: sessionId => ({ preference, t, nativeAttachments, watchNativeAttachments, nativeTranslate, service: imageViewer, openSketchImage: openSketchImage(sessionId), attachForEdit: attachForEdit(sessionId) }),
         }, component)
       } else { dispose?.(); dispose = undefined }
     }

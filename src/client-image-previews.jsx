@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { buildImageEditDraft } from './image-edit.js'
 
 function openPreview(props, item, opener, sourceInDraft = false) {
@@ -16,43 +16,22 @@ function openPreview(props, item, opener, sourceInDraft = false) {
 }
 
 export function ComposerImagePreviews(props) {
-  const { attachments, canAcceptDrop, onAddImages, onRemoveImage, service, t } = props
-  const [dragging, setDragging] = useState(false)
-  const depth = useRef(0)
-  useEffect(() => {
-    const files = event => event.dataTransfer?.types.includes('Files')
-    const reset = () => { depth.current = 0; setDragging(false) }
-    const enter = event => { if (files(event)) { event.preventDefault(); depth.current++; setDragging(true) } }
-    const over = event => { if (files(event)) { event.preventDefault(); event.dataTransfer.dropEffect = canAcceptDrop ? 'copy' : 'none' } }
-    const leave = event => { if (files(event) && (--depth.current <= 0 || !event.relatedTarget)) reset() }
-    const drop = event => { if (files(event)) { event.preventDefault(); reset(); if (canAcceptDrop) onAddImages([...event.dataTransfer.files]) } }
-    const handlers = { dragenter: enter, dragover: over, dragleave: leave, drop }
-    for (const [name, handler] of Object.entries(handlers)) document.addEventListener(name, handler)
-    window.addEventListener('dragend', reset)
-    return () => {
-      for (const [name, handler] of Object.entries(handlers)) document.removeEventListener(name, handler)
-      window.removeEventListener('dragend', reset)
-    }
-  }, [canAcceptDrop, onAddImages])
+  const { attachments, service, nativeAttachments, watchNativeAttachments, nativeTranslate } = props
+  const entry = useSyncExternalStore(watchNativeAttachments, nativeAttachments)
   useEffect(() => {
     const current = service.getSnapshot()
     if (current?.source === 'codex-draft' && !attachments.some(item => item.id === current.items[0]?.id)) service.close()
   }, [attachments, service])
   useEffect(() => () => { if (service.getSnapshot()?.source === 'codex-draft') service.close() }, [service])
-  return <>
-    {dragging ? <div className="codexImageDrop" role="status">{t(canAcceptDrop ? 'imageDropHere' : 'imageDropUnavailable')}</div> : null}
-    {attachments.length ? <div className="codexDraftImages">
-      {attachments.map(item => <span className="codexDraftImage" key={item.id}>
-        <button type="button" className="codexImageThumb" aria-label={`${t('imagePreview')} ${item.file.name}`}
-          onClick={event => openPreview(props, { id: item.id, src: item.previewUrl,
-            name: item.file.name, width: item.width, height: item.height, bytes: item.file.size }, event.currentTarget, true)}>
-          <img src={item.previewUrl} alt={item.file.name} />
-        </button>
-        <button type="button" className="codexImageRemove" aria-label={`${t('imageRemoveDraft')} ${item.file.name}`}
-          onClick={() => onRemoveImage(item.id)}>×</button>
-      </span>)}
-    </div> : null}
-  </>
+  if (!entry) return null
+  const NativeAttachments = entry.component
+  return <div style={{display:'contents'}} onClickCapture={event=>{
+    const button=event.target.closest('button'), image=button?.querySelector('img')
+    const item=image && attachments.find(item=>item.previewUrl===image.src)
+    if (!item || event.button!==0 || event.ctrlKey || event.metaKey || event.altKey) return
+    event.preventDefault();event.stopPropagation()
+    openPreview(props,{id:item.id,src:item.previewUrl,name:item.file.name,width:item.width,height:item.height,bytes:item.file.size},button,true)
+  }}><NativeAttachments {...props} t={nativeTranslate}/></div>
 }
 
 function MessageImagePreview({ image, ...props }) {
@@ -84,14 +63,11 @@ export function MessageImagePreviews({ images, align, ...props }) {
 }
 
 export const IMAGE_PREVIEWS_CSS = `
-.codexDraftImages,.codexMessageImages{display:flex;gap:10px;max-width:100%;padding:8px 0;overflow-x:auto}
-.codexDraftImage{position:relative;flex:none;margin:4px}
+.codexMessageImages{display:flex;gap:10px;max-width:100%;padding:8px 0;overflow-x:auto}
 .codexImageThumb{display:grid;place-items:center;width:64px;height:64px;padding:0;border:1px solid var(--dsw-alias-border-l2-darkmode-thin);border-radius:14px;background:var(--dsw-alias-interactive-bg-hover);color:inherit;overflow:hidden;cursor:zoom-in;flex:none}
 .codexImageThumb img{width:100%;height:100%;object-fit:cover}
-.codexImageThumb:focus-visible,.codexImageRemove:focus-visible{outline:2px solid #4598ed;outline-offset:2px}
-.codexImageRemove{font:18px/1 system-ui;position:absolute;right:-6px;top:-6px;display:grid;place-items:center;width:24px;height:24px;padding:0;border:1px solid var(--dsw-alias-border-l2-darkmode-thin);border-radius:50%;background:var(--dsw-alias-interactive-bg-hover);color:inherit;cursor:pointer}
+.codexImageThumb:focus-visible{outline:2px solid #4598ed;outline-offset:2px}
 .codexMessageImages{flex-wrap:wrap}.codexMessageImages[data-align=end]{justify-content:flex-end}
 .codexMessageImages[data-single=true] .codexImageThumb{width:240px;height:auto;max-width:100%}
 .codexMessageImages[data-single=true] img{height:auto;max-height:320px;object-fit:contain}
-.codexImageDrop{position:fixed;inset:12px;z-index:9999;display:grid;place-items:center;pointer-events:none;border:2px dashed #4598ed;border-radius:20px;background:#4598ed22;color:inherit}
 `
