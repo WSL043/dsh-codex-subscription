@@ -1,4 +1,4 @@
-import { quotaRateInterval } from './quota-rate-interval.js'
+import { quotaRateInterval, refineQuotaRate } from './quota-rate-interval.js'
 const HOUR_MS = 60 * 60 * 1000
 const HISTORY_MS = 24 * HOUR_MS
 const finite = value => value !== null && value !== undefined && Number.isFinite(Number(value))
@@ -59,11 +59,12 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
     bounds = quotaRateInterval(samples)
     changedIntensity = true
   }
+  bounds = refineQuotaRate(samples, bounds)
   const spanMs = samples.at(-1).at - samples[0].at
   const common = { sampleCount: samples.length, observedSpanMs: spanMs,
     consumedPercent: samples[0].remainingPercent - samples.at(-1).remainingPercent,
     lowerPacePerHour: bounds.min * 60, upperPacePerHour: bounds.max * 60,
-    changedIntensity }
+    changedIntensity, rateMethod: bounds.method ?? 'conservative' }
   if (!bounds.feasible) return { ...common, status: 'calibrating', reason: 'changing-pace' }
   if (resetsAt !== null && resetsAt <= now / 1000) return { ...common, status: 'calibrating', reason: 'stale' }
   // Quantization bounds may include zero even after several observed drops.
