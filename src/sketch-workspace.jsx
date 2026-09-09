@@ -21,7 +21,7 @@ export function SketchWorkspace({ preference, attachSketch, appendPrompt, regist
   const [brief, setBrief] = useState('')
   const [template, setTemplate] = useState('templatePoster')
   const opener = useRef(null)
-  useEffect(() => registerOpen((nextMode = 'sketch') => { opener.current = document.activeElement; setError(''); setMode(nextMode) }), [registerOpen])
+  useEffect(() => registerOpen((nextMode = 'sketch', source = document.activeElement) => { opener.current = source; setError(''); setMode(nextMode) }), [registerOpen])
   const allowed = mode === 'sketch' ? settings.imageSketch && settings.imageEditing : mode === 'image' ? settings.imageShortcut && (settings.imageGeneration || settings.imageEditing) : settings.imageTemplates && settings.imageGeneration
   const title = t(mode === 'sketch' ? 'sketchTitle' : mode === 'image' ? 'imageCreateTitle' : 'imageTemplate')
   useEffect(() => {
@@ -31,7 +31,6 @@ export function SketchWorkspace({ preference, attachSketch, appendPrompt, regist
     if (mode === 'sketch' && canvas.current) paintSketch(canvas.current.getContext('2d'), strokes.current)
   }, [mode, revision])
   const close = () => { if (busy) return; active.current = null; dialog.current?.close(); setMode(null); opener.current?.focus() }
-  const open = (event, value) => { opener.current = event.currentTarget; setError(''); setMode(value) }
   const point = event => sketchPoint(event.clientX, event.clientY, canvas.current.getBoundingClientRect())
   const end = event => { if (active.current !== event.pointerId) return; active.current = null; if (canvas.current.hasPointerCapture(event.pointerId)) canvas.current.releasePointerCapture(event.pointerId) }
   const confirm = async () => {
@@ -46,8 +45,6 @@ export function SketchWorkspace({ preference, attachSketch, appendPrompt, regist
     } catch { setError(t(mode === 'sketch' ? 'sketchFailed' : 'imageDraftFailed')) } finally { setBusy(false) }
   }
   return <>
-    {settings.imageSketch && settings.imageEditing ? <button type="button" className="codexWorkspaceLaunch" onClick={event => open(event, 'sketch')}>{t('sketch')}</button> : null}
-    {settings.imageTemplates && settings.imageGeneration ? <button type="button" className="codexWorkspaceLaunch" onClick={event => open(event, 'template')}>{t('imageTemplate')}</button> : null}
     {mode ? <dialog ref={dialog} className={`codexSketchDialog ${mode === 'sketch' ? 'codexSketchStudio' : ''}`} aria-label={title} onCancel={event => { event.preventDefault(); close() }}>
       {mode !== 'sketch' ? <h2>{title}</h2> : null}
       {mode === 'sketch' ? <>

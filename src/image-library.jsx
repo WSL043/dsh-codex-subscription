@@ -20,7 +20,7 @@ function LibraryImage({ item, loadImage, selected, onSelect }) {
   </button>
 }
 
-export function ImageLibrary({ preference, loadGallery, loadImage, attachSelected, t }) {
+export function ImageLibrary({ preference, loadGallery, loadImage, attachSelected, registerOpen, t }) {
   const features = useSyncExternalStore(preference.subscribe, preference.getSnapshot)
   const [open, setOpen] = useState(false)
   const [items, setItems] = useState([])
@@ -32,6 +32,7 @@ export function ImageLibrary({ preference, loadGallery, loadImage, attachSelecte
   const dialog = useRef(null)
   const opener = useRef(null)
   const operation = useRef(null)
+  useEffect(() => registerOpen(source => { opener.current = source ?? document.activeElement; setOpen(true) }), [registerOpen])
   useEffect(() => () => operation.current?.abort(), [])
   useEffect(() => {
     if (!open) return
@@ -48,9 +49,9 @@ export function ImageLibrary({ preference, loadGallery, loadImage, attachSelecte
     catch { if (!controller.signal.aborted) setError(true) } finally { if(operation.current === controller) {operation.current = null;setBusy(false)} }
   }
   return <>
-    {features.imageGallery ? <button type="button" className="codexWorkspaceLaunch" onClick={event => { opener.current = event.currentTarget; setOpen(true) }}>{t('imageGallery')}</button> : null}
     {open ? <dialog ref={dialog} className="codexSketchDialog" aria-label={t('imageGallery')} onCancel={event => {event.preventDefault();close()}}>
       <h2>{t('imageGallery')}</h2><p>{t('imageGalleryHint')}</p>
+      {!busy && !error && !items.length ? <p>{t('imageGalleryEmpty')}</p> : null}
       <div className={compare && features.imageCompare ? 'codexLibraryGrid codexLibraryCompare' : 'codexLibraryGrid'}>
         {items.filter(item => !compare || !features.imageCompare || selected.includes(item.attachment.attachmentId)).map(item => <LibraryImage key={item.attachment.attachmentId} item={item} loadImage={loadImage} selected={selected.includes(item.attachment.attachmentId)} onSelect={() => {
           if (busy || compare) return
