@@ -1,4 +1,5 @@
 import { decodeOriginalImageRef, originalImageRefsEqual, ORIGINAL_IMAGE_CHUNK_BYTES } from './image-original-contract.js'
+import { CHANNEL } from './rpc-contract.js'
 
 function decodeBase64Chunk(value) {
   if (typeof value !== 'string' || value.length === 0 || value.length > Math.ceil(ORIGINAL_IMAGE_CHUNK_BYTES / 3) * 4 + 8) throw new Error('Invalid original image chunk')
@@ -19,7 +20,7 @@ export async function readOriginalImage(rpc, sessionId, original, { signal, onPr
   let done = false
   while (!done) {
     signal?.throwIfAborted()
-    const response = await rpc.call('/codex-subscription', 'image/original/chunk', { sessionId, assetId: original.assetId, offset: total })
+    const response = await rpc.call(CHANNEL, 'image/original/chunk', { sessionId, assetId: original.assetId, offset: total }, signal)
     signal?.throwIfAborted()
     if (!response?.ok) throw new Error(response?.error?.message ?? 'Codex RPC failed')
     const chunk = response.value

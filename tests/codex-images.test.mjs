@@ -116,6 +116,8 @@ test('image tool uses the Codex subscription endpoint and fixed safe defaults', 
   assert.equal(saves[0].mediaType, 'image/png')
   assert.equal(Buffer.from(saves[0].data).subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
   assert.deepEqual(value, {
+    requestedModel: 'gpt-image-2',
+    requestedSize: 'auto',
     image: IMAGE_REF,
     original: ORIGINAL_REF,
     background: 'opaque',
@@ -160,6 +162,23 @@ test('image tool forwards an explicit valid size, quality, and background withou
     quality: 'high',
     size: '1536x1024',
   })
+})
+
+test('model defaults and explicit model overrides reach the subscription endpoint', async () => {
+  const {tool,requests} = fixture({getFeatures:()=>({imageModel:'gpt-image-2.5-flare',imageQuality:'low'})})
+  const value = await tool.execute({prompt:'small test'},execContext('model-default'))
+  assert.equal(JSON.parse(requests[0].init.body).model,'gpt-image-2.5-flare')
+  assert.equal(value.requestedModel,'gpt-image-2.5-flare')
+  assert.equal(value.reportedModel,undefined)
+  await tool.execute({prompt:'small test',model:'gpt-image-2',quality:'high'},execContext('model-explicit'))
+  assert.equal(JSON.parse(requests[1].init.body).model,'gpt-image-2')
+})
+
+test('disabling image editing during authentication prevents the outgoing image request', async () => {
+  let imageEditing=true
+  const {tool,requests} = fixture({getFeatures:()=>({imageEditing}),getAuth:async()=>{imageEditing=false;return {auth:{apiKey:'test'}}}})
+  await assert.rejects(tool.execute({prompt:'edit',referenceImages:[IMAGE_REF]},execContext('disabled')),/disabled/)
+  assert.equal(requests.length,0)
 })
 
 test('tool result contains a durable image block without base64 or credentials', () => {

@@ -1,4 +1,16 @@
 export const STYLE = `
+.codexImageSettings{border-top:1px solid var(--dsw-alias-stroke-tertiary,#8882);padding-top:6px}
+.codexImageSettings>summary{font-weight:600}
+.codexImageSettings select{font:inherit;color:inherit;background:var(--dsw-alias-background-surface,#fff);border:1px solid #8883;border-radius:9px;padding:6px 9px;max-width:65%;min-height:32px}
+.codexImageSettings>.codexSubscriptionPreference{margin-bottom:8px}
+.codexImageSettings>.codexSubscriptionPreferenceHint{max-width:none;margin:10px 0;color:var(--dsw-alias-label-secondary,#73737b)}
+.codexImageSwitches{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 24px;margin:14px 0;border-top:1px solid #8882}
+.codexImageSwitches label{min-height:43px;border-bottom:1px solid #8882}
+.codexImageSwitches input{appearance:none;width:34px;height:20px;flex:none;margin:0;border:none;border-radius:999px;corner-shape:round;background:#929398;cursor:pointer;position:relative;transition:background .15s}
+.codexImageSwitches input:before{content:'';position:absolute;width:16px;height:16px;left:2px;top:2px;border-radius:50%;corner-shape:round;background:white;box-shadow:0 1px 3px #0002;transition:transform .15s}
+.codexImageSwitches input:checked{background:#007aff}.codexImageSwitches input:checked:before{transform:translateX(14px)}
+.codexImageSwitches input:focus-visible{outline:2px solid #007aff;outline-offset:3px}.codexImageSwitches input:disabled{opacity:.4;cursor:default}
+@container(max-width:430px){.codexImageSwitches{grid-template-columns:1fr}}
 .codexSubscriptionSearchHead{display:flex;flex-direction:column;gap:1px}
 .codexSubscriptionSearchScope{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscription{display:flex;flex-direction:column;gap:10px;max-width:720px;color:var(--dsw-alias-label-primary);container-type:inline-size}

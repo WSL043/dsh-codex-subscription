@@ -5,8 +5,8 @@ import test from 'node:test'
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 // These contracts cover the client entry and its authored copy, styles and download helper.
 const text = path => path === 'src/client.jsx'
-  ? Promise.all([path, 'src/client-locales.js', 'src/client-styles.js', 'src/client-images.jsx', 'src/original-image-download.js'].map(read)).then(parts => parts.join('\n'))
-  : read(path)
+  ? Promise.all([path, 'src/rpc-contract.js', 'src/client-shared.js', 'src/client-account.jsx', 'src/client-composer-quota.jsx', 'src/client-diagnostics.jsx', 'src/client-model-select.jsx', 'src/client-preferences.jsx', 'src/client-quota.jsx', 'src/client-section.jsx', 'src/client-usage.jsx', 'src/client-locales.js', 'src/client-styles.js', 'src/client-images.jsx', 'src/original-image-download.js'].map(read)).then(parts => parts.join('\n'))
+  : path === 'src/index.js' ? Promise.all([path, 'src/subscription-rpc.js'].map(read)).then(parts => parts.join('\n')) : read(path)
 
 test('generated image loader uses the installed DSH UI conversation image API', async () => {
   const source = await text('src/client.jsx')
@@ -155,7 +155,7 @@ test('settings offer automatic and explicit search plus formal composer quota di
 })
 
 test('settings offer ready-to-use context presets and keep custom limits out of the composer', async () => {
-  const source = await readFile(new URL('../src/client.jsx', import.meta.url), 'utf8')
+  const source = await text('src/client.jsx')
   const contract = await readFile(new URL('../src/settings-contract.js', import.meta.url), 'utf8')
 
   assert.match(contract, /CONTEXT_MODE_STANDARD\s*=\s*['"]standard['"]/u)
@@ -179,7 +179,7 @@ test('settings offer ready-to-use context presets and keep custom limits out of 
   assert.match(source, /const nextValue = event\.currentTarget\.value/u)
   assert.doesNotMatch(source, /setDrafts\([^\n]*event\.currentTarget\.value/u, 'React must not retain a pooled input event inside a deferred state updater')
 
-  const composer = source.slice(source.indexOf('function CodexComposerQuota'), source.indexOf('function ModelOption'))
+  const composer = await read('src/client-composer-quota.jsx')
   assert.doesNotMatch(composer, /customContextWindow|contextMode/u)
 })
 
@@ -376,7 +376,7 @@ test('generated image preview uses a native full-screen canvas and explicit edit
   assert.match(viewer, /imageAnnotation/u)
   assert.match(source, /attachForEdit/u)
   assert.match(source, /createDraftImages/u)
-  assert.match(source, /input\.addImages/u)
+  assert.match(await text('src/image-composer.js'), /input\.addImages/u)
   assert.match(source, /input\.setDraft/u)
   assert.match(source, /imageEditDefault/u)
   assert.match(source, /imageRegionNotes/u)
