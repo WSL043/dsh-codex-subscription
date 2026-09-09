@@ -7,13 +7,14 @@ export function sketchPoint(clientX, clientY, rect) {
   return { x: Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)), y: Math.max(0, Math.min(1, (clientY - rect.top) / rect.height)) }
 }
 
-export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = false, height = size) {
+export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = false, height = size, start = 0, end = strokes.length) {
   context.globalCompositeOperation = 'source-over'
   context.globalAlpha = 1
   if (!transparent) { context.fillStyle = '#ffffff'; context.fillRect(0, 0, size, height) }
   context.lineCap = 'round'
   context.lineJoin = 'round'
-  for (const stroke of strokes) {
+  for (let index = start; index < end; index++) {
+    const stroke = strokes[index]
     const first = stroke.points[0]
     if (!first) continue
     context.globalCompositeOperation = stroke.shape === 'eraser' ? 'destination-out' : 'source-over'

@@ -20,16 +20,16 @@ export function useSketchDismiss(open, close, host, selectors) {
 }
 export function useSketchCursor(canvas, ring, width, brush, zoom, hidden) {
   const last=useRef(null), heldPressure=useRef(1)
-  const update=event=>{
+  const update=(event,bounds)=>{
     if(event)last.current=event
     const pointer=last.current,node=canvas.current,cursor=ring.current
     if(!pointer||!node||!cursor)return
-    const rect=node.getBoundingClientRect()
+    const rect=bounds ?? node.getBoundingClientRect()
     if(hidden||pointer.pointerType==='touch'||pointer.clientX<rect.left||pointer.clientX>rect.right||pointer.clientY<rect.top||pointer.clientY>rect.bottom){cursor.hidden=true;return}
     const pressure=node.hasPointerCapture(pointer.pointerId)&&pointer.pointerType==='pen'?heldPressure.current:1
     const diameter=width*(brush==='pencil'?.55:1)*pressure*rect.width/node.width
     cursor.hidden=false;cursor.style.width=`${diameter}px`;cursor.style.height=`${diameter}px`;cursor.style.transform=`translate(${pointer.clientX-diameter/2}px,${pointer.clientY-diameter/2}px)`
   }
   useEffect(()=>{update();const observer=new ResizeObserver(()=>update());if(canvas.current)observer.observe(canvas.current);return()=>observer.disconnect()},[width,brush,zoom,hidden])
-  return {down:event=>{heldPressure.current=event.pointerType==='pen'?Math.max(.2,event.pressure):1},move:event=>update({clientX:event.clientX,clientY:event.clientY,pointerId:event.pointerId,pointerType:event.pointerType,pressure:event.pressure}),leave:()=>{last.current=null;if(ring.current)ring.current.hidden=true}}
+  return {down:event=>{heldPressure.current=event.pointerType==='pen'?Math.max(.2,event.pressure):1},move:(event,bounds)=>update({clientX:event.clientX,clientY:event.clientY,pointerId:event.pointerId,pointerType:event.pointerType,pressure:event.pressure},bounds),leave:()=>{last.current=null;if(ring.current)ring.current.hidden=true}}
 }
