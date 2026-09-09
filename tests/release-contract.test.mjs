@@ -43,7 +43,6 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     'cordis.patch.yml',
     'README.md',
     'README.en.md',
-    'README.zh-CN.md',
     'compatibility.json',
     'LICENSE',
     'SECURITY.md',
@@ -97,7 +96,7 @@ test('compatibility metadata keeps stable and preview DSH lanes explicit', () =>
 })
 
 test('public docs contain only user-facing product and operation information', () => {
-  const docs = `${text('README.md')}\n${text('README.en.md')}\n${text('README.zh-CN.md')}`
+  const docs = `${text('README.md')}\n${text('README.en.md')}`
   assert.match(docs, /silent fallback[\s\S]*paid route|不会静默切换[\s\S]*付费路由/iu)
   assert.match(docs, /reset time|重置时间/iu)
   assert.doesNotMatch(docs, /AGENTS\.md/u)
@@ -110,15 +109,12 @@ test('public docs contain only user-facing product and operation information', (
   assert.equal(existsSync(new URL('../docs/CACHE.md', import.meta.url)), false)
 })
 
-test('GitHub defaults to Chinese, links a complete English README, and preserves the old Chinese URL', () => {
+test('GitHub defaults to Chinese and links a complete English README', () => {
   const readmeZh = text('README.md')
   const readme = text('README.en.md')
-  const legacyZh = text('README.zh-CN.md')
   assert.match(readmeZh, /^# DSH Codex Subscription[\s\S]*把 ChatGPT \/ Codex 订阅直接接入 DeepSeek Harness/u)
   assert.match(readmeZh, /\[English\]\(https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/blob\/main\/README\.en\.md\)/u)
   assert.match(readme, /\[简体中文\]\(https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/blob\/main\/README\.md\)/u)
-  assert.match(legacyZh, /\[打开完整中文说明\]\(README\.md\)/u)
-  assert.match(legacyZh, /dsh plugin --profile web add dsh-codex-subscription/u)
   for (const doc of [readme, readmeZh]) {
     assert.match(doc, /img\.shields\.io\/npm\/v\/dsh-codex-subscription/u)
     assert.match(doc, /img\.shields\.io\/npm\/dt\/dsh-codex-subscription/u)

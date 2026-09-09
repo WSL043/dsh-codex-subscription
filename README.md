@@ -175,9 +175,19 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 
 ### 草图画板（Beta）
 
+![草图画板实机界面：画布比例、笔刷、形状、图层与缩放](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-canvas.png)
+
 点击输入框的草图按钮或输入 `@Sketch` 打开。图片预览中可选择“进入草图”；上传、粘贴和移除附件仍由 DSH 原生组件处理。
 
 草图支持多份本地草稿、图片图层、画布比例、三种笔刷、直线和形状、两种橡皮、撤销重做、拖动缩放与可配置快捷键。平滑仅在抬笔后处理整笔路径，不拖慢绘画光标。草稿最多 20 份，仅保存在当前浏览器；附加草图不会自动发送。左侧图片面板只管理当前草图的图片，不是会话图片库。
+
+**草图生成图片实测**：画好后点击“附加”，在输入框说明想要的效果，再发送。
+
+| 画板原草图 | 插件实际生成结果 |
+| --- | --- |
+| ![山峰与小屋草图](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-demo-source.png) | ![根据草图生成的水彩山间小屋](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-demo-result.png) |
+
+示例要求：保留山峰与小屋的构图，生成温暖的水彩旅行插画，青绿山峰、橙色屋顶、草地小溪与柔和晨光，不保留蓝色线条。此例通过 GPT-5.6-Luna 发起一次图片工具调用，请求低质量；Luna 是对话模型，实际出图型号由订阅后端决定。
 
 图片请求中的 Flare / Sunburst 型号选项仍属实验性功能。成功生成不代表订阅后端确认采用指定型号或质量；不会把请求参数当成实际返回型号。
 

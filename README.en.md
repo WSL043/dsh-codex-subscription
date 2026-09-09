@@ -176,9 +176,19 @@ The screenshot above illustrates image viewing and on-image notes; available but
 
 ### Sketch canvas (Beta)
 
+![Sketch canvas in the Chinese UI: aspect ratio, brushes, shapes, layers and zoom](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-canvas.png)
+
 Open Sketch from the composer button or `@Sketch`, or choose Open in sketch from an enhanced image preview. Attachment intake and removal use the native DSH component.
 
 Sketch supports local drafts, image layers, aspect ratios, brushes, lines and shapes, two erasers, undo/redo, pan/zoom and configurable shortcuts. Smoothing processes a completed stroke only after release. Up to 20 drafts stay in the current browser; attaching a sketch never sends it automatically. Its image panel manages only the current sketch, not the conversation library.
+
+**Sketch-to-image example**: draw, click Attach, describe the desired result in the composer, then send.
+
+| Original sketch | Actual plugin output |
+| --- | --- |
+| ![Mountains and cabin sketch](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-demo-source.png) | ![Watercolor mountain cabin generated from the sketch](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-demo-result.png) |
+
+The request preserves the mountain and cabin composition while creating a warm watercolor travel illustration with green peaks, an orange roof, a meadow stream and morning light, without the blue outlines. GPT-5.6-Luna made one image-tool call requesting low quality. Luna is the conversation model; the subscription backend determines the actual image model.
 
 Flare / Sunburst request overrides remain experimental: successful generation does not confirm which image engine or quality the subscription backend used.
 
