@@ -45,14 +45,22 @@ function ViewerAction({ action, annotations, item, service, t }) {
 
 function ViewerDownload({ download, item, t }) {
   const [state, setState] = useState('idle')
+  const [progress, setProgress] = useState(0)
+  const active = useRef()
+  useEffect(() => () => { active.current?.abort(); active.current = undefined }, [item.id, download])
   const invoke = async () => {
-    if (state === 'pending') return
+    if (active.current) { active.current.abort(); active.current = undefined; setState('idle'); return }
+    const controller = new AbortController()
+    active.current = controller
+    setProgress(0)
     setState('pending')
     try {
-      await download.onInvoke({ item, src: item.src })
-      setState('idle')
+      await download.onInvoke({ item, src: item.src, signal: controller.signal, onProgress: ({ loaded, total }) => { if (active.current === controller) setProgress(Math.floor(loaded / total * 100)) } })
+      if (active.current === controller) setState('idle')
     } catch {
-      setState('failed')
+      if (active.current === controller) setState(controller.signal.aborted ? 'idle' : 'failed')
+    } finally {
+      if (active.current === controller) active.current = undefined
     }
   }
   const label = state === 'pending'
@@ -60,7 +68,7 @@ function ViewerDownload({ download, item, t }) {
     : state === 'failed'
       ? download.errorLabel ?? t('imageDownloadFailed')
       : t('imageDownload')
-  return <button type="button" className="dcsiv-download" disabled={state === 'pending'} onClick={() => { void invoke() }}><IconDownloadOutline16 /><span className="dcsiv-label">{label}</span></button>
+  return <button type="button" className="dcsiv-download" onClick={() => { void invoke() }}><IconDownloadOutline16 /><span className="dcsiv-label">{state === 'pending' ? `${label} ${progress}% · ${t('cancel')}` : label}</span></button>
 }
 
 export function SubscriptionImageViewerOverlay({ service, t }) {
@@ -276,7 +284,7 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
         <span className="dcsiv-zoom">{Math.round(transform.zoom * 100)}%</span>
         {item.download === undefined
           ? <a className="dcsiv-download" href={item.src} download={downloadName(item.name)}><IconDownloadOutline16 /><span className="dcsiv-label">{t('imageDownload')}</span></a>
-          : <ViewerDownload download={item.download} item={item} t={t} />}
+          : <ViewerDownload key={item.id} download={item.download} item={item} t={t} />}
         {item.actions.map(action => <ViewerAction action={action} annotations={annotations} item={item} service={service} t={t} key={action.id} />)}
       </div>
     </header>

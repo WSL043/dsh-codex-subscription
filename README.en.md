@@ -1,6 +1,10 @@
+The 2.0 candidate supports DSH **0.1.2-rc.1**, with **0.1.5-alpha.1** in the preview lane. Older DSH installations should upgrade the host or keep plugin 1.x.
+
 <div align="center">
 
 # DSH Codex Subscription
+
+> This working branch is an **unpublished 2.0.0 acceptance candidate**. It reorganizes account, quota, preferences, models and transport modules, and adds an `@Sketch` canvas, templates, session image library, multiple image references and side-by-side comparison. Individual switches, image model and quality are under Settings → Codex Subscription → Image workspace. Image 2.5 models are experimental; GPT Image 2 remains the default. See the [architecture](docs/2.0.0-architecture.md) and [acceptance record](docs/2.0.0-acceptance.md).
 
 [简体中文](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md) · **English**
 
@@ -19,7 +23,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 </div>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
+  <img src="docs/assets/sketch-2.0.png" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
 </p>
 
 ## Three-step start
@@ -137,7 +141,7 @@ The plugin can follow an existing HTTPS proxy from the process environment or op
 
 ### GPT-6 Astra context
 
-When the official model catalog exposes GPT-6 Astra, Standard preserves the catalog window, Extended uses 872000 tokens, and Custom accepts 128000–872000 tokens (initially 272000). This limit follows the [official Codex model catalog](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34), not the API model's total context capacity. These settings only adjust DSH's local context budget; they do not grant model access or guarantee an account's server-side capacity. Actual availability remains subject to the service.
+Standard preserves the account catalog default. Extended prefers the explicit official maximum, and Custom is bounded by that maximum. New catalog models appear automatically; legacy settings remain readable. Without an explicit maximum, known offline models retain audited presets, including 872000 tokens for Astra. These settings control the local DSH context budget; they do not grant model access or guarantee account capacity.
 
 ### Composer quota
 
@@ -236,3 +240,27 @@ Read [SECURITY.md](SECURITY.md) before reporting sensitive issues.
 If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex-subscription/stargazers) helps more DSH users find it.
 
 [简体中文](README.md) · [MIT](LICENSE)
+
+## 2.0.0 usability improvements
+
+- Refresh account models manually and see online versus built-in catalog status. Fast availability follows model metadata.
+- Select live, cached (experimental), or disabled subscription search. Optional domain filtering applies to returned results, not the search service network access. Cached mode needs account acceptance; errors never switch providers.
+- Choose no quota alerts, alerts at 20% remaining, or early alerts at 50% for short windows. Data older than five minutes is excluded.
+- Original downloads show progress and retain full integrity verification. Cancellation reaches the active request and stops subsequent chunks.
+
+### Choose your image workflow
+
+The official `dsh-subagent-codex` has some overlapping uses: it delegates a text task to a temporary native Codex thread using native authentication and configuration. This plugin integrates subscription models, accounts, quota, search and an image workspace directly into DSH conversations. For coding delegation alone, consider the [official subagent](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.1.5-alpha.1/packages/subagent/subagent-codex/README.md).
+
+Natural-language requests continue to work. Use `@Image` / `@生图` to open a short creative brief, or `@Sketch` / `@草图` to draw a reference. Confirming updates the visible draft or attaches a sketch; it never sends or generates automatically. The session image library accepts up to five references for one edit, or two images for side-by-side comparison.
+
+Settings → Codex Subscription → Image workspace provides three groups: image generation and editing, creative shortcuts, and image browsing. Hiding shortcuts leaves natural-language generation available. Turning off generation and editing removes the image tool from subsequent model requests while retaining historical images. Browsing can use enhanced features or the DSH default. Mixed legacy preferences are preserved until you explicitly change their group.
+
+`@` makes intent explicit; it does not eliminate context or image usage. Unsent workspace drafts do not add chat messages. Sent instructions, references and generated results remain part of the conversation. Use a separate conversation for extensive image iterations. The conversation model, such as Luna, is separate from the image engine.
+
+Current 2.0 workspace screenshots (Chinese interface shown):
+
+![Image brief](docs/assets/image-create-2.0.png)
+![Image settings (light)](docs/assets/image-settings-2.0.png)
+![Image settings (dark)](docs/assets/image-settings-2.0-dark.png)
+![Image comparison](docs/assets/image-compare-2.0.png)
