@@ -1,8 +1,9 @@
 import { CodexImageToolRow } from './client-images.jsx'
-import { SketchWorkspace, SKETCH_CSS } from './sketch-workspace.jsx'
+import { SKETCH_CSS } from './sketch-workspace.jsx'
+import { ImageWorkspace } from './image-workspace.jsx'
 import { attachImageFiles, appendImagePrompt } from './image-composer.js'
 import { createSketchTrigger, createImageTrigger } from './sketch-trigger.js'
-import { ImageLibrary, LIBRARY_CSS } from './image-library.jsx'
+import { LIBRARY_CSS } from './image-library.jsx'
 import { readOriginalImage } from './original-image-download.js'
 import { zh, en } from './client-locales.js'
 import { STYLE } from './client-styles.js'
@@ -134,12 +135,6 @@ export function apply(ctx) {
         if (!allowed) throw new Error('Image input is disabled')
         appendImagePrompt(sessionInput(sessionId), text)
       },
-    }),
-  }, SketchWorkspace))
-  ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
-    name: 'conversation.input.left', id: 'codex-image-library', order: 31,
-    inject: sessionId => ({
-      preference, t,
       loadGallery: async () => {
         const result = await rpc.call(CHANNEL, 'image/gallery', { sessionId })
         if (result?.error?.code !== 'not-ready') return unwrap(result)
@@ -161,7 +156,7 @@ export function apply(ctx) {
         attachImageFiles(conversation, sessionInput(sessionId), files)
       },
     }),
-  }, ImageLibrary))
+  }, ImageWorkspace))
   ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
     name: 'tool.call.toolview', key: 'codex_image_generate', locale: NS,
     inject: sessionId => ({

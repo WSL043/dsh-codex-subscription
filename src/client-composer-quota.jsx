@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
 import { QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
 import { fill, percent, windowLabel, usePreferenceSnapshot, formatRunway } from './client-shared.js'
 import { useQuickQuota } from './client-quota.jsx'
@@ -14,10 +15,12 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
   const forecastMode = preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_FORECAST
   const quotas = useQuickQuota(rpc, quotaEnabled, current?.model)
   if (!quotaEnabled || quotas === undefined || quotas.length === 0) return null
-  return <span className="codexComposerQuotaWindows">{quotas.map((quota, index) => <CodexComposerQuotaWindow key={`${quota.windowSeconds}-${index}`} quota={quota} mode={preferenceSnapshot.quickQuotaMode} forecastMode={forecastMode} t={t} />)}</span>
+  const quota = quotas.reduce((lowest, candidate) => candidate.remainingPercent < lowest.remainingPercent ? candidate : lowest)
+  const details = quotas.map(window => describeQuota(window, forecastMode, t)).join('\n')
+  return <CodexComposerQuotaWindow quota={quota} mode={preferenceSnapshot.quickQuotaMode} forecastMode={forecastMode} details={details} t={t} />
 }
 
-export function CodexComposerQuotaWindow({ quota, mode, forecastMode, t }) {
+function describeQuota(quota, forecastMode, t) {
   const value = Math.round(Number(quota.remainingPercent) * 10) / 10
   const display = percent(value)
   const forecast = forecastMode ? quota.forecast : undefined
@@ -31,19 +34,17 @@ export function CodexComposerQuotaWindow({ quota, mode, forecastMode, t }) {
         : duration === undefined
           ? fill(t('quickQuotaStatus'), { value: display })
           : fill(t('quickQuotaForecastStatus'), { value: display, duration })
-  const content = mode === QUICK_QUOTA_MODE_BAR
-    ? <progress className="codexComposerQuotaBar" max={100} value={value} aria-hidden="true" />
-    : forecast?.status === 'calibrating'
-      ? `${display}% · ${t('quickQuotaForecastCalibrating')}`
-      : forecast?.status === 'idle'
-        ? `${display}% · ${t('quickQuotaForecastIdle')}`
-        : forecast?.status === 'ready' && forecast.survivesReset
-          ? `${display}% · ${t('quickQuotaForecastUntilReset')}`
-          : forecastMode && duration !== undefined
-            ? `${display}% · ≈${duration}`
-            : `${display}%`
-  const durationLabel = windowLabel(quota.windowSeconds, t)
-  const accessibleLabel = `${durationLabel}: ${label}`
-  return <span className="codexComposerQuota" role="status" aria-label={accessibleLabel} title={accessibleLabel}><span>{durationLabel}</span>{content}</span>
+  const reset = Number.isSafeInteger(quota.resetsAt) ? fill(t('resets'), { value: new Date(quota.resetsAt * 1000).toLocaleString() }) : t('resetUnknown')
+  return `${windowLabel(quota.windowSeconds, t)}: ${label} · ${reset}`
 }
 
+export function CodexComposerQuotaWindow({ quota, mode, forecastMode, details, t }) {
+  const value = Math.round(Number(quota.remainingPercent) * 10) / 10
+  const accessibleLabel = details ?? describeQuota(quota, forecastMode, t)
+  return <Tooltip label={accessibleLabel} side="top" maxWidth={320}>
+    <span className="codexComposerQuota" role="status" tabIndex={0} aria-label={accessibleLabel}>
+      <span className="codexComposerQuotaCaption">{t('quickQuotaCompact')}</span>
+      {mode === QUICK_QUOTA_MODE_BAR ? <progress className="codexComposerQuotaBar" max={100} value={value} aria-hidden="true" /> : `${percent(value)}%`}
+    </span>
+  </Tooltip>
+}

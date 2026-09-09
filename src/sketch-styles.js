@@ -1,6 +1,4 @@
 export const SKETCH_CSS = `
-.codexWorkspaceLaunch{border:0;background:transparent;color:inherit;cursor:pointer;font:inherit;padding:5px 9px;border-radius:9px;transition:background .15s}
-.codexWorkspaceLaunch:hover{background:#8882}
 .codexSketchDialog{box-sizing:border-box;width:min(760px,94vw);max-height:92dvh;overflow:auto;border:1px solid #8882;border-radius:28px;padding:24px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 24px 100px #0002}
 .codexSketchDialog::backdrop{background:#e8e9ecb8;backdrop-filter:blur(7px)}
 .codexSketchDialog h2{font-size:20px;font-weight:600;margin:0 0 14px}
