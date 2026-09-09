@@ -39,4 +39,24 @@ export const SKETCH_CSS = `
 .codexSketchStudio .codexSketchConfirm:not(:disabled):hover{background:#0065d5}
 .codexSketchStudio .codexSketchHint{font-size:11px;color:#929398;text-align:center;margin:6px 0 0}
 @media(max-width:520px){.codexSketchStudio{width:calc(100vw - 24px);padding:18px 18px 12px;border-radius:30px}.codexSketchPalette{gap:9px}.codexSketchStudio .codexSketchSwatch{width:23px;height:23px}.codexSketchStudio .codexSketchConfirm{width:46px;height:46px}.codexSketchPill button{width:35px;height:35px}.codexSketchHistory{gap:0}.codexSketchHistory .codexSketchRound{width:30px;height:32px}.codexSketchTop>.codexSketchRound{width:40px;height:40px}.codexSketchBottom{gap:12px}}
+
+.codexLayerStudio{width:min(880px,96vw);max-height:94dvh;overflow:auto;padding:18px 22px 12px;border-radius:28px}
+.codexLayerBrush{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px 0;font-size:12px}
+.codexLayerBrush select{padding:4px 8px;border-radius:8px;border:1px solid #ddd;background:white;color:#222}
+.codexLayerBrush input{width:100px;accent-color:#222}
+.codexLayerBrush button{padding:5px 8px;border-radius:8px;background:#f3f3f5}
+.codexLayerBody{display:grid;grid-template-columns:minmax(0,1fr);align-items:start;gap:12px}
+.codexLayerBody.withLayers{grid-template-columns:minmax(0,1fr) 160px}
+.codexLayerStudio canvas{width:min(100%,50dvh);max-height:none;justify-self:center;aspect-ratio:1;outline:1px solid #eee;border-radius:8px}
+.codexSketchLayers{background:#f6f6f8;border-radius:12px;padding:8px;font-size:12px;min-width:0}
+.codexSketchLayers header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.codexSketchLayers header button,.codexLayerActions button{height:28px;min-width:28px;font-size:18px;border-radius:6px}
+.codexLayerList{max-height:230px;overflow:auto}
+.codexLayerRow{display:flex;align-items:center;border-radius:7px;padding:3px;gap:3px}
+.codexLayerRow[data-active=true]{background:#e1e5ec}
+.codexLayerRow button{min-height:28px;padding:2px 5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.codexLayerRow button:last-child{flex:1;justify-content:flex-start}
+.codexSketchLayers input{box-sizing:border-box;width:100%;font:inherit;color:#222;border:1px solid #ddd;border-radius:6px;padding:5px;margin-top:8px;background:white}
+.codexLayerActions{display:flex;justify-content:space-between;margin-top:5px}
+@media(max-width:600px){.codexLayerStudio{padding:12px}.codexLayerBody.withLayers{grid-template-columns:minmax(0,1fr)}.codexSketchLayers{display:grid;grid-template-columns:1fr 1fr;gap:4px}.codexSketchLayers header{grid-column:1/-1}.codexLayerList{max-height:68px;grid-row:2/4}.codexLayerActions{margin:0}.codexSketchLayers input{margin:0}.codexLayerStudio canvas{width:min(100%,38dvh)}.codexLayerBrush{gap:6px}.codexLayerBrush input{width:70px}}
 `

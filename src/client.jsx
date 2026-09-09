@@ -108,10 +108,10 @@ export function apply(ctx) {
   })), 'codex-subscription: Sketch trigger'))
   ctx.inject(['inputTriggers'], triggerContext => triggerContext.effect(() => triggerContext.get('inputTriggers').registerSource(createImageTrigger({
     enabled: () => { const value = preference.getSnapshot(); return value.imageShortcut && (value.imageGeneration || value.imageEditing) },
-    open: sessionId => sketchOpeners.get(sessionId)?.('image'),
+    open: () => {},
     consume: (sessionId, span) => {
       const actx = sessions.scope(sessionId)
-      return sketchOpeners.has(sessionId) && actx?.bail(actx, 'slash/input-consume-token', { guard: { kind: 'span', span } }) === true
+      return sketchOpeners.has(sessionId) && actx?.bail(actx, 'slash/input-insert-text', { text: t('imageInlinePrompt'), span }) === true
     },
   })), 'codex-subscription: Image trigger'))
   const sessionInput = sessionId => {

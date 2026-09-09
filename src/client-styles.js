@@ -1,4 +1,5 @@
 export const STYLE = `
+.codexQuotaThresholds{display:flex;gap:14px;flex-wrap:wrap;font-size:12px}.codexQuotaThresholds label{display:flex;align-items:center;gap:5px}.codexQuotaThresholds input{width:64px}.codexQuotaThresholds [role=alert]{color:var(--dsw-alias-label-error)}
 .codexImageSettings{border-top:1px solid var(--dsw-alias-border-l2);padding-top:6px}
 .codexImageSettings>summary{font-weight:500}
 .codexImagePreference{align-items:flex-start;padding:10px 0}
