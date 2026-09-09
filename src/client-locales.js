@@ -1,4 +1,5 @@
 export const zh = {
+  forecastCompactPending: '暂难估计', forecastCompactChanging: '重新估计', forecastCompactStale: '待更新',
   imageEditShort: '继续编辑', forecastResolution: '暂时估不准：读数变化不足以确定速度', forecastChanging: '使用强度变化，正在重新估计', forecastStale: '额度数据已过期，等待更新',
   imageDropHere: '松开以添加参考图片', imageDropUnavailable: '当前无法添加图片', imageRemoveDraft: '移除图片',
   forecastInitial: '初估 ',
@@ -15,7 +16,7 @@ export const zh = {
 
 
   imageDetails: '图片信息', imageRequestedModel: '请求模型', imageReportedModel: '服务端报告模型', imageModelUnreported: '未报告', imageRequestedSize: '请求尺寸', imageActualSize: '实际尺寸',
-  imageModel: '生图模型', imageQuality: '默认质量', imageExperimental: '实验', imageModelHint: '2.5 型号为实验选项，可用性以你的订阅账号为准。失败会直接提示，不会自动切换型号。',
+  imageModel: '请求型号', imageQuality: '请求质量', imageExperimental: '实验', imageModelHint: '订阅端未报告实际型号。2.5 参数为实验选项，出图成功不代表已按指定型号或质量执行。',
   sketchTool_pen: '画笔', sketchTool_rectangle: '矩形', sketchTool_circle: '椭圆', sketchTool_eraser: '橡皮',
 
   imageSettings: '图片', imageGeneration: '生成新图片', imageEditing: '参考图编辑', imageViewer: '增强图片查看器', imageAnnotations: '图片标注', imageSketch: '草图画板 · Beta',
@@ -98,6 +99,7 @@ export const zh = {
 }
 
 export const en = {
+  forecastCompactPending: 'Estimating', forecastCompactChanging: 'Re-estimating', forecastCompactStale: 'Stale',
   imageEditShort: 'Edit', forecastResolution: 'Not enough change to estimate the rate yet', forecastChanging: 'Usage intensity changed; estimating again', forecastStale: 'Quota data is stale; waiting for an update',
   imageDropHere: 'Drop reference images here', imageDropUnavailable: 'Images cannot be added right now', imageRemoveDraft: 'Remove image',
   forecastInitial: 'Initial ',
@@ -114,7 +116,7 @@ export const en = {
 
 
   imageDetails: 'Image details', imageRequestedModel: 'Requested model', imageReportedModel: 'Server-reported model', imageModelUnreported: 'Not reported', imageRequestedSize: 'Requested size', imageActualSize: 'Actual size',
-  imageModel: 'Image model', imageQuality: 'Default quality', imageExperimental: 'Experimental', imageModelHint: 'Image 2.5 models are experimental and availability depends on your subscription. Errors are shown without automatically switching models.',
+  imageModel: 'Requested model', imageQuality: 'Requested quality', imageExperimental: 'Experimental', imageModelHint: 'The subscription endpoint has not reported the actual model. Image 2.5 parameters are experimental; successful generation does not confirm the requested model or quality was used.',
   sketchTool_pen: 'Pen', sketchTool_rectangle: 'Rectangle', sketchTool_circle: 'Ellipse', sketchTool_eraser: 'Eraser',
 
   imageSettings: 'Images', imageGeneration: 'Generate new images', imageEditing: 'Reference image editing', imageViewer: 'Enhanced image viewer', imageAnnotations: 'Image annotations', imageSketch: 'Sketch canvas · Beta',
