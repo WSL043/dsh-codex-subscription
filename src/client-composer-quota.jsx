@@ -49,7 +49,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
       onMouseEnter={enter} onMouseLeave={leave}
       onClick={() => { if (pinned.current) dismiss(); else { pinned.current = true; setOpen(true); requestAnimationFrame(() => panel.current?.focus()) } }}>
       {compactQuotas.map((quota, index) => <span className="codexQuotaCompactWindow" key={`${quota.windowSeconds}-${index}`}>
-        {preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR && quotas.length === 1 && Math.abs(quota.windowSeconds - 604800) < 60 ? null : <span>{shortWindow(quota.windowSeconds, t)}</span>}
+        {Math.abs(quota.windowSeconds - 604800) < 60 ? null : <span>{shortWindow(quota.windowSeconds, t)}</span>}
         {preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR ? <progress className="codexComposerQuotaBar" max={100} value={quota.remainingPercent} aria-hidden="true" /> : null}
         {preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_BAR ? <span>{`${percent(quota.remainingPercent)}%`}{forecastMode ? ` · ${forecastText(quota, t)}` : ''}</span> : null}
       </span>)}

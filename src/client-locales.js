@@ -89,7 +89,7 @@ export const zh = {
   quickQuotaForecastUntilReset: '够用到重置', quickQuotaForecastUntilResetStatus: 'Codex 剩余额度 {value}%，按当前速度足够用到重置',
   quotaForecast: '按当前速度 {symbol}{duration}',
   quotaForecastCalibrating: '续航正在校准', quotaForecastIdle: '当前用量稳定', quotaForecastUntilReset: '按当前速度足够用到重置',
-  runwayDaysHours: '{days} 天 {hours} 小时', runwayDays: '{days} 天', runwayHours: '{hours} 小时', runwayMinutes: '{minutes} 分钟',
+  runwayDaysHours: '{days} 天 {hours}h', runwayDays: '{days} 天', runwayHours: '{hours}h', runwayMinutes: '{minutes} 分钟',
   speedTitle: '速度', speedStandard: '标准', speedStandardHint: '标准速度',
   speedFast: '高速', speedFastHint: '优先处理，速度取决于模型，消耗更多 Credits',
   verbosityTitle: '输出详略', verbosityDefault: '模型默认', verbosityDefaultHint: '使用官方模型目录推荐值', verbosityLow: '简洁', verbosityLowHint: '更短、更直接', verbosityMedium: '均衡', verbosityMediumHint: '兼顾完整性与长度', verbosityHigh: '详细', verbosityHighHint: '更充分的说明与结构',
