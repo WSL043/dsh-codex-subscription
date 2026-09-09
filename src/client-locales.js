@@ -1,5 +1,5 @@
 export const zh = {
-  forecastCompactPending: '暂难估计', forecastCompactChanging: '重新估计', forecastCompactStale: '待更新',
+  forecastCompactPending: '待估', forecastCompactChanging: '重估', forecastCompactStale: '待更新',
   imageEditShort: '继续编辑', forecastResolution: '暂时估不准：读数变化不足以确定速度', forecastChanging: '使用强度变化，正在重新估计', forecastStale: '额度数据已过期，等待更新',
   imageDropHere: '松开以添加参考图片', imageDropUnavailable: '当前无法添加图片', imageRemoveDraft: '移除图片',
   forecastInitial: '初估 ', forecastInitialHint: '按近期平均消耗初估，读数精度有限；不代表持续工作时间保证。',
