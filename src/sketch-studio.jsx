@@ -61,11 +61,11 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t, incoming
     if (key==='[' || key===']') {event.preventDefault();setWidth(value=>Math.max(2,Math.min(64,value+(key===']'?2:-2))))}
   }
   const current = doc.current.layers.find(layer => layer.id === doc.current.active)
-  const move = event => {
+  const move = (event, bounds) => {
     if(navigation.move(event))return
     const gesture = active.current
     if (!gesture || gesture.id !== event.pointerId || busy) return
-    const rect = canvas.current.getBoundingClientRect()
+    const rect = bounds ?? canvas.current.getBoundingClientRect()
     const native = event.nativeEvent ?? event
     const events = native.getCoalescedEvents?.() ?? []
     for (const sample of events.length ? [...events, native] : [native]) {
@@ -130,7 +130,7 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t, incoming
         const layer=layers.find(layer=>layer.id===doc.current.active);const eraseStroke=tool==='eraser'&&eraser==='stroke'
         if(!eraseStroke)layer.strokes.push({color,opacity:flow/100,shape:tool,width,brush:tool==='pen'?brush:'pen',pressure:event.pointerType==='pen'?Math.max(.2,event.pressure):1,points:[start]})
         active.current={id:event.pointerId,layer:layer.id,eraseStroke,last:start,smoothing:tool==='pen'?stability:0};canvas.current.setPointerCapture(event.pointerId);setError('');move(event);schedule()
-      }} onPointerMove={event=>{cursor.move(event);move(event)}} onPointerEnter={cursor.move} onPointerLeave={cursor.leave} onPointerUp={event=>end(event)} onPointerCancel={event=>end(event,true)} />
+      }} onPointerMove={event=>{const rect=canvas.current.getBoundingClientRect();move(event,rect);cursor.move(event,rect)}} onPointerEnter={cursor.move} onPointerLeave={cursor.leave} onPointerUp={event=>end(event)} onPointerCancel={event=>end(event,true)} />
       {picturesOpen?<aside className="codexSketchPictures"><header><strong>{t('sketchPictures')}</strong><button type="button" onClick={()=>pictureInput.current.click()}>{t('sketchPictureAdd')}</button></header><input ref={pictureInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void runFile(()=>importImage(file))}}/>{doc.current.layers.filter(layer=>layer.image).map(layer=><div key={layer.id} data-active={layer.id===doc.current.active}><button type="button" aria-label={`${t('sketchPictureSelect')} ${layer.name}`} onClick={()=>change('select',layer.id)}><img src={layer.image.src} alt={layer.name}/></button><button type="button" aria-label={`${t('sketchDeleteDraft')} ${layer.name}`} onClick={()=>change(doc.current.layers.length===1?'clear':'delete',layer.id)}>×</button></div>)}{!doc.current.layers.some(layer=>layer.image)?<small>{t('sketchPicturesEmpty')}</small>:null}</aside>:null}
       {layersOpen?<aside className="codexSketchLayers" aria-label={t('sketchLayers')}>
         <header><strong>{t('sketchLayers')}</strong><button type="button" title={t('sketchLayerAdd')} aria-label={t('sketchLayerAdd')} disabled={busy||doc.current.layers.length>=MAX_SKETCH_LAYERS} onClick={()=>change('add')}>＋</button></header>
