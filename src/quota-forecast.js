@@ -67,6 +67,23 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
     || (resetsAt !== null && Math.abs(record.resetsAt - resetsAt) > 300)) return { status: 'calibrating' }
   // Recent pace, not a daily average diluted by hours away from the computer.
   const samples = record.samples.filter(sample => sample.at >= now - 2 * HOUR_MS && sample.at <= now)
+  // One observed whole-percent drop already supports a rough estimate. Do not
+  // mistake crossing a quantized boundary for a well-calibrated consumption rate.
+  if (samples.length >= 2) {
+    const first = samples[0], last = samples.at(-1)
+    const spanMs = last.at - first.at
+    const consumed = first.remainingPercent - last.remainingPercent
+    if (consumed >= 1 && spanMs >= 60_000 && now - last.at <= 20 * 60_000
+      && (samples.length < MIN_SAMPLES || spanMs < requiredSpanMs(consumed))) {
+      const pace = consumed / (spanMs / HOUR_MS)
+      const remaining = clampPercent(window.remainingPercent)
+      return { status: 'ready', provisional: true, pacePerHour: pace,
+        runwaySeconds: remaining / pace * 3600,
+        runwayMinSeconds: remaining / ((consumed + 1) / (spanMs / HOUR_MS)) * 3600,
+        runwayMaxSeconds: consumed > 1 ? remaining / ((consumed - 1) / (spanMs / HOUR_MS)) * 3600 : null,
+        survivesReset: false, sampleCount: samples.length, observedSpanMs: spanMs, consumedPercent: consumed }
+    }
+  }
   if (samples.length < MIN_SAMPLES) return { status: 'calibrating', sampleCount: samples.length }
   const first = samples[0]
   const last = samples.at(-1)

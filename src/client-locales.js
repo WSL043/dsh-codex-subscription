@@ -1,4 +1,5 @@
 export const zh = {
+  forecastInitial: '初估 ',
   recoveryClear: '清除登录信息', recoveryClearConfirm: '确认清除并重新登录', recoveryClearHint: '将移除本插件保存的所有订阅账号登录信息，保留会话和设置。完成后可重新登录。', recoveryHint: '重试仍失败时可清除登录信息。连接中断时请先恢复 DSH 服务；高级与诊断可生成本地诊断。', recoveryFailed: '清除未确认成功，请先恢复 DSH 服务，再重试。',
   quotaThresholdReached: '已达到额度提醒阈值',
   imageCapability: '图片生成与编辑', imageCapabilityHint: '允许模型按你的要求制作或修改图片。', imageCapability_on: '启用', imageCapability_off: '关闭',
@@ -95,6 +96,7 @@ export const zh = {
 }
 
 export const en = {
+  forecastInitial: 'Initial ',
   recoveryClear: 'Clear sign-in data', recoveryClearConfirm: 'Confirm clear and sign in again', recoveryClearHint: 'Removes all subscription sign-ins saved by this plugin. Conversations and settings remain. You can then sign in again.', recoveryHint: 'If retry fails, clear sign-in data. Restore the DSH service first if disconnected. Local diagnostics are available under Advanced.', recoveryFailed: 'Clearing was not confirmed. Restore the DSH service before retrying.',
   quotaThresholdReached: 'Quota alert threshold reached',
   imageCapability: 'Image generation and editing', imageCapabilityHint: 'Let the model create or edit images when you ask.', imageCapability_on: 'Enabled', imageCapability_off: 'Off',
