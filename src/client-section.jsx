@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { useAccountStatusSnapshot } from './client-shared.js'
+import { ImagePreferences } from './image-preferences.jsx'
 import { PreferencesCard } from './client-preferences.jsx'
 import { AccountCard, AccountFailureCard } from './client-account.jsx'
 import { DiagnosticsCard } from './client-diagnostics.jsx'
@@ -35,6 +36,6 @@ export function CodexSection({ preference, rpc, accountStatus, t }) {
     {account === undefined ? null : <UsageCard key={resetKey} rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} preference={preference} />}
     <PreferencesCard preference={preference} t={t} />
     </div>
-    <div role="tabpanel" id={`${id}-advanced`} aria-labelledby={`${id}-advanced-tab`} hidden={tab !== 'advanced'}><PreferencesCard preference={preference} t={t} section="advanced" /><DiagnosticsCard rpc={rpc} t={t} /></div>
+    <div role="tabpanel" id={`${id}-advanced`} aria-labelledby={`${id}-advanced-tab`} hidden={tab !== 'advanced'}><PreferencesCard preference={preference} t={t} section="advanced" /><ImagePreferences preference={preference} t={t} /><DiagnosticsCard rpc={rpc} t={t} /></div>
   </section>
 }

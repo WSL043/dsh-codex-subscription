@@ -15,6 +15,16 @@ test('recovery requests time out and diagnostics omit raw secrets', async () => 
 
 const start = 1_900_000_000_000
 const window = remaining => ({ remainingPercent: remaining, windowSeconds: 604800, resetsAt: null })
+test('fractional quota observations calibrate in two minutes without inventing integer precision', () => {
+  let state
+  for (const [minute, remaining] of [[0,80],[1,79.9],[2,79.8]]) state = observeQuotaForecast(state, [window(remaining)], start + minute * 60000).state
+  const result = estimateQuotaForecast(state, window(79.8), start + 120000)
+  assert.equal(result.status, 'ready')
+  assert.ok(Math.abs(result.pacePerHour - 6) < 0.0001)
+  let coarse
+  for (const minute of [0,1,2]) coarse = observeQuotaForecast(coarse, [window(80)], start + minute * 60000).state
+  assert.equal(estimateQuotaForecast(coarse, window(80), start + 120000).status, 'calibrating')
+})
 test('forecast ignores stale reads and does not resample a cached response', () => {
   const usage = { fetchedAt: start, rateLimits: [{ id: 'codex', windows: [window(80)] }] }
   const first = forecastUsage(usage, undefined, start)
@@ -36,8 +46,11 @@ test('forecast forgets long gaps and does not mistake a missing reset for zero',
   assert.equal(estimateQuotaForecast(state, window(75), start + 150 * 60000).status, 'calibrating')
 })
 
-test('forecast pauses after a recent consumption acceleration', () => {
+test('forecast adapts to a recent consumption acceleration', () => {
   let state
   for (const [minute, remaining] of [[0,100],[20,99],[40,98],[60,97],[80,96],[90,95],[100,90],[110,80]]) state = observeQuotaForecast(state, [window(remaining)], start + minute * 60000).state
-  assert.equal(estimateQuotaForecast(state, window(80), start + 110 * 60000).reason, 'changing-pace')
+  const result = estimateQuotaForecast(state, window(80), start + 110 * 60000)
+  assert.equal(result.status, 'ready')
+  assert.ok(result.pacePerHour > 20)
+  assert.equal(result.observedSpanMs, 30 * 60000)
 })

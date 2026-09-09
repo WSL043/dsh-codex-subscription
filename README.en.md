@@ -4,7 +4,7 @@ The 2.0 candidate supports DSH **0.1.2-rc.1**, with **0.1.5-alpha.1** in the pre
 
 # DSH Codex Subscription
 
-> This working branch is an **unpublished 2.0.0 acceptance candidate**. It reorganizes account, quota, preferences, models and transport modules, and adds an `@Sketch` canvas, templates, session image library, multiple image references and side-by-side comparison. Individual switches, image model and quality are under Settings → Codex Subscription → Image workspace. Image 2.5 models are experimental; GPT Image 2 remains the default. See the [architecture](docs/2.0.0-architecture.md) and [acceptance record](docs/2.0.0-acceptance.md).
+> This working branch is an **unpublished 2.0.0 acceptance candidate**. It reorganizes account, quota, preferences, models and transport modules, and adds an `@Sketch` Beta canvas, inline image instructions and generated-image preview editing. Individual switches, image model and quality are under Settings → Codex Subscription → Advanced → Images. Image 2.5 models are experimental; GPT Image 2 remains the default. See the [architecture](docs/2.0.0-architecture.md) and [acceptance record](docs/2.0.0-acceptance.md).
 
 [简体中文](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md) · **English**
 
@@ -253,9 +253,9 @@ If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex
 
 The official `dsh-subagent-codex` has some overlapping uses: it delegates a text task to a temporary native Codex thread using native authentication and configuration. This plugin integrates subscription models, accounts, quota, search and an image workspace directly into DSH conversations. For coding delegation alone, consider the [official subagent](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.1.5-alpha.1/packages/subagent/subagent-codex/README.md).
 
-Natural-language requests continue to work. `@Image` / `@生图` inserts an image instruction directly into the composer, preserving existing text and references. `@Sketch` / `@草图` opens the reference canvas. Neither sends automatically. The canvas offers pen, pencil and highlighter brushes, pixel and whole-stroke erasers, and up to eight layers with duplicate, rename, visibility, ordering, delete and undo/redo. Export includes visible layers only. The session image library accepts up to five references for one edit, or two images for side-by-side comparison.
+Natural-language requests continue to work. `@Image` / `@生图` inserts an image instruction directly into the composer, preserving existing text and references. `@Sketch` / `@草图` opens the reference canvas. Neither sends automatically. The canvas offers pen, pencil and highlighter brushes, pixel and whole-stroke erasers, and up to eight layers with duplicate, rename, visibility, ordering, delete and undo/redo. Export includes visible layers only. Paste or drop references into the native DSH composer. Templates and the session image library have been removed.
 
-Settings → Codex Subscription → Image workspace provides three groups: image generation and editing, creative shortcuts, and image browsing. Hiding shortcuts leaves natural-language generation available. Turning off generation and editing removes the image tool from subsequent model requests while retaining historical images. Browsing can use enhanced features or the DSH default. Mixed legacy preferences are preserved until you explicitly change their group.
+Settings → Codex Subscription → Advanced → Images provides three groups: image generation and editing, creative shortcuts, and image browsing. Hiding shortcuts leaves natural-language generation available. Turning off generation and editing removes the image tool from subsequent model requests while retaining historical images. Browsing can use enhanced features or the DSH default. Mixed legacy preferences are preserved until you explicitly change their group.
 
 `@` makes intent explicit; it does not eliminate context or image usage. Unsent workspace drafts do not add chat messages. Sent instructions, references and generated results remain part of the conversation. Use a separate conversation for extensive image iterations. The conversation model, such as Luna, is separate from the image engine.
 
@@ -268,13 +268,13 @@ Current 2.0 workspace screenshots (Chinese interface shown):
 
 ### Compact composer
 
-One image icon menu groups creation actions and session images, replacing three persistent text buttons. `@Image` / `@Sketch` remain available and never send automatically.
+One image icon menu offers inline generation/editing and Sketch Beta. `@Image` / `@Sketch` remain available and never send automatically.
 
 ![Compact composer](docs/assets/composer-2.0-light.png)
 
 ### Recovery and quota estimates
 
-Settings now has two tabs: Account & preferences, and Advanced. A progress bar for a single weekly window omits its label; expanding shows the full details. Quota alerts highlight the current model indicator when fresh remaining quota reaches the selected threshold, and clear when it rises again.
+Settings now has two tabs: Account & preferences, and Advanced. A progress bar for a single weekly window omits its label; expanding shows the full details. Quota alerts only turn the current model indicator red; settings and popovers do not repeat the warning.
 
 Failed account reads retain a confirmed clear-sign-in action. Clearing removes all plugin sign-ins but preserves conversations and preferences. A disconnected host must be restored first. If server diagnostics fail or time out, a local report with version, time and a safe error category remains available to copy.
 

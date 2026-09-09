@@ -55,7 +55,6 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
     {visible ? createPortal(<section ref={panel} id={id} role="dialog" aria-label={t('quotaDetails')}
       className="codexQuotaPopover" tabIndex={-1} onMouseEnter={enter} onMouseLeave={leave}
       style={{ ...position, visibility: position ? 'visible' : 'hidden' }}>
-      {warning ? <p className="codexQuotaWarning" role="status">{t('quotaThresholdReached')}</p> : null}
       {quotas.map((quota, index) => <div className="codexQuotaDetail" key={`${quota.windowSeconds}-${index}`}>
         <div><span>{windowLabel(quota.windowSeconds, t)}</span><strong>{fill(t('remaining'), { value: percent(quota.remainingPercent) })}</strong><span className="codexQuotaReset">{shortReset(quota, t)}</span></div>
         {forecastMode ? <p>{forecastText(quota, t)}</p> : null}

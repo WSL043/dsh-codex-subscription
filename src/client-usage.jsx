@@ -1,8 +1,7 @@
-import { quotaWarning } from './capability-settings.js'
 import { recoveryCall } from './client-recovery.js'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
-import { CHANNEL, unwrap, fill, percent, windowLabel, validDate, usePreferenceSnapshot, notifyQuickQuota, formatQuotaForecast } from './client-shared.js'
+import { CHANNEL, unwrap, fill, percent, windowLabel, validDate, notifyQuickQuota, formatQuotaForecast } from './client-shared.js'
 export function ResetTime({ resetsAt, t }) {
   const date = Number.isSafeInteger(resetsAt) ? validDate(resetsAt * 1_000) : undefined
   if (date === undefined) return <span>{t('resetUnknown')}</span>
@@ -124,13 +123,6 @@ export function resetCreditErrorText(error, t) {
 }
 
 export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
-  const preferenceSnapshot = usePreferenceSnapshot(preference)
-  const [now, setNow] = useState(Date.now)
-  useEffect(() => {
-    if (!signedIn) return
-    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
-    return () => window.clearInterval(timer)
-  }, [signedIn])
   const [usage, setUsage] = useState()
   const [usageRefreshGeneration, setUsageRefreshGeneration] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -144,7 +136,6 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
       .then(next => {
         if (request.current === id) {
           setUsage(next)
-          setNow(Date.now())
           setUsageRefreshGeneration(value => value + 1)
           if (force) notifyQuickQuota()
         }
@@ -160,7 +151,6 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
   }, [signedIn, resetKey])
   const visibleUsage = signedIn ? usage : undefined
   const limits = visibleUsage?.rateLimits ?? []
-  const warning = error === undefined ? quotaWarning(visibleUsage, preferenceSnapshot.quotaAlerts, now, preferenceSnapshot) : undefined
   const exhausted = limits.some(limit => limit.id !== 'code_review'
     && limit.windows.some(window => window.usedPercent >= 100))
   const hasUsageDetails = limits.length > 0 || visibleUsage?.credits !== undefined
@@ -177,7 +167,6 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
       {signedIn && !busy && error === undefined && usage !== undefined && !hasUsageDetails ? <p className="codexSubscriptionEmpty" role="status">{t('usageEmpty')}</p> : null}
     </div>
     {error === undefined ? null : <p className="codexSubscriptionError" role="alert">{error}</p>}
-    {warning === undefined ? null : <p className="codexSubscriptionError" role="status">{fill(t('quotaWarning'), { window: windowLabel(warning.windowSeconds, t), value: percent(warning.remainingPercent) })}</p>}
     {visibleUsage?.spendControlReached === true ? <p className="codexSubscriptionError" role="alert">{t('spendReached')}</p> : null}
     {limits.length === 0 ? null : <div className="codexSubscriptionLimits">{limits.flatMap(limit => limit.windows.map((window, index) => <div className="codexSubscriptionLimit" key={`${limit.id}-${window.windowSeconds}-${index}`}>
         <div className="codexSubscriptionLimitTop"><span className="codexSubscriptionLimitLabel">{limit.name ?? limit.id}</span><strong>{percent(window.remainingPercent)}%</strong></div>

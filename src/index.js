@@ -19,7 +19,6 @@ import { createCodexImageTool } from './codex-images.js'
 import { IMAGE_FEATURE_DEFAULTS } from './image-features.js'
 import { watchImageTool } from './image-tool-registration.js'
 import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL } from './image-models.js'
-import { sessionImageGallery } from './image-gallery.js'
 import { OriginalImageStore } from './image-original-store.js'
 import { inheritedOriginalImageRef } from './image-original-contract.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
@@ -305,11 +304,6 @@ export function apply(ctx) {
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog }),
     modelCatalog,
     originalImages,
-    getImageGallery: sessionId => {
-      const session = ctx.get?.('sessions')?.get?.(sessionId)
-      if (!session) return undefined
-      return sessionImageGallery(session?.snapshotEvents?.() ?? session?.events ?? [])
-    },
     resolveInheritedOriginal: (sessionId, assetId) => inheritedOriginalImageRef(
       ctx.get?.('sessions')?.get?.(sessionId),
       assetId,
