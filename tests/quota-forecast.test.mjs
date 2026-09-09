@@ -9,6 +9,17 @@ import {
 } from '../src/quota-forecast.js'
 
 const HOUR = 60 * 60 * 1000
+test('one integer boundary crossing must not create a precise countdown', () => {
+  const start = 1_900_000_000_000
+  const windows = remaining => [{ remainingPercent: remaining, windowSeconds: 604800, resetsAt: 2_000_000_000 }]
+  let state = observeQuotaForecast(undefined, windows(80), start).state
+  state = observeQuotaForecast(state, windows(79), start + 120000).state
+  const result = estimateQuotaForecast(state, windows(79)[0], start + 120000)
+  assert.equal(result.status, 'calibrating')
+  assert.equal(result.reason, 'resolution')
+  assert.equal(result.lowerPacePerHour, 0)
+  assert.equal(result.runwaySeconds, undefined)
+})
 const usage = (remainingPercent, resetsAt = 2_000_000_000) => ({
   rateLimits: [{ id: 'codex', windows: [{ remainingPercent, windowSeconds: 604_800, resetsAt }] }],
 })
@@ -85,7 +96,7 @@ test('forecast separates accounts and every official quota bucket', () => {
   const accountA = forecastUsage(snapshot(86), state, start + 10 * 60_000, { scope: 'local-a' }).usage
   const accountB = forecastUsage(snapshot(86), state, start + 10 * 60_000, { scope: 'local-b' }).usage
   assert.equal(accountA.rateLimits[0].windows[0].forecast.status, 'ready')
-  assert.equal(accountA.rateLimits[1].windows[0].forecast.status, 'ready')
+  assert.equal(accountA.rateLimits[1].windows[0].forecast.provisional, true)
   assert.equal(accountB.rateLimits[0].windows[0].forecast.status, 'calibrating')
 })
 
@@ -237,4 +248,28 @@ test('removing one account preserves other histories and invalidates an older re
   gate.resolve(usage(80))
   await reading
   assert.deepEqual(Object.keys(persisted.windows), ['["b","codex",604800]'])
+})
+
+
+test('sustained one and two point drops yield provisional estimates without claiming quantization bounds', () => {
+  const start = 1_900_000_000_000
+  let state
+  for (const [minute, remaining] of [[0,42],[2,42],[5,41],[15,41],[25,41],[34,40],[38,40]]) {
+    state = observeQuotaForecast(state, usage(remaining).rateLimits[0].windows, start + minute * 60000).state
+  }
+  const result = estimateQuotaForecast(state, usage(40).rateLimits[0].windows[0], start + 38 * 60000)
+  assert.equal(result.status, 'ready')
+  assert.equal(result.provisional, true)
+  assert.equal(result.runwaySeconds, 40 / 2 * 38 * 60)
+  assert.equal(result.runwayMaxSeconds, undefined)
+  assert.equal(result.survivesReset, false)
+  const stale = estimateQuotaForecast(state, usage(40).rateLimits[0].windows[0], start + 70 * 60000)
+  assert.equal(stale.reason, 'stale')
+})
+
+test('fresh flat readings never create provisional consumption', () => {
+  const start = 1_900_000_000_000
+  let state
+  for (let minute = 0; minute <= 40; minute += 2) state = observeQuotaForecast(state, usage(40).rateLimits[0].windows, start + minute * 60000).state
+  assert.equal(estimateQuotaForecast(state, usage(40).rateLimits[0].windows[0], start + 40 * 60000).status, 'calibrating')
 })

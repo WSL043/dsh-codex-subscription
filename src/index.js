@@ -13,13 +13,12 @@ import { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinato
 import { createCodexNetworkTransport } from './oauth-network.js'
 import { createModels, openaiCodexProvider, openaiCodexSubscriptionProvider } from './pi-ai-runtime.js'
 import { createOfficialModelCatalog } from './model-catalog.js'
-import { readCapabilitySettings, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, MAX_CONTEXT_BUDGET } from './capability-settings.js'
+import { readCapabilitySettings, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET } from './capability-settings.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
 import { createCodexImageTool } from './codex-images.js'
 import { IMAGE_FEATURE_DEFAULTS } from './image-features.js'
 import { watchImageTool } from './image-tool-registration.js'
 import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL } from './image-models.js'
-import { sessionImageGallery } from './image-gallery.js'
 import { OriginalImageStore } from './image-original-store.js'
 import { inheritedOriginalImageRef } from './image-original-contract.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
@@ -87,6 +86,7 @@ export function apply(ctx) {
     [CUSTOM_CONTEXT_OVERRIDES_FIELD]: z.dict(z.number().step(1).min(1).max(MAX_CONTEXT_BUDGET)).default({}),
     [SEARCH_MODE_FIELD]: z.union(SEARCH_MODES).default('live'),
     [SEARCH_DOMAINS_FIELD]: z.transform(z.array(z.string()).max(20), value => readCapabilitySettings({ searchDomains: value }).searchDomains).default([]),
+    ...Object.fromEntries(QUOTA_THRESHOLD_FIELDS.map(key => [key, z.number().step(1).min(1).max(100).default(20)])),
     [QUOTA_ALERTS_FIELD]: z.union(QUOTA_ALERT_MODES).default('important'),
     [LEGACY_QUICK_QUOTA_FIELD]: z.boolean(),
     [CUSTOM_CONTEXT_WINDOW_FIELD]: z.number().step(1).min(128_000).max(1_000_000).default(DEFAULT_CUSTOM_CONTEXT_WINDOW),
@@ -304,11 +304,6 @@ export function apply(ctx) {
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog }),
     modelCatalog,
     originalImages,
-    getImageGallery: sessionId => {
-      const session = ctx.get?.('sessions')?.get?.(sessionId)
-      if (!session) return undefined
-      return sessionImageGallery(session?.snapshotEvents?.() ?? session?.events ?? [])
-    },
     resolveInheritedOriginal: (sessionId, assetId) => inheritedOriginalImageRef(
       ctx.get?.('sessions')?.get?.(sessionId),
       assetId,

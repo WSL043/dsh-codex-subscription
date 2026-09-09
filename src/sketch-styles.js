@@ -1,44 +1,55 @@
 export const SKETCH_CSS = `
-.codexWorkspaceLaunch{border:0;background:transparent;color:inherit;cursor:pointer;font:inherit;padding:5px 9px;border-radius:9px;transition:background .15s}
-.codexWorkspaceLaunch:hover{background:#8882}
-.codexSketchDialog{box-sizing:border-box;width:min(760px,94vw);max-height:92dvh;overflow:auto;border:1px solid #8882;border-radius:28px;padding:24px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 24px 100px #0002}
-.codexSketchDialog::backdrop{background:#e8e9ecb8;backdrop-filter:blur(7px)}
-.codexSketchDialog h2{font-size:20px;font-weight:600;margin:0 0 14px}
-.codexSketchDialog button,.codexSketchDialog select{font:inherit;padding:8px 12px;border:1px solid #8883;border-radius:12px;color:inherit;background:transparent;cursor:pointer}
+.codexSketchDialog{--sketch-bg:var(--dsw-alias-bg-layer-1,#f5f5f7);--sketch-fg:var(--dsw-alias-label-primary,#202124);--sketch-muted:var(--dsw-alias-label-secondary,#727279);--sketch-line:var(--dsw-alias-border-l2,#8883);--sketch-glass:color-mix(in srgb,var(--sketch-bg) 90%,transparent);box-sizing:border-box;width:min(1280px,calc(100vw - 24px));height:94dvh;max-height:94dvh;margin:auto;padding:10px;border:1px solid var(--sketch-line);border-radius:18px;background:var(--sketch-bg);color:var(--sketch-fg);box-shadow:0 24px 90px #0004;overflow:hidden;font:13px/1.4 system-ui}
+.codexSketchDialog[open]{display:flex;flex-direction:column;gap:8px}
+.codexSketchDialog::backdrop{background:#0005;backdrop-filter:blur(12px)}
+.codexSketchDialog *{box-sizing:border-box}
+.codexSketchDialog button{font:inherit;color:inherit;border:0;background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0}
 .codexSketchDialog button:disabled{opacity:.35;cursor:default}
-.codexSketchDialog button:focus-visible,.codexSketchCustom:focus-within{outline:3px solid #007aff;outline-offset:4px}
-.codexSketchDialog footer{display:flex;justify-content:flex-end;gap:10px;margin-top:18px}
-.codexSketchDialog p{font-size:13px;line-height:1.6}
-.codexTemplateForm{display:grid;gap:16px}
-.codexTemplateForm textarea{min-height:180px;padding:16px;font:inherit;color:inherit;background:transparent;border:1px solid #8884;border-radius:16px;resize:vertical}
-.codexTemplateForm textarea:focus{outline:2px solid #007aff;outline-offset:2px;border-color:transparent}
-.codexImageDefaults{width:fit-content;margin:0;padding:5px 10px;border:1px solid #8882;border-radius:999px;color:var(--dsw-alias-label-secondary,#73737b)}
-.codexSketchDialog footer button:last-child{background:#007aff;color:white;border-color:transparent}
-.codexSketchStudio{width:min(720px,94vw,calc(92dvh - 190px));padding:24px 28px 12px;border:0;border-radius:40px;background:#fff;color:#171719;overflow:hidden}
-.codexSketchTop{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.codexSketchStudio button{display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;color:#171719;flex-shrink:0}
-.codexSketchStudio .codexSketchRound{width:48px;height:48px;border:1px solid #ededee;border-radius:50%;background:#fff;box-shadow:0 2px 7px #00000008}
-.codexSketchPill{display:flex;align-items:center;padding:5px;gap:2px;border-radius:34px;border:1px solid #ededee;box-shadow:0 3px 12px #0000000c;background:white}
-.codexSketchPill button{height:44px;width:44px;border-radius:50%}
-.codexSketchPill button[aria-pressed=true]{background:#f0f0f2}
-.codexSketchPill button:hover,.codexSketchRound:not(:disabled):hover{background:#f5f5f7}
-.codexSketchHistory{display:flex;gap:7px}
-.codexSketchHistory .codexSketchRound{width:38px;height:38px;box-shadow:none;border:0}
-.codexSketchBrush{height:28px;margin:12px 0 0;display:flex;justify-content:center;align-items:center;gap:12px;color:#8b8b90}
-.codexSketchBrush>span{border-radius:50%;max-width:24px;max-height:24px;min-width:4px;flex-shrink:0}
-.codexSketchBrush input{width:96px;height:3px;accent-color:#171719}
-.codexSketchBrush button{width:28px;height:28px;margin-left:8px;color:#8b8b90}
-.codexSketchStudio canvas{display:block;width:100%;height:auto;aspect-ratio:1;background:#fff;touch-action:none;cursor:crosshair}
-.codexSketchBottom{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:8px 0}
-.codexSketchPalette{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:1;max-width:470px}
-.codexSketchStudio .codexSketchSwatch{width:28px;height:28px;border-radius:50%;background:var(--swatch);outline-offset:3px}
-.codexSketchSwatch[aria-pressed=true]{outline:3px solid #0088ff}
-.codexSketchCustom{position:relative;display:grid;place-items:center;flex-shrink:0;width:34px;height:34px;border-radius:50%;background:conic-gradient(#ff3936,#ffcc00,#34c759,#0088ff,#a855f7,#ff3936);cursor:pointer}
-.codexSketchCustom span{width:22px;height:22px;border:3px solid white;border-radius:50%}
-.codexSketchCustom input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
-.codexSketchRound,.codexSketchSwatch,.codexSketchConfirm,.codexSketchCustom,.codexSketchCustom span,.codexSketchPill button{corner-shape:round}
-.codexSketchStudio .codexSketchConfirm{width:56px;height:56px;border-radius:50%;background:#007aff;color:white;box-shadow:0 3px 9px #007aff20}
-.codexSketchStudio .codexSketchConfirm:not(:disabled):hover{background:#0065d5}
-.codexSketchStudio .codexSketchHint{font-size:11px;color:#929398;text-align:center;margin:6px 0 0}
-@media(max-width:520px){.codexSketchStudio{width:calc(100vw - 24px);padding:18px 18px 12px;border-radius:30px}.codexSketchPalette{gap:9px}.codexSketchStudio .codexSketchSwatch{width:23px;height:23px}.codexSketchStudio .codexSketchConfirm{width:46px;height:46px}.codexSketchPill button{width:35px;height:35px}.codexSketchHistory{gap:0}.codexSketchHistory .codexSketchRound{width:30px;height:32px}.codexSketchTop>.codexSketchRound{width:40px;height:40px}.codexSketchBottom{gap:12px}}
+.codexSketchDialog button:focus-visible,.codexSketchCustom:focus-within,.codexSketchDialog input:focus-visible{outline:2px solid #0a84ff;outline-offset:3px}
+.codexSketchTop{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.codexSketchHeading{display:flex;align-items:center;gap:8px;flex:1}.codexSketchHeading strong{font-size:16px;font-weight:600}.codexSketchHeading>span{font-size:10px;color:var(--sketch-muted);border:1px solid var(--sketch-line);border-radius:6px;padding:1px 5px}
+.codexSketchRound{width:44px;height:44px;border-radius:50%}
+.codexSketchTop>.codexSketchRound,.codexSketchLayersToggle,.codexSketchHistory{background:var(--sketch-glass)!important;border:1px solid var(--sketch-line)!important;box-shadow:0 2px 8px #0001;backdrop-filter:blur(16px)}
+.codexSketchDialog .codexSketchConfirm{min-height:44px;padding:0 16px;border-radius:24px;background:#0a84ff;color:#fff;font-weight:600}
+.codexSketchUtility{display:flex;justify-content:space-between;align-items:center;margin:0;gap:8px}
+.codexSketchHistory{display:flex;border-radius:24px;padding:0 2px}.codexSketchLayersToggle{height:44px;border-radius:24px;padding:0 10px}.codexSketchLayersToggle>span{font-variant-numeric:tabular-nums;color:var(--sketch-muted)}
+.codexSketchDialog button:hover:not(:disabled){filter:brightness(.94)}
+.codexLayerBody{position:relative;display:grid;place-items:center;min-width:0;min-height:0;flex:1;container-type:size}
+.codexLayerStudio canvas{display:block;width:min(100cqw,calc(100cqh * var(--sketch-ratio,1)));height:auto;aspect-ratio:var(--sketch-ratio,1);background:white;border-radius:4px;outline:1px solid #0001;box-shadow:0 2px 12px #0002;touch-action:none;cursor:crosshair}
+.codexSketchControls{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;width:100%;max-width:100%;margin:0;padding:4px 8px;border:1px solid var(--sketch-line);border-radius:14px;background:var(--sketch-glass);box-shadow:0 5px 20px #0001;backdrop-filter:blur(18px)}
+.codexSketchPill{display:flex;gap:4px;justify-content:center}.codexSketchPill button{min-width:46px;min-height:48px;flex-direction:column;gap:3px;padding:3px 5px;border-radius:10px}.codexSketchPill button>span{font-size:11px}
+.codexSketchPill button[aria-pressed=true],.codexSketchSegment button[aria-pressed=true]{background:color-mix(in srgb,var(--sketch-fg) 9%,transparent);box-shadow:inset 0 0 0 1px var(--sketch-line)}
+.codexLayerBrush{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;margin:0}
+.codexSketchWidth{display:flex;align-items:center;gap:10px;color:var(--sketch-muted);font-size:11px}.codexSketchWidth input{width:80px;min-height:32px;accent-color:#0a84ff}.codexSketchWidth output{width:20px;font-variant-numeric:tabular-nums}
+.codexSketchSegment{display:flex;padding:2px;border-radius:12px;background:color-mix(in srgb,var(--sketch-fg) 5%,transparent)}.codexSketchSegment button{min-height:40px;padding:0 10px;border-radius:10px;font-size:11px}
+.codexSketchPalette{display:flex;align-items:center;justify-content:center;gap:4px}
+.codexSketchDialog .codexSketchSwatch{position:relative;width:32px;height:40px;border-radius:50%;background:transparent}
+.codexSketchSwatch::before{content:'';width:20px;height:20px;border-radius:50%;background:var(--swatch);box-shadow:inset 0 0 0 1px #8884}
+.codexSketchSwatch[aria-pressed=true]::after{content:'';position:absolute;inset:3px;border:2px solid #0a84ff;border-radius:50%}
+.codexSketchCustom{position:relative;display:grid;place-items:center;width:36px;height:36px;margin:2px;border-radius:50%;background:conic-gradient(#ff3936,#ffcc00,#34c759,#0088ff,#a855f7,#ff3936);cursor:pointer}.codexSketchCustom span{width:24px;height:24px;border:3px solid var(--sketch-bg);border-radius:50%}.codexSketchCustom input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
+.codexSketchHint{max-width:460px;margin:10px auto 0;text-align:center;color:var(--sketch-muted);font-size:11px;line-height:1.5}.codexSketchHint[role=alert]{color:var(--dsw-alias-state-error-primary,#e44)}
+.codexSketchLayers{position:absolute;top:0;right:0;width:216px;max-height:100%;overflow:auto;padding:12px;border:1px solid var(--sketch-line);border-radius:20px;background:var(--sketch-glass);backdrop-filter:blur(24px);box-shadow:0 10px 40px #0003;z-index:2}
+.codexSketchLayers header{display:flex;align-items:center;justify-content:space-between}.codexSketchLayers header button{height:40px;width:40px;border-radius:50%;font-size:22px}
+.codexLayerList{max-height:180px;overflow:auto}.codexLayerRow{display:flex;align-items:center;border-radius:12px;margin:3px 0}.codexLayerRow[data-active=true]{background:color-mix(in srgb,#0a84ff 14%,transparent)}.codexLayerRow button{min-height:40px;padding:0 8px}.codexLayerRow button:last-child{flex:1;justify-content:flex-start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.codexSketchLayerLabel{display:block;color:var(--sketch-muted);font-size:11px;margin:10px 0 4px}.codexSketchLayers input{width:100%;padding:8px 10px;min-height:38px;font:inherit;color:inherit;background:color-mix(in srgb,var(--sketch-fg) 5%,transparent);border:1px solid var(--sketch-line);border-radius:10px}
+.codexLayerActions{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:8px}.codexLayerActions button{min-height:40px;border-radius:10px;font-size:11px;justify-content:flex-start}.codexSketchClearLayer{width:100%;min-height:40px;margin-top:8px;border-top:1px solid var(--sketch-line)!important;color:var(--dsw-alias-state-error-primary,#e44)!important;font-size:11px!important}
+.codexSketchRatio{height:40px;max-width:80px;padding:0 6px;border:1px solid var(--sketch-line);border-radius:10px;background:var(--sketch-bg);color:var(--sketch-fg);font:inherit;color-scheme:light dark}
+@media(max-width:760px){.codexSketchDialog{width:calc(100vw - 12px);height:97dvh;max-height:97dvh;padding:6px;border-radius:14px}.codexSketchHeading{display:none}.codexSketchTop{gap:4px}.codexSketchUtility{flex:1;justify-content:center;gap:4px}.codexSketchRound{width:36px;height:40px}.codexSketchHistory{padding:0}.codexSketchLayersToggle{padding:0 8px;height:40px}.codexSketchLayersToggle svg,.codexSketchConfirm svg{display:none}.codexSketchDialog .codexSketchConfirm{padding:0 10px;min-height:40px}.codexSketchControls{gap:2px 8px;padding:3px}.codexSketchPill{gap:0}.codexSketchPill button{min-width:44px}.codexSketchPalette{gap:0}.codexSketchWidth>span{display:none}.codexSketchWidth input{width:74px}.codexSketchLayers{width:min(216px,90%);max-height:100%;padding:8px}.codexLayerList{max-height:100px}}
+@media(prefers-reduced-transparency:reduce){.codexSketchControls,.codexSketchLayers{background:var(--sketch-bg);backdrop-filter:none}.codexSketchDialog::backdrop{backdrop-filter:none;background:#0009}}
+@media(prefers-contrast:more){.codexSketchDialog{--sketch-line:currentColor}.codexSketchControls,.codexSketchLayers{background:var(--sketch-bg)}}
+.codexSketchFiles>button{height:40px;padding:0 10px;border:1px solid var(--sketch-line);border-radius:12px;background:var(--sketch-glass)}
+.codexSketchFilePanel{position:absolute;z-index:5;top:64px;left:12px;width:min(330px,calc(100% - 24px));max-height:calc(100% - 100px);overflow:auto;padding:14px;border:1px solid var(--sketch-line);border-radius:16px;background:var(--sketch-bg);box-shadow:0 12px 40px #0004;display:flex;flex-direction:column;gap:10px}
+.codexSketchFilePanel button{min-height:36px;border-radius:8px;padding:4px 10px;background:color-mix(in srgb,var(--sketch-fg) 6%,transparent)}
+.codexSketchFilePanel input{min-width:0;min-height:36px;border:1px solid var(--sketch-line);border-radius:8px;padding:6px 10px;background:var(--sketch-bg);color:inherit;font:inherit}
+.codexSketchFilePanel small{color:var(--sketch-muted);line-height:1.5}.codexSketchFileActions{display:flex;gap:8px}.codexSketchFileActions>button{flex:1}
+.codexSketchDraftList{max-height:220px;overflow:auto}.codexSketchDraftList>div{display:flex;gap:6px;margin-bottom:6px}.codexSketchDraftList button:first-child{flex:1;min-width:0;justify-content:flex-start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.codexSketchStability{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--sketch-muted)}.codexSketchStability select{height:32px;border:1px solid var(--sketch-line);border-radius:8px;background:var(--sketch-bg);color:var(--sketch-fg);font:inherit}
+@media(max-width:760px){.codexSketchTop{gap:2px}.codexSketchUtility{gap:2px}.codexSketchRound{width:32px}.codexSketchLayersToggle{padding:0 6px}.codexSketchFiles>button{padding:0 6px}.codexSketchRatio{max-width:65px}.codexSketchPill button{min-width:42px}.codexSketchDialog .codexSketchConfirm{padding:0 8px}.codexSketchTop{flex-shrink:0}}
+
+.codexLayerBody{overflow:hidden}.codexLayerStudio canvas{cursor:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24'%3E%3Ccircle cx='12' cy='12' r='7' fill='none' stroke='white' stroke-width='3'/%3E%3Ccircle cx='12' cy='12' r='7' fill='none' stroke='%23333' stroke-width='1'/%3E%3C/svg%3E") 12 12,crosshair}
+.codexSketchDialog .codexSketchSwatch{width:32px;height:32px;padding:0;border-radius:50%;corner-shape:round}.codexSketchSwatch::before{width:22px;height:22px;flex-shrink:0;border-radius:50%;corner-shape:round;clip-path:circle(50%)}.codexSketchSwatch[aria-pressed=true]::after{inset:1px;border:1.5px solid var(--sketch-fg);border-radius:50%;corner-shape:round}.codexSketchCustom{width:30px;height:30px;margin:1px 4px;corner-shape:round;clip-path:circle(50%)}.codexSketchCustom span{width:22px;height:22px;border-width:2px;corner-shape:round}
+.codexSketchPictures{position:absolute;left:0;top:0;z-index:3;background:var(--sketch-bg);border:1px solid var(--sketch-line);border-radius:12px;padding:10px;width:160px;max-height:100%;overflow:auto}.codexSketchPictures header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.codexSketchPictures>div{display:flex;gap:5px;align-items:center;padding:4px;border:1px solid transparent;border-radius:8px}.codexSketchPictures>div[data-active=true]{border-color:#0a84ff}.codexSketchPictures img{width:90px;height:65px;object-fit:contain}.codexSketchPictures small{color:var(--sketch-muted)}
+.codexSketchViewControls{display:flex;gap:2px;align-items:center}.codexSketchViewControls button{min-height:32px;padding:0 7px;border-radius:8px}.codexSketchKeyPanel{position:absolute;bottom:80px;left:12px;width:280px;max-height:65%;overflow:auto;padding:14px;border:1px solid var(--sketch-line);border-radius:12px;background:var(--sketch-bg);z-index:5;box-shadow:0 8px 30px #0003}.codexSketchKeyPanel label{display:flex;align-items:center;justify-content:space-between;min-height:32px;gap:12px}.codexSketchKeyPanel input:not([type=checkbox]){width:64px;border:1px solid var(--sketch-line);border-radius:6px;color:inherit;background:transparent;padding:4px;text-align:center}.codexSketchKeyPanel p,.codexSketchKeyPanel small{color:var(--sketch-muted);font-size:11px}.codexSketchControls{position:static}
+
+.codexSketchCursor{position:fixed;left:0;top:0;z-index:100;pointer-events:none;border:1px solid #222;border-radius:50%;corner-shape:round;box-shadow:0 0 0 1px #fff;box-sizing:border-box}.codexSketchCursor[hidden]{display:none}
 `

@@ -7,14 +7,8 @@ const publicError = (code, message) => ({
   error: { code, message, details: { issues: [] } },
 })
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, getImageGallery }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal }) {
   return async (endpoint, payload, signal) => {
-    if (endpoint === 'image/gallery') {
-      signal.throwIfAborted()
-      if (typeof payload?.sessionId !== 'string' || !payload.sessionId || payload.sessionId.length > 512) return publicError('invalid-input', 'Invalid image gallery session')
-      const value = getImageGallery?.(payload.sessionId)
-      return value === undefined ? publicError('not-ready', 'Session images are not ready yet') : { ok: true, value }
-    }
     if (endpoint === 'image/original/chunk') {
       try {
         signal.throwIfAborted()
