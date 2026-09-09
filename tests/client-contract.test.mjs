@@ -272,7 +272,7 @@ test('quota reset redemption requires deliberate multi-step confirmation and nev
 
 test('a fresh sign-in attempt clears stale client flow state before starting', async () => {
   const source = await text('src/client.jsx')
-  assert.match(source, /const begin = \(method, label\) => \{\s*setFlow\(undefined\);\s*setBusy\(true\); setError\(undefined\)/u)
+  assert.match(source, /const begin = \(method, label\) => \{\s*flowGeneration\.current \+= 1\s*setFlow\(undefined\);\s*setBusy\(true\); setError\(undefined\)/u)
 })
 
 test('settings exposes manual multi-account switching with an explicit remove confirmation', async () => {
