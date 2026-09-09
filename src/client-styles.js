@@ -140,17 +140,20 @@ export const STYLE = `
 .codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}
 .codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
-.codexComposerQuota:focus-visible{outline:1px solid var(--dsw-alias-border-l3);outline-offset:3px;border-radius:4px}
-
-.codexComposerQuota{width:28px;justify-content:center;display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;height:28px;box-sizing:border-box;padding:0 5px;border:0;border-radius:6px;background:transparent;cursor:pointer;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap;user-select:none}
+.codexSettingsTabs{display:flex;gap:4px;padding:3px;background:var(--dsw-alias-bg-module-platform);border-radius:10px}
+.codexSettingsTabs button{flex:1;border:0;border-radius:8px;padding:7px 8px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;cursor:pointer}
+.codexSettingsTabs button[aria-selected=true]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 1px 3px #0001}
+.codexSubscription>[role=tabpanel]:not([hidden]){display:flex;flex-direction:column;gap:10px}
+.codexComposerQuota:focus-visible{outline:1px solid var(--dsw-alias-border-l3);outline-offset:2px}
+.codexComposerQuota{display:inline-flex;align-items:center;gap:9px;flex:0 0 auto;height:28px;box-sizing:border-box;padding:0 5px;border:0;border-radius:6px;background:transparent;cursor:pointer;color:var(--dsw-alias-label-secondary);font-family:inherit;font-size:12px;line-height:20px;font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
 .codexComposerQuota:hover,.codexComposerQuota[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover)}
-.codexQuotaPopover{position:fixed;z-index:1000;width:min(320px,calc(100vw - 24px));max-height:calc(100vh - 24px);overflow:auto;box-sizing:border-box;padding:16px;border:1px solid var(--dsw-alias-border-l2);border-radius:16px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 8px 32px #0002;font-size:13px;line-height:20px}
-.codexQuotaPopover header,.codexQuotaDetail>div{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.codexQuotaPopover header button{border:0;background:transparent;color:inherit;cursor:pointer;font-size:20px;width:28px;height:28px;border-radius:8px}
-.codexQuotaPopover header button:hover{background:var(--dsw-alias-interactive-bg-hover)}
-.codexQuotaPopoverHint,.codexQuotaDetail p{font-size:12px;color:var(--dsw-alias-label-tertiary);margin:8px 0 0}
-.codexQuotaDetail{border-top:1px solid var(--dsw-alias-border-l2);margin-top:12px;padding-top:12px}
-.codexQuotaDetail .codexComposerQuotaBar{width:100%;margin-top:8px}
+.codexQuotaCompactWindow{display:inline-flex;align-items:center;gap:5px}
+.codexQuotaPopover{position:fixed;z-index:1000;width:max-content;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);overflow:auto;box-sizing:border-box;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:9px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 4px 16px #0002;font-size:12px;line-height:20px;outline:none}
+.codexQuotaDetail+ .codexQuotaDetail{margin-top:5px;padding-top:5px;border-top:1px solid var(--dsw-alias-border-l2)}
+.codexQuotaDetail>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.codexQuotaDetail strong{font-weight:500}
+.codexQuotaReset,.codexQuotaDetail p{color:var(--dsw-alias-label-tertiary);margin:0;font-size:12px}
+.codexComposerQuotaBar{width:100%;margin-top:8px}
 .codexComposerQuotaBar{display:block;width:40px;height:4px;border:0;border-radius:999px;overflow:hidden;background:var(--dsw-alias-border-l3);accent-color:var(--dsw-alias-label-secondary);-webkit-appearance:none;appearance:none}
 .codexComposerQuotaBar::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}
 .codexComposerQuotaBar::-webkit-progress-value{background:var(--dsw-alias-label-secondary);border-radius:999px}
