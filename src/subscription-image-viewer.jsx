@@ -40,7 +40,7 @@ function ViewerAction({ action, annotations, item, service, t }) {
     }
   }
   const label = state === 'pending' ? action.pendingLabel : state === 'failed' ? action.errorLabel : action.label
-  return <button type="button" className="dcsiv-button" disabled={state === 'pending'} onClick={() => { void invoke() }}><span className="dcsiv-label">{label ?? t('imageEdit')}</span></button>
+  return <button type="button" className="dcsiv-button dcsiv-edit-action" aria-label={label ?? t('imageEdit')} disabled={state === 'pending'} onClick={() => { void invoke() }}><IconEditOutline16 /><span className="dcsiv-label">{label ?? t('imageEdit')}</span><span className="dcsiv-edit-short">{state === 'idle' ? (action.id === 'sketch' ? t('imageToSketch') : t('imageEditShort')) : label}</span></button>
 }
 
 function ViewerDownload({ download, item, t }) {

@@ -21,7 +21,7 @@ function triggerBlobDownload(data, mediaType, filename) {
   try { anchor.click() } finally { anchor.remove(); URL.revokeObjectURL(url) }
 }
 
-function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, attachForEdit, getImageViewer, getInternalImageViewer, t, features }) {
+function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, openSketchImage, attachForEdit, getImageViewer, getInternalImageViewer, t, features }) {
   const [attempt, setAttempt] = useState(0)
   const [error, setError] = useState(false)
   const [src, setSrc] = useState()
@@ -71,7 +71,7 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
               sourceName, referenceName,
             }), annotations, referenceName)
           },
-        }],
+        }, ...(features.imageSketch && openSketchImage ? [{id:'sketch',label:t('imageToSketch'),pendingLabel:t('imageEditPreparing'),errorLabel:t('imageEditFailed'),onInvoke:()=>openSketchImage(src,downloadName)}] : [])],
       }],
       opener: triggerRef.current,
       source: 'codex-generated',
@@ -80,7 +80,8 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
     if (features.imageViewer && getInternalImageViewer?.()?.open?.(request) === true) return
     const viewer = getImageViewer?.()
     if (viewer?.open?.(request) === true) return
-    getInternalImageViewer?.()?.open?.({ ...request, annotations: false })
+    if (features.imageViewer) getInternalImageViewer?.()?.open?.({ ...request, annotations: false })
+    else window.open(src, '_blank', 'noopener,noreferrer')
   }
   if (error) {
     return <button type="button" className="codexGeneratedImageRetry" onClick={() => setAttempt(value => value + 1)}>{t('imageLoadFailed')}</button>
@@ -90,7 +91,7 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
   </button>
 }
 
-export function CodexImageToolRow({ block, sessionId, rpc, loadImage, attachForEdit, getImageViewer, getInternalImageViewer, t, preference }) {
+export function CodexImageToolRow({ block, sessionId, rpc, loadImage, openSketchImage, attachForEdit, getImageViewer, getInternalImageViewer, t, preference }) {
   const features = useSyncExternalStore(preference.subscribe, preference.getSnapshot)
   const settled = block?.kind === 'tool-result'
   const image = settled
@@ -105,8 +106,12 @@ export function CodexImageToolRow({ block, sessionId, rpc, loadImage, attachForE
   const original = decodeImagePresentation(block?.meta)?.original
   return <div className="codexImageTool" data-state={state}>
     <div className="codexImageToolRow"><span className="codexImageToolIcon" aria-hidden="true" /><span className="codexImageToolTitle">{t('imageGenerate')}</span><span className="codexImageBeta">{t('imageBeta')}</span><span className="codexImageToolState">{status}</span></div>
-    {image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage features={features} attachment={image.attachment} original={original} rpc={rpc} sessionId={sessionId} loadImage={loadImage} attachForEdit={attachForEdit} getImageViewer={getImageViewer} getInternalImageViewer={getInternalImageViewer} t={t} /></div>}
+    {image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage features={features} attachment={image.attachment} original={original} rpc={rpc} sessionId={sessionId} loadImage={loadImage} openSketchImage={openSketchImage} attachForEdit={attachForEdit} getImageViewer={getImageViewer} getInternalImageViewer={getInternalImageViewer} t={t} /></div>}
     {typeof block?.meta?.requestedModel === 'string' ? <details className="codexImageDetails"><summary>{t('imageDetails')}</summary><p>{t('imageRequestedModel')}: {block.meta.requestedModel.slice(0,100)}<br />{t('imageReportedModel')}: {typeof block.meta.reportedModel === 'string' ? block.meta.reportedModel.slice(0,100) : t('imageModelUnreported')}<br />{t('imageRequestedSize')}: {String(block.meta.requestedSize ?? 'auto').slice(0,40)} · {t('imageActualSize')}: {original?.width} × {original?.height}</p></details> : null}
     {error === undefined ? null : <p className="codexImageToolError">{error}</p>}
   </div>
+}
+
+export function CodexImageOutput({ node, ...props }) {
+  return <div className="codexImageOutput">{node.data.blocks.map(block => <CodexImageToolRow key={block.toolCallId} block={block} {...props} />)}</div>
 }

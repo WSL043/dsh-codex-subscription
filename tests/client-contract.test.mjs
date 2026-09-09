@@ -71,6 +71,7 @@ test('composer quota modes use the public composer slot before the model selecto
   assert.match(client, /QUICK_QUOTA_MODE_FIELD/u)
   assert.match(client, /QUICK_QUOTA_MODE_OFF/u)
   assert.match(client, /QUICK_QUOTA_MODE_PERCENT/u)
+  assert.match(client, /quotaShowIndicator/u)
   assert.match(client, /QUICK_QUOTA_MODE_BAR/u)
   assert.match(client, /QUICK_QUOTA_MODE_FORECAST/u)
   assert.match(client, /role=['"]radiogroup['"]/u)
@@ -122,7 +123,7 @@ test('composer quota is neutral and the detailed quota grid is compact', async (
   assert.match(composerRule, /line-height:\s*20px/u)
   assert.doesNotMatch(composerRule, /brand|success|error|#[0-9a-f]{3,8}|rgb\(/iu)
   assert.match(source, /className=['"]codexComposerQuotaBar['"]/u)
-  assert.match(source, /<progress[^>]*max=\{100\}[^>]*value=\{value\}/u)
+  assert.match(source, /<progress[^>]*max=\{100\}[^>]*value=\{quota\.remainingPercent\}/u)
   assert.match(source, /\.codexComposerQuotaBar\{[^}]*width:\s*40px[^}]*height:\s*4px/u)
   assert.doesNotMatch(source.match(/\.codexComposerQuotaBar\{[^}]+\}/u)?.[0] ?? '', /brand|success|error|#[0-9a-f]{3,8}|rgb\(/iu)
   assert.match(source, /\.codexSubscriptionUsageCard\{[^}]*padding:\s*12px 14px[^}]*gap:\s*9px/u)
@@ -271,7 +272,7 @@ test('quota reset redemption requires deliberate multi-step confirmation and nev
 
 test('a fresh sign-in attempt clears stale client flow state before starting', async () => {
   const source = await text('src/client.jsx')
-  assert.match(source, /const begin = \(method, label\) => \{\s*setFlow\(undefined\);\s*setBusy\(true\); setError\(undefined\)/u)
+  assert.match(source, /const begin = \(method, label\) => \{\s*flowGeneration\.current \+= 1\s*setFlow\(undefined\);\s*setBusy\(true\); setError\(undefined\)/u)
 })
 
 test('settings exposes manual multi-account switching with an explicit remove confirmation', async () => {

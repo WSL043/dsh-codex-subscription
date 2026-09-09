@@ -61,11 +61,15 @@ export const formatRunway = (seconds, t) => {
 }
 
 export const formatQuotaForecast = (forecast, t) => {
-  if (forecast?.status === 'calibrating') return t('quotaForecastCalibrating')
+  if (forecast?.status === 'ready' && forecast.provisional) return `≈${formatRunway(forecast.runwaySeconds, t)}`
+  if (forecast?.status === 'calibrating') return t(({ resolution: 'forecastResolution', 'changing-pace': 'forecastChanging', stale: 'forecastStale' })[forecast.reason] ?? 'quotaForecastCalibrating')
   if (forecast?.status === 'idle') return t('quotaForecastIdle')
   if (forecast?.status !== 'ready') return undefined
   if (forecast.survivesReset) return t('quotaForecastUntilReset')
+  if (Number.isFinite(forecast.runwayMinSeconds) && Number.isFinite(forecast.runwayMaxSeconds)) {
+    const min = formatRunway(forecast.runwayMinSeconds, t), max = formatRunway(forecast.runwayMaxSeconds, t)
+    if (min && max && min !== max) return fill(t('quotaForecast'), { symbol: '≈', duration: `${min}–${max}` })
+  }
   const duration = formatRunway(forecast.runwaySeconds, t)
   return duration === undefined ? undefined : fill(t('quotaForecast'), { symbol: '≈', duration })
 }
-

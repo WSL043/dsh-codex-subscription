@@ -4,7 +4,7 @@ export const RPC_ENDPOINTS = Object.freeze([
   'account/select', 'account/remove', 'usage', 'diagnostics',
   'preferences/status', 'preferences/models', 'preferences/update',
   'reset-credit/inspect', 'reset-credit/prepare', 'reset-credit/consume',
-  'image/gallery', 'image/original/chunk',
+  'image/original/chunk',
 ])
 
 // Components use a plugin-scoped client; DSH owns transport and authentication.
