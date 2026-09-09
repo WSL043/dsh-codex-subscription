@@ -77,7 +77,7 @@ function shortReset(quota, t) {
 }
 function forecastText(quota, t) {
   const forecast = quota.forecast
-  if (forecast?.status === 'ready' && forecast.provisional) return `${t('forecastInitial')}≈${formatRunway(forecast.runwaySeconds, t)}`
+  if (forecast?.status === 'ready' && forecast.provisional) return `≈${formatRunway(forecast.runwaySeconds, t)}`
   if (forecast?.status === 'calibrating') return t(({ 'changing-pace': 'forecastCompactChanging', stale: 'forecastCompactStale' })[forecast.reason] ?? 'forecastCompactPending')
   if (forecast?.status === 'idle') return t('quickQuotaForecastIdle')
   if (forecast?.status === 'ready' && forecast.survivesReset) return t('quickQuotaForecastUntilReset')

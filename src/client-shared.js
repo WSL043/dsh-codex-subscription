@@ -61,7 +61,7 @@ export const formatRunway = (seconds, t) => {
 }
 
 export const formatQuotaForecast = (forecast, t) => {
-  if (forecast?.status === 'ready' && forecast.provisional) return `${t('forecastInitial')}≈${formatRunway(forecast.runwaySeconds, t)} · ${t('forecastInitialHint')}`
+  if (forecast?.status === 'ready' && forecast.provisional) return `≈${formatRunway(forecast.runwaySeconds, t)}`
   if (forecast?.status === 'calibrating') return t(({ resolution: 'forecastResolution', 'changing-pace': 'forecastChanging', stale: 'forecastStale' })[forecast.reason] ?? 'quotaForecastCalibrating')
   if (forecast?.status === 'idle') return t('quotaForecastIdle')
   if (forecast?.status !== 'ready') return undefined
