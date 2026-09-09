@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
 import { readLoginProgress } from './login-progress.js'
 import { CHANNEL, unwrap, accountStatusErrorText, maskEmail, notifyQuickQuota } from './client-shared.js'
+import { recoveryCall } from './client-recovery.js'
 export function AccountEmail({ candidate, fallback, t, emailVisible, onClick }) {
   if (typeof candidate?.email !== 'string' || candidate.email.length === 0) {
     return <span title={t('emailUnavailable')}>{fallback ?? candidate?.label ?? t('emailUnavailable')}</span>
@@ -26,7 +27,7 @@ export function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   const [emailVisibilityKey, setEmailVisibilityKey] = useState(accountVisibilityKey)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState()
-  const call = (endpoint, payload = {}) => rpc.call(CHANNEL, endpoint, payload).then(unwrap)
+  const call = (endpoint, payload = {}) => recoveryCall(rpc, endpoint, payload)
 
   useEffect(() => {
     if (emailVisibilityKey === accountVisibilityKey) return
@@ -135,11 +136,23 @@ export function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   </div>
 }
 
-export function AccountFailureCard({ accountStatus, snapshot, t }) {
+export function AccountFailureCard({ accountStatus, snapshot, t, rpc, onRecovered }) {
   const retrying = snapshot.retrying === true
+  const [confirm, setConfirm] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const clear = async () => {
+    if (!confirm) { setConfirm(true); return }
+    setBusy(true); setFailed(false)
+    try { const next = await recoveryCall(rpc, 'logout'); accountStatus.acceptAccount(next); onRecovered(); notifyQuickQuota() }
+    catch { setFailed(true) }
+    finally { setBusy(false); setConfirm(false) }
+  }
   return <div className="codexSubscriptionCard codexSubscriptionRecover" role="alert">
     <p className="codexSubscriptionError">{retrying ? t('accountRetrying') : accountStatusErrorText(snapshot.error, t)}</p>
-    <Button type="button" variant="outline" disabled={retrying} aria-busy={retrying} onClick={() => { void accountStatus.retry() }}>{retrying ? t('accountRetrying') : t('accountRetry')}</Button>
+    <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={retrying || busy} aria-busy={retrying} onClick={() => { void accountStatus.retry() }}>{retrying ? t('accountRetrying') : t('accountRetry')}</Button>
+    <Button type="button" variant="outline" disabled={busy || retrying} onClick={() => void clear()}>{busy ? t('accountRetrying') : t(confirm ? 'recoveryClearConfirm' : 'recoveryClear')}</Button>{confirm ? <Button type="button" variant="outline" disabled={busy} onClick={() => setConfirm(false)}>{t('cancel')}</Button> : null}</div>
+    <p className="codexSubscriptionPreferenceHint">{t(confirm ? 'recoveryClearHint' : 'recoveryHint')}</p>
+    {failed ? <p className="codexSubscriptionError">{t('recoveryFailed')}</p> : null}
   </div>
 }
-
