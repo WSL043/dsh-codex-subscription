@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { SKETCH_SIZE, MAX_SKETCH_STROKES, MAX_STROKE_POINTS, sketchPoint } from './sketch-document.js'
-import { createSketchLayers, changeSketchLayer, strokeCount, strokeHit, MAX_SKETCH_LAYERS } from './sketch-layers.js'
+import { createSketchLayers, changeSketchLayer, strokeCount, strokeHit, MAX_SKETCH_LAYERS, SKETCH_RATIOS, resizeSketch } from './sketch-layers.js'
 import { paintSketchLayers } from './sketch-layer-renderer.js'
 import { WorkspaceIcon } from './workspace-icons.jsx'
 const PALETTE = ['#18181b','#929398','#ff3936','#ff9500','#ffcc00','#34c759','#0088ff']
@@ -10,7 +10,7 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
   const [revision, redraw] = useState(0), [tool, setTool] = useState('pen'), [brush, setBrush] = useState('pen')
   const [eraser, setEraser] = useState('pixel'), [color, setColor] = useState('#0088ff'), [width, setWidth] = useState(12)
   const [layersOpen, setLayersOpen] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('')
-  const paint = () => { if (canvas.current) paintSketchLayers(canvas.current.getContext('2d'), doc.current, cache.current) }
+  const paint = () => { if (!canvas.current) return; const w = doc.current.width ?? SKETCH_SIZE, h = doc.current.height ?? SKETCH_SIZE; if (canvas.current.width !== w) canvas.current.width = w; if (canvas.current.height !== h) canvas.current.height = h; paintSketchLayers(canvas.current.getContext('2d'), doc.current, cache.current) }
   const schedule = () => { if (frame.current !== null) return; frame.current = requestAnimationFrame(() => { frame.current = null; paint(); redraw(value => value + 1) }) }
   const checkpoint = () => { undo.current.push(doc.current); if (undo.current.length > 30) undo.current.shift(); redo.current = [] }
   const change = (action, id, value) => { if (busy || active.current) return; const next = changeSketchLayer(doc.current, action, id, value); if (next === doc.current) return; if (action !== 'select') checkpoint(); doc.current = next; setError(''); schedule() }
@@ -30,7 +30,7 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
       if (gesture.eraseStroke) {
         const previous = gesture.last ?? point
         const steps = Math.min(256, Math.max(1, Math.ceil(Math.hypot(point.x-previous.x,point.y-previous.y)*SKETCH_SIZE/Math.max(2,width/2))))
-        layer.strokes = layer.strokes.filter(stroke => !Array.from({length:steps},(_,i)=>({x:previous.x+(point.x-previous.x)*(i+1)/steps,y:previous.y+(point.y-previous.y)*(i+1)/steps})).some(p=>strokeHit(stroke,p,width/2)))
+        layer.strokes = layer.strokes.filter(stroke => !Array.from({length:steps},(_,i)=>({x:previous.x+(point.x-previous.x)*(i+1)/steps,y:previous.y+(point.y-previous.y)*(i+1)/steps})).some(p=>strokeHit(stroke,p,width/2,doc.current.width,doc.current.height)))
       } else {
         const stroke = layer.strokes.at(-1)
         if (['rectangle','circle'].includes(stroke.shape)) stroke.points = [stroke.points[0], point]
@@ -59,14 +59,15 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
     <header className="codexSketchTop">
       <button className="codexSketchRound" type="button" aria-label={t('sketchCancel')} title={t('sketchCancel')} disabled={busy} onClick={close}><WorkspaceIcon name="close" /></button>
       <div className="codexSketchHeading"><strong>{t('sketchTitle')}</strong><span>Beta</span></div>
-      <button type="button" className="codexSketchConfirm" aria-label={t('sketchAttach')} disabled={busy||!enabled||!doc.current.layers.some(l=>l.visible&&l.strokes.length)} onClick={()=>void attach()}><WorkspaceIcon name="check" size={18}/><span>{t('sketchAttach')}</span></button>
-    </header>
     <div className="codexSketchUtility">
       <div className="codexSketchHistory">{['undo','redo'].map(name=><button key={name} type="button" className="codexSketchRound" aria-label={t(name==='undo'?'sketchUndo':'sketchRedo')} title={t(name==='undo'?'sketchUndo':'sketchRedo')} disabled={busy||!(name==='undo'?undo:redo).current.length} onClick={()=>history(name)}><WorkspaceIcon name={name} size={20}/></button>)}</div>
+      <select className="codexSketchRatio" aria-label={t('sketchRatio')} title={t('sketchRatioHint')} value={doc.current.ratio ?? '1:1'} disabled={busy} onChange={event=>{if(active.current)return;const next=resizeSketch(doc.current,event.target.value);if(next===doc.current)return;checkpoint();doc.current=next;schedule()}}>{Object.keys(SKETCH_RATIOS).map(ratio=><option key={ratio} value={ratio}>{ratio}</option>)}</select>
       <button type="button" className="codexSketchLayersToggle" aria-label={t('sketchLayers')} aria-expanded={layersOpen} onClick={()=>setLayersOpen(v=>!v)}><WorkspaceIcon name="layers" size={18}/>{t('sketchLayers')}<span>{doc.current.layers.length}</span></button>
     </div>
+      <button type="button" className="codexSketchConfirm" aria-label={t('sketchAttach')} disabled={busy||!enabled||!doc.current.layers.some(l=>l.visible&&l.strokes.length)} onClick={()=>void attach()}><WorkspaceIcon name="check" size={18}/><span>{t('sketchAttach')}</span></button>
+    </header>
     <div className={`codexLayerBody ${layersOpen?'withLayers':''}`}>
-      <canvas ref={canvas} width={SKETCH_SIZE} height={SKETCH_SIZE} aria-label={t('sketchTitle')} onPointerDown={event=>{
+      <canvas style={{'--sketch-ratio':(doc.current.width ?? SKETCH_SIZE)/(doc.current.height ?? SKETCH_SIZE)}} ref={canvas} width={SKETCH_SIZE} height={SKETCH_SIZE} aria-label={t('sketchTitle')} onPointerDown={event=>{
         if (busy || !enabled || event.button!==0 || active.current) return
         if (!current.visible) {setError(t('sketchHiddenLayer'));return}
         if (!(tool==='eraser'&&eraser==='stroke') && strokeCount(doc.current)>=MAX_SKETCH_STROKES) {setError(t('sketchLimit'));return}
@@ -104,6 +105,6 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
         {PALETTE.map(value=><button type="button" key={value} className="codexSketchSwatch" style={{'--swatch':value}} aria-label={`${t('sketchColor')} ${value}`} aria-pressed={color===value} disabled={busy} onClick={()=>setColor(value)}/>)}
         <label className="codexSketchCustom" title={t('sketchColor')}><span style={{background:color}}/><input type="color" aria-label={t('sketchColor')} value={color} disabled={busy} onChange={e=>setColor(e.target.value)}/></label>
       </div>
-    </div><p className="codexSketchHint" role={error?'alert':undefined}>{error||t('sketchHint')}</p>
+    </div>{error ? <p className="codexSketchHint" role="alert">{error}</p> : null}
   </dialog>
 }

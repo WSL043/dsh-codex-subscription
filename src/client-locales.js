@@ -1,4 +1,5 @@
 export const zh = {
+  sketchRatio: '画布比例', sketchRatioHint: '画布比例；切换时等比保留笔画，可撤销',
   forecastCompactPending: '待估', forecastCompactChanging: '重估', forecastCompactStale: '待更新',
   imageEditShort: '继续编辑', forecastResolution: '暂时估不准：读数变化不足以确定速度', forecastChanging: '使用强度变化，正在重新估计', forecastStale: '额度数据已过期，等待更新',
   imageDropHere: '松开以添加参考图片', imageDropUnavailable: '当前无法添加图片', imageRemoveDraft: '移除图片',
@@ -98,6 +99,7 @@ export const zh = {
 }
 
 export const en = {
+  sketchRatio: 'Canvas ratio', sketchRatioHint: 'Canvas ratio; artwork fits without distortion, undo available',
   forecastCompactPending: 'Estimating', forecastCompactChanging: 'Re-estimating', forecastCompactStale: 'Stale',
   imageEditShort: 'Edit', forecastResolution: 'Not enough change to estimate the rate yet', forecastChanging: 'Usage intensity changed; estimating again', forecastStale: 'Quota data is stale; waiting for an update',
   imageDropHere: 'Drop reference images here', imageDropUnavailable: 'Images cannot be added right now', imageRemoveDraft: 'Remove image',

@@ -26,3 +26,28 @@ test('custom quota thresholds validate, select the matching window and exclude s
  assert.equal(quotaWarning(usage,'custom',now,{quotaShortThreshold:35,quotaLongThreshold:10}).remainingPercent,30)
  assert.equal(quotaWarning(usage,'custom',now+301000,{quotaShortThreshold:35,quotaLongThreshold:10}),undefined)
 })
+
+
+test('ratio changes preserve artwork geometry and source history', async () => {
+  const { resizeSketch } = await import('../src/sketch-layers.js')
+  const doc = createSketchLayers()
+  doc.layers[0].strokes.push({shape:'pen',width:20,points:[{x:.25,y:.25},{x:.75,y:.75}]})
+  const before = structuredClone(doc)
+  const wide = resizeSketch(doc,'16:9')
+  assert.deepEqual(doc,before)
+  assert.equal(wide.width,1024);assert.equal(wide.height,576)
+  const [a,b]=wide.layers[0].strokes[0].points
+  assert.ok(Math.abs((b.x-a.x)*1024-(b.y-a.y)*576)<1e-8)
+  assert.ok(strokeHit(wide.layers[0].strokes[0],{x:.5,y:.5},4,1024,576))
+  assert.equal(resizeSketch(wide,'16:9'),wide)
+  assert.throws(()=>resizeSketch(doc,'arbitrary'))
+})
+
+test('non-square brush curves use canvas height for every vertical coordinate', async () => {
+  const { paintSketch } = await import('../src/sketch-document.js')
+  const calls=[]
+  const ctx={beginPath(){},moveTo(){},lineTo(){},stroke(){},quadraticCurveTo(...args){calls.push(args)}}
+  paintSketch(ctx,[{shape:'pen',color:'#000',width:12,points:[{x:.2,y:.5},{x:.5,y:.5},{x:.8,y:.5}]}],1024,true,576)
+  assert.equal(calls[0][1],288)
+  assert.equal(calls[0][3],288)
+})
