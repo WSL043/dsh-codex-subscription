@@ -15,12 +15,12 @@ test('recovery requests time out and diagnostics omit raw secrets', async () => 
 
 const start = 1_900_000_000_000
 const window = remaining => ({ remainingPercent: remaining, windowSeconds: 604800, resetsAt: null })
-test('fractional quota observations calibrate in two minutes without inventing integer precision', () => {
+test('raw fractional observations alone do not prove a finer reporting resolution', () => {
   let state
   for (const [minute, remaining] of [[0,80],[1,79.9],[2,79.8]]) state = observeQuotaForecast(state, [window(remaining)], start + minute * 60000).state
   const result = estimateQuotaForecast(state, window(79.8), start + 120000)
-  assert.equal(result.status, 'ready')
-  assert.ok(Math.abs(result.pacePerHour - 6) < 0.0001)
+  assert.equal(result.reason, 'resolution')
+  assert.equal(Object.values(state.windows)[0].samples.at(-1).remainingPercent, 79.8)
   let coarse
   for (const minute of [0,1,2]) coarse = observeQuotaForecast(coarse, [window(80)], start + minute * 60000).state
   assert.equal(estimateQuotaForecast(coarse, window(80), start + 120000).status, 'calibrating')
@@ -50,7 +50,10 @@ test('forecast adapts to a recent consumption acceleration', () => {
   let state
   for (const [minute, remaining] of [[0,100],[20,99],[40,98],[60,97],[80,96],[90,95],[100,90],[110,80]]) state = observeQuotaForecast(state, [window(remaining)], start + minute * 60000).state
   const result = estimateQuotaForecast(state, window(80), start + 110 * 60000)
-  assert.equal(result.status, 'ready')
-  assert.ok(result.pacePerHour > 20)
-  assert.equal(result.observedSpanMs, 30 * 60000)
+  assert.equal(result.reason, 'changing-pace')
+  assert.equal(result.changedIntensity, true)
+  for (const [minute, remaining] of [[120,70],[130,60]]) state = observeQuotaForecast(state, [window(remaining)], start + minute * 60000).state
+  const settled = estimateQuotaForecast(state, window(60), start + 130 * 60000)
+  assert.equal(settled.status, 'ready')
+  assert.ok(settled.lowerPacePerHour <= 60 && settled.upperPacePerHour >= 60)
 })

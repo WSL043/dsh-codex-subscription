@@ -1,8 +1,6 @@
+import { quotaRateInterval } from './quota-rate-interval.js'
 const HOUR_MS = 60 * 60 * 1000
 const HISTORY_MS = 24 * HOUR_MS
-const MIN_SAMPLES = 3
-const PLATEAU_SAMPLE_MS = 15 * 60 * 1000
-
 const finite = value => value !== null && value !== undefined && Number.isFinite(Number(value))
 const clampPercent = value => Math.max(0, Math.min(100, Number(value)))
 const cleanSegment = value => String(value ?? 'default').slice(0, 96)
@@ -11,20 +9,6 @@ const keyFor = (window, context = {}) => JSON.stringify([
   cleanSegment(context.limitId ?? 'codex'),
   Number(window.windowSeconds) || 'limit',
 ])
-const median = values => {
-  const ordered = [...values].sort((a, b) => a - b)
-  const middle = Math.floor(ordered.length / 2)
-  return ordered.length % 2 === 0 ? (ordered[middle - 1] + ordered[middle]) / 2 : ordered[middle]
-}
-
-function requiredSpanMs(consumedPercent, resolution = 1) {
-  if (resolution < 1 && consumedPercent >= Math.max(0.05, resolution * 2)) return 2 * 60_000
-  if (consumedPercent >= 2) return 5 * 60 * 1000
-  if (consumedPercent >= 1) return 10 * 60 * 1000
-  if (consumedPercent >= 0.5) return 20 * 60 * 1000
-  return 30 * 60 * 1000
-}
-
 export function observeQuotaForecast(state, windows, now = Date.now(), context = {}) {
   const next = { windows: { ...(state?.windows ?? {}) } }
   let changed = false
@@ -32,7 +16,7 @@ export function observeQuotaForecast(state, windows, now = Date.now(), context =
     if (!finite(window?.remainingPercent)) continue
     const key = keyFor(window, context)
     const resetsAt = finite(window.resetsAt) ? Number(window.resetsAt) : null
-    const remainingPercent = Math.round(clampPercent(window.remainingPercent) * 10_000) / 10_000
+    const remainingPercent = clampPercent(window.remainingPercent)
     const previous = next.windows[key]
     const resetChanged = previous !== undefined && (
       (previous.resetsAt === null) !== (resetsAt === null)
@@ -45,10 +29,8 @@ export function observeQuotaForecast(state, windows, now = Date.now(), context =
       ? { resetsAt, samples: [] }
       : { resetsAt, samples: [...(previous?.samples ?? [])] }
     const latest = record.samples.at(-1)
-    if (latest === undefined || (now > latest.at && (
-      Math.abs(remainingPercent - latest.remainingPercent) >= 0.001
-      || now - latest.at >= PLATEAU_SAMPLE_MS
-    ))) {
+    // Only fresh snapshots count. Plateaus constrain the rate too.
+    if (latest === undefined || now > latest.at) {
       record.samples.push({ at: now, remainingPercent })
       record.samples = record.samples.filter(sample => sample.at >= now - HISTORY_MS).slice(-192)
       changed = true
@@ -65,84 +47,37 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
   const resetsAt = finite(window.resetsAt) ? Number(window.resetsAt) : null
   if ((record.resetsAt === null) !== (resetsAt === null)
     || (resetsAt !== null && Math.abs(record.resetsAt - resetsAt) > 300)) return { status: 'calibrating' }
-  // Recent pace, not a daily average diluted by hours away from the computer.
-  const samples = record.samples.filter(sample => sample.at >= now - 2 * HOUR_MS && sample.at <= now)
-  // One observed whole-percent drop already supports a rough estimate. Do not
-  // mistake crossing a quantized boundary for a well-calibrated consumption rate.
-  if (samples.length >= 2) {
-    const first = samples[0], last = samples.at(-1)
-    const spanMs = last.at - first.at
-    const consumed = first.remainingPercent - last.remainingPercent
-    if (consumed >= 1 && spanMs >= 60_000 && now - last.at <= 20 * 60_000
-      && (samples.length < MIN_SAMPLES || spanMs < requiredSpanMs(consumed))) {
-      const pace = consumed / (spanMs / HOUR_MS)
-      const remaining = clampPercent(window.remainingPercent)
-      return { status: 'ready', provisional: true, pacePerHour: pace,
-        runwaySeconds: remaining / pace * 3600,
-        runwayMinSeconds: remaining / ((consumed + 1) / (spanMs / HOUR_MS)) * 3600,
-        runwayMaxSeconds: consumed > 1 ? remaining / ((consumed - 1) / (spanMs / HOUR_MS)) * 3600 : null,
-        survivesReset: false, sampleCount: samples.length, observedSpanMs: spanMs, consumedPercent: consumed }
-    }
+  let samples = record.samples.filter(sample => sample.at >= now - 2 * HOUR_MS && sample.at <= now)
+  if (samples.length < 2) return { status: 'calibrating', sampleCount: samples.length }
+  if (now - samples.at(-1).at > 20 * 60_000) return { status: 'calibrating', reason: 'stale' }
+  // The endpoint's rounding contract is unknown. A one-point error on either
+  // side covers floor, ceiling and nearest; decimals are retained, not invented.
+  let bounds = quotaRateInterval(samples)
+  let changedIntensity = false
+  while (!bounds.feasible && samples.length > 3) {
+    samples = samples.slice(1)
+    bounds = quotaRateInterval(samples)
+    changedIntensity = true
   }
-  if (samples.length < MIN_SAMPLES) return { status: 'calibrating', sampleCount: samples.length }
-  const first = samples[0]
-  const last = samples.at(-1)
-  if (now - last.at > 20 * 60_000) return { status: 'calibrating', reason: 'stale' }
-  const spanMs = last.at - first.at
-  const consumedPercent = Math.max(0, first.remainingPercent - last.remainingPercent)
-  const resolution = samples.reduce((step, sample) => {
-    for (const candidate of [1, 0.1, 0.01, 0.001, 0.0001]) {
-      if (Math.abs(sample.remainingPercent / candidate - Math.round(sample.remainingPercent / candidate)) < 0.000001) return Math.min(step, candidate)
-    }
-    return step
-  }, 1)
-  if (consumedPercent > 0 && consumedPercent < (resolution === 1 ? 1 : Math.max(0.05, resolution * 2))) return { status: 'calibrating', reason: 'resolution', sampleCount: samples.length }
-  if (spanMs < requiredSpanMs(consumedPercent, resolution)) {
-    return { status: 'calibrating', sampleCount: samples.length, observedSpanMs: spanMs, consumedPercent }
-  }
-
-  const slopes = []
-  for (let left = 0; left < samples.length - 1; left += 1) {
-    for (let right = left + 1; right < samples.length; right += 1) {
-      const hours = (samples[right].at - samples[left].at) / HOUR_MS
-      if (hours < 1 / 60) continue
-      slopes.push((samples[left].remainingPercent - samples[right].remainingPercent) / hours)
-    }
-  }
-  const positive = slopes.filter(value => Number.isFinite(value) && value >= 0)
-  const pacePerHour = positive.length === 0 ? 0 : median(positive)
-  if (!Number.isFinite(pacePerHour) || pacePerHour < 0.02) {
-    return { status: 'idle', pacePerHour: 0, sampleCount: samples.length, observedSpanMs: spanMs, consumedPercent }
-  }
-  const deviations = positive.map(value => Math.abs(value - pacePerHour))
-  // Include reporting quantization even when the fitted samples form a perfect line.
-  const uncertaintyPerHour = Math.max(deviations.length === 0 ? 0 : median(deviations) * 1.4826, resolution / (spanMs / HOUR_MS))
-  const recent = samples.filter(sample => sample.at >= last.at - 30 * 60_000)
-  if (recent.length >= 3 && last.at - recent[0].at >= 5 * 60_000) {
-    const recentPace = (recent[0].remainingPercent - last.remainingPercent) / ((last.at - recent[0].at) / HOUR_MS)
-    if (recentPace > pacePerHour * 2 || recentPace < pacePerHour / 2) {
-      if (samples.length > recent.length) return estimateQuotaForecast({ windows: { ...state.windows, [keyFor(window, context)]: { ...record, samples: recent } } }, window, now, context)
-      return { status: 'calibrating', reason: 'changing-pace', sampleCount: samples.length }
-    }
-  }
-  const lowerPacePerHour = Math.max(0.02, pacePerHour - uncertaintyPerHour)
-  const upperPacePerHour = pacePerHour + uncertaintyPerHour
+  const spanMs = samples.at(-1).at - samples[0].at
+  const common = { sampleCount: samples.length, observedSpanMs: spanMs,
+    consumedPercent: samples[0].remainingPercent - samples.at(-1).remainingPercent,
+    lowerPacePerHour: bounds.min * 60, upperPacePerHour: bounds.max * 60,
+    changedIntensity }
+  if (!bounds.feasible) return { ...common, status: 'calibrating', reason: 'changing-pace' }
+  // No finite upper runway exists while zero remains a feasible rate. Never
+  // turn an integer boundary crossing or a plateau into a precise countdown.
+  if (spanMs < 60_000 || bounds.min <= 1e-9) return { ...common, status: 'calibrating', reason: 'resolution' }
+  const pacePerHour = (bounds.min + bounds.max) * 30
   const remaining = clampPercent(window.remainingPercent)
-  const runwaySeconds = remaining / pacePerHour * 3600
-  const runwayMinSeconds = remaining / upperPacePerHour * 3600
-  const runwayMaxSeconds = remaining / lowerPacePerHour * 3600
-  const resetSeconds = resetsAt === null ? null : Math.max(0, resetsAt - now / 1000)
-  return {
-    status: 'ready',
-    pacePerHour,
-    uncertaintyPerHour,
-    runwaySeconds,
-    runwayMinSeconds,
-    runwayMaxSeconds,
+  const runwayMinSeconds = Math.max(0, remaining - 1) / common.upperPacePerHour * 3600
+  const runwayMaxSeconds = Math.min(100, remaining + 1) / common.lowerPacePerHour * 3600
+  const resetSeconds = resetsAt === null ? null : resetsAt - now / 1000
+  if (resetSeconds !== null && resetSeconds <= 0) return { ...common, status: 'calibrating', reason: 'stale' }
+  return { ...common, status: 'ready', pacePerHour,
+    runwaySeconds: remaining / pacePerHour * 3600,
+    runwayMinSeconds, runwayMaxSeconds,
     survivesReset: resetSeconds !== null && runwayMinSeconds >= resetSeconds,
-    sampleCount: samples.length,
-    observedSpanMs: spanMs,
-    consumedPercent,
   }
 }
 

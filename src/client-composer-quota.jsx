@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition, useDismissOnOutsidePointer } from '@deepseek-ai/dsh-client-ui-primitives'
 import { QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
-import { fill, percent, windowLabel, usePreferenceSnapshot, formatRunway } from './client-shared.js'
+import { fill, percent, windowLabel, usePreferenceSnapshot, formatRunway, formatQuotaForecast } from './client-shared.js'
 import { useQuickQuota } from './client-quota.jsx'
 import { quotaWarning } from './capability-settings.js'
 
@@ -57,7 +57,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
       style={{ ...position, visibility: position ? 'visible' : 'hidden' }}>
       {quotas.map((quota, index) => <div className="codexQuotaDetail" key={`${quota.windowSeconds}-${index}`}>
         <div><span>{windowLabel(quota.windowSeconds, t)}</span><strong>{fill(t('remaining'), { value: percent(quota.remainingPercent) })}</strong><span className="codexQuotaReset">{shortReset(quota, t)}</span></div>
-        {forecastMode ? <p>{forecastText(quota, t)}</p> : null}
+        {forecastMode ? <p>{formatQuotaForecast(quota.forecast, t)}</p> : null}
       </div>)}
     </section>, document.body) : null}
   </>
@@ -76,7 +76,7 @@ function shortReset(quota, t) {
 function forecastText(quota, t) {
   const forecast = quota.forecast
   if (forecast?.status === 'ready' && forecast.provisional) return `${t('forecastInitial')}≈${formatRunway(forecast.runwaySeconds, t)}`
-  if (forecast?.status === 'calibrating') return t('quickQuotaForecastCalibrating')
+  if (forecast?.status === 'calibrating') return t(({ resolution: 'forecastResolution', 'changing-pace': 'forecastChanging', stale: 'forecastStale' })[forecast.reason] ?? 'quickQuotaForecastCalibrating')
   if (forecast?.status === 'idle') return t('quickQuotaForecastIdle')
   if (forecast?.status === 'ready' && forecast.survivesReset) return t('quickQuotaForecastUntilReset')
   if (forecast?.status === 'ready') return `≈${formatRunway(forecast.runwaySeconds, t)}`
