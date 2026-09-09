@@ -176,6 +176,8 @@ The screenshot above illustrates image viewing and on-image notes; available but
 
 ### Sketch canvas (Beta)
 
+![Sketch canvas in the Chinese UI: aspect ratio, brushes, shapes, layers and zoom](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-canvas.png)
+
 Open Sketch from the composer button or `@Sketch`, or choose Open in sketch from an enhanced image preview. Attachment intake and removal use the native DSH component.
 
 Sketch supports local drafts, image layers, aspect ratios, brushes, lines and shapes, two erasers, undo/redo, pan/zoom and configurable shortcuts. Smoothing processes a completed stroke only after release. Up to 20 drafts stay in the current browser; attaching a sketch never sends it automatically. Its image panel manages only the current sketch, not the conversation library.

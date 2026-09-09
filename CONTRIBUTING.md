@@ -40,7 +40,7 @@ version change alone is not a reason to release.
 
 Describe the user-visible problem, the smallest implemented change, the checks
 you ran, and any remaining compatibility or privacy risk. Keep README and
-README.zh-CN.md behaviorally aligned when user instructions change. Public
+README.en.md behaviorally aligned when user instructions change. Public
 documentation should explain the product and its supported use, not internal
 debugging history or private design discussion.
 
