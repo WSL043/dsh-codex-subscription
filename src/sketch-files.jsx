@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSketchDismiss } from './sketch-interactions.js'
 import { sketchDrafts } from './sketch-drafts.js'
 export function SketchFiles({ save, load, fresh, importImage, disabled, t, report, onWorking }) {
   const [open,setOpen]=useState(false),[rows,setRows]=useState([]),[name,setName]=useState(''),[remove,setRemove]=useState(null),[working,setWorking]=useState(false)
   const input=useRef(null), host=useRef(null)
-  useEffect(()=>{if(open&&!working){host.current?.querySelector('input:not([type=file])')?.focus({preventScroll:true})}else if(!open){const dialog=host.current?.closest('dialog');if(dialog?.open)dialog.querySelector('canvas')?.focus({preventScroll:true})}},[open,working])
+  useEffect(()=>{if(open&&!working){host.current?.querySelector('input:not([type=file])')?.focus({preventScroll:true})}else if(!open&&document.activeElement===document.body){const dialog=host.current?.closest('dialog');if(dialog?.open)dialog.querySelector('canvas')?.focus({preventScroll:true})}},[open,working])
+  useSketchDismiss(open,setOpen,host,['.codexSketchFiles'])
   const run=async operation=>{setWorking(true);onWorking(true);try{await operation()}catch{report(t('sketchStorageFailed'))}finally{setWorking(false);onWorking(false)}}
   const refresh=async()=>setRows(await sketchDrafts('list'))
   return <div ref={host} className="codexSketchFiles" onKeyDown={e=>{if(e.key==='Escape'&&open){e.preventDefault();e.stopPropagation();setOpen(false)}}}>
