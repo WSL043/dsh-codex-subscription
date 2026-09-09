@@ -3,7 +3,7 @@ import { Menu, IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primi
 import { IMAGE_MODELS } from './image-models.js'
 import { IMAGE_SETTING_GROUPS, imageGroupValue, imageGroupPatch } from './image-setting-groups.js'
 
-function ImageChoice({ label, hint, value, text, items, disabled, onSelect }) {
+export function ImageChoice({ label, hint, value, text, items, disabled, onSelect }) {
   const [open, setOpen] = useState(false)
   const anchor = useRef(null)
   useEffect(() => {

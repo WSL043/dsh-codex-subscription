@@ -146,11 +146,12 @@ Standard preserves the account catalog default. Extended prefers the explicit of
 ### Composer quota
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota-en.png" width="800" alt="Codex quota inside the composer">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-2.0-light.png" width="800" alt="Codex quota inside the composer">
 </p>
 
-Choose Off, Percent, Progress bar, or Beta Runway in Settings. The compact display appears only for a selected Codex model. Runway is opt-in and estimates pace only from official remaining-percentage observations. It needs at least three samples; sustained high use usually produces a range in 5–10 minutes, while low use takes longer or reports a stable state. Non-sensitive observations from the last 24 hours are kept locally so calibration can continue after restart; a quota reset, account switch, or disabling the feature starts a new calibration period.
-The composer labels each remaining percentage by window, such as “5h 80% · wk 54%”, without merging independent limits. Bar mode keeps the numbers. Click to inspect all windows, reset times and enabled forecasts with touch or keyboard support. Spark keeps its independent quota. Accounts with only a weekly window still show only that window; the plugin does not invent a
+Settings offers Show quota and an optional experimental runway forecast. The composer uses one 28px icon: hover for remaining quota or click for all windows, reset times and enabled forecasts. Legacy percent/bar settings remain readable but use the same compact appearance.
+
+Forecast sampling pauses when quota display is disabled. Estimates need at least three samples; sustained high use usually takes 5–10 minutes. Non-sensitive observations from the last 24 hours remain local; resets, account changes or disabling restart calibration. Spark keeps its independent quota. Accounts with only a weekly window still show only that window; the plugin does not invent a
 five-hour limit, Credits, or spending caps that the service did not return.
 
 ### Safe quota reset
