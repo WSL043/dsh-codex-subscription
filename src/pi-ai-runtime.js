@@ -5,12 +5,12 @@ import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-work
 import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
-  CUSTOM_CONTEXT_MODEL_CAPS,
   customContextModelKey,
   OUTPUT_VERBOSITY_DEFAULT,
   SPEED_MODE_FAST,
-  normalizeCustomContextWindow,
   supportsCodexFastMode,
+  modelContextMaximum,
+  clampModelContext,
 } from './settings-contract.js'
 
 const FAST_SERVICE_TIER = 'priority'
@@ -30,16 +30,6 @@ export { createOpenAICodexProvider as openaiCodexProvider }
  * persistence, headers, transport, and model behavior remain owned by the
  * original provider.
  */
-const EXTENDED_CONTEXT_WINDOWS = Object.freeze({
-  'gpt-5.4': 1_000_000,
-  'gpt-5.4-mini': 400_000,
-  'gpt-5.5': 1_000_000,
-  'gpt-5.6-luna': 1_000_000,
-  'gpt-5.6-sol': 1_000_000,
-  'gpt-5.6-terra': 1_000_000,
-  'gpt-6-astra': CUSTOM_CONTEXT_MODEL_CAPS['gpt-6-astra'],
-})
-
 export function openaiCodexSubscriptionProvider({
   resolveSpeedMode = () => undefined,
   resolveOutputVerbosity = () => OUTPUT_VERBOSITY_DEFAULT,
@@ -90,15 +80,15 @@ export function openaiCodexSubscriptionProvider({
     }
   }
   const getModels = () => (catalog?.getModels(provider.getModels()) ?? provider.getModels()).map(model => {
-    const maximum = EXTENDED_CONTEXT_WINDOWS[model.id]
+    const maximum = modelContextMaximum(model)
     const mode = resolveContextMode()
-    if (maximum === undefined || ![CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM].includes(mode)) return model
+    if (model.id === 'gpt-5.3-codex-spark' || ![CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM].includes(mode)) return model
     if (mode === CONTEXT_MODE_EXTENDED) {
-      // Keep historical presets unchanged; Astra uses the explicitly audited budget.
-      const contextWindow = model.id === 'gpt-6-astra' ? maximum : Math.max(model.contextWindow, maximum)
+      // Prefer the explicit catalog maximum; known offline models keep audited presets.
+      const contextWindow = maximum
       return { ...model, contextWindow }
     }
-    const requested = normalizeCustomContextWindow(resolveCustomContextWindow(customContextModelKey(model.id)), maximum)
+    const requested = clampModelContext(resolveCustomContextWindow(customContextModelKey(model.id)), maximum, model.contextWindow)
     return { ...model, contextWindow: requested }
   })
   const networkIterable = factory => {

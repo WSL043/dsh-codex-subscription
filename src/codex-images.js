@@ -2,15 +2,15 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { ORIGINAL_IMAGE_SCHEMA_VERSION } from './image-original-contract.js'
 import { USER_AGENT } from './version.js'
+import { IMAGE_MODELS, resolveImageModel, validateImageQuality } from './image-models.js'
+import { assertImageOperation, readImageDefaults } from './image-features.js'
 
 export const CODEX_IMAGE_TOOL_NAME = 'codex_image_generate'
 export const CODEX_IMAGE_GENERATION_URL = 'https://chatgpt.com/backend-api/codex/images/generations'
 export const CODEX_IMAGE_EDIT_URL = 'https://chatgpt.com/backend-api/codex/images/edits'
 
-const IMAGE_MODEL = 'gpt-image-2'
 const MAX_REFERENCE_IMAGES = 5
 const RESPONSE_ENVELOPE_BYTES = 1024 * 1024
-const IMAGE_QUALITIES = new Set(['auto', 'low', 'medium', 'high'])
 const IMAGE_BACKGROUNDS = new Set(['auto', 'transparent', 'opaque'])
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 const FULL_ATTACHMENT_ID = /^sha256:[0-9a-f]{64}$/u
@@ -25,7 +25,7 @@ export function normalizeImageOptions(args) {
   const quality = nonEmpty(args?.quality) ?? 'auto'
   const background = nonEmpty(args?.background) ?? 'auto'
   const size = nonEmpty(args?.size) ?? 'auto'
-  if (!IMAGE_QUALITIES.has(quality)) throw new Error('quality must be auto, low, medium, or high')
+  validateImageQuality(resolveImageModel(args?.model), quality)
   if (!IMAGE_BACKGROUNDS.has(background)) throw new Error('background must be auto, transparent, or opaque')
   if (size !== 'auto') {
     const match = /^(\d+)x(\d+)$/u.exec(size)
@@ -250,6 +250,9 @@ function imageOutputSchema() {
         },
       },
       background: { type: 'string' },
+      requestedModel: { type: 'string' },
+      reportedModel: { type: 'string' },
+      requestedSize: { type: 'string' },
       localPath: { type: 'string', required: true, description: 'Absolute path to the original PNG on the DSH host.' },
       quality: { type: 'string' },
       size: { type: 'string' },
@@ -266,6 +269,7 @@ function responseMetadata(value) {
     background: nonEmpty(value.background),
     quality: nonEmpty(value.quality),
     size: nonEmpty(value.size),
+    reportedModel: nonEmpty(value.model),
   }
 }
 
@@ -275,8 +279,13 @@ export function createCodexImageTool(options) {
   const attachments = options.attachments
   return defineTool({
     name: CODEX_IMAGE_TOOL_NAME,
-    description: 'Create a new image or explicitly edit selected prior images using the signed-in Codex subscription. Omit referenceImages only for a completely new image. For an edit, copy each complete image reference from the session image block or read_image result, including attachmentId in the exact form sha256:<64 lowercase hex>; never use a workspace path, absolute path, or filename, and do not omit the references to turn an edit into text-to-image generation. A bare 64-character hex digest is accepted and normalized to sha256:<64 lowercase hex>. If a reference is unavailable, call read_image and retry with its returned reference. Include only the exact prior image references the user asked to edit; never assume every image in the conversation is a reference. For annotation-guided edits, include both the named clean source and its numbered location reference, and preserve the numbered coordinates and requested changes in the prompt. The location-reference markers are guidance only and must not appear in the result. If those references cannot be identified, do not substitute unrelated images or silently ignore the annotations.',
+    description: 'Generate or edit images only when the user asks for image output, not when merely discussing images. Uses the signed-in Codex subscription. For a new image, omit referenceImages. For edits, copy complete references only for the images the user selected; obtain missing references using read_image. Never substitute paths, unrelated images, or text-only generation for an edit. For numbered annotations, include the clean source and location-reference image, preserve the requested changes and coordinates in the prompt, and remove guidance markers from the result. If the intended references cannot be identified, ask rather than guessing.',
     parameters: {
+      model: {
+        type: 'string',
+        enum: Object.keys(IMAGE_MODELS),
+        description: 'Optional image engine, independent of the conversation model. When omitted, uses the user image setting (initially gpt-image-2). The 2.5 identifiers are experimental subscription candidates; override only when explicitly requested. Never silently retry with another model.',
+      },
       prompt: {
         type: 'string',
         required: true,
@@ -288,7 +297,7 @@ export function createCodexImageTool(options) {
       },
       quality: {
         type: 'string',
-        enum: ['auto', 'low', 'medium', 'high'],
+        enum: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
         description: 'Optional rendering quality. Use auto unless the user requests draft speed or final quality.',
       },
       background: {
@@ -332,11 +341,17 @@ export function createCodexImageTool(options) {
         kind: 'codex-subscription-image',
         schemaVersion: ORIGINAL_IMAGE_SCHEMA_VERSION,
         original: value.original,
+        ...(value.requestedModel === undefined ? {} : { requestedModel: value.requestedModel }),
+        ...(value.reportedModel === undefined ? {} : { reportedModel: value.reportedModel }),
+        ...(value.requestedSize === undefined ? {} : { requestedSize: value.requestedSize }),
       }),
     },
     timeoutMs: 5 * 60 * 1000,
     isConcurrencySafe: () => false,
     async execute(args, exec) {
+      assertImageOperation(options.getFeatures?.(), args.referenceImages !== undefined)
+      const defaults = readImageDefaults(options.getFeatures?.())
+      args = { ...args, model: args.model ?? defaults.imageModel, quality: args.quality ?? defaults.imageQuality }
       const prompt = nonEmpty(args.prompt)
       if (prompt === undefined) throw new Error('prompt must be a non-empty string')
       const imageOptions = normalizeImageOptions(args)
@@ -363,6 +378,7 @@ export function createCodexImageTool(options) {
         ? await editImages(args.referenceImages, attachments, exec.signal, sessionMessages ?? (options.getSessionMessages ? [] : undefined))
         : undefined
       let response
+      assertImageOperation(options.getFeatures?.(), editing)
       try {
         response = await fetchImage(editing ? CODEX_IMAGE_EDIT_URL : CODEX_IMAGE_GENERATION_URL, {
           method: 'POST',
@@ -380,7 +396,7 @@ export function createCodexImageTool(options) {
             ...(images === undefined ? {} : { images }),
             prompt,
             background: imageOptions.background,
-            model: IMAGE_MODEL,
+            model: resolveImageModel(args.model),
             quality: imageOptions.quality,
             size: imageOptions.size,
           }),
@@ -418,6 +434,9 @@ export function createCodexImageTool(options) {
         throw error
       }
       const result = {
+        requestedModel: resolveImageModel(args.model),
+        requestedSize: imageOptions.size,
+        ...(metadata.reportedModel === undefined ? {} : { reportedModel: metadata.reportedModel }),
         image: imageReference(ref),
         original,
         localPath: options.originalImages.originalPath(original.assetId),
