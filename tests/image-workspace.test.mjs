@@ -7,7 +7,6 @@ import { imageFeaturePatch, assertImageOperation } from '../src/image-features.j
 import { resolveImageModel, validateImageQuality } from '../src/image-models.js'
 import { sketchPoint, paintSketch } from '../src/sketch-document.js'
 import { createSketchTrigger } from '../src/sketch-trigger.js'
-import { sessionImageGallery } from '../src/image-gallery.js'
 
 test('image model quality combinations reject unsupported requests without downgrade', () => {
   assert.equal(resolveImageModel(), 'gpt-image-2')
@@ -30,7 +29,7 @@ test('composer rejects release all newly created attachments, including thrown e
   assert.throws(()=>attachImageFiles(conversation,{addImages:()=>{throw Error('busy')}},[]))
   assert.equal(released,created)
 })
-test('template insertion preserves existing draft and refuses to flatten reference chips', () => {
+test('image instruction insertion preserves existing draft and refuses to flatten reference chips', () => {
   let draft='Existing text'
   const input={state:{getSnapshot:()=>({draft,phase:'plain',occurrences:[]})},setDraft:value=>{draft=value}}
   appendImagePrompt(input,'New brief'); assert.equal(draft,'Existing text\n\nNew brief')
@@ -85,11 +84,4 @@ test('disabling both image operations removes the tool and re-enabling restores 
   dispose()
   assert.equal(active, 0)
   assert.equal(watching, false)
-})
-
-test('gallery skips unrelated messages and bounds returned image history', () => {
-  const original={assetId:'img_'+ 'a'.repeat(32),mediaType:'image/png',bytes:68,width:1,height:1,name:'image.png',sha256:'a'.repeat(64)}
-  const events=Array.from({length:110},(_,i)=>({type:'tool/result',data:{meta:{kind:'codex-subscription-image',schemaVersion:1,original},message:{content:[{type:'tool-result',content:[{type:'image',attachment:{attachmentId:'sha256:'+i.toString(16).padStart(64,'0'),mediaType:'image/png',bytes:68,width:1,height:1}}]}]}}}))
-  assert.equal(sessionImageGallery([{type:'user',data:{secret:'hidden'}},...events]).length,100)
-  assert.equal(sessionImageGallery([{type:'tool/result',data:{message:events[0].data.message}}]).length,0)
 })

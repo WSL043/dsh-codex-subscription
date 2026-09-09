@@ -40,8 +40,8 @@ export function ImagePreferences({ preference, t }) {
   const snapshot = useSyncExternalStore(preference.subscribe, preference.getSnapshot)
   const disabled = snapshot.status !== 'ready' || !snapshot.writable || snapshot.saving
   const active = snapshot.imageGeneration || snapshot.imageEditing
-  return <details className="codexSubscriptionSearchOptions codexImageSettings">
-    <summary>{t('imageSettings')}</summary>
+  return <section className="codexSubscriptionCard codexImageSettings" aria-label={t('imageSettings')}>
+    <h3>{t('imageSettings')}</h3>
     {Object.keys(IMAGE_SETTING_GROUPS).map(group => {
       const value = imageGroupValue(snapshot, group)
       return <ImageChoice key={group} label={t(group)} hint={t(`${group}Hint`)}
@@ -60,5 +60,5 @@ export function ImagePreferences({ preference, t }) {
         onSelect={imageQuality => { void preference.set({ imageQuality }) }} />
     </div>
     {snapshot.imageModel.includes('2.5') ? <p className="codexSubscriptionPreferenceHint">{t('imageModelHint')}</p> : null}
-  </details>
+  </section>
 }

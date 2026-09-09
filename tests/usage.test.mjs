@@ -3,6 +3,12 @@ import test from 'node:test'
 
 import { createCodexUsageReader, parseCodexUsage } from '../src/usage.js'
 
+test('usage parser retains disclosed fractional percentage precision', () => {
+  const parsed = parseCodexUsage({ rate_limit: { primary_window: { used_percent: 12.3456, limit_window_seconds: 18000 } } })
+  assert.equal(parsed.rateLimits[0].windows[0].usedPercent, 12.3456)
+  assert.ok(Math.abs(parsed.rateLimits[0].windows[0].remainingPercent - 87.6544) < 1e-10)
+})
+
 test('usage parser returns secret-free remaining quota windows and exact disclosed balances', () => {
   const parsed = parseCodexUsage({
     rate_limit: {

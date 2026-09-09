@@ -1,8 +1,8 @@
 // Preserve old per-feature values until the user deliberately changes a group.
 export const IMAGE_SETTING_GROUPS = Object.freeze({
   imageCapability: ['imageGeneration', 'imageEditing'],
-  imageEntryPoints: ['imageShortcut', 'imageSketch', 'imageTemplates'],
-  imageBrowsing: ['imageViewer', 'imageAnnotations', 'imageGallery', 'imageCompare'],
+  imageEntryPoints: ['imageShortcut', 'imageSketch'],
+  imageBrowsing: ['imageViewer', 'imageAnnotations'],
 })
 export function imageGroupValue(snapshot, group) {
   const fields = IMAGE_SETTING_GROUPS[group]

@@ -17,7 +17,8 @@ const median = values => {
   return ordered.length % 2 === 0 ? (ordered[middle - 1] + ordered[middle]) / 2 : ordered[middle]
 }
 
-function requiredSpanMs(consumedPercent) {
+function requiredSpanMs(consumedPercent, resolution = 1) {
+  if (resolution < 1 && consumedPercent >= Math.max(0.05, resolution * 2)) return 2 * 60_000
   if (consumedPercent >= 2) return 5 * 60 * 1000
   if (consumedPercent >= 1) return 10 * 60 * 1000
   if (consumedPercent >= 0.5) return 20 * 60 * 1000
@@ -72,8 +73,14 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
   if (now - last.at > 20 * 60_000) return { status: 'calibrating', reason: 'stale' }
   const spanMs = last.at - first.at
   const consumedPercent = Math.max(0, first.remainingPercent - last.remainingPercent)
-  if (consumedPercent > 0 && consumedPercent < 1) return { status: 'calibrating', reason: 'resolution', sampleCount: samples.length }
-  if (spanMs < requiredSpanMs(consumedPercent)) {
+  const resolution = samples.reduce((step, sample) => {
+    for (const candidate of [1, 0.1, 0.01, 0.001, 0.0001]) {
+      if (Math.abs(sample.remainingPercent / candidate - Math.round(sample.remainingPercent / candidate)) < 0.000001) return Math.min(step, candidate)
+    }
+    return step
+  }, 1)
+  if (consumedPercent > 0 && consumedPercent < (resolution === 1 ? 1 : Math.max(0.05, resolution * 2))) return { status: 'calibrating', reason: 'resolution', sampleCount: samples.length }
+  if (spanMs < requiredSpanMs(consumedPercent, resolution)) {
     return { status: 'calibrating', sampleCount: samples.length, observedSpanMs: spanMs, consumedPercent }
   }
 
@@ -92,11 +99,14 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
   }
   const deviations = positive.map(value => Math.abs(value - pacePerHour))
   // Include reporting quantization even when the fitted samples form a perfect line.
-  const uncertaintyPerHour = Math.max(deviations.length === 0 ? 0 : median(deviations) * 1.4826, 0.5 / (spanMs / HOUR_MS))
+  const uncertaintyPerHour = Math.max(deviations.length === 0 ? 0 : median(deviations) * 1.4826, resolution / (spanMs / HOUR_MS))
   const recent = samples.filter(sample => sample.at >= last.at - 30 * 60_000)
   if (recent.length >= 3 && last.at - recent[0].at >= 5 * 60_000) {
     const recentPace = (recent[0].remainingPercent - last.remainingPercent) / ((last.at - recent[0].at) / HOUR_MS)
-    if (recentPace > pacePerHour * 2 || recentPace < pacePerHour / 2) return { status: 'calibrating', reason: 'changing-pace', sampleCount: samples.length }
+    if (recentPace > pacePerHour * 2 || recentPace < pacePerHour / 2) {
+      if (samples.length > recent.length) return estimateQuotaForecast({ windows: { ...state.windows, [keyFor(window, context)]: { ...record, samples: recent } } }, window, now, context)
+      return { status: 'calibrating', reason: 'changing-pace', sampleCount: samples.length }
+    }
   }
   const lowerPacePerHour = Math.max(0.02, pacePerHour - uncertaintyPerHour)
   const upperPacePerHour = pacePerHour + uncertaintyPerHour

@@ -3,8 +3,6 @@ import { SKETCH_CSS } from './sketch-workspace.jsx'
 import { ImageWorkspace } from './image-workspace.jsx'
 import { attachImageFiles, appendImagePrompt } from './image-composer.js'
 import { createSketchTrigger, createImageTrigger } from './sketch-trigger.js'
-import { LIBRARY_CSS } from './image-library.jsx'
-import { readOriginalImage } from './original-image-download.js'
 import { zh, en } from './client-locales.js'
 import { STYLE } from './client-styles.js'
 import { createAnnotatedImageReference } from './image-edit-reference.js'
@@ -30,7 +28,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = 'dsh-codex-subscription'
-    tag.textContent = STYLE + SUBSCRIPTION_IMAGE_VIEWER_CSS + SKETCH_CSS + LIBRARY_CSS
+    tag.textContent = STYLE + SUBSCRIPTION_IMAGE_VIEWER_CSS + SKETCH_CSS
     document.head.append(tag)
     return () => tag.remove()
   }, 'codex-subscription: style')
@@ -131,30 +129,11 @@ export function apply(ctx) {
       },
       appendPrompt: (text, mode) => {
         const current = preference.getSnapshot()
-        const allowed = mode === 'image' ? current.imageShortcut && (current.imageGeneration || current.imageEditing) : current.imageTemplates && current.imageGeneration
+        const allowed = mode === 'image' && current.imageShortcut && (current.imageGeneration || current.imageEditing)
         if (!allowed) throw new Error('Image input is disabled')
         appendImagePrompt(sessionInput(sessionId), text)
       },
-      loadGallery: async () => {
-        const result = await rpc.call(CHANNEL, 'image/gallery', { sessionId })
-        if (result?.error?.code !== 'not-ready') return unwrap(result)
-        // A newly selected persisted session is restored asynchronously by DSH.
-        await new Promise(resolve => setTimeout(resolve, 350))
-        return unwrap(await rpc.call(CHANNEL, 'image/gallery', { sessionId }))
-      },
-      loadImage: attachment => uiConversation.imageUrl(sessionId, attachment),
-      attachSelected: async (items, signal) => {
-        const enabled = () => { const value = preference.getSnapshot(); return value.imageGallery && value.imageEditing }
-        if (!enabled() || !items.length || items.length > 5) throw new Error('Image selection is unavailable')
-        const files = []
-        for (const [index, item] of items.entries()) {
-          const bytes = await readOriginalImage(rpc, sessionId, item.original, { signal })
-          files.push(new File([bytes], `reference-${index + 1}.png`, { type: 'image/png' }))
-        }
-        if (!enabled()) throw new Error('Image editing is disabled')
-        signal?.throwIfAborted()
-        attachImageFiles(conversation, sessionInput(sessionId), files)
-      },
+
     }),
   }, ImageWorkspace))
   ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
