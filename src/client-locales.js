@@ -1,4 +1,5 @@
 export const zh = {
+  sketchFiles: '草稿', sketchNew: '新建草图', sketchImport: '导入图片', sketchDraftName: '草稿名称', sketchSave: '保存草稿', sketchDeleteDraft: '删除', sketchDeleteConfirm: '确认删除', sketchFileClose: '收起', sketchLocalDrafts: '本浏览器保存，最多 20 份。关闭时自动保存；图片可粘贴或拖入（PNG / JPEG / WebP，20 MB 内）。', sketchStorageFailed: '未能完成操作。请检查本地存储空间、草稿和图层数量，或图片格式与大小；当前画布仍保留。', sketchAttachShort: '附加', sketchTool_line: '直线', sketchStability: '防抖', sketchStability0: '关闭', sketchStability25: '弱', sketchStability50: '中', sketchStability75: '强', sketchShortcuts: 'B 画笔 · E 橡皮 · L 直线 · R 矩形 · O 椭圆 · [ ] 粗细 · Ctrl Z 撤销 · Ctrl Shift Z 重做 · Ctrl S 保存 · Shift 直线吸附',
   sketchRatio: '画布比例', sketchRatioHint: '画布比例；切换时等比保留笔画，可撤销',
   forecastCompactPending: '待估', forecastCompactChanging: '重估', forecastCompactStale: '待更新',
   imageEditShort: '继续编辑', forecastResolution: '暂时估不准：读数变化不足以确定速度', forecastChanging: '使用强度变化，正在重新估计', forecastStale: '额度数据已过期，等待更新',
@@ -99,6 +100,7 @@ export const zh = {
 }
 
 export const en = {
+  sketchFiles: 'Drafts', sketchNew: 'New sketch', sketchImport: 'Import image', sketchDraftName: 'Draft name', sketchSave: 'Save draft', sketchDeleteDraft: 'Delete', sketchDeleteConfirm: 'Confirm', sketchFileClose: 'Close', sketchLocalDrafts: 'Saved in this browser, up to 20 drafts. Autosaved on close. Paste or drop PNG / JPEG / WebP images under 20 MB.', sketchStorageFailed: 'Could not complete the action. Check local storage, draft and layer limits, or image type and size. The canvas is preserved.', sketchAttachShort: 'Attach', sketchTool_line: 'Line', sketchStability: 'Stabilize', sketchStability0: 'Off', sketchStability25: 'Low', sketchStability50: 'Medium', sketchStability75: 'High', sketchShortcuts: 'B brush · E eraser · L line · R rectangle · O ellipse · [ ] size · Ctrl Z undo · Ctrl Shift Z redo · Ctrl S save · Shift snap line',
   sketchRatio: 'Canvas ratio', sketchRatioHint: 'Canvas ratio; artwork fits without distortion, undo available',
   forecastCompactPending: 'Estimating', forecastCompactChanging: 'Re-estimating', forecastCompactStale: 'Stale',
   imageEditShort: 'Edit', forecastResolution: 'Not enough change to estimate the rate yet', forecastChanging: 'Usage intensity changed; estimating again', forecastStale: 'Quota data is stale; waiting for an update',

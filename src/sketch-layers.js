@@ -17,7 +17,7 @@ export function changeSketchLayer(doc, action, id = doc.active, value) {
   if (action === 'up' || action === 'down') { const target = index + (action === 'up' ? 1 : -1); if (!layers[target]) return doc; [layers[index], layers[target]] = [layers[target], layer] }
   else if (action === 'visible') layers[index] = { ...layer, visible: !layer.visible }
   else if (action === 'rename') layers[index] = { ...layer, name: String(value).trim().slice(0, 40) }
-  else if (action === 'clear') layers[index] = { ...layer, strokes: [] }
+  else if (action === 'clear') layers[index] = { ...layer, strokes: [], image: undefined }
   else return doc
   return { ...doc, layers }
 }
@@ -49,6 +49,7 @@ export function resizeSketch(doc, ratio) {
   const scale = Math.min(width / oldWidth, height / oldHeight)
   const dx = (width - oldWidth * scale) / 2, dy = (height - oldHeight * scale) / 2
   return { ...doc, width, height, ratio, layers: doc.layers.map(layer => ({ ...layer,
+    ...(layer.image ? { image: { ...layer.image, x: (layer.image.x * oldWidth * scale + dx) / width, y: (layer.image.y * oldHeight * scale + dy) / height, width: layer.image.width * oldWidth * scale / width, height: layer.image.height * oldHeight * scale / height } } : {}),
     strokes: layer.strokes.map(stroke => ({ ...stroke, width: stroke.width * scale,
       points: stroke.points.map(p => ({ x: (p.x * oldWidth * scale + dx) / width, y: (p.y * oldHeight * scale + dy) / height })) })) })) }
 }
