@@ -43,6 +43,23 @@ test('keeps annotations by image across close and reopen', () => {
   assert.equal(service.getAnnotationsSnapshot()['image-a'][0].note, annotation.note)
 })
 
+test('uses each unnamed image source as its annotation identity', () => {
+  const service = new SubscriptionImageViewerService()
+  const annotation = { id: 'note-a', x: 0.25, y: 0.75, note: 'A only' }
+
+  assert.equal(service.open({ items: [{ src: 'blob:a' }] }), true)
+  const firstId = service.getSnapshot().items[0].id
+  service.setAnnotations(firstId, [annotation])
+  service.close()
+
+  assert.equal(service.open({ items: [{ src: 'blob:b' }] }), true)
+  const secondId = service.getSnapshot().items[0].id
+  assert.equal(firstId, 'blob:a')
+  assert.equal(secondId, 'blob:b')
+  assert.notEqual(firstId, secondId)
+  assert.equal(service.getAnnotationsSnapshot()[secondId], undefined)
+})
+
 test('emits one change for open and one for close without exposing global viewer state', () => {
   const service = new SubscriptionImageViewerService()
   let changes = 0

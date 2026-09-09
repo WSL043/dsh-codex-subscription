@@ -25,7 +25,7 @@ export function normalizeSubscriptionViewerRequest(request) {
   const items = rawItems.flatMap((item, position) => {
     if (typeof item?.src !== 'string' || item.src === '') return []
     return [{
-      id: typeof item.id === 'string' && item.id !== '' ? item.id : `image-${position + 1}`,
+      id: typeof item.id === 'string' && item.id !== '' ? item.id : item.src,
       src: item.src,
       name: typeof item.name === 'string' && item.name !== '' ? item.name : `Image ${position + 1}`,
       width: boundedNumber(item.width, undefined),
