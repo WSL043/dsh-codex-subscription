@@ -1,23 +1,22 @@
 import { CapabilityPreferences } from './capability-preferences.jsx'
-import { ImagePreferences, ImageChoice } from './image-preferences.jsx'
+import { ImagePreferences } from './image-preferences.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { Button, IconChevronDownOutline14, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
-import { CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, clampModelContext, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
+import { CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, clampModelContext, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
 import { reconcileContextDrafts } from './context-draft-state.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
 export function QuickQuotaPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
-  const writable = snapshot.status === 'ready' && snapshot.writable === true && !snapshot.saving
-  const enabled = snapshot.quickQuotaMode !== QUICK_QUOTA_MODE_OFF
-  const forecast = snapshot.quickQuotaMode === QUICK_QUOTA_MODE_FORECAST
-  const choices = [{ id: 'on', label: t('imageCapability_on') }, { id: 'off', label: t('imageCapability_off') }]
-  return <div className="codexQuotaPreferences" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined}>
-    <ImageChoice label={t('quotaShowIndicator')} hint={t('quotaIndicatorHint')} value={enabled ? 'on' : 'off'}
-      text={t(enabled ? 'imageCapability_on' : 'imageCapability_off')} items={choices} disabled={!writable}
-      onSelect={id => { void preference.set({ [QUICK_QUOTA_MODE_FIELD]: id === 'off' ? QUICK_QUOTA_MODE_OFF : forecast ? QUICK_QUOTA_MODE_FORECAST : QUICK_QUOTA_MODE_PERCENT }) }} />
-    <ImageChoice label={t('quotaForecastOptional')} hint={forecast ? t('quickQuotaForecastHint') : undefined} value={forecast ? 'on' : 'off'}
-      text={t(forecast ? 'imageCapability_on' : 'imageCapability_off')} items={choices} disabled={!writable || !enabled}
-      onSelect={id => { void preference.set({ [QUICK_QUOTA_MODE_FIELD]: id === 'on' ? QUICK_QUOTA_MODE_FORECAST : QUICK_QUOTA_MODE_PERCENT }) }} />
+  const writable = snapshot.status === 'ready' && snapshot.writable === true
+  const choice = (value, label) => <label className="codexSubscriptionQuotaMode"><input type="radio" name="codex-subscription-quota-mode" checked={snapshot.quickQuotaMode === value} disabled={!writable} onChange={() => { void preference.set({ [QUICK_QUOTA_MODE_FIELD]: value }) }} /><span>{label}</span></label>
+  return <div className="codexSubscriptionPreference">
+    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('quickQuotaSetting')}</span>{snapshot.quickQuotaMode === QUICK_QUOTA_MODE_FORECAST ? <span className="codexSubscriptionPreferenceHint">{t('quickQuotaForecastHint')}</span> : null}</div>
+    <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('quickQuotaSetting')}>
+      {choice(QUICK_QUOTA_MODE_OFF, t('quickQuotaOff'))}
+      {choice(QUICK_QUOTA_MODE_PERCENT, t('quickQuotaPercent'))}
+      {choice(QUICK_QUOTA_MODE_BAR, t('quickQuotaBar'))}
+      {choice(QUICK_QUOTA_MODE_FORECAST, <>{t('quickQuotaForecast')} <small>{t('quickQuotaBeta')}</small></>)}
+    </div>
   </div>
 }
 
@@ -88,16 +87,18 @@ export function ContextWindowPreference({ preference, t }) {
   </div>
 }
 
-export function PreferencesCard({ preference, t }) {
+export function PreferencesCard({ preference, t, section = "display" }) {
   const snapshot = usePreferenceSnapshot(preference)
   return <div className="codexSubscriptionCard codexSubscriptionPreferencesCard">
-    <SearchProviderPreference preference={preference} t={t} />
-    <div className="codexSubscriptionDivider" />
-    <ContextWindowPreference preference={preference} t={t} />
-    <div className="codexSubscriptionDivider" />
-    <QuickQuotaPreference preference={preference} t={t} />
-    <CapabilityPreferences preference={preference} t={t} section="quota" />
-    <ImagePreferences preference={preference} t={t} />
+    {section === 'advanced' ? <>
+      <SearchProviderPreference preference={preference} t={t} />
+      <div className="codexSubscriptionDivider" />
+      <ContextWindowPreference preference={preference} t={t} />
+    </> : <>
+      <QuickQuotaPreference preference={preference} t={t} />
+      <CapabilityPreferences preference={preference} t={t} section="quota" />
+      <ImagePreferences preference={preference} t={t} />
+    </>}
     {snapshot.error ? <div className="codexSubscriptionRecover" role="alert"><p className="codexSubscriptionError">{t('preferenceFailed')}</p><Button type="button" variant="outline" onClick={() => { void preference.retry() }}>{t('preferenceRetry')}</Button></div> : null}
   </div>
 }

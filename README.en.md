@@ -149,9 +149,9 @@ Standard preserves the account catalog default. Extended prefers the explicit of
   <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-2.0-light.png" width="800" alt="Codex quota inside the composer">
 </p>
 
-Settings offers Show quota and an optional experimental runway forecast. The composer uses one 28px icon: hover for remaining quota or click for all windows, reset times and enabled forecasts. Legacy percent/bar settings remain readable but use the same compact appearance.
+The horizontal quota selector offers Off, Percent, Progress bar and Runway forecast. Percent shows the window and remaining value; the bar keeps its numeric value; Runway shows an estimate or calibration state. Hover and click share one compact detail surface, with one row per window for remaining quota and reset time.
 
-Forecast sampling pauses when quota display is disabled. Estimates need at least three samples; sustained high use usually takes 5–10 minutes. Non-sensitive observations from the last 24 hours remain local; resets, account changes or disabling restart calibration. Spark keeps its independent quota. Accounts with only a weekly window still show only that window; the plugin does not invent a
+Settings uses Account & usage, Preferences and Advanced tabs. Quota appearance, alerts and images live in Preferences; search routing, context and diagnostics live in Advanced. Forecasting is opt-in and needs at least three samples. Spark keeps its independent quota. Accounts with only a weekly window still show only that window; the plugin does not invent a
 five-hour limit, Credits, or spending caps that the service did not return.
 
 ### Safe quota reset
