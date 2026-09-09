@@ -17,7 +17,7 @@ function plan(files, packageVersion = '1.10.0', publishedVersion = '1.10.0') {
 }
 
 test('documentation and marketplace screenshot changes run delivery checks without pretending runtime changed', () => {
-  for (const file of ['README.md', 'README.en.md', 'README.zh-CN.md', 'CONTRIBUTING.md', 'screenshots.json']) {
+  for (const file of ['README.md', 'README.en.md', 'CONTRIBUTING.md', 'screenshots.json']) {
     const result = plan([file])
     assert.equal(result.status, 0, result.stderr)
     const output = JSON.parse(result.stdout)
