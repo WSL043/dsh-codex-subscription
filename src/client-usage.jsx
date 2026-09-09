@@ -159,7 +159,7 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
   }, [signedIn, resetKey])
   const visibleUsage = signedIn ? usage : undefined
   const limits = visibleUsage?.rateLimits ?? []
-  const warning = error === undefined ? quotaWarning(visibleUsage, preferenceSnapshot.quotaAlerts, now) : undefined
+  const warning = error === undefined ? quotaWarning(visibleUsage, preferenceSnapshot.quotaAlerts, now, preferenceSnapshot) : undefined
   const exhausted = limits.some(limit => limit.id !== 'code_review'
     && limit.windows.some(window => window.usedPercent >= 100))
   const hasUsageDetails = limits.length > 0 || visibleUsage?.credits !== undefined

@@ -47,7 +47,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
       {quotas.map((quota, index) => <span className="codexQuotaCompactWindow" key={`${quota.windowSeconds}-${index}`}>
         <span>{shortWindow(quota.windowSeconds, t)}</span>
         {preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR ? <progress className="codexComposerQuotaBar" max={100} value={quota.remainingPercent} aria-hidden="true" /> : null}
-        <span>{forecastMode ? forecastText(quota, t) : `${percent(quota.remainingPercent)}%`}</span>
+        {preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_BAR ? <span>{forecastMode ? forecastText(quota, t) : `${percent(quota.remainingPercent)}%`}</span> : null}
       </span>)}
     </button>
     {visible ? createPortal(<section ref={panel} id={id} role="dialog" aria-label={t('quotaDetails')}
