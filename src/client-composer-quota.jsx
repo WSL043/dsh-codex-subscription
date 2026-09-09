@@ -42,14 +42,15 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
   const warning = quotaWarning({ fetchedAt: quotas[0]?.fetchedAt, rateLimits: [{ id: 'current', windows: quotas }] }, preferenceSnapshot.quotaAlerts, Date.now(), preferenceSnapshot)
   const label = quotas.map(quota => `${windowLabel(quota.windowSeconds, t)}: ${fill(t('remaining'), { value: percent(quota.remainingPercent) })}`).join('; ')
   return <>
-    <button ref={trigger} type="button" className="codexComposerQuota" data-warning={warning ? true : undefined} aria-label={`${t('quotaDetails')}: ${label}${warning ? `; ${t('quotaThresholdReached')}` : ''}`}
+    <button ref={trigger} type="button" className="codexComposerQuota" data-mode={preferenceSnapshot.quickQuotaMode} data-warning={warning ? true : undefined} aria-label={`${t('quotaDetails')}: ${label}${warning ? `; ${t('quotaThresholdReached')}` : ''}`}
       aria-haspopup="dialog" aria-expanded={visible} aria-controls={visible ? id : undefined}
       onMouseEnter={enter} onMouseLeave={leave}
       onClick={() => { if (pinned.current) dismiss(); else { pinned.current = true; setOpen(true); requestAnimationFrame(() => panel.current?.focus()) } }}>
+      {forecastMode ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/></svg> : null}
       {quotas.map((quota, index) => <span className="codexQuotaCompactWindow" key={`${quota.windowSeconds}-${index}`}>
         {preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR && quotas.length === 1 && Math.abs(quota.windowSeconds - 604800) < 60 ? null : <span>{shortWindow(quota.windowSeconds, t)}</span>}
         {preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR ? <progress className="codexComposerQuotaBar" max={100} value={quota.remainingPercent} aria-hidden="true" /> : null}
-        {preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_BAR ? <span>{`${percent(quota.remainingPercent)}%`}{forecastMode && quota.forecast?.status === 'ready' ? ` · ${forecastText(quota, t)}` : ''}</span> : null}
+        {preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_BAR ? <span>{`${percent(quota.remainingPercent)}%`}{forecastMode ? ` · ${forecastText(quota, t)}` : ''}</span> : null}
       </span>)}
     </button>
     {visible ? createPortal(<section ref={panel} id={id} role="dialog" aria-label={t('quotaDetails')}
@@ -76,9 +77,12 @@ function shortReset(quota, t) {
 function forecastText(quota, t) {
   const forecast = quota.forecast
   if (forecast?.status === 'ready' && forecast.provisional) return `${t('forecastInitial')}≈${formatRunway(forecast.runwaySeconds, t)}`
-  if (forecast?.status === 'calibrating') return t(({ resolution: 'forecastResolution', 'changing-pace': 'forecastChanging', stale: 'forecastStale' })[forecast.reason] ?? 'quickQuotaForecastCalibrating')
+  if (forecast?.status === 'calibrating') return t(({ 'changing-pace': 'forecastCompactChanging', stale: 'forecastCompactStale' })[forecast.reason] ?? 'forecastCompactPending')
   if (forecast?.status === 'idle') return t('quickQuotaForecastIdle')
   if (forecast?.status === 'ready' && forecast.survivesReset) return t('quickQuotaForecastUntilReset')
-  if (forecast?.status === 'ready') return `≈${formatRunway(forecast.runwaySeconds, t)}`
-  return `${percent(quota.remainingPercent)}%`
+  if (forecast?.status === 'ready') {
+    const min = formatRunway(forecast.runwayMinSeconds, t), max = formatRunway(forecast.runwayMaxSeconds, t)
+    return min && max && min !== max ? `≈${min}–${max}` : `≈${formatRunway(forecast.runwaySeconds, t)}`
+  }
+  return t('forecastCompactPending')
 }

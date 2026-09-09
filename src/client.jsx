@@ -1,5 +1,6 @@
 import { ComposerImagePreviews, MessageImagePreviews, IMAGE_PREVIEWS_CSS } from './client-image-previews.jsx'
-import { CodexImageToolRow } from './client-images.jsx'
+import { imageConversationNode } from './image-conversation-node.js'
+import { CodexImageToolRow, CodexImageOutput } from './client-images.jsx'
 import { SKETCH_CSS } from './sketch-workspace.jsx'
 import { ImageWorkspace } from './image-workspace.jsx'
 import { attachImageFiles, appendImagePrompt } from './image-composer.js'
@@ -175,9 +176,7 @@ export function apply(ctx) {
       },
     }),
   }, ImageWorkspace))
-  ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
-    name: 'tool.call.toolview', key: 'codex_image_generate', locale: NS,
-    inject: sessionId => ({
+  const imageProps = sessionId => ({
       sessionId,
       rpc: rpc,
       t,
@@ -192,6 +191,13 @@ export function apply(ctx) {
       },
       getInternalImageViewer: () => imageViewer,
       attachForEdit: attachForEdit(sessionId),
-    }),
+  })
+  ctx.effect(() => uiConversation.events.register(imageConversationNode), 'codex-subscription: image results in chat')
+  ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
+    name: 'conversation.chat.node', key: 'codex-image-output', inject: imageProps,
+  }, CodexImageOutput))
+  ctx.slots.inject('tool.call.toolview', () => ctx.slots.register({
+    name: 'tool.call.toolview', key: 'codex_image_generate', locale: NS,
+    inject: imageProps,
   }, CodexImageToolRow))
 }

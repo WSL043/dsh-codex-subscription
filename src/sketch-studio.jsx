@@ -9,7 +9,7 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
   const undo = useRef([]), redo = useRef([]), active = useRef(null), frame = useRef(null)
   const [revision, redraw] = useState(0), [tool, setTool] = useState('pen'), [brush, setBrush] = useState('pen')
   const [eraser, setEraser] = useState('pixel'), [color, setColor] = useState('#0088ff'), [width, setWidth] = useState(12)
-  const [layersOpen, setLayersOpen] = useState(true), [busy, setBusy] = useState(false), [error, setError] = useState('')
+  const [layersOpen, setLayersOpen] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const paint = () => { if (canvas.current) paintSketchLayers(canvas.current.getContext('2d'), doc.current, cache.current) }
   const schedule = () => { if (frame.current !== null) return; frame.current = requestAnimationFrame(() => { frame.current = null; paint(); redraw(value => value + 1) }) }
   const checkpoint = () => { undo.current.push(doc.current); if (undo.current.length > 30) undo.current.shift(); redo.current = [] }
@@ -57,15 +57,13 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
   const attach = async () => { if (!enabled || busy) return; setBusy(true);setError('');try { paint(); const blob = await new Promise((resolve,reject)=>canvas.current.toBlob(blob=>blob?resolve(blob):reject(Error('PNG')),'image/png')); await attachSketch(blob); onClose() } catch { setError(t('sketchFailed')) } finally { setBusy(false) } }
   return <dialog ref={dialog} className="codexSketchDialog codexSketchStudio codexLayerStudio" aria-label={t('sketchTitle')} onCancel={event=>{event.preventDefault();close()}}>
     <header className="codexSketchTop">
-      <button className="codexSketchRound" type="button" aria-label={t('sketchCancel')} disabled={busy} onClick={close}><WorkspaceIcon name="close" /></button>
-      <div className="codexSketchPill" role="toolbar" aria-label={t('sketchTitle')}>{['pen','rectangle','circle','eraser'].map(name=><button type="button" key={name} aria-label={t(`sketchTool_${name}`)} title={t(`sketchTool_${name}`)} aria-pressed={tool===name} disabled={busy} onClick={()=>setTool(name)}><WorkspaceIcon name={name} /></button>)}</div>
-      <div className="codexSketchHistory">{['undo','redo'].map(name=><button key={name} type="button" className="codexSketchRound" aria-label={t(name==='undo'?'sketchUndo':'sketchRedo')} disabled={busy||!(name==='undo'?undo:redo).current.length} onClick={()=>history(name)}><WorkspaceIcon name={name} /></button>)}</div>
+      <button className="codexSketchRound" type="button" aria-label={t('sketchCancel')} title={t('sketchCancel')} disabled={busy} onClick={close}><WorkspaceIcon name="close" /></button>
+      <div className="codexSketchHeading"><strong>{t('sketchTitle')}</strong><span>Beta</span></div>
+      <button type="button" className="codexSketchConfirm" aria-label={t('sketchAttach')} disabled={busy||!enabled||!doc.current.layers.some(l=>l.visible&&l.strokes.length)} onClick={()=>void attach()}><WorkspaceIcon name="check" size={18}/><span>{t('sketchAttach')}</span></button>
     </header>
-    <div className="codexLayerBrush">
-      {tool==='pen'?<select aria-label={t('sketchBrushType')} value={brush} onChange={e=>setBrush(e.target.value)} disabled={busy}>{['pen','pencil','marker'].map(v=><option key={v} value={v}>{t(`sketchBrush_${v}`)}</option>)}</select>:tool==='eraser'?<select aria-label={t('sketchEraserMode')} value={eraser} onChange={e=>setEraser(e.target.value)} disabled={busy}>{['pixel','stroke'].map(v=><option key={v} value={v}>{t(`sketchErase_${v}`)}</option>)}</select>:<span>{t(`sketchTool_${tool}`)}</span>}
-      <input type="range" min={2} max={64} value={width} aria-label={t('sketchWidth')} onChange={e=>setWidth(Number(e.target.value))} disabled={busy} />
-      <button type="button" aria-pressed={layersOpen} onClick={()=>setLayersOpen(v=>!v)}>{t('sketchLayers')}</button>
-      <button type="button" disabled={busy||!current.strokes.length} aria-label={t('sketchClearLayer')} onClick={()=>change('clear')}><WorkspaceIcon name="clear" size={18}/></button>
+    <div className="codexSketchUtility">
+      <div className="codexSketchHistory">{['undo','redo'].map(name=><button key={name} type="button" className="codexSketchRound" aria-label={t(name==='undo'?'sketchUndo':'sketchRedo')} title={t(name==='undo'?'sketchUndo':'sketchRedo')} disabled={busy||!(name==='undo'?undo:redo).current.length} onClick={()=>history(name)}><WorkspaceIcon name={name} size={20}/></button>)}</div>
+      <button type="button" className="codexSketchLayersToggle" aria-label={t('sketchLayers')} aria-expanded={layersOpen} onClick={()=>setLayersOpen(v=>!v)}><WorkspaceIcon name="layers" size={18}/>{t('sketchLayers')}<span>{doc.current.layers.length}</span></button>
     </div>
     <div className={`codexLayerBody ${layersOpen?'withLayers':''}`}>
       <canvas ref={canvas} width={SKETCH_SIZE} height={SKETCH_SIZE} aria-label={t('sketchTitle')} onPointerDown={event=>{
@@ -79,19 +77,33 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t }) {
         active.current={id:event.pointerId,layer:layer.id,eraseStroke,last:start};canvas.current.setPointerCapture(event.pointerId);setError('');move(event);schedule()
       }} onPointerMove={move} onPointerUp={event=>end(event)} onPointerCancel={event=>end(event,true)} />
       {layersOpen?<aside className="codexSketchLayers" aria-label={t('sketchLayers')}>
-        <header><strong>{t('sketchLayers')}</strong><button type="button" aria-label={t('sketchLayerAdd')} disabled={busy||doc.current.layers.length>=MAX_SKETCH_LAYERS} onClick={()=>change('add')}>＋</button></header>
+        <header><strong>{t('sketchLayers')}</strong><button type="button" title={t('sketchLayerAdd')} aria-label={t('sketchLayerAdd')} disabled={busy||doc.current.layers.length>=MAX_SKETCH_LAYERS} onClick={()=>change('add')}>＋</button></header>
         <div className="codexLayerList">{doc.current.layers.slice().reverse().map(layer=><div key={layer.id} className="codexLayerRow" data-active={layer.id===doc.current.active}>
-          <button type="button" aria-label={`${t('sketchLayerVisible')} ${layer.id}`} aria-pressed={layer.visible} onClick={()=>change('visible',layer.id)}>{layer.visible?'◉':'○'}</button>
+          <button type="button" aria-label={`${t('sketchLayerVisible')} ${layer.id}`} aria-pressed={layer.visible} onClick={()=>change('visible',layer.id)}><WorkspaceIcon name={layer.visible?'eye':'eyeOff'} size={18}/></button>
           <button type="button" aria-pressed={layer.id===doc.current.active} onClick={()=>change('select',layer.id)}>{layer.name||`${t('sketchLayer')} ${layer.id}`}</button>
         </div>)}</div>
+        <label className="codexSketchLayerLabel">{t('sketchLayerName')}</label>
         <input key={current.id+'-'+current.name} aria-label={t('sketchLayerName')} defaultValue={current.name} placeholder={`${t('sketchLayer')} ${current.id}`} maxLength={40} onBlur={e=>{if(e.target.value!==current.name)change('rename',current.id,e.target.value)}} onKeyDown={e=>{if(e.key==='Enter')e.currentTarget.blur()}} />
-        <div className="codexLayerActions">{['duplicate','up','down','delete'].map(action=><button type="button" key={action} title={t(`sketchLayer_${action}`)} aria-label={t(`sketchLayer_${action}`)} disabled={busy||(action==='delete'&&doc.current.layers.length===1)||(action==='duplicate'&&(doc.current.layers.length>=MAX_SKETCH_LAYERS||strokeCount(doc.current)+current.strokes.length>MAX_SKETCH_STROKES))||(action==='up'&&current===doc.current.layers.at(-1))||(action==='down'&&current===doc.current.layers[0])} onClick={()=>change(action)}>{({duplicate:'⧉',up:'↑',down:'↓',delete:'×'})[action]}</button>)}</div>
+        <div className="codexLayerActions">{['duplicate','up','down','delete'].map(action=><button type="button" key={action} title={t(`sketchLayer_${action}`)} aria-label={t(`sketchLayer_${action}`)} disabled={busy||(action==='delete'&&doc.current.layers.length===1)||(action==='duplicate'&&(doc.current.layers.length>=MAX_SKETCH_LAYERS||strokeCount(doc.current)+current.strokes.length>MAX_SKETCH_STROKES))||(action==='up'&&current===doc.current.layers.at(-1))||(action==='down'&&current===doc.current.layers[0])} onClick={()=>change(action)}><WorkspaceIcon name={action==='delete'?'clear':action} size={17}/><span>{t(`sketchLayer_${action}`)}</span></button>)}</div>
+        <button type="button" className="codexSketchClearLayer" disabled={busy||!current.strokes.length} onClick={()=>change('clear')}><WorkspaceIcon name="clear" size={16}/>{t('sketchClearLayer')}</button>
       </aside>:null}
     </div>
-    <div className="codexSketchBottom"><div className="codexSketchPalette" role="group" aria-label={t('sketchColor')}>
-      <label className="codexSketchCustom"><span style={{background:color}}/><input type="color" aria-label={t('sketchColor')} value={color} onChange={e=>setColor(e.target.value)}/></label>
-      {PALETTE.map(value=><button type="button" key={value} className="codexSketchSwatch" style={{'--swatch':value}} aria-label={`${t('sketchColor')} ${value}`} aria-pressed={color===value} onClick={()=>setColor(value)}/>)}</div>
-      <button type="button" className="codexSketchConfirm" aria-label={t('sketchAttach')} disabled={busy||!enabled||!doc.current.layers.some(l=>l.visible&&l.strokes.length)} onClick={()=>void attach()}><WorkspaceIcon name="check" size={28}/></button>
-    </div><p className="codexSketchHint" role={error?'alert':undefined}>{error||t('sketchLayerHint')}</p>
+    <div className="codexSketchControls">
+      <div className="codexSketchPill" role="toolbar" aria-label={t('sketchTitle')}>
+        {['pen','pencil','marker','eraser','rectangle','circle'].map(name=>{
+          const drawing=['pen','pencil','marker'].includes(name)
+          const label=t(drawing?`sketchBrush_${name}`:`sketchTool_${name}`)
+          return <button type="button" key={name} aria-label={label} title={label} aria-pressed={drawing?tool==='pen'&&brush===name:tool===name} disabled={busy} onClick={()=>{setTool(drawing?'pen':name);if(drawing)setBrush(name)}}><WorkspaceIcon name={name} size={23}/><span>{label}</span></button>
+        })}
+      </div>
+      <div className="codexLayerBrush">
+        {tool==='eraser'?<div className="codexSketchSegment" role="group" aria-label={t('sketchEraserMode')}>{['pixel','stroke'].map(value=><button key={value} type="button" aria-pressed={eraser===value} disabled={busy} onClick={()=>setEraser(value)}>{t(`sketchErase_${value}`)}</button>)}</div>:null}
+        <label className="codexSketchWidth"><span>{t('sketchWidth')}</span><input type="range" min={2} max={64} value={width} aria-label={t('sketchWidth')} onChange={e=>setWidth(Number(e.target.value))} disabled={busy}/><output>{width}</output></label>
+      </div>
+      <div className="codexSketchPalette" role="group" aria-label={t('sketchColor')}>
+        {PALETTE.map(value=><button type="button" key={value} className="codexSketchSwatch" style={{'--swatch':value}} aria-label={`${t('sketchColor')} ${value}`} aria-pressed={color===value} disabled={busy} onClick={()=>setColor(value)}/>)}
+        <label className="codexSketchCustom" title={t('sketchColor')}><span style={{background:color}}/><input type="color" aria-label={t('sketchColor')} value={color} disabled={busy} onChange={e=>setColor(e.target.value)}/></label>
+      </div>
+    </div><p className="codexSketchHint" role={error?'alert':undefined}>{error||t('sketchHint')}</p>
   </dialog>
 }

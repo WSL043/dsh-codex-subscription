@@ -110,3 +110,7 @@ export function CodexImageToolRow({ block, sessionId, rpc, loadImage, attachForE
     {error === undefined ? null : <p className="codexImageToolError">{error}</p>}
   </div>
 }
+
+export function CodexImageOutput({ node, ...props }) {
+  return <div className="codexImageOutput">{node.data.blocks.map(block => <CodexImageToolRow key={block.toolCallId} block={block} {...props} />)}</div>
+}
