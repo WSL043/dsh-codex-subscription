@@ -3,7 +3,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 export function createSketchAgentTool(bridge, attachments) {
   return defineTool({
     name:'codex_sketch',
-    description:'Edit the open sketch board in this session using native editable strokes and layers. Only use when asked to draw or edit a sketch. Start with inspect for the documentId, revision and command reference. Apply atomic batches, preview between stages, and save the finished draft. Never generates AI images, sends messages or attaches images automatically. The user must keep this session’s sketch board open. On timeout inspect before retrying; reuse the exact requestId only for the same request.',
+    description:'Edit the sketch board in this session using native editable strokes and layers. Only use when asked to draw or edit a sketch. Start with inspect for the documentId, revision and command reference. Apply atomic batches, preview between stages, and save the finished draft. Never generates AI images, sends messages or attaches images automatically. Inspect automatically opens the board in the currently viewed session. Do not ask the user to open it first. If the session is not visible in DSH, ask them to switch to it. On timeout inspect before retrying; reuse the exact requestId only for the same request.',
     parameters:{
       action:{type:'string',required:true,enum:['inspect','apply','preview','save']},
       documentId:{type:'string',description:'From inspect; required except for inspect.'},

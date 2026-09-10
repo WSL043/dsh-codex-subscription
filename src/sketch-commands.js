@@ -4,6 +4,7 @@ import { changeSketchLayer, strokeCount, resizeSketch } from './sketch-layers.js
 export const MAX_SKETCH_POINTS = 200_000
 export const SKETCH_COMMAND_HELP = {
   coordinates: 'Normalized x/y in [0,1]; width is canvas pixels. Read documentId and revision before editing.',
+  shapes: 'line: exactly two endpoints; rectangle/circle: exactly two opposite bounding-box corners (circle draws an ellipse within that box); polygon: three or more vertices, closed automatically; pen: ordered path points. fill:true fills rectangle/circle/polygon. Layers and strokes paint in list order, later ones on top. All commands needed for drawing are described here; no source-code search is required.',
   commands: {
     stroke: '{op:"stroke",layer:1,shape:"pen|line|rectangle|circle|polygon",color:"#rrggbb",width:2,opacity:1,fill:false,points:[{x:0.1,y:0.1},...]}',
     layer: '{op:"layer",action:"add|select|rename|visible|duplicate|up|down|delete|clear",id:1,value:"name"}',

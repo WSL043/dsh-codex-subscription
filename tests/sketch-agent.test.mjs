@@ -30,7 +30,7 @@ test('bridge isolates sessions, leases, cancellations and close; delivery occurs
   assert.equal((await bridge.rpc('sketch/connect',{sessionId:'a'})).ok,false)
   assert.ok(rpcErrorSchema.safeParse((await bridge.rpc('sketch/connect',{sessionId:''})).error).success)
   assert.equal((await bridge.rpc('sketch/poll',{sessionId:'a',token:'wrong'})).ok,false)
-  await assert.rejects(bridge.request('b',{}),/Open/)
+  await assert.rejects(bridge.request('b',{}),/Switch/)
   const request=bridge.request('a',{action:'inspect'})
   const {value:[task]}=await bridge.rpc('sketch/poll',{sessionId:'a',token})
   assert.deepEqual((await bridge.rpc('sketch/poll',{sessionId:'a',token})).value,[])
@@ -56,4 +56,24 @@ test('expired leases and aborted requests cannot remain queued for later drawing
   assert.equal((await bridge.rpc('sketch/poll',{sessionId:'a',token})).ok,false)
   assert.equal((await bridge.rpc('sketch/connect',{sessionId:'a'})).ok,true)
   bridge.dispose()
+})
+
+
+test('agent inspect opens the board, but a queued write cannot reopen it',async()=>{
+  const {executeSketchFromAgent}=await import('../src/sketch-agent-client.js')
+  let opened=false,opens=0,executed=0
+  const adapter={available:()=>opened,open:()=>{opens++;opened=true},execute:()=>{executed++;return 'ready'}}
+  assert.equal(await executeSketchFromAgent({action:'inspect'},adapter),'ready')
+  assert.equal(opens,1);assert.equal(executed,1)
+  opened=false
+  await assert.rejects(executeSketchFromAgent({action:'apply'},adapter),/closed/)
+  assert.equal(opens,1);assert.equal(executed,1)
+  await assert.rejects(executeSketchFromAgent({action:'inspect'},{...adapter,live:()=>false}),/disconnected/)
+  assert.equal(opens,1)
+})
+test('opening waits for the mounted board and fails boundedly if unavailable',async()=>{
+  const {executeSketchFromAgent}=await import('../src/sketch-agent-client.js')
+  let ticks=0
+  assert.equal(await executeSketchFromAgent({action:'inspect'},{available:()=>ticks>=2,open:()=>{},wait:async()=>{ticks++},execute:()=>42}),42)
+  await assert.rejects(executeSketchFromAgent({action:'inspect'},{available:()=>false,open:()=>{},wait:async()=>{},execute:()=>{throw Error('must not execute')}}),/could not open/)
 })
