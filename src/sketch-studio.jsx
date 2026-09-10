@@ -9,10 +9,10 @@ import { SketchFiles } from './sketch-files.jsx'
 import { useSketchDismiss, useSketchCursor } from './sketch-interactions.js'
 import { WorkspaceIcon } from './workspace-icons.jsx'
 import { createSketchCommandSession, MAX_SKETCH_POINTS } from './sketch-commands.js'
-import { connectSketchAgent } from './sketch-agent-client.js'
+import { connectSketchAgent, executeSketchFromAgent } from './sketch-agent-client.js'
 import { encodeSketchDocument, decodeSketchDocument, exportSketchPsd, importSketchPsd } from './sketch-formats.js'
 const PALETTE = ['#18181b','#929398','#ff3936','#ff9500','#ffcc00','#34c759','#0088ff']
-export function SketchStudio({ open, onClose, attachSketch, enabled, t, incoming, sessionId, rpc }) {
+export function SketchStudio({ open, onOpen, onClose, attachSketch, enabled, t, incoming, sessionId, rpc }) {
   const dialog = useRef(null), canvas = useRef(null), doc = useRef(createSketchLayers()), cache = useRef(new Map())
   const undo = useRef([]), redo = useRef([]), active = useRef(null), frame = useRef(null)
   const images = useRef(new Map()), saved = useRef(null), dirty = useRef(false), updateUi = useRef(false)
@@ -115,6 +115,7 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t, incoming
   const history = direction => { if (busy || active.current) return; const source = direction === 'undo' ? undo : redo, target = direction === 'undo' ? redo : undo; if (!source.current.length) return; documentRevision.current++;dirty.current = true; target.current.push(doc.current); doc.current = source.current.pop(); schedule() }
   Object.assign(agentAdapter.current,{
     available:()=>open && enabled,
+    open:()=>onOpen(),
     busy:()=>busy || Boolean(active.current),
     document:()=>doc.current,
     snapshot:()=>({documentId:documentId.current,revision:documentRevision.current,width:doc.current.width??SKETCH_SIZE,height:doc.current.height??SKETCH_SIZE,active:doc.current.active,layers:doc.current.layers.map(layer=>({id:layer.id,name:layer.name,visible:layer.visible,strokes:layer.strokes.length,image:Boolean(layer.image)})),strokeCount:strokeCount(doc.current)}),
@@ -132,9 +133,17 @@ export function SketchStudio({ open, onClose, attachSketch, enabled, t, incoming
       return {extension,mediaType:blob.type,base64:btoa(raw)}
     }})
     window.dshSketchAgent=api
-    const disconnect=rpc&&sessionId?connectSketchAgent(rpc,sessionId,api.execute,message=>setError(message)):undefined
-    return ()=>{disconnect?.();if(window.dshSketchAgent===api)delete window.dshSketchAgent}
+    return ()=>{if(window.dshSketchAgent===api)delete window.dshSketchAgent}
   },[open,enabled,rpc,sessionId])
+  useEffect(()=>{
+    if(!enabled || !rpc || !sessionId)return
+    let live=true
+    const disconnect=connectSketchAgent(rpc,sessionId,request=>executeSketchFromAgent(request,{
+      available:()=>agentAdapter.current.available(),open:()=>agentAdapter.current.open(),
+      execute:request=>agentSession.current(request),live:()=>live,
+    }),message=>setError(message),()=>agentAdapter.current.available()?350:1500)
+    return ()=>{live=false;disconnect()}
+  },[enabled,rpc,sessionId])
   const attach = async () => { if (!enabled || busy) return; setBusy(true);setError('');try { paint(); const blob = await new Promise((resolve,reject)=>canvas.current.toBlob(blob=>blob?resolve(blob):reject(Error('PNG')),'image/png')); await saveChanges(); await attachSketch(blob); onClose() } catch { setError(t('sketchFailed')) } finally { setBusy(false) } }
   const exportFile = async (format='png') => {
     paint()

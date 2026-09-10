@@ -2,8 +2,8 @@
 
 Available in 2.1.0-beta.1; not included in stable 2.0.1.
 
-`codex_sketch` is a DSH-native tool. The browser bridge is active only while the
-sketch board for that same session is open and sketch editing is enabled. It
+`codex_sketch` is a DSH-native tool. The browser bridge is active while that session is viewed and sketch editing
+is enabled. An inspect request automatically opens its board. It
 does not open another browser, read unrelated drafts, generate images, or send
 attachments/messages. Existing subscription feature settings control availability.
 
@@ -42,8 +42,8 @@ After a timeout, reconnect or reload, inspect the current state before retrying;
 deduplication is not a durable cross-restart transaction log.
 
 The host owns only a temporary delivery queue, with a single browser lease per
-session and bounded timeouts. Closed/disconnected browsers cannot be used as a
-headless drawing renderer. No WebMCP browser support is required.
+session and bounded timeouts. Disconnected browsers cannot be used as a headless drawing renderer.
+Closing the board rejects queued writes; a fresh inspect is required to reopen it. No WebMCP browser support is required.
 
 Resource budgets: 2,000 strokes, 2,000 points per stroke, 200,000 points per agent
 document, eight layers, 256 commands per batch. These are resource protections,

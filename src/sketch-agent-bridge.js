@@ -36,7 +36,7 @@ export function createSketchAgentBridge({ enabled, now = Date.now, timeoutMs = 2
     request(sessionId, request, signal) {
       if(!enabled())return Promise.reject(Error('Sketch is disabled'))
       const entry=sessions.get(sessionId)
-      if(!entry || now()-entry.seen>10_000)return Promise.reject(Error('Open the sketch board in this session first'))
+      if(!entry || now()-entry.seen>10_000)return Promise.reject(Error('Switch to this session in DSH with sketch editing enabled'))
       if(entry.tasks.size)return Promise.reject(Error('Another sketch operation is pending'))
       if(JSON.stringify(request).length>2_000_000)return Promise.reject(Error('Sketch batch is too large'))
       return new Promise((resolve,reject)=>{
