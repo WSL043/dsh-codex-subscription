@@ -116,7 +116,7 @@ export function apply(ctx) {
   })), 'codex-subscription: Image trigger'))
   const sessionInput = sessionId => {
     const actx = sessions.scope(sessionId)
-    if (!actx || typeof conversation.createDraftImages !== 'function' || !conversation.input?.for) throw new Error('Image composer is unavailable')
+    if (!actx || !conversation.input?.for) throw new Error('Image composer is unavailable')
     return conversation.input.for(actx)
   }
   const openSketchImage = sessionId => async (src, name) => {
@@ -132,7 +132,7 @@ export function apply(ctx) {
   const attachForEdit = sessionId => async (src, filename, draft, annotations = [], referenceName, sourceInDraft = false) => {
     if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
     const actx = sessions.scope(sessionId)
-    if (actx === undefined || typeof conversation.createDraftImages !== 'function' || conversation.input?.for === undefined) {
+    if (actx === undefined || conversation.input?.for === undefined) {
       throw new Error('This DSH version does not provide the image composer bridge')
     }
     const response = await fetch(src)
@@ -145,7 +145,7 @@ export function apply(ctx) {
     }
     const input = conversation.input.for(actx)
     if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
-    if (files.length) attachImageFiles(conversation, input, files)
+    if (files.length) attachImageFiles(conversation, input, files, sessionId)
     sessions.open(sessionId)
     // Preserve text typed while the asynchronous image preparation ran.
     if (sourceInDraft && !annotations.length) return
@@ -187,7 +187,7 @@ export function apply(ctx) {
       attachSketch: blob => {
         const current = preference.getSnapshot()
         if (!current.imageSketch || !current.imageEditing) throw new Error('Sketch editing is disabled')
-        attachImageFiles(conversation, sessionInput(sessionId), [new File([blob], 'sketch-reference.png', { type: 'image/png' })])
+        attachImageFiles(conversation, sessionInput(sessionId), [new File([blob], 'sketch-reference.png', { type: 'image/png' })], sessionId)
       },
     }),
   }, ImageWorkspace))

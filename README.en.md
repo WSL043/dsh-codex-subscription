@@ -92,9 +92,9 @@ dsh --profile headless "Reply with only the word: ok"
 The official `npx @deepseek-ai/dsh web` command does not create a global `dsh` command. Keep the full `npx` prefix when installing the plugin:
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web add dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 --profile web --dump-config
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web add dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 --profile web --dump-config
 ```
 
 </details>
@@ -224,22 +224,22 @@ These operations preserve the DSH profile, other plugins, and saved sign-in.
 ### Update and verify
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web update dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 --profile web --dump-config
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web update dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 --profile web --dump-config
 ```
 
 ### Uninstall
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web remove dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web remove dsh-codex-subscription
 ```
 
 </details>
 
 ## Troubleshooting
 
-- **`dsh` is not recognized:** the official npm route does not create a global `dsh` command; use the complete `npx -y @deepseek-ai/dsh@0.1.2-rc.1 ...` command above;
+- **`dsh` is not recognized:** the official npm route does not create a global `dsh` command; use the complete `npx -y @deepseek-ai/dsh@0.1.5-rc.1 ...` command above;
 - **More than one DSH exists:** run the standard command from the intended DSH environment so that product selects the corresponding profile;
 - **Setup still fails:** confirm the command is running in the intended DSH environment. Do not delete the profile or change the system PATH to force an install.
 - **Need to report a problem:** generate a **Support diagnostics** report at the bottom of Settings, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The report includes the OS/runtime, bounded sign-in phase, and safe request-failure categories, but excludes credentials, account identifiers, proxy addresses, raw responses, and full logs. Paste it into the required diagnostics field; never attach sign-in URLs, authorization codes, or browser callback addresses.
