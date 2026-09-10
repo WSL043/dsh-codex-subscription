@@ -105,7 +105,7 @@ test('DSH PiAiAdapter can execute the OAuth-only Codex provider with a refreshed
       provider: 'openai-codex',
       displayName: 'ChatGPT subscription',
       piProvider: provider,
-      configuredMaxTokens: new Map(),
+      configuredMaxTokens: new Map(), modelErrors: new Map(),
       transport: 'sse',
       streamIdleTimeoutMs: 10_000,
     }]])
@@ -188,7 +188,7 @@ test('a near-expiry OAuth token refreshes before the first model request is disp
       provider: 'openai-codex',
       displayName: 'ChatGPT subscription',
       piProvider: requestProvider,
-      configuredMaxTokens: new Map(),
+      configuredMaxTokens: new Map(), modelErrors: new Map(),
       transport: 'sse',
       streamIdleTimeoutMs: 10_000,
     }]])
@@ -231,7 +231,7 @@ test('subscription fast mode reaches only officially supported Codex model reque
       provider: 'openai-codex',
       displayName: 'ChatGPT subscription',
       piProvider: provider,
-      configuredMaxTokens: new Map(),
+      configuredMaxTokens: new Map(), modelErrors: new Map(),
       transport: 'sse',
       streamIdleTimeoutMs: 10_000,
     }]])
@@ -283,7 +283,7 @@ test('output detail reaches only verbosity-capable Codex requests', async () => 
     const provider = openaiCodexSubscriptionProvider({ resolveOutputVerbosity: () => outputVerbosity })
     const profiles = new Map([['openai-codex', {
       provider: 'openai-codex', displayName: 'ChatGPT subscription', piProvider: provider,
-      configuredMaxTokens: new Map(), transport: 'sse', streamIdleTimeoutMs: 10_000,
+      configuredMaxTokens: new Map(), modelErrors: new Map(), transport: 'sse', streamIdleTimeoutMs: 10_000,
     }]])
     const adapter = new PiAiAdapter({ profiles: () => profiles, resolveApiKey: async () => jwt('account-verbosity') })
     const run = async model => {

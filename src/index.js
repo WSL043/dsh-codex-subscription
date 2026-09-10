@@ -160,6 +160,10 @@ export function apply(ctx) {
     displayName: 'ChatGPT subscription',
     piProvider: provider,
     configuredMaxTokens: new Map(),
+    // Custom PiAiAdapter profiles bypass the settings-backed profile resolver,
+    // so the model diagnostics the host adapter reads on resolution must be
+    // present here rather than left undefined.
+    modelErrors: new Map(),
     streamIdleTimeoutMs: 10 * 60 * 1000,
     // Custom PiAiAdapter profiles bypass the settings-backed profile resolver,
     // so request-image limits must be complete here rather than left undefined.
