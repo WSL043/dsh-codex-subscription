@@ -69,7 +69,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(pkg.devDependencies['@deepseek-ai/cordis'], '4.0.2')
   assert.equal(pkg.devDependencies['@deepseek-ai/schemastery'], '3.18.2')
   assert.equal(pkg.peerDependencies['@deepseek-ai/schemastery'], '3.18.1 || ^3.18.2')
-  assert.equal(pkg.peerDependencies['@earendil-works/pi-ai'], '0.82.1')
+  assert.equal(pkg.peerDependencies['@earendil-works/pi-ai'], '0.82.1 || 0.85.1')
   assert.equal(pkg.packageManager, 'pnpm@11.19.0')
   assert.equal(existsSync(new URL('../lib/index.js', import.meta.url)), true)
   assert.equal(existsSync(new URL('../lib/client.js', import.meta.url)), true)
