@@ -207,6 +207,25 @@ test('plugin activates without the web connection service in Headless mode', () 
   assert.equal(host.handled.length, 0)
 })
 
+test('every advertised Codex model resolves and prepares without reading credentials', async () => {
+  const host = fakeContext()
+  applyPlugin(host.ctx)
+  // Activation may inspect account state; model metadata must not require it.
+  host.ctx.credentials.resolve = async () => assert.fail('model metadata must not read credentials')
+  const adapter = host.registered[0].adapter
+  const models = await adapter.listModels('openai-codex')
+  assert.ok(models.length > 0)
+  for (const model of models) {
+    const resolved = await adapter.resolveModel('openai-codex', model.id)
+    assert.equal(resolved.provider, 'openai-codex')
+    assert.equal(resolved.id, model.id)
+    assert.ok(resolved.context.contextWindow > 0)
+    const prepared = await adapter.prepareCall('openai-codex', model.id)
+    assert.deepEqual(prepared.model, resolved)
+    assert.equal(typeof prepared.stream, 'function')
+  }
+})
+
 test('plugin registers one Codex route, subscription image tool, and DSH-trusted redacted RPC', async () => {
   const host = fakeContext()
   applyPlugin(host.ctx)
