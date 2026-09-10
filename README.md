@@ -143,8 +143,10 @@ dsh --profile web --dump-config
 ### 输入框额度
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota.png" width="800" alt="中文 DSH 输入框内的 Codex 剩余额度和紧凑续航预测">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota.png" width="800" alt="DSH 实机输入框：GPT-6-Astra、Max 推理、高速模式和剩余额度">
 </p>
+
+实机示例：GPT-6-Astra · Max（最高推理档）· 高速模式（闪电标识），左侧直接显示剩余额度。
 
 可在“账号与偏好”选择关闭、百分比、进度条或 Beta 续航预测。存在 5 小时额度时，输入框只显示短窗口；每周额度等完整信息留在悬浮详情。仅有周额度时省略“周”字，预测采用 `36% · ≈10h–12h` 这样的紧凑格式。
 

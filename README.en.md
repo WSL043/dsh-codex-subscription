@@ -142,8 +142,10 @@ When the official model catalog exposes GPT-6 Astra, Standard preserves the cata
 ### Composer quota
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota.png" width="800" alt="Codex quota inside the composer">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota.png" width="800" alt="Live DSH composer with GPT-6-Astra, Max reasoning, Fast mode, and remaining quota">
 </p>
+
+Live example: GPT-6-Astra with Max (the highest reasoning level) and Fast mode (lightning icon), with remaining quota visible on the left.
 
 Choose Off, Percent, Progress bar, or Beta Runway under Account & preferences. When a five-hour window exists, the composer shows that window only; the popover retains all windows. A weekly-only display omits the week label and uses compact durations such as `36% · ≈10h–12h`.
 
