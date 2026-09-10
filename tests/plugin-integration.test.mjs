@@ -223,6 +223,8 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
     requestImagePixelBudget: 2048 * 2048,
     requestImageMaxBytes: 1024 * 1024,
   })
+  assert.ok(profile.modelErrors instanceof Map, 'the host adapter reads model diagnostics from the profile on resolution')
+  assert.equal(profile.modelErrors.get('gpt-5.5'), undefined, 'a serviceable model records no diagnostic')
   assert.deepEqual(host.searchProviders.map(provider => provider.id), ['codex-subscription', 'codex-subscription-auto'])
   assert.deepEqual(host.tools.map(tool => tool.name), ['codex_image_generate'])
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
