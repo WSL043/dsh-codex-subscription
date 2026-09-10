@@ -70,7 +70,7 @@ test('Astra from the official catalog reaches DSH with the selected context wind
   const adapter = new PiAiAdapter({
     profiles: () => new Map([['openai-codex', {
       provider: 'openai-codex', displayName: 'ChatGPT subscription',
-      piProvider: provider, configuredMaxTokens: new Map(),
+      piProvider: provider, configuredMaxTokens: new Map(), modelErrors: new Map(),
     }]]),
     resolveApiKey: async () => { throw new Error('context resolution must not send a model request') },
   })
