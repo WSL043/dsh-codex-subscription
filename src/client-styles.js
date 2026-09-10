@@ -199,14 +199,14 @@ export const STYLE = `
 .codexModelSelectMenu{overflow:visible}
 .codexImageTool{display:flex;flex-direction:column;gap:8px;margin:4px 0;color:var(--dsw-alias-label-primary)}
 .codexImageToolRow{display:flex;align-items:center;min-height:24px;gap:8px;font-size:13px;line-height:20px}
-.codexImageToolIcon{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}
-.codexImageToolIcon::before{content:'';width:8px;height:8px;border:1.5px solid currentColor;border-radius:3px}
-.codexImageTool[data-state=running] .codexImageToolIcon::before{border-radius:50%;border-right-color:transparent;animation:codexImageSpin 800ms linear infinite}
-.codexImageTool[data-state=error] .codexImageToolIcon::before{border-color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-state-error-primary)}
+.codexImageToolIcon{display:block;flex-shrink:0;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}
+.codexImageTool[data-state=running] .codexImageToolIcon{animation:codexImageSpin 800ms linear infinite}
+.codexImageTool[data-state=error] .codexImageToolIcon{color:var(--dsw-alias-state-error-primary)}
 .codexImageToolTitle{font-weight:500}
 .codexImageToolState{color:var(--dsw-alias-label-tertiary)}
 .codexImageToolError{margin:0 0 0 24px;font-size:12px;line-height:18px;color:var(--dsw-alias-state-error-primary)}
-.codexImageToolGallery{margin-left:24px}
+.codexImageToolGallery{margin-left:0}
+.codexImageDetails{margin-left:24px;font-size:12px;color:var(--dsw-alias-label-secondary)}.codexImageDetails summary{cursor:pointer}.codexImageDetails p{margin:6px 0;line-height:1.6;overflow-wrap:anywhere}
 .codexGeneratedImageFrame{display:flex;align-items:center;justify-content:center;width:min(240px,100%);height:240px;padding:0;overflow:hidden;border:1px solid var(--dsw-alias-border-l2);border-radius:16px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-tertiary);cursor:pointer}
 .codexGeneratedImageFrame img{display:block;width:100%;height:100%;object-fit:cover}
 .codexGeneratedImageRetry{min-height:36px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);cursor:pointer}

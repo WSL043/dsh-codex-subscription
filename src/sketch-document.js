@@ -1,5 +1,5 @@
 export const SKETCH_SIZE = 1024
-export const MAX_SKETCH_STROKES = 200
+export const MAX_SKETCH_STROKES = 2000
 export const MAX_STROKE_POINTS = 2000
 
 export function sketchPoint(clientX, clientY, rect) {
@@ -28,10 +28,15 @@ export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = 
       context.moveTo(first.x * size, first.y * height); context.lineTo(last.x * size, last.y * height); context.stroke()
     } else if (stroke.shape === 'rectangle') {
       context.rect(first.x * size, first.y * height, (last.x-first.x)*size, (last.y-first.y)*height)
-      context.stroke()
+      if(stroke.fill)context.fill();else context.stroke()
     } else if (stroke.shape === 'circle') {
       context.ellipse((first.x+last.x)*size/2, (first.y+last.y)*height/2, Math.abs(last.x-first.x)*size/2, Math.abs(last.y-first.y)*height/2, 0, 0, Math.PI*2)
-      context.stroke()
+      if(stroke.fill)context.fill();else context.stroke()
+    } else if (stroke.shape === 'polygon') {
+      context.moveTo(first.x*size,first.y*height)
+      for(const point of stroke.points.slice(1))context.lineTo(point.x*size,point.y*height)
+      context.closePath()
+      if(stroke.fill)context.fill();else context.stroke()
     } else if (stroke.points.length === 1) {
       context.arc(first.x * size, first.y * height, context.lineWidth / 2, 0, Math.PI * 2)
       context.fill()

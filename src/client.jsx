@@ -182,7 +182,7 @@ export function apply(ctx) {
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
     name: 'conversation.input.left', id: 'codex-image-workspace', order: 30,
     inject: sessionId => ({
-      preference, t,
+      preference, t, sessionId, rpc,
       registerOpen: callback => { sketchOpeners.set(sessionId, callback); return () => { if (sketchOpeners.get(sessionId) === callback) sketchOpeners.delete(sessionId) } },
       attachSketch: blob => {
         const current = preference.getSnapshot()

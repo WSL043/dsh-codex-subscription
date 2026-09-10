@@ -1,5 +1,8 @@
 import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { registerSubscriptionTransport } from './subscription-transport.js'
+import { createSketchAgentBridge } from './sketch-agent-bridge.js'
+import { createSketchAgentTool } from './sketch-agent-tool.js'
+import { registerSketchCodec } from './sketch-codec-route.js'
 import * as dshCredentials from '@deepseek-ai/dsh-credentials'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { LlmError } from '@deepseek-ai/dsh-llm'
@@ -300,7 +303,18 @@ export function apply(ctx) {
     usageReader,
     fetch: (input, init) => network.fetch('quota-reset', input, init),
   })
-  const handler = createSubscriptionRpcHandler({
+  const sketchBridge = createSketchAgentBridge({enabled:()=>settings.get().imageSketch && settings.get().imageEditing})
+  ctx.effect(()=>{
+    let dispose
+    const sync=()=>{
+      const value=settings.get()
+      if(value.imageSketch && value.imageEditing){dispose??=ctx.tools.register(createSketchAgentTool(sketchBridge,ctx.attachments))}
+      else {dispose?.();dispose=undefined;sketchBridge.dispose()}
+    }
+    sync();const unwatch=settings.watch(sync)
+    return ()=>{unwatch();dispose?.();sketchBridge.dispose()}
+  },'codex-subscription: native sketch tool')
+  const subscriptionHandler = createSubscriptionRpcHandler({
     authHandler: createCodexRpcHandler(coordinator, { openExternal: openCodexAuthUrl }),
     usageReader,
     resetCreditService,
@@ -314,12 +328,18 @@ export function apply(ctx) {
     ),
   })
 
+  const handler=(endpoint,payload,signal)=>endpoint.startsWith('sketch/')?sketchBridge.rpc(endpoint,payload):subscriptionHandler(endpoint,payload,signal)
   ctx.effect(() => {
     void modelCatalog.refresh().catch(error => ctx.logger?.debug?.('could not refresh Codex model catalog: %s', error.message))
   }, 'codex-subscription: official model catalog')
 
   ctx.inject(['connection'], connectionContext => connectionContext.effect(
-    () => registerSubscriptionTransport(connectionContext.connection, handler),
+    () => {
+      const transport=registerSubscriptionTransport(connectionContext.connection, handler)
+      let codec
+      try{codec=registerSketchCodec(connectionContext.connection)}catch(error){transport();throw error}
+      return ()=>{codec();transport()}
+    },
     'codex-subscription: DSH-trusted account RPC',
   ))
 }

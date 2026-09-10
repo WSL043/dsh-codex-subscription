@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { SketchStudio } from './sketch-studio.jsx'
 export { SKETCH_CSS } from './sketch-styles.js'
-export function SketchWorkspace({ preference, attachSketch, registerOpen, t }) {
+export function SketchWorkspace({ preference, attachSketch, registerOpen, t, sessionId, rpc }) {
   const settings = useSyncExternalStore(preference.subscribe, preference.getSnapshot)
   const [open, setOpen] = useState(false)
   const [incoming, setIncoming] = useState(null)
@@ -11,6 +11,6 @@ export function SketchWorkspace({ preference, attachSketch, registerOpen, t }) {
     if (mode === 'sketch') {if(file)setIncoming({file});setOpen(true)}
   }), [registerOpen])
   return <>
-    <SketchStudio incoming={incoming} open={open} onClose={() => { setOpen(false); opener.current?.focus() }} attachSketch={attachSketch} enabled={settings.imageSketch && settings.imageEditing} t={t} />
+    <SketchStudio sessionId={sessionId} rpc={rpc} incoming={incoming} open={open} onClose={() => { setOpen(false); opener.current?.focus() }} attachSketch={attachSketch} enabled={settings.imageSketch && settings.imageEditing} t={t} />
   </>
 }

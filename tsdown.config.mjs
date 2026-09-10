@@ -22,6 +22,11 @@ const clientExternal = [
 
 export default defineConfig([
   {
+    name:'sketch-psd-codec',entry:{'sketch-psd-worker':'src/sketch-psd-worker.js'},
+    outDir:'lib',format:'esm',platform:'browser',target:'es2022',clean:false,minify:true,
+    deps:{onlyBundle:['ag-psd','base64-js','pako']},
+  },
+  {
     name: id,
     entry: { index: 'src/index.js' },
     outDir: 'lib', format: ['esm'], platform: 'node', target: 'es2024',

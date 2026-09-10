@@ -1,3 +1,4 @@
+import { PhotoIcon, ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { buildImageEditDraft } from './image-edit.js'
 import { decodeImagePresentation } from './image-original-contract.js'
@@ -91,7 +92,7 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
   </button>
 }
 
-export function CodexImageToolRow({ block, sessionId, rpc, loadImage, openSketchImage, attachForEdit, getImageViewer, getInternalImageViewer, t, preference }) {
+export function CodexImageToolRow({ presentation = 'tool', block, sessionId, rpc, loadImage, openSketchImage, attachForEdit, getImageViewer, getInternalImageViewer, t, preference }) {
   const features = useSyncExternalStore(preference.subscribe, preference.getSnapshot)
   const settled = block?.kind === 'tool-result'
   const image = settled
@@ -104,14 +105,16 @@ export function CodexImageToolRow({ block, sessionId, rpc, loadImage, openSketch
     ? block.content.find(item => item?.type === 'text' && typeof item.text === 'string')?.text
     : undefined
   const original = decodeImagePresentation(block?.meta)?.original
+  const showOutput = presentation === 'output'
+  const StateIcon = !settled ? ArrowPathIcon : failed ? ExclamationCircleIcon : PhotoIcon
   return <div className="codexImageTool" data-state={state}>
-    <div className="codexImageToolRow"><span className="codexImageToolIcon" aria-hidden="true" /><span className="codexImageToolTitle">{t('imageGenerate')}</span><span className="codexImageBeta">{t('imageBeta')}</span><span className="codexImageToolState">{status}</span></div>
-    {image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage features={features} attachment={image.attachment} original={original} rpc={rpc} sessionId={sessionId} loadImage={loadImage} openSketchImage={openSketchImage} attachForEdit={attachForEdit} getImageViewer={getImageViewer} getInternalImageViewer={getInternalImageViewer} t={t} /></div>}
-    {typeof block?.meta?.requestedModel === 'string' ? <details className="codexImageDetails"><summary>{t('imageDetails')}</summary><p>{t('imageRequestedModel')}: {block.meta.requestedModel.slice(0,100)}<br />{t('imageReportedModel')}: {typeof block.meta.reportedModel === 'string' ? block.meta.reportedModel.slice(0,100) : t('imageModelUnreported')}<br />{t('imageRequestedSize')}: {String(block.meta.requestedSize ?? 'auto').slice(0,40)} · {t('imageActualSize')}: {original?.width} × {original?.height}</p></details> : null}
+    {showOutput ? null : <div className="codexImageToolRow"><StateIcon className="codexImageToolIcon" aria-hidden="true" /><span className="codexImageToolTitle">{t('imageGenerate')}</span><span className="codexImageBeta">{t('imageBeta')}</span><span className="codexImageToolState">{status}</span></div>}
+    {!showOutput || image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage features={features} attachment={image.attachment} original={original} rpc={rpc} sessionId={sessionId} loadImage={loadImage} openSketchImage={openSketchImage} attachForEdit={attachForEdit} getImageViewer={getImageViewer} getInternalImageViewer={getInternalImageViewer} t={t} /></div>}
+    {!showOutput && typeof block?.meta?.requestedModel === 'string' ? <details className="codexImageDetails"><summary>{t('imageDetails')}</summary><p>{t('imageRequestedModel')}: {block.meta.requestedModel.slice(0,100)}<br />{t('imageReportedModel')}: {typeof block.meta.reportedModel === 'string' ? block.meta.reportedModel.slice(0,100) : t('imageModelUnreported')}<br />{t('imageRequestedSize')}: {String(block.meta.requestedSize ?? 'auto').slice(0,40)} · {t('imageActualSize')}: {original?.width} × {original?.height}</p></details> : null}
     {error === undefined ? null : <p className="codexImageToolError">{error}</p>}
   </div>
 }
 
 export function CodexImageOutput({ node, ...props }) {
-  return <div className="codexImageOutput">{node.data.blocks.map(block => <CodexImageToolRow key={block.toolCallId} block={block} {...props} />)}</div>
+  return <div className="codexImageOutput">{node.data.blocks.map(block => <CodexImageToolRow key={block.toolCallId} block={block} {...props} presentation="output" />)}</div>
 }
