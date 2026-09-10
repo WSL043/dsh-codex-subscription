@@ -30,6 +30,18 @@ export function strokeHit(stroke, point, radius, width = SKETCH_SIZE, height = w
   let points = stroke.points
   if (!points.length) return false
   const a = points[0], b = points.at(-1)
+  if(stroke.fill && stroke.shape==='rectangle' && point.x>=Math.min(a.x,b.x) && point.x<=Math.max(a.x,b.x) && point.y>=Math.min(a.y,b.y) && point.y<=Math.max(a.y,b.y))return true
+  if(stroke.fill && stroke.shape==='circle'){
+    const rx=Math.abs(b.x-a.x)/2,ry=Math.abs(b.y-a.y)/2
+    if(rx && ry && ((point.x-(a.x+b.x)/2)/rx)**2+((point.y-(a.y+b.y)/2)/ry)**2<=1)return true
+  }
+  if(stroke.shape==='polygon'){
+    if(stroke.fill){let inside=false;for(let i=0,j=points.length-1;i<points.length;j=i++){
+      const p=points[i],q=points[j]
+      if((p.y>point.y)!==(q.y>point.y) && point.x<(q.x-p.x)*(point.y-p.y)/(q.y-p.y)+p.x)inside=!inside
+    }if(inside)return true}
+    points=[...points,points[0]]
+  }
   if (stroke.shape === 'rectangle') points = [a,{x:b.x,y:a.y},b,{x:a.x,y:b.y},a]
   if (stroke.shape === 'circle') points = Array.from({length:65},(_,i)=>({x:(a.x+b.x)/2+Math.abs(b.x-a.x)/2*Math.cos(i*Math.PI/32),y:(a.y+b.y)/2+Math.abs(b.y-a.y)/2*Math.sin(i*Math.PI/32)}))
   points = points.map(p => ({ x: p.x * width, y: p.y * height }))
