@@ -36,6 +36,23 @@ test('image instruction insertion preserves existing draft and refuses to flatte
   input.state.getSnapshot=()=>({draft,phase:'plain',occurrences:[{}]})
   assert.throws(()=>appendImagePrompt(input,'More'))
 })
+
+test('modern DSH attachments carry the session and release refused drafts', () => {
+  const files = [{}], created = [{ id: 'new-image' }]
+  let released, admitted
+  const conversation = {
+    createDrafts(sessionId, received) { assert.equal(sessionId, 'session-test'); assert.equal(received, files); return created },
+    releaseDraftAttachments(items) { released = items },
+  }
+  const input = { addAttachments(ids) { assert.equal(this, input); admitted = ids; return true } }
+  assert.equal(attachImageFiles(conversation, input, files, 'session-test'), created)
+  assert.deepEqual(admitted, ['new-image'])
+  assert.equal(released, undefined)
+  input.addAttachments = () => false
+  assert.throws(() => attachImageFiles(conversation, input, files, 'session-test'), /busy/)
+  assert.equal(released, created)
+  assert.throws(() => attachImageFiles(conversation, input, files), /unavailable/)
+})
 test('sketch coordinates remain relative across viewport sizes and paint taps', () => {
   assert.deepEqual(sketchPoint(100,50,{left:0,top:0,width:200,height:100}),{x:.5,y:.5})
   assert.deepEqual(sketchPoint(-5,200,{left:0,top:0,width:100,height:100}),{x:0,y:1})

@@ -376,7 +376,7 @@ test('generated image preview uses a native full-screen canvas and explicit edit
   assert.match(viewer, /IconDownloadOutline16/u)
   assert.match(viewer, /imageAnnotation/u)
   assert.match(source, /attachForEdit/u)
-  assert.match(source, /createDraftImages/u)
+  assert.match(source, /attachImageFiles/u)
   assert.match(await text('src/image-composer.js'), /input\.addImages/u)
   assert.match(source, /input\.setDraft/u)
   assert.match(source, /imageEditDefault/u)

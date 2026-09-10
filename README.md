@@ -93,9 +93,9 @@ dsh --profile headless "只回复：ok"
 官方的 `npx @deepseek-ai/dsh web` 不会创建全局 `dsh` 命令，因此安装插件时也要保留完整的 `npx` 前缀：
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web add dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 --profile web --dump-config
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web add dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 --profile web --dump-config
 ```
 
 </details>
@@ -223,22 +223,22 @@ dsh plugin --profile web remove dsh-codex-subscription
 ### 更新并检查
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web update dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 --profile web --dump-config
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web update dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web list dsh-codex-subscription --depth 0
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 --profile web --dump-config
 ```
 
 ### 卸载
 
 ```sh
-npx -y @deepseek-ai/dsh@0.1.2-rc.1 plugin --profile web remove dsh-codex-subscription
+npx -y @deepseek-ai/dsh@0.1.5-rc.1 plugin --profile web remove dsh-codex-subscription
 ```
 
 </details>
 
 ## 常见问题
 
-- **`dsh` 无法识别**：官方 npm 方式本来就不会创建全局 `dsh` 命令，请使用上面的完整 `npx -y @deepseek-ai/dsh@0.1.2-rc.1 ...` 命令；
+- **`dsh` 无法识别**：官方 npm 方式本来就不会创建全局 `dsh` 命令，请使用上面的完整 `npx -y @deepseek-ai/dsh@0.1.5-rc.1 ...` 命令；
 - **电脑上有多个 DSH**：请从目标 DSH 环境运行标准命令，由该产品自身选择对应 profile；
 - **安装仍然失败**：确认命令是在目标 DSH 环境中运行，不要删除 profile 或随意修改系统 PATH。
 - **需要提交问题**：在设置页底部生成“支持诊断”，然后打开[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)。报告包含系统/运行时、有限的登录阶段和安全的请求失败分类，但不含凭据、账号标识、代理地址、原始响应或完整日志；请粘贴到必填诊断栏，且不要附上登录链接、授权码或浏览器回调地址。
