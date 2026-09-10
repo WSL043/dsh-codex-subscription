@@ -258,7 +258,7 @@ If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex
 
 [简体中文](README.md) · [MIT](LICENSE)
 
-### Advanced example · 2.1.0-beta.1
+### Advanced example · 2.1.0-beta.2
 
 **Astra draws the sketch; GPT Image 2 generates the illustration.** Astra draws 427 strokes across six layers through the native `codex_sketch` interface; Luna then calls the subscription image tool. The request uses `gpt-image-2` at low quality; the server does not report the executing model. This Beta adds PNG export, layered PSD import/export and editable draft files. PSD retains pixel layers; native drafts retain strokes. Sketch canvas and Agent drawing are separate Beta options, both off by default in Advanced settings. Drawing tools are exposed only when Agent drawing is enabled; the agent then automatically opens the current session’s board.
 
@@ -266,4 +266,4 @@ If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex
 | --- | --- |
 | ![Sketch](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-advanced-source.png) | ![Result](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-advanced-result.png) |
 
-[Beta v2.1.0-beta.1](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.1)
+[Beta v2.1.0-beta.2](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.2)

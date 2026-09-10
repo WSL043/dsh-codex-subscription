@@ -1,6 +1,6 @@
 # Native sketch commands — development interface
 
-Available in 2.1.0-beta.1; not included in stable 2.0.1.
+Available in 2.1.0-beta.2; not included in stable 2.0.1.
 
 `codex_sketch` is a DSH-native tool. The browser bridge is active while that session is viewed and sketch editing
 is enabled. An inspect request automatically opens its board. It

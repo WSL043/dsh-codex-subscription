@@ -259,7 +259,7 @@ DSH 插件交流可前往 [DeepSeek Harness Discussions](https://github.com/deep
 
 [MIT](LICENSE)
 
-### 进阶展示 · 2.1.0-beta.1
+### 进阶展示 · 2.1.0-beta.2
 
 **Astra 绘制草图，GPT Image 2 生成成图。** Astra 通过原生 `codex_sketch` 接口完成 6 层、427 笔绘制，再由 Luna 调用订阅生图工具精修。生图请求使用 `gpt-image-2`、低质量档；服务端未报告实际执行型号。Beta 新增 PNG 导出、分层 PSD 导入导出和可编辑草稿文件；PSD 保留像素图层，原生草稿保留笔画。草图画板与 Agent 绘图均默认关闭，可在高级设置中分别开启。仅开启 Agent 绘图后才向模型提供绘图工具；提出绘画请求后自动打开当前会话画板。
 
@@ -267,4 +267,4 @@ DSH 插件交流可前往 [DeepSeek Harness Discussions](https://github.com/deep
 | --- | --- |
 | ![Sketch](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-advanced-source.png) | ![Result](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-advanced-result.png) |
 
-[Beta v2.1.0-beta.1](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.1)
+[Beta v2.1.0-beta.2](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.2)

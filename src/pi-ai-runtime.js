@@ -110,4 +110,4 @@ export function openaiCodexSubscriptionProvider({
   })
 }
 
-export const PI_AI_RUNTIME_VERSION = '0.82.1'
+export const PI_AI_RUNTIME_VERSIONS = Object.freeze(['0.82.1', '0.85.1'])
