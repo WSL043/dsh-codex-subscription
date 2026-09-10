@@ -12,7 +12,7 @@ import { createSketchCommandSession, MAX_SKETCH_POINTS } from './sketch-commands
 import { connectSketchAgent, executeSketchFromAgent } from './sketch-agent-client.js'
 import { encodeSketchDocument, decodeSketchDocument, exportSketchPsd, importSketchPsd } from './sketch-formats.js'
 const PALETTE = ['#18181b','#929398','#ff3936','#ff9500','#ffcc00','#34c759','#0088ff']
-export function SketchStudio({ open, onOpen, onClose, attachSketch, enabled, t, incoming, sessionId, rpc }) {
+export function SketchStudio({ open, agentEnabled, onOpen, onClose, attachSketch, enabled, t, incoming, sessionId, rpc }) {
   const dialog = useRef(null), canvas = useRef(null), doc = useRef(createSketchLayers()), cache = useRef(new Map())
   const undo = useRef([]), redo = useRef([]), active = useRef(null), frame = useRef(null)
   const images = useRef(new Map()), saved = useRef(null), dirty = useRef(false), updateUi = useRef(false)
@@ -125,7 +125,7 @@ export function SketchStudio({ open, onOpen, onClose, attachSketch, enabled, t, 
   })
   agentSession.current??=createSketchCommandSession(agentAdapter.current)
   useEffect(()=>{
-    if(!open||!enabled)return
+    if(!open||!enabled||!agentEnabled)return
     const api=Object.freeze({version:1,sessionId,execute:request=>agentSession.current(request),export:async format=>{
       if(agentAdapter.current.busy())throw Error('Sketch is being edited')
       const {blob,extension}=await agentAdapter.current.export(format)
@@ -134,16 +134,16 @@ export function SketchStudio({ open, onOpen, onClose, attachSketch, enabled, t, 
     }})
     window.dshSketchAgent=api
     return ()=>{if(window.dshSketchAgent===api)delete window.dshSketchAgent}
-  },[open,enabled,rpc,sessionId])
+  },[open,enabled,agentEnabled,rpc,sessionId])
   useEffect(()=>{
-    if(!enabled || !rpc || !sessionId)return
+    if(!enabled || !agentEnabled || !rpc || !sessionId)return
     let live=true
     const disconnect=connectSketchAgent(rpc,sessionId,request=>executeSketchFromAgent(request,{
       available:()=>agentAdapter.current.available(),open:()=>agentAdapter.current.open(),
       execute:request=>agentSession.current(request),live:()=>live,
     }),message=>setError(message),()=>agentAdapter.current.available()?350:1500)
     return ()=>{live=false;disconnect()}
-  },[enabled,rpc,sessionId])
+  },[enabled,agentEnabled,rpc,sessionId])
   const attach = async () => { if (!enabled || busy) return; setBusy(true);setError('');try { paint(); const blob = await new Promise((resolve,reject)=>canvas.current.toBlob(blob=>blob?resolve(blob):reject(Error('PNG')),'image/png')); await saveChanges(); await attachSketch(blob); onClose() } catch { setError(t('sketchFailed')) } finally { setBusy(false) } }
   const exportFile = async (format='png') => {
     paint()

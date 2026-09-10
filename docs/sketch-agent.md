@@ -5,7 +5,7 @@ Available in 2.1.0-beta.1; not included in stable 2.0.1.
 `codex_sketch` is a DSH-native tool. The browser bridge is active while that session is viewed and sketch editing
 is enabled. An inspect request automatically opens its board. It
 does not open another browser, read unrelated drafts, generate images, or send
-attachments/messages. Existing subscription feature settings control availability.
+attachments/messages. Sketch canvas and Agent drawing are independent Beta settings, both off by default. The host registers the drawing tool only when both are enabled; disabling Agent drawing removes its tool definition from subsequent model requests. Existing conversation history is not erased.
 
 Actions: `inspect`, `apply`, `preview`, `save`.
 
