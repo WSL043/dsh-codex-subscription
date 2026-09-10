@@ -5,7 +5,8 @@ export const IMAGE_FEATURE_DEFAULTS = Object.freeze({
   imageEditing: true,
   imageViewer: true,
   imageAnnotations: true,
-  imageSketch: true,
+  imageSketch: false,
+  imageSketchAgent: false,
 })
 
 export function readImageFeatures(value = {}) {

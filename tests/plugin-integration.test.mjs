@@ -128,7 +128,7 @@ function fakeContext({ connection = true, webServer = true } = {}) {
     tools: {
       register(tool) {
         tools.push(tool)
-        return () => {}
+        return () => { const index=tools.indexOf(tool);if(index>=0)tools.splice(index,1) }
       },
     },
     web: {
@@ -566,4 +566,16 @@ test('catalog diagnostics includes refresh failures without copying private meta
   assert.equal(report.requests.catalog.httpStatus, 403)
   assert.deepEqual(report.catalog, { source: 'fallback', refresh: 'failed' })
   assert.doesNotMatch(JSON.stringify(report), /private-|accountId|url/)
+})
+
+test('sketch tool is absent until both Beta switches are enabled and removed when disabled',async()=>{
+ const host=fakeContext();applyPlugin(host.ctx)
+ const registered=()=>host.tools.some(tool=>tool.name==='codex_sketch')
+ assert.equal(registered(),false)
+ await host.updateSettings({imageSketch:true,imageEditing:true})
+ assert.equal(registered(),false)
+ await host.updateSettings({imageSketchAgent:true})
+ assert.equal(registered(),true)
+ await host.updateSettings({imageSketchAgent:false})
+ assert.equal(registered(),false)
 })

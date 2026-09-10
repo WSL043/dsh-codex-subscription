@@ -303,12 +303,12 @@ export function apply(ctx) {
     usageReader,
     fetch: (input, init) => network.fetch('quota-reset', input, init),
   })
-  const sketchBridge = createSketchAgentBridge({enabled:()=>settings.get().imageSketch && settings.get().imageEditing})
+  const sketchBridge = createSketchAgentBridge({enabled:()=>settings.get().imageSketchAgent && settings.get().imageSketch && settings.get().imageEditing})
   ctx.effect(()=>{
     let dispose
     const sync=()=>{
       const value=settings.get()
-      if(value.imageSketch && value.imageEditing){dispose??=ctx.tools.register(createSketchAgentTool(sketchBridge,ctx.attachments))}
+      if(value.imageSketchAgent && value.imageSketch && value.imageEditing){dispose??=ctx.tools.register(createSketchAgentTool(sketchBridge,ctx.attachments))}
       else {dispose?.();dispose=undefined;sketchBridge.dispose()}
     }
     sync();const unwatch=settings.watch(sync)
