@@ -194,7 +194,7 @@ Beta.3 增加可选中修改的形状与文字、原生曲线，以及侧边粗�
 示例要求：保留山峰与小屋的构图，生成温暖的水彩旅行插画，青绿山峰、橙色屋顶、草地小溪与柔和晨光，不保留蓝色线条。此例通过 GPT-5.6-Luna 发起一次图片工具调用，请求低质量；Luna 是对话模型，实际出图型号由订阅后端决定。
 
 <details>
-<summary>进阶展示 · 2.1.0-beta.2</summary>
+<summary>进阶展示</summary>
 
 **Astra 绘制草图，GPT Image 2 生成成图。** Astra 通过原生 `codex_sketch` 接口完成 6 层、427 笔绘制，再由 Luna 调用订阅生图工具精修。生图请求使用 `gpt-image-2`、低质量档；服务端未报告实际执行型号。Beta 新增 PNG 导出、分层 PSD 导入导出和可编辑草稿文件；PSD 保留像素图层，原生草稿保留笔画。草图画板与 Agent 绘图均默认关闭，可在高级设置中分别开启。仅开启 Agent 绘图后才向模型提供绘图工具。
 
@@ -203,6 +203,18 @@ Beta.3 增加可选中修改的形状与文字、原生曲线，以及侧边粗�
 | ![Sketch](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-advanced-source.png) | ![Result](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-advanced-result.png) |
 
 [Beta v2.1.0-beta.2](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.2)
+
+**《蒙娜丽莎》：Astra 草图 → GPT 生图**
+
+用户在另一台电脑上的实际效果：先让 Astra 在竖版画板上绘制，再通过 GPT 生图转成油画。
+
+| Astra 原生草图 | GPT 生图：油画效果 |
+| --- | --- |
+| ![Astra 绘制的蒙娜丽莎草图](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-mona-lisa-source.png) | ![草图转换后的蒙娜丽莎油画](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-mona-lisa-result.png) |
+
+草图提示词：`@sketch 用竖版画板画一幅《蒙娜丽莎》`
+
+生图提示词：`帮我变成油画`
 
 </details>
 
