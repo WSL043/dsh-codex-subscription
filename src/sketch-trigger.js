@@ -11,5 +11,6 @@ function createWorkspaceTrigger({ enabled, open, consume, name, aliases, descrip
   }
 }
 
-export const createSketchTrigger = options => createWorkspaceTrigger({ ...options, name: 'Sketch · Beta', aliases: ['sketch', '草图'], description: 'Draw a reference image' })
+// Picking an Agent entry edits the composer; only the tool opens the board.
+export const createSketchTrigger = options => createWorkspaceTrigger({ ...options, open:()=>{}, name: 'Sketch · Beta', aliases: ['sketch', '草图'], description: 'Ask the Agent to draw or edit a sketch' })
 export const createImageTrigger = options => createWorkspaceTrigger({ ...options, name: 'Image · 生图', aliases: ['image', '生图'], description: 'Describe an image to generate or edit' })

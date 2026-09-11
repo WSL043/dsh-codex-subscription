@@ -1,5 +1,8 @@
 export function WorkspaceIcon({ name, size = 24 }) {
   const paths = {
+    select: 'M5 3l14 9-7 2-3 7-4-18z',
+    text: 'M4 5h16M12 5v15M8 20h8M4 5v3M20 5v3',
+    arrow: 'M4 20L20 4M10 4h10v10',
     line: 'M4 20L20 4',
     layers: 'M12 3L2 8l10 5 10-5-10-5zM2 12l10 5 10-5M2 16l10 5 10-5',
     eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12zM15 12a3 3 0 11-6 0 3 3 0 016 0',

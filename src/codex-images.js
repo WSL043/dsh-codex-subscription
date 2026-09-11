@@ -279,7 +279,7 @@ export function createCodexImageTool(options) {
   const attachments = options.attachments
   return defineTool({
     name: CODEX_IMAGE_TOOL_NAME,
-    description: 'Generate or edit images only when the user asks for image output, not when merely discussing images. Uses the signed-in Codex subscription. For a new image, omit referenceImages. For edits, copy complete references only for the images the user selected; obtain missing references using read_image. Never substitute paths, unrelated images, or text-only generation for an edit. For numbered annotations, include the clean source and location-reference image, preserve the requested changes and coordinates in the prompt, and remove guidance markers from the result. If the intended references cannot be identified, ask rather than guessing.',
+    description: 'Generate or edit images only when the user asks for image output, not when merely discussing images. Uses the signed-in Codex subscription. For a new image, omit referenceImages. For edits, copy attachmentId only from the selected session image block; the host supplies its metadata. Never call read_image for an attachmentId or attachment filename. Use read_image only for an actual local file whose reference is not already in the conversation. Never substitute paths, unrelated images, or text-only generation for an edit. For numbered annotations, include the clean source and location-reference image, preserve the requested changes and coordinates in the prompt, and remove guidance markers from the result. If the intended references cannot be identified, ask rather than guessing.',
     parameters: {
       model: {
         type: 'string',
@@ -307,7 +307,7 @@ export function createCodexImageTool(options) {
       },
       referenceImages: {
         type: 'array',
-        description: 'Optional explicit references to 1-5 prior images to edit. Copy each complete reference from the session image block or read_image result. Omit only for a new image; an invalid reference must be fixed and retried rather than omitted.',
+        description: 'Optional references to 1-5 selected images. For session images provide only attachmentId; the host resolves trusted metadata. Omit only for a new image; never drop an invalid reference to bypass editing.',
         items: {
           type: 'object',
           additionalProperties: false,
@@ -317,17 +317,17 @@ export function createCodexImageTool(options) {
               required: true,
               description: 'Copy the complete attachmentId from the image block or read_image result: sha256:<64 lowercase hex>. Never pass a workspace path, absolute path, or filename. A bare 64-character hex digest is accepted and normalized to sha256:<64 lowercase hex>.',
             },
-            mediaType: { type: 'string', required: true },
-            bytes: { type: 'integer', required: true },
-            width: { type: 'integer', required: true },
-            height: { type: 'integer', required: true },
+            mediaType: { type: 'string', ...(typeof options.getSessionMessages !== 'function' ? {required:true} : {}) },
+            bytes: { type: 'integer', ...(typeof options.getSessionMessages !== 'function' ? {required:true} : {}) },
+            width: { type: 'integer', ...(typeof options.getSessionMessages !== 'function' ? {required:true} : {}) },
+            height: { type: 'integer', ...(typeof options.getSessionMessages !== 'function' ? {required:true} : {}) },
             name: { type: 'string' },
             originalDimensions: {
               type: 'object',
               additionalProperties: false,
               properties: {
-                width: { type: 'integer', required: true },
-                height: { type: 'integer', required: true },
+                width: { type: 'integer', ...(typeof options.getSessionMessages !== 'function' ? {required:true} : {}) },
+                height: { type: 'integer', ...(typeof options.getSessionMessages !== 'function' ? {required:true} : {}) },
               },
             },
           },

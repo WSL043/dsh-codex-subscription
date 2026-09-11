@@ -19,11 +19,12 @@ export function createSketchAgentBridge({ enabled, now = Date.now, timeoutMs = 2
           const previous = sessions.get(payload.sessionId)
           if(previous && now()-previous.seen < 10_000)throw Error('Another board is connected to this session')
           if(previous)fail(previous,'Sketch connection replaced')
-          const entry={token:randomUUID(),seen:now(),tasks:new Map()};sessions.set(payload.sessionId,entry)
+          const entry={token:randomUUID(),seen:now(),tasks:new Map(),cancelled:[]};sessions.set(payload.sessionId,entry)
           return {ok:true,value:{token:entry.token}}
         }
         const entry=find(payload)
-        if(endpoint==='sketch/poll')return {ok:true,value:[...entry.tasks].filter(([,t])=>!t.delivered).map(([id,t])=>{t.delivered=true;return {id,request:t.request,expiresAt:t.expiresAt}})}
+        if(endpoint==='sketch/poll')return {ok:true,value:[...entry.cancelled.splice(0).map(id=>({id,cancelled:true})),...[...entry.tasks].filter(([,t])=>!t.delivered).map(([id,t])=>{t.delivered=true;return {id,request:t.request,expiresAt:t.expiresAt}})]}
+        if(endpoint==='sketch/claim'){const task=entry.tasks.get(payload.id);return {ok:true,value:Boolean(task && task.delivered && task.expiresAt>now())}}
         if(endpoint==='sketch/disconnect'){fail(entry,'Sketch board closed');sessions.delete(payload.sessionId);return {ok:true,value:null}}
         if(endpoint==='sketch/result'){
           const task=entry.tasks.get(payload.id)
@@ -42,8 +43,9 @@ export function createSketchAgentBridge({ enabled, now = Date.now, timeoutMs = 2
       return new Promise((resolve,reject)=>{
         const id=randomUUID()
         const finish=(callback,value)=>{clearTimeout(timer);signal?.removeEventListener('abort',abort);entry.tasks.delete(id);callback(value)}
-        const abort=()=>finish(reject,Error('Sketch operation interrupted; inspect before retrying'))
-        const timer=setTimeout(()=>finish(reject,Error('Sketch response timed out; inspect before retrying')),timeoutMs)
+        const cancel=message=>{if(entry.tasks.get(id)?.delivered){entry.cancelled.push(id);if(entry.cancelled.length>32)entry.cancelled.shift()}finish(reject,Error(message))}
+        const abort=()=>cancel('Sketch operation interrupted; inspect recentRequests before retrying')
+        const timer=setTimeout(()=>cancel('Sketch response timed out; inspect recentRequests before retrying'),timeoutMs)
         entry.tasks.set(id,{request,expiresAt:now()+timeoutMs,delivered:false,resolve:value=>finish(resolve,value),reject:error=>finish(reject,error)})
         signal?.addEventListener('abort',abort,{once:true});if(signal?.aborted)abort()
       })

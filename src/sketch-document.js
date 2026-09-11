@@ -24,7 +24,20 @@ export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = 
     context.lineWidth = stroke.width * (stroke.brush === 'pencil' ? 0.55 : 1) * (stroke.pressure ?? 1)
     context.beginPath()
     const last = stroke.points.at(-1)
-    if (stroke.shape === 'line') {
+    if (stroke.shape === 'text') {
+      const x=Math.min(first.x,last.x)*size,y=Math.min(first.y,last.y)*height,w=Math.abs(last.x-first.x)*size,h=Math.abs(last.y-first.y)*height
+      const lines=stroke.text.split('\n'),fontSize=Math.min(stroke.width,h/Math.max(1,lines.length)/1.2)
+      context.font=`${fontSize}px system-ui, sans-serif`;context.textBaseline='top'
+      lines.forEach((line,i)=>context.fillText(line,x,y+i*fontSize*1.2,w))
+    } else if (stroke.shape === 'arrow') {
+      const x=last.x*size,y=last.y*height,a=Math.atan2(y-first.y*height,x-first.x*size),head=Math.min(Math.hypot(x-first.x*size,y-first.y*height)*.4,Math.max(12,stroke.width*3))
+      context.moveTo(first.x*size,first.y*height);context.lineTo(x,y);context.stroke();context.beginPath();context.moveTo(x,y)
+      context.lineTo(x-head*Math.cos(a-.5),y-head*Math.sin(a-.5));context.lineTo(x-head*Math.cos(a+.5),y-head*Math.sin(a+.5));context.closePath();context.fill()
+    } else if (stroke.shape === 'bezier') {
+      context.moveTo(first.x*size,first.y*height)
+      for(let i=1;i<stroke.points.length;i+=3){const [a,b,c]=stroke.points.slice(i,i+3);context.bezierCurveTo(a.x*size,a.y*height,b.x*size,b.y*height,c.x*size,c.y*height)}
+      if(stroke.fill){context.closePath();context.fill()}else context.stroke()
+    } else if (stroke.shape === 'line') {
       context.moveTo(first.x * size, first.y * height); context.lineTo(last.x * size, last.y * height); context.stroke()
     } else if (stroke.shape === 'rectangle') {
       context.rect(first.x * size, first.y * height, (last.x-first.x)*size, (last.y-first.y)*height)

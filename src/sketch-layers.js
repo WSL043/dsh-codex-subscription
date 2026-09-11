@@ -1,3 +1,4 @@
+import { flattenSketchCurve } from './sketch-curves.js'
 import { MAX_SKETCH_STROKES, SKETCH_SIZE } from './sketch-document.js'
 export const MAX_SKETCH_LAYERS = 8
 export const createSketchLayers = () => ({ active: 1, nextId: 2, layers: [{ id: 1, name: '', visible: true, strokes: [] }] })
@@ -27,15 +28,15 @@ const distanceToSegment = (p, a, b) => {
   return Math.hypot(p.x-a.x-k*dx, p.y-a.y-k*dy)
 }
 export function strokeHit(stroke, point, radius, width = SKETCH_SIZE, height = width) {
-  let points = stroke.points
+  let points = stroke.shape==='bezier'?flattenSketchCurve(stroke,width,height):stroke.points
   if (!points.length) return false
   const a = points[0], b = points.at(-1)
-  if(stroke.fill && stroke.shape==='rectangle' && point.x>=Math.min(a.x,b.x) && point.x<=Math.max(a.x,b.x) && point.y>=Math.min(a.y,b.y) && point.y<=Math.max(a.y,b.y))return true
+  if((stroke.shape==='text'||stroke.fill && stroke.shape==='rectangle') && point.x>=Math.min(a.x,b.x) && point.x<=Math.max(a.x,b.x) && point.y>=Math.min(a.y,b.y) && point.y<=Math.max(a.y,b.y))return true
   if(stroke.fill && stroke.shape==='circle'){
     const rx=Math.abs(b.x-a.x)/2,ry=Math.abs(b.y-a.y)/2
     if(rx && ry && ((point.x-(a.x+b.x)/2)/rx)**2+((point.y-(a.y+b.y)/2)/ry)**2<=1)return true
   }
-  if(stroke.shape==='polygon'){
+  if(stroke.shape==='polygon' || stroke.shape==='bezier' && stroke.fill){
     if(stroke.fill){let inside=false;for(let i=0,j=points.length-1;i<points.length;j=i++){
       const p=points[i],q=points[j]
       if((p.y>point.y)!==(q.y>point.y) && point.x<(q.x-p.x)*(point.y-p.y)/(q.y-p.y)+p.x)inside=!inside
