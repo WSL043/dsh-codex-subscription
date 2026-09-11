@@ -180,11 +180,11 @@ The screenshot above illustrates image viewing and on-image notes; available but
 
 ![Sketch canvas in the Chinese UI: aspect ratio, brushes, shapes, layers and zoom](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-canvas.png)
 
-Use the composer pen button for manual drawing. In Beta.3, selecting `@sketch` only inserts the Agent entry into the composer; the Agent opens the board after you send your drawing request. You can also choose Open in sketch from an enhanced image preview. Attachment intake and removal use the native DSH component.
+Use the composer pen button for manual drawing. Selecting `@sketch` only inserts the Agent entry into the composer; the Agent opens the board after you send your drawing request. You can also choose Open in sketch from an enhanced image preview. Attachment intake and removal use the native DSH component.
 
 Sketch supports local drafts, image layers, aspect ratios, brushes, lines and shapes, two erasers, undo/redo, pan/zoom and configurable shortcuts. Smoothing processes a completed stroke only after release. Up to 20 drafts stay in the current browser; attaching a sketch never sends it automatically. Its image panel manages only the current sketch, not the conversation library.
 
-Beta.3 adds editable shapes and text, native curves, and a side control for size/opacity. During Agent drawing, you can view, zoom, close the panel or stop drawing; manual edits unlock when it finishes. Automatic completion previews are off by default and can be enabled in Advanced settings. The board requires the current session page; drawing does not continue after closing the page or switching sessions.
+The board supports editable shapes and text, native curves, and a side control for size/opacity. During Agent drawing, you can view, zoom, close the panel or stop drawing; manual edits unlock when it finishes. Automatic completion previews are off by default and can be enabled in Advanced settings. [Beta.5](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.5) retains the document, history and run state when switching away and back, and improves layer creation, segmented curves and error recovery. Background drawing while viewing another session is not guaranteed. Save before a full-page reload or exit; unsaved recovery is not guaranteed.
 
 **Sketch-to-image example**: draw, click Attach, describe the desired result in the composer, then send.
 
@@ -197,13 +197,29 @@ The request preserves the mountain and cabin composition while creating a warm w
 <details>
 <summary>Advanced examples</summary>
 
+**Someone Behind the Canvas**
+
 **Astra draws the sketch; GPT Image 2 generates the illustration.** Astra draws 427 strokes across six layers through the native `codex_sketch` interface; Luna then calls the subscription image tool. The request uses `gpt-image-2` at low quality; the server does not report the executing model. This Beta adds PNG export, layered PSD import/export and editable draft files. PSD retains pixel layers; native drafts retain strokes. Sketch canvas and Agent drawing are separate Beta options, both off by default in Advanced settings. Drawing tools are exposed only when Agent drawing is enabled; the agent then automatically opens the current session’s board.
 
 | Native sketch | Generated result |
 | --- | --- |
 | ![Sketch](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-advanced-source.png) | ![Result](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-advanced-result.png) |
 
-[Beta v2.1.0-beta.2](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.2)
+**Sketch reproduction prompt (reconstructed from the artwork, not the original conversation)**
+
+Astra drew the original in stages. This Chinese prompt provides a starting point for the same concept, not a guarantee of an identical result.
+
+```text
+@sketch 用 4:3 横版画板绘制《画布背面有人》：中央偏上是一处撕开的纸洞，洞内是深蓝星空和一位拿颜料桶的小画师；蓝色颜料从桶中流出，形成 S 形河流，流向下方城市。左侧城市保持未上色线稿，右侧城市被暖色点亮，加入纸船与飞鸟。按纸面、洞内世界、颜料河流、城市、画师和细节分层绘制，保留原生可编辑笔画。
+```
+
+**Actual image-generation prompt (original Chinese)**
+
+```text
+请基于本条附加草图实际调用订阅图片工具一次，生成成品插画。quality=low，模型使用当前默认，不切换型号，不额外生成。主题《画布背面有人》：保留4:3横构图、中央偏上的撕纸洞口、洞内拿颜料桶的小画师、流出成为S形河流的蓝色颜料、下方左侧未上色城市与右侧被点亮城市、纸船飞鸟。精修为惊艳的立体纸艺与精细手绘结合的编辑插画，纸张纤维、真实撕边及柔和投影，深靛蓝洞内星月，丰富青蓝颜料层次和流动质感，赭橙画师与暖色建筑，微小清晰的叙事细节。不重构为风景，不添加文字水印。必须使用本条参考图片编辑，不能仅凭文字生成。生成后简短说明完成即可。
+```
+
+Original example released in: [Beta v2.1.0-beta.2](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.2)
 
 **Mona Lisa: Astra sketch → GPT image generation**
 
