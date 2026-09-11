@@ -223,6 +223,8 @@ Original example released in: [Beta v2.1.0-beta.2](https://github.com/WSL043/dsh
 
 **Mona Lisa: Astra sketch → GPT image generation**
 
+Example version: [2.1.0-beta.5](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.5)
+
 Actual results supplied by the user from another computer: Astra draws on a portrait canvas, then GPT image generation turns the sketch into an oil painting.
 
 | Native Astra sketch | GPT-generated oil painting |

@@ -222,6 +222,8 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 
 **《蒙娜丽莎》：Astra 草图 → GPT 生图**
 
+案例版本：[2.1.0-beta.5](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.5)
+
 用户在另一台电脑上的实际效果：先让 Astra 在竖版画板上绘制，再通过 GPT 生图转成油画。
 
 | Astra 原生草图 | GPT 生图：油画效果 |
