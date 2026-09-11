@@ -470,3 +470,10 @@ test('missing subscription auth and provider errors are bounded', async () => {
     { message: 'Codex image generation failed (HTTP 500)' },
   )
 })
+
+test('session image edits accept only attachmentId and resolve canonical metadata',async()=>{
+  const {tool,requests}=fixture({getSessionMessages:async()=>[{role:'user',content:[{type:'image',attachment:IMAGE_REF}]}]})
+  await tool.execute({prompt:'edit selected image',referenceImages:[{attachmentId:IMAGE_REF.attachmentId}]},execContext('id-only'))
+  assert.equal(requests.length,1)
+  assert.equal(requests[0].url,CODEX_IMAGE_EDIT_URL)
+})

@@ -2,6 +2,25 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { registerSubscriptionTransport } from '../src/subscription-transport.js'
 import { CHANNEL, createSubscriptionRpcClient, RPC_ENDPOINTS } from '../src/rpc-contract.js'
+import { createSketchAgentBridge } from '../src/sketch-agent-bridge.js'
+
+test('sketch connect/poll/claim/result traverse the actual scoped RPC route contract',async()=>{
+  const routes=new Map(),bridge=createSketchAgentBridge({enabled:()=>true})
+  const dispose=registerSubscriptionTransport({fetch:{register:route=>{routes.set(route.path,route);return()=>routes.delete(route.path)}}},(endpoint,payload)=>bridge.rpc(endpoint,payload))
+  const client=createSubscriptionRpcClient({call:async(_channel,method,payload)=>{
+    const route=routes.get(`/api/${method}`);assert.ok(route,method)
+    const response=await route.fetch(new Request(`http://localhost/api/${method}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({type:'client-request',rpcId:'sketch-test',method,payload})}))
+    return (await response.json()).result
+  }})
+  const call=(name,payload)=>client.call(CHANNEL,`sketch/${name}`,payload)
+  const {value:{token}}=await call('connect',{sessionId:'s'})
+  const pending=bridge.request('s',{action:'inspect'})
+  const {value:[task]}=await call('poll',{sessionId:'s',token})
+  assert.equal((await call('claim',{sessionId:'s',token,id:task.id})).value,true)
+  await call('result',{sessionId:'s',token,id:task.id,value:{revision:1}})
+  assert.deepEqual(await pending,{revision:1})
+  await call('disconnect',{sessionId:'s',token});dispose();bridge.dispose()
+})
 
 test('subscription transport validates envelopes and preserves correlation and cancellation', async () => {
   const routes = new Map()

@@ -99,11 +99,10 @@ export function apply(ctx) {
   const uiConversation = ctx.get('uiConversation')
   const sketchOpeners = new Map()
   ctx.inject(['inputTriggers'], triggerContext => triggerContext.effect(() => triggerContext.get('inputTriggers').registerSource(createSketchTrigger({
-    enabled: () => { const value = preference.getSnapshot(); return value.imageSketch && value.imageEditing },
-    open: sessionId => sketchOpeners.get(sessionId)?.(),
+    enabled: () => { const value = preference.getSnapshot(); return value.imageSketchAgent && value.imageSketch && value.imageEditing },
     consume: (sessionId, span) => {
       const actx = sessions.scope(sessionId)
-      return sketchOpeners.has(sessionId) && actx?.bail(actx, 'slash/input-consume-token', { guard: { kind: 'span', span } }) === true
+      return sketchOpeners.has(sessionId) && actx?.bail(actx, 'slash/input-insert-text', { text: '@sketch ', span }) === true
     },
   })), 'codex-subscription: Sketch trigger'))
   ctx.inject(['inputTriggers'], triggerContext => triggerContext.effect(() => triggerContext.get('inputTriggers').registerSource(createImageTrigger({

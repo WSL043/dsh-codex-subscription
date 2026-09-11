@@ -63,12 +63,12 @@ test('sketch coordinates remain relative across viewport sizes and paint taps', 
   assert.deepEqual(arc,[50,50,5,0,Math.PI*2])
 })
 
-test('Sketch consumes only an accepted session span, and disabled sources disappear', async () => {
+test('Sketch edits only an accepted composer span, never opens the board, and disabled sources disappear', async () => {
   let enabled=true,accepted=false,opened
   const source=createSketchTrigger({enabled:()=>enabled,consume:()=>accepted,open:id=>{opened=id}})
   const pick={session:{sessionId:'a'},span:{start:0,end:7,draftRev:1}}
   assert.equal(source.onPick(pick),undefined); assert.equal(opened,undefined)
-  accepted=true;assert.equal(source.onPick(pick),'handled');assert.equal(opened,'a')
+  accepted=true;assert.equal(source.onPick(pick),'handled');assert.equal(opened,undefined)
   enabled=false;assert.deepEqual(await source.candidates({}, {query:'Sketch'}),[])
 })
 

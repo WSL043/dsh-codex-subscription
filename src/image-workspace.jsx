@@ -18,6 +18,6 @@ export function ImageWorkspace(props) {
         onClick={event => workspace.current?.('sketch', event.currentTarget)}
         icon={<WorkspaceIcon name="pen" size={16} />} />
     </Tooltip> : null}
-    <SketchWorkspace {...props} registerOpen={registerWorkspace} />
+    <SketchWorkspace key={props.sessionId} {...props} registerOpen={registerWorkspace} />
   </>
 }

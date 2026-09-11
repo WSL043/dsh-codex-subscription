@@ -1,4 +1,7 @@
 export const zh = {
+  sketchSizeShort:'粗细',
+  sketchObjectDuplicate:'复制对象',sketchObjectDelete:'删除对象',
+  sketchTool_select:'选择',sketchTool_text:'文字',sketchTool_arrow:'箭头',sketchShapes:'图形',sketchText:'编辑文字',sketchTextDone:'完成',sketchTextSize:'字号',sketchBrush:'笔型',
   sketchFill:'填色',
   sketchDownload:'下载',sketchExportFormat:'导出格式',sketchEditableFile:'可编辑草稿',sketchFormatHint:'PNG 为合并图片；PSD 交换像素图层；可编辑草稿保留原生笔画。可导入 PSD 或草稿文件（32 MB 内）；PSD 仅支持普通像素图层，长边适配至 1024。',
   imageToSketch: '进入草图', sketchPictures: '图片', sketchPictureAdd: '添加', sketchPictureSelect: '选择图片', sketchPicturesEmpty: '导入或粘贴图片，作为当前草图的图层。', sketchFlow: '浓度', sketchZoomOut: '缩小画布', sketchZoomIn: '放大画布', sketchFit: '重置视图', sketchKeys: '快捷键', sketchKeysEnabled: '启用快捷键', sketchNavigationHint: '空格拖动画布 · Alt 滚轮缩放 · 中键拖动', sketchKeyHint: '点击右侧输入框后按键修改，重复按键不接受。Ctrl Z / Shift Z 撤销重做，Ctrl S 保存；[ ] 调笔宽。', sketchKey_pen: '画笔', sketchKey_eraser: '橡皮', sketchKey_line: '直线', sketchKey_rectangle: '矩形', sketchKey_circle: '椭圆', sketchKey_pan: '拖动画布', sketchKey_zoomIn: '放大', sketchKey_zoomOut: '缩小', sketchKey_fit: '重置视图',
@@ -23,7 +26,7 @@ export const zh = {
   imageModel: '请求型号', imageQuality: '请求质量', imageExperimental: '实验', imageModelHint: '2.5 为实验选项：请求已成功出图，但尚无法确认指定型号或质量是否生效。',
   sketchTool_pen: '画笔', sketchTool_rectangle: '矩形', sketchTool_circle: '椭圆', sketchTool_eraser: '橡皮',
 
-  sketchCanvas: '草图画板 · Beta', sketchCanvasHint: '默认关闭；开启后显示手动画板入口。', sketchCanvas_on: '开启', sketchCanvas_off: '关闭', sketchAgent: 'Agent 绘图 · Beta', sketchAgentHint: '默认关闭；开启后向模型提供绘图工具，需要同时开启草图画板。', sketchAgent_on: '开启', sketchAgent_off: '关闭',
+  sketchCanvas: '草图画板 · Beta', sketchCanvasHint: '默认关闭；开启后显示手动画板入口。', sketchCanvas_on: '开启', sketchCanvas_off: '关闭', sketchAgent: 'Agent 绘图 · Beta', sketchAgentHint: '默认关闭；开启后可用 @sketch 请求 Agent 绘图，需要同时开启草图画板。', sketchRun_drawing: 'Agent 正在绘制…', sketchRun_finished: '绘制完成', sketchRun_stopped: '绘制已停止', sketchRun_failed: '绘制失败', sketchRunStop: '停止绘制', sketchRunResume: '允许继续绘制', sketchAgentPreview: '完成后返回预览 · Beta', sketchAgentPreviewHint: '默认关闭；完成绘制后向模型返回画布图片，会增加图片输入用量。', sketchAgentPreview_on: '开启', sketchAgentPreview_off: '关闭', sketchAgent_on: '开启', sketchAgent_off: '关闭',
   imageSettings: '图片', imageGeneration: '生成新图片', imageEditing: '参考图编辑', imageViewer: '增强图片查看器', imageAnnotations: '图片标注', imageSketch: '草图画板 · Beta',
   imageSettingsHint: '关闭功能保留历史图片。草图作为参考图发送，需要开启参考图编辑；标注需要增强查看器。',
   sketch: '草图 · Beta', sketchTitle: '画出你的想法', sketchAttach: '附加草图', sketchCancel: '取消', sketchUndo: '撤销', sketchRedo: '重做', sketchClear: '清空', sketchEraser: '橡皮', sketchPen: '画笔', sketchColor: '颜色', sketchWidth: '笔刷粗细', sketchFailed: '无法附加草图，请保留画板后重试。', sketchHint: '确认只会附加图片，不会自动生成。发送时说明你想要的风格与细节。',
@@ -104,6 +107,9 @@ export const zh = {
 }
 
 export const en = {
+  sketchSizeShort:'Size',
+  sketchObjectDuplicate:'Duplicate object',sketchObjectDelete:'Delete object',
+  sketchTool_select:'Select',sketchTool_text:'Text',sketchTool_arrow:'Arrow',sketchShapes:'Shapes',sketchText:'Edit text',sketchTextDone:'Done',sketchTextSize:'Text size',sketchBrush:'Brush',
   sketchFill:'Fill',
   sketchDownload:'Download',sketchExportFormat:'Export format',sketchEditableFile:'Editable draft',sketchFormatHint:'PNG is flattened; PSD exchanges pixel layers; editable drafts retain native strokes. Import PSD or draft files up to 32 MB. PSD supports normal pixel layers, fitted to a 1024 px long edge.',
   imageToSketch: 'Open in sketch', sketchPictures: 'Images', sketchPictureAdd: 'Add', sketchPictureSelect: 'Select image', sketchPicturesEmpty: 'Import or paste images as layers in this sketch.', sketchFlow: 'Opacity', sketchZoomOut: 'Zoom out', sketchZoomIn: 'Zoom in', sketchFit: 'Reset view', sketchKeys: 'Keys', sketchKeysEnabled: 'Enable shortcuts', sketchNavigationHint: 'Space drag to pan · Alt wheel to zoom · Middle button to pan', sketchKeyHint: 'Focus a field and press a key. Duplicate keys are rejected. Ctrl Z / Shift Z undo / redo, Ctrl S save, [ ] brush size.', sketchKey_pen: 'Brush', sketchKey_eraser: 'Eraser', sketchKey_line: 'Line', sketchKey_rectangle: 'Rectangle', sketchKey_circle: 'Ellipse', sketchKey_pan: 'Pan', sketchKey_zoomIn: 'Zoom in', sketchKey_zoomOut: 'Zoom out', sketchKey_fit: 'Reset view',
@@ -128,7 +134,7 @@ export const en = {
   imageModel: 'Requested model', imageQuality: 'Requested quality', imageExperimental: 'Experimental', imageModelHint: 'Image 2.5 options are experimental: requests generated images successfully, but the requested model and quality are not confirmed.',
   sketchTool_pen: 'Pen', sketchTool_rectangle: 'Rectangle', sketchTool_circle: 'Ellipse', sketchTool_eraser: 'Eraser',
 
-  sketchCanvas: 'Sketch canvas · Beta', sketchCanvasHint: 'Off by default. Enables the manual sketch board.', sketchCanvas_on: 'On', sketchCanvas_off: 'Off', sketchAgent: 'Agent drawing · Beta', sketchAgentHint: 'Off by default. Exposes drawing tools to the model; requires the sketch canvas.', sketchAgent_on: 'On', sketchAgent_off: 'Off',
+  sketchCanvas: 'Sketch canvas · Beta', sketchCanvasHint: 'Off by default. Enables the manual sketch board.', sketchCanvas_on: 'On', sketchCanvas_off: 'Off', sketchAgent: 'Agent drawing · Beta', sketchAgentHint: 'Off by default. Use @sketch to ask the Agent to draw; requires the sketch canvas.', sketchRun_drawing: 'Agent is drawing…', sketchRun_finished: 'Drawing complete', sketchRun_stopped: 'Drawing stopped', sketchRun_failed: 'Drawing failed', sketchRunStop: 'Stop drawing', sketchRunResume: 'Allow drawing again', sketchAgentPreview: 'Preview on completion · Beta', sketchAgentPreviewHint: 'Off by default. Returns the canvas to the model on completion, adding image input usage.', sketchAgentPreview_on: 'On', sketchAgentPreview_off: 'Off', sketchAgent_on: 'On', sketchAgent_off: 'Off',
   imageSettings: 'Images', imageGeneration: 'Generate new images', imageEditing: 'Reference image editing', imageViewer: 'Enhanced image viewer', imageAnnotations: 'Image annotations', imageSketch: 'Sketch canvas · Beta',
   imageSettingsHint: 'Disabling features preserves existing images. Sketches need reference editing; annotations need the enhanced viewer.',
   sketch: 'Sketch · Beta', sketchTitle: 'Draw your idea', sketchAttach: 'Attach sketch', sketchCancel: 'Cancel', sketchUndo: 'Undo', sketchRedo: 'Redo', sketchClear: 'Clear', sketchEraser: 'Eraser', sketchPen: 'Pen', sketchColor: 'Color', sketchWidth: 'Brush width', sketchFailed: 'Could not attach the sketch. Keep the canvas and try again.', sketchHint: 'Confirming only attaches an image. Describe the style and details before sending.',

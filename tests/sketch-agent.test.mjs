@@ -58,22 +58,38 @@ test('expired leases and aborted requests cannot remain queued for later drawing
   bridge.dispose()
 })
 
-
-test('agent inspect opens the board, but a queued write cannot reopen it',async()=>{
-  const {executeSketchFromAgent}=await import('../src/sketch-agent-client.js')
-  let opened=false,opens=0,executed=0
-  const adapter={available:()=>opened,open:()=>{opens++;opened=true},execute:()=>{executed++;return 'ready'}}
-  assert.equal(await executeSketchFromAgent({action:'inspect'},adapter),'ready')
-  assert.equal(opens,1);assert.equal(executed,1)
-  opened=false
-  await assert.rejects(executeSketchFromAgent({action:'apply'},adapter),/closed/)
-  assert.equal(opens,1);assert.equal(executed,1)
-  await assert.rejects(executeSketchFromAgent({action:'inspect'},{...adapter,live:()=>false}),/disconnected/)
-  assert.equal(opens,1)
+test('cancellation after poll rejects claim and notifies browser before subsequent work',async()=>{
+  const bridge=createSketchAgentBridge({enabled:()=>true})
+  const {value:{token}}=await bridge.rpc('sketch/connect',{sessionId:'a'})
+  const controller=new AbortController()
+  const pending=bridge.request('a',{action:'apply'},controller.signal)
+  const rejection=assert.rejects(pending,/interrupted/)
+  const {value:[task]}=await bridge.rpc('sketch/poll',{sessionId:'a',token})
+  controller.abort();await rejection
+  assert.equal((await bridge.rpc('sketch/claim',{sessionId:'a',token,id:task.id})).value,false)
+  assert.deepEqual((await bridge.rpc('sketch/poll',{sessionId:'a',token})).value,[{id:task.id,cancelled:true}])
+  bridge.dispose()
 })
-test('opening waits for the mounted board and fails boundedly if unavailable',async()=>{
-  const {executeSketchFromAgent}=await import('../src/sketch-agent-client.js')
-  let ticks=0
-  assert.equal(await executeSketchFromAgent({action:'inspect'},{available:()=>ticks>=2,open:()=>{},wait:async()=>{ticks++},execute:()=>42}),42)
-  await assert.rejects(executeSketchFromAgent({action:'inspect'},{available:()=>false,open:()=>{},wait:async()=>{},execute:()=>{throw Error('must not execute')}}),/could not open/)
+
+test('DSH typed tool accepts native arrays and rejects malformed geometry before dispatch',async()=>{
+  let calls=0
+  const tool=createSketchAgentTool({request:async(_session,request)=>{calls++;assert.ok(Array.isArray(request.commands));return {}}},{})
+  const exec={agent:{id:'a'},signal:new AbortController().signal}
+  await tool.execute({action:'apply',commands:[stroke]},exec)
+  await tool.execute({action:'apply',commands:JSON.stringify([stroke])},exec)
+  await assert.rejects(tool.execute({action:'apply',commands:[{...stroke,points:[{x:'bad',y:0}]}]},exec),/invalid arguments/)
+  assert.equal(calls,2)
+})
+
+test('inspect is paged and reports receipts; retry after a new run does not apply twice',async()=>{
+  let doc=createSketchLayers(),revision=0
+  const session=createSketchCommandSession({available:()=>true,busy:()=>false,snapshot:()=>({documentId:'a',revision}),objects:()=>Array.from({length:60},(_,id)=>({id})),document:()=>doc,commit:next=>{doc=next;revision++}})
+  const request={action:'apply',runId:'old',documentId:'a',revision:0,requestId:'paint',commands:[stroke]}
+  const result=await session(request)
+  assert.equal(result.changedObjects.length,1)
+  const view=await session({action:'inspect'})
+  assert.equal(view.objects.length,50);assert.equal(view.nextOffset,50)
+  assert.equal(view.recentRequests[0].requestId,'paint')
+  await session({...request,runId:'new'})
+  assert.equal(revision,1)
 })

@@ -11,6 +11,6 @@ export function SketchWorkspace({ preference, attachSketch, registerOpen, t, ses
     if (mode === 'sketch') {if(file)setIncoming({file});setOpen(true)}
   }), [registerOpen])
   return <>
-    <SketchStudio agentEnabled={settings.imageSketchAgent} onOpen={() => { opener.current = document.activeElement; setOpen(true) }} sessionId={sessionId} rpc={rpc} incoming={incoming} open={open} onClose={() => { setOpen(false); opener.current?.focus() }} attachSketch={attachSketch} enabled={settings.imageSketch && settings.imageEditing} t={t} />
+    <SketchStudio agentPreview={settings.imageSketchAgentPreview} agentEnabled={settings.imageSketchAgent} onOpen={() => { opener.current = document.activeElement; setOpen(true) }} sessionId={sessionId} rpc={rpc} incoming={incoming} open={open} onClose={() => { setOpen(false); opener.current?.focus() }} attachSketch={attachSketch} enabled={settings.imageSketch && settings.imageEditing} t={t} />
   </>
 }

@@ -180,9 +180,11 @@ The screenshot above illustrates image viewing and on-image notes; available but
 
 ![Sketch canvas in the Chinese UI: aspect ratio, brushes, shapes, layers and zoom](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-canvas.png)
 
-Open Sketch from the composer button or `@Sketch`, or choose Open in sketch from an enhanced image preview. Attachment intake and removal use the native DSH component.
+Use the composer pen button for manual drawing. In Beta.3, selecting `@sketch` only inserts the Agent entry into the composer; the Agent opens the board after you send your drawing request. You can also choose Open in sketch from an enhanced image preview. Attachment intake and removal use the native DSH component.
 
 Sketch supports local drafts, image layers, aspect ratios, brushes, lines and shapes, two erasers, undo/redo, pan/zoom and configurable shortcuts. Smoothing processes a completed stroke only after release. Up to 20 drafts stay in the current browser; attaching a sketch never sends it automatically. Its image panel manages only the current sketch, not the conversation library.
+
+Beta.3 adds editable shapes and text, native curves, and a side control for size/opacity. During Agent drawing, you can view, zoom, close the panel or stop drawing; manual edits unlock when it finishes. Automatic completion previews are off by default and can be enabled in Advanced settings. The board requires the current session page; drawing does not continue after closing the page or switching sessions.
 
 **Sketch-to-image example**: draw, click Attach, describe the desired result in the composer, then send.
 
