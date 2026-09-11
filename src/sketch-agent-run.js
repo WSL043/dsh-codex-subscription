@@ -33,6 +33,7 @@ export function createSketchAgentRun({ execute, open, changed, busy = () => fals
         update('finished')
         return completed.value
       } catch (error) {
+        if(version===generation && error.code==='SKETCH_INVALID_BATCH')throw error
         if (version === generation) {
           update('failed')
           throw new Error(`${error.message} Call inspect to obtain the current runId and revision before retrying.`,{cause:error})

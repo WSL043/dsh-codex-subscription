@@ -1,7 +1,7 @@
 import { CHANNEL, unwrap } from './rpc-contract.js'
 
 export function connectSketchAgent(rpc, sessionId, execute, report, pollDelay = () => 350) {
-  let stopped=false, token, timer, attempts=0
+  let stopped=false, token, timer, attempts=0, failures=0
   const call=(endpoint,payload)=>rpc.call(CHANNEL,`sketch/${endpoint}`,{sessionId,token,...payload}).then(unwrap)
   const poll=async()=>{
     try {
@@ -17,10 +17,19 @@ export function connectSketchAgent(rpc, sessionId, execute, report, pollDelay = 
         }catch(cause){error=cause.message}
         await call('result',{id:task.id,value,error})
       }
-    }catch(error){if(!stopped)report(error.message);return}
+    }catch(error){
+      if(!stopped){
+        if(++failures>5){report(`${error.message}; reconnect failed. Reopen this session to retry.`);return}
+        report(`${error.message}; reconnecting. Inspect recentRequests before retrying a write.`)
+        if(token)void call('disconnect').catch(()=>{})
+        token=undefined;timer=setTimeout(connect,Math.min(10000,1000*2**(failures-1)))
+      }
+      return
+    }
+    failures=0
     if(!stopped)timer=setTimeout(poll,pollDelay())
   }
-  const connect=()=>void call('connect').then(value=>{token=value.token;if(stopped)void call('disconnect').catch(()=>{});else void poll()},error=>{
+  const connect=()=>void call('connect').then(value=>{token=value.token;attempts=0;if(stopped)void call('disconnect').catch(()=>{});else void poll()},error=>{
     if(stopped)return
     // A refreshed page must outwait the old 10s lease; never replace a live peer.
     const leaseConflict=/Another board is connected/.test(error.message)

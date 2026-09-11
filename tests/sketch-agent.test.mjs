@@ -77,8 +77,10 @@ test('DSH typed tool accepts native arrays and rejects malformed geometry before
   const exec={agent:{id:'a'},signal:new AbortController().signal}
   await tool.execute({action:'apply',commands:[stroke]},exec)
   await tool.execute({action:'apply',commands:JSON.stringify([stroke])},exec)
+  await tool.execute({action:'apply',commands:[{op:'stroke',shape:'bezier',color:'#123456',start:{x:0,y:0},segments:[{control1:{x:.2,y:0},control2:{x:.8,y:1},end:{x:1,y:1}}]}]},exec)
+  await assert.rejects(tool.execute({action:'apply',commands:[{op:'stroke',shape:'bezier',start:{x:0,y:0},segments:[{end:{x:1,y:1}}]}]},exec),/invalid arguments/)
   await assert.rejects(tool.execute({action:'apply',commands:[{...stroke,points:[{x:'bad',y:0}]}]},exec),/invalid arguments/)
-  assert.equal(calls,2)
+  assert.equal(calls,3)
 })
 
 test('inspect is paged and reports receipts; retry after a new run does not apply twice',async()=>{

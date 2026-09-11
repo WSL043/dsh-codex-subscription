@@ -1,3 +1,4 @@
+import { createSketchSessionRegistry } from './sketch-session-state.js'
 import { ComposerImagePreviews, MessageImagePreviews, IMAGE_PREVIEWS_CSS } from './client-image-previews.jsx'
 import { imageConversationNode } from './image-conversation-node.js'
 import { CodexImageToolRow, CodexImageOutput } from './client-images.jsx'
@@ -98,6 +99,8 @@ export function apply(ctx) {
   const conversation = ctx.get('conversation')
   const uiConversation = ctx.get('uiConversation')
   const sketchOpeners = new Map()
+  const sketchSessions = createSketchSessionRegistry()
+  ctx.effect(() => () => sketchSessions.dispose(), 'codex-subscription: sketch sessions')
   ctx.inject(['inputTriggers'], triggerContext => triggerContext.effect(() => triggerContext.get('inputTriggers').registerSource(createSketchTrigger({
     enabled: () => { const value = preference.getSnapshot(); return value.imageSketchAgent && value.imageSketch && value.imageEditing },
     consume: (sessionId, span) => {
@@ -181,7 +184,7 @@ export function apply(ctx) {
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
     name: 'conversation.input.left', id: 'codex-image-workspace', order: 30,
     inject: sessionId => ({
-      preference, t, sessionId, rpc,
+      preference, t, sessionId, rpc, sessionState: sketchSessions.get(sessionId),
       registerOpen: callback => { sketchOpeners.set(sessionId, callback); return () => { if (sketchOpeners.get(sessionId) === callback) sketchOpeners.delete(sessionId) } },
       attachSketch: blob => {
         const current = preference.getSnapshot()
