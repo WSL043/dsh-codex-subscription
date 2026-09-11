@@ -30,3 +30,12 @@ test('flattening preserves endpoints and collinear turns, and reuses cached geom
  const arch=flattenSketchCurve(curve,1024,768)
  assert.ok(arch.some(p=>Math.abs(p.x-.5)<.001&&Math.abs(p.y-.75)<.001))
 })
+
+test('ellipse alias normalizes to editable circle and malformed curves identify the command',()=>{
+ const doc=createSketchLayers()
+ const ellipse={op:'stroke',shape:'ellipse',color:'#112233',points:[{x:.2,y:.3},{x:.6,y:.8}]}
+ const next=applySketchCommands(doc,[ellipse])
+ assert.equal(next.layers[0].strokes[0].shape,'circle')
+ assert.throws(()=>applySketchCommands(doc,[ellipse,{...curve,points:Array.from({length:9},()=>({x:.5,y:.5}))}]),/commands\[1\]: Bezier has 9 points/)
+ assert.equal(doc.layers[0].strokes.length,0)
+})
