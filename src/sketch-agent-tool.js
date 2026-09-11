@@ -11,7 +11,7 @@ export function createSketchAgentTool(bridge, attachments) {
       documentId:{type:'string',description:'From inspect; required except for inspect.'},
       revision:{type:'integer',description:'From latest response; required for apply/save/finish.'},
       requestId:{type:'string',description:'Unique id for apply/save/finish; exact retries are deduplicated. After timeout inspect recentRequests before repeating a write.'},
-      commands:{oneOf:[sketchCommandArray,{type:'string'}],description:'Prefer a native command array. Legacy JSON string also accepted. Required for apply. Use named objects and update existing IDs; use Bezier for curves, not hundreds of pen points.'},
+      commands:{oneOf:[sketchCommandArray,{type:'string'}],description:'Prefer a native command array. Legacy JSON string also accepted. Required for apply. Use named objects and update existing IDs; prefer Bezier start + segments (control1/control2/end) for curves, not hundreds of pen points.'},
       name:{type:'string',description:'Draft name for save/finish.'},
       offset:{type:'integer',description:'inspect only: object list offset, default 0. Follow nextOffset for further pages.'},
       objectId:{type:'string',description:'inspect only: return full editable geometry for this object, in layer (defaults to active layer).'},

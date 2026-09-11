@@ -1,3 +1,4 @@
+import { createSketchSessionState } from './sketch-session-state.js'
 import { useEffect, useRef, useState } from 'react'
 import { SKETCH_SIZE, MAX_SKETCH_STROKES, MAX_STROKE_POINTS, sketchPoint } from './sketch-document.js'
 import { createSketchLayers, changeSketchLayer, strokeCount, strokeHit, MAX_SKETCH_LAYERS, SKETCH_RATIOS, resizeSketch } from './sketch-layers.js'
@@ -15,12 +16,13 @@ import { createSketchAgentRun } from './sketch-agent-run.js'
 import { connectSketchAgent } from './sketch-agent-client.js'
 import { encodeSketchDocument, decodeSketchDocument, exportSketchPsd, importSketchPsd } from './sketch-formats.js'
 const PALETTE = ['#18181b','#929398','#ff3936','#ff9500','#ffcc00','#34c759','#0088ff']
-export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose, attachSketch, enabled, t, incoming, sessionId, rpc }) {
-  const dialog = useRef(null), canvas = useRef(null), doc = useRef(createSketchLayers()), cache = useRef(new Map())
-  const undo = useRef([]), redo = useRef([]), active = useRef(null), frame = useRef(null)
-  const images = useRef(new Map()), saved = useRef(null), dirty = useRef(false), updateUi = useRef(false)
-  const documentId = useRef(crypto.randomUUID()), documentRevision = useRef(0), agentAdapter = useRef({}), agentSession = useRef(null)
-  const [agentState,setAgentState] = useState('idle'), agentRun = useRef(null)
+export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose, attachSketch, enabled, t, incoming, sessionId, rpc, sessionState }) {
+  const localSession = useRef(null)
+  localSession.current ??= sessionState ?? createSketchSessionState()
+  const {doc,undo,redo,images,saved,dirty,documentId,documentRevision,agentAdapter,agentSession,agentRun} = localSession.current
+  const dialog = useRef(null), canvas = useRef(null), cache = useRef(new Map())
+  const active = useRef(null), frame = useRef(null), updateUi = useRef(false)
+  const [agentState,setAgentState] = useState(agentRun.current?.state ?? 'idle')
   const agentLocked = agentState === 'drawing'
   const [noticeHidden,setNoticeHidden] = useState(false)
   const [stability, setStability] = useState(0), [flow,setFlow] = useState(100), [picturesOpen,setPicturesOpen] = useState(false)
@@ -48,11 +50,12 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
   const checkpoint = () => { documentRevision.current++; dirty.current = true; undo.current.push(doc.current); if (undo.current.length > 30) undo.current.shift(); redo.current = [] }
   const change = (action, id, value) => { if (busy || agentRun.current?.locked || active.current) return; const next = changeSketchLayer(doc.current, action, id, value); if (next === doc.current) return; if (action !== 'select') checkpoint(); else documentRevision.current++; doc.current = next; setError(''); schedule() }
   useEffect(() => { if (open) { dialog.current.showModal(); canvas.current.width = doc.current.width ?? SKETCH_SIZE; paint() } else dialog.current?.close() }, [open])
-  useEffect(() => () => { cancelAnimationFrame(frame.current); cache.current.clear();agentRun.current?.dispose() }, [])
+  useEffect(() => () => { cancelAnimationFrame(frame.current); cache.current.clear() }, [])
   const hasContent = () => doc.current.layers.some(layer => layer.image || layer.strokes.length)
   const save = async name => {
+    const savingDocument=documentId.current,savingRevision=documentRevision.current
     const row = { id: saved.current?.id ?? crypto.randomUUID(), name: name?.trim() || saved.current?.name || `${t('sketchTitle')} ${new Date().toLocaleString()}`, updated: Date.now(), doc: structuredClone(doc.current) }
-    await sketchDrafts('save', row); saved.current = {id:row.id,name:row.name}; dirty.current = false
+    await sketchDrafts('save', row); if(documentId.current===savingDocument){saved.current = {id:row.id,name:row.name};if(documentRevision.current===savingRevision)dirty.current = false}
   }
   const saveChanges = async () => { if (dirty.current && (hasContent() || saved.current)) await save() }
   const replace = (next, decoded, identity) => { documentId.current=crypto.randomUUID();documentRevision.current++;doc.current = identifyObjects(structuredClone(next));setSelection(null);setTextEdit(null); images.current = decoded; cache.current.clear(); undo.current = []; redo.current = []; saved.current = identity; dirty.current = false; schedule() }
@@ -140,6 +143,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
   }
   const history = direction => { if (busy || agentRun.current?.locked || active.current) return; const source = direction === 'undo' ? undo : redo, target = direction === 'undo' ? redo : undo; if (!source.current.length) return; documentRevision.current++;dirty.current = true; target.current.push(doc.current); doc.current = source.current.pop(); schedule() }
   Object.assign(agentAdapter.current,{
+    changed:state=>{setAgentState(state);setNoticeHidden(false)},
     available:()=>enabled && agentEnabled,
     previewEnabled:()=>agentPreview,
     open:()=>onOpen(),
@@ -153,10 +157,10 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
     save:save,
   })
   agentSession.current??=createSketchCommandSession(agentAdapter.current)
-  agentRun.current??=createSketchAgentRun({execute:request=>agentSession.current(request),open:()=>agentAdapter.current.open(),changed:state=>{setAgentState(state);setNoticeHidden(false)},busy:()=>agentAdapter.current.busy(),previewEnabled:()=>agentAdapter.current.previewEnabled()})
+  agentRun.current??=createSketchAgentRun({execute:request=>agentSession.current(request),open:()=>agentAdapter.current.open(),changed:state=>agentAdapter.current.changed?.(state),busy:()=>agentAdapter.current.busy(),previewEnabled:()=>agentAdapter.current.previewEnabled()})
   useEffect(()=>{
     if(!enabled||!agentEnabled)return
-    const api=Object.freeze({version:1,sessionId,execute:request=>agentRun.current.execute(request),export:async format=>{
+    const api=Object.freeze({version:2,sessionId,execute:request=>agentRun.current.execute(request),export:async format=>{
       if(agentAdapter.current.busy() || agentRun.current.locked)throw Error('Sketch is being edited')
       const {blob,extension}=await agentAdapter.current.export(format)
       const data=new Uint8Array(await blob.arrayBuffer());let raw='';for(let i=0;i<data.length;i+=8192)raw+=String.fromCharCode(...data.subarray(i,i+8192))
@@ -166,11 +170,11 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
     return ()=>{if(window.dshSketchAgent===api)delete window.dshSketchAgent}
   },[enabled,agentEnabled,rpc,sessionId])
   useEffect(()=>{
-    if(!enabled || !agentEnabled || !rpc || !sessionId)return
+    if(!enabled || !agentEnabled){if(agentRun.current.locked)agentRun.current.stop();return}
+    if(!rpc || !sessionId)return
     let live=true
-    agentRun.current.resume()
     const disconnect=connectSketchAgent(rpc,sessionId,request=>{if(!live)throw Error('Sketch session disconnected');return agentRun.current.execute(request)},message=>{agentRun.current.fail();setError(message)},()=>350)
-    return ()=>{live=false;agentRun.current.stop();disconnect()}
+    return ()=>{live=false;disconnect()}
   },[enabled,agentEnabled,rpc,sessionId])
   const attach = async () => { if (!enabled || busy || agentRun.current?.locked) return; setBusy(true);setError('');try { paint(); const blob = await new Promise((resolve,reject)=>canvas.current.toBlob(blob=>blob?resolve(blob):reject(Error('PNG')),'image/png')); await saveChanges(); await attachSketch(blob); onClose() } catch { setError(t('sketchFailed')) } finally { setBusy(false) } }
   const exportFile = async (format='png') => {

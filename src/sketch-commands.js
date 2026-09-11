@@ -8,7 +8,8 @@ export const SKETCH_COMMAND_HELP = {
   shapes: 'line: exactly two endpoints; rectangle/circle (ellipse alias accepted): exactly two opposite bounding-box corners (circle draws an ellipse within that box); polygon: three or more vertices, closed automatically; pen: ordered path points. bezier: start point, then groups of control1/control2/end; use 4 points for one cubic curve, max 64 segments. Prefer bezier for smooth designed curves instead of many pen samples. fill:true closes and fills the curve. fill:true fills rectangle/circle/polygon. Layers and strokes paint in list order, later ones on top. All commands needed for drawing are described here; no source-code search is required.',
   commands: {
     stroke: '{op:"stroke",layer:1,shape:"pen|line|arrow|text|rectangle|circle|polygon|bezier",color:"#rrggbb",width:2,opacity:1,fill:false,points:[{x:0.1,y:0.1},...]}',
-    layer: '{op:"layer",action:"add|select|rename|visible|duplicate|up|down|delete|clear",id:1,value:"name"}',
+    layer: 'Add: {op:"layer",action:"add",value:"name"}; optional id is the NEW unique integer ID, otherwise allocated automatically. after is the existing insertion anchor, defaults to active layer. Other actions: {op:"layer",action:"select|rename|visible|duplicate|up|down|delete|clear",id:1,value:"name"}; id targets an existing layer.',
+    curve: 'Prefer {op:"stroke",shape:"bezier",start:{x:0,y:0},segments:[{control1:{x:0.2,y:0},control2:{x:0.8,y:1},end:{x:1,y:1}}],color:"#123456"}. Each segment has exactly two controls and an endpoint; no point counting required. Legacy points arrays still accepted. Do not provide both forms.',
     object: '{op:"object",layer:1,id:"title",action:"update|duplicate|delete",patch:{color:"#0088ff",text:"Title"},transform:{dx:0.05,dy:0,scaleX:1,scaleY:1}}. All patch and transform fields optional. Inspect returns object IDs and bounds. Prefer targeted edits over redrawing layers.',
     resize: '{op:"resize",ratio:"1:1|4:3|3:4|16:9|9:16"}',
   },
@@ -23,6 +24,14 @@ export function applySketchCommands(source, commands) {
     if (command.op === 'resize') { doc = resizeSketch(doc, command.ratio); continue }
     if (command.op === 'layer') {
       if (!['add','select','rename','visible','duplicate','up','down','delete','clear'].includes(command.action)) throw Error('Unknown layer action')
+      if(command.action==='add') {
+        const id=command.id??doc.nextId,after=command.after??doc.active
+        if(!Number.isSafeInteger(id)||id<1||id===Number.MAX_SAFE_INTEGER||doc.layers.some(l=>l.id===id))throw Error('New layer id must be a unique positive integer; omit id to allocate automatically')
+        const next=changeSketchLayer(doc,'add',after)
+        if(next===doc)throw Error('Cannot add layer: check the existing after layer and the 8-layer limit')
+        doc={...next,active:id,nextId:Math.max(next.nextId,id+1),layers:next.layers.map(l=>l.id===next.active?{...l,id,name:String(command.value??'').trim().slice(0,40)}:l)}
+        continue
+      }
       const next = changeSketchLayer(doc, command.action, command.id ?? doc.active, command.value)
       if (next === doc) throw Error('Layer action unavailable; inspect the document first')
       doc = next; continue
@@ -44,7 +53,12 @@ export function applySketchCommands(source, commands) {
     }
     if (command.op !== 'stroke') throw Error('Unknown command')
     const shape=command.shape==='ellipse'?'circle':command.shape??'pen'
-    const { points, color, width = shape==='text'?24:2, opacity = 1, fill = false } = command
+    const { color, width = shape==='text'?24:2, opacity = 1, fill = false } = command
+    let points=command.points
+    if(command.start!==undefined || command.segments!==undefined) {
+      if(shape!=='bezier'||points!==undefined||!command.start||!Array.isArray(command.segments)||!command.segments.length||command.segments.length>64)throw Error('Bezier requires start and 1–64 segments, without points')
+      points=[command.start,...command.segments.flatMap(s=>[s?.control1,s?.control2,s?.end])]
+    }
     if (!['pen','line','rectangle','circle','polygon','bezier','arrow','text','eraser'].includes(shape) || !/^#[0-9a-f]{6}$/i.test(color ?? '') ||
       !finite(width, 1, 256) || !finite(opacity, 0, 1) || typeof fill !== 'boolean' ||
       !Array.isArray(points) || !points.length || points.length > MAX_STROKE_POINTS ||
@@ -75,7 +89,7 @@ export function createSketchCommandSession(adapter) {
     if (request.action === 'inspect') {
       const offset=request.offset??0,objects=adapter.objects?.()??[]
       if(!Number.isInteger(offset)||offset<0)throw Error('offset must be a non-negative integer')
-      return {...current,objects:objects.slice(offset,offset+50),objectCount:objects.length,
+      return {...current,protocolVersion:2,objects:objects.slice(offset,offset+50),objectCount:objects.length,
         ...(offset+50<objects.length?{nextOffset:offset+50}:{}),
         ...(request.objectId?{object:adapter.object?.(request.objectId,request.layer)}:{}),
         recentRequests:[...completed.values()].slice(-8).map(entry=>entry.receipt),help:SKETCH_COMMAND_HELP}
@@ -91,7 +105,10 @@ export function createSketchCommandSession(adapter) {
     if (request.revision !== current.revision || adapter.busy()) throw Error('Sketch changed or is being edited; inspect again')
     let changedObjects
     if (request.action === 'apply') {
-      const before=adapter.document(), next = applySketchCommands(before,request.commands)
+      const before=adapter.document()
+      let next
+      try { next=applySketchCommands(before,request.commands) }
+      catch(cause) { const error=new Error(`${cause.message} Correct the batch and retry with the same runId and revision; nothing was applied.`,{cause});error.code='SKETCH_INVALID_BATCH';throw error }
       adapter.commit(next)
       const previous=new Map(before.layers.flatMap(l=>l.strokes.map(s=>[`${l.id}:${s.id}`,s])))
       changedObjects=next.layers.flatMap(l=>l.strokes.filter(s=>previous.get(`${l.id}:${s.id}`)!==s).map(s=>({layer:l.id,id:s.id})))
