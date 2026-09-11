@@ -5,7 +5,7 @@ import { changeSketchLayer, strokeCount, resizeSketch } from './sketch-layers.js
 export const MAX_SKETCH_POINTS = 200_000
 export const SKETCH_COMMAND_HELP = {
   coordinates: 'Assign short meaningful stroke id values for later edits. Text uses two opposite box corners and text content; width is font size in pixels, automatic fitting within the box. Arrow uses two endpoints. Normalized x/y in [0,1]; width is canvas pixels. Read documentId and revision before editing.',
-  shapes: 'line: exactly two endpoints; rectangle/circle: exactly two opposite bounding-box corners (circle draws an ellipse within that box); polygon: three or more vertices, closed automatically; pen: ordered path points. bezier: start point, then groups of control1/control2/end; use 4 points for one cubic curve, max 64 segments. Prefer bezier for smooth designed curves instead of many pen samples. fill:true closes and fills the curve. fill:true fills rectangle/circle/polygon. Layers and strokes paint in list order, later ones on top. All commands needed for drawing are described here; no source-code search is required.',
+  shapes: 'line: exactly two endpoints; rectangle/circle (ellipse alias accepted): exactly two opposite bounding-box corners (circle draws an ellipse within that box); polygon: three or more vertices, closed automatically; pen: ordered path points. bezier: start point, then groups of control1/control2/end; use 4 points for one cubic curve, max 64 segments. Prefer bezier for smooth designed curves instead of many pen samples. fill:true closes and fills the curve. fill:true fills rectangle/circle/polygon. Layers and strokes paint in list order, later ones on top. All commands needed for drawing are described here; no source-code search is required.',
   commands: {
     stroke: '{op:"stroke",layer:1,shape:"pen|line|arrow|text|rectangle|circle|polygon|bezier",color:"#rrggbb",width:2,opacity:1,fill:false,points:[{x:0.1,y:0.1},...]}',
     layer: '{op:"layer",action:"add|select|rename|visible|duplicate|up|down|delete|clear",id:1,value:"name"}',
@@ -43,13 +43,14 @@ export function applySketchCommands(source, commands) {
       doc={...doc,layers:doc.layers.map(l=>l===layer?{...l,strokes}:l)};continue
     }
     if (command.op !== 'stroke') throw Error('Unknown command')
-    const { points, color, shape = 'pen', width = shape==='text'?24:2, opacity = 1, fill = false } = command
+    const shape=command.shape==='ellipse'?'circle':command.shape??'pen'
+    const { points, color, width = shape==='text'?24:2, opacity = 1, fill = false } = command
     if (!['pen','line','rectangle','circle','polygon','bezier','arrow','text','eraser'].includes(shape) || !/^#[0-9a-f]{6}$/i.test(color ?? '') ||
       !finite(width, 1, 256) || !finite(opacity, 0, 1) || typeof fill !== 'boolean' ||
       !Array.isArray(points) || !points.length || points.length > MAX_STROKE_POINTS ||
       points.some(p => !p || !finite(p.x,0,1) || !finite(p.y,0,1))) throw Error('Invalid stroke')
     if ((['line','arrow','text','rectangle','circle'].includes(shape) && points.length !== 2) || (shape === 'polygon' && points.length < 3)) throw Error('Invalid shape points')
-    if (shape==='bezier' && (points.length<4 || points.length>193 || (points.length-1)%3!==0)) throw Error('Bezier needs a start point followed by groups of two controls and an endpoint (max 64 segments)')
+    if (shape==='bezier' && (points.length<4 || points.length>193 || (points.length-1)%3!==0)) throw Error(`commands[${commands.indexOf(command)}]: Bezier has ${points.length} points; expected 4, 7, 10, ... 193 (start + control1/control2/end per segment). No commands in this batch were applied.`)
     if (fill && !['rectangle','circle','polygon','bezier'].includes(shape)) throw Error('Fill requires a closed shape')
     const layer = doc.layers.find(layer => layer.id === (command.layer ?? doc.active))
     if (!layer?.visible) throw Error('Target layer is missing or hidden')

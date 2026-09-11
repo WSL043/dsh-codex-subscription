@@ -46,3 +46,14 @@ test('abandoned runs unlock after a bounded idle interval',async()=>{
  await new Promise(resolve=>setTimeout(resolve,15))
  assert.equal(run.locked,false);assert.equal(run.state,'failed');run.dispose()
 })
+
+test('failed writes tell the caller to inspect and allow recovery without partial mutation',async()=>{
+ let revision=0
+ const run=createSketchAgentRun({execute:async r=>{if(r.action==='apply'&&r.invalid)throw Error('commands[2]: malformed curve');if(r.action==='apply')revision++;return {revision}},open:()=>{},changed:()=>{}})
+ const first=await run.execute({action:'inspect'})
+ await assert.rejects(run.execute({action:'apply',runId:first.runId,invalid:true}),/commands\[2\].*Call inspect/)
+ assert.equal(revision,0)
+ const next=await run.execute({action:'inspect'})
+ await run.execute({action:'apply',runId:next.runId})
+ assert.equal(revision,1);run.dispose()
+})
