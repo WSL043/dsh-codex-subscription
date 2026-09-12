@@ -5,7 +5,7 @@ export function createSketchOperationGate() {
     get running() {
       return running
     },
-    async run(operation, { blocked = false, working, report }) {
+    async run(operation, { blocked = false, working, report, rethrow = false }) {
       if (blocked || running) return false
       running = true
       try {
@@ -15,6 +15,7 @@ export function createSketchOperationGate() {
         return true
       } catch (error) {
         report(error)
+        if (rethrow) throw error
         return false
       } finally {
         running = false

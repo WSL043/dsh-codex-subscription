@@ -7,6 +7,7 @@ This is an engineering guide, not a claim of additional shipped features.
 - `sketch-session-state.js`: session lifetime, document refs and idle eviction.
 - `sketch-document-lifecycle.js`: saved-document identity, snapshot saves, recovery, replacement and imports. Storage and image decoding can be injected for delayed/failing-I/O tests.
 - `sketch-operation-gate.js`: synchronous exclusion for manual file operations. File menu, keyboard save, paste/drop, close and attach share this gate. Agent availability also checks it before a React busy-state commit.
+- `sketch-agent-export.js`: native Agent export uses that same gate through encoding and Blob serialization. Duplicate requests fail without releasing the in-flight request's lock; errors propagate to the caller and release the editor in `finally`.
 - `sketch-gesture.js`: coalesced pointer samples, shape constraints, stroke erasing and object transforms. This hot path has no React state, storage, image decoding or layout reads; it preserves raw paths until pen-up smoothing.
 - `sketch-tool-picker.jsx` and `sketch-layer-panel.jsx`: tool/layer presentation and callbacks. Document mutation stays with the owning controller. Every shape-menu choice observes the same busy/agent lock as its opener.
 - `sketch-studio.jsx`: pointer lifecycle, painting scheduling, React effects and composition. Pointer-down/up, colors and brush options remain here; the component is still a candidate for evidence-led simplification.
@@ -37,3 +38,10 @@ Further pointer-lifecycle extraction should preserve synchronous operation exclu
 - Built client loaded through the official rc.2 CLI in an isolated profile, with its installed client hash matched to the build. Visually checked pen/pencil switching, ellipse selection, layer copy/reorder/visibility, outside-click panel dismissal and shortcut layout. Saved and reopened a two-layer draft, attached one PNG through the native composer, opened preview and imported it as the third sketch layer. No browser console errors during this flow.
 - rc.2's `ComposerAttachmentsOwnerProps` exposes add/remove/retry and upload state, but no preview-action injection callback. Its `ImageLightbox` only accepts source, alt, labels and close. Keep the current bounded preview wrapper; do not duplicate native upload/removal behavior. This audit does not change the published compatibility range or promote rc.2 to the stable baseline.
 - Model capability gaps are reported only in support diagnostics (`catalog.unsupported` and `catalog-capabilities-not-adapted`). Unknown reasoning, input or speed identifiers do not enter executable model parameters. Diagnostics tests cover catalog reset/304 lifetime and exclusion of raw metadata.
+
+### Follow-up: Agent export exclusion
+
+The native `dshSketchAgent.export()` previously only checked whether the editor was busy at entry; it never acquired the file-operation gate. It now holds the existing gate through encoding and byte serialization. The export payload and formats are unchanged.
+
+- Regression tests hold encoding and Blob reads separately, reject concurrent exports/manual file work, preserve original failures, and verify successful retry. Full source suite: 406 passed, 3 platform-gated skips; official rc.2 behavior suite: 303 passed; build passed.
+- In the isolated rc.2 browser, deliberately paused PSD Blob serialization. Pen and attach controls became disabled, and an immediate second export returned a busy error. Releasing the pause produced a 328,649-byte PSD and restored both controls. An unsupported-format request returned its original error; the following PNG export succeeded (49,200 bytes). No console errors. The temporary Blob interception was restored and removed after the test. No model requests were made.
