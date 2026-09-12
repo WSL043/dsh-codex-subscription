@@ -37,6 +37,7 @@ export function openaiCodexSubscriptionProvider({
   resolveCustomContextWindow = () => undefined,
   catalog,
   connection,
+  compaction,
   runNetwork = (_area, operation) => operation(),
 } = {}) {
   const provider = createOpenAICodexProvider()
@@ -71,10 +72,11 @@ export function openaiCodexSubscriptionProvider({
           ...(textVerbosity === undefined ? {} : { text: { ...(payload.text ?? {}), verbosity: textVerbosity } }),
           ...(fast ? { service_tier: FAST_SERVICE_TIER } : {}),
         }
-        const next = await onPayload?.(preferred, requestModel)
+        const managed = compaction?.preparePayload(preferred) ?? preferred
+        const next = await onPayload?.(managed, requestModel)
         return {
-          ...(next ?? preferred),
-          ...(textVerbosity === undefined ? {} : { text: { ...((next ?? preferred).text ?? {}), verbosity: textVerbosity } }),
+          ...(next ?? managed),
+          ...(textVerbosity === undefined ? {} : { text: { ...((next ?? managed).text ?? {}), verbosity: textVerbosity } }),
           ...(fast ? { service_tier: FAST_SERVICE_TIER } : {}),
         }
       },
@@ -98,9 +100,9 @@ export function openaiCodexSubscriptionProvider({
     const step = async (method, value) => {
       const request = await (prepared ??= connection?.prepare(options) ?? Promise.resolve({ options }))
       return runNetwork('model', () => {
-        iterator ??= factory(request.options)[Symbol.asyncIterator]()
+        iterator ??= factory(compaction?.requestOptions(request.options) ?? request.options)[Symbol.asyncIterator]()
         return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
-      }, request.network)
+      }, compaction?.networkOptions(request.network) ?? request.network)
     }
     return {
       [Symbol.asyncIterator]() { return this },

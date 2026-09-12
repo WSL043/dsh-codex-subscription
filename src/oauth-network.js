@@ -180,7 +180,8 @@ export async function withCodexNetwork(run, options = {}) {
       }
       const route = await proxy
       scopedOptions.onRoute?.(route.source)
-      return route.url === undefined ? baseFetch(input, init) : proxyFetch(input, init, route.url)
+      const response = await (route.url === undefined ? baseFetch(input, init) : proxyFetch(input, init, route.url))
+      return scopedOptions.transformResponse?.(response, target) ?? response
     }
     globalThis.fetch = scopedFetch
   }
