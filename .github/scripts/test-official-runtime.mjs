@@ -17,7 +17,8 @@ try {
   }
   // Supply only the test-owned IndexedDB emulator. DSH packages must continue
   // resolving from the official runner, never the source checkout's versions.
-  cpSync(realpathSync(join(source, 'node_modules', 'fake-indexeddb')), join(probe, 'node_modules', 'fake-indexeddb'), { recursive: true })
+  const emulator = existsSync(join(runner, 'node_modules', 'fake-indexeddb')) ? runner : source
+  cpSync(realpathSync(join(emulator, 'node_modules', 'fake-indexeddb')), join(probe, 'node_modules', 'fake-indexeddb'), { recursive: true })
   const result = spawnSync(process.execPath, ['--test', ...testFiles('behavior')], { cwd: probe, stdio: 'inherit' })
   if (result.error) throw result.error
   process.exitCode = result.status ?? 1
