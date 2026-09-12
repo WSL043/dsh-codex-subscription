@@ -1,6 +1,7 @@
 export const zh = {
   sketchSizeShort:'粗细',
   sketchObjectDuplicate:'复制对象',sketchObjectDelete:'删除对象',
+  sketchBrushHint_pen:'实色圆头墨线',sketchBrushHint_pencil:'细腻颗粒，叠画加深',sketchBrushHint_marker:'半透明平头，适合高亮',sketchDismissStatus:'收起提示',sketchRunResumeHint:'允许 Agent 接收后续绘图请求，不会自动重发消息',
   sketchTool_select:'选择',sketchTool_text:'文字',sketchTool_arrow:'箭头',sketchShapes:'图形',sketchText:'编辑文字',sketchTextDone:'完成',sketchTextSize:'字号',sketchBrush:'笔型',
   sketchFill:'填色',
   sketchDownload:'下载',sketchExportFormat:'导出格式',sketchEditableFile:'可编辑草稿',sketchFormatHint:'PNG 为合并图片；PSD 交换像素图层；可编辑草稿保留原生笔画。可导入 PSD 或草稿文件（32 MB 内）；PSD 仅支持普通像素图层，长边适配至 1024。',
@@ -109,6 +110,7 @@ export const zh = {
 export const en = {
   sketchSizeShort:'Size',
   sketchObjectDuplicate:'Duplicate object',sketchObjectDelete:'Delete object',
+  sketchBrushHint_pen:'Solid round ink',sketchBrushHint_pencil:'Grain builds with repeated strokes',sketchBrushHint_marker:'Translucent flat tip for highlights',sketchDismissStatus:'Dismiss status',sketchRunResumeHint:'Allow subsequent drawing requests; does not resend a message',
   sketchTool_select:'Select',sketchTool_text:'Text',sketchTool_arrow:'Arrow',sketchShapes:'Shapes',sketchText:'Edit text',sketchTextDone:'Done',sketchTextSize:'Text size',sketchBrush:'Brush',
   sketchFill:'Fill',
   sketchDownload:'Download',sketchExportFormat:'Export format',sketchEditableFile:'Editable draft',sketchFormatHint:'PNG is flattened; PSD exchanges pixel layers; editable drafts retain native strokes. Import PSD or draft files up to 32 MB. PSD supports normal pixel layers, fitted to a 1024 px long edge.',

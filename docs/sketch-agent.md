@@ -1,7 +1,7 @@
 # Native sketch commands — development interface
 
-This document describes 2.1.0-beta.5, including protocol v2 changes.
-Stable 2.0.1 does not include Agent drawing.
+This document describes 2.1.0 and protocol v2.
+Agent drawing remains an opt-in Beta feature.
 
 `codex_sketch` is a DSH-native tool, enabled only when both sketch editing and
 Agent drawing are enabled. Both are opt-in Beta settings. The toolbar button is

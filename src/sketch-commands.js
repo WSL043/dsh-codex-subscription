@@ -47,7 +47,7 @@ export function applySketchCommands(source, commands) {
         if(Object.keys(patch).some(k=>!['color','width','opacity','fill','text','points'].includes(k)))throw Error('Unsupported object property')
         const changed=command.transform?transformObject({...original,...patch},command.transform):{...original,...patch}
         const validated=applySketchCommands({...doc,layers:[{...layer,strokes:[]}]},[{...changed,op:'stroke',layer:layer.id}])
-        strokes[index]={...validated.layers[0].strokes[0],brush:original.brush??'pen',...(original.pressure!==undefined?{pressure:original.pressure}:{})}
+        strokes[index]={...validated.layers[0].strokes[0],brush:original.brush??'pen',...(original.pressure!==undefined?{pressure:original.pressure}:{}),...(original.brushVersion===2?{brushVersion:2}:{})}
       }else throw Error('Unknown object action')
       doc={...doc,layers:doc.layers.map(l=>l===layer?{...l,strokes}:l)};continue
     }
