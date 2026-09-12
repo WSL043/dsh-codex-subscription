@@ -91,7 +91,31 @@ configuration_update 与自动压缩/自动截断有官方兼容限制，不能�
 
 ## 官方依据
 
+### 2026-09-12 双通道实现与补充实测（未发布）
+
+- 设置 → 高级与诊断 → 独立子任务：DSH / Codex（Beta），默认 DSH。复用官方 `dsh-subagent-codex` 0.1.5-rc.2 与 Codex 0.153.4；不复制子代理调度器。
+- Codex 使用 app-server 官方实验性 `chatgptAuthTokens` 登录：从插件现有凭据存储读取访问令牌，刷新仍由同一存储串行管理。无第二次登录，无 API key，无第二份 `auth.json`；账号变化时拒绝复用旧任务。
+- 独立子任务改为官方 Codex 的 one-shot 生命周期。共享上下文 fork、自定义 persona / toolFilter / agentOptions 工具不替换。Codex 跟随订阅父会话的模型和推理档位；其他模型会话明确使用 Luna low。
+- 权限使用父会话的 sandbox 模式，禁用无人值守提权，不继承用户 Codex 的 full-access 配置。运行时使用插件私有 home；额外工作区根、DSH 专有工具和继续对话不承诺等价。
+- DSH 网页预设延迟挂载工具，不能只更新全局工具；使用 Cordis 配置钩子适配后挂载的标准工具，不修改预设文件。Codex 不支持 DSH 子任务独立选模型，因此该配置仅在 Codex 通道关闭，切回 DSH 恢复。
+- 真机：打包插件的界面选择和恢复通过；DSH rc.2 标准预设真实 `subagent` 工具通过新实现返回 `PRESET_LOGIN_OK`；独立 Luna 调用返回 `MANAGED_LOGIN_OK`，没有生成 `auth.json`。此前原生 DSH 路径的 Luna/后台任务结果保留，不重复消耗额度。
+
+| 本次订阅后端实测 | 结果 |
+| --- | --- |
+| Astra low 异步工具 | HTTP 200，返回 async 调用，后续按原 call_id 提交结果后正确回答 VIOLET |
+| Sol low 异步工具 | HTTP 400，后端明确不支持 |
+| Terra low 异步工具 | HTTP 400，后端明确不支持 |
+| Luna max 异步工具 | HTTP 400，后端明确不支持，提高推理档位不能解锁 |
+| Luna low 自动压缩 | HTTP 200，实际返回 2 个 compaction 项；仅用最后一个项回放，仍正确回答 VIOLET |
+
+压缩样本很短（初次输入 1638 tokens、回放 1585），证明协议和回放成功，不代表长会话节省比例。异步工具支持与 DSH 后台任务是不同机制，不能混为一谈。
+
+WebSocket 的远程连接受 HTTP CONNECT / 系统代理、NO_PROXY、断连策略影响；不是绕过代理的本地协议。官方子代理的本地 stdio 通信不经过代理，但它访问 OpenAI 时仍经过网络。保留 SSE 默认，没有据此强制开启 WebSocket。当前测试覆盖本机代理，不能据此承诺所有大陆/海外代理均可靠。
+
+证据保留于 `.artifacts/maintenance-pass/requested-model-matrix.json`、`subagent-fixture/managed/result.json`、`preset-live-acceptance.log`。默认测试中的 Windows manager 专项仍需专用环境，不把跳过算通过。
+
 - [DSH Codex 子代理说明](https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/subagent/subagent-codex)
+- [Codex app-server 外部令牌登录](https://learn.chatgpt.com/docs/app-server)
 - [推理与 configuration_update](https://developers.openai.com/api/docs/guides/reasoning)
 - [压缩](https://developers.openai.com/api/docs/guides/compaction)
 - [异步工具](https://developers.openai.com/api/docs/guides/async-tool-calling)

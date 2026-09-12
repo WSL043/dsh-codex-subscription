@@ -1,4 +1,7 @@
 export const zh = {
+  subagentBackendTitle: '独立子任务', subagentBackend_dsh: 'DSH', subagentBackend_codex: 'Codex',
+  subagentBackendHint: 'Codex 复用订阅登录，跟随当前订阅模型和工作区权限；其他模型会话使用 Luna low。共享上下文子任务仍用 DSH。',
+  subagentBackendUnavailable: '当前宿主缺少子代理服务，请更新 DSH。',
   sketchRecovered:'已恢复未保存草稿',sketchRecoveryFailed:'恢复检查点保存失败，请手动保存或导出草稿。',sketchStorageBlocked:'草稿正被其他窗口占用，请关闭其他草图窗口后重试。',
   sketchDraftLimit:'已达 20 份草稿上限。请先导出，或删除不需要的草稿后保存。',sketchStorageLimit:'草稿存储空间已满。请先导出，或删除不需要的草稿后保存。',
   sketchSizeShort:'粗细',
@@ -110,6 +113,9 @@ export const zh = {
 }
 
 export const en = {
+  subagentBackendTitle: 'Independent subtasks', subagentBackend_dsh: 'DSH', subagentBackend_codex: 'Codex',
+  subagentBackendHint: 'Codex uses your subscription login, current subscription model and workspace permissions; other model sessions use Luna low. Shared-context subtasks stay in DSH.',
+  subagentBackendUnavailable: 'Subagent services are unavailable. Update DSH to use this option.',
   sketchRecovered:'Unsaved sketch recovered',sketchRecoveryFailed:'Recovery checkpoint failed. Save or export your draft.',sketchStorageBlocked:'Draft storage is in use. Close other sketch windows and retry.',
   sketchDraftLimit:'The 20-draft limit is reached. Export first, or remove an unwanted draft before saving.',sketchStorageLimit:'Draft storage is full. Export first, or remove an unwanted draft before saving.',
   sketchSizeShort:'Size',

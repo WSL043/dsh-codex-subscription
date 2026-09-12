@@ -5,6 +5,7 @@ This project depends on software distributed under its own terms. The dependency
 | Project | Role | License | Source |
 | --- | --- | --- | --- |
 | DeepSeek Harness packages | Plugin host, client slots, credential and LLM interfaces | MIT | https://github.com/deepseek-ai/deepseek-harness |
+| `@openai/codex` 0.153.4 | Optional official DSH Codex subagent runtime, installed as a dependency | Apache-2.0 | https://github.com/openai/codex |
 | `@earendil-works/pi-ai` 0.82.1 | OpenAI Codex OAuth, model catalog, Responses transport, and WebSocket continuation | MIT | https://github.com/earendil-works/pi |
 | React | DSH settings component runtime | MIT | https://github.com/facebook/react |
 | dsh-image-viewer 0.1.0-beta.9 (3d121d3), with 0.1.0 (7f3be2c) zoom and annotation improvements | Adapted built-in image viewer, interaction state, and styles | MIT, Copyright (c) 2026 WSL043; full license included in LICENSE | https://github.com/WSL043/dsh-image-viewer |
