@@ -65,7 +65,8 @@ function Initialize-Runner {
 function Invoke-Dsh {
     param([Parameter(Mandatory = $true)][string[]] $Arguments)
 
-    & $runner.Source @runnerPrefix @Arguments
+    Write-Host "Official DSH: $($Arguments -join ' ')"
+    & node (Join-Path $PSScriptRoot 'run-official-cli.mjs') $runner.Source @runnerPrefix @Arguments
     if ($LASTEXITCODE -ne 0) {
         throw "Official DSH command failed with exit code $LASTEXITCODE."
     }
@@ -149,17 +150,17 @@ try {
     Initialize-Runner
     $latest = (& pnpm view dsh-codex-subscription dist-tags.latest --json 2>$null | Out-String).Trim().Trim('"')
     if ($LASTEXITCODE -eq 0 -and $latest -match '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
-        Invoke-Dsh @('plugin', '--profile', $Profile, 'add', "dsh-codex-subscription@$latest", '--loglevel', 'error')
+        Invoke-Dsh @('plugin', '--profile', $Profile, 'add', "dsh-codex-subscription@$latest", '--reporter', 'append-only')
     }
 
-    Invoke-Dsh @('plugin', '--profile', $Profile, 'add', $package, '--loglevel', 'error')
+    Invoke-Dsh @('plugin', '--profile', $Profile, 'add', $package, '--reporter', 'append-only')
     Assert-InstalledOnce
     Start-And-ProbeWeb
 
-    Invoke-Dsh @('plugin', '--profile', $Profile, 'remove', 'dsh-codex-subscription', '--loglevel', 'error')
+    Invoke-Dsh @('plugin', '--profile', $Profile, 'remove', 'dsh-codex-subscription', '--reporter', 'append-only')
     Assert-Removed
 
-    Invoke-Dsh @('plugin', '--profile', $Profile, 'add', $package, '--loglevel', 'error')
+    Invoke-Dsh @('plugin', '--profile', $Profile, 'add', $package, '--reporter', 'append-only')
     Assert-InstalledOnce
     Write-Host 'Official DSH end-to-end acceptance passed.'
 } finally {
