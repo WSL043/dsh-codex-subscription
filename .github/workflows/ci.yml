@@ -138,6 +138,8 @@ jobs:
         with:
           name: dsh-codex-subscription-${{ github.sha }}
           path: .candidate
+      - name: Install locked test fixtures
+        run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Install, update, compose, start Web, remove, and reinstall
         shell: powershell
         run: |
