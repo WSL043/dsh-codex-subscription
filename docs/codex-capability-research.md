@@ -228,3 +228,17 @@ node --test scripts/experiments/compaction-state.test.mjs
 ```
 
 This is an unshipped prototype. A JSON file roundtrip is not a DSH restart test. It does not yet implement atomic session commits, route capability gating, DSH request projection, retention limits, or coordination with the native compaction scheduler. No new production settings have been added.
+
+### Native DSH storage acceptance
+
+The generic DSH replay envelope was tested through the actual rc.2 BlockAssembler and JsonlSessionPersistence, not a replacement JSON writer. An opaque response-level checkpoint and visible READY message were assembled, stored with the native assistant/message event schema, flushed and closed. A separate Node process instantiated a new storage backend, opened the session and read an identical message including the replay envelope. The probe uses synthetic checkpoint data and an isolated directory. It does not establish full application restart or live cloud continuation.
+
+This refines the earlier blocker: DSH generic storage does not need a new schema. The pi-ai-specific conversion is the boundary needing adaptation; the response-level ReplayEnvelope extension can remain independent of visible block alignment. BlockAssembler.message does not implicitly attach replay state: the caller must pass assembler.replayState on the model source, as the agent assembly path does.
+
+Reproduce with an installed rc.2 runtime:
+
+```sh
+node scripts/experiments/compaction-dsh-storage.mjs .artifacts/rc2-runtime/node_modules/.pnpm .artifacts/compaction-storage-new
+```
+
+The destination must not already exist. The probe creates only synthetic fixture data, makes no model requests, and does not alter installed dependencies. Remaining work is request-local response capture, faithful conversion of output ordering to a replayable wire suffix, atomic adoption on successful completion, and live end-to-end continuation. The native onResponse hook exposes headers/status only, so it cannot capture compaction output by itself. Avoid disguising checkpoints as reasoning or adding a global, unscoped response interceptor.
