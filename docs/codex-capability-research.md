@@ -111,7 +111,7 @@ configuration_update 与自动压缩/自动截断有官方兼容限制，不能�
 - Codex 使用 app-server 官方实验性 `chatgptAuthTokens` 登录：从插件现有凭据存储读取访问令牌，刷新仍由同一存储串行管理。无第二次登录，无 API key，无第二份 `auth.json`；账号变化时拒绝复用旧任务。
 - 独立子任务改为官方 Codex 的 one-shot 生命周期。共享上下文 fork、自定义 persona / toolFilter / agentOptions 工具不替换。Codex 跟随订阅父会话的模型和推理档位；其他模型会话明确使用 Luna low。
 - 权限使用父会话的 sandbox 模式，禁用无人值守提权，不继承用户 Codex 的 full-access 配置。运行时使用插件私有 home；额外工作区根、DSH 专有工具和继续对话不承诺等价。
-- DSH 网页预设延迟挂载工具，不能只更新全局工具；使用 Cordis 配置钩子适配后挂载的标准工具，不修改预设文件。Codex 不支持 DSH 子任务独立选模型，因此该配置仅在 Codex 通道关闭，切回 DSH 恢复。
+- DSH 网页预设延迟挂载工具，不能只更新全局工具；使用 Cordis 配置钩子适配后挂载的标准工具，不修改预设文件。当前订阅桥接未实现 DSH 子任务独立选模型，因此仅在 Codex 通道关闭该配置，切回 DSH 恢复；这不是 Codex 运行时本身不能指定模型。
 - 真机：打包插件的界面选择和恢复通过；DSH rc.2 标准预设真实 `subagent` 工具通过新实现返回 `PRESET_LOGIN_OK`；独立 Luna 调用返回 `MANAGED_LOGIN_OK`，没有生成 `auth.json`。此前原生 DSH 路径的 Luna/后台任务结果保留，不重复消耗额度。
 
 | 本次订阅后端实测 | 结果 |
@@ -171,3 +171,48 @@ Regression fixtures cover default SSE, account/token/proxy cache isolation,
 rejected proxy CONNECT with native SSE fallback, and disconnect after
 `response.created` with exactly one send and zero fallback fetches. Browser
 acceptance uses the packaged client in official DSH 0.1.5-rc.2.
+
+## Subagent model audit and Luna compaction continuation — 2026-09-12
+
+### Current model selection
+
+- DSH rc.2 standard/ptc/cordis presets set modelSelectionSettings=true. The native tool conditionally exposes provider, model and reasoning_effort, with list_subagent_models for permitted routes. Actual exposure also depends on the model-selection policy being enabled. Omitted values inherit compatible configured/parent defaults.
+- The subscription Codex bridge currently sets modelSelectionSettings=false and capabilities.agentOptions=false. subagentThreadPolicy selects the subscription parent model/effort, otherwise Luna low. This is an integration limitation, not an inability of Codex to accept a model.
+- Merely flipping the setting fails DSH provider capability validation. A proper extension must consume and validate the requested child route, map supported subscription model/effort fields into thread/start, reject unsupported agentOptions, and advertise only routes it can execute. Do not claim arbitrary DSH agentOptions support to bypass the guard.
+
+### Luna low: four-request continuation experiment
+
+Synthetic input contained four project facts and 420 completed-work notes. Server-side compact_threshold was 4000. No user conversation content was submitted. All four requests returned HTTP 200.
+
+| Stage | Result | Reported input tokens |
+| --- | --- | --- |
+| Initial request | READY; compaction item emitted | 9401 |
+| JSON-roundtripped checkpoint plus question | MAPLE-73; 418 euros; November 19; atlas.svg | 9405 |
+| New budget update | UPDATED | 9398 |
+| Continued question | MAPLE-73; 512 euros; November 19; atlas.svg | 9427 |
+
+The retained checkpoint was 3704 bytes versus 48817 bytes for the original input array. This measures smaller client payload only: reported input-token usage did not decrease. It does not establish allowance savings, effective context expansion, or real-session persistence. The JSON roundtrip was in memory, not a DSH export/import acceptance test.
+
+### Native adapter blocker and next integration boundary
+
+A deterministic synthetic response stream containing compaction output_item.added, output_item.done and response.completed was passed to the actual processResponsesStream of pi-ai 0.82.1 and 0.85.1. Both returned empty content, emitted no content events, and discarded encrypted_content. Therefore adding context_management to requests alone is insufficient.
+
+The complete integration needs an opaque item representation across provider conversion, DSH session storage/export/import/fork, and request replay. Commit the checkpoint only for a completed response, preserve items after its position (including tool-call relationships), and keep original history until persistence succeeds. Define account/model changes and cancellation behavior before enabling pruning. Avoid an independent in-memory cache or disguising checkpoints as text/reasoning: both obscure the actual persistence contract.
+
+The experiment remains isolated; no production compression toggle or automatic history pruning was enabled. Next acceptance must cover a real tool roundtrip, repeated compaction, persisted restart/export/import, cancellation, and coexistence with DSH's compaction scheduler.
+
+Evidence: .artifacts/maintenance-pass/luna-compaction-roundtrip.mjs and .json; compaction-adapter-audit.mjs and .json. Only safe summaries are persisted; live encrypted checkpoint contents and credentials are not written by this experiment.
+
+Official contract: [Compaction](https://developers.openai.com/api/docs/guides/compaction) documents threshold-triggered opaque output and retaining the latest checkpoint plus subsequent items for stateless continuation. Public documentation alone does not prove subscription behavior; results above come from Luna subscription requests.
+
+### Persisted replay audit follow-up
+
+DSH rc.2 AssistantProvenance exposes replayState, so the host has a generic durable extension point. However, its pi-ai replay envelope v2 explicitly validates only text/reasoning/tool-call blocks, and toPiReplayState projects only those types. A correct integration therefore needs changes at both pi-ai parsing and DSH pi-ai replay serialization/reconstruction, not simply a plugin payload option. The current product remains DSH compaction only.
+
+Reproduce the dependency boundary without credentials or network calls:
+
+```sh
+node scripts/audit-compaction-runtime.mjs
+```
+
+An optional argument selects another installed pi-ai package directory. The probe includes a normal text item as a positive control and reports whether the opaque checkpoint survives; it does not patch dependencies or enable compaction. Consult [Luna quality and verbatim experiments](./luna-compaction-quality-experiment.md) for the separate live protocol results.
