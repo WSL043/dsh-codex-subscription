@@ -3,7 +3,23 @@ import assert from 'node:assert/strict'
 import http from 'node:http'
 import { createSubscriptionConnection } from '../src/subscription-connection.js'
 import { openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
-import { createCodexNetworkTransport } from '../src/oauth-network.js'
+import { createCodexNetworkTransport, withCodexNetwork } from '../src/oauth-network.js'
+
+test('SSE leaves the WebSocket constructor untouched; unrelated WebSocket subclasses retain their prototype', async () => {
+  const original = globalThis.WebSocket
+  class FixtureSocket { constructor(url) { this.url = url } }
+  globalThis.WebSocket = FixtureSocket
+  try {
+    await withCodexNetwork(async () => assert.equal(globalThis.WebSocket, FixtureSocket))
+    await withCodexNetwork(async () => {
+      class UnrelatedSocket extends globalThis.WebSocket {}
+      const socket = new UnrelatedSocket('wss://example.test/')
+      assert.ok(socket instanceof UnrelatedSocket)
+      assert.ok(socket instanceof FixtureSocket)
+    }, { websocket: true })
+    assert.equal(globalThis.WebSocket, FixtureSocket)
+  } finally { globalThis.WebSocket = original }
+})
 
 test('experimental connections keep default SSE and isolate session caches across credentials, proxies and plugin instances', async () => {
   let mode = 'sse', proxy

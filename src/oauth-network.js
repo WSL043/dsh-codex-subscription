@@ -18,6 +18,7 @@ let baseFetch
 let scopedFetch
 let baseWebSocket
 let scopedWebSocket
+let activeWebSocketScopes = 0
 
 function normalizeProxy(raw) {
   if (typeof raw !== 'string' || raw.trim() === '') return undefined
@@ -148,20 +149,23 @@ export function fetchThroughProxy(input, init, proxyUrl) {
 }
 
 export async function withCodexNetwork(run, options = {}) {
-  if (activeScopes === 0) {
-    baseFetch = globalThis.fetch
+  if (options.websocket && activeWebSocketScopes === 0) {
     baseWebSocket = globalThis.WebSocket
     const original = baseWebSocket
     scopedWebSocket = new Proxy(original ?? WebSocket, {
-      construct(target, args) {
+      construct(target, args, newTarget) {
         const scope = networkScope.getStore()
         const url = new URL(String(args[0]))
-        if (!scope?.options.websocket || url.protocol !== 'wss:' || url.hostname !== CODEX_SUBSCRIPTION_HOST) return Reflect.construct(target, args)
+        if (!scope?.options.websocket || url.protocol !== 'wss:' || url.hostname !== CODEX_SUBSCRIPTION_HOST) return Reflect.construct(target, args, newTarget)
         const proxy = scope.options.websocketProxy
         return new WebSocket(args[0], { ...args[1], ...(proxy ? { agent: new HttpsProxyAgent(proxy) } : {}) })
       },
     })
     globalThis.WebSocket = scopedWebSocket
+  }
+  if (options.websocket) activeWebSocketScopes += 1
+  if (activeScopes === 0) {
+    baseFetch = globalThis.fetch
     scopedFetch = async (input, init) => {
       const scope = networkScope.getStore()
       if (scope === undefined) return baseFetch(input, init)
@@ -189,14 +193,16 @@ export async function withCodexNetwork(run, options = {}) {
   try {
     return await networkScope.run(scope, run)
   } finally {
+    if (options.websocket && --activeWebSocketScopes === 0) {
+      if (globalThis.WebSocket === scopedWebSocket) globalThis.WebSocket = baseWebSocket
+      baseWebSocket = undefined
+      scopedWebSocket = undefined
+    }
     activeScopes -= 1
     if (activeScopes === 0) {
       if (globalThis.fetch === scopedFetch) globalThis.fetch = baseFetch
-      if (globalThis.WebSocket === scopedWebSocket) globalThis.WebSocket = baseWebSocket
       baseFetch = undefined
       scopedFetch = undefined
-      baseWebSocket = undefined
-      scopedWebSocket = undefined
     }
   }
 }
