@@ -1,3 +1,6 @@
+import { SketchLayerPanel } from './sketch-layer-panel.jsx'
+import { SketchToolPicker } from './sketch-tool-picker.jsx'
+import { updateSketchGesture } from './sketch-gesture.js'
 import { createSketchDocumentLifecycle } from './sketch-document-lifecycle.js'
 import { createSketchOperationGate } from './sketch-operation-gate.js'
 import { SketchRunStatus } from './sketch-run-status.jsx'
@@ -8,19 +11,17 @@ import { useEffect, useRef, useState } from 'react'
 import {
   SKETCH_SIZE,
   MAX_SKETCH_STROKES,
-  MAX_STROKE_POINTS,
   sketchPoint
 } from './sketch-document.js'
 import {
   changeSketchLayer,
   strokeCount,
   strokeHit,
-  MAX_SKETCH_LAYERS,
   SKETCH_RATIOS,
   resizeSketch
 } from './sketch-layers.js'
 import { paintSketchLayers } from './sketch-layer-renderer.js'
-import { snapLine, smoothStrokePoints } from './sketch-input.js'
+import { smoothStrokePoints } from './sketch-input.js'
 import { sketchDrafts } from './sketch-drafts.js'
 import { useSketchView, SketchViewControls } from './sketch-view.jsx'
 import { SketchFiles } from './sketch-files.jsx'
@@ -31,7 +32,6 @@ import {
   identifyObjects,
   objectId,
   objectBounds,
-  transformObject,
   sketchObjectSummary
 } from './sketch-objects.js'
 import {
@@ -384,111 +384,21 @@ export function SketchStudio({
     const gesture = active.current
     if (!gesture || gesture.id !== event.pointerId || busy) return
     const rect = bounds ?? canvas.current.getBoundingClientRect()
-    if (gesture.object) {
-      const point = sketchPoint(event.clientX, event.clientY, rect)
-      if (!point) return
-      try {
-        const box = objectBounds(gesture.object)
-        const stroke =
-          gesture.handle === 'end'
-            ? { ...gesture.object, points: [gesture.object.points[0], point] }
-            : gesture.handle === 'size'
-              ? transformObject(gesture.object, {
-                  scaleX:
-                    Math.max(0.001, point.x - box.x) /
-                    Math.max(0.001, box.width),
-                  scaleY:
-                    Math.max(0.001, point.y - box.y) /
-                    Math.max(0.001, box.height)
-                })
-              : transformObject(gesture.object, {
-                  dx: point.x - gesture.start.x,
-                  dy: point.y - gesture.start.y
-                })
-        doc.current = {
-          ...doc.current,
-          layers: doc.current.layers.map((l) =>
-            l.id === gesture.layer
-              ? {
-                  ...l,
-                  strokes: l.strokes.map((s) =>
-                    s.id === gesture.object.id ? stroke : s
-                  )
-                }
-              : l
-          )
-        }
-        schedule()
-      } catch (error) {
-        setError(error?.message || t('sketchFailed'))
-      }
-      return
-    }
     const native = event.nativeEvent ?? event
-    const events = native.getCoalescedEvents?.() ?? []
-    for (const sample of events.length ? [...events, native] : [native]) {
-      let point = sketchPoint(sample.clientX, sample.clientY, rect)
-      if (!point) continue
-      const layer = doc.current.layers.find(
-        (layer) => layer.id === gesture.layer
+    const samples = native.getCoalescedEvents?.() ?? []
+    try {
+      doc.current = updateSketchGesture(
+        doc.current,
+        gesture,
+        samples.length ? [...samples, native] : [native],
+        rect,
+        width,
+        event.shiftKey
       )
-      if (gesture.eraseStroke) {
-        const previous = gesture.last ?? point
-        const steps = Math.min(
-          256,
-          Math.max(
-            1,
-            Math.ceil(
-              (Math.hypot(point.x - previous.x, point.y - previous.y) *
-                SKETCH_SIZE) /
-                Math.max(2, width / 2)
-            )
-          )
-        )
-        layer.strokes = layer.strokes.filter((stroke) => {
-          for (let i = 1; i <= steps; i++) {
-            const p = {
-              x: previous.x + ((point.x - previous.x) * i) / steps,
-              y: previous.y + ((point.y - previous.y) * i) / steps
-            }
-            if (
-              strokeHit(
-                stroke,
-                p,
-                width / 2,
-                doc.current.width,
-                doc.current.height
-              )
-            )
-              return false
-          }
-          return true
-        })
-      } else {
-        const stroke = layer.strokes.at(-1)
-        if (['line', 'arrow', 'rectangle', 'circle'].includes(stroke.shape)) {
-          if (stroke.shape === 'line' && event.shiftKey) {
-            const w = doc.current.width ?? SKETCH_SIZE,
-              h = doc.current.height ?? SKETCH_SIZE,
-              a = stroke.points[0]
-            const snapped = snapLine(
-              { x: a.x * w, y: a.y * h },
-              { x: point.x * w, y: point.y * h }
-            )
-            point = { x: snapped.x / w, y: snapped.y / h }
-          }
-          stroke.points = [stroke.points[0], point]
-        } else {
-          const last = stroke.points.at(-1)
-          if (Math.hypot(last.x - point.x, last.y - point.y) < 0.0001) continue
-          if (stroke.points.length >= MAX_STROKE_POINTS)
-            stroke.points = stroke.points.filter((_, i) => i % 2 === 0)
-          stroke.points.push(point)
-        }
-      }
-      gesture.last = point
+      schedule(Boolean(gesture.object))
+    } catch (error) {
+      setError(error?.message || t('sketchFailed'))
     }
-    schedule(false)
   }
   const end = (event, cancel = false) => {
     if (navigation.end(event)) return
@@ -1268,118 +1178,12 @@ export function SketchStudio({
             </aside>
           ) : null}
           {layersOpen ? (
-            <aside className="codexSketchLayers" aria-label={t('sketchLayers')}>
-              <header>
-                <strong>{t('sketchLayers')}</strong>
-                <button
-                  type="button"
-                  title={t('sketchLayerAdd')}
-                  aria-label={t('sketchLayerAdd')}
-                  disabled={
-                    agentLocked ||
-                    busy ||
-                    doc.current.layers.length >= MAX_SKETCH_LAYERS
-                  }
-                  onClick={() => change('add')}
-                >
-                  ＋
-                </button>
-              </header>
-              <div className="codexLayerList">
-                {doc.current.layers
-                  .slice()
-                  .reverse()
-                  .map((layer) => (
-                    <div
-                      key={layer.id}
-                      className="codexLayerRow"
-                      data-active={layer.id === doc.current.active}
-                    >
-                      <button
-                        type="button"
-                        disabled={agentLocked || busy}
-                        aria-label={`${t('sketchLayerVisible')} ${layer.id}`}
-                        aria-pressed={layer.visible}
-                        onClick={() => change('visible', layer.id)}
-                      >
-                        <WorkspaceIcon
-                          name={layer.visible ? 'eye' : 'eyeOff'}
-                          size={18}
-                        />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={agentLocked || busy}
-                        aria-pressed={layer.id === doc.current.active}
-                        onClick={() => change('select', layer.id)}
-                      >
-                        {layer.name || `${t('sketchLayer')} ${layer.id}`}
-                      </button>
-                    </div>
-                  ))}
-              </div>
-              <label className="codexSketchLayerLabel">
-                {t('sketchLayerName')}
-              </label>
-              <input
-                key={current.id + '-' + current.name}
-                disabled={agentLocked || busy}
-                aria-label={t('sketchLayerName')}
-                defaultValue={current.name}
-                placeholder={`${t('sketchLayer')} ${current.id}`}
-                maxLength={40}
-                onBlur={(e) => {
-                  if (e.target.value !== current.name)
-                    change('rename', current.id, e.target.value)
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') e.currentTarget.blur()
-                }}
-              />
-              <div className="codexLayerActions">
-                {['duplicate', 'up', 'down', 'delete'].map((action) => (
-                  <button
-                    type="button"
-                    key={action}
-                    title={t(`sketchLayer_${action}`)}
-                    aria-label={t(`sketchLayer_${action}`)}
-                    disabled={
-                      agentLocked ||
-                      busy ||
-                      (action === 'delete' &&
-                        doc.current.layers.length === 1) ||
-                      (action === 'duplicate' &&
-                        (doc.current.layers.length >= MAX_SKETCH_LAYERS ||
-                          strokeCount(doc.current) + current.strokes.length >
-                            MAX_SKETCH_STROKES)) ||
-                      (action === 'up' &&
-                        current === doc.current.layers.at(-1)) ||
-                      (action === 'down' && current === doc.current.layers[0])
-                    }
-                    onClick={() => change(action)}
-                  >
-                    <WorkspaceIcon
-                      name={action === 'delete' ? 'clear' : action}
-                      size={17}
-                    />
-                    <span>{t(`sketchLayer_${action}`)}</span>
-                  </button>
-                ))}
-              </div>
-              <button
-                type="button"
-                className="codexSketchClearLayer"
-                disabled={
-                  agentLocked ||
-                  busy ||
-                  (!current.strokes.length && !current.image)
-                }
-                onClick={() => change('clear')}
-              >
-                <WorkspaceIcon name="clear" size={16} />
-                {t('sketchClearLayer')}
-              </button>
-            </aside>
+            <SketchLayerPanel
+              document={doc.current}
+              disabled={agentLocked || busy}
+              change={change}
+              t={t}
+            />
           ) : null}
         </div>
         <div className="codexSketchControls">
@@ -1392,88 +1196,16 @@ export function SketchStudio({
             {t('sketchPictures')}
           </button>
           <SketchViewControls navigation={navigation} t={t} />
-          <div
-            className="codexSketchPill"
-            role="toolbar"
-            aria-label={t('sketchTitle')}
-            title={t('sketchShortcuts')}
-          >
-            {['select', 'pen', 'pencil', 'marker', 'text', 'eraser'].map(
-              (name) => {
-                const drawing = ['pen', 'pencil', 'marker'].includes(name)
-                const label = t(
-                  drawing ? `sketchBrush_${name}` : `sketchTool_${name}`
-                )
-                return (
-                  <button
-                    type="button"
-                    key={name}
-                    aria-label={label}
-                    title={
-                      drawing
-                        ? `${label} · ${t(`sketchBrushHint_${name}`)}`
-                        : label
-                    }
-                    aria-pressed={
-                      drawing ? tool === 'pen' && brush === name : tool === name
-                    }
-                    disabled={agentLocked || busy}
-                    onClick={() => {
-                      if (drawing) chooseBrush(name)
-                      else chooseTool(name)
-                    }}
-                  >
-                    <WorkspaceIcon name={name} size={23} />
-                    <span>{label}</span>
-                  </button>
-                )
-              }
-            )}
-            <button
-              className="codexSketchShapeToggle"
-              type="button"
-              aria-label={t('sketchShapes')}
-              aria-expanded={shapesOpen}
-              aria-pressed={['line', 'arrow', 'rectangle', 'circle'].includes(
-                tool
-              )}
-              disabled={agentLocked || busy}
-              onClick={() => setShapesOpen((v) => !v)}
-            >
-              <WorkspaceIcon
-                name={
-                  ['line', 'arrow', 'rectangle', 'circle'].includes(tool)
-                    ? tool
-                    : 'rectangle'
-                }
-                size={23}
-              />
-              <span>
-                {t(
-                  ['line', 'arrow', 'rectangle', 'circle'].includes(tool)
-                    ? `sketchTool_${tool}`
-                    : 'sketchShapes'
-                )}
-              </span>
-            </button>
-            {shapesOpen ? (
-              <div className="codexSketchShapeMenu">
-                {['line', 'arrow', 'rectangle', 'circle'].map((name) => (
-                  <button
-                    key={name}
-                    type="button"
-                    aria-pressed={tool === name}
-                    onClick={() => {
-                      chooseTool(name)
-                      setShapesOpen(false)
-                    }}
-                  >
-                    {t(`sketchTool_${name}`)}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
+          <SketchToolPicker
+            t={t}
+            disabled={agentLocked || busy}
+            tool={tool}
+            brush={brush}
+            chooseBrush={chooseBrush}
+            chooseTool={chooseTool}
+            shapesOpen={shapesOpen}
+            setShapesOpen={setShapesOpen}
+          />
           <div className="codexLayerBrush">
             {['rectangle', 'circle'].includes(tool) ? (
               <label>

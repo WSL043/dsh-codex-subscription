@@ -38,6 +38,17 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
 
   const preference = preferences.status()
   const catalog = modelCatalog?.status?.()
+  // Report only bounded capability identifiers, never the raw server catalog.
+  const gaps = (modelCatalog?.capabilityGaps?.() ?? []).slice(0, 20).flatMap(value => {
+    if (!value || typeof value.model !== 'string' || !/^[a-z][a-z0-9._-]{0,79}$/u.test(value.model)) return []
+    const fields = Object.fromEntries(['reasoning', 'inputs', 'speeds'].flatMap(key => {
+      const names = [...new Set((Array.isArray(value[key]) ? value[key] : [])
+        .filter(name => typeof name === 'string' && /^[a-z][a-z0-9_-]{0,31}$/u.test(name)))].slice(0, 16)
+      return names.length ? [[key, names]] : []
+    }))
+    return Object.keys(fields).length ? [{ model: value.model, ...fields }] : []
+  })
+  if (gaps.length) issues.push({ code: 'catalog-capabilities-not-adapted' })
   return {
     schemaVersion: 3,
     package: 'dsh-codex-subscription',
@@ -48,7 +59,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     requests: safeRequests(network),
     ...(catalog && ['fallback', 'online'].includes(catalog.source)
       && ['idle', 'refreshing', 'ok', 'failed'].includes(catalog.refresh)
-      ? { catalog: { source: catalog.source, refresh: catalog.refresh } } : {}),
+      ? { catalog: { source: catalog.source, refresh: catalog.refresh, ...(gaps.length ? { unsupported: gaps } : {}) } } : {}),
     configuration: {
       contextMode: preference.contextMode,
       quickQuotaMode: preference.quickQuotaMode,
