@@ -22,13 +22,16 @@ export function QuickQuotaPreference({ preference, t }) {
 export function SearchProviderPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = snapshot.status === 'ready' && snapshot.writable === true
-  const choice = (value, label, hint) => <label className="codexSubscriptionSearchChoice"><input className="codexSubscriptionSearchInput" type="radio" name="codex-subscription-search-provider" checked={snapshot.searchProvider === value} disabled={!writable} onChange={() => { void preference.set({ [SEARCH_PROVIDER_FIELD]: value }) }} /><span className="codexSubscriptionSearchCopy"><strong>{label}</strong><span>{hint}</span></span></label>
+  const choice = (value, label) => <label className="codexSubscriptionQuotaMode"><input type="radio" name="codex-subscription-search-provider" checked={snapshot.searchProvider === value} disabled={!writable} onChange={() => { void preference.set({ [SEARCH_PROVIDER_FIELD]: value }) }} /><span>{label}</span></label>
+  const hint = snapshot.searchProvider === SEARCH_PROVIDER_DSH ? 'searchDshHint' : snapshot.searchProvider === SEARCH_PROVIDER_CODEX ? 'searchCodexHint' : 'searchAutoHint'
   return <div className="codexSubscriptionSearch">
-    <div className="codexSubscriptionSearchHead"><h3>{t('searchTitle')}</h3><span className="codexSubscriptionSearchScope">{t('searchScope')}</span></div>
-    <div className="codexSubscriptionSearchChoices" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('searchTitle')}>
-      {choice(SEARCH_PROVIDER_AUTO, t('searchAuto'), t('searchAutoHint'))}
-      {choice(SEARCH_PROVIDER_DSH, t('searchDsh'), t('searchDshHint'))}
-      {choice(SEARCH_PROVIDER_CODEX, t('searchCodex'), t('searchCodexHint'))}
+    <div className="codexSubscriptionPreference">
+      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('searchTitle')}</span><span className="codexSubscriptionPreferenceHint">{t(hint)}</span></div>
+    <div className="codexSubscriptionSearchChoices codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('searchTitle')}>
+      {choice(SEARCH_PROVIDER_AUTO, t('searchAuto'))}
+      {choice(SEARCH_PROVIDER_DSH, 'DSH')}
+      {choice(SEARCH_PROVIDER_CODEX, 'Codex')}
+    </div>
     </div>
     <CapabilityPreferences preference={preference} t={t} section="search" />
   </div>
@@ -88,18 +91,22 @@ export function ContextWindowPreference({ preference, t }) {
 
 export function PreferencesCard({ preference, t, section = "display" }) {
   const snapshot = usePreferenceSnapshot(preference)
-  return <div className="codexSubscriptionCard codexSubscriptionPreferencesCard">
+  return <div className={section === 'advanced' ? 'codexSubscriptionAdvancedPreferences' : 'codexSubscriptionCard codexSubscriptionPreferencesCard'}>
     {section === 'advanced' ? <>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('advancedModelSearch')}>
+        <h3>{t('advancedModelSearch')}</h3>
+        <SearchProviderPreference preference={preference} t={t} />
+        <div className="codexSubscriptionDivider" />
+        <ContextWindowPreference preference={preference} t={t} />
+      </section>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('subagentBackendTitle')}>
       <div className="codexSubscriptionPreference">
         <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('subagentBackendTitle')} <small>Beta</small></span><span className="codexSubscriptionPreferenceHint">{t(snapshot.subagentBackendAvailable ? 'subagentBackendHint' : 'subagentBackendUnavailable')}</span></div>
         <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('subagentBackendTitle')} aria-busy={snapshot.saving || undefined}>
           {['dsh', 'codex'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-subagent-backend" checked={snapshot.subagentBackend === value} disabled={!snapshot.writable || !snapshot.subagentBackendAvailable} onChange={() => { void preference.set({ subagentBackend: value }) }} /><span>{t(`subagentBackend_${value}`)}</span></label>)}
         </div>
       </div>
-      <div className="codexSubscriptionDivider" />
-      <SearchProviderPreference preference={preference} t={t} />
-      <div className="codexSubscriptionDivider" />
-      <ContextWindowPreference preference={preference} t={t} />
+      </section>
     </> : <>
       <QuickQuotaPreference preference={preference} t={t} />
       <CapabilityPreferences preference={preference} t={t} section="quota" />
