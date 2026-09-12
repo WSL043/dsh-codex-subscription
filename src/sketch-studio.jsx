@@ -1,4 +1,6 @@
 import { SketchRunStatus } from './sketch-run-status.jsx'
+import { switchSketchToolWidth, stepSketchWidth } from './sketch-tool-widths.js'
+import { sketchShortcutAction } from './sketch-shortcuts.js'
 import { createSketchSessionState } from './sketch-session-state.js'
 import { useEffect, useRef, useState } from 'react'
 import { SKETCH_SIZE, MAX_SKETCH_STROKES, MAX_STROKE_POINTS, sketchPoint } from './sketch-document.js'
@@ -29,7 +31,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
   const [stability, setStability] = useState(0), [flow,setFlow] = useState(100), [picturesOpen,setPicturesOpen] = useState(false)
   const pictureInput = useRef(null), received = useRef(null)
   const navigation = useSketchView(canvas, open)
-  const brushWidths=useRef({pen:12,pencil:6,marker:28})
+  const toolWidths=useRef({})
   const [revision, redraw] = useState(0), [tool, setTool] = useState('pen'), [brush, setBrush] = useState('pen')
   const [eraser, setEraser] = useState('pixel'), [color, setColor] = useState('#0088ff'), [width, setWidth] = useState(12)
   const [selection,setSelection]=useState(null),[textEdit,setTextEdit]=useState(null),[shapesOpen,setShapesOpen]=useState(false)
@@ -40,7 +42,8 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
   const selectedLayer=doc.current.layers.find(l=>l.id===selection?.layer),selected=selectedLayer?.strokes.find((s,i)=>objectId(s,i)===selection?.id)
   const editObject=(patch,action='update')=>{if(agentRun.current?.locked||busy||!selected)return;try{const next=applySketchCommands(doc.current,[{op:'object',...selection,action,patch}]);if(!sizeGesture.current)checkpoint();doc.current=next;schedule();if(action==='delete')setSelection(null)}catch(e){setError(e.message)}}
   const pickColor=value=>{setColor(value);if(selected)editObject({color:value})}
-  const chooseBrush=name=>{brushWidths.current[brush]=width;setWidth(brushWidths.current[name]);setBrush(name);setTool('pen');setSelection(null)}
+  const chooseTool=(name,nextBrush=brush)=>{setWidth(switchSketchToolWidth(toolWidths.current,{tool,brush,width},{tool:name,brush:nextBrush}));setBrush(nextBrush);setTool(name);if(name!=='select')setSelection(null)}
+  const chooseBrush=name=>chooseTool('pen',name)
   const [fillShape,setFillShape] = useState(false)
   const [layersOpen, setLayersOpen] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const cursorRing=useRef(null)
@@ -86,14 +89,12 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
     if(navigation.keyDown(event))return
     if(agentRun.current?.locked)return
     if(selection && ['Delete','Backspace'].includes(event.key)){event.preventDefault();editObject({},'delete');return}
-    if(!event.ctrlKey&&!event.metaKey&&!event.altKey&&event.key.toLowerCase()==='v'){setTool('select');return}
-    if(!event.ctrlKey&&!event.metaKey&&!event.altKey&&event.key.toLowerCase()==='t'){setTool('text');return}
     const key = event.key.toLowerCase(), command = event.ctrlKey || event.metaKey
     if (command && ['z','y','s'].includes(key)) { event.preventDefault();event.stopPropagation();if(key==='s')void runFile(()=>save());else history(key==='y'||event.shiftKey?'redo':'undo');return }
     if (command || event.altKey) return
-    const tools = Object.fromEntries(['pen','eraser','line','rectangle','circle'].map(action=>[navigation.keys[action],action]))
-    if (tools[key]) {event.preventDefault();setTool(tools[key])}
-    if (key==='[' || key===']') {event.preventDefault();setWidth(value=>Math.max(2,Math.min(64,value+(key===']'?2:-2))))}
+    const action=sketchShortcutAction(navigation.keys,key)
+    if (['pen','eraser','line','rectangle','circle','select','text'].includes(action)) {event.preventDefault();chooseTool(action)}
+    if (key==='[' || key===']') {event.preventDefault();const value=stepSketchWidth(selected?.width??width,key===']'?1:-1);if(selected)editObject({width:value});else setWidth(value)}
   }
   const current = doc.current.layers.find(layer => layer.id === doc.current.active)
   const move = (event, bounds) => {
@@ -138,7 +139,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
       if(gesture.smoothing && stroke)stroke.points=smoothStrokePoints(stroke.points,gesture.smoothing)
     }
     const drawn=active.current
-    if(!cancel && !drawn.object && ['line','arrow','rectangle','circle'].includes(tool)){const stroke=doc.current.layers.find(l=>l.id===drawn.layer)?.strokes.at(-1);if(stroke){setSelection({layer:drawn.layer,id:stroke.id});setTool('select')}}
+    if(!cancel && !drawn.object && ['line','arrow','rectangle','circle'].includes(tool)){const stroke=doc.current.layers.find(l=>l.id===drawn.layer)?.strokes.at(-1);if(stroke){setSelection({layer:drawn.layer,id:stroke.id});chooseTool('select')}}
     active.current = null
     if (canvas.current.hasPointerCapture(event.pointerId)) canvas.current.releasePointerCapture(event.pointerId)
     if (cancel) { doc.current = undo.current.pop() ?? doc.current }
@@ -240,9 +241,9 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
         active.current={id:event.pointerId,layer:layer.id,eraseStroke,last:start,smoothing:tool==='pen'?stability:0};canvas.current.setPointerCapture(event.pointerId);setError('');move(event);schedule()
       }} onPointerMove={event=>{const rect=canvas.current.getBoundingClientRect();move(event,rect);cursor.move(event,rect)}} onPointerEnter={cursor.move} onPointerLeave={cursor.leave} onPointerUp={event=>end(event)} onPointerCancel={event=>end(event,true)} />
       {selected && tool==='select' && !agentLocked?<svg className="codexSketchSelection" viewBox="0 0 1 1" preserveAspectRatio="none" style={{'--sketch-ratio':(doc.current.width??1024)/(doc.current.height??1024),transform:`translate(${navigation.view.x}px,${navigation.view.y}px) scale(${navigation.view.scale})`}} aria-hidden="true"><rect {...objectBounds(selected)} fill="none" stroke="#0088ff" strokeWidth=".002" strokeDasharray=".008 .005"/><circle cx={['line','arrow'].includes(selected.shape)?selected.points.at(-1).x:objectBounds(selected).x+objectBounds(selected).width} cy={['line','arrow'].includes(selected.shape)?selected.points.at(-1).y:objectBounds(selected).y+objectBounds(selected).height} r=".007" fill="white" stroke="#0088ff" strokeWidth=".002"/></svg>:null}
-      <SketchSizeControl label={t(opacityMode?'sketchFlow':selected?.shape==='text'||tool==='text'?'sketchTextSize':'sketchWidth')} mode={opacityMode?'opacity':'size'} modes={showOpacity?[{value:'size',label:t(selected?.shape==='text'||tool==='text'?'sketchTextSize':'sketchSizeShort')},{value:'opacity',label:t('sketchFlow')}]:undefined} onModeChange={setSizeMode} min={opacityMode?5:1} max={opacityMode?100:256} suffix={opacityMode?'%':''} value={opacityMode?(selected?.opacity??flow/100)*100:selected?.width??width} disabled={agentLocked||busy} onStart={()=>{if(selected){checkpoint();sizeGesture.current=true}}} onEnd={()=>{sizeGesture.current=false}} onChange={value=>{if(opacityMode){setFlow(value);if(selected)editObject({opacity:value/100})}else{setWidth(value);if(selected)editObject({width:value})}}}/>
+      <SketchSizeControl label={t(opacityMode?'sketchFlow':selected?.shape==='text'||tool==='text'?'sketchTextSize':'sketchWidth')} mode={opacityMode?'opacity':'size'} modes={showOpacity?[{value:'size',label:t(selected?.shape==='text'||tool==='text'?'sketchTextSize':'sketchSizeShort')},{value:'opacity',label:t('sketchFlow')}]:undefined} onModeChange={setSizeMode} min={opacityMode?5:1} max={opacityMode?100:256} suffix={opacityMode?'%':''} value={opacityMode?(selected?.opacity??flow/100)*100:selected?.width??width} disabled={agentLocked||busy} onStart={()=>{if(selected){checkpoint();sizeGesture.current=true}}} onEnd={()=>{sizeGesture.current=false}} onChange={value=>{if(opacityMode){if(selected)editObject({opacity:value/100});else setFlow(value)}else{if(selected)editObject({width:value});else setWidth(value)}}}/>
 
-      {textEdit?<form className="codexSketchTextEditor" onSubmit={event=>{event.preventDefault();if(!textEdit.value.trim()){setTextEdit(null);return}try{if(textEdit.selection){editObject({text:textEdit.value})}else{const a=textEdit.point,b={x:Math.min(1,a.x+.35),y:Math.min(1,a.y+.15)},id=crypto.randomUUID();const next=applySketchCommands(doc.current,[{op:'stroke',id,shape:'text',text:textEdit.value,color,width:Math.max(24,width),points:[a,b]}]);checkpoint();doc.current=next;setSelection({layer:doc.current.active,id});schedule()}setTextEdit(null);setTool('select')}catch(e){setError(e.message)}}}><textarea autoFocus aria-label={t('sketchText')} maxLength={500} value={textEdit.value} onChange={e=>setTextEdit({...textEdit,value:e.target.value})}/><button type="submit">{t('sketchTextDone')}</button><button type="button" onClick={()=>setTextEdit(null)}>{t('sketchCancel')}</button></form>:null}
+      {textEdit?<form className="codexSketchTextEditor" onSubmit={event=>{event.preventDefault();if(!textEdit.value.trim()){setTextEdit(null);return}try{if(textEdit.selection){editObject({text:textEdit.value})}else{const a=textEdit.point,b={x:Math.min(1,a.x+.35),y:Math.min(1,a.y+.15)},id=crypto.randomUUID();const next=applySketchCommands(doc.current,[{op:'stroke',id,shape:'text',text:textEdit.value,color,width:Math.max(24,width),points:[a,b]}]);checkpoint();doc.current=next;setSelection({layer:doc.current.active,id});schedule()}setTextEdit(null);chooseTool('select')}catch(e){setError(e.message)}}}><textarea autoFocus aria-label={t('sketchText')} maxLength={500} value={textEdit.value} onChange={e=>setTextEdit({...textEdit,value:e.target.value})}/><button type="submit">{t('sketchTextDone')}</button><button type="button" onClick={()=>setTextEdit(null)}>{t('sketchCancel')}</button></form>:null}
       {picturesOpen?<aside className="codexSketchPictures"><header><strong>{t('sketchPictures')}</strong><button type="button" disabled={agentLocked||busy} onClick={()=>pictureInput.current.click()}>{t('sketchPictureAdd')}</button></header><input ref={pictureInput} hidden type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>{const file=e.target.files?.[0];e.target.value='';if(file)void runFile(()=>importImage(file))}}/>{doc.current.layers.filter(layer=>layer.image).map(layer=><div key={layer.id} data-active={layer.id===doc.current.active}><button type="button" disabled={agentLocked||busy} aria-label={`${t('sketchPictureSelect')} ${layer.name}`} onClick={()=>change('select',layer.id)}><img src={layer.image.src} alt={layer.name}/></button><button type="button" disabled={agentLocked||busy} aria-label={`${t('sketchDeleteDraft')} ${layer.name}`} onClick={()=>change(doc.current.layers.length===1?'clear':'delete',layer.id)}>×</button></div>)}{!doc.current.layers.some(layer=>layer.image)?<small>{t('sketchPicturesEmpty')}</small>:null}</aside>:null}
       {layersOpen?<aside className="codexSketchLayers" aria-label={t('sketchLayers')}>
         <header><strong>{t('sketchLayers')}</strong><button type="button" title={t('sketchLayerAdd')} aria-label={t('sketchLayerAdd')} disabled={agentLocked||busy||doc.current.layers.length>=MAX_SKETCH_LAYERS} onClick={()=>change('add')}>＋</button></header>
@@ -263,10 +264,10 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
         {['select','pen','pencil','marker','text','eraser'].map(name=>{
           const drawing=['pen','pencil','marker'].includes(name)
           const label=t(drawing?`sketchBrush_${name}`:`sketchTool_${name}`)
-          return <button type="button" key={name} aria-label={label} title={drawing?`${label} · ${t(`sketchBrushHint_${name}`)}`:label} aria-pressed={drawing?tool==='pen'&&brush===name:tool===name} disabled={agentLocked||busy} onClick={()=>{if(drawing)chooseBrush(name);else{setTool(name);if(name!=='select')setSelection(null)}}}><WorkspaceIcon name={name} size={23}/><span>{label}</span></button>
+          return <button type="button" key={name} aria-label={label} title={drawing?`${label} · ${t(`sketchBrushHint_${name}`)}`:label} aria-pressed={drawing?tool==='pen'&&brush===name:tool===name} disabled={agentLocked||busy} onClick={()=>{if(drawing)chooseBrush(name);else chooseTool(name)}}><WorkspaceIcon name={name} size={23}/><span>{label}</span></button>
         })}
         <button className="codexSketchShapeToggle" type="button" aria-label={t('sketchShapes')} aria-expanded={shapesOpen} aria-pressed={['line','arrow','rectangle','circle'].includes(tool)} disabled={agentLocked||busy} onClick={()=>setShapesOpen(v=>!v)}><WorkspaceIcon name={['line','arrow','rectangle','circle'].includes(tool)?tool:'rectangle'} size={23}/><span>{t(['line','arrow','rectangle','circle'].includes(tool)?`sketchTool_${tool}`:'sketchShapes')}</span></button>
-        {shapesOpen?<div className="codexSketchShapeMenu">{['line','arrow','rectangle','circle'].map(name=><button key={name} type="button" aria-pressed={tool===name} onClick={()=>{setTool(name);setSelection(null);setShapesOpen(false)}}>{t(`sketchTool_${name}`)}</button>)}</div>:null}
+        {shapesOpen?<div className="codexSketchShapeMenu">{['line','arrow','rectangle','circle'].map(name=><button key={name} type="button" aria-pressed={tool===name} onClick={()=>{chooseTool(name);setShapesOpen(false)}}>{t(`sketchTool_${name}`)}</button>)}</div>:null}
       </div>
       <div className="codexLayerBrush">
         {['rectangle','circle'].includes(tool)?<label><input type="checkbox" disabled={agentLocked||busy} checked={fillShape} onChange={e=>setFillShape(e.target.checked)}/>{t('sketchFill')}</label>:null}
