@@ -216,3 +216,15 @@ node scripts/audit-compaction-runtime.mjs
 ```
 
 An optional argument selects another installed pi-ai package directory. The probe includes a normal text item as a positive control and reports whether the opaque checkpoint survives; it does not patch dependencies or enable compaction. Consult [Luna quality and verbatim experiments](./luna-compaction-quality-experiment.md) for the separate live protocol results.
+
+### Experimental checkpoint state prototype
+
+The isolated module scripts/experiments/compaction-state.mjs now exercises completed-response capture and stateless continuation. It preserves the latest opaque item and every later output item, validates the exact original wire prefix before pruning, and scopes checkpoints to a hashed account/model identity. Failed/incomplete responses cannot replace state. Edited history, foreign scope, corrupt state, and unknown versions return no projection so the caller retains full history. Digests detect accidental changes; they are not authenticity or encryption guarantees.
+
+Four tests pass, including a real temporary-file JSON write/read, a trailing function call with its result, repeated compaction, and invalid-state fallbacks:
+
+```sh
+node --test scripts/experiments/compaction-state.test.mjs
+```
+
+This is an unshipped prototype. A JSON file roundtrip is not a DSH restart test. It does not yet implement atomic session commits, route capability gating, DSH request projection, retention limits, or coordination with the native compaction scheduler. No new production settings have been added.
