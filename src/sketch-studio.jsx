@@ -3,6 +3,7 @@ import { SketchToolPicker } from './sketch-tool-picker.jsx'
 import { updateSketchGesture } from './sketch-gesture.js'
 import { createSketchDocumentLifecycle } from './sketch-document-lifecycle.js'
 import { createSketchOperationGate } from './sketch-operation-gate.js'
+import { exportSketchAgentFile } from './sketch-agent-export.js'
 import { SketchRunStatus } from './sketch-run-status.jsx'
 import { switchSketchToolWidth, stepSketchWidth } from './sketch-tool-widths.js'
 import { sketchShortcutAction } from './sketch-shortcuts.js'
@@ -509,16 +510,13 @@ export function SketchStudio({
       version: 2,
       sessionId,
       execute: (request) => agentRun.current.execute(request),
-      export: async (format) => {
-        if (agentAdapter.current.busy() || agentRun.current.locked)
-          throw Error('Sketch is being edited')
-        const { blob, extension } = await agentAdapter.current.export(format)
-        const data = new Uint8Array(await blob.arrayBuffer())
-        let raw = ''
-        for (let i = 0; i < data.length; i += 8192)
-          raw += String.fromCharCode(...data.subarray(i, i + 8192))
-        return { extension, mediaType: blob.type, base64: btoa(raw) }
-      }
+      export: (format) => exportSketchAgentFile(format, {
+        gate: operationGate.current,
+        blocked: agentAdapter.current.busy() || agentRun.current.locked,
+        working: setBusy,
+        report: (error) => setError(error ? error.message || t('sketchFailed') : ''),
+        exportFile: (value) => agentAdapter.current.export(value)
+      })
     })
     window.dshSketchAgent = api
     return () => {
