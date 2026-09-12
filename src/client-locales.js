@@ -1,4 +1,6 @@
 export const zh = {
+  sketchRecovered:'已恢复未保存草稿',sketchRecoveryFailed:'恢复检查点保存失败，请手动保存或导出草稿。',
+  sketchDraftLimit:'已达 20 份草稿上限。请先导出，或删除不需要的草稿后保存。',sketchStorageLimit:'草稿存储空间已满。请先导出，或删除不需要的草稿后保存。',
   sketchSizeShort:'粗细',
   sketchObjectDuplicate:'复制对象',sketchObjectDelete:'删除对象',
   sketchBrushHint_pen:'实色圆头墨线',sketchBrushHint_pencil:'细腻颗粒，叠画加深',sketchBrushHint_marker:'半透明平头，适合高亮',sketchDismissStatus:'收起提示',sketchRunResumeHint:'允许 Agent 接收后续绘图请求，不会自动重发消息',
@@ -108,6 +110,8 @@ export const zh = {
 }
 
 export const en = {
+  sketchRecovered:'Unsaved sketch recovered',sketchRecoveryFailed:'Recovery checkpoint failed. Save or export your draft.',
+  sketchDraftLimit:'The 20-draft limit is reached. Export first, or remove an unwanted draft before saving.',sketchStorageLimit:'Draft storage is full. Export first, or remove an unwanted draft before saving.',
   sketchSizeShort:'Size',
   sketchObjectDuplicate:'Duplicate object',sketchObjectDelete:'Delete object',
   sketchBrushHint_pen:'Solid round ink',sketchBrushHint_pencil:'Grain builds with repeated strokes',sketchBrushHint_marker:'Translucent flat tip for highlights',sketchDismissStatus:'Dismiss status',sketchRunResumeHint:'Allow subsequent drawing requests; does not resend a message',

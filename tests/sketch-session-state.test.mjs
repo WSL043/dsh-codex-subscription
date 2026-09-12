@@ -5,6 +5,37 @@ import {createSketchCommandSession,applySketchCommands} from '../src/sketch-comm
 import {createSketchAgentRun} from '../src/sketch-agent-run.js'
 import {createSketchLayers} from '../src/sketch-layers.js'
 
+test('idle saved sessions are evicted with a restore ID; dirty, mounted and stopped sessions survive',()=>{
+ const registry=createSketchSessionRegistry({maxIdle:1})
+ const dirty=registry.get('dirty');dirty.dirty.current=true
+ const stopped=registry.get('stopped');stopped.agentRun.current={state:'stopped',dispose(){}}
+ const mounted=registry.get('mounted'),release=mounted.retain()
+ const saved=registry.get('saved');saved.saved.current={id:'persisted'}
+ registry.get('empty');registry.prune()
+ assert.equal(registry.get('saved').restoreId.current,'persisted')
+ assert.equal(registry.get('dirty'),dirty);assert.equal(registry.get('stopped'),stopped)
+ assert.equal(registry.get('mounted'),mounted)
+ release();registry.dispose()
+})
+
+test('many blank visited sessions stay within the idle budget',()=>{
+ const registry=createSketchSessionRegistry({maxIdle:4})
+ for(let i=0;i<200;i++){const state=registry.get(String(i));state.retain()()}
+ assert.equal(registry.stats().resident,4)
+ registry.dispose()
+})
+
+test('leaving before hydration preserves the archived document reference',()=>{
+ const registry=createSketchSessionRegistry({maxIdle:0})
+ registry.get('saved').saved.current={id:'persisted'}
+ registry.prune()
+ const returning=registry.get('saved'),release=returning.retain()
+ assert.equal(returning.restoreId.current,'persisted')
+ release()
+ assert.equal(registry.get('saved').restoreId.current,'persisted')
+ registry.dispose()
+})
+
 test('input remount keeps document, running identity and retry receipts; sessions stay isolated',async()=>{
  const registry=createSketchSessionRegistry(),state=registry.get('one')
  const mount=()=>{

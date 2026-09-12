@@ -1,23 +1,40 @@
 const DATABASE = 'dsh-codex-sketches-v1'
-export async function sketchDrafts(action, value) {
+const MAX_STORAGE = 32 * 1024 * 1024
+const metadata = (kind, row) => ({key:`${kind}:${row.id}`,kind,id:row.id,name:row.name,updated:row.updated,size:JSON.stringify(row).length})
+
+export async function sketchDrafts(action, value, recoverySession) {
   const db = await new Promise((resolve,reject) => {
-    const request=indexedDB.open(DATABASE,1)
-    request.onupgradeneeded=()=>request.result.createObjectStore('drafts',{keyPath:'id'})
-    request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error)
+    const request=indexedDB.open(DATABASE,2)
+    request.onupgradeneeded=()=>{
+      const db=request.result,tx=request.transaction
+      if(!db.objectStoreNames.contains('drafts'))db.createObjectStore('drafts',{keyPath:'id'})
+      const meta=db.createObjectStore('metadata',{keyPath:'key'})
+      db.createObjectStore('recovery',{keyPath:'id'})
+      // One-time migration; subsequent list/save operations read only metadata.
+      const cursor=tx.objectStore('drafts').openCursor()
+      cursor.onsuccess=()=>{const row=cursor.result;if(row){meta.put(metadata('drafts',row.value));row.continue()}}
+    }
+    request.onsuccess=()=>{request.result.onversionchange=()=>request.result.close();resolve(request.result)}
+    request.onerror=()=>reject(request.error)
   })
   try {
     return await new Promise((resolve,reject) => {
-      const tx=db.transaction('drafts',action==='list'?'readonly':'readwrite'), store=tx.objectStore('drafts')
-      let result
-      tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error ?? Error('Draft limit reached'))
-      const request=store.getAll()
+      const write=['save','delete','checkpoint','clearRecovery'].includes(action)
+      const tx=db.transaction(['drafts','metadata','recovery'],write?'readwrite':'readonly')
+      const meta=tx.objectStore('metadata'),kind=['checkpoint','recover','clearRecovery'].includes(action)?'recovery':'drafts',store=tx.objectStore(kind)
+      let result, failure
+      tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(failure??tx.error??Error('Draft transaction aborted'))
+      if(action==='get'||action==='recover'){const req=store.get(value);req.onsuccess=()=>{result=req.result};return}
+      if(action==='delete'||action==='clearRecovery'){store.delete(value);meta.delete(`${kind}:${value}`);return}
+      if(!['list','save','checkpoint'].includes(action)){tx.abort();return}
+      const request=meta.getAll()
       request.onsuccess=()=>{
         const rows=request.result
-        if(action==='list'){result=rows.sort((a,b)=>b.updated-a.updated);return}
-        if(action==='delete'){store.delete(value);return}
-        const others=rows.filter(row=>row.id!==value.id)
-        if(others.length>=20 || JSON.stringify([...others,value]).length>32*1024*1024){tx.abort();return}
-        store.put(value);result=value
+        if(action==='list'){result=rows.filter(row=>row.kind==='drafts').sort((a,b)=>b.updated-a.updated);return}
+        const next=metadata(kind,value),others=rows.filter(row=>row.key!==next.key && !(action==='save'&&recoverySession&&row.key===`recovery:${recoverySession}`))
+        const code=others.filter(row=>row.kind===kind).length>=20?'SKETCH_DRAFT_LIMIT':others.reduce((n,row)=>n+row.size,0)+next.size>MAX_STORAGE?'SKETCH_STORAGE_LIMIT':null
+        if(code){failure=Object.assign(Error('Draft storage limit reached'),{code});tx.abort();return}
+        store.put(value);meta.put(next);if(action==='save'&&recoverySession){tx.objectStore('recovery').delete(recoverySession);meta.delete(`recovery:${recoverySession}`)}result=value
       }
     })
   } finally { db.close() }
