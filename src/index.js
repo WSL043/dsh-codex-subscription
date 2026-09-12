@@ -1,4 +1,5 @@
 import { PREFERENCE_FIELDS } from './preference-fields.js'
+import { createSubscriptionConnection } from './subscription-connection.js'
 import { registerSubscriptionTransport } from './subscription-transport.js'
 import { createSubagentBackendSwitcher, createSubscriptionSubagent, loadSubagentRuntime } from './subagent-backend.js'
 import { createSketchAgentBridge } from './sketch-agent-bridge.js'
@@ -122,7 +123,10 @@ export function apply(ctx) {
     baseModels: () => baseProvider.getModels(),
     fetch: (input, init) => network.fetch('catalog', input, init),
   })
+  const connection = createSubscriptionConnection({ resolveMode: () => settings.get().connectionMode })
+  ctx.effect(() => () => connection.dispose())
   const provider = openaiCodexSubscriptionProvider({
+    connection,
     resolveSpeedMode: () => settings.get()[SPEED_MODE_FIELD],
     resolveOutputVerbosity: () => normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
     resolveContextMode: () => normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]),
@@ -138,6 +142,7 @@ export function apply(ctx) {
   })
   const preferences = {
     status: () => ({
+      connectionMode: settings.get().connectionMode ?? 'sse',
       subagentBackend: settings.get().subagentBackend ?? 'dsh',
       subagentBackendAvailable: subagentBackend !== undefined,
       ...readCapabilitySettings(settings.get()),
@@ -188,8 +193,7 @@ export function apply(ctx) {
     // pi-ai owns prompt_cache_key and encrypted reasoning replay. The explicit
     // profile values make the subscription cache contract auditable.
     cacheRetention: 'short',
-    // DSH rc.6 resolves pi-ai 0.82.x, whose cached WebSocket pool is keyed by
-    // session only. SSE avoids cross-account connection reuse after sign-out.
+    // The request-local connection policy upgrades this only when opted in.
     transport: 'sse',
   })
   let profileKey

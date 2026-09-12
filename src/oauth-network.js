@@ -5,6 +5,7 @@ import { Readable } from 'node:stream'
 import { promisify } from 'node:util'
 
 import { HttpsProxyAgent } from 'https-proxy-agent'
+import WebSocket from 'ws'
 
 const execFileAsync = promisify(execFile)
 const CODEX_AUTH_HOST = 'auth.openai.com'
@@ -15,6 +16,8 @@ const networkScope = new AsyncLocalStorage()
 let activeScopes = 0
 let baseFetch
 let scopedFetch
+let baseWebSocket
+let scopedWebSocket
 
 function normalizeProxy(raw) {
   if (typeof raw !== 'string' || raw.trim() === '') return undefined
@@ -147,6 +150,18 @@ export function fetchThroughProxy(input, init, proxyUrl) {
 export async function withCodexNetwork(run, options = {}) {
   if (activeScopes === 0) {
     baseFetch = globalThis.fetch
+    baseWebSocket = globalThis.WebSocket
+    const original = baseWebSocket
+    scopedWebSocket = new Proxy(original ?? WebSocket, {
+      construct(target, args) {
+        const scope = networkScope.getStore()
+        const url = new URL(String(args[0]))
+        if (!scope?.options.websocket || url.protocol !== 'wss:' || url.hostname !== CODEX_SUBSCRIPTION_HOST) return Reflect.construct(target, args)
+        const proxy = scope.options.websocketProxy
+        return new WebSocket(args[0], { ...args[1], ...(proxy ? { agent: new HttpsProxyAgent(proxy) } : {}) })
+      },
+    })
+    globalThis.WebSocket = scopedWebSocket
     scopedFetch = async (input, init) => {
       const scope = networkScope.getStore()
       if (scope === undefined) return baseFetch(input, init)
@@ -177,8 +192,11 @@ export async function withCodexNetwork(run, options = {}) {
     activeScopes -= 1
     if (activeScopes === 0) {
       if (globalThis.fetch === scopedFetch) globalThis.fetch = baseFetch
+      if (globalThis.WebSocket === scopedWebSocket) globalThis.WebSocket = baseWebSocket
       baseFetch = undefined
       scopedFetch = undefined
+      baseWebSocket = undefined
+      scopedWebSocket = undefined
     }
   }
 }
@@ -203,12 +221,12 @@ const elapsedBucket = elapsed => elapsed < 1_000 ? 'under-1s' : elapsed < 5_000 
 export function createCodexNetworkTransport(options = {}) {
   const attempts = new Map()
   const now = options.now ?? Date.now
-  const run = async (area, operation) => {
+  const run = async (area, operation, connection = {}) => {
     const startedAt = now()
     let route = attempts.get(area)?.route ?? 'direct'
     let routed = false
     try {
-      const value = await withCodexNetwork(operation, { ...options, onRoute: source => { route = source; routed = true } })
+      const value = await withCodexNetwork(operation, { ...options, ...connection, onRoute: source => { route = source; routed = true } })
       if (value instanceof Response && !value.ok) {
         attempts.set(area, { status: 'failed', stage: 'http', code: 'http-error', httpStatus: value.status, route, elapsed: elapsedBucket(now() - startedAt) })
       } else if (routed || value instanceof Response) {

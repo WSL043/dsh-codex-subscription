@@ -245,6 +245,13 @@ With a supported Codex model selected, open the composer's model menu to choose 
 Standard adds no icon; only Fast shows a lightning icon before the model name. Spark does not show the speed entry. Fast mode increases speed and uses more Credits;
 see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) for the current rules.
 
+### Advanced experiments (2.1.1 Beta)
+
+Opt in under **Advanced & diagnostics**. SSE and DSH subtasks remain the defaults:
+
+- **WebSocket** reuses connections and eligible context transfers through your existing proxy. Failed handshakes can fall back to SSE; interrupted responses surface an error without automatic replay. Applies to the next request, does not expand context limits, and is not guaranteed to be faster.
+- **Codex independent subtasks** reuse your subscription login and the official DSH Codex runtime, without a separate login or CLI setup. They follow the current subscription model and workspace permissions; other model sessions use Luna low. Shared-context subtasks remain with DSH.
+
 ## Update and uninstall
 
 ### Update and verify

@@ -99,6 +99,14 @@ export function PreferencesCard({ preference, t, section = "display" }) {
         <div className="codexSubscriptionDivider" />
         <ContextWindowPreference preference={preference} t={t} />
       </section>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('connectionTitle')}>
+        <div className="codexSubscriptionPreference">
+          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('connectionTitle')} <small>Beta</small></span><span className="codexSubscriptionPreferenceHint">{t('connectionHint')}</span></div>
+          <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('connectionTitle')} aria-busy={snapshot.saving || undefined}>
+            {['sse', 'websocket'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-connection-mode" checked={snapshot.connectionMode === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ connectionMode: value }) }} /><span>{value === 'sse' ? 'SSE' : 'WebSocket'}</span></label>)}
+          </div>
+        </div>
+      </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('subagentBackendTitle')}>
       <div className="codexSubscriptionPreference">
         <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('subagentBackendTitle')} <small>Beta</small></span><span className="codexSubscriptionPreferenceHint">{t(snapshot.subagentBackendAvailable ? 'subagentBackendHint' : 'subagentBackendUnavailable')}</span></div>

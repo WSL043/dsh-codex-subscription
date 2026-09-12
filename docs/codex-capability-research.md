@@ -137,3 +137,23 @@ WebSocket 的远程连接受 HTTP CONNECT / 系统代理、NO_PROXY、断连策�
 - [WebSocket](https://developers.openai.com/api/docs/guides/websocket-mode)
 
 文档的公开 API 支持不能单独证明订阅后端支持；上表把实际订阅请求结果与尚未完成的宿主验收分别列出。
+# Experimental connection release acceptance — 2026-09-12
+
+The advanced connection setting now defaults to SSE and opts into native pi-ai
+`websocket-cached`. Session cache keys include a plugin-instance namespace,
+credential fingerprint and resolved proxy, including on 0.82.1 hosts. Credentials
+and proxy URLs are not placed in public diagnostics. Only scoped subscription
+WebSocket requests use the proxy-aware constructor; unrelated traffic is delegated
+to the original runtime. The environment is not modified.
+
+Actual rc.2 PiAiAdapter acceptance through a local CONNECT proxy: two Luna low
+requests returned `WS_OK` (2317 ms and 1616 ms); the second established no new
+connection. Cancellation after the first output delta returned immediately without
+SSE replay. Switching the preference back to SSE returned `SSE_OK` in 2133 ms.
+This proves operation, not a statistically reliable speed advantage. Artifact:
+`.artifacts/maintenance-pass/experimental-live.json`.
+
+Regression fixtures cover default SSE, account/token/proxy cache isolation,
+rejected proxy CONNECT with native SSE fallback, and disconnect after
+`response.created` with exactly one send and zero fallback fetches. Browser
+acceptance uses the packaged client in official DSH 0.1.5-rc.2.

@@ -36,6 +36,7 @@ export function openaiCodexSubscriptionProvider({
   resolveContextMode = () => undefined,
   resolveCustomContextWindow = () => undefined,
   catalog,
+  connection,
   runNetwork = (_area, operation) => operation(),
 } = {}) {
   const provider = createOpenAICodexProvider()
@@ -91,22 +92,29 @@ export function openaiCodexSubscriptionProvider({
     const requested = clampModelContext(resolveCustomContextWindow(customContextModelKey(model.id)), maximum, model.contextWindow)
     return { ...model, contextWindow: requested }
   })
-  const networkIterable = factory => {
+  const networkIterable = (factory, options) => {
     let iterator
-    const getIterator = () => (iterator ??= factory()[Symbol.asyncIterator]())
+    let prepared
+    const step = async (method, value) => {
+      const request = await (prepared ??= connection?.prepare(options) ?? Promise.resolve({ options }))
+      return runNetwork('model', () => {
+        iterator ??= factory(request.options)[Symbol.asyncIterator]()
+        return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
+      }, request.network)
+    }
     return {
       [Symbol.asyncIterator]() { return this },
-      next: value => runNetwork('model', () => getIterator().next(value)),
-      return: value => runNetwork('model', () => getIterator().return?.(value) ?? Promise.resolve({ done: true, value })),
-      throw: error => runNetwork('model', () => getIterator().throw?.(error) ?? Promise.reject(error)),
+      next: value => step('next', value),
+      return: value => iterator ? step('return', value) : Promise.resolve({ done: true, value }),
+      throw: error => iterator ? step('throw', error) : Promise.reject(error),
     }
   }
   return Object.freeze({
     ...provider,
     auth: Object.freeze({ ...provider.auth, apiKey: requestToken }),
     getModels,
-    stream: (model, context, options) => networkIterable(() => provider.stream(model, context, withPreferences(model, options))),
-    streamSimple: (model, context, options) => networkIterable(() => provider.streamSimple(model, context, withPreferences(model, options))),
+    stream: (model, context, options) => networkIterable(prepared => provider.stream(model, context, prepared), withPreferences(model, options)),
+    streamSimple: (model, context, options) => networkIterable(prepared => provider.streamSimple(model, context, prepared), withPreferences(model, options)),
   })
 }
 

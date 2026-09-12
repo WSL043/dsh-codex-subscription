@@ -57,6 +57,7 @@ export function createPreferenceController(scope, rpc) {
       // Keep accepted ready surfaces mounted while a Host write is pending.
       status: current.status,
       ...capabilities,
+      connectionMode: value?.connectionMode === 'websocket' ? 'websocket' : 'sse',
       subagentBackend: value?.subagentBackend === 'codex' ? 'codex' : 'dsh',
       subagentBackendAvailable,
       quickQuotaMode: normalizeQuickQuotaMode(
@@ -106,6 +107,7 @@ export function createPreferenceController(scope, rpc) {
     fallback = {
       status: 'ready',
       value: {
+        connectionMode: value?.connectionMode === 'websocket' ? 'websocket' : 'sse',
         subagentBackend: value?.subagentBackend === 'codex' ? 'codex' : 'dsh',
         ...readCapabilitySettings(value),
         [QUICK_QUOTA_MODE_FIELD]: normalizeQuickQuotaMode(
