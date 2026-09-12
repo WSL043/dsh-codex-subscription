@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useSketchDismiss } from './sketch-interactions.js'
+import { sketchShortcutAction } from './sketch-shortcuts.js'
 export const DEFAULT_KEYS = {pen:'b',eraser:'e',line:'l',rectangle:'r',circle:'o',pan:' ',zoomIn:'=',zoomOut:'-',fit:'0'}
 export function useSketchView(canvas, open) {
   const [view,setView]=useState({scale:1,x:0,y:0}),[keys,setKeys]=useState(()=>{try{return {...DEFAULT_KEYS,...JSON.parse(localStorage.getItem('codex-sketch-keys'))}}catch{return DEFAULT_KEYS}})
@@ -13,7 +14,7 @@ export function useSketchView(canvas, open) {
   useEffect(()=>{if(!open||!shortcuts){setSpace(false);drag.current=null}},[open,shortcuts])
   const setKey=(action,key)=>{key=key.toLowerCase();if(!key||Object.entries(keys).some(([a,k])=>a!==action&&k===key)||['[',']'].includes(key))return;const next={...keys,[action]:key};setKeys(next);try{localStorage.setItem('codex-sketch-keys',JSON.stringify(next))}catch{}}
   return {view,keys,shortcuts,space,zoom,reset,setKey,toggle:()=>setShortcuts(v=>{try{localStorage.setItem('codex-sketch-shortcuts',v?'off':'on')}catch{}return !v}),
-    keyDown:e=>{if(!shortcuts||e.ctrlKey||e.metaKey||e.altKey)return false;const key=e.key.toLowerCase();if(key===keys.pan&&!e.ctrlKey&&!e.metaKey){e.preventDefault();setSpace(true);return true}if(key===keys.zoomIn||key==='+'||key===keys.zoomOut||key===keys.fit){e.preventDefault();if(key===keys.fit)reset();else zoom(key===keys.zoomOut?1/1.2:1.2);return true}return false},
+    keyDown:e=>{if(!shortcuts||e.ctrlKey||e.metaKey||e.altKey)return false;const action=sketchShortcutAction(keys,e.key);if(action==='pan'){e.preventDefault();setSpace(true);return true}if(['zoomIn','zoomOut','fit'].includes(action)){e.preventDefault();if(action==='fit')reset();else zoom(action==='zoomOut'?1/1.2:1.2);return true}return false},
     keyUp:e=>{if(e.key.toLowerCase()===keys.pan)setSpace(false)},
     down:e=>{if(e.button!==1&&!space)return false;e.preventDefault();drag.current={id:e.pointerId,x:e.clientX,y:e.clientY,view:viewRef.current};canvas.current.setPointerCapture(e.pointerId);return true},
     move:e=>{const d=drag.current;if(!d||d.id!==e.pointerId)return false;setView({...d.view,x:d.view.x+e.clientX-d.x,y:d.view.y+e.clientY-d.y});return true},
