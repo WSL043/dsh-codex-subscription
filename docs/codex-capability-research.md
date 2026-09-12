@@ -91,6 +91,20 @@ configuration_update 与自动压缩/自动截断有官方兼容限制，不能�
 
 ## 官方依据
 
+### Luna SSE / WebSocket 对照：2026-09-12 19:01（北京时间）
+
+实际 rc.2 的 pi-ai 0.85.1，Luna low，同样的提示词，两种路径各三轮并交替先后顺序；SSE 使用现有网络包装，WebSocket 使用 `websocket-cached`。这是适配层直接对照，不是 UI 端到端速度测量。
+
+| 首段文字到达时间 | SSE | WebSocket |
+| --- | --- | --- |
+| 首次请求 | 2510 ms | 1958 ms |
+| 第二轮 | 2265 ms | 2177 ms |
+| 第三轮 | 2140 ms | 2557 ms |
+
+六次均正确返回，WebSocket 建立一次连接、复用两次，后两轮发送增量上下文；无 WebSocket 失败或 SSE 回退。后续两轮并未稳定快于 SSE，样本不足以判断整体收益，保持 SSE 默认且暂不增加连接开关。
+
+测试未检测到显式/系统 HTTP 代理配置，不排除 TUN/透明转发，因此不作为各类代理验收。此前跨连接 previous_response_id 失效的证据仍适用，本轮没有重做故障注入。原始结果：`.artifacts/maintenance-pass/luna-transport-ab.json`。高级设置同时完成紧凑搜索选择、独立子任务分组、图片折叠；打包页面亮暗主题及图片展开、菜单 Escape 关闭通过人工视觉验收。
+
 ### 2026-09-12 双通道实现与补充实测（未发布）
 
 - 设置 → 高级与诊断 → 独立子任务：DSH / Codex（Beta），默认 DSH。复用官方 `dsh-subagent-codex` 0.1.5-rc.2 与 Codex 0.153.4；不复制子代理调度器。

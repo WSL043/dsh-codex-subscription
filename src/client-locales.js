@@ -1,4 +1,5 @@
 export const zh = {
+  advancedModelSearch: '模型与搜索',
   subagentBackendTitle: '独立子任务', subagentBackend_dsh: 'DSH', subagentBackend_codex: 'Codex',
   subagentBackendHint: 'Codex 复用订阅登录，跟随当前订阅模型和工作区权限；其他模型会话使用 Luna low。共享上下文子任务仍用 DSH。',
   subagentBackendUnavailable: '当前宿主缺少子代理服务，请更新 DSH。',
@@ -113,6 +114,7 @@ export const zh = {
 }
 
 export const en = {
+  advancedModelSearch: 'Models and search',
   subagentBackendTitle: 'Independent subtasks', subagentBackend_dsh: 'DSH', subagentBackend_codex: 'Codex',
   subagentBackendHint: 'Codex uses your subscription login, current subscription model and workspace permissions; other model sessions use Luna low. Shared-context subtasks stay in DSH.',
   subagentBackendUnavailable: 'Subagent services are unavailable. Update DSH to use this option.',

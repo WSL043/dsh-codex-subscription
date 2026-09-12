@@ -41,7 +41,9 @@ export function ImagePreferences({ preference, t }) {
   const disabled = snapshot.status !== 'ready' || !snapshot.writable || snapshot.saving
   const active = snapshot.imageGeneration || snapshot.imageEditing
   return <section className="codexSubscriptionCard codexImageSettings" aria-label={t('imageSettings')}>
-    <h3>{t('imageSettings')}</h3>
+    <details className="codexSubscriptionSettingsDisclosure">
+      <summary><span>{t('imageSettings')}</span><span className="codexSubscriptionPreferenceHint">{active ? modelLabel(snapshot.imageModel) : t('imageCapability_off')}</span><IconChevronDownOutline14 /></summary>
+      <div className="codexSubscriptionSettingsDisclosureBody">
     {Object.keys(IMAGE_SETTING_GROUPS).map(group => {
       const value = imageGroupValue(snapshot, group)
       return <ImageChoice key={group} label={t(group)} hint={t(`${group}Hint`)}
@@ -60,5 +62,7 @@ export function ImagePreferences({ preference, t }) {
         onSelect={imageQuality => { void preference.set({ imageQuality }) }} />
     </div>
     {snapshot.imageModel.includes('2.5') ? <p className="codexSubscriptionPreferenceHint">{t('imageModelHint')}</p> : null}
+      </div>
+    </details>
   </section>
 }
