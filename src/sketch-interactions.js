@@ -27,7 +27,7 @@ export function useSketchCursor(canvas, ring, width, brush, zoom, hidden) {
     const rect=bounds ?? node.getBoundingClientRect()
     if(hidden||pointer.pointerType==='touch'||pointer.clientX<rect.left||pointer.clientX>rect.right||pointer.clientY<rect.top||pointer.clientY>rect.bottom){cursor.hidden=true;return}
     const pressure=node.hasPointerCapture(pointer.pointerId)&&pointer.pointerType==='pen'?heldPressure.current:1
-    const diameter=width*(brush==='pencil'?.55:1)*pressure*rect.width/node.width
+    const diameter=width*pressure*rect.width/node.width
     cursor.hidden=false;cursor.style.width=`${diameter}px`;cursor.style.height=`${diameter}px`;cursor.style.transform=`translate(${pointer.clientX-diameter/2}px,${pointer.clientY-diameter/2}px)`
   }
   useEffect(()=>{update();const observer=new ResizeObserver(()=>update());if(canvas.current)observer.observe(canvas.current);return()=>observer.disconnect()},[width,brush,zoom,hidden])

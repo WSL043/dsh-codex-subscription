@@ -36,7 +36,8 @@ export function decodeSketchDocument(text) {
         const s=strokes[k]
         if(s.brush!==undefined&&!['pen','pencil','marker'].includes(s.brush))throw Error('Invalid brush')
         if(s.pressure!==undefined&&(!Number.isFinite(s.pressure)||s.pressure<.2||s.pressure>1))throw Error('Invalid pressure')
-        Object.assign(added[added.length-strokes.length+k],{brush:s.brush??'pen',pressure:s.pressure??1})
+        if(s.brushVersion!==undefined && s.brushVersion!==2)throw Error('Unsupported brush version')
+        Object.assign(added[added.length-strokes.length+k],{brush:s.brush??'pen',pressure:s.pressure??1,...(s.brushVersion===2?{brushVersion:2}:{})})
       }
     }
     const target=doc.layers.at(-1);target.name=String(layer.name??'').slice(0,40);target.visible=layer.visible!==false

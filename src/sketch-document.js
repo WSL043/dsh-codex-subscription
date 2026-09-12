@@ -1,3 +1,4 @@
+import { configureSketchBrush } from './sketch-brushes.js'
 export const SKETCH_SIZE = 1024
 export const MAX_SKETCH_STROKES = 2000
 export const MAX_STROKE_POINTS = 2000
@@ -18,10 +19,7 @@ export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = 
     const first = stroke.points[0]
     if (!first) continue
     context.globalCompositeOperation = stroke.shape === 'eraser' ? 'destination-out' : 'source-over'
-    context.globalAlpha = (stroke.opacity ?? 1) * (stroke.brush === 'marker' ? 0.28 : stroke.brush === 'pencil' ? 0.65 : 1)
-    context.strokeStyle = stroke.color
-    context.fillStyle = stroke.color
-    context.lineWidth = stroke.width * (stroke.brush === 'pencil' ? 0.55 : 1) * (stroke.pressure ?? 1)
+    configureSketchBrush(context,stroke)
     context.beginPath()
     const last = stroke.points.at(-1)
     if (stroke.shape === 'text') {
@@ -51,7 +49,8 @@ export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = 
       context.closePath()
       if(stroke.fill)context.fill();else context.stroke()
     } else if (stroke.points.length === 1) {
-      context.arc(first.x * size, first.y * height, context.lineWidth / 2, 0, Math.PI * 2)
+      if(stroke.brushVersion===2 && stroke.brush==='marker')context.rect(first.x*size-context.lineWidth/2,first.y*height-context.lineWidth/4,context.lineWidth,context.lineWidth/2)
+      else context.arc(first.x * size, first.y * height, context.lineWidth / 2, 0, Math.PI * 2)
       context.fill()
     } else {
       context.moveTo(first.x * size, first.y * height)

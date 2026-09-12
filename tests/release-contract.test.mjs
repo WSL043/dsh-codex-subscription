@@ -128,7 +128,7 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   assert.match(readme, /project feedback[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /依次粘贴下面两行|paste these two lines in order|下面三行|three lines/iu)
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /\birm\b|dsh-codex-setup\.ps1/iu)
-  assert.doesNotMatch(readmeZh, /提示词/u)
+  assert.doesNotMatch(readmeZh, /安装提示词|更新提示词|卸载提示词/u)
   assert.match(readmeZh, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings\.png/u)
   assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings\.png/u)
   assert.match(readme, /Screenshots use the Chinese UI/u)

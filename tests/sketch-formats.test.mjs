@@ -7,6 +7,7 @@ import { applySketchCommands } from '../src/sketch-commands.js'
 test('editable draft preserves native drawing, hidden layers and selected layer',()=>{
  let doc=applySketchCommands(createSketchLayers(),[{op:'stroke',color:'#0088ff',points:[{x:.1,y:.2},{x:.3,y:.4}],width:7},{op:'layer',action:'add'}])
  doc.layers[0].strokes[0].brush='pencil';doc.layers[0].strokes[0].pressure=.6
+ doc.layers[0].strokes[0].brushVersion=2
  doc.layers[1].visible=false;doc.active=doc.layers[0].id
  const result=decodeSketchDocument(encodeSketchDocument(doc))
  assert.deepEqual(result.layers,doc.layers);assert.equal(result.active,doc.active)

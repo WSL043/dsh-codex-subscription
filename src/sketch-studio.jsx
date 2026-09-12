@@ -1,3 +1,4 @@
+import { SketchRunStatus } from './sketch-run-status.jsx'
 import { createSketchSessionState } from './sketch-session-state.js'
 import { useEffect, useRef, useState } from 'react'
 import { SKETCH_SIZE, MAX_SKETCH_STROKES, MAX_STROKE_POINTS, sketchPoint } from './sketch-document.js'
@@ -28,6 +29,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
   const [stability, setStability] = useState(0), [flow,setFlow] = useState(100), [picturesOpen,setPicturesOpen] = useState(false)
   const pictureInput = useRef(null), received = useRef(null)
   const navigation = useSketchView(canvas, open)
+  const brushWidths=useRef({pen:12,pencil:6,marker:28})
   const [revision, redraw] = useState(0), [tool, setTool] = useState('pen'), [brush, setBrush] = useState('pen')
   const [eraser, setEraser] = useState('pixel'), [color, setColor] = useState('#0088ff'), [width, setWidth] = useState(12)
   const [selection,setSelection]=useState(null),[textEdit,setTextEdit]=useState(null),[shapesOpen,setShapesOpen]=useState(false)
@@ -38,6 +40,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
   const selectedLayer=doc.current.layers.find(l=>l.id===selection?.layer),selected=selectedLayer?.strokes.find((s,i)=>objectId(s,i)===selection?.id)
   const editObject=(patch,action='update')=>{if(agentRun.current?.locked||busy||!selected)return;try{const next=applySketchCommands(doc.current,[{op:'object',...selection,action,patch}]);if(!sizeGesture.current)checkpoint();doc.current=next;schedule();if(action==='delete')setSelection(null)}catch(e){setError(e.message)}}
   const pickColor=value=>{setColor(value);if(selected)editObject({color:value})}
+  const chooseBrush=name=>{brushWidths.current[brush]=width;setWidth(brushWidths.current[name]);setBrush(name);setTool('pen');setSelection(null)}
   const [fillShape,setFillShape] = useState(false)
   const [layersOpen, setLayersOpen] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('')
   const cursorRing=useRef(null)
@@ -83,13 +86,13 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
     if(navigation.keyDown(event))return
     if(agentRun.current?.locked)return
     if(selection && ['Delete','Backspace'].includes(event.key)){event.preventDefault();editObject({},'delete');return}
-    if(event.key.toLowerCase()==='v'){setTool('select');return}
-    if(event.key.toLowerCase()==='t'){setTool('text');return}
+    if(!event.ctrlKey&&!event.metaKey&&!event.altKey&&event.key.toLowerCase()==='v'){setTool('select');return}
+    if(!event.ctrlKey&&!event.metaKey&&!event.altKey&&event.key.toLowerCase()==='t'){setTool('text');return}
     const key = event.key.toLowerCase(), command = event.ctrlKey || event.metaKey
     if (command && ['z','y','s'].includes(key)) { event.preventDefault();event.stopPropagation();if(key==='s')void runFile(()=>save());else history(key==='y'||event.shiftKey?'redo':'undo');return }
     if (command || event.altKey) return
     const tools = Object.fromEntries(['pen','eraser','line','rectangle','circle'].map(action=>[navigation.keys[action],action]))
-    if (tools[key]) {event.preventDefault();setTool(tools[key]);if(tools[key]==='pen')setBrush('pen')}
+    if (tools[key]) {event.preventDefault();setTool(tools[key])}
     if (key==='[' || key===']') {event.preventDefault();setWidth(value=>Math.max(2,Math.min(64,value+(key===']'?2:-2))))}
   }
   const current = doc.current.layers.find(layer => layer.id === doc.current.active)
@@ -193,7 +196,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
     document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10_000)
   }
   return <>
-    {enabled && agentEnabled && !open && !noticeHidden && agentState!=='idle'?<div className="codexSketchBackgroundStatus" role="status"><button type="button" onClick={onOpen}>{t(`sketchRun_${agentState}`)}</button>{agentLocked?<button type="button" aria-label={t('sketchRunStop')} onClick={()=>agentRun.current.stop()}>×</button>:<button type="button" aria-label={t('sketchCancel')} onClick={()=>setNoticeHidden(true)}>×</button>}</div>:null}
+    {enabled && agentEnabled && !open && !noticeHidden?<SketchRunStatus state={agentState} floating t={t} onOpen={onOpen} onStop={()=>agentRun.current.stop()} onResume={()=>{setError('');agentRun.current.resume()}} onDismiss={()=>setNoticeHidden(true)}/>:null}
     <dialog ref={dialog} className="codexSketchDialog codexSketchStudio codexLayerStudio" aria-label={t('sketchTitle')} onKeyDown={keyDown} onKeyUp={navigation.keyUp} onPaste={event=>{if(agentRun.current?.locked){event.preventDefault();event.stopPropagation();return}if(event.target.closest('input,textarea'))return;const file=Array.from(event.clipboardData.items).find(item=>item.type.startsWith('image/'))?.getAsFile();if(file){event.preventDefault();event.stopPropagation();void runFile(()=>importImage(file))}}} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();event.stopPropagation();const file=event.dataTransfer.files[0];if(file)void runFile(()=>importImage(file))}} onCancel={event=>{event.preventDefault();close()}}>
     <div ref={cursorRing} hidden className="codexSketchCursor" aria-hidden="true"/>
     <header className="codexSketchTop">
@@ -207,7 +210,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
     </div>
       <button type="button" className="codexSketchConfirm" aria-label={t('sketchAttach')} disabled={agentLocked||busy||!enabled||!doc.current.layers.some(l=>l.visible&&(l.strokes.length||l.image))} onClick={()=>void attach()}><WorkspaceIcon name="check" size={18}/><span>{t('sketchAttachShort')}</span></button>
     </header>
-    {enabled && agentEnabled && agentState!=='idle'?<div className="codexSketchAgentStatus" role="status" aria-live="polite"><span>{t(`sketchRun_${agentState}`)}</span>{agentLocked?<button type="button" aria-label={t('sketchRunStop')} title={t('sketchRunStop')} onClick={()=>agentRun.current.stop()}><WorkspaceIcon name="close" size={16}/></button>:agentState==='stopped'?<button type="button" onClick={()=>agentRun.current.resume()}>{t('sketchRunResume')}</button>:null}</div>:null}
+    {enabled && agentEnabled && !noticeHidden?<SketchRunStatus state={agentState} t={t} onStop={()=>agentRun.current.stop()} onResume={()=>{setError('');agentRun.current.resume()}} onDismiss={()=>setNoticeHidden(true)}/>:null}
     <div className={`codexLayerBody ${layersOpen?'withLayers':''}`}>
       <canvas tabIndex={0} style={{transform:`translate(${navigation.view.x}px,${navigation.view.y}px) scale(${navigation.view.scale})`,cursor:navigation.space?'grab':agentLocked?'default':tool==='select'?'default':tool==='text'?'text':'none','--sketch-ratio':(doc.current.width ?? SKETCH_SIZE)/(doc.current.height ?? SKETCH_SIZE)}} ref={canvas} width={SKETCH_SIZE} height={SKETCH_SIZE} aria-label={t('sketchTitle')} onPointerDown={event=>{
         if (busy || !enabled || active.current) return
@@ -233,7 +236,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
         const start=sketchPoint(event.clientX,event.clientY,canvas.current.getBoundingClientRect());if(!start)return
         checkpoint(); const layers=doc.current.layers.map(layer=>layer.id===doc.current.active?{...layer,strokes:layer.strokes.slice()}:layer);doc.current={...doc.current,layers}
         const layer=layers.find(layer=>layer.id===doc.current.active);const eraseStroke=tool==='eraser'&&eraser==='stroke'
-        if(!eraseStroke)layer.strokes.push({id:crypto.randomUUID(),color,opacity:flow/100,shape:tool,width,fill:fillShape&&['rectangle','circle'].includes(tool),brush:tool==='pen'?brush:'pen',pressure:event.pointerType==='pen'?Math.max(.2,event.pressure):1,points:[start]})
+        if(!eraseStroke)layer.strokes.push({id:crypto.randomUUID(),color,opacity:flow/100,shape:tool,width,fill:fillShape&&['rectangle','circle'].includes(tool),brush:tool==='pen'?brush:'pen',...(tool==='pen'?{brushVersion:2}:{}),pressure:event.pointerType==='pen'?Math.max(.2,event.pressure):1,points:[start]})
         active.current={id:event.pointerId,layer:layer.id,eraseStroke,last:start,smoothing:tool==='pen'?stability:0};canvas.current.setPointerCapture(event.pointerId);setError('');move(event);schedule()
       }} onPointerMove={event=>{const rect=canvas.current.getBoundingClientRect();move(event,rect);cursor.move(event,rect)}} onPointerEnter={cursor.move} onPointerLeave={cursor.leave} onPointerUp={event=>end(event)} onPointerCancel={event=>end(event,true)} />
       {selected && tool==='select' && !agentLocked?<svg className="codexSketchSelection" viewBox="0 0 1 1" preserveAspectRatio="none" style={{'--sketch-ratio':(doc.current.width??1024)/(doc.current.height??1024),transform:`translate(${navigation.view.x}px,${navigation.view.y}px) scale(${navigation.view.scale})`}} aria-hidden="true"><rect {...objectBounds(selected)} fill="none" stroke="#0088ff" strokeWidth=".002" strokeDasharray=".008 .005"/><circle cx={['line','arrow'].includes(selected.shape)?selected.points.at(-1).x:objectBounds(selected).x+objectBounds(selected).width} cy={['line','arrow'].includes(selected.shape)?selected.points.at(-1).y:objectBounds(selected).y+objectBounds(selected).height} r=".007" fill="white" stroke="#0088ff" strokeWidth=".002"/></svg>:null}
@@ -257,17 +260,16 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
       <button type="button" className="codexSketchPicturesToggle" aria-expanded={picturesOpen} onClick={()=>setPicturesOpen(v=>!v)}>{t('sketchPictures')}</button>
       <SketchViewControls navigation={navigation} t={t}/>
       <div className="codexSketchPill" role="toolbar" aria-label={t('sketchTitle')} title={t('sketchShortcuts')}>
-        {['select','pen','text','eraser'].map(name=>{
+        {['select','pen','pencil','marker','text','eraser'].map(name=>{
           const drawing=['pen','pencil','marker'].includes(name)
           const label=t(drawing?`sketchBrush_${name}`:`sketchTool_${name}`)
-          return <button type="button" key={name} aria-label={label} title={label} aria-pressed={drawing?tool==='pen'&&brush===name:tool===name} disabled={agentLocked||busy} onClick={()=>{setTool(drawing?'pen':name);if(name!=='select')setSelection(null);if(drawing)setBrush(name)}}><WorkspaceIcon name={name} size={23}/><span>{label}</span></button>
+          return <button type="button" key={name} aria-label={label} title={drawing?`${label} · ${t(`sketchBrushHint_${name}`)}`:label} aria-pressed={drawing?tool==='pen'&&brush===name:tool===name} disabled={agentLocked||busy} onClick={()=>{if(drawing)chooseBrush(name);else{setTool(name);if(name!=='select')setSelection(null)}}}><WorkspaceIcon name={name} size={23}/><span>{label}</span></button>
         })}
-        <button className="codexSketchShapeToggle" type="button" aria-expanded={shapesOpen} disabled={agentLocked||busy} onClick={()=>setShapesOpen(v=>!v)}><WorkspaceIcon name="rectangle" size={23}/><span>{t('sketchShapes')}</span></button>
-        {shapesOpen?<div className="codexSketchShapeMenu">{['line','arrow','rectangle','circle'].map(name=><button key={name} type="button" onClick={()=>{setTool(name);setSelection(null);setShapesOpen(false)}}>{t(`sketchTool_${name}`)}</button>)}</div>:null}
+        <button className="codexSketchShapeToggle" type="button" aria-label={t('sketchShapes')} aria-expanded={shapesOpen} aria-pressed={['line','arrow','rectangle','circle'].includes(tool)} disabled={agentLocked||busy} onClick={()=>setShapesOpen(v=>!v)}><WorkspaceIcon name={['line','arrow','rectangle','circle'].includes(tool)?tool:'rectangle'} size={23}/><span>{t(['line','arrow','rectangle','circle'].includes(tool)?`sketchTool_${tool}`:'sketchShapes')}</span></button>
+        {shapesOpen?<div className="codexSketchShapeMenu">{['line','arrow','rectangle','circle'].map(name=><button key={name} type="button" aria-pressed={tool===name} onClick={()=>{setTool(name);setSelection(null);setShapesOpen(false)}}>{t(`sketchTool_${name}`)}</button>)}</div>:null}
       </div>
       <div className="codexLayerBrush">
         {['rectangle','circle'].includes(tool)?<label><input type="checkbox" disabled={agentLocked||busy} checked={fillShape} onChange={e=>setFillShape(e.target.checked)}/>{t('sketchFill')}</label>:null}
-        {tool==='pen'?<select aria-label={t('sketchBrush')} value={brush} onChange={e=>setBrush(e.target.value)} disabled={agentLocked||busy}>{['pen','pencil','marker'].map(b=><option key={b} value={b}>{t(`sketchBrush_${b}`)}</option>)}</select>:null}
         {selected?<div className="codexSketchObjectActions"><button disabled={agentLocked||busy} onClick={()=>editObject({},'duplicate')}>{t('sketchObjectDuplicate')}</button><button disabled={agentLocked||busy} onClick={()=>editObject({},'delete')}>{t('sketchObjectDelete')}</button>{selected.shape==='text'?<button disabled={agentLocked||busy} onClick={()=>setTextEdit({selection,value:selected.text})}>{t('sketchText')}</button>:null}</div>:null}
         {tool==='pen'?<label className="codexSketchStability">{t('sketchStability')}<select aria-label={t('sketchStability')} value={stability} disabled={agentLocked||busy} onChange={e=>setStability(Number(e.target.value))}>{[0,25,50,75].map(value=><option key={value} value={value}>{t(`sketchStability${value}`)}</option>)}</select></label>:null}
         {tool==='eraser'?<div className="codexSketchSegment" role="group" aria-label={t('sketchEraserMode')}>{['pixel','stroke'].map(value=><button key={value} type="button" aria-pressed={eraser===value} disabled={agentLocked||busy} onClick={()=>setEraser(value)}>{t(`sketchErase_${value}`)}</button>)}</div>:null}
