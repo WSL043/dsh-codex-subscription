@@ -20,6 +20,25 @@ function reasoningMap(levels) {
   return map
 }
 
+const capabilityNames = values => [...new Set(values.filter(value =>
+  typeof value === 'string' && /^[a-z][a-z0-9_-]{0,31}$/u.test(value)))].sort().slice(0, 16)
+
+function unsupportedCapabilities(value) {
+  const reasoning = capabilityNames((value.supported_reasoning_levels ?? []).map(item => item?.effort))
+    .filter(level => !['none', ...LEVELS.slice(1)].includes(level))
+  const inputs = capabilityNames(Array.isArray(value.input_modalities) ? value.input_modalities : [])
+    .filter(input => !['text', 'image'].includes(input))
+  const speeds = capabilityNames([
+    ...(Array.isArray(value.additional_speed_tiers) ? value.additional_speed_tiers : []),
+    ...(Array.isArray(value.service_tiers) ? value.service_tiers.map(tier => tier?.id) : []),
+  ]).filter(tier => !['auto', 'default', 'standard', 'fast', 'priority'].includes(tier))
+  return {
+    ...(reasoning.length ? { reasoning } : {}),
+    ...(inputs.length ? { inputs } : {}),
+    ...(speeds.length ? { speeds } : {}),
+  }
+}
+
 function visibleModel(value) {
   if (!record(value)) return undefined
   const id = nonEmpty(value.slug)
@@ -28,7 +47,9 @@ function visibleModel(value) {
   const input = Array.isArray(value.input_modalities)
     ? value.input_modalities.filter(item => ['text', 'image'].includes(item))
     : ['text', 'image']
+  const unsupported = unsupportedCapabilities({ ...value, supported_reasoning_levels: supported })
   return {
+    ...(Object.keys(unsupported).length ? { unsupported } : {}),
     id,
     name: nonEmpty(value.display_name) ?? id,
     description: nonEmpty(value.description),
@@ -171,6 +192,10 @@ export function createOfficialModelCatalog(options = {}) {
     getModels: fallback => models ?? fallback,
     metadata: modelId => metadata.get(modelId),
     revision: () => revision,
+    capabilityGaps: () => [...metadata.values()]
+      .filter(model => model.unsupported && /^[a-z][a-z0-9._-]{0,79}$/u.test(model.id))
+      .slice(0, 20)
+      .map(model => ({ model: model.id, ...structuredClone(model.unsupported) })),
     status: () => ({ source: models === undefined ? 'fallback' : 'online', refresh: refreshStatus }),
     clear() {
       generation += 1

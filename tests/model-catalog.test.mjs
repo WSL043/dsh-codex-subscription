@@ -21,6 +21,35 @@ const remote = (overrides = {}) => ({
   ...overrides,
 })
 
+test('unsupported catalog capabilities are diagnostic-only and follow catalog lifetime', async () => {
+  let unchanged = false
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => base,
+    getAuth: async () => ({ auth: { apiKey: 'test-token' } }),
+    readCredential: async () => ({ type: 'oauth', accountId: 'test-account' }),
+    fetch: async () => unchanged ? new Response(null, { status: 304 }) : Response.json({ models: [remote({
+      supported_reasoning_levels: [{ effort: 'max' }, { effort: 'ultra' }, { effort: 'private text' }],
+      input_modalities: ['text', 'image', 'audio', null],
+      additional_speed_tiers: ['fast', 'burst', 'https://private.invalid'],
+    })] }, { headers: { etag: 'revision-one' } }),
+  })
+  await catalog.refresh()
+  const expected = [{ model: 'gpt-next', reasoning: ['ultra'], inputs: ['audio'], speeds: ['burst'] }]
+  assert.deepEqual(catalog.capabilityGaps(), expected)
+  const [model] = catalog.getModels([])
+  assert.deepEqual(model.input, ['text', 'image'])
+  assert.equal(model.thinkingLevelMap.ultra, undefined)
+  assert.equal(model.unsupported, undefined)
+  const copy = catalog.capabilityGaps()
+  copy[0].inputs.push('video')
+  assert.deepEqual(catalog.capabilityGaps(), expected)
+  unchanged = true
+  await catalog.refresh()
+  assert.deepEqual(catalog.capabilityGaps(), expected)
+  catalog.clear()
+  assert.deepEqual(catalog.capabilityGaps(), [])
+})
+
 test('official model catalog filters hidden entries and preserves advertised capabilities', () => {
   const models = parseOfficialModelCatalog({ models: [
     remote(),
