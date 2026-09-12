@@ -11,6 +11,7 @@ This project depends on software distributed under its own terms. The dependency
 | dsh-image-viewer 0.1.0-beta.9 (3d121d3), with 0.1.0 (7f3be2c) zoom and annotation improvements | Adapted built-in image viewer, interaction state, and styles | MIT, Copyright (c) 2026 WSL043; full license included in LICENSE | https://github.com/WSL043/dsh-image-viewer |
 | Heroicons | Composer speed icon | MIT | https://github.com/tailwindlabs/heroicons |
 | `https-proxy-agent` 7.0.6 | HTTPS proxy transport for Codex OAuth token requests | MIT | https://github.com/TooTallNate/proxy-agents |
+| `ws` 8.21.3 | Request-scoped subscription WebSocket transport | MIT | https://github.com/websockets/ws |
 | QuotaPin for Codex | Design basis for the opt-in local quota runway forecast | MIT | https://github.com/WSL043/QuotaPin-for-Codex |
 | tsdown | Development-time bundler | MIT | https://github.com/rolldown/tsdown |
 

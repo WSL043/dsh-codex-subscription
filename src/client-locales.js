@@ -1,6 +1,8 @@
 export const zh = {
   advancedModelSearch: '模型与搜索',
   subagentBackendTitle: '独立子任务', subagentBackend_dsh: 'DSH', subagentBackend_codex: 'Codex',
+  connectionTitle: '连接方式',
+  connectionHint: '默认 SSE。WebSocket 实验性复用连接与上下文传输，跟随现有代理；连接失败可回退 SSE。下次请求生效，不扩大上下文容量。',
   subagentBackendHint: 'Codex 复用订阅登录，跟随当前订阅模型和工作区权限；其他模型会话使用 Luna low。共享上下文子任务仍用 DSH。',
   subagentBackendUnavailable: '当前宿主缺少子代理服务，请更新 DSH。',
   sketchRecovered:'已恢复未保存草稿',sketchRecoveryFailed:'恢复检查点保存失败，请手动保存或导出草稿。',sketchStorageBlocked:'草稿正被其他窗口占用，请关闭其他草图窗口后重试。',
@@ -116,6 +118,8 @@ export const zh = {
 export const en = {
   advancedModelSearch: 'Models and search',
   subagentBackendTitle: 'Independent subtasks', subagentBackend_dsh: 'DSH', subagentBackend_codex: 'Codex',
+  connectionTitle: 'Connection',
+  connectionHint: 'SSE by default. Experimental WebSocket reuses connections and context transfers, follows your proxy, and can fall back to SSE on connection failure. Applies to the next request; context limits stay the same.',
   subagentBackendHint: 'Codex uses your subscription login, current subscription model and workspace permissions; other model sessions use Luna low. Shared-context subtasks stay in DSH.',
   subagentBackendUnavailable: 'Subagent services are unavailable. Update DSH to use this option.',
   sketchRecovered:'Unsaved sketch recovered',sketchRecoveryFailed:'Recovery checkpoint failed. Save or export your draft.',sketchStorageBlocked:'Draft storage is in use. Close other sketch windows and retry.',
