@@ -46,6 +46,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
   const chooseBrush=name=>chooseTool('pen',name)
   const [fillShape,setFillShape] = useState(false)
   const [hydrated,setHydrated]=useState(false),[recovered,setRecovered]=useState(false)
+  const [restoreAttempt,retryRestore]=useState(0)
   const [layersOpen, setLayersOpen] = useState(false), [busy, setBusy] = useState(true), [error, setError] = useState('')
   const cursorRing=useRef(null)
   const cursor=useSketchCursor(canvas,cursorRing,width,tool==='pen'?brush:'pen',navigation.view.scale,!open||navigation.space||busy||agentLocked||tool==='select'||tool==='text')
@@ -72,7 +73,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
   useEffect(()=>localSession.current.retain?.(),[])
   useEffect(()=>{
     let live=true
-    setHydrated(false);setBusy(true)
+    setHydrated(false);setBusy(true);setError('')
     const restore=async()=>{
       if(!enabled)return
       if(!dirty.current&&!hasContent()){
@@ -83,9 +84,9 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
         if(live)localSession.current.restoreId.current=null
       }
     }
-    void restore().catch(()=>{if(live)setError(t('sketchStorageFailed'))}).finally(()=>{if(live){setHydrated(true);setBusy(false)}})
+    void restore().then(()=>{if(live){setHydrated(true);setBusy(false)}}).catch(error=>{if(live)setError(t(error.code==='SKETCH_STORAGE_BLOCKED'?'sketchStorageBlocked':'sketchStorageFailed'))})
     return ()=>{live=false}
-  },[enabled,sessionId])
+  },[enabled,sessionId,restoreAttempt])
   useEffect(()=>{
     if(!hydrated||!enabled||!dirty.current||busy||agentLocked)return
     const timer=setTimeout(()=>{
@@ -108,9 +109,9 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
     await decodeSketchImages({layers:[layer]}, images.current)
     checkpoint();doc.current = {...doc.current,nextId:layer.id+1,active:layer.id,layers:[...doc.current.layers,layer]};schedule()
   }
-  const close = async () => { if (agentRun.current?.locked) { onClose(); return } if (busy || active.current) return; setBusy(true); try { await saveChanges(); onClose() } catch(error) { setError(error.code?.startsWith('SKETCH_')?error.message:t('sketchStorageFailed')) } finally {setBusy(false)} }
+  const close = async () => { if (!hydrated || agentRun.current?.locked) { onClose(); return } if (busy || active.current) return; setBusy(true); try { await saveChanges(); onClose() } catch(error) { setError(error.code?.startsWith('SKETCH_')?error.message:t('sketchStorageFailed')) } finally {setBusy(false)} }
   const runFile = async operation => { if (busy || agentRun.current?.locked || active.current) return;setBusy(true);setError('');try {await operation()} catch(error) {setError(error.code?.startsWith('SKETCH_')?error.message:t('sketchStorageFailed'))} finally {setBusy(false)} }
-  useEffect(()=>{if(open && !agentLocked && incoming && incoming!==received.current){received.current=incoming;void runFile(()=>importImage(incoming.file))}},[open,incoming,agentLocked])
+  useEffect(()=>{if(open && hydrated && !busy && !agentLocked && incoming && incoming!==received.current){received.current=incoming;void runFile(()=>importImage(incoming.file))}},[open,incoming,agentLocked,hydrated,busy])
   const keyDown = event => {
     if (event.target.closest('input,textarea,select,[contenteditable=true]') || event.isComposing || busy || active.current) return
     if(!navigation.shortcuts)return
@@ -229,7 +230,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
     <dialog ref={dialog} className="codexSketchDialog codexSketchStudio codexLayerStudio" aria-label={t('sketchTitle')} onKeyDown={keyDown} onKeyUp={navigation.keyUp} onPaste={event=>{if(agentRun.current?.locked){event.preventDefault();event.stopPropagation();return}if(event.target.closest('input,textarea'))return;const file=Array.from(event.clipboardData.items).find(item=>item.type.startsWith('image/'))?.getAsFile();if(file){event.preventDefault();event.stopPropagation();void runFile(()=>importImage(file))}}} onDragOver={event=>event.preventDefault()} onDrop={event=>{event.preventDefault();event.stopPropagation();const file=event.dataTransfer.files[0];if(file)void runFile(()=>importImage(file))}} onCancel={event=>{event.preventDefault();close()}}>
     <div ref={cursorRing} hidden className="codexSketchCursor" aria-hidden="true"/>
     <header className="codexSketchTop">
-      <button className="codexSketchRound" type="button" aria-label={t('sketchCancel')} title={t('sketchCancel')} disabled={busy&&!agentLocked} onClick={close}><WorkspaceIcon name="close" /></button>
+      <button className="codexSketchRound" type="button" aria-label={t('sketchCancel')} title={t('sketchCancel')} disabled={busy&&hydrated&&!agentLocked} onClick={close}><WorkspaceIcon name="close" /></button>
       <SketchFiles save={save} load={load} fresh={fresh} importImage={importImage} download={download} hasContent={doc.current.layers.some(l=>l.visible&&(l.image||l.strokes.length))} disabled={agentLocked||busy} t={t} report={setError} onWorking={setBusy} />
       <div className="codexSketchHeading"><strong>{t('sketchTitle')}</strong><span>Beta</span></div>
     <div className="codexSketchUtility">
@@ -309,6 +310,6 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
         {PALETTE.map(value=><button type="button" key={value} className="codexSketchSwatch" style={{'--swatch':value}} aria-label={`${t('sketchColor')} ${value}`} aria-pressed={(selected?.color??color)===value} disabled={agentLocked||busy} onClick={()=>pickColor(value)}/>)}
         <label className="codexSketchCustom" title={t('sketchColor')}><span style={{background:color}}/><input type="color" aria-label={t('sketchColor')} value={color} disabled={agentLocked||busy} onChange={e=>pickColor(e.target.value)}/></label>
       </div>
-    </div>{error ? <p className="codexSketchHint" role="alert">{error}</p> : null}
+    </div>{error ? <p className="codexSketchHint" role="alert">{error}{!hydrated?<button type="button" onClick={()=>retryRestore(value=>value+1)}>{t('accountRetry')}</button>:null}</p> : null}
   </dialog></>
 }
