@@ -90,6 +90,13 @@ export function PreferencesCard({ preference, t, section = "display" }) {
   const snapshot = usePreferenceSnapshot(preference)
   return <div className="codexSubscriptionCard codexSubscriptionPreferencesCard">
     {section === 'advanced' ? <>
+      <div className="codexSubscriptionPreference">
+        <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('subagentBackendTitle')} <small>Beta</small></span><span className="codexSubscriptionPreferenceHint">{t(snapshot.subagentBackendAvailable ? 'subagentBackendHint' : 'subagentBackendUnavailable')}</span></div>
+        <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('subagentBackendTitle')} aria-busy={snapshot.saving || undefined}>
+          {['dsh', 'codex'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-subagent-backend" checked={snapshot.subagentBackend === value} disabled={!snapshot.writable || !snapshot.subagentBackendAvailable} onChange={() => { void preference.set({ subagentBackend: value }) }} /><span>{t(`subagentBackend_${value}`)}</span></label>)}
+        </div>
+      </div>
+      <div className="codexSubscriptionDivider" />
       <SearchProviderPreference preference={preference} t={t} />
       <div className="codexSubscriptionDivider" />
       <ContextWindowPreference preference={preference} t={t} />
@@ -100,4 +107,3 @@ export function PreferencesCard({ preference, t, section = "display" }) {
     {snapshot.error ? <div className="codexSubscriptionRecover" role="alert"><p className="codexSubscriptionError">{t('preferenceFailed')}</p><Button type="button" variant="outline" onClick={() => { void preference.retry() }}>{t('preferenceRetry')}</Button></div> : null}
   </div>
 }
-

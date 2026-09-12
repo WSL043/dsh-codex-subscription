@@ -1,5 +1,6 @@
 import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { registerSubscriptionTransport } from './subscription-transport.js'
+import { createSubagentBackendSwitcher, createSubscriptionSubagent, loadSubagentRuntime } from './subagent-backend.js'
 import { createSketchAgentBridge } from './sketch-agent-bridge.js'
 import { createSketchAgentTool } from './sketch-agent-tool.js'
 import { registerSketchCodec } from './sketch-codec-route.js'
@@ -114,6 +115,7 @@ export function apply(ctx) {
   })
   const baseProvider = openaiCodexProvider()
   let resolveAuth = async () => undefined
+  let subagentBackend
   const modelCatalog = createOfficialModelCatalog({
     getAuth: options => resolveAuth(options),
     readCredential: options => store.read(PROVIDER, options),
@@ -136,6 +138,8 @@ export function apply(ctx) {
   })
   const preferences = {
     status: () => ({
+      subagentBackend: settings.get().subagentBackend ?? 'dsh',
+      subagentBackendAvailable: subagentBackend !== undefined,
       ...readCapabilitySettings(settings.get()),
       [QUICK_QUOTA_MODE_FIELD]: normalizeQuickQuotaMode(
         settings.get()[QUICK_QUOTA_MODE_FIELD],
@@ -153,7 +157,15 @@ export function apply(ctx) {
       fastModels: provider.getModels().filter(model => modelCatalog.metadata(model.id)?.supportsFast ?? supportsCodexFastMode(model.id)).map(model => model.id),
       writable: ctx.settings.writable,
     }),
-    update: patch => settings.update(patch),
+    update: async patch => {
+      if (Object.hasOwn(patch, 'subagentBackend')) {
+        if (!subagentBackend) throw new Error('DSH subagent services are unavailable')
+        await subagentBackend.select(patch.subagentBackend)
+      }
+      const rest = { ...patch }
+      delete rest.subagentBackend
+      if (Object.keys(rest).length) await settings.update(rest)
+    },
   }
 
   const authModels = createModels({ credentials: store })
@@ -191,6 +203,42 @@ export function apply(ctx) {
     return profileSnapshot
   }
   resolveAuth = () => authModels.getAuth(PROVIDER)
+  ctx.inject(['subagents', 'subprocess', 'sandboxPolicy'], scoped => {
+    const instance = createSubscriptionSubagent({
+      ctx: scoped, nativeHome: dshHomePath('state', 'codex-subscription', 'native-subagent'),
+      resolveAuth, store,
+      refresh: credential => network.run('oauth', () => baseProvider.auth.oauth.refresh(credential)),
+      loadRuntime: loadSubagentRuntime,
+    })
+    scoped.subagents.registerProvider(instance.provider)
+    const switcher = createSubagentBackendSwitcher({
+      entries: () => scoped.loader.entries(), prepare: instance.prepare,
+      persist: mode => settings.update({ subagentBackend: mode }),
+    })
+    // Web presets mount their scoped tool rows lazily, after the settings page.
+    const unconfigure = scoped.on('internal/config', function(_config, next) {
+      return switcher.configure(this, next())
+    }, { global: true })
+    let requested = 'dsh'
+    const select = async mode => {
+      requested = mode
+      try { await switcher.select(mode) } catch (error) { requested = settings.get().subagentBackend ?? 'dsh'; throw error }
+    }
+    subagentBackend = { select }
+    const sync = value => {
+      const mode = value.subagentBackend ?? 'dsh'
+      if (mode !== requested) void select(mode).catch(() => scoped.logger.warn('Could not switch the subscription subagent backend'))
+    }
+    void scoped.loader.await().then(() => sync(settings.get())).catch(() => scoped.logger.warn('Could not initialize the subscription subagent backend'))
+    const unwatch = settings.watch(sync)
+    scoped.effect(() => async () => {
+      unwatch()
+      unconfigure()
+      subagentBackend = undefined
+      instance.dispose()
+      await switcher.dispose()
+    }, 'codex-subscription: subagent backend')
+  })
   const adapterAuth = Object.freeze({
     credentials: store,
     authContext: Object.freeze({
