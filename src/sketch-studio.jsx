@@ -45,7 +45,8 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
   const chooseTool=(name,nextBrush=brush)=>{setWidth(switchSketchToolWidth(toolWidths.current,{tool,brush,width},{tool:name,brush:nextBrush}));setBrush(nextBrush);setTool(name);if(name!=='select')setSelection(null)}
   const chooseBrush=name=>chooseTool('pen',name)
   const [fillShape,setFillShape] = useState(false)
-  const [layersOpen, setLayersOpen] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState('')
+  const [hydrated,setHydrated]=useState(false),[recovered,setRecovered]=useState(false)
+  const [layersOpen, setLayersOpen] = useState(false), [busy, setBusy] = useState(true), [error, setError] = useState('')
   const cursorRing=useRef(null)
   const cursor=useSketchCursor(canvas,cursorRing,width,tool==='pen'?brush:'pen',navigation.view.scale,!open||navigation.space||busy||agentLocked||tool==='select'||tool==='text')
   useSketchDismiss(shapesOpen,setShapesOpen,dialog,['.codexSketchShapeMenu','.codexSketchShapeToggle'])
@@ -61,12 +62,39 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
   const save = async name => {
     const savingDocument=documentId.current,savingRevision=documentRevision.current
     const row = { id: saved.current?.id ?? crypto.randomUUID(), name: name?.trim() || saved.current?.name || `${t('sketchTitle')} ${new Date().toLocaleString()}`, updated: Date.now(), doc: structuredClone(doc.current) }
-    await sketchDrafts('save', row); if(documentId.current===savingDocument){saved.current = {id:row.id,name:row.name};if(documentRevision.current===savingRevision)dirty.current = false}
+    try{await sketchDrafts('save', row, sessionId)}catch(error){if(error.code==='SKETCH_DRAFT_LIMIT')error.message=t('sketchDraftLimit');if(error.code==='SKETCH_STORAGE_LIMIT')error.message=t('sketchStorageLimit');throw error}
+    if(documentId.current===savingDocument){saved.current = {id:row.id,name:row.name};if(documentRevision.current===savingRevision){dirty.current = false;setRecovered(false)}}
   }
-  const saveChanges = async () => { if (dirty.current && (hasContent() || saved.current)) await save() }
+  const saveChanges = async () => { if(!dirty.current)return;if(hasContent()||saved.current)await save();else{await sketchDrafts('clearRecovery',sessionId);dirty.current=false;setRecovered(false)} }
   const replace = (next, decoded, identity) => { documentId.current=crypto.randomUUID();documentRevision.current++;doc.current = identifyObjects(structuredClone(next));setSelection(null);setTextEdit(null); images.current = decoded; cache.current.clear(); undo.current = []; redo.current = []; saved.current = identity; dirty.current = false; schedule() }
   const fresh = async () => { await saveChanges(); replace(createSketchLayers(), new Map(), null) }
-  const load = async row => { if(row.id===saved.current?.id)return; await saveChanges(); const decoded = new Map(); await decodeSketchImages(row.doc, decoded); replace(row.doc, decoded, {id:row.id,name:row.name}) }
+  const load = async row => { if(row.id===saved.current?.id)return; row=await sketchDrafts('get',row.id);if(!row)throw Error('Draft no longer exists');await saveChanges(); const decoded = new Map(); await decodeSketchImages(row.doc, decoded); replace(row.doc, decoded, {id:row.id,name:row.name}) }
+  useEffect(()=>localSession.current.retain?.(),[])
+  useEffect(()=>{
+    let live=true
+    setHydrated(false);setBusy(true)
+    const restore=async()=>{
+      if(!enabled)return
+      if(!dirty.current&&!hasContent()){
+        const recovery=await sketchDrafts('recover',sessionId)
+        const archived=localSession.current.restoreId.current
+        const row=recovery??(archived?await sketchDrafts('get',archived):null)
+        if(row){const decoded=new Map();await decodeSketchImages(row.doc,decoded);if(!live)return;replace(row.doc,decoded,recovery?null:{id:row.id,name:row.name});dirty.current=Boolean(recovery);setRecovered(Boolean(recovery))}
+        if(live)localSession.current.restoreId.current=null
+      }
+    }
+    void restore().catch(()=>{if(live)setError(t('sketchStorageFailed'))}).finally(()=>{if(live){setHydrated(true);setBusy(false)}})
+    return ()=>{live=false}
+  },[enabled,sessionId])
+  useEffect(()=>{
+    if(!hydrated||!enabled||!dirty.current||busy||agentLocked)return
+    const timer=setTimeout(()=>{
+      if(active.current||sizeGesture.current||!dirty.current)return
+      const row={id:sessionId,updated:Date.now(),doc:structuredClone(doc.current)}
+      void sketchDrafts('checkpoint',row).catch(()=>setError(t('sketchRecoveryFailed')))
+    },1500)
+    return ()=>clearTimeout(timer)
+  },[revision,hydrated,enabled,busy,agentLocked,sessionId])
   const importImage = async file => {
     if(file.name?.toLowerCase().endsWith('.psd') || file.name?.toLowerCase().endsWith('.dsh-sketch.json')){
       if(file.size>32*1024*1024)throw Error('File exceeds 32 MB')
@@ -80,8 +108,8 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
     await decodeSketchImages({layers:[layer]}, images.current)
     checkpoint();doc.current = {...doc.current,nextId:layer.id+1,active:layer.id,layers:[...doc.current.layers,layer]};schedule()
   }
-  const close = async () => { if (agentRun.current?.locked) { onClose(); return } if (busy || active.current) return; setBusy(true); try { await saveChanges(); onClose() } catch { setError(t('sketchStorageFailed')) } finally {setBusy(false)} }
-  const runFile = async operation => { if (busy || agentRun.current?.locked || active.current) return;setBusy(true);setError('');try {await operation()} catch {setError(t('sketchStorageFailed'))} finally {setBusy(false)} }
+  const close = async () => { if (agentRun.current?.locked) { onClose(); return } if (busy || active.current) return; setBusy(true); try { await saveChanges(); onClose() } catch(error) { setError(error.code?.startsWith('SKETCH_')?error.message:t('sketchStorageFailed')) } finally {setBusy(false)} }
+  const runFile = async operation => { if (busy || agentRun.current?.locked || active.current) return;setBusy(true);setError('');try {await operation()} catch(error) {setError(error.code?.startsWith('SKETCH_')?error.message:t('sketchStorageFailed'))} finally {setBusy(false)} }
   useEffect(()=>{if(open && !agentLocked && incoming && incoming!==received.current){received.current=incoming;void runFile(()=>importImage(incoming.file))}},[open,incoming,agentLocked])
   const keyDown = event => {
     if (event.target.closest('input,textarea,select,[contenteditable=true]') || event.isComposing || busy || active.current) return
@@ -163,7 +191,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
   agentSession.current??=createSketchCommandSession(agentAdapter.current)
   agentRun.current??=createSketchAgentRun({execute:request=>agentSession.current(request),open:()=>agentAdapter.current.open(),changed:state=>agentAdapter.current.changed?.(state),busy:()=>agentAdapter.current.busy(),previewEnabled:()=>agentAdapter.current.previewEnabled()})
   useEffect(()=>{
-    if(!enabled||!agentEnabled)return
+    if(!enabled||!agentEnabled||!hydrated)return
     const api=Object.freeze({version:2,sessionId,execute:request=>agentRun.current.execute(request),export:async format=>{
       if(agentAdapter.current.busy() || agentRun.current.locked)throw Error('Sketch is being edited')
       const {blob,extension}=await agentAdapter.current.export(format)
@@ -172,15 +200,15 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
     }})
     window.dshSketchAgent=api
     return ()=>{if(window.dshSketchAgent===api)delete window.dshSketchAgent}
-  },[enabled,agentEnabled,rpc,sessionId])
+  },[enabled,agentEnabled,rpc,sessionId,hydrated])
   useEffect(()=>{
     if(!enabled || !agentEnabled){if(agentRun.current.locked)agentRun.current.stop();return}
-    if(!rpc || !sessionId)return
+    if(!rpc || !sessionId || !hydrated)return
     let live=true
-    const disconnect=connectSketchAgent(rpc,sessionId,request=>{if(!live)throw Error('Sketch session disconnected');return agentRun.current.execute(request)},message=>{agentRun.current.fail();setError(message)},()=>350)
+    const disconnect=connectSketchAgent(rpc,sessionId,request=>{if(!live)throw Error('Sketch session disconnected');return agentRun.current.execute(request)},message=>{agentRun.current.fail();setError(message)},()=>agentRun.current.locked?350:2000)
     return ()=>{live=false;disconnect()}
-  },[enabled,agentEnabled,rpc,sessionId])
-  const attach = async () => { if (!enabled || busy || agentRun.current?.locked) return; setBusy(true);setError('');try { paint(); const blob = await new Promise((resolve,reject)=>canvas.current.toBlob(blob=>blob?resolve(blob):reject(Error('PNG')),'image/png')); await saveChanges(); await attachSketch(blob); onClose() } catch { setError(t('sketchFailed')) } finally { setBusy(false) } }
+  },[enabled,agentEnabled,rpc,sessionId,hydrated])
+  const attach = async () => { if (!enabled || busy || agentRun.current?.locked) return; setBusy(true);setError('');try { paint(); const blob = await new Promise((resolve,reject)=>canvas.current.toBlob(blob=>blob?resolve(blob):reject(Error('PNG')),'image/png')); await saveChanges(); await attachSketch(blob); onClose() } catch(error) { setError(error.code?.startsWith('SKETCH_')?error.message:t('sketchFailed')) } finally { setBusy(false) } }
   const exportFile = async (format='png') => {
     paint()
     if(format==='draft')return {blob:new Blob([encodeSketchDocument(doc.current)],{type:'application/json'}),extension:'dsh-sketch.json'}
@@ -190,8 +218,8 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
   }
   agentAdapter.current.export=exportFile
   const download = async format => {
+    setError('')
     const {blob,extension}=await exportFile(format)
-    await saveChanges()
     const url=URL.createObjectURL(blob),link=document.createElement('a')
     link.href=url;link.download=`${(saved.current?.name||'sketch').replace(/[\\/:*?"<>|\u0000-\u001f]/g,'-').slice(0,80)}.${extension}`
     document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),10_000)
@@ -212,6 +240,7 @@ export function SketchStudio({ open, agentEnabled, agentPreview, onOpen, onClose
       <button type="button" className="codexSketchConfirm" aria-label={t('sketchAttach')} disabled={agentLocked||busy||!enabled||!doc.current.layers.some(l=>l.visible&&(l.strokes.length||l.image))} onClick={()=>void attach()}><WorkspaceIcon name="check" size={18}/><span>{t('sketchAttachShort')}</span></button>
     </header>
     {enabled && agentEnabled && !noticeHidden?<SketchRunStatus state={agentState} t={t} onStop={()=>agentRun.current.stop()} onResume={()=>{setError('');agentRun.current.resume()}} onDismiss={()=>setNoticeHidden(true)}/>:null}
+    {recovered?<div className="codexSketchAgentStatus" role="status">{t('sketchRecovered')}<button type="button" onClick={()=>setRecovered(false)} aria-label={t('sketchDismissStatus')}><WorkspaceIcon name="close" size={14}/></button></div>:null}
     <div className={`codexLayerBody ${layersOpen?'withLayers':''}`}>
       <canvas tabIndex={0} style={{transform:`translate(${navigation.view.x}px,${navigation.view.y}px) scale(${navigation.view.scale})`,cursor:navigation.space?'grab':agentLocked?'default':tool==='select'?'default':tool==='text'?'text':'none','--sketch-ratio':(doc.current.width ?? SKETCH_SIZE)/(doc.current.height ?? SKETCH_SIZE)}} ref={canvas} width={SKETCH_SIZE} height={SKETCH_SIZE} aria-label={t('sketchTitle')} onPointerDown={event=>{
         if (busy || !enabled || active.current) return

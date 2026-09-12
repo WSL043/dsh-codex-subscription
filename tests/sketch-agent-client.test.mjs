@@ -2,6 +2,26 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { connectSketchAgent } from '../src/sketch-agent-client.js'
 
+test('focus and network wakeups recover an exhausted connection without executing or replaying a write',async t=>{
+ t.mock.timers.enable({apis:['setTimeout','Date'],now:0})
+ const oldWindow=globalThis.window,oldDocument=globalThis.document
+ const windowEvents=new EventTarget(),documentEvents=new EventTarget()
+ globalThis.window=windowEvents;globalThis.document=documentEvents
+ documentEvents.visibilityState='visible'
+ let online=false,connects=0,executions=0
+ const rpc={async call(_channel,endpoint){if(endpoint==='sketch/connect'){connects++;if(!online)throw Error('offline');return {ok:true,value:{token:'t'}}}return {ok:true,value:[]}}}
+ const flush=()=>new Promise(resolve=>setImmediate(resolve))
+ let stop
+ try {
+  stop=connectSketchAgent(rpc,'s',()=>executions++,()=>{})
+  await flush();t.mock.timers.tick(500);await flush();t.mock.timers.tick(1000);await flush()
+  assert.equal(connects,3)
+  online=true;windowEvents.dispatchEvent(new Event('online'));windowEvents.dispatchEvent(new Event('focus'));await flush()
+  assert.equal(connects,4);assert.equal(executions,0)
+  stop();windowEvents.dispatchEvent(new Event('online'));await flush();assert.equal(connects,4)
+ } finally {stop?.();if(oldWindow===undefined)delete globalThis.window;else globalThis.window=oldWindow;if(oldDocument===undefined)delete globalThis.document;else globalThis.document=oldDocument}
+})
+
 test('page refresh waits for the old lease without replacing an active peer',async t=>{
   t.mock.timers.enable({apis:['setTimeout','Date'],now:0})
   let connected=0,errors=[]
