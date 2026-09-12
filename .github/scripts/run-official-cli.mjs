@@ -1,10 +1,8 @@
 import { spawn, execFileSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
 
 const [command, ...args] = process.argv.slice(2)
 if (!command) throw new Error('Missing official DSH command')
-const trace = fileURLToPath(new URL('./trace-cli-exit.cjs', import.meta.url)).replaceAll('\\', '/')
-const child = spawn(command, args, { stdio: 'inherit', shell: process.platform === 'win32', env: { ...process.env, NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --require "${trace}"` } })
+const child = spawn(command, args, { stdio: 'inherit', shell: process.platform === 'win32' })
 let timedOut = false
 const timer = setTimeout(() => {
   timedOut = true

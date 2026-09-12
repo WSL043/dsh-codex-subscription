@@ -139,6 +139,20 @@ WebSocket 的远程连接受 HTTP CONNECT / 系统代理、NO_PROXY、断连策�
 文档的公开 API 支持不能单独证明订阅后端支持；上表把实际订阅请求结果与尚未完成的宿主验收分别列出。
 # Experimental connection release acceptance — 2026-09-12
 
+Release CI also exposed a pnpm 11.19.0 process-exit defect. Both official DSH
+channels passed 312 behavior tests, installation and startup, then printed
+`Done` during removal without exiting. Temporary process diagnostics showed
+referenced MessagePorts and idle `worker.js` threads. The installed 11.19.0
+source still clears `workerPool` after `finishWorkers()`; 11.26.0 incorporates
+the [upstream fix](https://github.com/pnpm/pnpm/pull/13226) retaining that pool
+for late work. CI and the optional Windows manager now pin 11.26.0; the manager
+archive SHA-512 was checked against npm's integrity field. A Node 24.19 pin did
+not fix the failure and was reverted. Temporary resource tracing was removed;
+bounded installer timeouts and visible command output remain. Local Windows
+PowerShell 5 acceptance passed the complete upgrade/start/remove/reinstall
+cycle with 11.26.0. Evidence: `.artifacts/maintenance-pass/worker-exit-diagnostic.log`
+and `pnpm1126-local-acceptance.log`.
+
 The advanced connection setting now defaults to SSE and opts into native pi-ai
 `websocket-cached`. Session cache keys include a plugin-instance namespace,
 credential fingerprint and resolved proxy, including on 0.82.1 hosts. Credentials

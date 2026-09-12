@@ -38,9 +38,9 @@ $ManagerShimName = 'dsh-codex.cmd'
 $ManagerStateName = 'install-state.json'
 $PackageVersion = '1.15.0'
 $PackageSpec = 'dsh-codex-subscription@1.15.0'
-$PnpmVersion = '11.19.0'
-$PnpmUrl = 'https://registry.npmjs.org/pnpm/-/pnpm-11.19.0.tgz'
-$PnpmSha512 = '7881F3ED590D472C4A955E2B88B2121791116066DCC88CBCA3849EC9B60F1BBAA6D2CCB221FA91DA4E1C65BEF2BCBE379365AEA7AC539C7BF86DEDC3A1B22DCE'
+$PnpmVersion = '11.26.0'
+$PnpmUrl = 'https://registry.npmjs.org/pnpm/-/pnpm-11.26.0.tgz'
+$PnpmSha512 = 'FC0E2BF890B9F983611F1AB68C0637BCE914390653699F83C1A78B005ED25F2C81E77920C8FD8EEE2ECF0B58B28CDCB00A84D97F69BCF7C56B2F344710238664'
 $ReleaseApi = if ($env:DSH_CODEX_RELEASE_API) { $env:DSH_CODEX_RELEASE_API } else { 'https://api.github.com/repos/WSL043/dsh-codex-subscription/releases/latest' }
 $ReleaseBase = if ($env:DSH_CODEX_RELEASE_BASE) { $env:DSH_CODEX_RELEASE_BASE.TrimEnd('/') } else { 'https://github.com/WSL043/dsh-codex-subscription/releases/download' }
 

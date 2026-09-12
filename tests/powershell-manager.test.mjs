@@ -155,9 +155,9 @@ if (command === 'list') {
 }
 `
   writeFileSync(join(root, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'), dsh)
-  const pnpm = join(root, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-11.19.0', 'package', 'bin')
+  const pnpm = join(root, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-11.26.0', 'package', 'bin')
   mkdirSync(pnpm, { recursive: true })
-  writeFileSync(join(pnpm, 'pnpm.cjs'), "console.log('11.19.0')\n")
+  writeFileSync(join(pnpm, 'pnpm.cjs'), "console.log('11.26.0')\n")
 }
 
 windowsTest('legacy manager can install into a completely new profile with an empty list response', () => {
@@ -733,8 +733,8 @@ windowsTest('portable install uses the bundled CLI, DSH_HOME, and package store'
     assert.equal(plan.action, 'Install')
     assert.equal(plan.executable, join(expectedRoot, 'runtime', 'node', 'node.exe'))
     assert.equal(plan.dshHome, join(expectedRoot, 'data', 'dsh-home'))
-    assert.equal(plan.pnpmVersion, '11.19.0')
-    assert.equal(plan.pnpmDirectory, join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-11.19.0'))
+    assert.equal(plan.pnpmVersion, '11.26.0')
+    assert.equal(plan.pnpmDirectory, join(expectedRoot, 'data', 'runtime', 'dsh-codex-tools', 'pnpm-11.26.0'))
     assert.equal(plan.pnpmStore, join(expectedRoot, 'data', 'pnpm-store'))
     assert.deepEqual(plan.arguments, [
       join(expectedRoot, 'app', 'node_modules', '@deepseek-ai', 'dsh', 'lib', 'bin.js'),
@@ -846,7 +846,7 @@ windowsTest('auto-discovery still supports an existing global dsh command', () =
     assert.equal(plan.mode, 'global')
     assert.equal(plan.executable.toLowerCase(), join(bin, 'dsh.cmd').toLowerCase())
     assert.equal(plan.dshHome, null)
-    assert.equal(plan.pnpmDirectory, join(localAppData, 'dsh-codex-subscription', 'tools', 'pnpm-11.19.0'))
+    assert.equal(plan.pnpmDirectory, join(localAppData, 'dsh-codex-subscription', 'tools', 'pnpm-11.26.0'))
   } finally {
     rmSync(sandbox, { recursive: true, force: true })
   }
