@@ -1,5 +1,5 @@
 export const zh = {
-  sketchRecovered:'已恢复未保存草稿',sketchRecoveryFailed:'恢复检查点保存失败，请手动保存或导出草稿。',
+  sketchRecovered:'已恢复未保存草稿',sketchRecoveryFailed:'恢复检查点保存失败，请手动保存或导出草稿。',sketchStorageBlocked:'草稿正被其他窗口占用，请关闭其他草图窗口后重试。',
   sketchDraftLimit:'已达 20 份草稿上限。请先导出，或删除不需要的草稿后保存。',sketchStorageLimit:'草稿存储空间已满。请先导出，或删除不需要的草稿后保存。',
   sketchSizeShort:'粗细',
   sketchObjectDuplicate:'复制对象',sketchObjectDelete:'删除对象',
@@ -110,7 +110,7 @@ export const zh = {
 }
 
 export const en = {
-  sketchRecovered:'Unsaved sketch recovered',sketchRecoveryFailed:'Recovery checkpoint failed. Save or export your draft.',
+  sketchRecovered:'Unsaved sketch recovered',sketchRecoveryFailed:'Recovery checkpoint failed. Save or export your draft.',sketchStorageBlocked:'Draft storage is in use. Close other sketch windows and retry.',
   sketchDraftLimit:'The 20-draft limit is reached. Export first, or remove an unwanted draft before saving.',sketchStorageLimit:'Draft storage is full. Export first, or remove an unwanted draft before saving.',
   sketchSizeShort:'Size',
   sketchObjectDuplicate:'Duplicate object',sketchObjectDelete:'Delete object',

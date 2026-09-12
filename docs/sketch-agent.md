@@ -132,3 +132,9 @@ The agent bridge polls every 2 seconds while idle and 350 milliseconds during
 a run. Returning to the window or reconnecting the network wakes the bridge
 after failed retries. Only one poll/connect is in flight; writes still use
 claim checks and request receipts rather than automatic replay.
+
+Storage migration blocked by another window is reported without leaving a
+pending upgrade that later mutates the database. Close the other window and use
+Retry. Recovery failures keep editing and agent writes disabled until recovery
+succeeds; the board can still be closed. Incoming images wait for recovery and
+file operations to finish before being marked received.

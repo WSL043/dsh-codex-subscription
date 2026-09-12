@@ -81,6 +81,9 @@ importers:
       ag-psd:
         specifier: 31.0.2
         version: 31.0.2
+      fake-indexeddb:
+        specifier: 6.2.5
+        version: 6.2.5
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -826,6 +829,10 @@ packages:
 
   extend@3.0.2:
     resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
+
+  fake-indexeddb@6.2.5:
+    resolution: {integrity: sha512-CGnyrvbhPlWYMngksqrSSUT1BAVP49dZocrHuK0SvtR0D5TMs5wP0o3j7jexDJW01KSadjBp1M/71o/KR3nD1w==}
+    engines: {node: '>=18'}
 
   fast-sha256@1.3.0:
     resolution: {integrity: sha512-n11RGP/lrWEFI/bWdygLxhI+pVeo1ZYIVwvvPkW7azl/rOy+F3HYRZ2K5zeE9mmkhQppyv9sQFx0JM9UabnpPQ==}
@@ -1931,6 +1938,8 @@ snapshots:
       '@types/estree': 1.0.9
 
   extend@3.0.2: {}
+
+  fake-indexeddb@6.2.5: {}
 
   fast-sha256@1.3.0: {}
 

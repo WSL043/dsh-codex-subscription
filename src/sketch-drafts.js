@@ -4,8 +4,11 @@ const metadata = (kind, row) => ({key:`${kind}:${row.id}`,kind,id:row.id,name:ro
 
 export async function sketchDrafts(action, value, recoverySession) {
   const db = await new Promise((resolve,reject) => {
+    let blocked=false
     const request=indexedDB.open(DATABASE,2)
+    request.onblocked=()=>{blocked=true;reject(Object.assign(Error('Close other sketch windows and retry'),{code:'SKETCH_STORAGE_BLOCKED'}))}
     request.onupgradeneeded=()=>{
+      if(blocked){request.transaction.abort();return}
       const db=request.result,tx=request.transaction
       if(!db.objectStoreNames.contains('drafts'))db.createObjectStore('drafts',{keyPath:'id'})
       const meta=db.createObjectStore('metadata',{keyPath:'key'})
@@ -14,7 +17,7 @@ export async function sketchDrafts(action, value, recoverySession) {
       const cursor=tx.objectStore('drafts').openCursor()
       cursor.onsuccess=()=>{const row=cursor.result;if(row){meta.put(metadata('drafts',row.value));row.continue()}}
     }
-    request.onsuccess=()=>{request.result.onversionchange=()=>request.result.close();resolve(request.result)}
+    request.onsuccess=()=>{if(blocked){request.result.close();return}request.result.onversionchange=()=>request.result.close();resolve(request.result)}
     request.onerror=()=>reject(request.error)
   })
   try {
