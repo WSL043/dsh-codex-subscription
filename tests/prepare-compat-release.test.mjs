@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
@@ -157,4 +158,22 @@ test('regenerates exact release-age exceptions from the accepted lock graph', ()
   assert.match(rewritten, /@deepseek-ai\/dsh-web@0\.1\.1-rc\.1/u)
   assert.doesNotMatch(rewritten, /0\.1\.0-rc\.8/u)
   assert.doesNotMatch(rewritten, /@deepseek-ai\/\*/u)
+})
+
+ test('manager stamping uses its assignment rather than a stale documented version', () => {
+ const update = { previousPluginVersion: '2.1.1-beta.1', previousDocumentedPluginVersion: '2.1.0', pluginVersion: '2.1.1', updateStableReferences: true, previousDshVersion: '0.1.5-rc.1', dshVersion: '0.1.5-rc.2' }
+ const source = "$PackageVersion = '1.15.0'\n$OtherVersion = '1.15.0'\n"
+ const result = rewriteBoundedVersions(source, update, 'dsh-codex.ps1')
+ assert.equal(result, "$PackageVersion = '2.1.1'\n$OtherVersion = '1.15.0'\n")
+ assert.equal(rewriteBoundedVersions(result, update, 'dsh-codex.ps1'), result)
+ for (const invalid of ['', source + source, "$PackageVersion = 'invalid'"]) assert.throws(() => rewriteBoundedVersions(invalid, update, 'dsh-codex.ps1'))
+})
+
+test('current repository bounded artifacts can prepare the next DSH candidate', () => {
+ const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8')
+ const state = { manifest: JSON.parse(read('package.json')), compatibility: JSON.parse(read('compatibility.json')) }
+ const current = state.compatibility.latestTested
+ const candidate = current.replace(/^(\d+)\.(\d+)\.(\d+).*$/, (_, major, minor, patch) => major + '.' + minor + '.' + (Number(patch) + 1))
+ const update = planCompatibilityUpdate(state, candidate)
+ for (const file of boundedArtifactPaths(update)) assert.doesNotThrow(() => rewriteBoundedVersions(read(file), update, file), file)
 })

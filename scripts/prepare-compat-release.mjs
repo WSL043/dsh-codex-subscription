@@ -135,6 +135,15 @@ export function planCompatibilityUpdate(state, candidate) {
 }
 
 export function rewriteBoundedVersions(source, update, label) {
+  if (label === 'dsh-codex.ps1') {
+    // The optional manager is stamped independently of README/package history.
+    const assignment = /^(\$PackageVersion\s*=\s*')([^'\r\n]+)('\s*)$/gmu
+    const matches = [...source.matchAll(assignment)]
+    if (matches.length !== 1) throw new Error('expected one PackageVersion assignment in dsh-codex.ps1')
+    parseVersion(matches[0][2])
+    parseVersion(update.pluginVersion)
+    return source.replace(assignment, (_match, prefix, _version, suffix) => prefix + update.pluginVersion + suffix)
+  }
   const previousVersion = update.previousDocumentedPluginVersion ?? update.previousPluginVersion
   let rewritten = source.replaceAll(previousVersion, update.pluginVersion)
   if (update.updateStableReferences) rewritten = rewritten.replaceAll(update.previousDshVersion, update.dshVersion)
