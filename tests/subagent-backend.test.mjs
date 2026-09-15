@@ -35,11 +35,26 @@ function entry(provider, extra = {}) {
     config: { provider, ...extra }, async update(value, transient) { assert.equal(transient, true); this.config = value },
   } }
 }
+test('explicit child route overrides inheritance without silently changing effort or permissions', () => {
+  const parent = { session: { requestHeader: () => ({config: {provider:'openai-codex',model:'gpt-6-astra',reasoningEffort:'ultra'}}) } }
+  const policy = {mode:'read-only'}
+  const chosen = subagentThreadPolicy(parent, policy, {provider:'openai-codex',model:'gpt-5.6-luna',reasoningEffort:'low'})
+  assert.equal(chosen.model, 'gpt-5.6-luna')
+  assert.equal(chosen.config.model_reasoning_effort, 'low')
+  assert.equal(chosen.sandbox, 'read-only')
+  assert.deepEqual(subagentThreadPolicy(parent,policy,{model:'gpt-5.6-luna'}).config,{})
+  const other = {session:{requestHeader:()=>({config:{provider:'deepseek',model:'deepseek'}})}}
+  assert.throws(()=>subagentThreadPolicy(other,policy), /Select an openai-codex model/)
+  assert.equal(subagentThreadPolicy(other,policy,{provider:'openai-codex',model:'gpt-5.6-luna'}).model,'gpt-5.6-luna')
+  assert.throws(()=>subagentThreadPolicy(parent,policy,{provider:'deepseek',model:'deepseek'}), /require the openai-codex/)
+  assert.throws(()=>subagentThreadPolicy(parent,policy,{sandbox:'danger-full-access'}), /Unsupported Codex child option/)
+})
 test('backend switches independent tool and restores it without changing fork or custom tools', async () => {
   const spawn = entry('spawn'), fork = entry('fork'), custom = entry('spawn', { persona: 'custom' })
   const switcher = createSubagentBackendSwitcher({ entries: () => [spawn, fork, custom], prepare: async () => {} })
   await switcher.select('codex')
   assert.equal(spawn.fiber.config.provider, SUBAGENT_PROVIDER)
+  assert.equal(spawn.fiber.config.modelSelectionSettings, true)
   assert.equal(fork.fiber.config.provider, 'fork')
   assert.equal(custom.fiber.config.provider, 'spawn')
   await switcher.select('dsh')

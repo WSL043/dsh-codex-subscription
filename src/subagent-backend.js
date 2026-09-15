@@ -6,16 +6,23 @@ export const SUBAGENT_BACKEND_FIELD = 'subagentBackend'
 export const SUBAGENT_PROVIDER = 'codex-subscription-subagent'
 const MODES = new Set(['read-only', 'workspace-write', 'danger-full-access'])
 
-export function subagentThreadPolicy(parent, policy) {
+export function subagentThreadPolicy(parent, policy, requested = {}) {
   if (!MODES.has(policy?.mode)) throw new Error('DSH subagent sandbox policy is unavailable')
   const selected = parent.session.requestHeader?.()?.config ?? parent.options ?? {}
-  const subscription = selected.provider === 'openai-codex' && typeof selected.model === 'string'
+  for (const key of Object.keys(requested)) {
+    if (!['provider', 'model', 'reasoningEffort'].includes(key)) throw new Error('Unsupported Codex child option: ' + key)
+  }
+  if (requested.provider !== undefined && requested.provider !== 'openai-codex') throw new Error('Codex subtasks require the openai-codex provider')
+  const model = requested.model ?? (selected.provider === 'openai-codex' ? selected.model : undefined)
+  if (typeof model !== 'string' || !model.trim()) throw new Error('Select an openai-codex model for this subtask; the parent model cannot be inherited')
+  const effort = requested.reasoningEffort ?? (requested.model === undefined ? selected.reasoningEffort : undefined)
+  if (effort !== undefined && !['none','minimal','low','medium','high','xhigh','max','ultra'].includes(effort)) throw new Error('Unsupported Codex reasoning effort')
   return {
-    model: subscription ? selected.model : 'gpt-5.6-luna',
+    model,
     modelProvider: 'openai',
     approvalPolicy: 'never',
     sandbox: policy.mode,
-    config: { model_reasoning_effort: subscription ? selected.reasoningEffort ?? 'low' : 'low' },
+    config: effort === undefined ? {} : { model_reasoning_effort: effort },
   }
 }
 
@@ -27,7 +34,7 @@ export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store
   let disposed = false
   const provider = {
     name: SUBAGENT_PROVIDER,
-    capabilities: { agentOptions: false, outputSchema: false, depthLimit: false, toolFilter: false, persona: false },
+    capabilities: { agentOptions: true, outputSchema: false, depthLimit: false, toolFilter: false, persona: false },
     inheritsParentContext: false,
     async start(request) {
       if (disposed) throw new Error('Codex subagent is unavailable')
@@ -36,7 +43,7 @@ export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store
       const signal = AbortSignal.any([request.signal, controller.signal])
       let run
       try {
-        const thread = subagentThreadPolicy(request.parent, ctx.sandboxPolicy.resolve({ session: request.parent.session }))
+        const thread = subagentThreadPolicy(request.parent, ctx.sandboxPolicy.resolve({ session: request.parent.session }), request.agentOptions)
         const getTokens = await createSubagentTokens({ resolveAuth, store, refresh, signal })
         const { official, Transport } = await load()
         const proxy = await resolveCodexOAuthProxy({ target: new URL('https://chatgpt.com/') })
@@ -51,7 +58,7 @@ export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store
           }) },
           logger: { warn: () => ctx.logger?.warn?.('Codex subscription subtask failed') },
         }, { model: thread.model, env, permissionMode: 'never', disposeGraceMs: 1000 })
-        run = await delegate.start({ ...request, signal })
+        run = await delegate.start({ ...request, agentOptions: undefined, signal })
         const result = run.result.finally(() => active.delete(controller))
         return { ...run, result, async dispose() { controller.abort(); await run.dispose(); active.delete(controller) } }
       } catch (error) {
@@ -77,7 +84,7 @@ export function createSubagentBackendSwitcher({ entries, prepare, persist }) {
   let disposed = false
   const standard = (entry, config) => entry?.options?.name === '@deepseek-ai/dsh-tool-subagent'
     && config?.provider === 'spawn' && !config.agentOptions && !config.persona && !config.toolFilter
-  const convert = config => ({ ...config, provider: SUBAGENT_PROVIDER, modelSelectionSettings: false, backgroundMode: 'one-shot', maxDepth: 'provider-managed' })
+  const convert = config => ({ ...config, provider: SUBAGENT_PROVIDER, modelSelectionSettings: true, backgroundMode: 'one-shot', maxDepth: 'provider-managed' })
   const configure = (fiber, config) => {
     if (!standard(fiber.entry, config)) return config
     if (!originals.has(fiber)) originals.set(fiber, { ...config })
