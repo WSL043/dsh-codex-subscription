@@ -9,7 +9,7 @@ export const sketchCommandArray={type:'array',items:object({
   id:{oneOf:[{type:'string'},{type:'integer'}],description:'Object string ID. Layer add: optional NEW unique integer ID; other layer actions: existing layer ID.'},
   after:{type:'integer',description:'Layer add only: existing layer to insert after; defaults to active.'},
   start:point,segments:{type:'array',items:object({control1:{...point,required:true},control2:{...point,required:true},end:{...point,required:true}})},
-  layer:{type:'integer'},shape:{type:'string',enum:['pen','line','arrow','text','rectangle','circle','ellipse','polygon','bezier','eraser']},
+  layer:{type:'integer'},shape:{type:'string',enum:['pen','line','arrow','text','rectangle','circle','ellipse','polygon','bezier','eraser','triangle','diamond','star']},
   ...style,
   action:{type:'string',enum:['update','duplicate','delete','add','select','rename','visible','up','down','clear']},
   value:string,ratio:{type:'string',enum:['1:1','4:3','3:4','16:9','9:16']},

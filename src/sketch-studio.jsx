@@ -1,4 +1,5 @@
 import { SketchLayerPanel } from './sketch-layer-panel.jsx'
+import { newTextBounds } from './sketch-text.js'
 import { SketchToolPicker } from './sketch-tool-picker.jsx'
 import { updateSketchGesture } from './sketch-gesture.js'
 import { createSketchDocumentLifecycle } from './sketch-document-lifecycle.js'
@@ -810,6 +811,9 @@ export function SketchStudio({
             width={SKETCH_SIZE}
             height={SKETCH_SIZE}
             aria-label={t('sketchTitle')}
+            onDoubleClick={() => {
+              if (!busy && !agentRun.current?.locked && tool === 'select' && selected?.shape === 'text') setTextEdit({ selection, value: selected.text })
+            }}
             onPointerDown={(event) => {
               if (busy || !enabled || active.current) return
               if (navigation.down(event)) return
@@ -1073,11 +1077,7 @@ export function SketchStudio({
                   if (textEdit.selection) {
                     editObject({ text: textEdit.value })
                   } else {
-                    const a = textEdit.point,
-                      b = {
-                        x: Math.min(1, a.x + 0.35),
-                        y: Math.min(1, a.y + 0.15)
-                      },
+                    const [a, b] = newTextBounds(textEdit.point),
                       id = crypto.randomUUID()
                     const next = applySketchCommands(doc.current, [
                       {
@@ -1106,6 +1106,11 @@ export function SketchStudio({
                 autoFocus
                 aria-label={t('sketchText')}
                 maxLength={500}
+                onKeyDown={event => {
+                  if (event.nativeEvent.isComposing) return
+                  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); setTextEdit(null) }
+                  if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) { event.preventDefault(); event.currentTarget.form.requestSubmit() }
+                }}
                 value={textEdit.value}
                 onChange={(e) =>
                   setTextEdit({ ...textEdit, value: e.target.value })

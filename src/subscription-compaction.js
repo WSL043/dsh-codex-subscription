@@ -6,8 +6,9 @@ const hash = value => createHash('sha256').update(JSON.stringify(value)).digest(
 const key = 'codexCompactionV1'
 const historyHash = messages => hash(messages.map(({ source, ...message }) => ({ ...message, source: source && { kind: source.kind, provider: source.provider, model: source.model } })))
 const MAX_BYTES = 2 * 1024 * 1024
+const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
-export function createCompactionBridge({ enabled = () => false, threshold = () => 100000, accountScope, diagnostic = () => {} }) {
+export function createCompactionBridge({ enabled = () => false, threshold = () => 100000, accountScope, diagnostic = () => {}, now = Date.now }) {
  const scope = new AsyncLocalStorage()
  const wrapStream = (factory, options) => (async function* () {
   if (!enabled() || options.provider !== 'openai-codex') { yield* factory(options); return }
@@ -18,7 +19,8 @@ export function createCompactionBridge({ enabled = () => false, threshold = () =
   for (let i = messages.length - 1; i >= 0; i--) {
    const candidate = messages[i].source?.replayState?.response?.[key]
    if (!candidate) continue
-   if (candidate.scope === state.identity && candidate.prefix === historyHash(messages.slice(0, i)) && candidate.content === hash(messages[i].content)
+   if (Number.isFinite(candidate.createdAt) && candidate.createdAt <= now() && now() - candidate.createdAt <= MAX_AGE_MS
+    && candidate.scope === state.identity && candidate.prefix === historyHash(messages.slice(0, i)) && candidate.content === hash(messages[i].content)
     && Array.isArray(candidate.items) && candidate.items[0]?.type === 'compaction' && typeof candidate.items[0].encrypted_content === 'string'
     && candidate.digest === hash(candidate.items) && JSON.stringify(candidate.items).length <= MAX_BYTES) {
     state.suffix = clone(candidate.items)
@@ -36,7 +38,7 @@ export function createCompactionBridge({ enabled = () => false, threshold = () =
     if (event.type === 'finish') diagnostic({ completed: state.completed, captured: state.captured?.length ?? 0, replay: !!event.replayState })
     if (event.type === 'finish' && ['stop', 'tool-calls'].includes(event.reason?.kind) && !options.signal?.aborted && state.completed && state.captured?.length && event.replayState) {
      const items = state.captured
-     const checkpoint = { scope: state.identity, prefix: historyHash(state.original), content: hash(state.blocks.filter(Boolean)), items, digest: hash(items) }
+     const checkpoint = { createdAt: now(), scope: state.identity, prefix: historyHash(state.original), content: hash(state.blocks.filter(Boolean)), items, digest: hash(items) }
      event = { ...event, replayState: { ...event.replayState, response: { ...event.replayState.response, [key]: checkpoint } } }
     }
     yield event
@@ -52,10 +54,13 @@ export function createCompactionBridge({ enabled = () => false, threshold = () =
     return typeof value === 'function' ? value.bind(target) : value
    } })
   },
-  preparePayload(payload) {
+  preparePayload(payload, contextWindow) {
    const state = scope.getStore()
    if (!state) return payload
-   const limit = threshold()
+   const configured = threshold()
+   if (!Number.isSafeInteger(configured) || configured < 1000) throw new Error('Invalid compaction threshold')
+   const limit = Number.isFinite(contextWindow) && contextWindow >= 2000
+    ? Math.min(configured, Math.floor(contextWindow / 2)) : configured
    if (!Number.isSafeInteger(limit) || limit < 1000) throw new Error('Invalid compaction threshold')
    return { ...payload, input: [...(state.suffix ?? []), ...payload.input], context_management: [{ type: 'compaction', compact_threshold: limit }] }
   },

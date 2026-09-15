@@ -1,5 +1,6 @@
 import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { createSubscriptionConnection } from './subscription-connection.js'
+import { createCompactionBridge } from './subscription-compaction.js'
 import { registerSubscriptionTransport } from './subscription-transport.js'
 import { createSubagentBackendSwitcher, createSubscriptionSubagent, loadSubagentRuntime } from './subagent-backend.js'
 import { createSketchAgentBridge } from './sketch-agent-bridge.js'
@@ -124,9 +125,18 @@ export function apply(ctx) {
     fetch: (input, init) => network.fetch('catalog', input, init),
   })
   const connection = createSubscriptionConnection({ resolveMode: () => settings.get().connectionMode })
+  const compaction = createCompactionBridge({
+    enabled: () => settings.get().compactionMode === 'cloud',
+    accountScope: async () => {
+      await resolveAuth()
+      const credential = await store.read(PROVIDER)
+      return credential?.type === 'oauth' ? credential.accountId : undefined
+    },
+  })
   ctx.effect(() => () => connection.dispose())
   const provider = openaiCodexSubscriptionProvider({
     connection,
+    compaction,
     resolveSpeedMode: () => settings.get()[SPEED_MODE_FIELD],
     resolveOutputVerbosity: () => normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
     resolveContextMode: () => normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]),
@@ -142,6 +152,7 @@ export function apply(ctx) {
   })
   const preferences = {
     status: () => ({
+      compactionMode: settings.get().compactionMode ?? 'dsh',
       connectionMode: settings.get().connectionMode ?? 'sse',
       subagentBackend: settings.get().subagentBackend ?? 'dsh',
       subagentBackendAvailable: subagentBackend !== undefined,
@@ -276,7 +287,7 @@ export function apply(ctx) {
     auth: adapterAuth,
     resolveAttachments: () => ctx.get?.('attachments'),
   })
-  ctx.llm.registerAdapter([PROVIDER], adapter)
+  ctx.llm.registerAdapter([PROVIDER], compaction.wrapAdapter(adapter))
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
   const codexSearch = createCodexSearchProvider({
     resolvePreferences: () => readCapabilitySettings(settings.get()),

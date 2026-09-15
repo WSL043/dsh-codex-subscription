@@ -72,7 +72,7 @@ export function openaiCodexSubscriptionProvider({
           ...(textVerbosity === undefined ? {} : { text: { ...(payload.text ?? {}), verbosity: textVerbosity } }),
           ...(fast ? { service_tier: FAST_SERVICE_TIER } : {}),
         }
-        const managed = compaction?.preparePayload(preferred) ?? preferred
+        const managed = compaction?.preparePayload(preferred, model?.contextWindow) ?? preferred
         const next = await onPayload?.(managed, requestModel)
         return {
           ...(next ?? managed),

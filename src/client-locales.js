@@ -1,4 +1,6 @@
 export const zh = {
+  compactionTitle: '云端压缩', compaction_dsh: '关闭', compaction_cloud: '开启',
+  compactionHint: '实验功能，默认关闭。长上下文由 Codex 压缩后继续请求，保留 DSH 历史与原生压缩。开启时该请求使用 SSE；历史改变后重新建立压缩状态。',
   advancedModelSearch: '模型与搜索',
   subagentBackendTitle: '独立子任务', subagentBackend_dsh: 'DSH', subagentBackend_codex: 'Codex',
   connectionTitle: '连接方式',
@@ -116,6 +118,8 @@ export const zh = {
 }
 
 export const en = {
+  compactionTitle: 'Cloud compaction', compaction_dsh: 'Off', compaction_cloud: 'On',
+  compactionHint: 'Experimental, off by default. Codex compacts long requests while DSH history and native compaction remain available. These requests use SSE; changed history invalidates previous checkpoints.',
   advancedModelSearch: 'Models and search',
   subagentBackendTitle: 'Independent subtasks', subagentBackend_dsh: 'DSH', subagentBackend_codex: 'Codex',
   connectionTitle: 'Connection',

@@ -1,4 +1,5 @@
 import { identifyObjects, transformObject } from './sketch-objects.js'
+import { expandSketchPreset } from './sketch-presets.js'
 import { MAX_SKETCH_STROKES, MAX_STROKE_POINTS } from './sketch-document.js'
 import { changeSketchLayer, strokeCount, resizeSketch } from './sketch-layers.js'
 
@@ -7,6 +8,7 @@ export const SKETCH_COMMAND_HELP = {
   coordinates: 'Assign short meaningful stroke id values for later edits. Text uses two opposite box corners and text content; width is font size in pixels, automatic fitting within the box. Arrow uses two endpoints. Normalized x/y in [0,1]; width is canvas pixels. Read documentId and revision before editing.',
   shapes: 'line: exactly two endpoints; rectangle/circle (ellipse alias accepted): exactly two opposite bounding-box corners (circle draws an ellipse within that box); polygon: three or more vertices, closed automatically; pen: ordered path points. bezier: start point, then groups of control1/control2/end; use 4 points for one cubic curve, max 64 segments. Prefer bezier for smooth designed curves instead of many pen samples. fill:true closes and fills the curve. fill:true fills rectangle/circle/polygon. Layers and strokes paint in list order, later ones on top. All commands needed for drawing are described here; no source-code search is required.',
   commands: {
+    preset: 'triangle/diamond/star: {op:"stroke",id:"badge",shape:"star",points:[{x:0.1,y:0.1},{x:0.3,y:0.3}],color:"#ffcc00",fill:true}. Two opposite box corners; stored as editable polygon. Inspect objectId for one object without repeating full help.',
     stroke: '{op:"stroke",layer:1,shape:"pen|line|arrow|text|rectangle|circle|polygon|bezier",color:"#rrggbb",width:2,opacity:1,fill:false,points:[{x:0.1,y:0.1},...]}',
     layer: 'Add: {op:"layer",action:"add",value:"name"}; optional id is the NEW unique integer ID, otherwise allocated automatically. after is the existing insertion anchor, defaults to active layer. Other actions: {op:"layer",action:"select|rename|visible|duplicate|up|down|delete|clear",id:1,value:"name"}; id targets an existing layer.',
     curve: 'Prefer {op:"stroke",shape:"bezier",start:{x:0,y:0},segments:[{control1:{x:0.2,y:0},control2:{x:0.8,y:1},end:{x:1,y:1}}],color:"#123456"}. Each segment has exactly two controls and an endpoint; no point counting required. Legacy points arrays still accepted. Do not provide both forms.',
@@ -19,8 +21,9 @@ const finite = (value, min, max) => typeof value === 'number' && Number.isFinite
 export function applySketchCommands(source, commands) {
   if (!Array.isArray(commands) || !commands.length || commands.length > 256) throw Error('Expected 1–256 commands')
   let doc = identifyObjects(source)
-  for (const command of commands) {
+  for (let command of commands) {
     if (!command || typeof command !== 'object') throw Error('Invalid command')
+    if (command.op === 'stroke') command = expandSketchPreset(command)
     if (command.op === 'resize') { doc = resizeSketch(doc, command.ratio); continue }
     if (command.op === 'layer') {
       if (!['add','select','rename','visible','duplicate','up','down','delete','clear'].includes(command.action)) throw Error('Unknown layer action')
@@ -89,10 +92,10 @@ export function createSketchCommandSession(adapter) {
     if (request.action === 'inspect') {
       const offset=request.offset??0,objects=adapter.objects?.()??[]
       if(!Number.isInteger(offset)||offset<0)throw Error('offset must be a non-negative integer')
-      return {...current,protocolVersion:2,objects:objects.slice(offset,offset+50),objectCount:objects.length,
-        ...(offset+50<objects.length?{nextOffset:offset+50}:{}),
+      return {...current,protocolVersion:2,objects:request.objectId?[]:objects.slice(offset,offset+50),objectCount:objects.length,
+        ...(!request.objectId&&offset+50<objects.length?{nextOffset:offset+50}:{}),
         ...(request.objectId?{object:adapter.object?.(request.objectId,request.layer)}:{}),
-        recentRequests:[...completed.values()].slice(-8).map(entry=>entry.receipt),help:SKETCH_COMMAND_HELP}
+        recentRequests:[...completed.values()].slice(-8).map(entry=>entry.receipt),...(!request.objectId&&offset===0?{help:SKETCH_COMMAND_HELP}:{})}
     }
     if (request.documentId !== current.documentId) throw Error('Document changed; inspect again')
     if (pending || adapter.busy()) throw Error('Sketch is being edited; retry after it settles')

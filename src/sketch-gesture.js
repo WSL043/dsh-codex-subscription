@@ -37,8 +37,8 @@ export function updateSketchGesture(
                 Math.max(0.001, point.y - box.y) / Math.max(0.001, box.height)
             })
           : transformObject(gesture.object, {
-              dx: point.x - gesture.start.x,
-              dy: point.y - gesture.start.y
+              dx: Math.max(-box.x, Math.min(1 - box.x - box.width, point.x - gesture.start.x)),
+              dy: Math.max(-box.y, Math.min(1 - box.y - box.height, point.y - gesture.start.y))
             })
     doc = {
       ...doc,

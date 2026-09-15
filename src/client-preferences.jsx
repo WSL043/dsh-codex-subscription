@@ -107,6 +107,14 @@ export function PreferencesCard({ preference, t, section = "display" }) {
           </div>
         </div>
       </section>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('compactionTitle')}>
+        <div className="codexSubscriptionPreference">
+          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('compactionTitle')} <small>Beta</small></span><span className="codexSubscriptionPreferenceHint">{t('compactionHint')}</span></div>
+          <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('compactionTitle')} aria-busy={snapshot.saving || undefined}>
+            {['dsh', 'cloud'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-compaction-mode" checked={snapshot.compactionMode === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ compactionMode: value }) }} /><span>{t(`compaction_${value}`)}</span></label>)}
+          </div>
+        </div>
+      </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('subagentBackendTitle')}>
       <div className="codexSubscriptionPreference">
         <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('subagentBackendTitle')} <small>Beta</small></span><span className="codexSubscriptionPreferenceHint">{t(snapshot.subagentBackendAvailable ? 'subagentBackendHint' : 'subagentBackendUnavailable')}</span></div>

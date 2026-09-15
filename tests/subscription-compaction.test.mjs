@@ -4,10 +4,10 @@ import {createCompactionBridge} from '../src/subscription-compaction.js'
 const user=text=>({id:text,role:'user',source:{kind:'user'},content:[{type:'text',text}]})
 const native={response:{kind:'pi-ai',version:2},blocks:[{type:'text'}]}
 const item={type:'compaction',encrypted_content:'SYNTHETIC_ONLY'}
-function fixture({enabled=true,complete=true,reason='stop',block={type:'text',text:'READY'}}={}){
+function fixture({enabled=true,complete=true,reason='stop',block={type:'text',text:'READY'},contextWindow}={}){
  const wires=[];let bridge
  const adapter={async *stream(options){
-  const payload=bridge.preparePayload({input:options.messages.map(m=>({role:m.role,content:m.content})),model:options.model});wires.push(payload)
+  const payload=bridge.preparePayload({input:options.messages.map(m=>({role:m.role,content:m.content})),model:options.model},contextWindow);wires.push(payload)
   const toolItems=block.type==='tool-call'?[{type:'response.output_item.done',item:{type:'function_call',call_id:block.id,name:block.name,arguments:block.arguments}}]:[]
   const events=[{type:'response.output_item.done',item},...toolItems,{type:'response.completed',response:{status:complete?'completed':'incomplete'}}]
   const bytes=new TextEncoder().encode(events.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''))
@@ -18,7 +18,7 @@ function fixture({enabled=true,complete=true,reason='stop',block={type:'text',te
   yield {type:'finish',reason:{kind:reason},replayState:native}
  },async prepareCall(){return {stream:o=>this.stream(o)}}}
  bridge=createCompactionBridge({enabled:()=>enabled,accountScope:async o=>o.account??'a',threshold:()=>4000})
- return {bridge,adapter:bridge.wrapAdapter(adapter),wires}
+ return {bridge,adapter:bridge.wrapAdapter(adapter),wires,setEnabled:value=>{enabled=value}}
 }
 async function run(adapter,messages,extra={}){const events=[];for await(const e of adapter.stream({provider:'openai-codex',model:'gpt-5.6-luna',messages,...extra}))events.push(e);return events.at(-1)}
 function message(finish){return {id:'assistant',role:'assistant',source:{kind:'model',provider:'openai-codex',model:'gpt-5.6-luna',replayState:JSON.parse(JSON.stringify(finish.replayState))},content:[{type:'text',text:'READY'}]}}
@@ -66,4 +66,35 @@ test('damaged persisted checkpoint falls back to complete history', async () => 
  await run(f.adapter,[user('history'),saved,user('next')])
  assert.equal(f.wires.at(-1).input.length,3)
  assert.equal(f.wires.at(-1).input.some(x=>x.type==='compaction'),false)
+})
+
+test('native image offload and native summary replacement invalidate cloud history', async () => {
+ const f=fixture(), image={...user('image'),content:[{type:'image',attachment:{attachmentId:'original'}}]}
+ const first=await run(f.adapter,[image]), saved=message(first)
+ const projected={...image,content:[{...image.content[0],offloaded:true}]}
+ for(const prefix of [[projected],[user('native summary')]]) {
+  await run(f.adapter,[...prefix,saved,user('continue')])
+  assert.equal(f.wires.at(-1).input.some(x=>x.type==='compaction'),false)
+  assert.deepEqual(f.wires.at(-1).input[0].content,prefix[0].content)
+ }
+ assert.equal(image.content[0].offloaded,undefined)
+})
+
+test('expired or future imported checkpoints retain the full current history', async () => {
+ const f=fixture(), first=await run(f.adapter,[user('history')])
+ for(const createdAt of [0,Date.now()+3600000,undefined]) {
+  const saved=message(first)
+  saved.source.replayState.response.codexCompactionV1.createdAt=createdAt
+  await run(f.adapter,[user('history'),saved,user('next')])
+  assert.equal(f.wires.at(-1).input.some(x=>x.type==='compaction'),false)
+ }
+})
+
+test('small context caps the trigger and disabling cloud restores original history', async () => {
+ const f=fixture({contextWindow:4000}), first=await run(f.adapter,[user('history')])
+ assert.equal(f.wires[0].context_management[0].compact_threshold,2000)
+ f.setEnabled(false)
+ await run(f.adapter,[user('history'),message(first),user('next')])
+ assert.equal(f.wires.at(-1).context_management,undefined)
+ assert.equal(f.wires.at(-1).input.length,3)
 })
