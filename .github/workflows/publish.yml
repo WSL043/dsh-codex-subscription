@@ -320,7 +320,7 @@ jobs:
           ## Install or update the Beta
 
           \`\`\`sh
-          npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
+          dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
           \`\`\`
 
           Restart DSH manually. This Beta does not replace npm's stable tag.
@@ -330,7 +330,7 @@ jobs:
           ## Uninstall
 
           \`\`\`sh
-          npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web remove dsh-codex-subscription
+          dsh plugin --profile web remove dsh-codex-subscription
           \`\`\`
           NOTES
             append_contributors en
@@ -345,7 +345,7 @@ jobs:
           ## 安装或更新 Beta
 
           \`\`\`sh
-          npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
+          dsh plugin --profile web add dsh-codex-subscription@$RELEASE_VERSION
           \`\`\`
 
           安装后手动重启 DSH。Beta 不会替换 npm 的稳定版标签。
@@ -355,7 +355,7 @@ jobs:
           ## 卸载
 
           \`\`\`sh
-          npx -y @deepseek-ai/dsh@$current_dsh plugin --profile web remove dsh-codex-subscription
+          dsh plugin --profile web remove dsh-codex-subscription
           \`\`\`
           NOTES
             append_contributors zh-CN
@@ -387,18 +387,12 @@ jobs:
           dsh plugin --profile web add dsh-codex-subscription
           ```
 
-          ### Official npm route when `dsh` is not installed globally
-
-          ```sh
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription
-          ```
-
           Restart DSH manually after installation.
 
           ### Update
 
           ```sh
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription
+          dsh plugin --profile web update dsh-codex-subscription
           ```
 
           See the [English README](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.en.md) for complete use and uninstall instructions.
@@ -406,7 +400,7 @@ jobs:
           ### Uninstall
 
           ```sh
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription
+          dsh plugin --profile web remove dsh-codex-subscription
           ```
           NOTES
           cat >> .release/install.md <<'NOTES'
@@ -439,18 +433,12 @@ jobs:
           dsh plugin --profile web add dsh-codex-subscription
           ```
 
-          ### 未全局安装 `dsh` 时的官方 npm 方式
-
-          ```sh
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription
-          ```
-
           安装后手动重启 DSH。
 
           ### 更新
 
           ```sh
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription
+          dsh plugin --profile web update dsh-codex-subscription
           ```
 
           完整的使用和卸载说明见[中文 README](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md)。
@@ -458,7 +446,7 @@ jobs:
           ### 卸载
 
           ```sh
-          npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription
+          dsh plugin --profile web remove dsh-codex-subscription
           ```
           NOTES
           sed -i "s/__DSH_VERSION__/$current_dsh/g" .release/install.md

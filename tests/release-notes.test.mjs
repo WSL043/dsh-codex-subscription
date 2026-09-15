@@ -9,9 +9,9 @@ test('GitHub Releases include beginner-facing install, update, and uninstall ins
   assert.match(releaseWorkflow, /## Installation[\s\S]*## 中文[\s\S]*## 安装/u)
   assert.match(releaseWorkflow, /### Standard DSH command[\s\S]*### DSH 标准命令/u)
   assert.match(releaseWorkflow, /dsh plugin --profile web add dsh-codex-subscription/u)
-  assert.match(releaseWorkflow, /npx -y @deepseek-ai\/dsh@__DSH_VERSION__ plugin --profile web add dsh-codex-subscription/u)
+  assert.doesNotMatch(releaseWorkflow, /npx -y/u)
   assert.doesNotMatch(releaseWorkflow, /\birm\b|dsh-codex-setup\.ps1/iu)
-  assert.match(releaseWorkflow, /dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription/u)
+  assert.match(releaseWorkflow, /dsh plugin --profile web remove dsh-codex-subscription/u)
   assert.match(releaseWorkflow, /sed -i "s\/__DSH_VERSION__\/\$current_dsh\/g" \.release\/install\.md/u)
   assert.match(releaseWorkflow, /release_kind:[\s\S]*compatibility/u)
   assert.match(releaseWorkflow, /Added support for DeepSeek Harness/u)
@@ -56,8 +56,8 @@ test('release lifecycle commands keep update and uninstall in separate sections'
   const notesEnd = releaseWorkflow.indexOf('- name: Build immutable release assets')
   const notesStep = releaseWorkflow.slice(notesStart, notesEnd)
   for (const [updateHeading, uninstallHeading, updateCommand, uninstallCommand] of [
-    ['### Update', '### Uninstall', 'npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription', 'npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription'],
-    ['### 更新', '### 卸载', 'npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web update dsh-codex-subscription', 'npx -y @deepseek-ai/dsh@__DSH_VERSION__ plugin --profile web remove dsh-codex-subscription'],
+    ['### Update', '### Uninstall', 'dsh plugin --profile web update dsh-codex-subscription', 'dsh plugin --profile web remove dsh-codex-subscription'],
+    ['### 更新', '### 卸载', 'dsh plugin --profile web update dsh-codex-subscription', 'dsh plugin --profile web remove dsh-codex-subscription'],
   ]) {
     const updateStart = notesStep.indexOf(updateHeading)
     const uninstallStart = notesStep.indexOf(uninstallHeading, updateStart + updateHeading.length)
