@@ -4,16 +4,17 @@ import {createCompactionBridge} from '../src/subscription-compaction.js'
 const user=text=>({id:text,role:'user',source:{kind:'user'},content:[{type:'text',text}]})
 const native={response:{kind:'pi-ai',version:2},blocks:[{type:'text'}]}
 const item={type:'compaction',encrypted_content:'SYNTHETIC_ONLY'}
-function fixture({enabled=true,complete=true,reason='stop'}={}){
+function fixture({enabled=true,complete=true,reason='stop',block={type:'text',text:'READY'}}={}){
  const wires=[];let bridge
  const adapter={async *stream(options){
   const payload=bridge.preparePayload({input:options.messages.map(m=>({role:m.role,content:m.content})),model:options.model});wires.push(payload)
-  const events=[{type:'response.output_item.done',item},{type:'response.completed',response:{status:complete?'completed':'incomplete'}}]
+  const toolItems=block.type==='tool-call'?[{type:'response.output_item.done',item:{type:'function_call',call_id:block.id,name:block.name,arguments:block.arguments}}]:[]
+  const events=[{type:'response.output_item.done',item},...toolItems,{type:'response.completed',response:{status:complete?'completed':'incomplete'}}]
   const bytes=new TextEncoder().encode(events.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''))
   const raw=new Response(new ReadableStream({start(c){for(let i=0;i<bytes.length;i+=7)c.enqueue(bytes.slice(i,i+7));c.close()}}))
   const response=bridge.networkOptions({})?.transformResponse?.(raw,new URL('https://chatgpt.com/backend-api/codex/responses'))??raw
   assert.equal(await response.text(),new TextDecoder().decode(bytes))
-  yield {type:'block-end',index:0,block:{type:'text',text:'READY'}}
+  yield {type:'block-end',index:0,block}
   yield {type:'finish',reason:{kind:reason},replayState:native}
  },async prepareCall(){return {stream:o=>this.stream(o)}}}
  bridge=createCompactionBridge({enabled:()=>enabled,accountScope:async o=>o.account??'a',threshold:()=>4000})
@@ -36,4 +37,33 @@ test('account changes, edited prefix and edited assistant retain full input',asy
 test('prepared calls and concurrent requests retain independent scopes',async()=>{
  const f=fixture();const call=await f.adapter.prepareCall();const a={stream:call.stream};const [left,right]=await Promise.all([run(a,[user('left')]),run(f.adapter,[user('right')])]);assert.notEqual(left.replayState.response.codexCompactionV1.prefix,right.replayState.response.codexCompactionV1.prefix)
  assert.equal(f.bridge.requestOptions({transport:'websocket'}).transport,'websocket')
+})
+
+test('cancelled requests never persist a completed checkpoint', async () => {
+ const f=fixture(), controller=new AbortController()
+ controller.abort()
+ const finish=await run(f.adapter,[user('history')],{signal:controller.signal})
+ assert.equal(finish.replayState.response.codexCompactionV1,undefined)
+})
+
+test('tool-result continuation survives checkpoint replay and edited calls reject it', async () => {
+ const block={type:'tool-call',id:'call-1',name:'lookup',arguments:'{}'}
+ const f=fixture({reason:'tool-calls',block})
+ const first=await run(f.adapter,[user('history')])
+ const saved={...message(first),content:[block]}
+ const result={role:'user',source:{kind:'tool',callId:'call-1'},content:[{type:'tool-result',toolCallId:'call-1',content:[{type:'text',text:'BLUE_716'}],isError:false}]}
+ await run(f.adapter,[user('history'),saved,result])
+ assert.equal(f.wires.at(-1).input[0].type,'compaction')
+ assert.equal(f.wires.at(-1).input[1].type,'function_call')
+ assert.deepEqual(f.wires.at(-1).input.at(-1).content,result.content)
+ await run(f.adapter,[user('history'),{...saved,content:[{...block,arguments:'{"changed":true}'}]},result])
+ assert.equal(f.wires.at(-1).input.some(x=>x.type==='compaction'),false)
+})
+
+test('damaged persisted checkpoint falls back to complete history', async () => {
+ const f=fixture(), first=await run(f.adapter,[user('history')]), saved=message(first)
+ saved.source.replayState.response.codexCompactionV1.items[0].encrypted_content='damaged'
+ await run(f.adapter,[user('history'),saved,user('next')])
+ assert.equal(f.wires.at(-1).input.length,3)
+ assert.equal(f.wires.at(-1).input.some(x=>x.type==='compaction'),false)
 })
