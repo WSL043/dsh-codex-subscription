@@ -2,6 +2,18 @@ import assert from 'node:assert/strict'
 import { RPC_ENDPOINTS } from '../src/rpc-contract.js'
 import { IMAGE_FEATURE_DEFAULTS } from '../src/image-features.js'
 import test from 'node:test'
+import Schema from '@deepseek-ai/schemastery'
+
+test('settings schema survives the native browser JSON round trip', () => {
+  const host = fakeContext()
+  applyPlugin(host.ctx)
+  const schema = host.settings[0].schema
+  const value = schema({ imageSketch: true, imageSketchAgent: true, searchDomains: ['EXAMPLE.com', 'example.com'] })
+  const browserSchema = new Schema(JSON.parse(JSON.stringify(schema)))
+  assert.deepEqual(browserSchema(JSON.parse(JSON.stringify(value))), value)
+  assert.deepEqual(value.searchDomains, ['example.com'])
+  assert.throws(() => browserSchema({ searchDomains: ['https://example.com/path'] }), /Invalid search domain/)
+})
 
 import * as plugin from '../src/index.js'
 import { PACKAGE_VERSION } from '../src/version.js'

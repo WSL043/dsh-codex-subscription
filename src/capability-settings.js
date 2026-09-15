@@ -18,6 +18,8 @@ export function normalizeContextOverrides(value) {
     && Number.isSafeInteger(size) && size > 0 && size <= MAX_CONTEXT_BUDGET).slice(0, 64))
 }
 
+// Used as a serialized Settings schema transform: keep this function self-contained.
+// Browser rehydration cannot resolve imports or other module-local bindings.
 export function normalizeSearchDomains(value) {
   if (!Array.isArray(value) || value.length > 20) throw new Error('Invalid search domains')
   return [...new Set(value.map(item => {
