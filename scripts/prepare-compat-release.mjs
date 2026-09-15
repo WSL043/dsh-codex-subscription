@@ -142,7 +142,14 @@ export function rewriteBoundedVersions(source, update, label) {
     if (matches.length !== 1) throw new Error('expected one PackageVersion assignment in dsh-codex.ps1')
     parseVersion(matches[0][2])
     parseVersion(update.pluginVersion)
-    return source.replace(assignment, (_match, prefix, _version, suffix) => prefix + update.pluginVersion + suffix)
+    const specAssignment = /^(\$PackageSpec[ \t]*=[ \t]*')([^'\r\n]+)('[ \t]*\r?)$/gmu
+    const specs = [...source.matchAll(specAssignment)]
+    if (specs.length !== 1 || specs[0][2] !== `dsh-codex-subscription@${matches[0][2]}`) {
+      throw new Error('expected one matching PackageSpec assignment in dsh-codex.ps1')
+    }
+    return source
+      .replace(assignment, (_match, prefix, _version, suffix) => prefix + update.pluginVersion + suffix)
+      .replace(specAssignment, (_match, prefix, _spec, suffix) => prefix + `dsh-codex-subscription@${update.pluginVersion}` + suffix)
   }
   const previousVersion = update.previousDocumentedPluginVersion ?? update.previousPluginVersion
   let rewritten = source.replaceAll(previousVersion, update.pluginVersion)

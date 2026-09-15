@@ -162,11 +162,12 @@ test('regenerates exact release-age exceptions from the accepted lock graph', ()
 
  test('manager stamping uses its assignment rather than a stale documented version', () => {
  const update = { previousPluginVersion: '2.1.1-beta.1', previousDocumentedPluginVersion: '2.1.0', pluginVersion: '2.1.1', updateStableReferences: true, previousDshVersion: '0.1.5-rc.1', dshVersion: '0.1.5-rc.2' }
- const source = "$PackageVersion = '1.15.0'\n$OtherVersion = '1.15.0'\n"
+ const source = "$PackageVersion = '1.15.0'\n$PackageSpec = 'dsh-codex-subscription@1.15.0'\n$OtherVersion = '1.15.0'\n"
  const result = rewriteBoundedVersions(source, update, 'dsh-codex.ps1')
- assert.equal(result, "$PackageVersion = '2.1.1'\n$OtherVersion = '1.15.0'\n")
+ assert.equal(result, "$PackageVersion = '2.1.1'\n$PackageSpec = 'dsh-codex-subscription@2.1.1'\n$OtherVersion = '1.15.0'\n")
  assert.equal(rewriteBoundedVersions(result, update, 'dsh-codex.ps1'), result)
  for (const invalid of ['', source + source, "$PackageVersion = 'invalid'"]) assert.throws(() => rewriteBoundedVersions(invalid, update, 'dsh-codex.ps1'))
+ for (const invalid of [source.replace(/^\$PackageSpec.*\n/mu, ''), source.replace('@1.15.0', '@1.14.0'), source + "$PackageSpec = 'dsh-codex-subscription@1.15.0'\n"]) assert.throws(() => rewriteBoundedVersions(invalid, update, 'dsh-codex.ps1'), /PackageSpec/u)
 })
 
 test('current repository bounded artifacts can prepare the next DSH candidate', () => {

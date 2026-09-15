@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
+import { compareVersions } from '../scripts/prepare-compat-release.mjs'
 
 const text = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 const pngDimensions = path => {
@@ -88,11 +89,13 @@ test('settings registration works across stable and preview DSH exports', () => 
 })
 
 test('compatibility metadata keeps stable and preview DSH lanes explicit', () => {
-  assert.equal(compatibility.latestTested, '0.1.5-rc.1')
-  assert.deepEqual(compatibility.supported, ['0.1.2-rc.1', '0.1.5-rc.1'])
-  assert.deepEqual(compatibility.previews, ['0.1.5-alpha.1', '0.1.5-alpha.2'])
+  assert.ok(compatibility.supported.includes('0.1.2-rc.1'))
+  assert.equal(compatibility.latestTested, [...compatibility.supported].sort(compareVersions).at(-1))
+  assert.equal(new Set(compatibility.supported).size, compatibility.supported.length)
+  assert.ok(compatibility.supported.every(version => /^\d+\.\d+\.\d+(?:-rc\.\d+)?$/u.test(version)))
+  assert.ok(compatibility.previews.every(version => !compatibility.supported.includes(version)))
   assert.equal(new Set(compatibility.previews).size, compatibility.previews.length)
-  assert.ok(compatibility.previews.every(version => /^\d+\.\d+\.\d+-[0-9A-Za-z.-]+$/u.test(version)))
+  assert.ok(compatibility.previews.every(version => /^\d+\.\d+\.\d+-(?:alpha|beta)\.\d+$/u.test(version)))
 })
 
 test('public docs contain only user-facing product and operation information', () => {
