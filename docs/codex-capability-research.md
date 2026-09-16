@@ -255,10 +255,10 @@ Four bridge tests cover missing Content-Type, fragmented SSE byte preservation, 
 
 Before a user setting or release: validate live tool-call continuation around compaction, cancellation and retry boundaries, exported-session restoration, context projection changes, bounded durable state retention, and native DSH compaction scheduling. No claim of allowance savings is made.
 
-## Subtask model selection candidate (not released)
+## Subtask model selection — 2.1.1
 
 The subscription bridge now advertises child agent options and preserves the native DSH opt-in model-selection policy. Explicit provider/model/reasoning choices are mapped into Codex thread startup; only openai-codex routes are accepted. Unsupported options fail before spawning. Child permissions still come exclusively from the parent sandbox policy. The mapped options are removed before delegating to the official one-shot provider, whose own agentOptions capability remains false.
 
 Without an explicit route, subscription sessions inherit their model and effort. Selecting a model without effort uses its Codex default rather than inheriting a potentially incompatible parent effort. Non-subscription sessions must select a subscription model; the fixed Luna low fallback was removed. DSH owns the allowed-model list and samples its opt-in when a new session is composed; this plugin does not enable that global setting or mutate existing session policy.
 
-Acceptance: 436 source tests (433 passed, 3 skipped); native-runtime policy tests passed. A direct bridge run using a synthetic Astra ultra parent and explicit Luna low child completed with MANAGED_LOGIN_OK, without writing auth.json. This verifies the provider path, not an end-to-end chat test of the parent model choosing tool arguments. Evidence: .artifacts/subagent-selection-live.log. Public README still describes the released beta.2 until this candidate is released.
+Acceptance: 436 source tests (433 passed, 3 skipped); native-runtime policy tests passed. A direct bridge run using a synthetic Astra ultra parent and explicit Luna low child completed with MANAGED_LOGIN_OK, without writing auth.json. The follow-up DSH 0.1.6-alpha.1 browser acceptance also passed: a fresh Luna low parent session received a chat request, supplied provider/model/reasoning_effort through the native subagent tool, and returned the real child result SELECTED_LUNA_OK. Evidence: .artifacts/stable211-subagent-e2e.txt. Evidence: .artifacts/subagent-selection-live.log. The release README documents native opt-in and the new-session requirement.

@@ -249,7 +249,7 @@ see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-
 Opt in under **Advanced & diagnostics**. SSE and DSH subtasks remain the defaults:
 
 - **WebSocket** reuses connections and eligible context transfers. Failed handshakes can fall back to SSE; interrupted responses surface an error without automatic replay. Applies to the next request, does not expand context limits, and is not guaranteed to be faster.
-- **Codex independent subtasks** reuse your subscription login and the official DSH Codex runtime, without a separate login or CLI setup. They follow the current subscription model and workspace permissions; other model sessions use Luna low. Shared-context subtasks remain with DSH.
+- **Codex independent subtasks** reuse your subscription login and the official DSH Codex runtime, without a separate login or CLI setup. They inherit the current subscription model and workspace permissions by default. Enable DSH subtask model selection, configure allowed models and start a new session to specify the child model and reasoning effort in chat. Non-subscription sessions must explicitly select a subscription model. Shared-context subtasks remain with DSH.
 
 ## Update and uninstall
 
