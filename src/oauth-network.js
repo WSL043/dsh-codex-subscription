@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { request as httpsRequest } from 'node:https'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { Readable } from 'node:stream'
+import { PassThrough, Readable } from 'node:stream'
 import { promisify } from 'node:util'
 
 import { HttpsProxyAgent } from 'https-proxy-agent'
@@ -117,6 +117,24 @@ function bodyBytes(body) {
   throw new TypeError('Unsupported Codex OAuth request body')
 }
 
+export function transportError(error, signal) {
+  if (signal?.aborted || error?.name === 'AbortError' || error?.code === 'ABORT_ERR') return error
+  if (!/^(?:ECONNRESET|ECONNREFUSED|EPIPE|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|EAI_AGAIN|ERR_STREAM_PREMATURE_CLOSE)$/.test(error?.code ?? '')) return error
+  // pi-ai currently flattens Error to its message. Preserve both the original
+  // typed cause and a stable transport signature for older host classifiers.
+  return Object.assign(new Error(`Network transport failure (${error.code}): ${error.message}`, { cause: error }), { code: error.code })
+}
+
+export function transportResponseBody(response, signal) {
+  const body = new PassThrough()
+  response.on('error', error => body.destroy(transportError(error, signal)))
+  // Cancelling the web reader must also release an idle underlying connection.
+  body.on('close', () => response.destroy())
+  const stream = Readable.toWeb(body)
+  response.pipe(body)
+  return stream
+}
+
 export function fetchThroughProxy(input, init, proxyUrl) {
   const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url)
   const body = bodyBytes(init?.body)
@@ -136,13 +154,14 @@ export function fetchThroughProxy(input, init, proxyUrl) {
       }
       const status = response.statusCode ?? 500
       const empty = init?.method === 'HEAD' || [204, 205, 304].includes(status)
-      resolve(new Response(empty ? null : Readable.toWeb(response), {
+      if (empty) response.resume()
+      resolve(new Response(empty ? null : transportResponseBody(response, init?.signal), {
         status,
         statusText: response.statusMessage,
         headers: responseHeaders,
       }))
     })
-    request.on('error', reject)
+    request.on('error', error => reject(transportError(error, init?.signal)))
     if (body) request.write(body)
     request.end()
   })

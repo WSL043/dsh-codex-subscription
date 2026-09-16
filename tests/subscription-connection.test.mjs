@@ -94,9 +94,10 @@ test('a disconnect after response acceptance is surfaced without replaying the r
   try {
     const model = provider.getModels().find(model => model.id === 'gpt-5.6-luna')
     const events=[]
-    for await(const event of provider.streamSimple(model,{messages:[{role:'user',content:'fixture',timestamp:Date.now()}]},{apiKey,sessionId:'interrupted',signal:AbortSignal.timeout(3000)})) events.push(event.type)
-    assert.ok(events.includes('start'))
-    assert.ok(events.includes('error'))
+    for await(const event of provider.streamSimple(model,{messages:[{role:'user',content:'fixture',timestamp:Date.now()}]},{apiKey,sessionId:'interrupted',signal:AbortSignal.timeout(3000)})) events.push(event)
+    assert.ok(events.some(event => event.type === 'start'))
+    const failure = events.find(event => event.type === 'error')
+    assert.match(failure?.error.errorMessage, /^Network transport failure: WebSocket closed 1006/)
     assert.equal(sends,1)
     assert.equal(fetches,0)
   } finally { connection.dispose();globalThis.WebSocket=originalSocket;globalThis.fetch=originalFetch }

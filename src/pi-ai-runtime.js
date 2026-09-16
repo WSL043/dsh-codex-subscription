@@ -2,6 +2,7 @@
 // The exact peer version makes a DSH update fail visibly until this seam is
 // re-audited instead of silently changing authentication or cache semantics.
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
+import { normalizeTransportEvent } from './transport-failure.js'
 import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
@@ -99,10 +100,11 @@ export function openaiCodexSubscriptionProvider({
     let prepared
     const step = async (method, value) => {
       const request = await (prepared ??= connection?.prepare(options) ?? Promise.resolve({ options }))
-      return runNetwork('model', () => {
+      const result = await runNetwork('model', () => {
         iterator ??= factory(compaction?.requestOptions(request.options) ?? request.options)[Symbol.asyncIterator]()
         return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
       }, compaction?.networkOptions(request.network) ?? request.network)
+      return result.done ? result : { ...result, value: normalizeTransportEvent(result.value, request.options?.signal) }
     }
     return {
       [Symbol.asyncIterator]() { return this },
