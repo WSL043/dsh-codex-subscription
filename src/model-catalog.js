@@ -189,7 +189,9 @@ export function createOfficialModelCatalog(options = {}) {
 
   return Object.freeze({
     refresh,
-    getModels: fallback => models ?? fallback,
+    // Spark's research preview retired on 2026-09-14. A bundled offline list
+    // must not resurrect it; a successful official catalog remains authoritative.
+    getModels: fallback => models ?? fallback.filter(model => model.id !== 'gpt-5.3-codex-spark'),
     metadata: modelId => metadata.get(modelId),
     revision: () => revision,
     capabilityGaps: () => [...metadata.values()]

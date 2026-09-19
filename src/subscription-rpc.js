@@ -7,7 +7,7 @@ const publicError = (code, message) => ({
   error: { code, message, details: { issues: [] } },
 })
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections }) {
   return async (endpoint, payload, signal) => {
     if (endpoint === 'image/original/chunk') {
       try {
@@ -144,6 +144,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
       }
     }
     const result = await authHandler(endpoint, payload, signal)
+    if (result.ok === true && ['logout', 'account/select', 'account/remove'].includes(endpoint)) closeConnections?.()
     if (endpoint === 'account/remove' && result.ok === true && typeof payload?.id === 'string') {
       await usageReader.clearScope(payload.id)
     }

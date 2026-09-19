@@ -328,7 +328,6 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   const preferenceStatus = await host.request('preferences/status', {}, signal)
   const activeContextModels = preferenceStatus.value.contextModels
   assert.partialDeepStrictEqual(activeContextModels, [
-    { key: 'gpt-5.3-codex-spark', label: 'GPT-5.3 Codex Spark', maximum: 128_000, fixed: true },
     { key: 'gpt-5.4', label: 'GPT-5.4', maximum: 1_000_000 },
     { key: 'gpt-5.4-mini', label: 'GPT-5.4 mini', maximum: 400_000 },
     { key: 'gpt-5.5', label: 'GPT-5.5', maximum: 1_000_000 },

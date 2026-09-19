@@ -46,7 +46,7 @@ function MessageImagePreview({ image, ...props }) {
     Promise.resolve().then(() => loadImage(image.attachment)).then(value => { if (live) setSrc(value) }, () => { if (live) setFailed(true) })
     return () => { live = false }
   }, [image, loadImage, attempt])
-  const item = image.attachment ?? image.preview
+  const item = { ...(image.attachment ?? image.preview), ...(image.label ? { name: image.label } : {}) }
   return <button type="button" className="codexImageThumb" aria-label={`${t('imagePreview')} ${item.name ?? ''}`} disabled={!src && !failed}
     onClick={event => {
       if (failed) { setAttempt(value => value + 1); return }
@@ -56,8 +56,8 @@ function MessageImagePreview({ image, ...props }) {
   </button>
 }
 
-export function MessageImagePreviews({ images, align, ...props }) {
-  return <div className="codexMessageImages" data-align={align} data-single={images.length === 1}>
+export function MessageImagePreviews({ images, align, compact, thumbnail, ...props }) {
+  return <div className="codexMessageImages" data-align={align} data-single={images.length === 1 && !compact && !thumbnail} data-thumbnail={thumbnail || undefined}>
     {images.map((image, index) => <MessageImagePreview key={image.attachment?.attachmentId ?? image.preview?.url ?? index} image={image} {...props} />)}
   </div>
 }
@@ -70,4 +70,5 @@ export const IMAGE_PREVIEWS_CSS = `
 .codexMessageImages{flex-wrap:wrap}.codexMessageImages[data-align=end]{justify-content:flex-end}
 .codexMessageImages[data-single=true] .codexImageThumb{width:240px;height:auto;max-width:100%}
 .codexMessageImages[data-single=true] img{height:auto;max-height:320px;object-fit:contain}
+.codexMessageImages[data-thumbnail=true]{padding:0}.codexMessageImages[data-thumbnail=true] img{object-fit:contain}
 `

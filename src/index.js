@@ -384,6 +384,7 @@ export function apply(ctx) {
     preferences,
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog }),
     modelCatalog,
+    closeConnections: () => connection.dispose(),
     originalImages,
     resolveInheritedOriginal: (sessionId, assetId) => inheritedOriginalImageRef(
       ctx.get?.('sessions')?.get?.(sessionId),
