@@ -24,13 +24,15 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 
 ## Three-step start
 
-1. **Install the plugin.** Run the standard DSH bundle command:
+1. **Install the plugin.** In newer DSH, open **Plugins → Add plugin** and enter `dsh-codex-subscription`. To select a candidate, enter `package@version`, for example `dsh-codex-subscription@2.1.3-beta.1`. This field does not accept a full terminal command.
+
+   For older DSH or terminal use, run:
 
    ```sh
    dsh plugin --profile web add dsh-codex-subscription
    ```
 
-2. **Sign in.** Restart DSH yourself, open **Settings -> Codex**, and choose browser sign-in. No Codex CLI and no pasted token are required.
+2. **Sign in.** Follow the installation result; save your work and restart only if requested. Open **Settings -> Codex**, and choose browser sign-in. No Codex CLI and no pasted token are required.
 3. **Use Codex.** Select a Codex model. Quota, subscription search, image generation, and Fast mode remain inside DSH.
 
 DSH-Portable exposes the same standard plugin command, so the command above also applies there. See below for the complete official npm, update, and uninstall routes.

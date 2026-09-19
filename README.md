@@ -25,13 +25,15 @@
 
 ## 三步开始
 
-1. **安装插件**：直接运行 DSH 标准 bundle 命令：
+1. **安装插件**：在新版 DSH 的 **插件 → 添加插件** 中填写 `dsh-codex-subscription`；指定候选版本时填写完整的 `包名@版本`，例如 `dsh-codex-subscription@2.1.3-beta.1`。这个输入框不接受整条终端命令。
+
+   旧版 DSH 或偏好终端操作时，才在终端运行：
 
    ```sh
    dsh plugin --profile web add dsh-codex-subscription
    ```
 
-2. **登录订阅**：手动重启 DSH，打开 **设置 -> Codex 订阅**，点击浏览器登录。无需 Codex CLI，也不要粘贴 token。
+2. **登录订阅**：按安装结果提示操作；若提示需要重启，先保存工作再重启。打开 **设置 -> Codex 订阅**，点击浏览器登录。无需 Codex CLI，也不要粘贴 token。
 3. **开始使用**：在模型选择器中选择 Codex；额度、订阅搜索、图片生成和高速模式都在 DSH 内使用。
 
 DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的命令。完整的官方 npm、更新和卸载方式见下文。
