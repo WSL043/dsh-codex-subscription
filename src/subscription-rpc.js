@@ -7,8 +7,21 @@ const publicError = (code, message) => ({
   error: { code, message, details: { issues: [] } },
 })
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, runtimeManagement, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections }) {
   return async (endpoint, payload, signal) => {
+    if (['runtime/status', 'runtime/install', 'runtime/remove', 'runtime/cancel'].includes(endpoint)) {
+      try {
+        signal.throwIfAborted()
+        if (!runtimeManagement) return publicError('unavailable', 'Runtime management is unavailable')
+        const action = endpoint.split('/')[1]
+        const value = action === 'status' ? await runtimeManagement.status() : action === 'cancel' ? await runtimeManagement.cancel() : await runtimeManagement.start(action)
+        return { ok: true, value }
+      } catch (error) {
+        if (signal.aborted) throw error
+        const code = ['busy', 'active-tasks', 'restart-required', 'unavailable'].includes(error.message) ? error.message : 'operation-error'
+        return publicError(code, code)
+      }
+    }
     if (endpoint === 'image/original/chunk') {
       try {
         signal.throwIfAborted()

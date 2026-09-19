@@ -5,7 +5,7 @@ import test from 'node:test'
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 // These contracts cover the client entry and its authored copy, styles and download helper.
 const text = path => path === 'src/client.jsx'
-  ? Promise.all([path, 'src/rpc-contract.js', 'src/client-shared.js', 'src/client-account.jsx', 'src/client-composer-quota.jsx', 'src/client-diagnostics.jsx', 'src/client-model-select.jsx', 'src/client-preferences.jsx', 'src/client-quota.jsx', 'src/client-section.jsx', 'src/client-usage.jsx', 'src/client-locales.js', 'src/client-styles.js', 'src/client-images.jsx', 'src/original-image-download.js'].map(read)).then(parts => parts.join('\n'))
+  ? Promise.all([path, 'src/rpc-contract.js', 'src/client-shared.js', 'src/client-account.jsx', 'src/client-composer-quota.jsx', 'src/client-diagnostics.jsx', 'src/client-model-select.jsx', 'src/client-preferences.jsx', 'src/client-runtime-management.jsx', 'src/client-quota.jsx', 'src/client-section.jsx', 'src/client-usage.jsx', 'src/client-locales.js', 'src/client-styles.js', 'src/client-images.jsx', 'src/original-image-download.js'].map(read)).then(parts => parts.join('\n'))
   : path === 'src/index.js' ? Promise.all([path, 'src/subscription-rpc.js'].map(read)).then(parts => parts.join('\n')) : read(path)
 
 test('generated image loader uses the installed DSH UI conversation image API', async () => {

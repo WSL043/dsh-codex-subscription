@@ -27,7 +27,7 @@ export function subagentThreadPolicy(parent, policy, requested = {}) {
 }
 
 /** Reuse the official DSH process/turn provider; keep only subscription auth here. */
-export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store, refresh, loadRuntime }) {
+export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store, refresh, loadRuntime, maintenance = () => false }) {
   let runtime
   const load = () => runtime ??= loadRuntime().catch(error => { runtime = undefined; throw error })
   const active = new Set()
@@ -38,6 +38,7 @@ export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store
     inheritsParentContext: false,
     async start(request) {
       if (disposed) throw new Error('Codex subagent is unavailable')
+      if (maintenance()) throw new Error('Codex subtask component is being changed; restart DSH after completion')
       const controller = new AbortController()
       active.add(controller)
       const signal = AbortSignal.any([request.signal, controller.signal])
@@ -71,7 +72,8 @@ export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store
   }
   return {
     provider,
-    prepare: load,
+    activeCount: () => active.size,
+    prepare: () => { if (maintenance()) return Promise.reject(new Error('Restart DSH after changing the Codex subtask component')); return load() },
     dispose() { disposed = true; for (const controller of active) controller.abort() },
   }
 }

@@ -141,9 +141,9 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /依次粘贴下面两行|paste these two lines in order|下面三行|three lines/iu)
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /\birm\b|dsh-codex-setup\.ps1/iu)
   assert.doesNotMatch(readmeZh, /安装提示词|更新提示词|卸载提示词/u)
-  assert.match(readmeZh, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings\.png/u)
-  assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/context-settings\.png/u)
-  assert.match(readme, /Screenshots use the Chinese UI/u)
+  assert.match(readmeZh, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/settings-advanced-current\.png/u)
+  assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/settings-advanced-current-en\.png/u)
+  assert.match(readme, /actual English advanced page/u)
   assert.match(readmeZh, /raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/composer-quota\.png/u)
   assert.doesNotMatch(readmeZh, /docs\/assets\/composer-quota-en\.png/u)
   for (const doc of [readme, readmeZh]) {
@@ -180,9 +180,9 @@ test('plugin-owned marketplace screenshots stay valid and show both product lang
     assert.equal(existsSync(new URL(`../${path}`, import.meta.url)), true, `marketplace screenshot must exist: ${path}`)
   }
   for (const path of [
-    'docs/assets/context-settings-en.png',
+    'docs/assets/settings-advanced-current-en.png',
     'docs/assets/image-preview-annotations-en.png',
-    'docs/assets/context-settings.png',
+    'docs/assets/settings-advanced-current.png',
     'docs/assets/image-preview-annotations.png',
   ]) assert.equal(screenshots.includes(path), true, `marketplace must show ${path}`)
 })

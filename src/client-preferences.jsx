@@ -1,4 +1,5 @@
 import { CapabilityPreferences } from './capability-preferences.jsx'
+import { RuntimeManagement } from './client-runtime-management.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { Button, IconChevronDownOutline14, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives'
 import { CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, clampModelContext, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
@@ -89,7 +90,7 @@ export function ContextWindowPreference({ preference, t }) {
   </div>
 }
 
-export function PreferencesCard({ preference, t, section = "display" }) {
+export function PreferencesCard({ preference, rpc, t, section = "display" }) {
   const snapshot = usePreferenceSnapshot(preference)
   return <div className={section === 'advanced' ? 'codexSubscriptionAdvancedPreferences' : 'codexSubscriptionCard codexSubscriptionPreferencesCard'}>
     {section === 'advanced' ? <>
@@ -122,7 +123,7 @@ export function PreferencesCard({ preference, t, section = "display" }) {
           {['dsh', 'codex'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-subagent-backend" checked={snapshot.subagentBackend === value} disabled={!snapshot.writable || !snapshot.subagentBackendAvailable || (value === 'codex' && !snapshot.subagentRuntimeInstalled)} onChange={() => { void preference.set({ subagentBackend: value }) }} /><span>{t(`subagentBackend_${value}`)}</span></label>)}
         </div>
       </div>
-      {snapshot.subagentBackendAvailable && !snapshot.subagentRuntimeInstalled ? <p className="codexSubscriptionPreferenceHint">{t('subagentRuntimeMissing')} <a href="https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md#codex-subtask-runtime" target="_blank" rel="noreferrer">{t('subagentRuntimePrepare')}</a></p> : null}
+      <RuntimeManagement rpc={rpc} preference={preference} t={t} />
       </section>
     </> : <>
       <QuickQuotaPreference preference={preference} t={t} />

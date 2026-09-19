@@ -34,8 +34,8 @@ export function CodexSection({ preference, rpc, accountStatus, t }) {
     <div role="tabpanel" id={`${id}-account`} aria-labelledby={`${id}-account-tab`} hidden={tab !== 'account'}>
     {accountSnapshot.status === 'error' ? <AccountFailureCard accountStatus={accountStatus} snapshot={accountSnapshot} t={t} rpc={rpc} onRecovered={accountChanged} /> : <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} />}
     {account === undefined ? null : <UsageCard key={resetKey} rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} preference={preference} />}
-    <PreferencesCard preference={preference} t={t} />
+    <PreferencesCard rpc={rpc} preference={preference} t={t} />
     </div>
-    <div role="tabpanel" id={`${id}-advanced`} aria-labelledby={`${id}-advanced-tab`} hidden={tab !== 'advanced'}><PreferencesCard preference={preference} t={t} section="advanced" /><ImagePreferences preference={preference} t={t} /><DiagnosticsCard rpc={rpc} t={t} /></div>
+    <div role="tabpanel" id={`${id}-advanced`} aria-labelledby={`${id}-advanced-tab`} hidden={tab !== 'advanced'}><PreferencesCard rpc={rpc} preference={preference} t={t} section="advanced" /><ImagePreferences preference={preference} t={t} /><DiagnosticsCard rpc={rpc} t={t} /></div>
   </section>
 }

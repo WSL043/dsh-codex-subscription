@@ -57,10 +57,10 @@ These capabilities reuse the same local ChatGPT sign-in. Subscription routing fa
 ## Product screen
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/context-settings.png" width="820" alt="2.0.0 account and preference settings: sign-in, quota display and alerts">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-advanced-current-en.png" width="820" alt="Live DSH advanced settings: models, search, connection and cloud compaction">
 </p>
 
-2.0.0 groups settings into Account & preferences and Advanced & diagnostics. Screenshots use the Chinese UI, with the account label hidden and scrollable content expanded for readability. [View advanced settings](docs/assets/settings-advanced-2.0.png).
+Settings are grouped into Account & preferences and Advanced. The screenshot shows the upper part of the actual English advanced page. Optional component management is shown below.
 
 ## Prepare DSH
 
@@ -251,7 +251,47 @@ see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-
 Opt in under **Advanced & diagnostics**. SSE and DSH subtasks remain the defaults:
 
 - **WebSocket** reuses connections and eligible context transfers. Failed handshakes can fall back to SSE; interrupted responses surface an error without automatic replay. Applies to the next request, does not expand context limits, and is not guaranteed to be faster.
-- **Codex independent subtasks** reuse your subscription login and the official DSH Codex runtime, without a separate login or CLI setup. They inherit the current subscription model and workspace permissions by default. Enable DSH subtask model selection, configure allowed models and start a new session to specify the child model and reasoning effort in chat. Non-subscription sessions must explicitly select a subscription model. Shared-context subtasks remain with DSH.
+- **Codex independent subtasks** reuse your subscription login and the official DSH Codex runtime, without a separate login; install its optional component in settings. They inherit the current subscription model and workspace permissions by default. Enable DSH subtask model selection, configure allowed models and start a new session to specify the child model and reasoning effort in chat. Non-subscription sessions must explicitly select a subscription model. Shared-context subtasks remain with DSH.
+
+<a id="codex-subtask-runtime"></a>
+
+## Optional Codex subtask runtime
+
+Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only **Codex independent subtasks (Beta)** require the optional official runtime. The plugin never downloads it in the background.
+
+In **Settings → Codex → Advanced → Independent subtasks**, click **Install component**. DSH handles installation; the page shows its stage and offers cancellation before applying. Restart after completion, then choose Codex. Installation does not enable subtasks automatically.
+
+![Optional component management](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-runtime-current-en.png)
+
+For older hosts without the management interface, run this in the target DSH environment, then restart:
+
+```sh
+dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.1.5-rc.2
+```
+
+In the plugin installation UI, enter only `@deepseek-ai/dsh-subagent-codex@0.1.5-rc.2`, not the full command. Select Codex in advanced settings after preparation. Missing or failed preparation does not block subscription chat or the DSH backend. Shared-context subtasks remain in DSH.
+
+For offline preparation, install and verify beforehand on the target operating system and architecture, retaining the complete profile dependencies when moving it. The subscription archive or Codex wrapper alone is insufficient without the platform binary. First-time installation cannot complete offline unless dependencies are already prepared. Existing runtime checks and startup do not download anything; model requests still require connectivity. Do not use `--force` to install foreign-platform optional packages.
+
+**Upgrading an existing installation:** if you use Codex subtasks, run the preparation command before upgrading this plugin to retain the runtime explicitly in the same profile. A runtime only installed transitively by an older version may be removed during dependency reconciliation. The same command repairs an already-upgraded installation; restart afterwards.
+
+The runtime version is pinned separately; subscription updates do not silently upgrade it. This integration uses the official provider package-local CLI, never searches PATH or desktop-private runtimes, and removes the component only after an explicit uninstall request. Shared package caches are not deleted.
+
+### When you no longer need it
+
+To disable it, switch back to **DSH** in Advanced settings. The component stays installed so you can enable it again later.
+
+To uninstall it, click **Uninstall component** in the same section and confirm. The plugin blocks removal while Codex subtasks are running, switches back to DSH, and uses the official uninstall interface. Restart after completion. On older hosts, run this in a terminal, replacing `web` with the profile where you installed it:
+
+```sh
+dsh plugin --profile web remove @deepseek-ai/dsh-subagent-codex
+```
+
+This removes the optional subtask component, not the subscription plugin. Subscription chat, image generation and native DSH subtasks are unaffected. The package manager may keep the component if another plugin still depends on it.
+
+### Storage and cleanup
+
+Uninstalling does not clear shared package caches or guarantee a fixed amount of reclaimed space. DSH or Portable manages those caches centrally; this plugin does not delete shared directories. Sketches, conversation history, generated originals and sign-in data are not package caches. Use their respective management controls when you want to remove them.
 
 ## Update and uninstall
 
@@ -310,23 +350,3 @@ Read [SECURITY.md](SECURITY.md) before reporting sensitive issues.
 If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex-subscription/stargazers) helps more DSH users find it.
 
 [简体中文](README.md) · [MIT](LICENSE)
-
-<a id="codex-subtask-runtime"></a>
-
-## Optional Codex subtask runtime
-
-Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only **Codex independent subtasks (Beta)** require the optional official runtime. The plugin never downloads it in the background.
-
-Run in the target DSH environment, using the same profile as this plugin, then restart DSH:
-
-```sh
-dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.1.5-rc.2
-```
-
-In the plugin installation UI, enter only `@deepseek-ai/dsh-subagent-codex@0.1.5-rc.2`, not the full command. Select Codex in advanced settings after preparation. Missing or failed preparation does not block subscription chat or the DSH backend. Shared-context subtasks remain in DSH.
-
-For offline preparation, install and verify beforehand on the target operating system and architecture, retaining the complete profile dependencies when moving it. The subscription archive or Codex wrapper alone is insufficient without the platform binary. First-time installation cannot complete offline unless dependencies are already prepared. Existing runtime checks and startup do not download anything; model requests still require connectivity. Do not use `--force` to install foreign-platform optional packages.
-
-**Upgrading an existing installation:** if you use Codex subtasks, run the preparation command before upgrading this plugin to retain the runtime explicitly in the same profile. A runtime only installed transitively by an older version may be removed during dependency reconciliation. The same command repairs an already-upgraded installation; restart afterwards.
-
-The runtime version is pinned separately; subscription updates do not silently upgrade it. This integration uses the official provider package-local CLI, never searches PATH or desktop-private runtimes, and does not delete existing installations or caches.

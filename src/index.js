@@ -4,6 +4,7 @@ import { createCompactionBridge } from './subscription-compaction.js'
 import { registerSubscriptionTransport } from './subscription-transport.js'
 import { createSubagentBackendSwitcher, createSubscriptionSubagent, loadSubagentRuntime } from './subagent-backend.js'
 import { inspectSubagentRuntime } from './subagent-runtime.js'
+import { createRuntimeManagement } from './runtime-management.js'
 import { createSketchAgentBridge } from './sketch-agent-bridge.js'
 import { createSketchAgentTool } from './sketch-agent-tool.js'
 import { registerSketchCodec } from './sketch-codec-route.js'
@@ -119,6 +120,12 @@ export function apply(ctx) {
   const baseProvider = openaiCodexProvider()
   let resolveAuth = async () => undefined
   let subagentBackend
+  const runtimeManagement = createRuntimeManagement({
+    manager: () => ctx.get?.('pluginManager'), inspect: inspectSubagentRuntime,
+    active: () => subagentBackend?.activeCount() ?? 0,
+    selectDsh: async () => { if (subagentBackend) await subagentBackend.select('dsh'); else await settings.update({ subagentBackend: 'dsh' }) },
+  })
+  ctx.effect(() => ctx.on?.('plugin-manager/install-state', value => runtimeManagement.progress(value)))
   const modelCatalog = createOfficialModelCatalog({
     getAuth: options => resolveAuth(options),
     readCredential: options => store.read(PROVIDER, options),
@@ -226,6 +233,7 @@ export function apply(ctx) {
       resolveAuth, store,
       refresh: credential => network.run('oauth', () => baseProvider.auth.oauth.refresh(credential)),
       loadRuntime: loadSubagentRuntime,
+      maintenance: runtimeManagement.blocked,
     })
     scoped.subagents.registerProvider(instance.provider)
     const switcher = createSubagentBackendSwitcher({
@@ -241,7 +249,7 @@ export function apply(ctx) {
       requested = mode
       try { await switcher.select(mode) } catch (error) { requested = settings.get().subagentBackend ?? 'dsh'; throw error }
     }
-    subagentBackend = { select }
+    subagentBackend = { select, activeCount: instance.activeCount }
     const sync = value => {
       const mode = value.subagentBackend ?? 'dsh'
       if (mode !== requested) void select(mode).catch(() => scoped.logger.warn('Could not switch the subscription subagent backend'))
@@ -384,6 +392,7 @@ export function apply(ctx) {
     usageReader,
     resetCreditService,
     preferences,
+    runtimeManagement,
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog }),
     modelCatalog,
     closeConnections: () => connection.dispose(),

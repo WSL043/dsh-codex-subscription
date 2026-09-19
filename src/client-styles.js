@@ -215,5 +215,13 @@ export const STYLE = `
 @container (max-width:480px){.codexSubscriptionAccountRow,.codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column}
 .codexSubscriptionActions{width:100%}
 .codexSubscriptionSearchChoices{grid-template-columns:1fr}}
+.codexSubscriptionRuntime{font-size:12px;line-height:1.6;margin-top:12px;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionRuntime summary{cursor:pointer;width:fit-content;color:var(--dsw-alias-label-primary);border-radius:6px}
+.codexSubscriptionRuntime summary:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+.codexSubscriptionRuntime p{margin:8px 0}
+.codexSubscriptionRuntime .codexSubscriptionPreference{flex-wrap:wrap;align-items:flex-start}
+.codexSubscriptionRuntime .codexSubscriptionPreference>span{flex:1;min-width:180px;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionRuntime button{flex-shrink:0;white-space:nowrap}
+.codexSubscriptionRuntime code{display:block;overflow-wrap:anywhere;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;user-select:text}
 @media(max-width:640px){.codexSubscriptionCard{padding:14px}}
 `

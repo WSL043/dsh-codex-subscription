@@ -58,10 +58,10 @@ DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的�
 ## 实际界面
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/context-settings.png" width="820" alt="2.0.0 账号与偏好：登录、额度、显示模式与提醒">
+  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-advanced-current.png" width="820" alt="DSH 实机高级设置：模型、搜索、连接方式与云端压缩">
 </p>
 
-2.0.0 设置分为“账号与偏好”和“高级与诊断”。截图已隐藏账号信息，并展开滚动内容便于阅读；[查看高级页](docs/assets/settings-advanced-2.0.png)。
+设置分为“账号与偏好”和“高级与诊断”。上图为真实高级页的上半部分；可选组件的安装与卸载见下文。
 
 ## 准备 DSH
 
@@ -250,7 +250,47 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 在 **高级与诊断** 中按需开启，默认仍使用 SSE 和 DSH 子任务：
 
 - **WebSocket**：复用连接和可复用的上下文传输；握手失败可回退 SSE，已开始的响应中断会报错，不自动重放。下次请求生效，不增加模型上下文容量，也不保证更快。
-- **Codex 独立子任务**：复用订阅登录和官方 DSH Codex 运行时，无需另行登录或配置 CLI。默认继承当前订阅模型及工作区权限。开启 DSH 子任务模型选择、配置允许模型并新建会话后，可在聊天中指定子任务模型与推理档位；非订阅会话需明确选择订阅模型。共享上下文的子任务仍交给 DSH。
+- **Codex 独立子任务**：复用订阅登录和官方 DSH Codex 运行时，无需另行登录；可选组件在高级设置中安装。默认继承当前订阅模型及工作区权限。开启 DSH 子任务模型选择、配置允许模型并新建会话后，可在聊天中指定子任务模型与推理档位；非订阅会话需明确选择订阅模型。共享上下文的子任务仍交给 DSH。
+
+<a id="codex-subtask-runtime"></a>
+
+## 可选 Codex 子任务运行时
+
+普通订阅聊天、图片和 DSH 原生子任务不需要 Codex CLI。只有高级设置中的 **Codex 独立子任务（Beta）** 需要额外准备官方运行时，插件不会后台自动下载。
+
+在 **设置 → Codex 订阅 → 高级与诊断 → 独立子任务** 点击 **安装组件**。DSH 负责安装，页面显示当前阶段，可取消尚未应用的安装；完成后重启，再选择 Codex。安装不会自动开启子任务。
+
+![可选组件管理实机界面](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-runtime-current.png)
+
+旧版宿主没有管理接口时，才在目标 DSH 环境的终端执行，然后重启：
+
+```sh
+dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.1.5-rc.2
+```
+
+如果使用插件安装页面，在包名框只填 `@deepseek-ai/dsh-subagent-codex@0.1.5-rc.2`，不要粘贴整条命令。安装到订阅插件所在的同一个 profile。之后在高级设置选择 Codex；共享上下文子任务仍由 DSH 处理。准备失败或尚未准备不影响普通订阅聊天，可继续选择 DSH。
+
+离线使用前，应在同系统、同架构的目标环境提前安装并验证运行时，迁移时保留完整的 DSH profile 依赖。只有订阅插件压缩包或 Codex 主包不能代替当前平台的可执行包；未提前准备时，断网无法完成首次安装。已有运行时的检查和启动不需要下载安装，但模型请求本身仍需要联网。不要使用 `--force` 安装其他平台的可选包。
+
+**旧版升级**：如果已使用 Codex 独立子任务，请在升级订阅插件前执行上面的准备命令，将运行时显式保留在同一个 profile；仅由旧版间接安装的运行时可能随依赖整理移除。已经升级也可执行同一命令补齐，然后重启。
+
+运行时版本单独固定，不会随订阅插件更新而自动下载新 CLI。现阶段沿用官方 provider 的包内 CLI，不自动查找 PATH，也不复用桌面应用的私有 CLI。只有明确点击卸载才移除组件，安装缓存不由插件清理。
+
+### 不再使用时
+
+只想停用：在高级设置切回 **DSH**，组件仍保留，之后可再次开启。
+
+要卸载：在同一位置点击 **卸载组件** 并确认。插件会检查正在运行的子任务，切回 DSH 后交给官方接口卸载；有任务运行时不能卸载。完成后重启。旧版宿主可在终端执行（将 `web` 替换为实际安装的 profile）：
+
+```sh
+dsh plugin --profile web remove @deepseek-ai/dsh-subagent-codex
+```
+
+卸载的是可选子任务组件，不是订阅插件；普通订阅聊天、生图和 DSH 原生子任务不受影响。若其他插件仍依赖该组件，包管理器可能保留它。
+
+### 存储与清理
+
+卸载不等于清空共享安装缓存，也不能保证释放某个固定大小。安装缓存由 DSH／Portable 统一管理，本插件不直接删除共享目录。草稿、会话记录、生成原图和登录信息不是安装缓存；需要删除时应使用各自的管理入口，不做一键混合清理。
 
 ## 更新与卸载
 
@@ -311,23 +351,3 @@ DSH 插件交流可前往 [DeepSeek Harness Discussions](https://github.com/deep
 如果这个项目对你有帮助，[点一下 Star](https://github.com/WSL043/dsh-codex-subscription/stargazers) 可以让更多 DSH 用户发现它。
 
 [MIT](LICENSE)
-
-<a id="codex-subtask-runtime"></a>
-
-## 可选 Codex 子任务运行时
-
-普通订阅聊天、图片和 DSH 原生子任务不需要 Codex CLI。只有高级设置中的 **Codex 独立子任务（Beta）** 需要额外准备官方运行时，插件不会后台自动下载。
-
-在目标 DSH 环境的终端执行一次，然后重启 DSH：
-
-```sh
-dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.1.5-rc.2
-```
-
-如果使用插件安装页面，在包名框只填 `@deepseek-ai/dsh-subagent-codex@0.1.5-rc.2`，不要粘贴整条命令。安装到订阅插件所在的同一个 profile。之后在高级设置选择 Codex；共享上下文子任务仍由 DSH 处理。准备失败或尚未准备不影响普通订阅聊天，可继续选择 DSH。
-
-离线使用前，应在同系统、同架构的目标环境提前安装并验证运行时，迁移时保留完整的 DSH profile 依赖。只有订阅插件压缩包或 Codex 主包不能代替当前平台的可执行包；未提前准备时，断网无法完成首次安装。已有运行时的检查和启动不需要下载安装，但模型请求本身仍需要联网。不要使用 `--force` 安装其他平台的可选包。
-
-**旧版升级**：如果已使用 Codex 独立子任务，请在升级订阅插件前执行上面的准备命令，将运行时显式保留在同一个 profile；仅由旧版间接安装的运行时可能随依赖整理移除。已经升级也可执行同一命令补齐，然后重启。
-
-运行时版本单独固定，不会随订阅插件更新而自动下载新 CLI。现阶段沿用官方 provider 的包内 CLI，不自动查找 PATH，也不复用桌面应用的私有 CLI。已有安装和缓存不会由插件删除。
