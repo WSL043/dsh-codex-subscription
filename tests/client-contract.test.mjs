@@ -28,7 +28,7 @@ test('client is one removable DSH settings section, not a second application she
   assert.match(source, /slots\.inject\(['"]settings\.section['"]/)
   assert.match(source, /id:\s*['"]codex-subscription['"]/)
   assert.match(source, /['"]\/codex-subscription['"]/) // RPC channel
-  const withoutRepositorySupportLink = source.replace('https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml', '')
+  const withoutRepositorySupportLink = source.replace('https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml', '').replace('https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md#codex-subtask-runtime', '')
   assert.doesNotMatch(withoutRepositorySupportLink, /wsl043/iu)
   assert.match(source, /login\/start/)
   assert.match(source, /login\/status/)

@@ -137,9 +137,4 @@ export function createSubagentBackendSwitcher({ entries, prepare, persist }) {
   }
 }
 
-export async function loadSubagentRuntime() {
-  const [official, { JsonRpcLineTransport: Transport }] = await Promise.all([
-    import('@deepseek-ai/dsh-subagent-codex'), import('@deepseek-ai/dsh-sdk-protocol'),
-  ])
-  return { official, Transport }
-}
+export { loadSubagentRuntime } from './subagent-runtime.js'

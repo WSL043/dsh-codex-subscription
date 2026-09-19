@@ -12,6 +12,15 @@ const pngDimensions = path => {
 const manifest = JSON.parse(text('package.json'))
 const compatibility = JSON.parse(text('compatibility.json'))
 
+test('normal installation does not pull the optional Codex executable runtime', () => {
+  const runtime = '@deepseek-ai/dsh-subagent-codex'
+  assert.equal(manifest.dependencies?.[runtime], undefined)
+  assert.equal(manifest.optionalDependencies?.[runtime], undefined)
+  assert.equal(manifest.peerDependenciesMeta?.[runtime]?.optional, true)
+  assert.equal(manifest.peerDependencies[runtime], '0.1.5-rc.2')
+  assert.equal(manifest.devDependencies[runtime], '0.1.5-rc.2')
+})
+
 test('scheduled compatibility checks cannot commit or release merely because upstream changed', () => {
   const workflow = text('.github/workflows/upstream-compatibility.yml')
   assert.match(workflow, /publish_compatibility:\s*\n\s*description:[^\n]*\n\s*required: false\s*\n\s*type: boolean\s*\n\s*default: false/u)
@@ -57,7 +66,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
   const supportedDshReleases = new Set([...compatibility.supported, ...compatibility.previews])
   for (const [name, version] of Object.entries(pkg.peerDependencies)) {
-    if (name.startsWith('@deepseek-ai/dsh-')) assert.deepEqual(new Set(version.split(' || ')), supportedDshReleases, name)
+    if (name.startsWith('@deepseek-ai/dsh-') && !pkg.peerDependenciesMeta?.[name]?.optional) assert.deepEqual(new Set(version.split(' || ')), supportedDshReleases, name)
   }
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-llm-pi-ai'], compatibility.latestTested)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-api-remotes'], compatibility.latestTested)

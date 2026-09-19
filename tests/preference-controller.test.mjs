@@ -42,6 +42,21 @@ function harness({ fail = false, rpcCall } = {}) {
 }
 
 const fallbackModels = [{ key: 'gpt-5.5', label: 'GPT-5.5', maximum: 1_000_000 }]
+
+test('missing Codex runtime leaves ordinary preferences and the DSH backend usable', async () => {
+  let installed = false
+  const { controller } = harness({ rpcCall: async () => ({ ok: true, value: {
+    subagentBackendAvailable: true, subagentRuntimeInstalled: installed,
+  } }) })
+  await controller.load()
+  assert.equal(controller.getSnapshot().subagentRuntimeInstalled, false)
+  assert.equal(controller.getSnapshot().subagentBackend, 'dsh')
+  assert.equal(controller.getSnapshot().writable, true)
+  installed = true
+  await controller.load()
+  assert.equal(controller.getSnapshot().subagentRuntimeInstalled, true)
+  controller.dispose()
+})
 const astraModels = [...fallbackModels, { key: 'gpt-6-astra', label: 'GPT-6 Astra', maximum: 872_000 }]
 const fallbackValue = {
   contextMode: CONTEXT_MODE_STANDARD,

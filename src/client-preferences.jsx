@@ -119,9 +119,10 @@ export function PreferencesCard({ preference, t, section = "display" }) {
       <div className="codexSubscriptionPreference">
         <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('subagentBackendTitle')} <small>Beta</small></span><span className="codexSubscriptionPreferenceHint">{t(snapshot.subagentBackendAvailable ? 'subagentBackendHint' : 'subagentBackendUnavailable')}</span></div>
         <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('subagentBackendTitle')} aria-busy={snapshot.saving || undefined}>
-          {['dsh', 'codex'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-subagent-backend" checked={snapshot.subagentBackend === value} disabled={!snapshot.writable || !snapshot.subagentBackendAvailable} onChange={() => { void preference.set({ subagentBackend: value }) }} /><span>{t(`subagentBackend_${value}`)}</span></label>)}
+          {['dsh', 'codex'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-subagent-backend" checked={snapshot.subagentBackend === value} disabled={!snapshot.writable || !snapshot.subagentBackendAvailable || (value === 'codex' && !snapshot.subagentRuntimeInstalled)} onChange={() => { void preference.set({ subagentBackend: value }) }} /><span>{t(`subagentBackend_${value}`)}</span></label>)}
         </div>
       </div>
+      {snapshot.subagentBackendAvailable && !snapshot.subagentRuntimeInstalled ? <p className="codexSubscriptionPreferenceHint">{t('subagentRuntimeMissing')} <a href="https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md#codex-subtask-runtime" target="_blank" rel="noreferrer">{t('subagentRuntimePrepare')}</a></p> : null}
       </section>
     </> : <>
       <QuickQuotaPreference preference={preference} t={t} />

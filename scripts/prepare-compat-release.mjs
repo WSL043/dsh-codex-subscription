@@ -114,12 +114,12 @@ export function planCompatibilityUpdate(state, candidate) {
   manifest.version = preview ? nextBetaVersion(previousPluginVersion) : nextStableVersion(previousPluginVersion)
   if (!preview) {
     for (const name of Object.keys(manifest.devDependencies ?? {})) {
-      if (name.startsWith('@deepseek-ai/dsh-')) manifest.devDependencies[name] = candidate
+      if (name.startsWith('@deepseek-ai/dsh-') && !manifest.peerDependenciesMeta?.[name]?.optional) manifest.devDependencies[name] = candidate
     }
   }
   const supportedRange = [...compatibility.supported, ...compatibility.previews].sort(compareVersions).join(' || ')
   for (const name of Object.keys(manifest.peerDependencies ?? {})) {
-    if (name.startsWith('@deepseek-ai/dsh-')) manifest.peerDependencies[name] = supportedRange
+    if (name.startsWith('@deepseek-ai/dsh-') && !manifest.peerDependenciesMeta?.[name]?.optional) manifest.peerDependencies[name] = supportedRange
   }
 
   return {

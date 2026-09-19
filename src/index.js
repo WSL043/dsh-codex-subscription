@@ -3,6 +3,7 @@ import { createSubscriptionConnection } from './subscription-connection.js'
 import { createCompactionBridge } from './subscription-compaction.js'
 import { registerSubscriptionTransport } from './subscription-transport.js'
 import { createSubagentBackendSwitcher, createSubscriptionSubagent, loadSubagentRuntime } from './subagent-backend.js'
+import { inspectSubagentRuntime } from './subagent-runtime.js'
 import { createSketchAgentBridge } from './sketch-agent-bridge.js'
 import { createSketchAgentTool } from './sketch-agent-tool.js'
 import { registerSketchCodec } from './sketch-codec-route.js'
@@ -156,6 +157,7 @@ export function apply(ctx) {
       connectionMode: settings.get().connectionMode ?? 'sse',
       subagentBackend: settings.get().subagentBackend ?? 'dsh',
       subagentBackendAvailable: subagentBackend !== undefined,
+      subagentRuntimeInstalled: inspectSubagentRuntime().installed,
       ...readCapabilitySettings(settings.get()),
       [QUICK_QUOTA_MODE_FIELD]: normalizeQuickQuotaMode(
         settings.get()[QUICK_QUOTA_MODE_FIELD],

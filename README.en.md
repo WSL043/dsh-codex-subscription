@@ -310,3 +310,23 @@ Read [SECURITY.md](SECURITY.md) before reporting sensitive issues.
 If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex-subscription/stargazers) helps more DSH users find it.
 
 [简体中文](README.md) · [MIT](LICENSE)
+
+<a id="codex-subtask-runtime"></a>
+
+## Optional Codex subtask runtime
+
+Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only **Codex independent subtasks (Beta)** require the optional official runtime. The plugin never downloads it in the background.
+
+Run in the target DSH environment, using the same profile as this plugin, then restart DSH:
+
+```sh
+dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.1.5-rc.2
+```
+
+In the plugin installation UI, enter only `@deepseek-ai/dsh-subagent-codex@0.1.5-rc.2`, not the full command. Select Codex in advanced settings after preparation. Missing or failed preparation does not block subscription chat or the DSH backend. Shared-context subtasks remain in DSH.
+
+For offline preparation, install and verify beforehand on the target operating system and architecture, retaining the complete profile dependencies when moving it. The subscription archive or Codex wrapper alone is insufficient without the platform binary. First-time installation cannot complete offline unless dependencies are already prepared. Existing runtime checks and startup do not download anything; model requests still require connectivity. Do not use `--force` to install foreign-platform optional packages.
+
+**Upgrading an existing installation:** if you use Codex subtasks, run the preparation command before upgrading this plugin to retain the runtime explicitly in the same profile. A runtime only installed transitively by an older version may be removed during dependency reconciliation. The same command repairs an already-upgraded installation; restart afterwards.
+
+The runtime version is pinned separately; subscription updates do not silently upgrade it. This integration uses the official provider package-local CLI, never searches PATH or desktop-private runtimes, and does not delete existing installations or caches.
