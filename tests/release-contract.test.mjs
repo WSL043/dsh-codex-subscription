@@ -181,9 +181,9 @@ test('plugin-owned marketplace screenshots stay valid and show both product lang
   }
   for (const path of [
     'docs/assets/settings-advanced-current-en.png',
-    'docs/assets/image-preview-annotations-en.png',
+    'docs/assets/codex-subscription-overview-en.webp',
     'docs/assets/settings-advanced-current.png',
-    'docs/assets/image-preview-annotations.png',
+    'docs/assets/codex-subscription-overview.webp',
   ]) assert.equal(screenshots.includes(path), true, `marketplace must show ${path}`)
 })
 
