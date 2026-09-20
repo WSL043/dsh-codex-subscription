@@ -60,7 +60,7 @@ These capabilities reuse the same local ChatGPT sign-in. Subscription routing fa
   <img src="docs/assets/subscription-account-en.png" width="820" alt="DSH Codex subscription main screen: ChatGPT sign-in, remaining quota and composer preferences">
 </p>
 
-The actual Account & preferences screen shows sign-in status, subscription quota and composer preferences. Account identifiers and Credits balances are hidden; quota is an account-specific snapshot. Advanced options and optional components are described below.
+The actual Account & preferences screen shows sign-in status, subscription quota and composer preferences. Account, quota, balance and time values are demo data, not fixed plan entitlements. Advanced options and optional components are described below.
 
 ## Prepare DSH
 
