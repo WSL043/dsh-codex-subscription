@@ -19,7 +19,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 </div>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
+  <img src="docs/assets/readme-hero-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
 </p>
 
 ## Three-step start
@@ -57,7 +57,7 @@ These capabilities reuse the same local ChatGPT sign-in. Subscription routing fa
 ## Product screen
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-advanced-current-en.png" width="820" alt="Live DSH advanced settings: models, search, connection and cloud compaction">
+  <img src="docs/assets/settings-advanced-current-en.png" width="820" alt="Live DSH advanced settings: models, search, connection and cloud compaction">
 </p>
 
 Settings are grouped into Account & preferences and Advanced. The screenshot shows the upper part of the actual English advanced page. Optional component management is shown below.
@@ -143,7 +143,7 @@ When the official model catalog exposes GPT-6 Astra, Standard preserves the cata
 ### Composer quota
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota.png" width="800" alt="Live DSH composer with GPT-6-Astra, Max reasoning, Fast mode, and remaining quota">
+  <img src="docs/assets/composer-quota.png" width="800" alt="Live DSH composer with GPT-6-Astra, Max reasoning, Fast mode, and remaining quota">
 </p>
 
 Live example: GPT-6-Astra with Max (the highest reasoning level) and Fast mode (lightning icon), with remaining quota visible on the left.
@@ -172,14 +172,14 @@ New and edited images return the exact original path on the current DSH host in 
 A new image request does not silently include earlier images. GPT Image 2 can take longer than a normal text turn, and detailed text, exact composition, or repeated-character consistency may still need another pass.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/image-preview-annotations-en.png" width="800" alt="Generated image, region note, and continue editing inside the DSH Image Viewer">
+  <img src="docs/assets/image-preview-annotations-en.png" width="800" alt="Generated image, region note, and continue editing inside the DSH Image Viewer">
 </p>
 
 The screenshot above illustrates image viewing and on-image notes; available buttons can vary with the image and installed viewer version.
 
 ### Sketch canvas (Beta)
 
-![Sketch canvas in the Chinese UI: aspect ratio, brushes, shapes, layers and zoom](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-canvas.png)
+![Sketch canvas in the Chinese UI: aspect ratio, brushes, shapes, layers and zoom](docs/assets/sketch-canvas.png)
 
 Use the composer pen button for manual drawing. Selecting `@sketch` only inserts the Agent entry into the composer; the Agent opens the board after you send your drawing request. You can also choose Open in sketch from an enhanced image preview. Attachment intake and removal use the native DSH component.
 
@@ -191,7 +191,7 @@ The board supports editable shapes and text, native curves, and a side control f
 
 | Original sketch | Actual plugin output |
 | --- | --- |
-| ![Mountains and cabin sketch](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-demo-source.png) | ![Watercolor mountain cabin generated from the sketch](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-demo-result.png) |
+| ![Mountains and cabin sketch](docs/assets/sketch-demo-source.png) | ![Watercolor mountain cabin generated from the sketch](docs/assets/sketch-demo-result.png) |
 
 The request preserves the mountain and cabin composition while creating a warm watercolor travel illustration with green peaks, an orange roof, a meadow stream and morning light, without the blue outlines. GPT-5.6-Luna made one image-tool call requesting low quality. Luna is the conversation model; the subscription backend determines the actual image model.
 
@@ -204,7 +204,7 @@ The request preserves the mountain and cabin composition while creating a warm w
 
 | Native sketch | Generated result |
 | --- | --- |
-| ![Sketch](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-advanced-source.png) | ![Result](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-advanced-result.png) |
+| ![Sketch](docs/assets/sketch-advanced-source.png) | ![Result](docs/assets/sketch-advanced-result.png) |
 
 **Sketch reproduction prompt (reconstructed from the artwork, not the original conversation)**
 
@@ -230,7 +230,7 @@ Actual results supplied by the user from another computer: Astra draws on a port
 
 | Native Astra sketch | GPT-generated oil painting |
 | --- | --- |
-| ![Mona Lisa sketch drawn by Astra](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-mona-lisa-source.png) | ![Mona Lisa oil painting generated from the sketch](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-mona-lisa-result.png) |
+| ![Mona Lisa sketch drawn by Astra](docs/assets/sketch-mona-lisa-source.png) | ![Mona Lisa oil painting generated from the sketch](docs/assets/sketch-mona-lisa-result.png) |
 
 Original sketch prompt: `@sketch 用竖版画板画一幅《蒙娜丽莎》` (Draw the Mona Lisa on a portrait canvas.)
 
@@ -261,7 +261,7 @@ Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only *
 
 In **Settings → Codex → Advanced → Independent subtasks**, click **Install component**. DSH handles installation; the page shows its stage and offers cancellation before applying. Restart after completion, then choose Codex. Installation does not enable subtasks automatically.
 
-![Optional component management](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-runtime-current-en.png)
+![Optional component management](docs/assets/settings-runtime-current-en.png)
 
 For older hosts without the management interface, run this in the target DSH environment, then restart:
 

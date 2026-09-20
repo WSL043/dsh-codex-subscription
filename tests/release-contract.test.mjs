@@ -141,13 +141,13 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /依次粘贴下面两行|paste these two lines in order|下面三行|three lines/iu)
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /\birm\b|dsh-codex-setup\.ps1/iu)
   assert.doesNotMatch(readmeZh, /安装提示词|更新提示词|卸载提示词/u)
-  assert.match(readmeZh, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/settings-advanced-current\.png/u)
-  assert.match(readme, /https:\/\/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/settings-advanced-current-en\.png/u)
+  assert.match(readmeZh, /docs\/assets\/settings-advanced-current\.png/u)
+  assert.match(readme, /docs\/assets\/settings-advanced-current-en\.png/u)
   assert.match(readme, /actual English advanced page/u)
-  assert.match(readmeZh, /raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/composer-quota\.png/u)
+  assert.match(readmeZh, /docs\/assets\/composer-quota\.png/u)
   assert.doesNotMatch(readmeZh, /docs\/assets\/composer-quota-en\.png/u)
   for (const doc of [readme, readmeZh]) {
-    for (const match of doc.matchAll(/raw\.githubusercontent\.com\/WSL043\/dsh-codex-subscription\/main\/docs\/assets\/([^\s)]+\.png)/gu)) {
+    for (const match of doc.matchAll(/docs\/assets\/([^\s)]+\.png)/gu)) {
       const asset = match[1]
       assert.equal(existsSync(new URL(`../docs/assets/${asset}`, import.meta.url)), true, `documented release image must exist: ${asset}`)
       assert.doesNotMatch(doc, /releases\/latest\/download\/[^\s)]+\.png/u)

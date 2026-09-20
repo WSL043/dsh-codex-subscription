@@ -20,7 +20,7 @@
 </div>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/readme-hero.webp" width="900" alt="Codex 订阅直接用在 DSH：订阅模型、联网搜索、额度与安全重置、图片生成和高速模式">
+  <img src="docs/assets/readme-hero.webp" width="900" alt="Codex 订阅直接用在 DSH：订阅模型、联网搜索、额度与安全重置、图片生成和高速模式">
 </p>
 
 ## 三步开始
@@ -58,7 +58,7 @@ DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的�
 ## 实际界面
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-advanced-current.png" width="820" alt="DSH 实机高级设置：模型、搜索、连接方式与云端压缩">
+  <img src="docs/assets/settings-advanced-current.png" width="820" alt="DSH 实机高级设置：模型、搜索、连接方式与云端压缩">
 </p>
 
 设置分为“账号与偏好”和“高级与诊断”。上图为真实高级页的上半部分；可选组件的安装与卸载见下文。
@@ -144,7 +144,7 @@ dsh --profile web --dump-config
 ### 输入框额度
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/composer-quota.png" width="800" alt="DSH 实机输入框：GPT-6-Astra、Max 推理、高速模式和剩余额度">
+  <img src="docs/assets/composer-quota.png" width="800" alt="DSH 实机输入框：GPT-6-Astra、Max 推理、高速模式和剩余额度">
 </p>
 
 实机示例：GPT-6-Astra · Max（最高推理档）· 高速模式（闪电标识），左侧直接显示剩余额度。
@@ -171,14 +171,14 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 新的图片请求不会静默带入历史图片。GPT Image 2 可能比文本回复耗时更长，复杂文字、精确构图和连续角色一致性也可能需要再次调整。
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/image-preview-annotations.png" width="800" alt="DSH 图片查看器中的生成图、区域备注和继续编辑">
+  <img src="docs/assets/image-preview-annotations.png" width="800" alt="DSH 图片查看器中的生成图、区域备注和继续编辑">
 </p>
 
 上图展示图片查看与图上备注的基本交互；具体按钮会随图片和所安装的查看器版本变化。
 
 ### 草图画板（Beta）
 
-![草图画板实机界面：画布比例、笔刷、形状、图层与缩放](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-canvas.png)
+![草图画板实机界面：画布比例、笔刷、形状、图层与缩放](docs/assets/sketch-canvas.png)
 
 点击输入框的草图按钮手动画图。`@sketch` 是 Agent 绘图入口：选择时只填入输入框，发送绘图请求后才由 Agent 打开画板。图片预览中可选择“进入草图”；上传、粘贴和移除附件仍由 DSH 原生组件处理。
 
@@ -190,7 +190,7 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 
 | 画板原草图 | 插件实际生成结果 |
 | --- | --- |
-| ![山峰与小屋草图](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-demo-source.png) | ![根据草图生成的水彩山间小屋](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-demo-result.png) |
+| ![山峰与小屋草图](docs/assets/sketch-demo-source.png) | ![根据草图生成的水彩山间小屋](docs/assets/sketch-demo-result.png) |
 
 示例要求：保留山峰与小屋的构图，生成温暖的水彩旅行插画，青绿山峰、橙色屋顶、草地小溪与柔和晨光，不保留蓝色线条。此例通过 GPT-5.6-Luna 发起一次图片工具调用，请求低质量；Luna 是对话模型，实际出图型号由订阅后端决定。
 
@@ -203,7 +203,7 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 
 | 原生草图 | 实际生成结果 |
 | --- | --- |
-| ![Sketch](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-advanced-source.png) | ![Result](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-advanced-result.png) |
+| ![Sketch](docs/assets/sketch-advanced-source.png) | ![Result](docs/assets/sketch-advanced-result.png) |
 
 **草图复现提示词（按原画面整理，非完整原始对话）**
 
@@ -229,7 +229,7 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 
 | Astra 原生草图 | GPT 生图：油画效果 |
 | --- | --- |
-| ![Astra 绘制的蒙娜丽莎草图](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-mona-lisa-source.png) | ![草图转换后的蒙娜丽莎油画](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/sketch-mona-lisa-result.png) |
+| ![Astra 绘制的蒙娜丽莎草图](docs/assets/sketch-mona-lisa-source.png) | ![草图转换后的蒙娜丽莎油画](docs/assets/sketch-mona-lisa-result.png) |
 
 草图提示词：`@sketch 用竖版画板画一幅《蒙娜丽莎》`
 
@@ -260,7 +260,7 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 
 在 **设置 → Codex 订阅 → 高级与诊断 → 独立子任务** 点击 **安装组件**。DSH 负责安装，页面显示当前阶段，可取消尚未应用的安装；完成后重启，再选择 Codex。安装不会自动开启子任务。
 
-![可选组件管理实机界面](https://raw.githubusercontent.com/WSL043/dsh-codex-subscription/main/docs/assets/settings-runtime-current.png)
+![可选组件管理实机界面](docs/assets/settings-runtime-current.png)
 
 旧版宿主没有管理接口时，才在目标 DSH 环境的终端执行，然后重启：
 
