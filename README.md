@@ -1,4 +1,4 @@
-# DSH Codex Subscription
+# DSH Codex Subscription — 在 DeepSeek Harness 使用 ChatGPT 订阅
 
 <div align="center">
 
@@ -20,7 +20,7 @@
 </div>
 
 <p align="center">
-  <img src="docs/assets/codex-subscription-overview.webp" width="900" alt="Codex 订阅直接用在 DSH：订阅模型、联网搜索、额度与安全重置、图片生成和高速模式">
+  <img src="docs/assets/codex-subscription-overview.webp" width="900" alt="在 DeepSeek Harness 登录 ChatGPT 并使用 Codex 订阅：无需 API Key，支持模型选择和剩余额度显示">
 </p>
 
 ## 三步开始
@@ -58,10 +58,10 @@ DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的�
 ## 实际界面
 
 <p align="center">
-  <img src="docs/assets/settings-advanced-current.png" width="820" alt="DSH 实机高级设置：模型、搜索、连接方式与云端压缩">
+  <img src="docs/assets/subscription-account.png" width="820" alt="DSH Codex 订阅主界面：ChatGPT 登录、剩余额度与输入框偏好">
 </p>
 
-设置分为“账号与偏好”和“高级与诊断”。上图为真实高级页的上半部分；可选组件的安装与卸载见下文。
+上图为“账号与偏好”主界面，展示真实登录状态、订阅额度和输入框偏好。账号标识与 Credits 余额已遮盖，额度为截图时的账号读数。高级功能与可选组件见下文。
 
 ## 准备 DSH
 

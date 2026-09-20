@@ -141,9 +141,9 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /依次粘贴下面两行|paste these two lines in order|下面三行|three lines/iu)
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /\birm\b|dsh-codex-setup\.ps1/iu)
   assert.doesNotMatch(readmeZh, /安装提示词|更新提示词|卸载提示词/u)
-  assert.match(readmeZh, /docs\/assets\/settings-advanced-current\.png/u)
-  assert.match(readme, /docs\/assets\/settings-advanced-current-en\.png/u)
-  assert.match(readme, /actual English advanced page/u)
+  assert.match(readmeZh, /docs\/assets\/subscription-account\.png/u)
+  assert.match(readme, /docs\/assets\/subscription-account-en\.png/u)
+  assert.match(readme, /actual Account & preferences screen/u)
   assert.match(readmeZh, /docs\/assets\/composer-quota\.png/u)
   assert.doesNotMatch(readmeZh, /docs\/assets\/composer-quota-en\.png/u)
   for (const doc of [readme, readmeZh]) {

@@ -1,6 +1,6 @@
 <div align="center">
 
-# DSH Codex Subscription
+# DSH Codex Subscription — Use ChatGPT subscriptions in DeepSeek Harness
 
 [简体中文](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md) · **English**
 
@@ -19,7 +19,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 </div>
 
 <p align="center">
-  <img src="docs/assets/codex-subscription-overview-en.webp" width="900" alt="Your Codex subscription inside DSH: models, web search, quota and safe reset, image generation, and Fast mode">
+  <img src="docs/assets/codex-subscription-overview-en.webp" width="900" alt="Use ChatGPT and Codex subscriptions in DeepSeek Harness: sign in without an API key, choose models and view remaining quota">
 </p>
 
 ## Three-step start
@@ -57,10 +57,10 @@ These capabilities reuse the same local ChatGPT sign-in. Subscription routing fa
 ## Product screen
 
 <p align="center">
-  <img src="docs/assets/settings-advanced-current-en.png" width="820" alt="Live DSH advanced settings: models, search, connection and cloud compaction">
+  <img src="docs/assets/subscription-account-en.png" width="820" alt="DSH Codex subscription main screen: ChatGPT sign-in, remaining quota and composer preferences">
 </p>
 
-Settings are grouped into Account & preferences and Advanced. The screenshot shows the upper part of the actual English advanced page. Optional component management is shown below.
+The actual Account & preferences screen shows sign-in status, subscription quota and composer preferences. Account identifiers and Credits balances are hidden; quota is an account-specific snapshot. Advanced options and optional components are described below.
 
 ## Prepare DSH
 
