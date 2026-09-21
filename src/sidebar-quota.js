@@ -7,7 +7,16 @@ const isDisplayableWindow = window => Number.isFinite(window?.remainingPercent)
 const normalized = value => String(value ?? '').toLocaleLowerCase('en-US')
   .replaceAll(/[^a-z0-9]+/gu, '-')
 
-const limitMatchesModel = (limit, model) => {
+const exactModelLimit = (limit, model) => {
+  const id = normalized(model)
+  return id.length > 0 && [limit?.id, limit?.name]
+    .some(value => typeof value === 'string' && normalized(value) === id)
+}
+
+const limitMatchesModel = (limit, model, hasExactLimit) => {
+  if (hasExactLimit) return exactModelLimit(limit, model)
+  // Reserve is a separate route. Missing quota is unknown, not ordinary Codex quota.
+  if (normalized(model) === 'gpt-reserve') return false
   if (/\bspark\b/u.test(normalized(model))) {
     return /\bspark\b/u.test(normalized(`${limit?.id ?? ''} ${limit?.name ?? ''}`))
   }
@@ -15,9 +24,11 @@ const limitMatchesModel = (limit, model) => {
 }
 
 export function selectModelQuotaWindows(usage, model) {
+  const hasExactLimit = Array.isArray(usage?.rateLimits)
+    && usage.rateLimits.some(limit => exactModelLimit(limit, model))
   const windows = Array.isArray(usage?.rateLimits)
     ? usage.rateLimits
-      .filter(limit => limitMatchesModel(limit, model) && Array.isArray(limit.windows))
+      .filter(limit => limitMatchesModel(limit, model, hasExactLimit) && Array.isArray(limit.windows))
       .flatMap(limit => limit.windows)
       .filter(isDisplayableWindow)
     : []

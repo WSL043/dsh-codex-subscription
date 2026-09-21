@@ -2,6 +2,38 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import { selectModelQuota, selectModelQuotaWindows } from '../src/sidebar-quota.js'
+import { parseCodexUsage } from '../src/usage.js'
+
+test('separate backend Reserve quota survives parsing and is selected without ordinary quota', () => {
+  const usage = parseCodexUsage({
+    rate_limit: { primary_window: { used_percent: 100, limit_window_seconds: 18000 } },
+    additional_rate_limits: [{ metered_feature: 'gpt_reserve', limit_name: 'GPT-Reserve',
+      rate_limit: { primary_window: { used_percent: 25, limit_window_seconds: 604800 } } }],
+  })
+  assert.equal(usage.rateLimits.length, 2)
+  assert.deepEqual(selectModelQuotaWindows(usage, 'gpt-reserve'), [
+    { remainingPercent: 75, windowSeconds: 604800 },
+  ])
+  assert.equal(selectModelQuota(usage, 'gpt-5.6-luna').remainingPercent, 0)
+})
+
+test('Reserve never borrows ordinary quota when its bucket is absent or invalid', () => {
+  const ordinary = { id: 'codex', windows: [{ remainingPercent: 80, windowSeconds: 604800 }] }
+  for (const extra of [[], [{ id: 'gpt-reserve', windows: [] }],
+    [{ id: 'gpt-reserve', windows: [{ remainingPercent: NaN, windowSeconds: 604800 }] }],
+    [{ id: 'another-reserve', windows: ordinary.windows }]]) {
+    assert.deepEqual(selectModelQuotaWindows({ rateLimits: [ordinary, ...extra] }, 'gpt-reserve'), [])
+  }
+})
+
+test('an exact model quota takes priority over shared Codex quota', () => {
+  const usage = { rateLimits: [
+    { id: 'codex', windows: [{ remainingPercent: 10, windowSeconds: 604800 }] },
+    { id: 'model-specific', name: 'GPT-6-Astra', windows: [{ remainingPercent: 90, windowSeconds: 604800 }] },
+  ] }
+  assert.equal(selectModelQuota(usage, 'gpt-6-astra').remainingPercent, 90)
+  assert.equal(selectModelQuota(usage, 'gpt-5.6-luna').remainingPercent, 10)
+})
 
 test('composer retains both Plus five-hour and weekly quotas regardless of which is lower', () => {
   for (const [shortRemaining, weeklyRemaining] of [[90, 20], [10, 80]]) {
