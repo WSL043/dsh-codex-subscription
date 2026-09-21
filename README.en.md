@@ -136,6 +136,10 @@ Restart DSH manually after installation, then:
 - Visible errors when subscription routing is unavailable, with no silent paid fallback.
 
 
+### GPT-Reserve (Experimental)
+
+When the account’s official catalog advertises `gpt-reserve`, it appears at the end of the model picker as an experimental option. Availability and billing are determined by the service; a successful response does not confirm use of a separate reserve allowance. The composer shows only a matching quota bucket returned by the service, and does not substitute ordinary Codex quota when none is returned.
+
 ### GPT-6 Astra context
 
 When the official model catalog exposes GPT-6 Astra, Standard preserves the catalog window, Extended uses 872000 tokens, and Custom accepts 128000–872000 tokens (initially 272000). This limit follows the [official Codex model catalog](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34), not the API model's total context capacity. These settings only adjust DSH's local context budget; they do not grant model access or guarantee an account's server-side capacity. Actual availability remains subject to the service.

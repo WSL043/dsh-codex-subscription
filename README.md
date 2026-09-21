@@ -137,6 +137,10 @@ dsh --profile web --dump-config
 - 订阅路由不可用时明确报错，不会静默切换到其他付费路由。
 
 
+### GPT-Reserve（实验性）
+
+账号的官方模型目录提供 `gpt-reserve` 时，模型选择器末尾会出现实验性选项。可用性和扣费归属由服务端决定；请求成功不代表已确认使用独立备用额度。输入框只显示服务端返回的匹配额度桶，未返回时不会借用普通 Codex 额度。
+
 ### GPT-6 Astra 上下文
 
 当官方模型目录提供 GPT-6 Astra 时，标准模式保留目录默认窗口；扩展模式使用 872000 Token，自定义模式可设置 128000–872000 Token（初始值为 272000）。该上限依据 [Codex 官方模型目录](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34)，不是 API 模型的总上下文容量。这些设置只调整 DSH 的本地上下文预算，不授予模型访问权限，也不保证账号的服务端容量；实际可用性以服务端为准。
