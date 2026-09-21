@@ -42,7 +42,10 @@ function unsupportedCapabilities(value) {
 function visibleModel(value) {
   if (!record(value)) return undefined
   const id = nonEmpty(value.slug)
-  if (id === undefined || value.visibility !== 'list') return undefined
+  // Reserve is a manually selected experiment, only when the account catalog
+  // actually advertises it. Do not expose other hidden models or invent it offline.
+  const reserve = id === 'gpt-reserve' && ['list', 'hide'].includes(value.visibility)
+  if (id === undefined || (value.visibility !== 'list' && !reserve)) return undefined
   const supported = Array.isArray(value.supported_reasoning_levels) ? value.supported_reasoning_levels : []
   const input = Array.isArray(value.input_modalities)
     ? value.input_modalities.filter(item => ['text', 'image'].includes(item))
@@ -51,7 +54,7 @@ function visibleModel(value) {
   return {
     ...(Object.keys(unsupported).length ? { unsupported } : {}),
     id,
-    name: nonEmpty(value.display_name) ?? id,
+    name: reserve ? 'GPT-Reserve (Experimental)' : nonEmpty(value.display_name) ?? id,
     description: nonEmpty(value.description),
     priority: Number.isFinite(value.priority) ? value.priority : 0,
     input: input.length > 0 ? input : ['text'],
@@ -73,7 +76,8 @@ export function parseOfficialModelCatalog(value) {
   return value.models
     .map(visibleModel)
     .filter(model => model !== undefined && !seen.has(model.id) && seen.add(model.id))
-    .sort((left, right) => right.priority - left.priority)
+    .sort((left, right) => Number(left.id === 'gpt-reserve') - Number(right.id === 'gpt-reserve')
+      || right.priority - left.priority)
 }
 
 function mergeModel(baseModels, remote) {

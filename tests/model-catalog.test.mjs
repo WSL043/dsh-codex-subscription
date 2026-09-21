@@ -81,6 +81,20 @@ test('ChatGPT catalog keeps picker-visible subscription models that are not API-
   assert.equal(models[0].id, 'gpt-5.3-codex-spark')
 })
 
+test('Reserve is a labeled last-choice experiment only when advertised by the account', () => {
+  const models = parseOfficialModelCatalog({ models: [
+    remote({ slug: 'gpt-reserve', visibility: 'hide', priority: 999, input_modalities: ['text'] }),
+    remote({ slug: 'other-hidden', visibility: 'hide' }),
+    remote(),
+  ] })
+  assert.deepEqual(models.map(model => model.id), ['gpt-next', 'gpt-reserve'])
+  assert.equal(models[1].name, 'GPT-Reserve (Experimental)')
+  assert.deepEqual(models[1].input, ['text'])
+  assert.equal(models[1].thinkingLevelMap.max, 'max')
+  assert.equal(parseOfficialModelCatalog({ models: [remote()] }).some(model => model.id === 'gpt-reserve'), false)
+  assert.equal(parseOfficialModelCatalog({ models: [remote({ slug: 'gpt-reserve', visibility: 'disabled' })] }).length, 0)
+})
+
 test('Astra from the official catalog reaches DSH with the selected context window', async () => {
   const astraContext = { context_window: 272_000, max_context_window: 872_000 }
   const catalog = createOfficialModelCatalog({
