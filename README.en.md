@@ -138,6 +138,10 @@ Restart DSH manually after installation, then:
 
 Subscription chat and native DSH subtasks do not require the Codex runtime. Updating to 2.1.3 removes the runtime previously pulled in automatically when no other dependency requires it. An explicitly installed component can be removed in Advanced settings. Switching back to DSH does not uninstall it, and uninstalling does not automatically clear the host’s shared download cache.
 
+### Add instructions while a task is running
+
+Use DSH’s native message queue: messages sent during generation can wait for the next turn. Where the host offers interjection, its shortcut delivers queued input at the next step of the current turn. This does not immediately rewrite a response already being generated.
+
 ### GPT-Reserve (Experimental)
 
 When the account’s official catalog advertises `gpt-reserve`, it appears at the end of the model picker as an experimental option. Availability and billing are determined by the service; a successful response does not confirm use of a separate reserve allowance. The composer shows only a matching quota bucket returned by the service, and does not substitute ordinary Codex quota when none is returned.

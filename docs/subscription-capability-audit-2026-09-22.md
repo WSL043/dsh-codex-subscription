@@ -16,7 +16,7 @@ Registry: Codex stable 0.155.1, alpha 0.157.0-alpha.5; DSH stable 0.1.5-rc.2, al
 | Cloud compaction | Experimental opt-in SSE bridge; bounded encrypted replay state validated by account/model/history/digest/age. | Real restart/import/history-edit and failed-compaction recovery acceptance; do not infer readable summaries from encrypted items or enable by default from schema support. |
 | Usage history | No plan_limit_history integration in product source. Earlier source research identified a candidate endpoint. | Read-only probe with only coverage/freshness/precision summaries; retain current sampling on unsupported/incomplete responses. No precision or forecast improvement claim before account evidence. |
 | Codex independent subtasks | Official DSH provider, optional pinned runtime; default DSH path remains available. | Qualify runtime/provider together; evaluate continued tasks through upstream rather than implement another session controller. |
-| Steering / async tools | No dedicated subscription adapter support established in this review. | Requires DSH scheduling, cancellation and tool-result ordering. App-server turn/steer is not the subscription Responses endpoint. |
+| Steering / async tools | Follow-up host acceptance confirmed native queued input at the next turn and interjection at the next step of the current turn. | Reuse native inputs; this does not establish server-side mid-response steering or async tool execution. App-server turn/steer is not the subscription Responses endpoint. |
 | Voice, connectors, skills, marketplace | Official runtime/product capabilities, not automatically subscription transport features. | Do not add their full UI/auth/execution ownership to this plugin. Official plugin RPCs are still documented as under development. |
 
 ## Sources
@@ -26,4 +26,4 @@ Registry: Codex stable 0.155.1, alpha 0.157.0-alpha.5; DSH stable 0.1.5-rc.2, al
 - Published npm manifests for @openai/codex, @deepseek-ai/dsh and @deepseek-ai/dsh-subagent-codex (queried this date).
 - Source: model-catalog.js, diagnostics.js, subscription-rpc.js, subscription-connection.js, subscription-compaction.js, subagent-runtime.js.
 
-No model requests, account-history extraction, production runtime changes or feature enablement were performed for this audit.
+Initial review was read-only. Follow-up acceptance confirmed persisted compaction recovery through native storage and both native input queues. The usage-history endpoint returned incomplete, approximate coverage; it remains excluded from production forecasting. No production runtime changes or default feature enablement were made.
