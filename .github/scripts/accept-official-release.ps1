@@ -40,7 +40,6 @@ function Initialize-Runner {
         --dir $runnerRoot `
         --config.minimum-release-age=0 `
         add `
-        --ignore-workspace `
         --save-exact `
         '--allow-build=@deepseek-ai/dsh-subprocess-local' `
         '--allow-build=@google/genai' `

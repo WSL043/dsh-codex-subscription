@@ -11,3 +11,10 @@ test('official acceptance pins matching cohort dependencies without changing ind
   }, optionalDependencies: { '@deepseek-ai/dsh-tool-fs': '~0.1.5-rc.2' } }, '0.1.5-rc.2'),
   ['@deepseek-ai/dsh-web-app', '@deepseek-ai/dsh-tool-fs'])
 })
+
+test('acceptance keeps its generated workspace overrides active', async () => {
+  const {readFile} = await import('node:fs/promises')
+  const script = await readFile(new URL('../.github/scripts/accept-official-release.ps1', import.meta.url), 'utf8')
+  assert.match(script, /pin-official-cohort\.mjs/)
+  assert.doesNotMatch(script, /--ignore-workspace/)
+})
