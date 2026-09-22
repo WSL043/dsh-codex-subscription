@@ -13,7 +13,8 @@ export function createRuntimeManagement({ manager, inspect, active, selectDsh })
     let available = supported(host)
     try { if (available) bundle = (await host.listBundles()).find(value => value.name === SUBAGENT_RUNTIME_PACKAGE) }
     catch { available = false }
-    return { ...state, available, installed: inspect().installed, removable: available && bundle?.installed === true && !bundle.readOnlyReason, active: active() }
+    const runtime = inspect()
+    return { ...state, available, installed: runtime.installed, present: runtime.installed || runtime.present === true || bundle?.installed === true, removable: available && bundle?.installed === true && !bundle.readOnlyReason, active: active() }
   }
   const start = async action => {
     if (!['install', 'remove'].includes(action)) throw Error('invalid-action')

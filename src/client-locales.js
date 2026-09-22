@@ -1,4 +1,6 @@
 export const zh = {
+  runtimeIncompatible: '检测到不兼容的 Codex 子任务组件，请卸载后重启，再安装受支持版本。',
+  runtimeManagedElsewhere: '此组件由宿主或其他依赖管理，请在 DSH 插件管理中查看；这里不能直接卸载。',
   runtimeLoading: '正在检查组件…', runtimeRestart: '组件已更新，请重启 DSH 后使用。',
   runtime_installing: '正在通过 DSH 安装组件…', runtime_removing: '正在通过 DSH 卸载组件…', runtime_applying: '正在应用安装结果…',
   runtimeInstall: '安装组件', runtimeRemove: '卸载组件', runtimeCancel: '取消安装', runtimeKeep: '保留', runtimeConfirmRemove: '确认卸载', runtimeRefresh: '刷新状态',
@@ -131,6 +133,8 @@ export const zh = {
 }
 
 export const en = {
+  runtimeIncompatible: 'An incompatible Codex subtask component was found. Uninstall it, restart DSH, then install the supported version.',
+  runtimeManagedElsewhere: 'This component is managed by the host or another dependency. Check DSH plugin management; it cannot be removed here.',
   runtimeLoading: 'Checking component…', runtimeRestart: 'Component changed. Restart DSH before using it.',
   runtime_installing: 'Installing through DSH…', runtime_removing: 'Uninstalling through DSH…', runtime_applying: 'Applying installation…',
   runtimeInstall: 'Install component', runtimeRemove: 'Uninstall component', runtimeCancel: 'Cancel installation', runtimeKeep: 'Keep', runtimeConfirmRemove: 'Confirm uninstall', runtimeRefresh: 'Refresh status',

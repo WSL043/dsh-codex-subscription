@@ -16,7 +16,7 @@ export function inspectSubagentRuntime(resolve = require.resolve) {
   try {
     const manifestPath = resolve(`${SUBAGENT_RUNTIME_PACKAGE}/package.json`)
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-    if (manifest.version !== SUBAGENT_RUNTIME_VERSION) return { installed: false }
+    if (manifest.version !== SUBAGENT_RUNTIME_VERSION) return { installed: false, present: true }
     return { installed: true }
   } catch { return { installed: false } }
 }

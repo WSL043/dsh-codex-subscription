@@ -37,12 +37,16 @@ export function RuntimeManagement({ rpc, preference, t }) {
     } catch { if (alive.current) setError(true) }
     finally { if (alive.current) setSending(false) }
   }
+  useEffect(() => {
+    if (state?.phase === 'done') void preference.load()
+  }, [state?.phase])
   const locked = sending || busy || state?.restartRequired || state?.active > 0
   return <div className="codexSubscriptionRuntime">
     <div className="codexSubscriptionPreference">
-      <span role="status">{t(!state ? 'runtimeLoading' : state.restartRequired ? 'runtimeRestart' : busy ? `runtime_${state.phase}` : state.installed ? 'subagentRuntimeInstalled' : 'subagentRuntimeMissing')}</span>
-      {state?.available ? <Button type="button" variant="outline" disabled={locked || (state.installed && !state.removable)} onClick={() => state.installed ? setConfirm(true) : void act('install')}>{t(state.installed ? 'runtimeRemove' : 'runtimeInstall')}</Button> : null}
+      <span role="status">{t(!state ? 'runtimeLoading' : state.restartRequired ? 'runtimeRestart' : busy ? `runtime_${state.phase}` : state.installed ? 'subagentRuntimeInstalled' : state.present ? 'runtimeIncompatible' : 'subagentRuntimeMissing')}</span>
+      {state?.available ? <Button type="button" variant="outline" disabled={locked || (state.present && !state.removable)} onClick={() => state.present ? setConfirm(true) : void act('install')}>{t(state.present ? 'runtimeRemove' : 'runtimeInstall')}</Button> : null}
     </div>
+    {state?.present && state.available && !state.removable ? <p>{t('runtimeManagedElsewhere')}</p> : null}
     {state?.active > 0 ? <p>{t('runtimeActive')}</p> : null}
     {busy && state.phase === 'installing' ? <Button type="button" variant="outline" disabled={sending} onClick={() => { void act('cancel') }}>{t('runtimeCancel')}</Button> : null}
     {confirm ? <div role="group" aria-label={t('runtimeRemove')}><p>{t('runtimeConfirm')}</p><Button type="button" variant="outline" onClick={() => setConfirm(false)}>{t('runtimeKeep')}</Button> <Button type="button" variant="outline" disabled={locked} onClick={() => { void act('remove') }}>{t('runtimeConfirmRemove')}</Button></div> : null}

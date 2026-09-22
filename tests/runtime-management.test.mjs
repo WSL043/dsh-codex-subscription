@@ -60,3 +60,19 @@ test('component maintenance prevents new subtasks and preparation before touchin
   await assert.rejects(instance.prepare(), /Restart DSH/)
   assert.equal(instance.activeCount(), 0)
 })
+
+test('incompatible managed component stays visible and removable', async () => {
+  const {host,calls}=fixture()
+  const service=createRuntimeManagement({manager:()=>host,inspect:()=>({installed:false,present:true}),active:()=>0,selectDsh:async()=>calls.push('dsh')})
+  const status=await service.status()
+  assert.equal(status.installed,false);assert.equal(status.present,true);assert.equal(status.removable,true)
+  await service.start('remove');await tick();assert.deepEqual(calls,['dsh',name])
+})
+
+test('host-owned incompatible component remains visible but cannot be removed', async () => {
+  const {host,calls}=fixture({listBundles:async()=>[{name,installed:true,readOnlyReason:'host-owned'}]})
+  const service=createRuntimeManagement({manager:()=>host,inspect:()=>({installed:false}),active:()=>0,selectDsh:async()=>assert.fail()})
+  const status=await service.status()
+  assert.equal(status.present,true);assert.equal(status.removable,false)
+  await service.start('remove');await tick();assert.deepEqual(calls,[])
+})
