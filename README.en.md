@@ -38,7 +38,7 @@ See below for detailed installation steps, terminal commands, updates, and remov
 | --- | --- |
 | **Subscription models** | Sign in to ChatGPT and use Codex without an OpenAI API key or Codex CLI |
 | **Recoverable and diagnosable** | Sign-in state reconciles automatically; failed reads can be retried in place, while timeouts and stale account responses cannot overwrite current state; Settings can create a support report without credentials or account identifiers |
-| **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate |
+| **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate, with reset times |
 | **Composer quota** | Choose a compact percentage, progress bar, Beta runway forecast, or no inline display |
 | **Safe quota reset** | See each reset credit separately and deliberately try one with a cooldown and acknowledgement |
 | **Subscription search** | Explicitly route search globally through DSH default search or the signed-in Codex subscription |
@@ -103,22 +103,7 @@ dsh --profile headless "Reply with only the word: ok"
 
 </details>
 
-## Features
-
-- ChatGPT OAuth sign-in with credentials kept on the host; accounts are identified by a privacy-masked email that can be clicked to reveal, and can be manually added, switched, or removed without automatic rotation or quota pooling;
-- Codex models and Beta image generation/editing directly inside DSH conversations;
-- A clear global choice between DSH default search and Codex subscription search; it applies to every model and session rather than following the selected model;
-- Actual backend-provided quota, reset time, and freshness;
-- Separate standard Codex, Codex-Spark, Credits, and other independent limits;
-- One row per available quota reset with its disclosed name and expiry, plus deliberate early redemption, layered confirmation, and no automatic retry;
-- Optional percentage, progress bar, or Beta runway estimate for the selected Codex model (off by default);
-- Standard or Fast mode for supported Codex models directly in the composer;
-- Standard, Extended, and per-model Custom context windows; Custom accepts a full numeric token count, stays within each audited model capacity, and feeds DSH's native agent compaction policy;
-- A copyable support report and direct feedback link in Settings; the report includes bounded request stages, HTTP/transport classes, elapsed ranges, and route source types while excluding OAuth credentials, account identifiers, and authorization timestamps;
-- Visible errors when subscription routing is unavailable, with no silent paid fallback.
-
-
-Subscription chat and native DSH subtasks do not require the Codex runtime. Updating to 2.1.3 removes the runtime previously pulled in automatically when no other dependency requires it. An explicitly installed component can be removed in Advanced settings. Switching back to DSH does not uninstall it, and uninstalling does not automatically clear the host’s shared download cache.
+## Feature details
 
 ### Add instructions while a task is running
 
@@ -238,7 +223,7 @@ With a supported Codex model selected, open the composer's model menu to choose 
 Standard adds no icon; only Fast shows a lightning icon before the model name. Spark does not show the speed entry. Fast mode increases speed and uses more Credits;
 see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) for the current rules.
 
-### Advanced experiments (2.1.1 Beta)
+### Advanced experiments
 
 Opt in under **Advanced & diagnostics**. SSE and DSH subtasks remain the defaults:
 
@@ -255,19 +240,20 @@ In **Settings → Codex → Advanced → Independent subtasks**, click **Install
 
 ![Optional component management](docs/assets/settings-runtime-current-en.png)
 
-For older hosts without the management interface, run this in the target DSH environment, then restart:
+Prefer **Install component** above: the plugin selects a verified component version. The current stable release, **2.1.4**, uses `0.1.5-rc.2`. Do not omit the version or substitute `@next`. Support for the newer component is planned for the next plugin release.
+
+<details>
+<summary>Manual installation on older hosts and offline preparation</summary>
+
+Enter `@deepseek-ai/dsh-subagent-codex@0.1.5-rc.2` in the plugin installer, or run:
 
 ```sh
 dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.1.5-rc.2
 ```
 
-In the plugin installation UI, enter only `@deepseek-ai/dsh-subagent-codex@0.1.5-rc.2`, not the full command. Select Codex in advanced settings after preparation. Missing or failed preparation does not block subscription chat or the DSH backend. Shared-context subtasks remain in DSH.
+Use the same profile as the subscription plugin and restart afterwards. Offline preparation requires a complete runtime installed and verified on the target OS and architecture; copying only the subscription plugin or Codex launcher is insufficient. Model requests still need connectivity.
 
-For offline preparation, install and verify beforehand on the target operating system and architecture, retaining the complete profile dependencies when moving it. The subscription archive or Codex wrapper alone is insufficient without the platform binary. First-time installation cannot complete offline unless dependencies are already prepared. Existing runtime checks and startup do not download anything; model requests still require connectivity. Do not use `--force` to install foreign-platform optional packages.
-
-**Upgrading an existing installation:** if you use Codex subtasks, run the preparation command before upgrading this plugin to retain the runtime explicitly in the same profile. A runtime only installed transitively by an older version may be removed during dependency reconciliation. The same command repairs an already-upgraded installation; restart afterwards.
-
-The runtime version is pinned separately; subscription updates do not silently upgrade it. This integration uses the official provider package-local CLI, never searches PATH or desktop-private runtimes, and removes the component only after an explicit uninstall request. Shared package caches are not deleted.
+</details>
 
 ### When you no longer need it
 
@@ -287,46 +273,26 @@ Uninstalling does not clear shared package caches or guarantee a fixed amount of
 
 ## Update and uninstall
 
-### Update and verify
+Find this plugin on the DSH **Plugins** page and use its update or uninstall action. Follow any restart instructions. Uninstalling this plugin does not remove other plugins.
+
+<details>
+<summary>Terminal commands</summary>
 
 ```sh
 dsh plugin --profile web update dsh-codex-subscription
-dsh plugin --profile web list dsh-codex-subscription --depth 0
-dsh --profile web --dump-config
 ```
 
-### Uninstall
-
-Run this only when you want to remove the plugin:
+Run only when you want to uninstall:
 
 ```sh
 dsh plugin --profile web remove dsh-codex-subscription
-```
-
-These operations preserve the DSH profile, other plugins, and saved sign-in.
-
-<details>
-<summary>Official npm fallback</summary>
-
-### Update and verify
-
-```sh
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile web update dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 --profile web --dump-config
-```
-
-### Uninstall
-
-```sh
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile web remove dsh-codex-subscription
 ```
 
 </details>
 
 ## Troubleshooting
 
-- **`dsh` is not recognized:** the official npm route does not create a global `dsh` command; use the complete `npx -y @deepseek-ai/dsh@0.1.5-rc.2 ...` command above;
+- **`dsh` is not recognized:** install from the DSH Plugins page; no terminal setup is needed.
 - **More than one DSH exists:** run the standard command from the intended DSH environment so that product selects the corresponding profile;
 - **Setup still fails:** confirm the command is running in the intended DSH environment. Do not delete the profile or change the system PATH to force an install.
 - **Need to report a problem:** generate a **Support diagnostics** report at the bottom of Settings, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The report includes the OS/runtime, bounded sign-in phase, and safe request-failure categories, but excludes credentials, account identifiers, raw responses, and full logs. Paste it into the required diagnostics field; never attach sign-in URLs, authorization codes, or browser callback addresses.

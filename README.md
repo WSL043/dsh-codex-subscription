@@ -39,7 +39,7 @@
 | --- | --- |
 | **订阅模型直连** | 登录 ChatGPT 后直接使用 Codex，不需要 OpenAI API Key 或 Codex CLI |
 | **可恢复、可诊断** | 登录状态会自动对账；读取失败时可在原处重试，超时和旧账号响应不会覆盖当前状态；设置页可生成不含凭据和账号标识的支持报告 |
-| **额度可见** | 普通 Codex、Spark 等服务端实际返回的额度分开显示 |
+| **额度可见** | 普通 Codex、Spark 等服务端实际返回的额度分开显示，并显示重置时间 |
 | **输入框额度** | 可选择紧凑百分比、进度条、Beta 续航预测或关闭显示 |
 | **安全额度重置** | 每张重置卡单独显示，并通过冷静期和知情确认主动尝试重置 |
 | **订阅搜索** | 可将全部模型的搜索明确路由到 DSH 默认搜索或已登录的 Codex 订阅 |
@@ -104,22 +104,7 @@ dsh --profile headless "只回复：ok"
 
 </details>
 
-## 功能
-
-- ChatGPT OAuth 登录，凭据保留在本机；账号以默认隐藏部分字符的邮箱区分，点击可切换完整显示；可手动添加、切换和移除多个账号，不会自动轮换或合并额度；
-- Codex 模型和 Beta 图片生成与编辑直接出现在 DSH 会话中；
-- 搜索来源是全局设置，可在 DSH 默认搜索与 Codex 订阅搜索之间切换；它对所有模型和会话生效，不会随当前模型自动切换；
-- 设置页显示服务端返回的额度、重置时间和更新时间；
-- 普通 Codex、Codex-Spark、Credits 等独立额度分开显示；
-- 每张可用重置卡单独显示名称和到期时间，也允许在额度未完全用尽时主动尝试，并经过分层确认且不会自动重试；
-- 输入框可用百分比、进度条或可选的 Beta 续航预测显示当前 Codex 模型的剩余额度（默认关闭）；
-- 输入框可为支持的 Codex 模型切换标准或高速模式；
-- 上下文窗口提供标准、扩展和逐模型自定义；自定义直接填写完整 Token 数值，并在已审核的模型容量内交给 DSH 原生 Agent 压缩策略处理；
-- 设置页可生成并复制无敏感信息的支持诊断，并直接打开反馈入口；报告包含有限的请求阶段、HTTP/网络分类、耗时区间和路由来源类型，但不包含 OAuth 凭据、账号标识或授权时间；
-- 订阅路由不可用时明确报错，不会静默切换到其他付费路由。
-
-
-普通订阅对话和 DSH 原生子任务不需要安装 Codex 运行时。升级到 2.1.3 后，旧版自动引入且没有其他依赖引用的运行时会随依赖更新移除；主动安装的独立组件可在高级设置中卸载。切换回 DSH 不等于卸载，卸载也不会自动清空宿主共享下载缓存。
+## 功能说明
 
 ### 执行中补充指令
 
@@ -237,7 +222,7 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 只有高速模式会在模型名称左侧显示闪电；Spark 不显示速度入口。高速模式会提高速度，也会消耗更多 Credits；具体规则见
 [OpenAI Codex Speed 文档](https://learn.chatgpt.com/docs/agent-configuration/speed)。
 
-### 高级实验选项（2.1.1 Beta）
+### 高级实验选项
 
 在 **高级与诊断** 中按需开启，默认仍使用 SSE 和 DSH 子任务：
 
@@ -254,19 +239,20 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 
 ![可选组件管理实机界面](docs/assets/settings-runtime-current.png)
 
-旧版宿主没有管理接口时，才在目标 DSH 环境的终端执行，然后重启：
+优先使用上面的 **安装组件** 按钮，由插件选择已验证的组件版本。当前正式版 **2.1.4** 使用 `0.1.5-rc.2`；请不要省略版本号或自行改用 `@next`。新版组件的适配会随下一版插件提供。
+
+<details>
+<summary>旧版宿主手动安装与离线准备</summary>
+
+插件安装页面填写 `@deepseek-ai/dsh-subagent-codex@0.1.5-rc.2`。终端方式：
 
 ```sh
 dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.1.5-rc.2
 ```
 
-如果使用插件安装页面，在包名框只填 `@deepseek-ai/dsh-subagent-codex@0.1.5-rc.2`，不要粘贴整条命令。安装到订阅插件所在的同一个 profile。之后在高级设置选择 Codex；共享上下文子任务仍由 DSH 处理。准备失败或尚未准备不影响普通订阅聊天，可继续选择 DSH。
+安装到订阅插件所在的同一个 profile，完成后重启。离线使用须提前在目标系统与架构上安装并验证完整运行时；只复制订阅插件或 Codex 启动脚本不够。模型请求仍需联网。
 
-离线使用前，应在同系统、同架构的目标环境提前安装并验证运行时，迁移时保留完整的 DSH profile 依赖。只有订阅插件压缩包或 Codex 主包不能代替当前平台的可执行包；未提前准备时，断网无法完成首次安装。已有运行时的检查和启动不需要下载安装，但模型请求本身仍需要联网。不要使用 `--force` 安装其他平台的可选包。
-
-**旧版升级**：如果已使用 Codex 独立子任务，请在升级订阅插件前执行上面的准备命令，将运行时显式保留在同一个 profile；仅由旧版间接安装的运行时可能随依赖整理移除。已经升级也可执行同一命令补齐，然后重启。
-
-运行时版本单独固定，不会随订阅插件更新而自动下载新 CLI。现阶段沿用官方 provider 的包内 CLI，不自动查找 PATH，也不复用桌面应用的私有 CLI。只有明确点击卸载才移除组件，安装缓存不由插件清理。
+</details>
 
 ### 不再使用时
 
@@ -286,46 +272,26 @@ dsh plugin --profile web remove @deepseek-ai/dsh-subagent-codex
 
 ## 更新与卸载
 
-### 更新并检查
+在 DSH **插件** 页面找到本插件，使用更新或卸载操作，完成后按页面提示重启。卸载插件不会删除其他插件。
+
+<details>
+<summary>终端方式</summary>
 
 ```sh
 dsh plugin --profile web update dsh-codex-subscription
-dsh plugin --profile web list dsh-codex-subscription --depth 0
-dsh --profile web --dump-config
 ```
 
-### 卸载
-
-确认需要移除插件后再运行：
+仅在需要卸载时运行：
 
 ```sh
 dsh plugin --profile web remove dsh-codex-subscription
-```
-
-这些操作会保留 DSH profile、其他插件和登录信息。
-
-<details>
-<summary>官方 npm 备用方式</summary>
-
-### 更新并检查
-
-```sh
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile web update dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 --profile web --dump-config
-```
-
-### 卸载
-
-```sh
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile web remove dsh-codex-subscription
 ```
 
 </details>
 
 ## 常见问题
 
-- **`dsh` 无法识别**：官方 npm 方式本来就不会创建全局 `dsh` 命令，请使用上面的完整 `npx -y @deepseek-ai/dsh@0.1.5-rc.2 ...` 命令；
+- **`dsh` 无法识别**：直接使用 DSH 的插件页面安装，无需为了安装插件配置终端命令。
 - **电脑上有多个 DSH**：请从目标 DSH 环境运行标准命令，由该产品自身选择对应 profile；
 - **安装仍然失败**：确认命令是在目标 DSH 环境中运行，不要删除 profile 或随意修改系统 PATH。
 - **需要提交问题**：在设置页底部生成“支持诊断”，然后打开[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)。报告包含系统/运行时、有限的登录阶段和安全的请求失败分类，但不含凭据、账号标识、原始响应或完整日志；请粘贴到必填诊断栏，且不要附上登录链接、授权码或浏览器回调地址。

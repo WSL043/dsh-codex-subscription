@@ -17,7 +17,7 @@ test('normal installation does not pull the optional Codex executable runtime', 
   assert.equal(manifest.dependencies?.[runtime], undefined)
   assert.equal(manifest.optionalDependencies?.[runtime], undefined)
   assert.equal(manifest.peerDependenciesMeta?.[runtime]?.optional, true)
-  assert.equal(manifest.peerDependencies[runtime], '0.1.5-rc.2')
+  assert.equal(manifest.peerDependencies[runtime], '0.1.5-rc.2 || 0.1.5-rc.3')
   assert.equal(manifest.devDependencies[runtime], '0.1.5-rc.2')
 })
 
@@ -133,8 +133,8 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
     assert.doesNotMatch(doc, /img\.shields\.io\/npm\/d(?:m|w|y)\/dsh-codex-subscription/u)
     assert.match(doc, /npmjs\.com\/package\/dsh-codex-subscription/u)
   }
-  assert.match(readmeZh, /## 准备 DSH[\s\S]*DSH-Portable[\s\S]*Windows、macOS 和 Linux[\s\S]*社区便携桌面分发[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## 安装[\s\S]*### DSH 标准命令/u)
-  assert.match(readme, /## Prepare DSH[\s\S]*DSH-Portable[\s\S]*community portable desktop distribution for Windows, macOS, and Linux[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## Install[\s\S]*### Standard DSH command/u)
+  assert.match(readmeZh, /## 准备 DSH[\s\S]*DSH-Portable[\s\S]*Windows、macOS 和 Linux[\s\S]*社区便携桌面分发[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## 安装[\s\S]*### 在插件页面安装/u)
+  assert.match(readme, /## Prepare DSH[\s\S]*DSH-Portable[\s\S]*community portable desktop distribution for Windows, macOS, and Linux[\s\S]*github\.com\/deepseek-ai\/deepseek-harness#run[\s\S]*## Install[\s\S]*### Install from the Plugins page/u)
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /社区便携包|community DSH-Portable package/iu)
   assert.match(readmeZh, /本项目的问题反馈[\s\S]*github\.com\/WSL043\/dsh-codex-subscription\/issues[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
   assert.match(readme, /project feedback[\s\S]*github\.com\/deepseek-ai\/deepseek-harness\/discussions/u)
@@ -199,14 +199,13 @@ test('each complete README stays in one language and links to the complete trans
 test('public readmes provide explicit update commands and verification', () => {
   const readmeEn = text('README.en.md')
   const readmeZh = text('README.md')
-  assert.match(readmeZh, /## 更新与卸载[\s\S]*### 更新并检查[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*### 卸载[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
-  assert.match(readmeEn, /## Update and uninstall[\s\S]*### Update and verify[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web list[\s\S]*dsh --profile web --dump-config[\s\S]*### Uninstall[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
+  assert.match(readmeZh, /## 更新与卸载[\s\S]*插件[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
+  assert.match(readmeEn, /## Update and uninstall[\s\S]*Plugins[\s\S]*dsh plugin --profile web update dsh-codex-subscription[\s\S]*dsh plugin --profile web remove dsh-codex-subscription/u)
   assert.match(readmeZh, /dsh plugin --profile web add dsh-codex-subscription/u)
   assert.match(readmeEn, /dsh plugin --profile web add dsh-codex-subscription/u)
   for (const readme of [readmeZh, readmeEn]) {
-    assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web add dsh-codex-subscription`), true)
-    assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} plugin --profile web list dsh-codex-subscription --depth 0`), true)
-    assert.equal(readme.includes(`npx -y @deepseek-ai/dsh@${compatibility.latestTested} --profile web --dump-config`), true)
+    assert.match(readme, /```text\s+dsh-codex-subscription\s+```/u)
+    assert.doesNotMatch(readme, /npx -y @deepseek-ai/u)
   }
   assert.doesNotMatch(readmeZh, /^## \d+\.\d+\.\d+ 重点变化$/mu)
   assert.doesNotMatch(readmeEn, /^## What's included in \d+\.\d+\.\d+$/mu)

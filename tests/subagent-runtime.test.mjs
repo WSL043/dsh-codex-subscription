@@ -31,6 +31,9 @@ test('preparation checks the provider-local CLI without shell or PATH and suppor
     fail = false
     const result = await loadSubagentRuntime({resolve,run,importModule:async url => url.endsWith('/index.js') ? {apply(){},JsonRpcLineTransport:class {}} : assert.fail()})
     assert.equal(typeof result.Transport,'function'); assert.equal(calls,2)
+    await writeFile(provider,JSON.stringify({version:'0.1.5-rc.3'}))
+    assert.deepEqual(inspectSubagentRuntime(resolve),{installed:true})
+    await loadSubagentRuntime({resolve,run,importModule:async()=>({JsonRpcLineTransport:class {}})})
     await writeFile(provider,JSON.stringify({version:'9.9.9'}))
     assert.deepEqual(inspectSubagentRuntime(resolve),{installed:false,present:true})
   } finally { await rm(root,{recursive:true,force:true}) }

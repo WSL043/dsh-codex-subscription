@@ -6,7 +6,8 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
 export const SUBAGENT_RUNTIME_PACKAGE = '@deepseek-ai/dsh-subagent-codex'
-export const SUBAGENT_RUNTIME_VERSION = '0.1.5-rc.2'
+export const SUBAGENT_RUNTIME_VERSION = '0.1.5-rc.3'
+const SUPPORTED_RUNTIME_VERSIONS = new Set(['0.1.5-rc.2', SUBAGENT_RUNTIME_VERSION])
 const require = createRequire(import.meta.url)
 const execute = promisify(execFile)
 
@@ -16,7 +17,7 @@ export function inspectSubagentRuntime(resolve = require.resolve) {
   try {
     const manifestPath = resolve(`${SUBAGENT_RUNTIME_PACKAGE}/package.json`)
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-    if (manifest.version !== SUBAGENT_RUNTIME_VERSION) return { installed: false, present: true }
+    if (!SUPPORTED_RUNTIME_VERSIONS.has(manifest.version)) return { installed: false, present: true }
     return { installed: true }
   } catch { return { installed: false } }
 }

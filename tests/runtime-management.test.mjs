@@ -19,7 +19,7 @@ function fixture(overrides = {}) {
 test('uses only fixed official package, does not auto-enable and requires restart', async () => {
   const {service,calls}=fixture()
   await service.start('install'); await tick()
-  assert.equal(calls[0][0],name+'@0.1.5-rc.2')
+  assert.equal(calls[0][0],name+'@0.1.5-rc.3')
   assert.equal(calls[0][1].enabled,false)
   assert.equal((await service.status()).restartRequired,true)
   await assert.rejects(service.start('remove'),/restart-required/)
