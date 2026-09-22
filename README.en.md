@@ -240,7 +240,7 @@ In **Settings → Codex → Advanced → Independent subtasks**, click **Install
 
 ![Optional component management](docs/assets/settings-runtime-current-en.png)
 
-Prefer **Install component** above: the plugin selects a verified component version. The current stable release, **2.1.4**, uses `0.1.5-rc.2`. Do not omit the version or substitute `@next`. Support for the newer component is planned for the next plugin release.
+Prefer **Install component** above: the plugin selects a verified component version. The current stable release, **2.1.4**, uses `0.1.5-rc.2`. Do not omit the version or substitute `@next`. `2.1.5-beta.1` installs `0.1.5-rc.3` by default and remains compatible with an existing rc.2 installation.
 
 <details>
 <summary>Manual installation on older hosts and offline preparation</summary>
