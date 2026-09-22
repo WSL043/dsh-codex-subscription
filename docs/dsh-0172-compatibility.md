@@ -14,4 +14,12 @@ The candidate accepts the alpha.2 dependency cohort and uses the user-provided p
 
 The new spill policy uses maxInlineTokens rather than maxInlineBytes. The subscription plugin declares neither override and continues to return native image blocks; no competing truncation layer was added. Background task wakeups, multiline queue editing, reconnect behavior and registry selection remain owned by DSH. The subtask completion check is not a stress test of repeated background wakeups.
 
-This is an unreleased candidate, not a new publication.
+## Stable-host release gate
+
+A clean rc.2 host with no subscription plugin reproduced the missing HMR service
+failure after its open vendor ranges selected newer Cordis packages. Retaining
+the vendor versions declared by that host restored HTTP readiness. The isolated
+acceptance runner now pins both the DSH cohort and its declared Cordis, Cosmokit
+and Schemastery generation. This does not change installed users' dependencies.
+The stable-host claim covers that declared dependency baseline, not arbitrary
+future vendor resolutions. The failed release log is retained for diagnosis.
