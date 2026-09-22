@@ -29,6 +29,8 @@ function Initialize-Runner {
     $runnerRoot = Join-Path $acceptanceRoot 'runner'
     New-Item -ItemType Directory -Path $runnerRoot | Out-Null
     [IO.File]::WriteAllText((Join-Path $runnerRoot 'package.json'), '{"private":true}')
+    & node (Join-Path $PSScriptRoot 'pin-official-cohort.mjs') $runnerRoot $DshVersion
+    if ($LASTEXITCODE -ne 0) { throw 'Official DSH cohort pinning failed.' }
     # The isolated CI checkout intentionally has no development node_modules.
     # Materialize the one test-only browser storage emulator beside the runner.
     $sourceManifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../package.json') -Raw | ConvertFrom-Json

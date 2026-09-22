@@ -2,7 +2,7 @@ import { readdirSync } from 'node:fs'
 
 const deliveryTests = new Set([
   'ci-change-plan', 'client-contract', 'prepare-compat-release',
-  'publish-idempotency', 'release-contract', 'release-notes',
+  'official-cohort', 'publish-idempotency', 'release-contract', 'release-notes',
   'subscription-image-viewer-contract', 'support-intake',
 ])
 
