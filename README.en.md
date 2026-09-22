@@ -26,18 +26,11 @@ Compatible with the settings and UI changes in DSH `0.1.7-alpha.1`, while retain
 
 ## Three-step start
 
-1. **Install the plugin.** In newer DSH, open **Plugins → Add plugin** and enter `dsh-codex-subscription`. To select a candidate, enter `package@version`, for example `dsh-codex-subscription@2.1.4`. This field does not accept a full terminal command.
-
-   For older DSH or terminal use, run:
-
-   ```sh
-   dsh plugin --profile web add dsh-codex-subscription
-   ```
-
+1. **Install the plugin.** Open **Plugins → Add plugin**, enter `dsh-codex-subscription` in **Package name or address**, and click **Install**.
 2. **Sign in.** Follow the installation result; save your work and restart only if requested. Open **Settings -> Codex**, and choose browser sign-in. No Codex CLI and no pasted token are required.
 3. **Use Codex.** Select a Codex model. Quota, subscription search, image generation, and Fast mode remain inside DSH.
 
-DSH-Portable exposes the same standard plugin command, so the command above also applies there. See below for the complete official npm, update, and uninstall routes.
+See below for detailed installation steps, terminal commands, updates, and removal.
 
 ## Why this plugin
 
@@ -73,55 +66,42 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 
 ## Install
 
-### Standard DSH command
+### Install from the Plugins page (recommended)
+
+1. Open **Plugins → Add plugin** in DSH.
+2. Paste this package name into the **Package name or address** field:
+
+   ```text
+   dsh-codex-subscription
+   ```
+
+3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
+4. Open **Settings → Codex**, sign in to ChatGPT, then select a Codex model in your conversation.
+
+The unversioned package name installs the latest stable release. To select a version, enter `dsh-codex-subscription@2.1.4`; for a beta, use the complete version from its release notes. Enter only the package name here, not a terminal command. This plugin can be installed using its npm package name; no GitHub URL or local directory is needed.
+
+<details>
+<summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
 dsh plugin --profile web add dsh-codex-subscription
 ```
 
-DSH owns target selection, profile locking, dependency resolution, and bundle activation; this is the plugin's only installation path.
+Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
 
-### Headless
+</details>
 
-After signing in and selecting a Codex model in Web once, install the same plugin in DSH's standard Headless profile:
+<details>
+<summary>Headless tasks</summary>
+
+After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
 dsh plugin --profile headless add dsh-codex-subscription
 dsh --profile headless "Reply with only the word: ok"
 ```
 
-<details>
-<summary>Official npm route (Node.js installed)</summary>
-
-The official `npx @deepseek-ai/dsh web` command does not create a global `dsh` command. Keep the full `npx` prefix when installing the plugin:
-
-```sh
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile web add dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 --profile web --dump-config
-```
-
 </details>
-
-<details>
-<summary>An existing <code>dsh</code> command</summary>
-
-```sh
-dsh plugin --profile web add dsh-codex-subscription
-dsh plugin --profile web list dsh-codex-subscription --depth 0
-dsh --profile web --dump-config
-```
-
-The plugin list should contain one `dsh-codex-subscription`, and the config should contain one `codex-subscription` entry.
-
-</details>
-
-Restart DSH manually after installation, then:
-
-1. Open **Settings -> Codex**.
-2. Sign in with a ChatGPT account that has Codex access.
-3. Choose a search source.
-4. Select a Codex model.
 
 ## Features
 

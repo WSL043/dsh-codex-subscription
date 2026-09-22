@@ -27,18 +27,11 @@
 
 ## 三步开始
 
-1. **安装插件**：在新版 DSH 的 **插件 → 添加插件** 中填写 `dsh-codex-subscription`；指定候选版本时填写完整的 `包名@版本`，例如 `dsh-codex-subscription@2.1.4`。这个输入框不接受整条终端命令。
-
-   旧版 DSH 或偏好终端操作时，才在终端运行：
-
-   ```sh
-   dsh plugin --profile web add dsh-codex-subscription
-   ```
-
+1. **安装插件**：打开 **插件 → 添加插件**，在 **包名或地址** 中填写 `dsh-codex-subscription`，点击 **安装**。
 2. **登录订阅**：按安装结果提示操作；若提示需要重启，先保存工作再重启。打开 **设置 -> Codex 订阅**，点击浏览器登录。无需 Codex CLI，也不要粘贴 token。
 3. **开始使用**：在模型选择器中选择 Codex；额度、订阅搜索、图片生成和高速模式都在 DSH 内使用。
 
-DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的命令。完整的官方 npm、更新和卸载方式见下文。
+详细安装步骤、终端方式以及更新与卸载说明见下文。
 
 ## 核心优势
 
@@ -74,55 +67,42 @@ DSH-Portable 也提供相同的标准插件命令，因此同样使用上面的�
 
 ## 安装
 
-### DSH 标准命令
+### 在插件页面安装（推荐）
+
+1. 打开 DSH 的 **插件 → 添加插件**。
+2. 在 **包名或地址** 输入框中粘贴下面的包名：
+
+   ```text
+   dsh-codex-subscription
+   ```
+
+3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
+4. 打开 **设置 → Codex 订阅**，登录 ChatGPT，然后在会话中选择 Codex 模型。
+
+包名不带版本号时安装最新正式版。指定版本时填写 `dsh-codex-subscription@2.1.4`；测试版则使用对应发布说明中的完整版本号。此处只填包名，不要粘贴整条终端命令。安装本插件使用上面的 npm 包名即可，无需填写 GitHub 地址或本地目录。
+
+<details>
+<summary>终端安装（已能运行 dsh 命令）</summary>
 
 ```sh
 dsh plugin --profile web add dsh-codex-subscription
 ```
 
-目标选择、profile 锁、依赖解析和 bundle 激活均由 DSH 负责；这是插件唯一的安装路径。
+安装完成后按提示重启 DSH，再到 **设置 → Codex 订阅** 登录。插件页面和终端均由 DSH 管理安装。
 
-### Headless
+</details>
 
-先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 DSH 的标准 Headless profile：
+<details>
+<summary>Headless 任务</summary>
+
+先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
 
 ```sh
 dsh plugin --profile headless add dsh-codex-subscription
 dsh --profile headless "只回复：ok"
 ```
 
-<details>
-<summary>官方 npm 方式（已安装 Node.js）</summary>
-
-官方的 `npx @deepseek-ai/dsh web` 不会创建全局 `dsh` 命令，因此安装插件时也要保留完整的 `npx` 前缀：
-
-```sh
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile web add dsh-codex-subscription
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 plugin --profile web list dsh-codex-subscription --depth 0
-npx -y @deepseek-ai/dsh@0.1.5-rc.2 --profile web --dump-config
-```
-
 </details>
-
-<details>
-<summary>已经能运行 <code>dsh</code></summary>
-
-```sh
-dsh plugin --profile web add dsh-codex-subscription
-dsh plugin --profile web list dsh-codex-subscription --depth 0
-dsh --profile web --dump-config
-```
-
-安装列表中应只有一个 `dsh-codex-subscription`，配置中应只有一个 `codex-subscription` 条目。
-
-</details>
-
-安装完成后手动重启 DSH，然后：
-
-1. 打开 **设置 -> Codex 订阅**；
-2. 登录具有 Codex 使用资格的 ChatGPT 账户；
-3. 选择搜索来源；
-4. 在模型选择器中选择 Codex 模型。
 
 ## 功能
 
