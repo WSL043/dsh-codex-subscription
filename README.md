@@ -23,9 +23,11 @@
   <img src="docs/assets/codex-subscription-overview.webp" width="900" alt="在 DeepSeek Harness 登录 ChatGPT 并使用 Codex 订阅：无需 API Key，支持模型选择和剩余额度显示">
 </p>
 
+已适配 DSH `0.1.7-alpha.1` 的设置保存与界面接口，同时保留已支持版本的兼容。
+
 ## 三步开始
 
-1. **安装插件**：在新版 DSH 的 **插件 → 添加插件** 中填写 `dsh-codex-subscription`；指定候选版本时填写完整的 `包名@版本`，例如 `dsh-codex-subscription@2.1.3-beta.1`。这个输入框不接受整条终端命令。
+1. **安装插件**：在新版 DSH 的 **插件 → 添加插件** 中填写 `dsh-codex-subscription`；指定候选版本时填写完整的 `包名@版本`，例如 `dsh-codex-subscription@2.1.4`。这个输入框不接受整条终端命令。
 
    旧版 DSH 或偏好终端操作时，才在终端运行：
 

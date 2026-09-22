@@ -20,4 +20,13 @@
 
 The earlier V4 probe omitted turn/step lifecycle events and was rejected by the new strict log reader. The probe was corrected to emit the native lifecycle; this was a harness defect, not evidence of lost production sessions. Failed logs remain under .artifacts.
 
-Cloud requests, generated-image reload/export, legacy settings-file migration and optional Codex subtask integration still require end-to-end acceptance on this host cohort before release. No release was published by this change. The existing user host was not replaced.
+Follow-up acceptance passed before preparing 2.1.4:
+
+- Real subscription text reply and a complete tool-call/result/reply exchange.
+- WebSocket option request completed; this does not prove that fallback was unused.
+- Cloud compression, V4 persistence, process restart and continuation retained the exact project identifier, revised budget, deadline and prohibition.
+- Image generation saved a PNG and original asset. The new official ZIP exporter included its referenced image bytes; native log reimport preserved the compacted messages and attachment reference.
+- Legacy settings.yaml migrated into the profile and the browser showed the migrated quota-display selection.
+- Optional subtask completed under the new host subprocess service without writing a separate auth.json.
+
+The isolated subtask runtime logged upstream optional plugin-catalog sync warnings before completing successfully; they did not affect its requested output. The user's existing host was not replaced.

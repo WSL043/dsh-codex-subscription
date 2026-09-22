@@ -22,9 +22,11 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
   <img src="docs/assets/codex-subscription-overview-en.webp" width="900" alt="Use ChatGPT and Codex subscriptions in DeepSeek Harness: sign in without an API key, choose models and view remaining quota">
 </p>
 
+Compatible with the settings and UI changes in DSH `0.1.7-alpha.1`, while retaining support for previously supported versions.
+
 ## Three-step start
 
-1. **Install the plugin.** In newer DSH, open **Plugins → Add plugin** and enter `dsh-codex-subscription`. To select a candidate, enter `package@version`, for example `dsh-codex-subscription@2.1.3-beta.1`. This field does not accept a full terminal command.
+1. **Install the plugin.** In newer DSH, open **Plugins → Add plugin** and enter `dsh-codex-subscription`. To select a candidate, enter `package@version`, for example `dsh-codex-subscription@2.1.4`. This field does not accept a full terminal command.
 
    For older DSH or terminal use, run:
 
