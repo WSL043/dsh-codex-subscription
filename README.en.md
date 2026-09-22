@@ -113,6 +113,10 @@ Use DSH’s native message queue: messages sent during generation can wait for t
 
 When the account’s official catalog advertises `gpt-reserve`, it appears at the end of the model picker as an experimental option. Availability and billing are determined by the service; a successful response does not confirm use of a separate reserve allowance. The composer shows only a matching quota bucket returned by the service, and does not substitute ordinary Codex quota when none is returned.
 
+### GPT-6 Sol / Luna
+
+GPT-6 Sol and GPT-6 Luna are listed in [OpenAI's Codex model guidance](https://learn.chatgpt.com/docs/models). The plugin reads available models and reasoning levels from the current account's Codex catalog, so no model ID needs to be added manually; models do not appear before the account gets access. Sol suits complex coding, while Luna suits focused, high-volume tasks. Their extended context limits and Fast availability follow the account catalog.
+
 ### GPT-6 Astra context
 
 When the official model catalog exposes GPT-6 Astra, Standard preserves the catalog window, Extended uses 872000 tokens, and Custom accepts 128000–872000 tokens (initially 272000). This limit follows the [official Codex model catalog](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34), not the API model's total context capacity. These settings only adjust DSH's local context budget; they do not grant model access or guarantee an account's server-side capacity. Actual availability remains subject to the service.

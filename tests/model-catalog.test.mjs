@@ -5,6 +5,7 @@ import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 
 import { CODEX_MODELS_URL, createOfficialModelCatalog, parseOfficialModelCatalog } from '../src/model-catalog.js'
 import { openaiCodexProvider, openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
+import { contextModelGroups } from '../src/settings-contract.js'
 
 const base = [{
   id: 'gpt-base', name: 'GPT Base', api: 'openai-codex-responses', provider: 'openai-codex',
@@ -141,6 +142,35 @@ test('Astra from the official catalog reaches DSH with the selected context wind
   assert.equal(await contextWindow(), 1_000_000, 'Standard must preserve even a newer catalog window')
   contextMode = 'extended'
   assert.equal(await contextWindow(), 1_000_000, 'Extended follows the new explicit official catalog maximum')
+})
+
+test('new Codex models appear from the account catalog with supported reasoning and context', async () => {
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => openaiCodexProvider().getModels(),
+    async getAuth() { return { auth: { apiKey: 'test-token' } } },
+    async readCredential() { return { type: 'oauth', accountId: 'test-account' } },
+    async fetch() {
+      return Response.json({ models: [
+        remote({ slug: 'gpt-6-sol', display_name: 'GPT-6-Sol', priority: 2,
+          context_window: 272_000, max_context_window: 872_000,
+          supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max', 'ultra'].map(effort => ({ effort })),
+        }),
+        remote({ slug: 'gpt-6-luna', display_name: 'GPT-6-Luna', priority: 3,
+          context_window: 272_000, max_context_window: 872_000,
+          supported_reasoning_levels: ['low', 'medium', 'high', 'xhigh', 'max'].map(effort => ({ effort })),
+        }),
+      ] })
+    },
+  })
+  await catalog.refresh()
+  const provider = openaiCodexSubscriptionProvider({ catalog, resolveContextMode: () => 'extended' })
+  assert.deepEqual(provider.getModels().map(model => [model.id, model.contextWindow]), [
+    ['gpt-6-luna', 872_000], ['gpt-6-sol', 872_000],
+  ])
+  assert.deepEqual(contextModelGroups(catalog.getModels([])).map(row => row.key), ['gpt-6-luna', 'gpt-6-sol'])
+  assert.equal(catalog.metadata('gpt-6-luna').thinkingLevelMap.max, 'max')
+  assert.equal(catalog.metadata('gpt-6-sol').thinkingLevelMap.ultra, undefined)
+  assert.equal(catalog.metadata('gpt-6-sol').supportsFast, true)
 })
 
 test('catalog refresh is conditional, keeps the last good result, and never exposes credentials', async () => {

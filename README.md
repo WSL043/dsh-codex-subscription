@@ -114,6 +114,10 @@ dsh --profile headless "只回复：ok"
 
 账号的官方模型目录提供 `gpt-reserve` 时，模型选择器末尾会出现实验性选项。可用性和扣费归属由服务端决定；请求成功不代表已确认使用独立备用额度。输入框只显示服务端返回的匹配额度桶，未返回时不会借用普通 Codex 额度。
 
+### GPT-6 Sol / Luna
+
+GPT-6 Sol 和 GPT-6 Luna 已在 [OpenAI 的 Codex 模型说明](https://learn.chatgpt.com/docs/models)中列出。插件会从当前账号的 Codex 模型目录自动读取可用模型及推理档位，无需手动添加型号；账号尚未开放时不会显示。Sol 适合复杂编程，Luna 适合高频、目标明确的任务。两者的扩展上下文上限和高速模式以账号目录返回值为准。
+
 ### GPT-6 Astra 上下文
 
 当官方模型目录提供 GPT-6 Astra 时，标准模式保留目录默认窗口；扩展模式使用 872000 Token，自定义模式可设置 128000–872000 Token（初始值为 272000）。该上限依据 [Codex 官方模型目录](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34)，不是 API 模型的总上下文容量。这些设置只调整 DSH 的本地上下文预算，不授予模型访问权限，也不保证账号的服务端容量；实际可用性以服务端为准。
