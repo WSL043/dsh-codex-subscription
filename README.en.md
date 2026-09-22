@@ -78,7 +78,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
 4. Open **Settings → Codex**, sign in to ChatGPT, then select a Codex model in your conversation.
 
-The unversioned package name installs the latest stable release. To select a version, enter `dsh-codex-subscription@2.1.4`; for a beta, use the complete version from its release notes. Enter only the package name here, not a terminal command. This plugin can be installed using its npm package name; no GitHub URL or local directory is needed.
+The unversioned package name installs the latest stable release. To select a version, enter `dsh-codex-subscription@2.1.5`; for a beta, use the complete version from its release notes. Enter only the package name here, not a terminal command. This plugin can be installed using its npm package name; no GitHub URL or local directory is needed.
 
 <details>
 <summary>Terminal installation (with an existing dsh command)</summary>
@@ -240,7 +240,7 @@ In **Settings → Codex → Advanced → Independent subtasks**, click **Install
 
 ![Optional component management](docs/assets/settings-runtime-current-en.png)
 
-Prefer **Install component** above: the plugin selects a verified component version. The current stable release, **2.1.4**, uses `0.1.5-rc.2`. Do not omit the version or substitute `@next`. `2.1.5-beta.1` installs `0.1.5-rc.3` by default and remains compatible with an existing rc.2 installation.
+Prefer **Install component** above: the plugin selects a verified component version. Stable release **2.1.5** installs `0.1.5-rc.3` by default and remains compatible with an existing rc.2 installation. Do not omit the component version or substitute `@next`.
 
 <details>
 <summary>Manual installation on older hosts and offline preparation</summary>
