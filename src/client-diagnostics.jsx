@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button } from './client-primitives.js'
 import { CHANNEL, SUPPORT_ISSUE_URL, unwrap } from './client-shared.js'
 import { recoveryCall, clientDiagnostic } from './client-recovery.js'
 export function DiagnosticsCard({ rpc, t }) {

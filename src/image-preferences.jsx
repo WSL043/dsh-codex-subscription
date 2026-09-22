@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { Menu, IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Menu, IconChevronDownOutline14 } from './client-primitives.js'
 import { IMAGE_MODELS } from './image-models.js'
 import { IMAGE_SETTING_GROUPS, imageGroupValue, imageGroupPatch } from './image-setting-groups.js'
 

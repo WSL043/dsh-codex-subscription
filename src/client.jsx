@@ -23,7 +23,7 @@ import { CodexModelSelect } from './client-model-select.jsx'
 import { CodexSection } from './client-section.jsx'
 
 export const inject = [
-  'slots', 'locale', 'connection', 'remote', 'settingsScope', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
+  'slots', 'locale', 'connection', 'remote', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
 ]
 
 export function apply(ctx) {
@@ -37,7 +37,10 @@ export function apply(ctx) {
     return () => tag.remove()
   }, 'codex-subscription: style')
   const rpc = createSubscriptionRpcClient(ctx.get('connection').rpc)
-  const scope = ctx.settingsScope.bind({ namespace: SETTINGS_NAMESPACE })
+  const scope = ctx.get('settingsScope')?.bind({ namespace: SETTINGS_NAMESPACE }) ?? {
+    getSnapshot: () => ({ status: 'unavailable' }),
+    subscribe: () => () => {},
+  }
   const preference = createPreferenceController(scope, rpc)
   ctx.effect(() => {
     let previous = JSON.stringify(preference.getSnapshot(), (key,value) => key.startsWith('image') || key === '' ? value : undefined)

@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { Input } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Input } from './client-primitives.js'
 import { SEARCH_MODES, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, validQuotaThreshold, normalizeSearchDomains } from './capability-settings.js'
 
 export function CapabilityPreferences({ preference, t, section }) {

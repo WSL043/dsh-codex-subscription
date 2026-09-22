@@ -6,7 +6,7 @@ import {
 import {
   IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseOutline16,
   IconCopyOutline16, IconDownloadOutline16, IconEditOutline16, IconFullscreenOutline16,
-} from '@deepseek-ai/dsh-client-ui-primitives'
+} from './client-primitives.js'
 import { SUBSCRIPTION_IMAGE_VIEWER_CSS } from './subscription-image-viewer-styles.js'
 import { useImageTransform } from './subscription-image-transform.js'
 

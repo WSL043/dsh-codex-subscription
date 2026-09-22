@@ -1,5 +1,5 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react'
-import { Button, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button, Tooltip } from './client-primitives.js'
 import { SketchWorkspace } from './sketch-workspace.jsx'
 import { WorkspaceIcon } from './workspace-icons.jsx'
 

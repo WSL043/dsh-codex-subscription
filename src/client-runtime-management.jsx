@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
+import { Button } from './client-primitives.js'
 import { CHANNEL } from './rpc-contract.js'
 
 export function RuntimeManagement({ rpc, preference, t }) {

@@ -94,7 +94,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
 test('settings registration works across stable and preview DSH exports', () => {
   const source = text('src/index.js')
   assert.doesNotMatch(source, /import\s*\{[^}]*settingsNamespace[^}]*\}\s*from\s*['"]@deepseek-ai\/dsh-settings['"]/u)
-  assert.match(source, /ctx\.settings\.register\(SETTINGS_NAMESPACE,/u)
+  assert.match(source, /createSettingsAdapter\(ctx, z\.object\(settingsFields\), config, SETTINGS_NAMESPACE\)/u)
 })
 
 test('compatibility metadata keeps stable and preview DSH lanes explicit', () => {
