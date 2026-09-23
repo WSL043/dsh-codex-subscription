@@ -17,8 +17,8 @@ test('normal installation does not pull the optional Codex executable runtime', 
   assert.equal(manifest.dependencies?.[runtime], undefined)
   assert.equal(manifest.optionalDependencies?.[runtime], undefined)
   assert.equal(manifest.peerDependenciesMeta?.[runtime]?.optional, true)
-  assert.equal(manifest.peerDependencies[runtime], '0.1.5-rc.2 || 0.1.5-rc.3')
-  assert.equal(manifest.devDependencies[runtime], '0.1.5-rc.2')
+  assert.equal(manifest.peerDependencies[runtime], '0.1.5-rc.2 || 0.1.5-rc.3 || 0.1.7-rc.1')
+  assert.equal(manifest.devDependencies[runtime], '0.1.7-rc.1')
 })
 
 test('scheduled compatibility checks cannot commit or release merely because upstream changed', () => {
@@ -45,6 +45,12 @@ test('official DSH acceptance materializes one exact runner instead of resolving
   assert.match(script, /package\.json[\s\S]{0,160}\.version/u)
 })
 
+test('release acceptance includes the exact declared DSH release alongside public channels', () => {
+  const workflow = text('.github/workflows/publish.yml')
+  assert.match(workflow, /channel: \[latest, accepted, alpha\]/u)
+  assert.match(workflow, /Get-Content -LiteralPath compatibility\.json -Raw \| ConvertFrom-Json\)\.latestTested/u)
+})
+
 test('release is a prebuilt, documented, removable DSH bundle', () => {
   const pkg = JSON.parse(text('package.json'))
   const included = new Set(pkg.files)
@@ -69,6 +75,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
     if (name.startsWith('@deepseek-ai/dsh-') && !pkg.peerDependenciesMeta?.[name]?.optional) assert.deepEqual(new Set(version.split(' || ')), supportedDshReleases, name)
   }
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-llm-pi-ai'], compatibility.latestTested)
+  assert.equal(pkg.dependencies['@deepseek-ai/dsh-home-paths'], compatibility.latestTested)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-api-remotes'], compatibility.latestTested)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-invariants'], compatibility.latestTested)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-client-ui-attachment'], undefined)
@@ -76,8 +83,8 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-client-runtime'], undefined)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-client-runtime'], undefined)
   assert.equal(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-api-remotes'), true)
-  assert.equal(pkg.devDependencies['@deepseek-ai/cordis'], '4.0.2')
-  assert.equal(pkg.devDependencies['@deepseek-ai/schemastery'], '3.18.2')
+  assert.equal(pkg.devDependencies['@deepseek-ai/cordis'], '4.0.4')
+  assert.equal(pkg.devDependencies['@deepseek-ai/schemastery'], '3.18.4')
   assert.equal(pkg.peerDependencies['@deepseek-ai/schemastery'], '3.18.1 || ^3.18.2')
   assert.equal(pkg.peerDependencies['@earendil-works/pi-ai'], '0.82.1 || 0.85.1')
   assert.equal(pkg.packageManager, 'pnpm@11.26.0')
@@ -337,7 +344,7 @@ test('official DSH install and web startup are hard gates before a release', () 
 
   for (const workflow of [ci, publish]) {
     assert.match(workflow, /Official DSH acceptance/u)
-    assert.match(workflow, /channel: \[latest, alpha\]/u)
+    assert.match(workflow, /channel: \[latest, (?:accepted, )?alpha\]/u)
     assert.match(workflow, /-DshVersion \$version/u)
     assert.match(workflow, /accept-official-release\.ps1/u)
     assert.match(workflow, /accept-official-release\.ps1 -PackagePath \$package -DshRunner pnpm/u)

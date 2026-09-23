@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string] $PackagePath,
-    [string] $DshVersion = '0.1.5-rc.2',
+    [string] $DshVersion = '0.1.7-rc.1',
     [string] $Profile = 'web',
     [ValidateSet('npx', 'pnpm')][string] $DshRunner = 'npx',
     [int] $StartupTimeoutSeconds = 45
@@ -151,7 +151,15 @@ try {
     Initialize-Runner
     $latest = (& pnpm view dsh-codex-subscription dist-tags.latest --json 2>$null | Out-String).Trim().Trim('"')
     if ($LASTEXITCODE -eq 0 -and $latest -match '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') {
-        Invoke-Dsh @('plugin', '--profile', $Profile, 'add', "dsh-codex-subscription@$latest", '--reporter', 'append-only')
+        $publishedPeersJson = (& pnpm view "dsh-codex-subscription@$latest" peerDependencies --json 2>$null | Out-String).Trim()
+        $publishedHostRange = if ($LASTEXITCODE -eq 0 -and $publishedPeersJson) {
+            try { (ConvertFrom-Json $publishedPeersJson).'@deepseek-ai/dsh-web' } catch { $null }
+        }
+        if ($publishedHostRange -and (@($publishedHostRange -split '\s*\|\|\s*') -contains $DshVersion)) {
+            Invoke-Dsh @('plugin', '--profile', $Profile, 'add', "dsh-codex-subscription@$latest", '--reporter', 'append-only')
+        } else {
+            Write-Host "Skipping predecessor ${latest}: it does not declare DSH $DshVersion compatibility."
+        }
     }
 
     Invoke-Dsh @('plugin', '--profile', $Profile, 'add', $package, '--reporter', 'append-only')

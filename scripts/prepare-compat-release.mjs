@@ -116,6 +116,7 @@ export function planCompatibilityUpdate(state, candidate) {
     for (const name of Object.keys(manifest.devDependencies ?? {})) {
       if (name.startsWith('@deepseek-ai/dsh-') && !manifest.peerDependenciesMeta?.[name]?.optional) manifest.devDependencies[name] = candidate
     }
+    if (manifest.dependencies?.['@deepseek-ai/dsh-home-paths']) manifest.dependencies['@deepseek-ai/dsh-home-paths'] = candidate
   }
   const supportedRange = [...compatibility.supported, ...compatibility.previews].sort(compareVersions).join(' || ')
   for (const name of Object.keys(manifest.peerDependencies ?? {})) {

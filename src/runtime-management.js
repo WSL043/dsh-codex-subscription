@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto'
-import { SUBAGENT_RUNTIME_PACKAGE, SUBAGENT_RUNTIME_VERSION } from './subagent-runtime.js'
+import { SUBAGENT_RUNTIME_PACKAGE, matchingSubagentRuntimeVersion } from './subagent-runtime.js'
 
 // DSH owns package locking, installation, rollback and script approval. This
 // adapter accepts no package names, commands or paths from the browser.
-export function createRuntimeManagement({ manager, inspect, active, selectDsh }) {
+export function createRuntimeManagement({ manager, inspect, active, selectDsh, componentVersion = matchingSubagentRuntimeVersion }) {
   let operation
   let state = { phase: 'idle', restartRequired: false }
   const supported = value => ['listBundles', 'installBundle', 'removeBundle', 'cancelInstall'].every(key => typeof value?.[key] === 'function')
@@ -14,7 +14,8 @@ export function createRuntimeManagement({ manager, inspect, active, selectDsh })
     try { if (available) bundle = (await host.listBundles()).find(value => value.name === SUBAGENT_RUNTIME_PACKAGE) }
     catch { available = false }
     const runtime = inspect()
-    return { ...state, available, installed: runtime.installed, present: runtime.installed || runtime.present === true || bundle?.installed === true, removable: available && bundle?.installed === true && !bundle.readOnlyReason, active: active() }
+    const version = componentVersion()
+    return { ...state, available, installable: available && version !== undefined, componentVersion: version, installed: runtime.installed, present: runtime.installed || runtime.present === true || bundle?.installed === true, removable: available && bundle?.installed === true && !bundle.readOnlyReason, active: active() }
   }
   const start = async action => {
     if (!['install', 'remove'].includes(action)) throw Error('invalid-action')
@@ -23,6 +24,8 @@ export function createRuntimeManagement({ manager, inspect, active, selectDsh })
     if (active() > 0) throw Error('active-tasks')
     const host = manager()
     if (!supported(host)) throw Error('unavailable')
+    const version = componentVersion()
+    if (action === 'install' && version === undefined) throw Error('unavailable')
     const requestId = randomUUID()
     // Reserve synchronously before any await, including the removal checks.
     const current = { action, requestId, host }
@@ -36,7 +39,7 @@ export function createRuntimeManagement({ manager, inspect, active, selectDsh })
           await selectDsh()
         }
         const result = action === 'install'
-          ? await host.installBundle(`${SUBAGENT_RUNTIME_PACKAGE}@${SUBAGENT_RUNTIME_VERSION}`, { enabled: false, requestId })
+          ? await host.installBundle(`${SUBAGENT_RUNTIME_PACKAGE}@${version}`, { enabled: false, requestId })
           : await host.removeBundle(SUBAGENT_RUNTIME_PACKAGE)
         if (result.application === 'cancelled') state = { phase: 'cancelled', restartRequired: false }
         else if (['applied', 'restart-required'].includes(result.application)) state = { phase: 'done', restartRequired: true }

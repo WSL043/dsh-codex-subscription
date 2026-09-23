@@ -13,16 +13,26 @@ function fixture(overrides = {}) {
     cancelInstall: async () => ({status:'not-running'}),
     ...overrides,
   }
-  const service = createRuntimeManagement({manager:()=>host,inspect:()=>({installed:true}),active:()=>0,selectDsh:async()=>calls.push('dsh')})
+  const service = createRuntimeManagement({manager:()=>host,inspect:()=>({installed:true}),active:()=>0,selectDsh:async()=>calls.push('dsh'),componentVersion:()=> '0.1.7-rc.1'})
   return {service,host,calls}
 }
 test('uses only fixed official package, does not auto-enable and requires restart', async () => {
   const {service,calls}=fixture()
   await service.start('install'); await tick()
-  assert.equal(calls[0][0],name+'@0.1.5-rc.3')
+  assert.equal(calls[0][0],name+'@0.1.7-rc.1')
   assert.equal(calls[0][1].enabled,false)
   assert.equal((await service.status()).restartRequired,true)
   await assert.rejects(service.start('remove'),/restart-required/)
+})
+test('component installation follows the exact host cohort and leaves unsupported hosts unchanged', async () => {
+  const {host,calls}=fixture()
+  const older=createRuntimeManagement({manager:()=>host,inspect:()=>({installed:false}),active:()=>0,componentVersion:()=> '0.1.5-rc.2'})
+  await older.start('install');await tick()
+  assert.equal(calls.at(-1)[0],name+'@0.1.5-rc.2')
+  const unsupported=createRuntimeManagement({manager:()=>host,inspect:()=>({installed:false}),active:()=>0,componentVersion:()=>undefined})
+  assert.equal((await unsupported.status()).installable,false)
+  await assert.rejects(unsupported.start('install'),/unavailable/)
+  assert.equal(calls.length,1)
 })
 test('serializes changes, supports cancellation and permits retry after rollback', async () => {
   let finish, id

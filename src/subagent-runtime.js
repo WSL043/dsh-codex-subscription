@@ -6,10 +6,19 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
 export const SUBAGENT_RUNTIME_PACKAGE = '@deepseek-ai/dsh-subagent-codex'
-export const SUBAGENT_RUNTIME_VERSION = '0.1.5-rc.3'
-const SUPPORTED_RUNTIME_VERSIONS = new Set(['0.1.5-rc.2', SUBAGENT_RUNTIME_VERSION])
+export const SUBAGENT_RUNTIME_VERSION = '0.1.7-rc.1'
+const SUPPORTED_RUNTIME_VERSIONS = new Set(['0.1.5-rc.2', '0.1.5-rc.3', SUBAGENT_RUNTIME_VERSION])
 const require = createRequire(import.meta.url)
 const execute = promisify(execFile)
+
+// The official component declares exact DSH cohort peers. Installing the
+// newest component into an older host can appear to succeed but fail at load.
+export function matchingSubagentRuntimeVersion(resolve = require.resolve) {
+  try {
+    const host = JSON.parse(readFileSync(resolve('@deepseek-ai/dsh-llm/package.json'), 'utf8'))
+    return SUPPORTED_RUNTIME_VERSIONS.has(host.version) ? host.version : undefined
+  } catch { return undefined }
+}
 
 // Resolve from this plugin's dependency graph, then use the provider's own
 // protocol and CLI. Never search PATH or a desktop application's private files.
@@ -17,7 +26,7 @@ export function inspectSubagentRuntime(resolve = require.resolve) {
   try {
     const manifestPath = resolve(`${SUBAGENT_RUNTIME_PACKAGE}/package.json`)
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-    if (!SUPPORTED_RUNTIME_VERSIONS.has(manifest.version)) return { installed: false, present: true }
+    if (!SUPPORTED_RUNTIME_VERSIONS.has(manifest.version) || manifest.version !== matchingSubagentRuntimeVersion(resolve)) return { installed: false, present: true }
     return { installed: true }
   } catch { return { installed: false } }
 }

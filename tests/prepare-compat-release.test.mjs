@@ -20,6 +20,7 @@ const fixture = () => ({
   },
   manifest: {
     version: '1.1.4',
+    dependencies: { '@deepseek-ai/dsh-home-paths': '0.1.0-rc.8' },
     devDependencies: {
       '@deepseek-ai/dsh-web': '0.1.0-rc.8',
       react: '18.3.1',
@@ -39,6 +40,7 @@ const previewFixture = (version = '1.11.3') => ({
   },
   manifest: {
     version,
+    dependencies: { '@deepseek-ai/dsh-home-paths': '0.1.1-rc.2' },
     devDependencies: {
       '@deepseek-ai/dsh-web': '0.1.2-alpha.2',
       react: '18.3.1',
@@ -70,6 +72,7 @@ test('plans preview DSH support as a plugin beta without moving the stable lane'
   assert.deepEqual(update.compatibility.supported, ['0.1.1-rc.2'])
   assert.deepEqual(update.compatibility.previews, ['0.1.2-alpha.1', '0.1.2-alpha.2', '0.1.2-alpha.3'])
   assert.equal(update.manifest.devDependencies['@deepseek-ai/dsh-web'], '0.1.2-alpha.2')
+  assert.equal(update.manifest.dependencies['@deepseek-ai/dsh-home-paths'], '0.1.1-rc.2')
   assert.equal(
     update.manifest.peerDependencies['@deepseek-ai/dsh-web'],
     '0.1.1-rc.2 || 0.1.2-alpha.1 || 0.1.2-alpha.2 || 0.1.2-alpha.3',
@@ -94,6 +97,7 @@ test('plans one stable plugin patch for one newly accepted DSH version', () => {
   assert.equal(update.pluginVersion, '1.1.5')
   assert.equal(update.compatibility.latestTested, '0.1.1-rc.1')
   assert.equal(update.manifest.devDependencies['@deepseek-ai/dsh-web'], '0.1.1-rc.1')
+  assert.equal(update.manifest.dependencies['@deepseek-ai/dsh-home-paths'], '0.1.1-rc.1')
   assert.equal(
     update.manifest.peerDependencies['@deepseek-ai/dsh-web'],
     '0.1.0-rc.6 || 0.1.0-rc.7 || 0.1.0-rc.8 || 0.1.1-rc.1',

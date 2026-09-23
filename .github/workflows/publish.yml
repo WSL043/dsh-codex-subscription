@@ -165,7 +165,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        channel: [latest, alpha]
+        channel: [latest, accepted, alpha]
     runs-on: windows-2025
     timeout-minutes: 15
     steps:
@@ -187,8 +187,12 @@ jobs:
         run: |
           $package = (Get-ChildItem -LiteralPath .candidate -Filter '*.tgz' -File | Select-Object -First 1).FullName
           if (-not $package) { throw 'Candidate package artifact was not downloaded.' }
-          $version = (& pnpm view '@deepseek-ai/dsh@${{ matrix.channel }}' version --json | Out-String).Trim().Trim('"')
-          if ($LASTEXITCODE -ne 0 -or $version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') { throw 'Could not resolve the official DSH channel.' }
+          $version = if ('${{ matrix.channel }}' -eq 'accepted') {
+            (Get-Content -LiteralPath compatibility.json -Raw | ConvertFrom-Json).latestTested
+          } else {
+            (& pnpm view '@deepseek-ai/dsh@${{ matrix.channel }}' version --json | Out-String).Trim().Trim('"')
+          }
+          if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') { throw 'Could not resolve the official DSH version.' }
           Write-Host "Accepting official DSH $version"
           .\.github\scripts\accept-official-release.ps1 -PackagePath $package -DshRunner pnpm -DshVersion $version
 
