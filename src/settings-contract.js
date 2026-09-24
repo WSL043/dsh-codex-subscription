@@ -1,6 +1,8 @@
 import { MAX_CONTEXT_BUDGET, validModelKey } from './capability-settings.js'
 
 export const SETTINGS_NAMESPACE = 'codex-subscription'
+export const AUTO_QUOTA_RETRY_FIELD = 'autoQuotaRetry'
+export const DEFAULT_AUTO_QUOTA_RETRY = false
 export const QUICK_QUOTA_MODE_FIELD = 'quickQuotaMode'
 export const LEGACY_QUICK_QUOTA_FIELD = 'quickQuotaVisible'
 export const QUICK_QUOTA_MODE_OFF = 'off'
@@ -55,6 +57,8 @@ export const CUSTOM_CONTEXT_MODEL_DEFAULTS = Object.freeze({
   'gpt-5.6': 272_000,
   'gpt-6-astra': 272_000,
 })
+
+export const normalizeAutoQuotaRetry = value => typeof value === 'boolean' ? value : DEFAULT_AUTO_QUOTA_RETRY
 
 export const normalizeSearchProvider = value => [SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_CODEX].includes(value)
   ? value

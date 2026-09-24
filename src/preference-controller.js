@@ -1,5 +1,6 @@
 import { CHANNEL, unwrap } from './rpc-contract.js'
 import {
+  AUTO_QUOTA_RETRY_FIELD,
   clampModelContext,
   CONTEXT_MODE_FIELD,
   CUSTOM_CONTEXT_MODEL_CAPS,
@@ -7,6 +8,7 @@ import {
   CUSTOM_CONTEXT_MODEL_FIELDS,
   CUSTOM_CONTEXT_WINDOW_FIELD,
   LEGACY_QUICK_QUOTA_FIELD,
+  normalizeAutoQuotaRetry,
   normalizeContextMode,
   normalizeCustomContextWindow,
   normalizeOutputVerbosity,
@@ -58,6 +60,7 @@ export function createPreferenceController(scope, rpc) {
       // Keep accepted ready surfaces mounted while a Host write is pending.
       status: current.status,
       ...capabilities,
+      autoQuotaRetry: normalizeAutoQuotaRetry(value?.[AUTO_QUOTA_RETRY_FIELD]),
       connectionMode: value?.connectionMode === 'websocket' ? 'websocket' : 'sse',
       compactionMode: value?.compactionMode === 'cloud' ? 'cloud' : 'dsh',
       subagentBackend: value?.subagentBackend === 'codex' ? 'codex' : 'dsh',
@@ -111,6 +114,7 @@ export function createPreferenceController(scope, rpc) {
     fallback = {
       status: 'ready',
       value: {
+        [AUTO_QUOTA_RETRY_FIELD]: normalizeAutoQuotaRetry(value?.[AUTO_QUOTA_RETRY_FIELD]),
         connectionMode: value?.connectionMode === 'websocket' ? 'websocket' : 'sse',
         compactionMode: value?.compactionMode === 'cloud' ? 'cloud' : 'dsh',
         subagentBackend: value?.subagentBackend === 'codex' ? 'codex' : 'dsh',
