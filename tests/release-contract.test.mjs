@@ -17,8 +17,8 @@ test('normal installation does not pull the optional Codex executable runtime', 
   assert.equal(manifest.dependencies?.[runtime], undefined)
   assert.equal(manifest.optionalDependencies?.[runtime], undefined)
   assert.equal(manifest.peerDependenciesMeta?.[runtime]?.optional, true)
-  assert.equal(manifest.peerDependencies[runtime], '0.1.5-rc.2 || 0.1.5-rc.3 || 0.1.7-rc.1')
-  assert.equal(manifest.devDependencies[runtime], '0.1.7-rc.1')
+  assert.equal(manifest.peerDependencies[runtime], '0.1.5-rc.2 || 0.1.5-rc.3 || 0.1.7-rc.1 || 0.1.7-rc.2')
+  assert.equal(manifest.devDependencies[runtime], '0.1.7-rc.2')
 })
 
 test('scheduled compatibility checks cannot commit or release merely because upstream changed', () => {
@@ -49,6 +49,9 @@ test('release acceptance includes the exact declared DSH release alongside publi
   const workflow = text('.github/workflows/publish.yml')
   assert.match(workflow, /channel: \[latest, accepted, 0\.1\.7-alpha\.1, alpha\]/u)
   assert.match(workflow, /Get-Content -LiteralPath compatibility\.json -Raw \| ConvertFrom-Json\)\.latestTested/u)
+  const ci = text('.github/workflows/ci.yml')
+  assert.match(ci, /channel: \[latest, accepted, 0\.1\.7-alpha\.1, alpha\]/u)
+  assert.match(ci, /Get-Content -LiteralPath compatibility\.json -Raw \| ConvertFrom-Json\)\.latestTested/u)
 })
 
 test('release is a prebuilt, documented, removable DSH bundle', () => {
