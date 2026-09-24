@@ -15,6 +15,12 @@ test('settings schema survives the native browser JSON round trip', () => {
   assert.throws(() => browserSchema({ searchDomains: ['https://example.com/path'] }), /Invalid search domain/)
 })
 
+test('every subscription preference remains editable on supported DSH settings hosts', () => {
+  for (const [name, field] of Object.entries(plugin.Config.dict)) {
+    assert.equal(field.meta.volatile, true, `${name} must be writable in DSH settings`)
+  }
+})
+
 import * as plugin from '../src/index.js'
 import { PACKAGE_VERSION } from '../src/version.js'
 import {
