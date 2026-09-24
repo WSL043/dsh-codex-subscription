@@ -121,7 +121,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        channel: [latest, 0.1.7-alpha.1, alpha]
+        channel: [latest, alpha]
     runs-on: windows-2025
     timeout-minutes: 15
     steps:

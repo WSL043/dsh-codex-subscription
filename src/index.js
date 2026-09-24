@@ -100,10 +100,7 @@ const settingsFields = {
   [CUSTOM_CONTEXT_WINDOW_FIELD]: z.number().step(1).min(128_000).max(1_000_000).default(DEFAULT_CUSTOM_CONTEXT_WINDOW),
   ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [field, z.number().step(1).min(128_000).max(CUSTOM_CONTEXT_MODEL_CAPS[modelKey]).default(CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey])])),
 }
-// Schemastery before 3.18.4 has no .volatile() helper. The Host still reads
-// the same volatile metadata, so use the older public .extra() API for every
-// supported DSH cohort instead of silently exposing read-only settings.
-export const Config = z.object(Object.fromEntries(Object.entries(settingsFields).map(([key, field]) => [key, field.extra('volatile', true)])))
+export const Config = z.object(Object.fromEntries(Object.entries(settingsFields).map(([key, field]) => [key, typeof field.volatile === 'function' ? field.volatile() : field])))
 
 export function apply(ctx, config = {}) {
   const settings = createSettingsAdapter(ctx, z.object(settingsFields), config, SETTINGS_NAMESPACE)
