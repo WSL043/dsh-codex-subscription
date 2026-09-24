@@ -47,7 +47,7 @@ test('official DSH acceptance materializes one exact runner instead of resolving
 
 test('release acceptance includes the exact declared DSH release alongside public channels', () => {
   const workflow = text('.github/workflows/publish.yml')
-  assert.match(workflow, /channel: \[latest, accepted, alpha\]/u)
+  assert.match(workflow, /channel: \[latest, accepted, 0\.1\.7-alpha\.1, alpha\]/u)
   assert.match(workflow, /Get-Content -LiteralPath compatibility\.json -Raw \| ConvertFrom-Json\)\.latestTested/u)
 })
 
@@ -344,7 +344,7 @@ test('official DSH install and web startup are hard gates before a release', () 
 
   for (const workflow of [ci, publish]) {
     assert.match(workflow, /Official DSH acceptance/u)
-    assert.match(workflow, /channel: \[latest, (?:accepted, )?alpha\]/u)
+    assert.match(workflow, /channel: \[latest, (?:accepted, )?0\.1\.7-alpha\.1, alpha\]/u)
     assert.match(workflow, /-DshVersion \$version/u)
     assert.match(workflow, /accept-official-release\.ps1/u)
     assert.match(workflow, /accept-official-release\.ps1 -PackagePath \$package -DshRunner pnpm/u)
