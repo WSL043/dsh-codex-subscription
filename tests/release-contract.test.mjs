@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
 import { compareVersions } from '../scripts/prepare-compat-release.mjs'
+import { SUBAGENT_RUNTIME_VERSION, SUPPORTED_RUNTIME_VERSIONS } from '../src/subagent-runtime.js'
 
 const text = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 const pngDimensions = path => {
@@ -19,6 +20,8 @@ test('normal installation does not pull the optional Codex executable runtime', 
   assert.equal(manifest.peerDependenciesMeta?.[runtime]?.optional, true)
   assert.equal(manifest.peerDependencies[runtime], '0.1.5-rc.2 || 0.1.5-rc.3 || 0.1.7-rc.1 || 0.1.7-rc.2')
   assert.equal(manifest.devDependencies[runtime], '0.1.7-rc.2')
+  assert.equal(SUBAGENT_RUNTIME_VERSION, manifest.devDependencies[runtime])
+  assert.deepEqual(new Set(SUPPORTED_RUNTIME_VERSIONS), new Set(manifest.peerDependencies[runtime].split(' || ')))
 })
 
 test('scheduled compatibility checks cannot commit or release merely because upstream changed', () => {
@@ -28,6 +31,9 @@ test('scheduled compatibility checks cannot commit or release merely because ups
   assert.match(promote, /if: github\.event_name == 'workflow_dispatch' && inputs\.publish_compatibility == true && needs\.prepare\.outputs\.changed == 'true' && needs\.windows-acceptance\.result == 'success'/u)
   assert.match(workflow, /\.sort\(compareVersions\)\.reverse\(\)/u, 'read-only checks must follow the newest release without requiring metadata commits')
   assert.doesNotMatch(workflow.slice(0, workflow.indexOf('\n  promote:')), /contents: write|actions: write|git push|gh workflow run/u)
+  const staged = workflow.match(/git add -- ([^\n]+)/u)?.[1]?.trim().split(/\s+/u)
+  assert.ok(staged)
+  for (const path of staged) assert.equal(existsSync(new URL(`../${path}`, import.meta.url)), true, path)
 })
 
 test('official DSH acceptance allows only the reviewed pnpm build dependencies', () => {
@@ -295,7 +301,7 @@ test('official DSH compatibility updates are detected, accepted, and then dispat
   assert.match(workflow, /test "\$\(git rev-parse origin\/main\)" = "\$GITHUB_SHA"/u)
   assert.match(workflow, /git push origin HEAD:main[\s\S]*gh workflow run publish\.yml/u)
   assert.match(workflow, /release_kind=compatibility/u)
-  assert.match(workflow, /git add --[^\n]*README\.md[^\n]*README\.zh-CN\.md[^\n]*compatibility\.json/u)
+  assert.match(workflow, /git add --[^\n]*README\.md[^\n]*README\.en\.md[^\n]*compatibility\.json/u)
   assert.doesNotMatch(workflow, /git add --[^\n]*AGENTS\.md/u)
   assert.doesNotMatch(workflow, /git add --[^\n]*\.github\/workflows\/publish\.yml/u)
   assert.match(workflow, /request_id="compat-\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}"/u)
