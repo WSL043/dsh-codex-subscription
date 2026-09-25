@@ -2,7 +2,7 @@ import { CapabilityPreferences } from './capability-preferences.jsx'
 import { RuntimeManagement } from './client-runtime-management.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { Button, IconChevronDownOutline14, Input, Menu } from './client-primitives.js'
-import { CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, clampModelContext, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
+import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, clampModelContext, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
 import { reconcileContextDrafts } from './context-draft-state.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
 export function QuickQuotaPreference({ preference, t }) {
@@ -17,6 +17,15 @@ export function QuickQuotaPreference({ preference, t }) {
       {choice(QUICK_QUOTA_MODE_BAR, t('quickQuotaBar'))}
       {choice(QUICK_QUOTA_MODE_FORECAST, <>{t('quickQuotaForecast')} <small>{t('quickQuotaBeta')}</small></>)}
     </div>
+  </div>
+}
+
+export function AutoQuotaRetryPreference({ preference, t }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  const writable = snapshot.status === 'ready' && snapshot.writable === true
+  return <div className="codexSubscriptionPreference">
+    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('autoQuotaRetry')}</span><span className="codexSubscriptionPreferenceHint">{t('autoQuotaRetryHint')}</span></div>
+    <button className="codexSubscriptionSwitch" type="button" role="switch" aria-label={t('autoQuotaRetry')} aria-checked={snapshot.autoQuotaRetry} disabled={!writable} onClick={() => { void preference.set({ [AUTO_QUOTA_RETRY_FIELD]: !snapshot.autoQuotaRetry }) }}><span className="codexSubscriptionSwitchKnob" /></button>
   </div>
 }
 
@@ -128,6 +137,8 @@ export function PreferencesCard({ preference, rpc, t, section = "display" }) {
     </> : <>
       <QuickQuotaPreference preference={preference} t={t} />
       <CapabilityPreferences preference={preference} t={t} section="quota" />
+      <div className="codexSubscriptionDivider" />
+      <AutoQuotaRetryPreference preference={preference} t={t} />
     </>}
     {snapshot.error ? <div className="codexSubscriptionRecover" role="alert"><p className="codexSubscriptionError">{t('preferenceFailed')}</p><Button type="button" variant="outline" onClick={() => { void preference.retry() }}>{t('preferenceRetry')}</Button></div> : null}
   </div>

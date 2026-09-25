@@ -31,8 +31,9 @@ import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL } from './image-models.js'
 import { OriginalImageStore } from './image-original-store.js'
 import { inheritedOriginalImageRef } from './image-original-contract.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
-import { CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_CUSTOM_CONTEXT_WINDOW, LEGACY_QUICK_QUOTA_FIELD, normalizeQuickQuotaMode, normalizeOutputVerbosity, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_FIELD, SETTINGS_NAMESPACE, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
+import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeQuickQuotaMode, normalizeOutputVerbosity, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_FIELD, SETTINGS_NAMESPACE, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
+import { createCodexQuotaRetryHandler } from './quota-retry.js'
 import { createQuotaForecastReader } from './quota-forecast.js'
 import { QuotaForecastStateStore } from './quota-forecast-store.js'
 import { createCodexResetCreditService } from './reset-credits.js'
@@ -87,6 +88,7 @@ export function createSearchProviderSwitcher(loader) {
 }
 
 const settingsFields = {
+  [AUTO_QUOTA_RETRY_FIELD]: z.boolean().default(DEFAULT_AUTO_QUOTA_RETRY),
   ...Object.fromEntries(Object.entries(PREFERENCE_FIELDS).map(([field, rule]) => [field, rule.default === undefined ? z.union(rule.choices) : z.union(rule.choices).default(rule.default)])),
   imageModel: z.union(Object.keys(IMAGE_MODELS)).default(DEFAULT_IMAGE_MODEL),
   imageQuality: z.union(['auto','low','medium','high','xhigh','max']).default('auto'),
@@ -167,6 +169,7 @@ export function apply(ctx, config = {}) {
   })
   const preferences = {
     status: () => ({
+      [AUTO_QUOTA_RETRY_FIELD]: normalizeAutoQuotaRetry(settings.get()[AUTO_QUOTA_RETRY_FIELD]),
       compactionMode: settings.get().compactionMode ?? 'dsh',
       connectionMode: settings.get().connectionMode ?? 'sse',
       subagentBackend: settings.get().subagentBackend ?? 'dsh',
@@ -377,6 +380,33 @@ export function apply(ctx, config = {}) {
       usageReader.clearCache()
     }
   }, 'codex-subscription: quota forecast warm-up')
+  const quotaRetryLifetime = new AbortController()
+  const activeQuotaRetries = new Set()
+  const quotaRetryHandler = createCodexQuotaRetryHandler({
+    usageReader,
+    enabled: () => normalizeAutoQuotaRetry(settings.get()[AUTO_QUOTA_RETRY_FIELD]),
+  })
+  const disposeQuotaRetry = ctx.on('agent/request-error', (payload, next) => {
+    if (quotaRetryLifetime.signal.aborted) return Promise.resolve(undefined)
+    const signal = payload.signal === undefined
+      ? quotaRetryLifetime.signal
+      : AbortSignal.any([payload.signal, quotaRetryLifetime.signal])
+    const operation = quotaRetryHandler({ ...payload, signal }, next)
+    const tracked = operation.finally(() => activeQuotaRetries.delete(tracked))
+    activeQuotaRetries.add(tracked)
+    return tracked
+  })
+  ctx.effect(() => async () => {
+    disposeQuotaRetry()
+    quotaRetryLifetime.abort(new Error('codex-subscription quota retry disposed'))
+    await Promise.allSettled([...activeQuotaRetries])
+  }, 'codex-subscription: abort and drain quota recovery')
+  ctx.effect(() => settings.watch((value, previous) => {
+    if (normalizeAutoQuotaRetry(value[AUTO_QUOTA_RETRY_FIELD])
+      !== normalizeAutoQuotaRetry(previous?.[AUTO_QUOTA_RETRY_FIELD])) {
+      quotaRetryHandler.notifyConfigurationChanged()
+    }
+  }), 'codex-subscription: update quota recovery preference')
   const resetCreditService = createCodexResetCreditService({
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
@@ -400,6 +430,7 @@ export function apply(ctx, config = {}) {
     resetCreditService,
     preferences,
     runtimeManagement,
+    onAccountChanged: quotaRetryHandler.notifyAccountChanged,
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog }),
     modelCatalog,
     closeConnections: () => connection.dispose(),

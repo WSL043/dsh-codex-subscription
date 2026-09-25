@@ -35,6 +35,12 @@ export const STYLE = `
 .codexSubscriptionPreferenceCopy{display:flex;min-width:0;flex-direction:column;gap:2px}
 .codexSubscriptionPreferenceLabel{display:flex;align-items:center;gap:6px}
 .codexSubscriptionPreferenceHint{max-width:300px;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionSwitch{position:relative;flex:none;width:36px;height:20px;padding:2px;border:0;border-radius:999px;background:var(--dsw-alias-bg-module-platform);cursor:pointer;transition:background 120ms var(--ds-ease-in-out)}
+.codexSubscriptionSwitch[aria-checked=true]{background:var(--dsw-alias-label-primary)}
+.codexSubscriptionSwitch:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}
+.codexSubscriptionSwitch:disabled{cursor:not-allowed;opacity:.5}
+.codexSubscriptionSwitchKnob{display:block;width:16px;height:16px;border-radius:50%;background:var(--dsw-alias-bg-layer-1);box-shadow:0 1px 2px var(--dsw-alias-border-l3);transition:transform 120ms var(--ds-ease-in-out)}
+.codexSubscriptionSwitch[aria-checked=true] .codexSubscriptionSwitchKnob{transform:translateX(16px)}
 .codexSubscriptionQuotaModes{display:flex;align-items:center;gap:3px;padding:2px;border-radius:9px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionQuotaMode{position:relative;display:flex;align-items:center;justify-content:center;min-height:26px;padding:0 9px;border-radius:7px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;cursor:pointer;white-space:nowrap}
 .codexSubscriptionQuotaMode small{margin-left:3px;font-size:9px;line-height:1;color:var(--dsw-alias-label-tertiary)}

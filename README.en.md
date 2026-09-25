@@ -39,6 +39,7 @@ See below for detailed installation steps, terminal commands, updates, and remov
 | **Subscription models** | Sign in to ChatGPT and use Codex without an OpenAI API key or Codex CLI |
 | **Recoverable and diagnosable** | Sign-in state reconciles automatically; failed reads can be retried in place, while timeouts and stale account responses cannot overwrite current state; Settings can create a support report without credentials or account identifiers |
 | **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate, with reset times |
+| **Optional quota recovery** | Opt in to keep a turn open until a confirmed short Codex quota resets; the turn shows the wait and remains cancellable, while switching accounts retries immediately |
 | **Composer quota** | Choose a compact percentage, progress bar, Beta runway forecast, or no inline display |
 | **Safe quota reset** | See each reset credit separately and deliberately try one with a cooldown and acknowledgement |
 | **Subscription search** | Explicitly route search globally through DSH default search or the signed-in Codex subscription |

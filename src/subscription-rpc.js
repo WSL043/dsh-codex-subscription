@@ -1,13 +1,13 @@
 import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { capabilityPatch } from './capability-settings.js'
 import { ORIGINAL_IMAGE_CHUNK_BYTES, ORIGINAL_IMAGE_ID_PATTERN } from './image-original-contract.js'
-import { CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, normalizeCustomContextWindow } from './settings-contract.js'
+import { AUTO_QUOTA_RETRY_FIELD, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, normalizeCustomContextWindow } from './settings-contract.js'
 const publicError = (code, message) => ({
   ok: false,
   error: { code, message, details: { issues: [] } },
 })
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, runtimeManagement, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, runtimeManagement, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged }) {
   return async (endpoint, payload, signal) => {
     if (['runtime/status', 'runtime/install', 'runtime/remove', 'runtime/cancel'].includes(endpoint)) {
       try {
@@ -75,6 +75,12 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
         signal.throwIfAborted()
         if (endpoint === 'preferences/update') {
           const patch = capabilityPatch(payload)
+          if (Object.hasOwn(payload ?? {}, AUTO_QUOTA_RETRY_FIELD)) {
+            if (typeof payload[AUTO_QUOTA_RETRY_FIELD] !== 'boolean') {
+              return publicError('internal', 'Invalid automatic quota retry preference')
+            }
+            patch[AUTO_QUOTA_RETRY_FIELD] = payload[AUTO_QUOTA_RETRY_FIELD]
+          }
           for (const [field, rule] of Object.entries(PREFERENCE_FIELDS)) {
             if (!Object.hasOwn(payload ?? {}, field)) continue
             if (!rule.choices.includes(payload[field])) return publicError('internal', rule.error)
@@ -165,11 +171,13 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
       await usageReader.clear()
       resetCreditService.clear()
       modelCatalog?.clear()
+      onAccountChanged?.()
     } else if (result.ok === true && (endpoint === 'account/select' || endpoint === 'account/remove'
       || (endpoint === 'login/status' && result.value?.authenticated === true))) {
       usageReader.clearCache()
       resetCreditService.clear()
       modelCatalog?.clear()
+      onAccountChanged?.()
       void modelCatalog?.refresh({ signal: undefined }).catch(() => {})
     } else if (result.ok === true && (endpoint === 'status' || result.value?.authenticated === true)) {
       void modelCatalog?.refresh({ signal: undefined }).catch(() => {})
