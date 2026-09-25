@@ -103,18 +103,18 @@ function publishScheduledRetry({ agent, turn, step, provider, failure }, delayMs
     })
     return { retryId, turn, step, retry: 1 }
   } catch {
-    // Recovery remains compatible with older DSH hosts that cannot publish the
-    // standard model-retry surface event.
+    // A long wait must never be invisible when the host rejects the event.
     return undefined
   }
 }
 
 function publishRetryStarted(agent, scheduled) {
-  if (scheduled === undefined) return
   try {
     agent.session.append('llm/retry-started', scheduled)
+    return true
   } catch {
-    // The retry decision remains authoritative if UI publication races teardown.
+    // Do not leave a scheduled retry stuck in the UI after publication fails.
+    return false
   }
 }
 
@@ -190,6 +190,7 @@ export function createCodexQuotaRetryHandler({
       resetDelayMs + resetMarginMs,
       observedAtMs + resetDelayMs,
     )
+    if (scheduled === undefined) return next()
     while (true) {
       const reason = await waitForResetOrWake(
         resetDelayMs + resetMarginMs,
@@ -207,7 +208,8 @@ export function createCodexQuotaRetryHandler({
     }
 
     await clearCache()
-    publishRetryStarted(agent, scheduled)
+    if (signal?.aborted) return undefined
+    if (!publishRetryStarted(agent, scheduled)) return next()
     return { kind: 'retry' }
   }
   Object.defineProperties(handler, {

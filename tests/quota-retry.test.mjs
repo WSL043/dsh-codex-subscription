@@ -8,9 +8,9 @@ const payload = ({
   code = 'RATE_LIMIT',
   message,
   signal = new AbortController().signal,
-  agent,
-  turn,
-  step,
+  agent = { session: { append() {} } },
+  turn = 1,
+  step = 1,
 } = {}) => ({ provider, failure: { code, ...(message === undefined ? {} : { message }) }, signal, agent, turn, step })
 
 test('recoverable short Codex quota waits through reset then retries without delegating', async () => {
@@ -104,6 +104,64 @@ test('parked recovery publishes the host retry countdown with the quota reset re
     type: 'llm/retry-started',
     data: { retryId: events[0].data.retryId, turn: 4, step: 2, retry: 1 },
   })
+})
+
+test('rejected retry notice never starts an invisible quota wait', async () => {
+  const nowMs = 1_000_000
+  let waited = false
+  const handler = createHandler({
+    now: () => nowMs,
+    usageReader: {
+      async read() {
+        return { rateLimits: [{ id: 'codex', windows: [{ usedPercent: 100, windowSeconds: 18_000, resetsAt: (nowMs + 60_000) / 1_000 }] }] }
+      },
+    },
+    wait: async () => { waited = true; return true },
+  })
+  const sentinel = { kind: 'downstream' }
+  const agent = { session: { append() { throw new Error('host rejected retry event') } } }
+  assert.equal(await handler(payload({ agent }), async () => sentinel), sentinel)
+  assert.equal(waited, false)
+})
+
+test('rejected retry-started event keeps the original failure path', async () => {
+  const nowMs = 1_000_000
+  const events = []
+  const handler = createHandler({
+    now: () => nowMs,
+    usageReader: {
+      async read() {
+        return { rateLimits: [{ id: 'codex', windows: [{ usedPercent: 100, windowSeconds: 18_000, resetsAt: (nowMs + 60_000) / 1_000 }] }] }
+      },
+    },
+    wait: async () => true,
+  })
+  const agent = { session: { append(type) {
+    if (type === 'llm/retry-started') throw new Error('session closed')
+    events.push(type)
+  } } }
+  const sentinel = { kind: 'downstream' }
+  assert.equal(await handler(payload({ agent }), async () => sentinel), sentinel)
+  assert.deepEqual(events, ['llm/retry'])
+})
+
+test('cancellation during quota cache cleanup never starts a new model request', async () => {
+  const nowMs = 1_000_000
+  const controller = new AbortController()
+  const events = []
+  const handler = createHandler({
+    now: () => nowMs,
+    usageReader: {
+      async read() {
+        return { rateLimits: [{ id: 'codex', windows: [{ usedPercent: 100, windowSeconds: 18_000, resetsAt: (nowMs + 60_000) / 1_000 }] }] }
+      },
+      async clearCache() { controller.abort() },
+    },
+    wait: async () => true,
+  })
+  const agent = { session: { append(type) { events.push(type) } } }
+  assert.equal(await handler(payload({ agent, signal: controller.signal }), async () => undefined), undefined)
+  assert.deepEqual(events, ['llm/retry'])
 })
 
 test('Codex native usage-limit message recovers across affected DSH classifiers', async () => {
