@@ -16,7 +16,7 @@ function Gallery() {
       <div className="install"><span>{copy('在 DSH 插件页添加', 'ADD IN DSH PLUGINS')}</span><code>dsh-codex-subscription</code></div>
     </section>
     <figure className="product">
-      <img src={`/real-account-full-${lang}.png`} alt={copy('DSH 中完整的 Codex 订阅账号与额度设置页面', 'Complete Codex subscription account and quota settings in DSH')}/>
+      <img src={`/account-demo-${lang}.png`} alt={copy('DSH 中完整的 Codex 订阅账号与额度设置页面', 'Complete Codex subscription account and quota settings in DSH')}/>
       <figcaption><span className="live-dot"/>{copy('真实界面 · 截图时的账号与额度状态', 'Actual interface · Account and quota at capture time')}</figcaption>
     </figure>
     <footer><span>{copy('模型与额度以账号权限为准', 'Model access and quota depend on your account')}</span></footer>

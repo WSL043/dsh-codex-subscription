@@ -20,10 +20,6 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 
 </div>
 
-<p align="center">
-  <img src="docs/assets/subscription-overview-2.2-en.png" width="1200" alt="ChatGPT subscription in DeepSeek Harness: complete account and quota settings">
-</p>
-
 ## Feature overview
 
 Subscription access, model controls, quota management, and image creation in one DSH workflow. Each capability is listed below; model access and quota depend on your account.
