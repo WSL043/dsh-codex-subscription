@@ -16,7 +16,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Install](#install) · [Screenshots](#inside-the-plugin) · [User guide](docs/GUIDE.en.md) · [Update and uninstall](#update-and-uninstall)
+[Install](#install) · [Daily use](#inside-the-plugin) · [Examples](#from-sketch-to-image) · [User guide](docs/GUIDE.en.md) · [Update and uninstall](#update-and-uninstall)
 
 </div>
 
@@ -24,21 +24,18 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
   <img src="docs/assets/subscription-overview-2.2-en.png" width="1200" alt="ChatGPT subscription in DeepSeek Harness: complete account and quota settings">
 </p>
 
-Compatible with DSH `0.1.7-rc.2` plugin compatibility checks and settings APIs, while retaining support for previously supported versions.
-
 ## What you get
 
-| Subscription access | Everyday workflow | Optional tools |
+| Start with your subscription | Keep working in DSH | Extend when needed |
 | --- | --- | --- |
-| ChatGPT sign-in, no API key | Model and reasoning selection | Image generation and editing |
-| Account switching and quota | Search and Fast mode | Sketch canvas and agent drawing |
-| Reset times and quota display | Model-aware context | Subtasks and cloud compaction |
+| Sign in and switch accounts | Choose Codex models and reasoning | Image generation, editing, and sketching |
+| Track quota, resets, and alerts | Use subscription search and Fast mode | Agent drawing, subtasks, and cloud compaction |
 
-Experimental features remain opt-in. Model access and quota depend on your account.
-
-Subscription failures remain visible: no silent fallback to another paid route.
+Model access and quota depend on your account. Experimental features remain opt-in.
 
 ## Prepare DSH
+
+Compatible with DSH `0.1.7-rc.2` plugin compatibility checks and settings APIs, while retaining support for previously supported versions.
 
 This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 
@@ -59,7 +56,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
 4. Open **Settings → Codex**, sign in to ChatGPT, then select a Codex model in your conversation.
 
-The unversioned package name installs the latest stable release. To pin a version, append `@` and the complete version from the [releases page](https://github.com/WSL043/dsh-codex-subscription/releases) to the package name; the same applies to beta releases. Enter only the package name here, not a terminal command. This plugin can be installed using its npm package name; no GitHub URL or local directory is needed.
+The package name installs the latest stable release. For a specific version, enter `dsh-codex-subscription@version`; find version numbers on the [releases page](https://github.com/WSL043/dsh-codex-subscription/releases).
 
 <details>
 <summary>Terminal installation (with an existing dsh command)</summary>
@@ -86,43 +83,63 @@ dsh --profile headless "Reply with only the word: ok"
 
 ## Inside the plugin
 
-Select models and reasoning effort in the composer. Account, quota, and optional features live in four focused settings tabs.
+### Everyday controls, right in the composer
+
+Choose a model, adjust reasoning, enable Fast mode, and check remaining quota without opening settings for every request.
 
 <p align="center"><img src="docs/assets/composer-quota-en.png" width="800" alt="DSH composer with Astra, Max reasoning, Fast mode and remaining quota"></p>
 
+### Accounts and preferences, in one place
+
+Open **Settings → Codex** to manage accounts and quota. Enable other features as your tasks need them.
+
+<details>
+<summary>What is in each settings tab?</summary>
+
 | Settings tab | What it controls |
 | --- | --- |
-| **Account** | Sign-in, account switching, reset times, and inline quota |
-| **Models & runtime** | Search, context budget, optional connections and subtasks |
-| **Images & sketch** | Separate controls for images, the canvas, and agent drawing |
+| **Account** | Sign-in, account switching, reset times, quota display and alerts |
+| **Models & runtime** | Subscription search, context budget, connections and subtasks |
+| **Images & sketch** | Separate switches for image generation, the canvas, and agent drawing |
 | **Maintenance** | Support diagnostics and local quota forecast cache |
 
-**Model-aware context** follows your account's model directory; refreshing preserves your unsaved draft. Quota groups use backend-provided values, including separate buckets such as Spark. Missing quotas are never invented.
+**Model-aware context** follows your account's model directory; refreshing preserves your unsaved draft. Quota groups use backend-provided values, including separate buckets such as Spark.
 
-[Model, quota, and experimental feature reference →](docs/GUIDE.en.md)
+Subscription failures remain visible: no silent fallback to another paid route.
+
+</details>
+
+[Read the complete user guide →](docs/GUIDE.en.md)
 
 ## From sketch to image
 
 Image generation, editing, and the sketch canvas are **Beta**. The canvas and agent drawing are off by default; enable them under Images & sketch when needed.
 
-**Draw by hand** with the composer canvas button, or **ask the agent** with `@sketch` and your drawing request. Then click Attach, describe the desired result, and send.
+**Sketch → Attach to the composer → Describe the result → Generate.**
 
-| Original sketch | Actual plugin output |
-| --- | --- |
-| ![Mountains and cabin sketch](docs/assets/sketch-demo-source.png) | ![Watercolor mountain cabin generated from the sketch](docs/assets/sketch-demo-result.png) |
+Draw by hand with the canvas button, or ask the agent with `@sketch` and your drawing request.
+
+<table>
+<tr><th width="50%">Original sketch</th><th width="50%">Actual plugin output</th></tr>
+<tr><td><img src="docs/assets/sketch-demo-source.png" alt="Mountains and cabin sketch" width="480"></td><td><img src="docs/assets/sketch-demo-result.png" alt="Watercolor mountain cabin generated from the sketch" width="480"></td></tr>
+</table>
 
 The request keeps the mountain and cabin composition, turning it into a warm watercolor illustration with green peaks, an orange roof, a meadow stream, and soft morning light, without the blue outlines.
 
 <details>
-<summary>Advanced examples</summary>
+<summary>Advanced examples · Layered illustration and Mona Lisa</summary>
 
 **Someone Behind the Canvas**
 
 **Astra draws the sketch; GPT Image 2 generates the illustration.** The editable original has 427 strokes across six layers. The image request retains its composition and adds paper-art and hand-painted detail. The requested model is `gpt-image-2`; the server does not report the executing model.
 
-| Native sketch | Generated result |
-| --- | --- |
-| ![Sketch](docs/assets/sketch-advanced-source.png) | ![Result](docs/assets/sketch-advanced-result.png) |
+<table>
+<tr><th width="50%">Native sketch</th><th width="50%">Generated result</th></tr>
+<tr><td><img src="docs/assets/sketch-advanced-source.png" alt="Sketch" width="480"></td><td><img src="docs/assets/sketch-advanced-result.png" alt="Result" width="480"></td></tr>
+</table>
+
+<details>
+<summary>Show the reproduction prompt and original image request</summary>
 
 **Sketch reproduction prompt (reconstructed from the artwork, not the original conversation)**
 
@@ -138,6 +155,8 @@ Astra drew the original in stages. This Chinese prompt provides a starting point
 请基于本条附加草图实际调用订阅图片工具一次，生成成品插画。quality=low，模型使用当前默认，不切换型号，不额外生成。主题《画布背面有人》：保留4:3横构图、中央偏上的撕纸洞口、洞内拿颜料桶的小画师、流出成为S形河流的蓝色颜料、下方左侧未上色城市与右侧被点亮城市、纸船飞鸟。精修为惊艳的立体纸艺与精细手绘结合的编辑插画，纸张纤维、真实撕边及柔和投影，深靛蓝洞内星月，丰富青蓝颜料层次和流动质感，赭橙画师与暖色建筑，微小清晰的叙事细节。不重构为风景，不添加文字水印。必须使用本条参考图片编辑，不能仅凭文字生成。生成后简短说明完成即可。
 ```
 
+</details>
+
 Original example released in: [Beta v2.1.0-beta.2](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.2)
 
 **Mona Lisa: Astra sketch → GPT image generation**
@@ -146,9 +165,10 @@ Example version: [2.1.0-beta.5](https://github.com/WSL043/dsh-codex-subscription
 
 Actual results supplied by the user from another computer: Astra draws on a portrait canvas, then GPT image generation turns the sketch into an oil painting.
 
-| Native Astra sketch | GPT-generated oil painting |
-| --- | --- |
-| ![Mona Lisa sketch drawn by Astra](docs/assets/sketch-mona-lisa-source.png) | ![Mona Lisa oil painting generated from the sketch](docs/assets/sketch-mona-lisa-result.png) |
+<table>
+<tr><th width="50%">Native Astra sketch</th><th width="50%">GPT-generated oil painting</th></tr>
+<tr><td><img src="docs/assets/sketch-mona-lisa-source.png" alt="Mona Lisa sketch drawn by Astra" width="480"></td><td><img src="docs/assets/sketch-mona-lisa-result.png" alt="Mona Lisa oil painting generated from the sketch" width="480"></td></tr>
+</table>
 
 Original sketch prompt: `@sketch 用竖版画板画一幅《蒙娜丽莎》` (Draw the Mona Lisa on a portrait canvas.)
 
@@ -171,7 +191,7 @@ Layers, native curves, brushes, undo/redo, and shortcuts are supported. Save mul
 
 <a id="codex-subtask-runtime"></a>
 
-## More settings
+## Optional capabilities
 
 Normal subscription chat needs no Codex CLI. For **Codex independent subtasks**, use Install component under Models & runtime; disabling and uninstalling are available in the same place. Other experimental options remain opt-in.
 
@@ -198,10 +218,28 @@ dsh plugin --profile web remove dsh-codex-subscription
 
 ## Troubleshooting
 
-- **`dsh` is not recognized:** install from the DSH Plugins page; no terminal setup is needed.
-- **More than one DSH exists:** run the standard command from the intended DSH environment so that product selects the corresponding profile;
-- **Setup still fails:** confirm the command is running in the intended DSH environment. Do not delete the profile or change the system PATH to force an install.
-- **Need to report a problem:** generate a **Support diagnostics** report under Maintenance, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The report includes the OS/runtime, bounded sign-in phase, and safe request-failure categories, but excludes credentials, account identifiers, raw responses, and full logs. Paste it into the required diagnostics field; never attach sign-in URLs, authorization codes, or browser callback addresses.
+<details>
+<summary>No dsh command on your computer?</summary>
+
+Use **Plugins → Add plugin** in DSH and paste the package name. No terminal setup is needed.
+
+</details>
+
+<details>
+<summary>Multiple DSH installations, or a missing plugin?</summary>
+
+Install from the DSH you actually use. For terminal installation, run commands in the intended DSH environment and check its profile. Do not delete profiles or change your system PATH to force an install.
+
+</details>
+
+<details>
+<summary>How do I report a problem?</summary>
+
+Generate **Support diagnostics** under **Settings → Codex → Maintenance**, paste it into the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml), and include the steps that caused the problem.
+
+Diagnostics exclude credentials, account identifiers, raw responses, and full logs. Never attach sign-in URLs, authorization codes, or browser callback addresses.
+
+</details>
 
 ## Current icon
 
@@ -210,6 +248,8 @@ The icon at the top is our current design. Here it is in the actual DSH plugin l
 <p align="center"><img src="docs/assets/plugin-list-2.2-en.png" width="1000" alt="Codex Subscription icon and entry in the DSH plugin list"></p>
 
 <sub>Captured in DSH 0.1.7-alpha.2.</sub>
+
+## Scope and support
 
 The ChatGPT Codex backend and DSH can change independently. This community project is not affiliated with or endorsed by DeepSeek or OpenAI.
 
