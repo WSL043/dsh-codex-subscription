@@ -13,9 +13,12 @@ test('forecast state store atomically persists bounded non-secret observations',
   const store = new QuotaForecastStateStore({ filename })
   const state = { windows: { '["local-a","codex",604800]': { resetsAt: 2_000_000_000, samples: [{ at: 1_900_000_000_000, remainingPercent: 80 }] } } }
   await store.save(state)
+  assert.equal((await store.usage()).bytes, Buffer.byteLength(await readFile(filename, 'utf8')))
+  assert.equal((await store.usage()).limit, 256 * 1024)
   assert.deepEqual(await store.load(), state)
   assert.doesNotMatch(await readFile(filename, 'utf8'), /access|refresh|accountId|token/iu)
   await store.clear()
+  assert.equal((await store.usage()).bytes, 0)
   assert.equal(await store.load(), undefined)
 })
 

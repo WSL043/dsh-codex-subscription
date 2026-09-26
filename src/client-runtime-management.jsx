@@ -43,7 +43,7 @@ export function RuntimeManagement({ rpc, preference, t }) {
   const locked = sending || busy || state?.restartRequired || state?.active > 0
   return <div className="codexSubscriptionRuntime">
     <div className="codexSubscriptionPreference">
-      <span role="status">{t(!state ? 'runtimeLoading' : state.restartRequired ? 'runtimeRestart' : busy ? `runtime_${state.phase}` : state.installed ? 'subagentRuntimeInstalled' : state.present ? 'runtimeIncompatible' : 'subagentRuntimeMissing')}</span>
+      <span role="status">{t(!state ? 'runtimeLoading' : state.restartRequired ? 'runtimeRestart' : busy ? `runtime_${state.phase}` : state.installed ? 'subagentRuntimeInstalled' : !state.componentVersion ? 'runtimeHostUnsupported' : state.present ? (state.removable ? 'runtimeIncompatible' : 'runtimeManagedElsewhere') : 'subagentRuntimeMissing')}</span>
       {state?.available && (state.present || state.installable) ? <Button type="button" variant="outline" disabled={locked || (state.present && !state.removable)} onClick={() => state.present ? setConfirm(true) : void act('install')}>{t(state.present ? 'runtimeRemove' : 'runtimeInstall')}</Button> : null}
     </div>
     {state?.present && state.available && !state.removable ? <p>{t('runtimeManagedElsewhere')}</p> : null}
@@ -57,7 +57,7 @@ export function RuntimeManagement({ rpc, preference, t }) {
       <summary>{t('subagentRuntimeManage')}</summary>
       {state && !state.available ? <p>{t('runtimeUnavailable')}</p> : null}
       {state?.available && !state.installable && !state.present ? <p>{t('runtimeHostUnsupported')}</p> : null}
-      <p>{t('runtimeInstallHint')}</p>
+      {state?.installable ? <p>{t('runtimeInstallHint')}</p> : null}
       {state?.componentVersion ? <code>@deepseek-ai/dsh-subagent-codex@{state.componentVersion}</code> : null}
       <p>{t('subagentRuntimeCacheHint')}</p>
       <a href="https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md#codex-subtask-runtime" target="_blank" rel="noreferrer">{t('subagentRuntimePrepare')}</a>

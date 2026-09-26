@@ -166,6 +166,7 @@ export function createQuotaForecastReader({ reader, enabled, now = Date.now, sco
       return current === generation ? forecast.usage : usage
     },
     clear: () => clearHistory(),
+    storage: () => stateStore.usage(),
     clearCache() {
       generation += 1
       reader.clear()
