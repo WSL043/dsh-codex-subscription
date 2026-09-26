@@ -140,7 +140,7 @@ test('public docs contain only user-facing product and operation information', (
 test('GitHub defaults to Chinese and links a complete English README', () => {
   const readmeZh = text('README.md')
   const readme = text('README.en.md')
-  assert.match(readmeZh, /^# DSH Codex Subscription[\s\S]*把 ChatGPT \/ Codex 订阅直接接入 DeepSeek Harness/u)
+  assert.match(readmeZh, /# DSH Codex Subscription[\s\S]*把 ChatGPT \/ Codex 订阅直接接入 DeepSeek Harness/u)
   assert.match(readmeZh, /\[English\]\(https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/blob\/main\/README\.en\.md\)/u)
   assert.match(readme, /\[简体中文\]\(https:\/\/github\.com\/WSL043\/dsh-codex-subscription\/blob\/main\/README\.md\)/u)
   for (const doc of [readme, readmeZh]) {
@@ -171,7 +171,7 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   }
   assert.doesNotMatch(readme, /docs\/assets\/sidebar\.png/u)
   assert.doesNotMatch(readme, /docs\/assets\/sidebar-en\.png/u)
-  for (const base of ['subscription-overview-2.2', 'creative-overview-2.2']) {
+  for (const base of ['subscription-overview-2.2']) {
     for (const suffix of ['', '-en']) {
       const asset = `docs/assets/${base}${suffix}.png`
       assert.deepEqual(pngDimensions(asset), { width: 1600, height: 1050 }, 'localized product visuals share a consistent canvas')
@@ -194,9 +194,9 @@ test('plugin-owned marketplace screenshots stay valid and show both product lang
   }
   for (const path of [
     'docs/assets/subscription-overview-2.2-en.png',
-    'docs/assets/creative-overview-2.2-en.png',
+    'docs/assets/real-creative-en.png',
     'docs/assets/subscription-overview-2.2.png',
-    'docs/assets/creative-overview-2.2.png',
+    'docs/assets/real-creative-zh.png',
   ]) assert.equal(screenshots.includes(path), true, `marketplace must show ${path}`)
 })
 

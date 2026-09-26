@@ -29,8 +29,8 @@ function Gallery() {
       </section>
       <section className="product-grid">
         <div className="main-product">
-          <div className="section-label"><span>01</span>{copy('模型与运行', 'MODELS & RUNTIME')}</div>
-          <figure className="settings-shot"><img src={`/real-settings-${lang}.png`} alt={copy('实际模型与运行设置', 'Actual models and runtime settings')}/></figure>
+          <div className="section-label"><span>01</span>{copy('账号与额度', 'ACCOUNT & QUOTA')}</div>
+          <figure className="settings-shot"><img src={`/real-account-${lang}.png`} alt={copy('实际账号与额度设置', 'Actual account and quota settings')}/></figure>
         </div>
         <div className="supporting">
           <div className="section-label"><span>02</span>{copy('额度，随时看清', 'QUOTA, AT A GLANCE')}</div>

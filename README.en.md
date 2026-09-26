@@ -1,3 +1,5 @@
+<p align="center"><img src="icon-subscription.webp" width="128" height="128" alt="DSH Codex Subscription icon"></p>
+
 <div align="center">
 
 # DSH Codex Subscription
@@ -157,9 +159,9 @@ Original image prompt: `帮我变成油画` (Turn it into an oil painting.)
 <details>
 <summary>View Images & sketch settings</summary>
 
-<p align="center"><img src="docs/assets/creative-overview-2.2-en.png" width="1200" alt="Images and sketch settings: generation, editing, model choice, and separate canvas and agent controls"></p>
+<p align="center"><img src="docs/assets/real-creative-en.png" width="564" alt="Images and sketch settings: generation, editing, model choice, and separate canvas and agent controls"></p>
 
-Product visuals arrange cropped screenshots from the actual DSH interface.
+Settings shown directly as cropped screenshots from the actual DSH interface.
 
 </details>
 
@@ -168,11 +170,6 @@ Layers, native curves, brushes, undo/redo, and shortcuts are supported. Save mul
 [Image editing, draft storage, and PSD limitations →](docs/GUIDE.en.md#image-generation-and-editing-beta)
 
 <a id="codex-subtask-runtime"></a>
-
-<p align="center">
-  <img src="icon-subscription.webp" width="160" height="160" alt="Current plugin icon"><br>
-  <sub>Current plugin icon</sub>
-</p>
 
 ## More settings
 
@@ -205,6 +202,14 @@ dsh plugin --profile web remove dsh-codex-subscription
 - **More than one DSH exists:** run the standard command from the intended DSH environment so that product selects the corresponding profile;
 - **Setup still fails:** confirm the command is running in the intended DSH environment. Do not delete the profile or change the system PATH to force an install.
 - **Need to report a problem:** generate a **Support diagnostics** report under Maintenance, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The report includes the OS/runtime, bounded sign-in phase, and safe request-failure categories, but excludes credentials, account identifiers, raw responses, and full logs. Paste it into the required diagnostics field; never attach sign-in URLs, authorization codes, or browser callback addresses.
+
+## Current icon
+
+The icon at the top is our current design. Here it is in the actual DSH plugin list. [Share a design idea](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml); we can vote together once there are candidates.
+
+<p align="center"><img src="docs/assets/plugin-list-2.2-en.png" width="1000" alt="Codex Subscription icon and entry in the DSH plugin list"></p>
+
+<sub>Captured in DSH 0.1.7-alpha.2.</sub>
 
 The ChatGPT Codex backend and DSH can change independently. This community project is not affiliated with or endorsed by DeepSeek or OpenAI.
 
