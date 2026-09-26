@@ -1,4 +1,10 @@
 export const zh = {
+  storageLoading: '正在读取缓存占用…',
+  storageTitle: '存储与缓存', storageForecast: '额度预测缓存', storageClear: '清除预测历史',
+  storageHint: '这里只管理插件的额度预测缓存。图片原件、草稿、登录信息和 DSH 共享依赖不会被清除；子任务组件请使用上方的组件管理。',
+  storageConfirm: '清除所有已登录账号的本地预测历史后，需要重新积累采样。服务端额度不变，后续查询会重新生成缓存。', storageFailed: '未能读取或清除预测缓存，请重试。',
+  sketchPsdConfirmTitle: '导入 PSD 副本',
+  sketchPsdConfirmBody: '支持最多 8 层、8 位 RGB 的简单 PSD（32 MB 内，边长不超过 4096）。导入后各层转为图片，最长边缩至 1024；不支持蒙版、调整层和特殊混合效果。原文件不会修改。需要保留草图对象的可编辑性，请使用 DSH 草图格式。继续导入？',
   runtimeIncompatible: '检测到不兼容的 Codex 子任务组件，请卸载后重启，再安装受支持版本。',
   runtimeManagedElsewhere: '此组件由宿主或其他依赖管理，请在 DSH 插件管理中查看；这里不能直接卸载。',
   runtimeLoading: '正在检查组件…', runtimeRestart: '组件已更新，请重启 DSH 后使用。',
@@ -135,6 +141,12 @@ export const zh = {
 }
 
 export const en = {
+  storageLoading: 'Reading cache size…',
+  storageTitle: 'Storage and cache', storageForecast: 'Quota forecast cache', storageClear: 'Clear forecast history',
+  storageHint: 'Only the plugin quota forecast cache is managed here. Original images, drafts, sign-in data and shared DSH dependencies are preserved. Use runtime management above for the subtask component.',
+  storageConfirm: 'This clears local forecast samples for all signed-in accounts. Forecasts will need new samples. Server quotas stay unchanged; subsequent checks recreate the cache.', storageFailed: 'Could not read or clear the forecast cache. Try again.',
+  sketchPsdConfirmTitle: 'Import a PSD copy',
+  sketchPsdConfirmBody: 'Supports simple 8-bit RGB PSDs with up to 8 layers, 32 MB and 4096 pixels per side. Layers become images and the longest side is reduced to 1024 pixels. Masks, adjustments and special blending effects are unsupported. The original file stays unchanged. Use the DSH sketch format to preserve editable sketch objects. Continue?',
   runtimeIncompatible: 'An incompatible Codex subtask component was found. Uninstall it, restart DSH, then install the supported version.',
   runtimeManagedElsewhere: 'This component is managed by the host or another dependency. Check DSH plugin management; it cannot be removed here.',
   runtimeLoading: 'Checking component…', runtimeRestart: 'Component changed. Restart DSH before using it.',

@@ -28,6 +28,13 @@ function fixture(store) {
   return { state, ...lifecycle }
 }
 
+test('PSD import without confirmation leaves the document and stored drafts intact', async () => {
+  const f = fixture(() => { throw Error('must not write') })
+  const original = f.state.doc.current
+  await f.importImage({ name: 'example.psd', size: 100, arrayBuffer() { throw Error('must not decode') } })
+  assert.equal(f.state.doc.current, original)
+})
+
 test('save captures its snapshot and preserves edits made while storage is pending', async () => {
   const wait = deferred()
   let row

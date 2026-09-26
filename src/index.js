@@ -136,6 +136,7 @@ export function apply(ctx, config = {}) {
   })
   ctx.effect(() => ctx.on?.('plugin-manager/install-state', value => runtimeManagement.progress(value)))
   const modelCatalog = createOfficialModelCatalog({
+    onUpdated: () => ctx.llm.emitAdaptersUpdated?.(),
     getAuth: options => resolveAuth(options),
     readCredential: options => store.read(PROVIDER, options),
     baseModels: () => baseProvider.getModels(),
@@ -431,7 +432,7 @@ export function apply(ctx, config = {}) {
     preferences,
     runtimeManagement,
     onAccountChanged: quotaRetryHandler.notifyAccountChanged,
-    diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog }),
+    diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction }),
     modelCatalog,
     closeConnections: () => connection.dispose(),
     originalImages,

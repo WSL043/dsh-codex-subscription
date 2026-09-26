@@ -20,6 +20,7 @@ export function createSketchDocumentLifecycle(
     setSelection,
     setTextEdit,
     setRecovered,
+    confirmPsd = async () => false,
     store = sketchDrafts,
     decodeImages = decodeSketchImages,
     readImage = importSketchImage
@@ -111,6 +112,7 @@ export function createSketchDocumentLifecycle(
       file.name?.toLowerCase().endsWith('.dsh-sketch.json')
     ) {
       if (file.size > 32 * 1024 * 1024) throw Error('File exceeds 32 MB')
+      if (file.name.toLowerCase().endsWith('.psd') && !await confirmPsd()) return
       const next = file.name.toLowerCase().endsWith('.psd')
         ? await importSketchPsd(file)
         : decodeSketchDocument(await file.text())

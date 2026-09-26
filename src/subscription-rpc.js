@@ -9,6 +9,16 @@ const publicError = (code, message) => ({
 
 export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, runtimeManagement, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged }) {
   return async (endpoint, payload, signal) => {
+    if (endpoint === 'storage/status' || endpoint === 'storage/clear-forecast') {
+      try {
+        signal.throwIfAborted()
+        if (endpoint === 'storage/clear-forecast') await usageReader.clear()
+        return { ok: true, value: await usageReader.storage() }
+      } catch (error) {
+        if (signal.aborted) throw error
+        return publicError('operation-error', 'Could not manage forecast cache')
+      }
+    }
     if (['runtime/status', 'runtime/install', 'runtime/remove', 'runtime/cancel'].includes(endpoint)) {
       try {
         signal.throwIfAborted()

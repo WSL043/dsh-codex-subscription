@@ -28,6 +28,26 @@ const remote = (overrides = {}) => ({
   ...overrides,
 })
 
+test('catalog commit and account clearing notify host observers, failed and unchanged refreshes do not', async () => {
+  let notices = 0, status = 200
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => base,
+    getAuth: async () => ({ auth: { apiKey: 'test' } }),
+    readCredential: async () => ({ type: 'oauth', accountId: 'test' }),
+    onUpdated: () => notices++,
+    fetch: async () => status === 200 ? Response.json({ models: [remote()] }) : new Response(null, { status }),
+  })
+  await catalog.refresh()
+  assert.equal(notices, 1)
+  status = 304
+  await catalog.refresh()
+  status = 500
+  await assert.rejects(catalog.refresh())
+  assert.equal(notices, 1)
+  catalog.clear()
+  assert.equal(notices, 2)
+})
+
 test('unsupported catalog capabilities are diagnostic-only and follow catalog lifetime', async () => {
   let unchanged = false
   const catalog = createOfficialModelCatalog({
