@@ -14,49 +14,27 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Three-step start](#three-step-start) · [Install](#install) · [Contribute](CONTRIBUTING.md) · [Update and uninstall](#update-and-uninstall)
+[Install](#install) · [Screenshots](#inside-the-plugin) · [Contribute](CONTRIBUTING.md) · [Update and uninstall](#update-and-uninstall)
 
 </div>
 
 <p align="center">
-  <img src="docs/assets/codex-subscription-overview-en.webp" width="900" alt="Use ChatGPT and Codex subscriptions in DeepSeek Harness: sign in without an API key, choose models and view remaining quota">
+  <img src="docs/assets/composer-quota-en.png" width="800" alt="Codex model, reasoning, Fast mode and quota in the DSH composer">
 </p>
 
 Compatible with DSH `0.1.7-rc.2` plugin compatibility checks and settings APIs, while retaining support for previously supported versions.
 
-## Three-step start
+## What you get
 
-1. **Install the plugin.** Open **Plugins → Add plugin**, enter `dsh-codex-subscription` in **Package name or address**, and click **Install**.
-2. **Sign in.** Follow the installation result; save your work and restart only if requested. Open **Settings -> Codex**, and choose browser sign-in. No Codex CLI and no pasted token are required.
-3. **Use Codex.** Select a Codex model. Quota, subscription search, image generation, and Fast mode remain inside DSH.
+| Subscription access | Everyday workflow | Optional tools |
+| --- | --- | --- |
+| ChatGPT sign-in, no API key | Model and reasoning selection | Image generation and editing |
+| Account switching and quota | Search and Fast mode | Sketch canvas and agent drawing |
+| Reset times and quota display | Model-aware context | Subtasks and cloud compaction |
 
-See below for detailed installation steps, terminal commands, updates, and removal.
+Experimental features remain opt-in. Model access and quota depend on your account.
 
-## Why this plugin
-
-| Capability | What you get |
-| --- | --- |
-| **Subscription models** | Sign in to ChatGPT and use Codex without an OpenAI API key or Codex CLI |
-| **Recoverable and diagnosable** | Sign-in state reconciles automatically; failed reads can be retried in place, while timeouts and stale account responses cannot overwrite current state; Settings can create a support report without credentials or account identifiers |
-| **Visible quota** | Keep backend-provided standard Codex, Spark, and other limits separate, with reset times |
-| **Optional quota recovery** | Opt in to keep a turn open until a confirmed short Codex quota resets; the turn shows the wait and remains cancellable, while switching accounts retries immediately |
-| **Composer quota** | Choose a compact percentage, progress bar, Beta runway forecast, or no inline display |
-| **Safe quota reset** | See each reset credit separately and deliberately try one with a cooldown and acknowledgement |
-| **Subscription search** | Explicitly route search globally through DSH default search or the signed-in Codex subscription |
-| **Codex image generation and editing (Beta)** | Generate without references, or explicitly edit one selected image; preview, zoom, annotate regions, download the original, and get the original host path for new or edited images |
-| **Fast mode** | Switch between Standard and Fast directly in the composer |
-| **Model-aware context** | Keep catalog defaults, use each model's supported extended window, or enter a full numeric token limit for each model; Settings refreshes the model directory on open, account changes, and connection resets without overwriting an unsaved draft |
-| **Headless runs** | Use the same signed-in Codex provider for one-shot DSH tasks that print their answer and exit |
-
-These capabilities reuse the same local ChatGPT sign-in. Subscription routing failures stay visible and never silently switch to another paid route.
-
-## Product screen
-
-<p align="center">
-  <img src="docs/assets/subscription-account-en.png" width="820" alt="DSH Codex subscription main screen: ChatGPT sign-in, remaining quota and composer preferences">
-</p>
-
-The actual Account & preferences screen shows sign-in status, subscription quota and composer preferences. Account, quota, balance and time values are demo data, not fixed plan entitlements. Advanced options and optional components are described below.
+Subscription failures remain visible: no silent fallback to another paid route.
 
 ## Prepare DSH
 
@@ -104,44 +82,77 @@ dsh --profile headless "Reply with only the word: ok"
 
 </details>
 
+## Inside the plugin
+
+Four settings tabs keep everyday controls separate from optional features: **Account · Models & runtime · Images & sketch · Maintenance**.
+
+<p align="center"><img src="docs/assets/settings-models-2.2-en.png" width="960" alt="Version 2.2 settings: model search, context, connection and subtasks"></p>
+
+<details>
+<summary>Images & sketch settings</summary>
+
+<p align="center"><img src="docs/assets/settings-creative-2.2-en.png" width="960" alt="Separate image and sketch controls in version 2.2"></p>
+
+</details>
+
+Captured from the 2.2.2 UI in DSH. Optional component availability depends on the host version.
+
 ## Feature details
 
-### Add instructions while a task is running
+<details>
+<summary>Add instructions while a task is running</summary>
 
 Use DSH’s native message queue: messages sent during generation can wait for the next turn. Where the host offers interjection, its shortcut delivers queued input at the next step of the current turn. This does not immediately rewrite a response already being generated.
 
-### GPT-Reserve (Experimental)
+</details>
+
+<details>
+<summary>GPT-Reserve (Experimental)</summary>
 
 When the account’s official catalog advertises `gpt-reserve`, it appears at the end of the model picker as an experimental option. Availability and billing are determined by the service; a successful response does not confirm use of a separate reserve allowance. Even when ordinary Codex usage reaches 100%, the service may list `gpt-reserve` in the model catalog without returning a separate Reserve quota bucket. In that case, the composer treats Reserve quota as unknown and does not substitute ordinary Codex quota. An “allowed” response does not prove that a request was charged to Reserve.
 
-### GPT-6 Sol / Luna
+</details>
+
+<details>
+<summary>GPT-6 Sol / Luna</summary>
 
 GPT-6 Sol and GPT-6 Luna are listed in [OpenAI's Codex model guidance](https://learn.chatgpt.com/docs/models). The plugin reads available models and reasoning levels from the current account's Codex catalog, so no model ID needs to be added manually; models do not appear before the account gets access. Sol suits complex coding, while Luna suits focused, high-volume tasks. Their extended context limits and Fast availability follow the account catalog.
 
-### GPT-6 Astra context
+</details>
+
+<details>
+<summary>GPT-6 Astra context</summary>
+
+**Model-aware context** follows the model directory. Refreshes do not overwrite an unsaved draft.
 
 When the official model catalog exposes GPT-6 Astra, Standard preserves the catalog window, Extended uses 872000 tokens, and Custom accepts 128000–872000 tokens (initially 272000). This limit follows the [official Codex model catalog](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34), not the API model's total context capacity. These settings only adjust DSH's local context budget; they do not grant model access or guarantee an account's server-side capacity. Actual availability remains subject to the service.
 
-### Composer quota
+</details>
 
-<p align="center">
-  <img src="docs/assets/composer-quota.png" width="800" alt="Live DSH composer with GPT-6-Astra, Max reasoning, Fast mode, and remaining quota">
-</p>
+<details>
+<summary>Composer quota</summary>
+
+Quota groups follow backend-provided data; missing limits are not invented.
 
 Live example: GPT-6-Astra with Max (the highest reasoning level) and Fast mode (lightning icon), with remaining quota visible on the left.
 
-Choose Off, Percent, Progress bar, or Beta Runway under Account & preferences. When a five-hour window exists, the composer shows that window only; the popover retains all windows. A weekly-only display omits the week label and uses compact durations such as `36% · ≈10h–12h`.
+Choose Off, Percent, Progress bar, or Beta Runway under Account. When a five-hour window exists, the composer shows that window only; the popover retains all windows. A weekly-only display omits the week label and uses compact durations such as `36% · ≈10h–12h`.
 
 Runway uses official observations from the recent two hours, including unchanged readings. Repeated boundary crossings can refine the rate interval when the assumptions hold; insufficient evidence or changing intensity falls back to a conservative estimate. It remains Beta and is not a guarantee of working time. History is bounded and stored locally; resets, long gaps or disabling the feature restart calibration.
 Spark keeps its independent quota. The plugin does not invent five-hour limits, Credits, or spending caps that the service did not return.
 
-### Safe quota reset
+</details>
+
+<details>
+<summary>Safe quota reset</summary>
 
 If ChatGPT reports available quota resets, Settings shows each one in its own compact row with its disclosed name and expiry.
 You may deliberately try it before a quota reaches 100%, which is useful for a reset nearing expiry. ChatGPT still
 decides whether a window needs resetting and may return **nothing to reset** without spending the reset. The final
 action requires an acknowledgement checkbox and five-second cooldown. Cancel never consumes a reset, rapid repeated
 clicks are single-flight, and an uncertain network result is never retried automatically.
+
+</details>
 
 ### Image generation and editing (Beta)
 
@@ -160,8 +171,6 @@ A new image request does not silently include earlier images. GPT Image 2 can ta
 The screenshot above illustrates image viewing and on-image notes; available buttons can vary with the image and installed viewer version.
 
 ### Sketch canvas (Beta)
-
-![Sketch canvas in the Chinese UI: aspect ratio, brushes, shapes, layers and zoom](docs/assets/sketch-canvas.png)
 
 Use the composer pen button for manual drawing. Selecting `@sketch` only inserts the Agent entry into the composer; the Agent opens the board after you send your drawing request. You can also choose Open in sketch from an enhanced image preview. Attachment intake and removal use the native DSH component.
 
@@ -222,13 +231,17 @@ Original image prompt: `帮我变成油画` (Turn it into an oil painting.)
 
 Flare / Sunburst request overrides remain experimental: successful generation does not confirm which image engine or quality the subscription backend used.
 
-### Composer speed
+<details>
+<summary>Composer speed</summary>
 
 With a supported Codex model selected, open the composer's model menu to choose Standard or Fast.
 Standard adds no icon; only Fast shows a lightning icon before the model name. Spark does not show the speed entry. Fast mode increases speed and uses more Credits;
 see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) for the current rules.
 
-### Advanced experiments
+</details>
+
+<details>
+<summary>Advanced experiments</summary>
 
 Opt in under **Models & runtime**. SSE and DSH subtasks remain the defaults:
 
@@ -237,13 +250,16 @@ Opt in under **Models & runtime**. SSE and DSH subtasks remain the defaults:
 
 <a id="codex-subtask-runtime"></a>
 
+</details>
+
 ## Optional Codex subtask runtime
+
+<details>
+<summary>Installation, disabling and removal</summary>
 
 Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only **Codex independent subtasks (Beta)** require the optional official runtime. The plugin never downloads it in the background.
 
 In **Settings → Codex → Models & runtime → Independent subtasks**, click **Install component**. DSH handles installation; the page shows its stage and offers cancellation before applying. Restart after completion, then choose Codex. Installation does not enable subtasks automatically.
-
-![Optional component management](docs/assets/settings-runtime-current-en.png)
 
 Prefer **Install component** above. The plugin selects a component matching the current DSH version: DSH `0.1.7-rc.2` installs component `0.1.7-rc.2`, while DSH `0.1.5-rc.2` installs component `0.1.5-rc.2`. An existing `0.1.5-rc.3` component is recognized only on a matching host. Do not omit the component version or substitute `@next`.
 
@@ -280,6 +296,8 @@ Uninstalling does not clear shared package caches or guarantee a fixed amount of
 
 PSD import asks for confirmation first: simple 8-bit RGB files, up to 8 layers, 32 MB and 4096 pixels per side. Layers become images and the longest side is reduced to 1024 pixels. Masks, adjustments and special blending effects are unsupported. The source file stays unchanged. Use the native DSH sketch format to preserve editable strokes and objects.
 
+</details>
+
 ## Update and uninstall
 
 Find this plugin on the DSH **Plugins** page and use its update or uninstall action. Follow any restart instructions. Uninstalling this plugin does not remove other plugins.
@@ -304,7 +322,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 - **`dsh` is not recognized:** install from the DSH Plugins page; no terminal setup is needed.
 - **More than one DSH exists:** run the standard command from the intended DSH environment so that product selects the corresponding profile;
 - **Setup still fails:** confirm the command is running in the intended DSH environment. Do not delete the profile or change the system PATH to force an install.
-- **Need to report a problem:** generate a **Support diagnostics** report at the bottom of Settings, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The report includes the OS/runtime, bounded sign-in phase, and safe request-failure categories, but excludes credentials, account identifiers, raw responses, and full logs. Paste it into the required diagnostics field; never attach sign-in URLs, authorization codes, or browser callback addresses.
+- **Need to report a problem:** generate a **Support diagnostics** report under Maintenance, then open the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml). The report includes the OS/runtime, bounded sign-in phase, and safe request-failure categories, but excludes credentials, account identifiers, raw responses, and full logs. Paste it into the required diagnostics field; never attach sign-in URLs, authorization codes, or browser callback addresses.
 
 The ChatGPT Codex backend and DSH can change independently. This community project is not affiliated with or endorsed by DeepSeek or OpenAI.
 
