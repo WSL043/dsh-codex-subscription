@@ -165,6 +165,7 @@ export function createOfficialModelCatalog(options = {}) {
       etag = nonEmpty(response.headers.get('etag')) ?? etag
       revision += 1
       outcome = 'ok'
+      options.onUpdated?.()
       return true
     })()
     let rejectAborted
@@ -213,6 +214,7 @@ export function createOfficialModelCatalog(options = {}) {
       etag = undefined
       refreshStatus = 'idle'
       revision += 1
+      options.onUpdated?.()
     },
   })
 }

@@ -1,6 +1,7 @@
 import { SketchLayerPanel } from './sketch-layer-panel.jsx'
 import { SketchPicturePanel } from './sketch-picture-panel.jsx'
 import { SketchControls } from './sketch-controls.jsx'
+import { useSketchImportConfirm } from './sketch-import-confirm.jsx'
 import { newTextBounds } from './sketch-text.js'
 import { updateSketchGesture } from './sketch-gesture.js'
 import { createSketchDocumentLifecycle } from './sketch-document-lifecycle.js'
@@ -60,6 +61,7 @@ export function SketchStudio({
   sessionState
 }) {
   const localSession = useRef(null)
+  const psdImport = useSketchImportConfirm(t)
   localSession.current ??= sessionState ?? createSketchSessionState()
   const {
     doc,
@@ -243,6 +245,7 @@ export function SketchStudio({
       cache,
       setSelection,
       setTextEdit,
+      confirmPsd: psdImport.confirmPsd,
       setRecovered
     })
   useEffect(() => localSession.current.retain?.(), [])
@@ -1172,6 +1175,7 @@ export function SketchStudio({
             ) : null}
           </p>
         ) : null}
+        {psdImport.prompt}
       </dialog>
     </>
   )
