@@ -44,17 +44,17 @@ export function RuntimeManagement({ rpc, preference, t }) {
   return <div className="codexSubscriptionRuntime">
     <div className="codexSubscriptionPreference">
       <span role="status">{t(!state ? 'runtimeLoading' : state.restartRequired ? 'runtimeRestart' : busy ? `runtime_${state.phase}` : state.installed ? 'subagentRuntimeInstalled' : !state.componentVersion ? 'runtimeHostUnsupported' : state.present ? (state.removable ? 'runtimeIncompatible' : 'runtimeManagedElsewhere') : 'subagentRuntimeMissing')}</span>
-      {state?.available && (state.present || state.installable) ? <Button type="button" variant="outline" disabled={locked || (state.present && !state.removable)} onClick={() => state.present ? setConfirm(true) : void act('install')}>{t(state.present ? 'runtimeRemove' : 'runtimeInstall')}</Button> : null}
+      {state?.available && (state.present ? state.removable : state.installable) ? <Button type="button" variant="outline" disabled={locked} onClick={() => state.present ? setConfirm(true) : void act('install')}>{t(state.present ? 'runtimeRemove' : 'runtimeInstall')}</Button> : null}
     </div>
-    {state?.present && state.available && !state.removable ? <p>{t('runtimeManagedElsewhere')}</p> : null}
     {state?.active > 0 ? <p>{t('runtimeActive')}</p> : null}
     {busy && state.phase === 'installing' ? <Button type="button" variant="outline" disabled={sending} onClick={() => { void act('cancel') }}>{t('runtimeCancel')}</Button> : null}
     {confirm ? <div role="group" aria-label={t('runtimeRemove')}><p>{t('runtimeConfirm')}</p><Button type="button" variant="outline" onClick={() => setConfirm(false)}>{t('runtimeKeep')}</Button> <Button type="button" variant="outline" disabled={locked} onClick={() => { void act('remove') }}>{t('runtimeConfirmRemove')}</Button></div> : null}
     {error || state?.phase === 'failed' ? <p role="alert">{t(state?.error === 'build-blocked' ? 'runtimeBuildBlocked' : 'runtimeFailed')}</p> : null}
     {state?.phase === 'cancelled' ? <p role="status">{t('runtimeCancelled')}</p> : null}
-    {!busy ? <Button type="button" variant="outline" disabled={sending} onClick={() => { void read(); void preference.load() }}>{t('runtimeRefresh')}</Button> : null}
     <details>
       <summary>{t('subagentRuntimeManage')}</summary>
+      {state?.present && state.available && !state.removable ? <p>{t('runtimeManagedElsewhere')}</p> : null}
+      {!busy ? <Button type="button" variant="outline" disabled={sending} onClick={() => { void read(); void preference.load() }}>{t('runtimeRefresh')}</Button> : null}
       {state && !state.available ? <p>{t('runtimeUnavailable')}</p> : null}
       {state?.available && !state.installable && !state.present ? <p>{t('runtimeHostUnsupported')}</p> : null}
       {state?.installable ? <p>{t('runtimeInstallHint')}</p> : null}

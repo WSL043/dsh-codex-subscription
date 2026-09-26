@@ -20,17 +20,20 @@ export function StorageCard({ rpc, t }) {
     finally { pending.current = false; if (mounted.current) setBusy(false) }
   }
   useEffect(() => { mounted.current = true; void read(false); return () => { mounted.current = false } }, [rpc])
-  return <div className="codexSubscriptionCard">
+  return <section className="codexSubscriptionCard codexSubscriptionStorage" aria-label={t('storageTitle')}>
     <h3>{t('storageTitle')}</h3>
-    <p>{t('storageHint')}</p>
-    <p role="status">{usage ? `${t('storageForecast')}: ${(usage.bytes / 1024).toFixed(1)} / ${(usage.limit / 1024).toFixed(0)} KiB` : t('storageLoading')}</p>
+    <div className="codexSubscriptionStorageMeter">
+      <div><span>{t('storageForecast')}</span><output role="status">{usage ? `${(usage.bytes / 1024).toFixed(1)} / ${(usage.limit / 1024).toFixed(0)} KiB` : t('storageLoading')}</output></div>
+      {usage ? <progress aria-label={t('storageForecast')} value={usage.bytes} max={usage.limit} /> : null}
+    </div>
+    <p className="codexSubscriptionHelp">{t('storageHint')}</p>
     <div className="codexSubscriptionActions">
       <Button type="button" variant="outline" disabled={busy} onClick={() => void read(false)}>{t('runtimeRefresh')}</Button>
       <Button type="button" variant="outline" disabled={busy || !usage?.bytes} onClick={() => setConfirm(true)}>{t('storageClear')}</Button>
     </div>
-    {confirm ? <div role="group" aria-label={t('storageClear')}><p>{t('storageConfirm')}</p>
+    {confirm ? <div className="codexSubscriptionConfirm" role="group" aria-label={t('storageClear')}><p>{t('storageConfirm')}</p>
       <Button type="button" variant="outline" disabled={busy} onClick={() => setConfirm(false)}>{t('sketchCancel')}</Button>{' '}
       <Button type="button" variant="outline" disabled={busy} onClick={() => void read(true)}>{t('storageClear')}</Button></div> : null}
     {error ? <p role="alert">{t('storageFailed')}</p> : null}
-  </div>
+  </section>
 }
