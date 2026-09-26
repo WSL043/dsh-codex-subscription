@@ -1,6 +1,7 @@
 import { SketchLayerPanel } from './sketch-layer-panel.jsx'
+import { SketchPicturePanel } from './sketch-picture-panel.jsx'
+import { SketchControls } from './sketch-controls.jsx'
 import { newTextBounds } from './sketch-text.js'
-import { SketchToolPicker } from './sketch-tool-picker.jsx'
 import { updateSketchGesture } from './sketch-gesture.js'
 import { createSketchDocumentLifecycle } from './sketch-document-lifecycle.js'
 import { createSketchOperationGate } from './sketch-operation-gate.js'
@@ -25,7 +26,7 @@ import {
 import { paintSketchLayers } from './sketch-layer-renderer.js'
 import { smoothStrokePoints } from './sketch-input.js'
 import { sketchDrafts } from './sketch-drafts.js'
-import { useSketchView, SketchViewControls } from './sketch-view.jsx'
+import { useSketchView } from './sketch-view.jsx'
 import { SketchFiles } from './sketch-files.jsx'
 import { useSketchDismiss, useSketchCursor } from './sketch-interactions.js'
 import { WorkspaceIcon } from './workspace-icons.jsx'
@@ -44,15 +45,6 @@ import {
 import { createSketchAgentRun } from './sketch-agent-run.js'
 import { connectSketchAgent } from './sketch-agent-client.js'
 import { encodeSketchDocument, exportSketchPsd } from './sketch-formats.js'
-const PALETTE = [
-  '#18181b',
-  '#929398',
-  '#ff3936',
-  '#ff9500',
-  '#ffcc00',
-  '#34c759',
-  '#0088ff'
-]
 export function SketchStudio({
   open,
   agentEnabled,
@@ -1123,62 +1115,15 @@ export function SketchStudio({
             </form>
           ) : null}
           {picturesOpen ? (
-            <aside className="codexSketchPictures">
-              <header>
-                <strong>{t('sketchPictures')}</strong>
-                <button
-                  type="button"
-                  disabled={agentLocked || busy}
-                  onClick={() => pictureInput.current.click()}
-                >
-                  {t('sketchPictureAdd')}
-                </button>
-              </header>
-              <input
-                ref={pictureInput}
-                hidden
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  e.target.value = ''
-                  if (file) void runFile(() => importImage(file))
-                }}
-              />
-              {doc.current.layers
-                .filter((layer) => layer.image)
-                .map((layer) => (
-                  <div
-                    key={layer.id}
-                    data-active={layer.id === doc.current.active}
-                  >
-                    <button
-                      type="button"
-                      disabled={agentLocked || busy}
-                      aria-label={`${t('sketchPictureSelect')} ${layer.name}`}
-                      onClick={() => change('select', layer.id)}
-                    >
-                      <img src={layer.image.src} alt={layer.name} />
-                    </button>
-                    <button
-                      type="button"
-                      disabled={agentLocked || busy}
-                      aria-label={`${t('sketchDeleteDraft')} ${layer.name}`}
-                      onClick={() =>
-                        change(
-                          doc.current.layers.length === 1 ? 'clear' : 'delete',
-                          layer.id
-                        )
-                      }
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              {!doc.current.layers.some((layer) => layer.image) ? (
-                <small>{t('sketchPicturesEmpty')}</small>
-              ) : null}
-            </aside>
+            <SketchPicturePanel
+              document={doc.current}
+              disabled={agentLocked || busy}
+              pictureInput={pictureInput}
+              importImage={importImage}
+              runFile={runFile}
+              change={change}
+              t={t}
+            />
           ) : null}
           {layersOpen ? (
             <SketchLayerPanel
@@ -1189,130 +1134,31 @@ export function SketchStudio({
             />
           ) : null}
         </div>
-        <div className="codexSketchControls">
-          <button
-            type="button"
-            className="codexSketchPicturesToggle"
-            aria-expanded={picturesOpen}
-            onClick={() => setPicturesOpen((v) => !v)}
-          >
-            {t('sketchPictures')}
-          </button>
-          <SketchViewControls navigation={navigation} t={t} />
-          <SketchToolPicker
-            t={t}
-            disabled={agentLocked || busy}
-            tool={tool}
-            brush={brush}
-            chooseBrush={chooseBrush}
-            chooseTool={chooseTool}
-            shapesOpen={shapesOpen}
-            setShapesOpen={setShapesOpen}
-          />
-          <div className="codexLayerBrush">
-            {['rectangle', 'circle'].includes(tool) ? (
-              <label>
-                <input
-                  type="checkbox"
-                  disabled={agentLocked || busy}
-                  checked={fillShape}
-                  onChange={(e) => setFillShape(e.target.checked)}
-                />
-                {t('sketchFill')}
-              </label>
-            ) : null}
-            {selected ? (
-              <div className="codexSketchObjectActions">
-                <button
-                  disabled={agentLocked || busy}
-                  onClick={() => editObject({}, 'duplicate')}
-                >
-                  {t('sketchObjectDuplicate')}
-                </button>
-                <button
-                  disabled={agentLocked || busy}
-                  onClick={() => editObject({}, 'delete')}
-                >
-                  {t('sketchObjectDelete')}
-                </button>
-                {selected.shape === 'text' ? (
-                  <button
-                    disabled={agentLocked || busy}
-                    onClick={() =>
-                      setTextEdit({ selection, value: selected.text })
-                    }
-                  >
-                    {t('sketchText')}
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-            {tool === 'pen' ? (
-              <label className="codexSketchStability">
-                {t('sketchStability')}
-                <select
-                  aria-label={t('sketchStability')}
-                  value={stability}
-                  disabled={agentLocked || busy}
-                  onChange={(e) => setStability(Number(e.target.value))}
-                >
-                  {[0, 25, 50, 75].map((value) => (
-                    <option key={value} value={value}>
-                      {t(`sketchStability${value}`)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            {tool === 'eraser' ? (
-              <div
-                className="codexSketchSegment"
-                role="group"
-                aria-label={t('sketchEraserMode')}
-              >
-                {['pixel', 'stroke'].map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={eraser === value}
-                    disabled={agentLocked || busy}
-                    onClick={() => setEraser(value)}
-                  >
-                    {t(`sketchErase_${value}`)}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          <div
-            className="codexSketchPalette"
-            role="group"
-            aria-label={t('sketchColor')}
-          >
-            {PALETTE.map((value) => (
-              <button
-                type="button"
-                key={value}
-                className="codexSketchSwatch"
-                style={{ '--swatch': value }}
-                aria-label={`${t('sketchColor')} ${value}`}
-                aria-pressed={(selected?.color ?? color) === value}
-                disabled={agentLocked || busy}
-                onClick={() => pickColor(value)}
-              />
-            ))}
-            <label className="codexSketchCustom" title={t('sketchColor')}>
-              <span style={{ background: color }} />
-              <input
-                type="color"
-                aria-label={t('sketchColor')}
-                value={color}
-                disabled={agentLocked || busy}
-                onChange={(e) => pickColor(e.target.value)}
-              />
-            </label>
-          </div>
-        </div>
+        <SketchControls
+          t={t}
+          navigation={navigation}
+          picturesOpen={picturesOpen}
+          setPicturesOpen={setPicturesOpen}
+          disabled={agentLocked || busy}
+          tool={tool}
+          brush={brush}
+          chooseBrush={chooseBrush}
+          chooseTool={chooseTool}
+          shapesOpen={shapesOpen}
+          setShapesOpen={setShapesOpen}
+          fillShape={fillShape}
+          setFillShape={setFillShape}
+          selected={selected}
+          editObject={editObject}
+          selection={selection}
+          setTextEdit={setTextEdit}
+          stability={stability}
+          setStability={setStability}
+          eraser={eraser}
+          setEraser={setEraser}
+          color={color}
+          pickColor={pickColor}
+        />
         {error ? (
           <p className="codexSketchHint" role="alert">
             {error}
