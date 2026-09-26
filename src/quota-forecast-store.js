@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, open, readFile, rename, rm, stat } from 'node:fs/promises'
+import { mkdir, open, readFile, rename, rm, stat, lstat } from 'node:fs/promises'
 import { dirname } from 'node:path'
 
 const DEFAULT_MAX_BYTES = 256 * 1024
@@ -69,5 +69,16 @@ export class QuotaForecastStateStore {
 
   async clear() {
     await rm(this.filename, { force: true })
+  }
+
+  async usage() {
+    try {
+      const info = await lstat(this.filename)
+      if (!info.isFile() || info.isSymbolicLink()) throw Error('Unexpected forecast cache entry')
+      return { bytes: info.size, limit: this.maxBytes }
+    } catch (error) {
+      if (error.code === 'ENOENT') return { bytes: 0, limit: this.maxBytes }
+      throw error
+    }
   }
 }

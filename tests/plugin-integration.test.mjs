@@ -319,6 +319,8 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
       account: { status: 'signed-out' },
       login: { phase: 'idle' },
       requests: {},
+      websocket: { requests: 0, connectionsCreated: 0, connectionsReused: 0, deltaRequests: 0, websocketFailures: 0, sseFallbacks: 0 },
+      compaction: { requests: 0, checkpointsSaved: 0, checkpointsReused: 0 },
       catalog: diagnostics.value.catalog,
       configuration: {
         autoQuotaRetry: false,
@@ -445,6 +447,21 @@ test('Astra custom context is persisted through settings RPC with its audited bo
     assert.equal(result.error.message, 'Invalid custom model context window')
     assert.equal((await rpc('preferences/status')).value.customContextGpt6Astra, 872_000)
   }
+})
+
+test('forecast cache management exposes only its size and delegates serialized clearing', async () => {
+  let clears = 0
+  const handler = plugin.createSubscriptionRpcHandler({ usageReader: {
+    clear: async () => { clears++ },
+    storage: async () => ({ bytes: clears ? 0 : 128, limit: 262144 }),
+  } })
+  assert.deepEqual(await handler('storage/status', {}, new AbortController().signal), { ok: true, value: { bytes: 128, limit: 262144 } })
+  assert.equal(clears, 0)
+  assert.deepEqual(await handler('storage/clear-forecast', { path: 'ignored' }, new AbortController().signal), { ok: true, value: { bytes: 0, limit: 262144 } })
+  assert.equal(clears, 1)
+  const aborted = AbortSignal.abort()
+  await assert.rejects(handler('storage/clear-forecast', {}, aborted))
+  assert.equal(clears, 1)
 })
 
 test('preferences/models refreshes the catalog before returning the current model surfaces', async () => {
