@@ -1,15 +1,14 @@
 <p align="center"><img src="icon-subscription.webp" width="128" height="128" alt="DSH Codex Subscription 图标"></p>
 
-# DSH Codex Subscription
-
 <div align="center">
+
+# DSH Codex Subscription
 
 **简体中文** · [English](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.en.md)
 
 **把 ChatGPT / Codex 订阅直接接入 DeepSeek Harness**
 
-在 DeepSeek Harness 中直接登录 ChatGPT 并使用 Codex 订阅。无需 OpenAI API Key，也不依赖 Codex CLI；
-模型、搜索、额度和图片生成都留在 DSH 里。
+登录已有订阅，即可在 DSH 中选模型、查额度、搜索和生图。无需 API Key，也不依赖 Codex CLI。
 
 [![CI](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml/badge.svg)](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/dsh-codex-subscription?logo=npm&label=npm)](https://www.npmjs.com/package/dsh-codex-subscription)
