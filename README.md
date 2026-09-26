@@ -35,6 +35,8 @@
 
 实验功能按需开启；模型权限与额度以当前账号实际返回为准。
 
+订阅路由失败时会明确报错，不会静默切换到其他付费路由。
+
 ## 准备 DSH
 
 本插件支持软件包元数据中记录的最新版 DeepSeek Harness，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
@@ -122,12 +124,16 @@ GPT-6 Sol 和 GPT-6 Luna 已在 [OpenAI 的 Codex 模型说明](https://learn.ch
 <details>
 <summary>GPT-6 Astra 上下文</summary>
 
+**模型感知上下文**以模型目录为准，刷新不会覆盖未保存的草稿。
+
 当官方模型目录提供 GPT-6 Astra 时，标准模式保留目录默认窗口；扩展模式使用 872000 Token，自定义模式可设置 128000–872000 Token（初始值为 272000）。该上限依据 [Codex 官方模型目录](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34)，不是 API 模型的总上下文容量。这些设置只调整 DSH 的本地上下文预算，不授予模型访问权限，也不保证账号的服务端容量；实际可用性以服务端为准。
 
 </details>
 
 <details>
 <summary>输入框额度</summary>
+
+额度分组以服务端实际返回为准，不补造缺失的额度。
 
 实机示例：GPT-6-Astra · Max（最高推理档）· 高速模式（闪电标识），左侧直接显示剩余额度。
 

@@ -34,6 +34,8 @@ Compatible with DSH `0.1.7-rc.2` plugin compatibility checks and settings APIs, 
 
 Experimental features remain opt-in. Model access and quota depend on your account.
 
+Subscription failures remain visible: no silent fallback to another paid route.
+
 ## Prepare DSH
 
 This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
@@ -121,12 +123,16 @@ GPT-6 Sol and GPT-6 Luna are listed in [OpenAI's Codex model guidance](https://l
 <details>
 <summary>GPT-6 Astra context</summary>
 
+**Model-aware context** follows the model directory. Refreshes do not overwrite an unsaved draft.
+
 When the official model catalog exposes GPT-6 Astra, Standard preserves the catalog window, Extended uses 872000 tokens, and Custom accepts 128000–872000 tokens (initially 272000). This limit follows the [official Codex model catalog](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34), not the API model's total context capacity. These settings only adjust DSH's local context budget; they do not grant model access or guarantee an account's server-side capacity. Actual availability remains subject to the service.
 
 </details>
 
 <details>
 <summary>Composer quota</summary>
+
+Quota groups follow backend-provided data; missing limits are not invented.
 
 Live example: GPT-6-Astra with Max (the highest reasoning level) and Fast mode (lightning icon), with remaining quota visible on the left.
 
