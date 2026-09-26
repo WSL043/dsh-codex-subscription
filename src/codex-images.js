@@ -442,7 +442,9 @@ export function createCodexImageTool(options) {
         localPath: options.originalImages.originalPath(original.assetId),
         ...(metadata.background === undefined ? {} : { background: metadata.background }),
         ...(metadata.quality === undefined ? {} : { quality: metadata.quality }),
-        ...(metadata.size === undefined ? {} : { size: metadata.size }),
+        // The service can return different dimensions from the requested size
+        // or its response metadata. Report the persisted original's dimensions.
+        size: `${original.width}x${original.height}`,
       }
       if (exec.parent !== undefined) {
         exec.deferContext(createUserMessage({

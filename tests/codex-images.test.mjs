@@ -122,9 +122,23 @@ test('image tool uses the Codex subscription endpoint and fixed safe defaults', 
     original: ORIGINAL_REF,
     background: 'opaque',
     quality: 'medium',
-    size: '1024x1024',
+    size: '1x1',
     localPath: 'C:\\DSH home\\images\\original',
   })
+})
+
+test('actual original dimensions win over requested or missing response dimensions', async () => {
+  for (const reportedSize of ['1024x1024', undefined]) {
+    const { tool } = fixture({
+      async fetch() {
+        return new Response(JSON.stringify({ size: reportedSize, data: [{ b64_json: ONE_PIXEL_PNG }] }))
+      },
+    })
+    const result = await tool.execute({ prompt: 'size regression', size: '1536x1024' }, execContext('actual-size'))
+    assert.equal(result.requestedSize, '1536x1024')
+    assert.equal(result.size, '1x1')
+    assert.match(tool.output.render({}, result)[0].text, /Generated a 1x1 image\./)
+  }
 })
 
 test('generated and edited images expose a readable host path in model-visible content', async () => {
