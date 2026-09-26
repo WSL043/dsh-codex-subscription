@@ -74,6 +74,25 @@ test('a fetch captured by another plugin remains usable after the Codex scope en
   }
 })
 
+test('a third-party fetch wrapper installed during the scope survives its teardown', async () => {
+  const original = globalThis.fetch
+  globalThis.fetch = async input => new Response(`direct:${input}`)
+  try {
+    let thirdPartyFetch
+    await withCodexNetwork(async () => {
+      const capturedFetch = globalThis.fetch
+      thirdPartyFetch = (...args) => capturedFetch(...args)
+      globalThis.fetch = thirdPartyFetch
+    }, { env: {} })
+
+    assert.equal(globalThis.fetch, thirdPartyFetch)
+    const response = await globalThis.fetch('https://example.test/from-other-plugin')
+    assert.equal(await response.text(), 'direct:https://example.test/from-other-plugin')
+  } finally {
+    globalThis.fetch = original
+  }
+})
+
 test('concurrent OAuth attempts never inherit another attempt proxy', async () => {
   const original = globalThis.fetch
   const calls = []
