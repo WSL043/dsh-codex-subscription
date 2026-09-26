@@ -14,7 +14,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Three-step start](#three-step-start) · [Install](#install) · [Contribute](CONTRIBUTING.md) · [Update and uninstall](#update-and-uninstall)
+[Install](#install) · [Screenshots](#inside-the-plugin) · [Contribute](CONTRIBUTING.md) · [Update and uninstall](#update-and-uninstall)
 
 </div>
 
@@ -23,14 +23,6 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 </p>
 
 Compatible with DSH `0.1.7-rc.2` plugin compatibility checks and settings APIs, while retaining support for previously supported versions.
-
-## Three-step start
-
-1. **Install the plugin.** Open **Plugins → Add plugin**, enter `dsh-codex-subscription` in **Package name or address**, and click **Install**.
-2. **Sign in.** Follow the installation result; save your work and restart only if requested. Open **Settings -> Codex**, and choose browser sign-in. No Codex CLI and no pasted token are required.
-3. **Use Codex.** Select a Codex model. Quota, subscription search, image generation, and Fast mode remain inside DSH.
-
-See below for detailed installation steps, terminal commands, updates, and removal.
 
 ## What you get
 
@@ -173,8 +165,6 @@ A new image request does not silently include earlier images. GPT Image 2 can ta
 The screenshot above illustrates image viewing and on-image notes; available buttons can vary with the image and installed viewer version.
 
 ### Sketch canvas (Beta)
-
-![Sketch canvas in the Chinese UI: aspect ratio, brushes, shapes, layers and zoom](docs/assets/sketch-canvas.png)
 
 Use the composer pen button for manual drawing. Selecting `@sketch` only inserts the Agent entry into the composer; the Agent opens the board after you send your drawing request. You can also choose Open in sketch from an enhanced image preview. Attachment intake and removal use the native DSH component.
 

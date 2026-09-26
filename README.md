@@ -15,7 +15,7 @@
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[三步开始](#三步开始) · [安装](#安装) · [参与贡献](CONTRIBUTING.md) · [更新与卸载](#更新与卸载)
+[安装](#安装) · [界面一览](#界面一览) · [参与贡献](CONTRIBUTING.md) · [更新与卸载](#更新与卸载)
 
 </div>
 
@@ -24,14 +24,6 @@
 </p>
 
 已适配 DSH `0.1.7-rc.2` 的插件兼容性检查与设置接口，同时保留已支持版本的兼容。
-
-## 三步开始
-
-1. **安装插件**：打开 **插件 → 添加插件**，在 **包名或地址** 中填写 `dsh-codex-subscription`，点击 **安装**。
-2. **登录订阅**：按安装结果提示操作；若提示需要重启，先保存工作再重启。打开 **设置 -> Codex 订阅**，点击浏览器登录。无需 Codex CLI，也不要粘贴 token。
-3. **开始使用**：在模型选择器中选择 Codex；额度、订阅搜索、图片生成和高速模式都在 DSH 内使用。
-
-详细安装步骤、终端方式以及更新与卸载说明见下文。
 
 ## 你可以做什么
 
@@ -172,8 +164,6 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 上图展示图片查看与图上备注的基本交互；具体按钮会随图片和所安装的查看器版本变化。
 
 ### 草图画板（Beta）
-
-![草图画板实机界面：画布比例、笔刷、形状、图层与缩放](docs/assets/sketch-canvas.png)
 
 点击输入框的草图按钮手动画图。`@sketch` 是 Agent 绘图入口：选择时只填入输入框，发送绘图请求后才由 Agent 打开画板。图片预览中可选择“进入草图”；上传、粘贴和移除附件仍由 DSH 原生组件处理。
 
