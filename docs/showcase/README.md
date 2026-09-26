@@ -43,3 +43,8 @@ together when changing the published presentation.
 The README displays Images & sketch crops directly. The plugin-list captures are
 1200 × 780 native screenshots with the sidebar collapsed; they show the actual icon
 in the Plugins homepage, not its details screen. No UI content was generated.
+
+Composer screenshots were refreshed in the same host on 2026-09-27. Both use
+GPT-6-Luna Default and native percentage quota display, cropped at x=245, y=343,
+840 × 137 from a 1280 × 720 screenshot. Language, sidebar, and quota-display
+preferences were restored after capture; no model request was sent.

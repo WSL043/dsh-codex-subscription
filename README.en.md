@@ -87,7 +87,7 @@ dsh --profile headless "Reply with only the word: ok"
 
 Choose a model, adjust reasoning, enable Fast mode, and check remaining quota without opening settings for every request.
 
-<p align="center"><img src="docs/assets/composer-quota-en.png" width="800" alt="DSH composer with Astra, Max reasoning, Fast mode and remaining quota"></p>
+<p align="center"><img src="docs/assets/composer-quota-en.png" width="800" alt="DSH composer with GPT-6-Luna, reasoning controls and remaining quota"></p>
 
 ### Accounts and preferences, in one place
 
