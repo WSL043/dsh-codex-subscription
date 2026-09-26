@@ -169,12 +169,6 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   }
   assert.doesNotMatch(readme, /docs\/assets\/sidebar\.png/u)
   assert.doesNotMatch(readme, /docs\/assets\/sidebar-en\.png/u)
-  for (const base of []) {
-    for (const suffix of ['', '-en']) {
-      const asset = `docs/assets/${base}${suffix}.png`
-      assert.deepEqual(pngDimensions(asset), { width: 1600, height: 1050 }, 'localized product visuals share a consistent canvas')
-    }
-  }
   {
     const { width, height } = pngDimensions('docs/assets/composer-quota.png')
     assert.ok(width >= 700, 'Chinese composer quota screenshot must retain its native width')

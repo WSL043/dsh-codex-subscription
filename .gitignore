@@ -5,3 +5,11 @@ output/
 *.log
 .DS_Store
 Thumbs.db
+
+# Private account captures must never be republished.
+/docs/assets/real-account-zh.png
+/docs/assets/real-account-en.png
+/docs/assets/real-account-full-zh.png
+/docs/assets/real-account-full-en.png
+/docs/assets/subscription-overview-2.2.png
+/docs/assets/subscription-overview-2.2-en.png
