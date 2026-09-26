@@ -26,6 +26,7 @@ test('checkpoint captured without content-type and restored after JSON roundtrip
  const f=fixture();const first=await run(f.adapter,[user('history')]);assert.ok(first.replayState.response.codexCompactionV1)
  await run(f.adapter,[user('history'),message(first),user('next')]);assert.equal(f.wires[1].input[0].type,'compaction');assert.equal(f.wires[1].input.length,2)
  assert.deepEqual(first.replayState.blocks,native.blocks)
+ assert.deepEqual(f.bridge.snapshot(), { requests: 2, checkpointsSaved: 2, checkpointsReused: 1 })
 })
 test('disabled and unsuccessful requests never adopt state',async()=>{
  for(const args of [{enabled:false},{complete:false},{reason:'aborted'},{reason:'error'}]){const f=fixture(args);assert.equal((await run(f.adapter,[user('history')])).replayState.response.codexCompactionV1,undefined)}

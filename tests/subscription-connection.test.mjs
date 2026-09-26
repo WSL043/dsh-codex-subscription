@@ -66,6 +66,9 @@ test('a rejected WebSocket proxy CONNECT falls back through the existing SSE rou
     assert.ok(events.includes('done'), events.join(','))
     assert.equal(connects, 1)
     assert.equal(fetches, 1)
+    assert.equal(connection.snapshot().sseFallbacks, 1)
+    assert.equal(connection.snapshot().websocketFailures, 1)
+    assert.doesNotMatch(JSON.stringify(connection.snapshot()), /fixture|proxy-failure|responseId|Error/)
     assert.equal(globalThis.WebSocket, originalWebSocket)
     assert.equal(process.env.HTTPS_PROXY, originalEnv)
   } finally { connection.dispose(); await new Promise(resolve => server.close(resolve)) }
