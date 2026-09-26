@@ -91,7 +91,7 @@ export const STYLE = `
 .codexSubscriptionRecover{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .codexSubscriptionRecover .codexSubscriptionError{flex:1}
 .codexSubscriptionRecover button{flex:0 0 auto}
-.codexSubscriptionDiagnostics{padding:8px 12px;gap:8px;background:transparent;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionDiagnostics{color:var(--dsw-alias-label-secondary)}
 .codexSubscriptionDiagnostics pre{max-height:240px;margin:0;padding:10px 12px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font:11px/17px ui-monospace,SFMono-Regular,Consolas,monospace;color:var(--dsw-alias-label-secondary)}
 .codexSubscriptionLink{box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 13px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-decoration:none;white-space:nowrap}
 .codexSubscriptionLink:hover{background:var(--dsw-alias-bg-module-platform)}
@@ -149,8 +149,9 @@ export const STYLE = `
 .codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}
 .codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
-.codexSettingsTabs{display:flex;gap:4px;padding:3px;background:var(--dsw-alias-bg-module-platform);border-radius:10px}
-.codexSettingsTabs button{flex:1;border:0;border-radius:8px;padding:7px 8px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:13px;cursor:pointer}
+.codexSettingsTabs{position:sticky;top:0;z-index:2;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;background:var(--dsw-alias-bg-module-platform);border-radius:12px}
+.codexSettingsTabs button{min-width:0;min-height:36px;border:0;border-radius:9px;padding:7px 6px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:18px;cursor:pointer}
+.codexSettingsTabs button:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px}
 .codexSettingsTabs button[aria-selected=true]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 1px 3px #0001}
 .codexSubscription>[role=tabpanel]:not([hidden]){display:flex;flex-direction:column;gap:10px}
 .codexComposerQuota:focus-visible{outline:1px solid var(--dsw-alias-border-l3);outline-offset:2px}
@@ -230,4 +231,23 @@ export const STYLE = `
 .codexSubscriptionRuntime button{flex-shrink:0;white-space:nowrap}
 .codexSubscriptionRuntime code{display:block;overflow-wrap:anywhere;padding:8px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;user-select:text}
 @media(max-width:640px){.codexSubscriptionCard{padding:14px}}
+.codexSubscriptionHelp{font-size:12px;line-height:1.65;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionBadge{flex:none;padding:3px 8px;border-radius:6px;background:var(--dsw-alias-bg-module-platform);font-size:11px;line-height:16px;color:var(--dsw-alias-label-secondary)}
+.codexImageSettings>.codexSubscriptionSectionHead{flex-direction:row;align-items:center}
+.codexSubscriptionSettingRows>.codexImagePreference+.codexImagePreference{border-top:1px solid var(--dsw-alias-border-l2)}
+.codexSubscriptionDiagnostics .codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column;gap:12px}
+.codexSubscriptionDiagnostics .codexSubscriptionSectionTitle{display:flex;flex-direction:column;gap:5px}
+.codexSubscriptionStorageMeter{display:flex;flex-direction:column;gap:9px;padding:12px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
+.codexSubscriptionStorageMeter>div{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;line-height:18px}
+.codexSubscriptionStorageMeter output{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionStorageMeter progress{width:100%;height:4px;border:0;border-radius:4px;overflow:hidden;accent-color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionStorageMeter progress::-webkit-progress-bar{background:var(--dsw-alias-border-l2)}
+.codexSubscriptionStorageMeter progress::-webkit-progress-value{background:var(--dsw-alias-label-secondary)}
+.codexSubscriptionConfirm{padding:12px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;font-size:12px;line-height:1.65}
+.codexSubscriptionConfirm p{margin-bottom:12px}
+.codexSubscriptionRuntime{padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2);margin-top:2px}
+.codexSubscriptionRuntime details{margin-top:8px}.codexSubscriptionRuntime details[open]>summary{margin-bottom:10px}
+@container (max-width:480px){.codexSubscriptionPreference,.codexSubscriptionContextHead{flex-wrap:wrap}.codexSubscriptionPreferenceHint{max-width:none}.codexSubscriptionPreference>.codexSubscriptionPreferenceCopy{flex:1 1 220px}.codexSubscriptionQuotaModes{max-width:100%;flex-wrap:wrap}.codexSubscriptionQuotaMode{min-height:30px}.codexSubscriptionActions{flex-wrap:wrap}}
+@container (max-width:340px){.codexSettingsTabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.codexSubscription *{transition:none!important}}
 `
