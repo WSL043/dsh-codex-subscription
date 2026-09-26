@@ -79,7 +79,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
 4. Open **Settings → Codex**, sign in to ChatGPT, then select a Codex model in your conversation.
 
-The unversioned package name installs the latest stable release. To select a version, enter `dsh-codex-subscription@2.1.9`; for a beta, use the complete version from its release notes. Enter only the package name here, not a terminal command. This plugin can be installed using its npm package name; no GitHub URL or local directory is needed.
+The unversioned package name installs the latest stable release. To pin a version, append `@` and the complete version from the [releases page](https://github.com/WSL043/dsh-codex-subscription/releases) to the package name; the same applies to beta releases. Enter only the package name here, not a terminal command. This plugin can be installed using its npm package name; no GitHub URL or local directory is needed.
 
 <details>
 <summary>Terminal installation (with an existing dsh command)</summary>
@@ -245,7 +245,7 @@ In **Settings → Codex → Advanced → Independent subtasks**, click **Install
 
 ![Optional component management](docs/assets/settings-runtime-current-en.png)
 
-Prefer **Install component** above. Stable release **2.1.9** selects a component matching the current DSH version: DSH `0.1.7-rc.2` installs component `0.1.7-rc.2`, while DSH `0.1.5-rc.2` installs component `0.1.5-rc.2`. An existing `0.1.5-rc.3` component is recognized only on a matching host. Do not omit the component version or substitute `@next`.
+Prefer **Install component** above. The plugin selects a component matching the current DSH version: DSH `0.1.7-rc.2` installs component `0.1.7-rc.2`, while DSH `0.1.5-rc.2` installs component `0.1.5-rc.2`. An existing `0.1.5-rc.3` component is recognized only on a matching host. Do not omit the component version or substitute `@next`.
 
 <details>
 <summary>Manual installation on older hosts and offline preparation</summary>
