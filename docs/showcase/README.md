@@ -5,11 +5,12 @@ controls or changing their values. The headline and surrounding layout are separ
 presentation elements. The icon is shown independently in the README.
 
 Captured in DSH 0.1.7-alpha.2 with plugin 2.2.2 on 2026-09-27. Source crops in
-`docs/assets/real-*.png` exclude account identities, conversations and unrelated UI.
+`docs/assets/real-*.png` retain native masked account labels and exclude conversations and unrelated UI.
 The quota is a capture-time reading, not a promise of quota available to a new user.
 
 | Crop | Source area at a 1200 × 1000 viewport |
 | --- | --- |
+| Account | x=412, y=158, 559 × 248 |
 | Models & runtime | x=412, y=158, 559 × 329 |
 | Quota window | x=426, y=488, 529 × 76 |
 | Images & sketch (Chinese) | x=412, y=158, 564 × 697 |
@@ -34,3 +35,7 @@ capture tools emit JPEG bytes regardless of the destination extension.
 The gallery builds only into ignored `.artifacts/showcase` and is not included in
 the plugin runtime or npm package. Update the README pair and `screenshots.json`
 together when changing the published presentation.
+
+The README displays Images & sketch crops directly. The plugin-list captures are
+1200 × 780 native screenshots with the sidebar collapsed; they show the actual icon
+in the Plugins homepage, not its details screen. No UI content was generated.
