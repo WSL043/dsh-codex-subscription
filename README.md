@@ -20,10 +20,6 @@
 
 </div>
 
-<p align="center">
-  <img src="docs/assets/subscription-overview-2.2.png" width="1200" alt="ChatGPT 订阅接入 DeepSeek Harness：真实账号设置与额度界面">
-</p>
-
 ## 功能一览
 
 把订阅接入、模型控制、额度管理和图片创作放在同一个 DSH 工作流里。下面逐项列出插件提供的能力；模型权限和额度以账号实际返回为准。

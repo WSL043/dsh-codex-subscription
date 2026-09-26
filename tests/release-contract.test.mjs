@@ -157,8 +157,6 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /依次粘贴下面两行|paste these two lines in order|下面三行|three lines/iu)
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /\birm\b|dsh-codex-setup\.ps1/iu)
   assert.doesNotMatch(readmeZh, /安装提示词|更新提示词|卸载提示词/u)
-  assert.match(readmeZh, /docs\/assets\/subscription-overview-2\.2\.png/u)
-  assert.match(readme, /docs\/assets\/subscription-overview-2\.2-en\.png/u)
   assert.match(readme, /cropped screenshots from the actual DSH interface/u)
   assert.match(readmeZh, /docs\/assets\/composer-quota\.png/u)
   assert.doesNotMatch(readmeZh, /docs\/assets\/composer-quota-en\.png/u)
@@ -171,7 +169,7 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   }
   assert.doesNotMatch(readme, /docs\/assets\/sidebar\.png/u)
   assert.doesNotMatch(readme, /docs\/assets\/sidebar-en\.png/u)
-  for (const base of ['subscription-overview-2.2']) {
+  for (const base of []) {
     for (const suffix of ['', '-en']) {
       const asset = `docs/assets/${base}${suffix}.png`
       assert.deepEqual(pngDimensions(asset), { width: 1600, height: 1050 }, 'localized product visuals share a consistent canvas')
@@ -193,9 +191,7 @@ test('plugin-owned marketplace screenshots stay valid and show both product lang
     assert.equal(existsSync(new URL(`../${path}`, import.meta.url)), true, `marketplace screenshot must exist: ${path}`)
   }
   for (const path of [
-    'docs/assets/subscription-overview-2.2-en.png',
     'docs/assets/real-creative-en.png',
-    'docs/assets/subscription-overview-2.2.png',
     'docs/assets/real-creative-zh.png',
   ]) assert.equal(screenshots.includes(path), true, `marketplace must show ${path}`)
 })
