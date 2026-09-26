@@ -184,14 +184,15 @@ export async function withCodexNetwork(run, options = {}) {
   }
   if (options.websocket) activeWebSocketScopes += 1
   if (activeScopes === 0) {
-    baseFetch = globalThis.fetch
+    const fetchBeforeScope = globalThis.fetch
+    baseFetch = fetchBeforeScope
     scopedFetch = async (input, init) => {
       const scope = networkScope.getStore()
-      if (scope === undefined) return baseFetch(input, init)
+      if (scope === undefined) return fetchBeforeScope(input, init)
       const { options: scopedOptions, allowedHosts, resolved } = scope
       const proxyFetch = scopedOptions.fetchThroughProxy ?? fetchThroughProxy
       const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url)
-      if (target.protocol !== 'https:' || !allowedHosts.has(target.hostname)) return baseFetch(input, init)
+      if (target.protocol !== 'https:' || !allowedHosts.has(target.hostname)) return fetchBeforeScope(input, init)
       let proxy = resolved.get(target.hostname)
       if (proxy === undefined) {
         proxy = resolveCodexProxy({ ...scopedOptions, target })
@@ -199,7 +200,7 @@ export async function withCodexNetwork(run, options = {}) {
       }
       const route = await proxy
       scopedOptions.onRoute?.(route.source)
-      const response = await (route.url === undefined ? baseFetch(input, init) : proxyFetch(input, init, route.url))
+      const response = await (route.url === undefined ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url))
       return scopedOptions.transformResponse?.(response, target) ?? response
     }
     globalThis.fetch = scopedFetch
