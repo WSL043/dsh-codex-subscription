@@ -16,7 +16,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Install](#install) · [Daily use](#inside-the-plugin) · [Examples](#from-sketch-to-image) · [User guide](docs/GUIDE.en.md) · [Update and uninstall](#update-and-uninstall)
+[Features](#feature-overview) · [Install](#install) · [Daily use](#inside-the-plugin) · [Examples](#from-sketch-to-image) · [User guide](docs/GUIDE.en.md) · [Update and uninstall](#update-and-uninstall)
 
 </div>
 
@@ -24,14 +24,66 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
   <img src="docs/assets/subscription-overview-2.2-en.png" width="1200" alt="ChatGPT subscription in DeepSeek Harness: complete account and quota settings">
 </p>
 
-## What you get
+## Feature overview
 
-| Start with your subscription | Keep working in DSH | Extend when needed |
+Subscription access, model controls, quota management, and image creation in one DSH workflow. Each capability is listed below; model access and quota depend on your account.
+
+### Models and search
+
+| Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| Sign in and switch accounts | Choose Codex models and reasoning | Image generation, editing, and sketching |
-| Track quota, resets, and alerts | Use subscription search and Fast mode | Agent drawing, subtasks, and cloud compaction |
+| **Subscription sign-in** | Sign in to ChatGPT and use Codex subscription models without an API key | Normal chat needs no Codex CLI |
+| **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh | New models appear when your account offers them |
+| **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
+| **Fast mode** | Switch supported models between Standard and Fast, with a lightning indicator | Standard by default; Fast increases usage |
+| **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
+| **Subscription web search** | Use Codex search or choose DSH search | Auto, DSH, and Codex routing options |
+| **Search scope** | Choose live / cached search, disable search, or restrict domains | Configure under Models & runtime |
+| **Context budget** | Use standard, extended, or custom budgets per model | Limited by the model catalog |
+| **GPT-Reserve** | Select the reserve model when your account offers it | Experimental; no promise of a separate reserve quota |
 
-Model access and quota depend on your account. Experimental features remain opt-in.
+### Accounts and quota
+
+| Feature | What you can do | Availability / setup |
+| --- | --- | --- |
+| **Multiple accounts** | Add, switch, remove, or sign out of all accounts | Settings → Account |
+| **Quota details** | View short / weekly windows, reset times, and separate quota groups | Only backend-provided windows and groups are shown |
+| **Credits and reset cards** | View extra Credits, spending caps, and available reset cards | Shown when returned for your account |
+| **Composer quota** | See remaining quota as a percentage or progress bar while chatting | Off by default; choose your display mode |
+| **Runway estimate** | Estimate remaining time from recent usage | Beta; optional estimate, not a guarantee |
+| **Quota alerts** | Use fixed, early, or custom short / long-window thresholds | 20% remaining by default; can be disabled |
+| **Redeem reset cards** | Use an available reset card after confirmation | Confirmation and waiting safeguards; server decides the result |
+| **Retry after reset** | Wait for a confirmed short-window reset before continuing | Off by default; waiting can be stopped |
+
+### Images and sketching
+
+| Feature | What you can do | Availability / setup |
+| --- | --- | --- |
+| **Image generation** | Generate through your subscription and adjust available request model / quality options | Beta; on by default, can be disabled |
+| **Reference image editing** | Continue refining an image with references | Beta; on by default, can be disabled |
+| **Image viewing and download** | Zoom, pan, fit to window, and download verified originals | Built-in viewer; older images may only have previews |
+| **Region-based editing** | Mark regions, add notes, and continue editing with location references | Fills the composer for you to review and send |
+| **Manual canvas** | Choose an aspect ratio and draw with pen, pencil, marker, and erasers | Beta; canvas off by default |
+| **Shapes and text** | Draw lines, arrows, shapes, native curves, and editable text / objects | Available in the sketch canvas |
+| **Layers and image import** | Work in layers and bring images into the canvas | Images are managed as layers |
+| **Smoothing and navigation** | Smooth complete strokes after release; pan, zoom, undo, and redo | Shortcuts can be customized or disabled |
+| **Multiple drafts** | Save and reopen up to 20 local drafts | Stored in the current browser |
+| **Import and export** | Export PNG, layered PSD, or native drafts that preserve editable strokes | PSD import supports a limited set of ordinary pixel layers |
+| **Agent drawing** | Ask the agent to draw with `@sketch`, follow progress, and stop it | Beta; off by default, requires the canvas |
+| **Result preview for the model** | Return a canvas image after drawing for subsequent review | Beta; off by default, adds image input usage |
+
+### Advanced capabilities and maintenance
+
+| Feature | What you can do | Availability / setup |
+| --- | --- | --- |
+| **Codex independent subtasks** | Reuse subscription sign-in and workspace permissions; select allowed models and reasoning levels | Beta; DSH by default, Codex requires the optional component and model-selection setup |
+| **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
+| **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
+| **WebSocket transport** | Experimentally reuse connections and context transfers, with SSE fallback on connection failure | Beta / experimental; SSE by default, no speed guarantee |
+| **Support diagnostics** | Generate diagnostic information without credentials or conversation text | Settings → Maintenance |
+| **Forecast cache cleanup** | Inspect and clear local quota forecast history | Keeps sign-in, drafts, originals, and shared dependencies |
+
+[Usage details, limitations, and optional components →](docs/GUIDE.en.md)
 
 ## Prepare DSH
 
