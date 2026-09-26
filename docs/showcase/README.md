@@ -7,9 +7,14 @@ presentation elements. The icon is shown independently in the README.
 Captured in DSH 0.1.7-alpha.2 with plugin 2.2.2 on 2026-09-27. Source crops in
 `docs/assets/real-*.png` retain native masked account labels and exclude conversations and unrelated UI.
 The quota is a capture-time reading, not a promise of quota available to a new user.
+The main product image uses one continuous account-and-quota settings window,
+including native navigation, account management, quota, Credits and alert controls.
+No account or quota cards are detached, no values are replaced, and no controls are redrawn.
+Both language variants show the same capture-time quota and Credits state.
 
 | Crop | Source area at a 1200 × 1000 viewport |
 | --- | --- |
+| Full account settings window (Chinese and English) | x=199, y=99, 802 × 802 |
 | Account | x=412, y=158, 559 × 248 |
 | Models & runtime | x=412, y=158, 559 × 329 |
 | Quota window | x=426, y=488, 529 × 76 |
@@ -27,8 +32,7 @@ node docs/showcase/build.mjs
 node docs/showcase/serve.mjs
 ```
 
-Open `http://127.0.0.1:65319/`. Use `?lang=en` for English and `?view=creative`
-for creative settings; both query parameters can be combined. Capture at
+Open `http://127.0.0.1:65319/`. Use `?lang=en` for English. Capture at
 **1600 × 1050**, encode as PNG, and check both languages visually. Some browser
 capture tools emit JPEG bytes regardless of the destination extension.
 
