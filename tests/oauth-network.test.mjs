@@ -57,6 +57,23 @@ test('only OpenAI auth requests use the temporary proxy-aware fetch', async () =
   }
 })
 
+test('a fetch captured by another plugin remains usable after the Codex scope ends', async () => {
+  const original = globalThis.fetch
+  globalThis.fetch = async input => new Response(`direct:${input}`)
+  try {
+    let capturedFetch
+    await withCodexNetwork(async () => {
+      capturedFetch = globalThis.fetch
+    }, { env: {} })
+
+    assert.equal(globalThis.fetch === capturedFetch, false)
+    const response = await capturedFetch('https://ilinkai.weixin.qq.com/ilink/bot/msg/notifystart')
+    assert.equal(await response.text(), 'direct:https://ilinkai.weixin.qq.com/ilink/bot/msg/notifystart')
+  } finally {
+    globalThis.fetch = original
+  }
+})
+
 test('concurrent OAuth attempts never inherit another attempt proxy', async () => {
   const original = globalThis.fetch
   const calls = []
