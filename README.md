@@ -87,7 +87,7 @@ dsh --profile headless "只回复：ok"
 
 选模型、调推理档位、开启高速模式，同时查看剩余额度。无需为每次请求打开设置。
 
-<p align="center"><img src="docs/assets/composer-quota.png" width="800" alt="DSH 输入框：Astra、Max 推理档位、高速模式与剩余额度"></p>
+<p align="center"><img src="docs/assets/composer-quota.png" width="800" alt="DSH 输入框：GPT-6-Luna、推理档位入口与剩余额度"></p>
 
 ### 账号与偏好，集中管理
 
