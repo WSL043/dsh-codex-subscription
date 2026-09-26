@@ -19,7 +19,7 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 </div>
 
 <p align="center">
-  <img src="docs/assets/subscription-overview-2.2-en.png" width="1200" alt="ChatGPT subscription in DeepSeek Harness: sign-in, remaining quota and inline display, with demo data">
+  <img src="docs/assets/subscription-overview-2.2-en.png" width="1200" alt="ChatGPT subscription in DeepSeek Harness: actual model settings and quota interface">
 </p>
 
 Compatible with DSH `0.1.7-rc.2` plugin compatibility checks and settings APIs, while retaining support for previously supported versions.
@@ -159,7 +159,7 @@ Original image prompt: `帮我变成油画` (Turn it into an oil painting.)
 
 <p align="center"><img src="docs/assets/creative-overview-2.2-en.png" width="1200" alt="Images and sketch settings: generation, editing, model choice, and separate canvas and agent controls"></p>
 
-Product visuals use current product components and demo data in a standalone layout, without real accounts or conversations.
+Product visuals arrange cropped screenshots from the actual DSH interface.
 
 </details>
 
@@ -169,20 +169,10 @@ Layers, native curves, brushes, undo/redo, and shortcuts are supported. Save mul
 
 <a id="codex-subtask-runtime"></a>
 
-## Icon and community design
-
-<p align="center"><img src="icon-subscription.webp" width="112" height="112" alt="Current DSH Codex Subscription plugin icon"></p>
-
-This is the plugin's current icon. Below is its actual appearance on the plugin details page in **DSH 0.1.7-alpha.2**; layouts may differ in later host versions.
-
-<details>
-<summary>See it in the updated DSH interface</summary>
-
-<img src="docs/assets/plugin-icon-in-dsh-0.1.7-alpha.2-en.jpg" width="1000" alt="Actual subscription plugin details and icon in DSH 0.1.7-alpha.2">
-
-</details>
-
-Have another direction in mind? Submit an icon or product visual through [design suggestions](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml), with your rationale, light/dark previews, and a small-size example. Once enough suitable candidates are collected, we can showcase them together and invite a community vote.
+<p align="center">
+  <img src="icon-subscription.webp" width="160" height="160" alt="Current plugin icon"><br>
+  <sub>Current plugin icon</sub>
+</p>
 
 ## More settings
 

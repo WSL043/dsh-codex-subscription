@@ -5,6 +5,11 @@ const routes = {
   '/gallery.js': ['.artifacts/showcase/gallery.js', 'text/javascript'],
   '/gallery.css': ['docs/showcase/gallery.css', 'text/css'],
 }
+for (const view of ['settings', 'quota', 'creative']) {
+  for (const lang of ['zh', 'en']) {
+    routes[`/real-${view}-${lang}.png`] = [`docs/assets/real-${view}-${lang}.png`, 'image/png']
+  }
+}
 const page = '<!doctype html><meta charset="utf-8"><title>DSH Codex — Product gallery</title><link rel="stylesheet" href="/gallery.css"><div id="root"></div><script type="module" src="/gallery.js"></script>'
 
 http.createServer(async (req, res) => {
@@ -24,4 +29,4 @@ http.createServer(async (req, res) => {
   } catch {
     res.writeHead(500).end('Build the documentation gallery first.')
   }
-}).listen(65318, '127.0.0.1', () => console.log('Gallery: http://127.0.0.1:65318'))
+}).listen(65319, '127.0.0.1', () => console.log('Gallery: http://127.0.0.1:65319'))

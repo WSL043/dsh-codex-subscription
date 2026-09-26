@@ -20,7 +20,7 @@
 </div>
 
 <p align="center">
-  <img src="docs/assets/subscription-overview-2.2.png" width="1200" alt="ChatGPT 订阅接入 DeepSeek Harness：账号登录、剩余额度与输入框显示，演示数据">
+  <img src="docs/assets/subscription-overview-2.2.png" width="1200" alt="ChatGPT 订阅接入 DeepSeek Harness：真实模型设置与额度界面">
 </p>
 
 已适配 DSH `0.1.7-rc.2` 的插件兼容性检查与设置接口，同时保留已支持版本的兼容。
@@ -160,7 +160,7 @@ dsh --profile headless "只回复：ok"
 
 <p align="center"><img src="docs/assets/creative-overview-2.2.png" width="1200" alt="图片与草图设置：生图编辑、请求型号，以及独立的画板和 Agent 开关"></p>
 
-展示图使用当前产品组件与演示数据独立排版，不包含真实账号或会话内容。
+界面取自 DSH 实机，裁去无关区域后排版。
 
 </details>
 
@@ -170,20 +170,10 @@ dsh --profile headless "只回复：ok"
 
 <a id="codex-subtask-runtime"></a>
 
-## 图标与社区设计
-
-<p align="center"><img src="icon-subscription.webp" width="112" height="112" alt="目前使用的 DSH Codex Subscription 插件图标"></p>
-
-这是插件目前使用的 icon。下面是它在 **DSH 0.1.7-alpha.2** 插件详情页中的实际显示效果，后续宿主版本的布局可能不同。
-
-<details>
-<summary>查看新版 DSH 中的实际展示</summary>
-
-<img src="docs/assets/plugin-icon-in-dsh-0.1.7-alpha.2.jpg" width="1000" alt="DSH 0.1.7-alpha.2 中订阅插件的真实详情页和图标">
-
-</details>
-
-有更好的想法？欢迎通过[设计建议](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml)提交图标或产品展示方案，附上设计思路、浅色/深色背景预览，以及小尺寸效果。先收集方案，候选充足后再集中展示，邀请社区投票。
+<p align="center">
+  <img src="icon-subscription.webp" width="160" height="160" alt="当前插件图标"><br>
+  <sub>当前插件图标</sub>
+</p>
 
 ## 更多设置
 

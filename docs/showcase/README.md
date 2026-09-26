@@ -1,35 +1,36 @@
 # Product visuals
 
-The gallery composes the real account, usage, quota preference, and image/sketch
-settings components from `src/`. It supplies fixed, clearly labeled demo data.
-There are no credentials, backend connections, or real conversation data.
+The gallery arranges **actual screenshots from DSH**, without reconstructing its
+controls or changing their values. The headline and surrounding layout are separate
+presentation elements. The icon is shown independently in the README.
 
-The editorial canvas, window frame, and host primitive styling are presentation
-elements. This is a documentation composition, not a screenshot of the complete
-DSH host or a substitute for installed-product acceptance. Menu anchors are
-rendered for presentation; changing settings or signing in is not supported here.
+Captured in DSH 0.1.7-alpha.2 with plugin 2.2.2 on 2026-09-27. Source crops in
+`docs/assets/real-*.png` exclude account identities, conversations and unrelated UI.
+The quota is a capture-time reading, not a promise of quota available to a new user.
 
-From the repository root, using the existing development dependencies:
+| Crop | Source area at a 1200 × 1000 viewport |
+| --- | --- |
+| Models & runtime | x=412, y=158, 559 × 329 |
+| Quota window | x=426, y=488, 529 × 76 |
+| Images & sketch (Chinese) | x=412, y=158, 564 × 697 |
+| Images & sketch (English) | x=412, y=158, 564 × 714 |
+
+Capture coordinates are evidence for this host version, not a stable automation API.
+Refresh these assets from the installed host when its UI changes. Never use an AI
+redraw as an actual screenshot. Keep source screenshots with private data out of Git.
+
+From the repository root:
 
 ```sh
 node docs/showcase/build.mjs
 node docs/showcase/serve.mjs
 ```
 
-Open `http://127.0.0.1:65318/`. The four views are:
+Open `http://127.0.0.1:65319/`. Use `?lang=en` for English and `?view=creative`
+for creative settings; both query parameters can be combined. Capture at
+**1600 × 1050**, encode as PNG, and check both languages visually. Some browser
+capture tools emit JPEG bytes regardless of the destination extension.
 
-| View | Query | Asset name |
-| --- | --- | --- |
-| Subscription, Chinese | none | `subscription-overview-2.2.png` |
-| Subscription, English | `?lang=en` | `subscription-overview-2.2-en.png` |
-| Creative, Chinese | `?view=creative` | `creative-overview-2.2.png` |
-| Creative, English | `?view=creative&lang=en` | `creative-overview-2.2-en.png` |
-
-Capture each complete view at **1600 × 1050**. On account views, click Show full
-email and then the heading to remove focus styling. Use PNG encoding (some browser
-capture tools return JPEG bytes regardless of the destination extension). Keep
-both languages at the same dimensions and verify text, controls, and margins.
-
-The build stays in ignored `.artifacts/showcase`. These files are not part of the
-plugin runtime or npm package. Update both READMEs and `screenshots.json` when
-changing the published assets.
+The gallery builds only into ignored `.artifacts/showcase` and is not included in
+the plugin runtime or npm package. Update the README pair and `screenshots.json`
+together when changing the published presentation.
