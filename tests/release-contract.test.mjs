@@ -159,7 +159,7 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   assert.doesNotMatch(readmeZh, /安装提示词|更新提示词|卸载提示词/u)
   assert.match(readmeZh, /docs\/assets\/subscription-overview-2\.2\.png/u)
   assert.match(readme, /docs\/assets\/subscription-overview-2\.2-en\.png/u)
-  assert.match(readme, /current product components and demo data/u)
+  assert.match(readme, /cropped screenshots from the actual DSH interface/u)
   assert.match(readmeZh, /docs\/assets\/composer-quota\.png/u)
   assert.doesNotMatch(readmeZh, /docs\/assets\/composer-quota-en\.png/u)
   for (const doc of [readme, readmeZh]) {
