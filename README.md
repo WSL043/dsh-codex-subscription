@@ -1,3 +1,5 @@
+<p align="center"><img src="icon-subscription.webp" width="128" height="128" alt="DSH Codex Subscription 图标"></p>
+
 # DSH Codex Subscription
 
 <div align="center">
@@ -20,7 +22,7 @@
 </div>
 
 <p align="center">
-  <img src="docs/assets/subscription-overview-2.2.png" width="1200" alt="ChatGPT 订阅接入 DeepSeek Harness：真实模型设置与额度界面">
+  <img src="docs/assets/subscription-overview-2.2.png" width="1200" alt="ChatGPT 订阅接入 DeepSeek Harness：真实账号设置与额度界面">
 </p>
 
 已适配 DSH `0.1.7-rc.2` 的插件兼容性检查与设置接口，同时保留已支持版本的兼容。
@@ -58,7 +60,7 @@
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
 4. 打开 **设置 → Codex 订阅**，登录 ChatGPT，然后在会话中选择 Codex 模型。
 
-包名不带版本号时安装最新正式版。若要固定版本，在包名后加 `@` 和[发布页](https://github.com/WSL043/dsh-codex-subscription/releases)中的完整版本号；测试版也一样。此处只填包名，不要粘贴整条终端命令。安装本插件使用上面的 npm 包名即可，无需填写 GitHub 地址或本地目录。
+默认安装最新正式版。指定版本时填 `dsh-codex-subscription@版本号`，版本号见[发布页](https://github.com/WSL043/dsh-codex-subscription/releases)。
 
 <details>
 <summary>终端安装（已能运行 dsh 命令）</summary>
@@ -158,9 +160,9 @@ dsh --profile headless "只回复：ok"
 <details>
 <summary>查看图片与草图设置</summary>
 
-<p align="center"><img src="docs/assets/creative-overview-2.2.png" width="1200" alt="图片与草图设置：生图编辑、请求型号，以及独立的画板和 Agent 开关"></p>
+<p align="center"><img src="docs/assets/real-creative-zh.png" width="564" alt="图片与草图设置：生图编辑、请求型号，以及独立的画板和 Agent 开关"></p>
 
-界面取自 DSH 实机，裁去无关区域后排版。
+DSH 实机设置截图。
 
 </details>
 
@@ -169,11 +171,6 @@ dsh --profile headless "只回复：ok"
 [图片编辑、草稿保存与 PSD 限制 →](docs/GUIDE.zh-CN.md#图片生成与编辑beta)
 
 <a id="codex-subtask-runtime"></a>
-
-<p align="center">
-  <img src="icon-subscription.webp" width="160" height="160" alt="当前插件图标"><br>
-  <sub>当前插件图标</sub>
-</p>
 
 ## 更多设置
 
@@ -206,6 +203,14 @@ dsh plugin --profile web remove dsh-codex-subscription
 - **电脑上有多个 DSH**：请从目标 DSH 环境运行标准命令，由该产品自身选择对应 profile；
 - **安装仍然失败**：确认命令是在目标 DSH 环境中运行，不要删除 profile 或随意修改系统 PATH。
 - **需要提交问题**：在“维护”页面生成“支持诊断”，然后打开[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)。报告包含系统/运行时、有限的登录阶段和安全的请求失败分类，但不含凭据、账号标识、原始响应或完整日志；请粘贴到必填诊断栏，且不要附上登录链接、授权码或浏览器回调地址。
+
+## 当前图标
+
+页首是目前使用的插件图标，下面是它在 DSH 插件列表中的实际效果。欢迎[提交新的设计想法](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml)，有候选方案后再一起投票。
+
+<p align="center"><img src="docs/assets/plugin-list-2.2.png" width="1000" alt="DSH 插件列表中的 Codex 订阅图标与插件入口"></p>
+
+<sub>DSH 0.1.7-alpha.2 实机界面。</sub>
 
 ## 边界与支持
 

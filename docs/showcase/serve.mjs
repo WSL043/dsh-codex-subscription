@@ -5,7 +5,7 @@ const routes = {
   '/gallery.js': ['.artifacts/showcase/gallery.js', 'text/javascript'],
   '/gallery.css': ['docs/showcase/gallery.css', 'text/css'],
 }
-for (const view of ['settings', 'quota', 'creative']) {
+for (const view of ['account', 'settings', 'quota', 'creative']) {
   for (const lang of ['zh', 'en']) {
     routes[`/real-${view}-${lang}.png`] = [`docs/assets/real-${view}-${lang}.png`, 'image/png']
   }
