@@ -58,7 +58,8 @@ jobs:
             const body = context.payload.issue.body ?? ''
             const value = /^### Plugin version\s*\n+([^\n]+)/imu.exec(body)?.[1]?.trim()
             if (value?.toLowerCase() === 'not installed') return
-            if (!/^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(value ?? '')) {
+            const version = /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?=\s|$)/u.exec(value ?? '')?.[0]
+            if (!version) {
               await commentOnce(
                 '<!-- dsh-version-check:missing -->',
                 'Please edit the report and provide the exact plugin version from Settings or `dsh plugin --profile web list dsh-codex-subscription --depth 0`. If installation never completed, enter `not installed`.',
@@ -70,12 +71,12 @@ jobs:
             if (!response.ok) return
             const latest = String((await response.json()).version ?? '')
             const parts = version => version.replace(/^v/u, '').split(/[.-]/u).slice(0, 3).map(Number)
-            const [major, minor, patch] = parts(value)
+            const [major, minor, patch] = parts(version)
             const [latestMajor, latestMinor, latestPatch] = parts(latest)
             const older = major < latestMajor || (major === latestMajor && (minor < latestMinor || (minor === latestMinor && patch < latestPatch)))
             if (older) {
               await commentOnce(
                 `<!-- dsh-version-check:outdated:${latest} -->`,
-                `This report uses ${value}; the current release is ${latest}. Please update and say whether the problem still reproduces.`,
+                `This report uses ${version}; the current release is ${latest}. Please update and say whether the problem still reproduces.`,
               )
             }
