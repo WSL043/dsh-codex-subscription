@@ -157,9 +157,9 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /依次粘贴下面两行|paste these two lines in order|下面三行|three lines/iu)
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /\birm\b|dsh-codex-setup\.ps1/iu)
   assert.doesNotMatch(readmeZh, /安装提示词|更新提示词|卸载提示词/u)
-  assert.match(readmeZh, /docs\/assets\/settings-models-2\.2\.png/u)
-  assert.match(readme, /docs\/assets\/settings-models-2\.2-en\.png/u)
-  assert.match(readme, /Captured from the 2\.2\.2 UI/u)
+  assert.match(readmeZh, /docs\/assets\/subscription-overview-2\.2\.png/u)
+  assert.match(readme, /docs\/assets\/subscription-overview-2\.2-en\.png/u)
+  assert.match(readme, /current product components and demo data/u)
   assert.match(readmeZh, /docs\/assets\/composer-quota\.png/u)
   assert.doesNotMatch(readmeZh, /docs\/assets\/composer-quota-en\.png/u)
   for (const doc of [readme, readmeZh]) {
@@ -171,14 +171,11 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   }
   assert.doesNotMatch(readme, /docs\/assets\/sidebar\.png/u)
   assert.doesNotMatch(readme, /docs\/assets\/sidebar-en\.png/u)
-  for (const asset of ['settings.png', 'settings-en.png']) {
-    const png = readFileSync(new URL(`../docs/assets/${asset}`, import.meta.url))
-    assert.equal(png.subarray(0, 8).toString('hex'), '89504e470d0a1a0a')
-  }
-  for (const asset of ['context-settings.png', 'context-settings-en.png']) {
-    const { width, height } = pngDimensions(`docs/assets/${asset}`)
-    assert.ok(width >= 500, `${asset} must retain the native settings panel width`)
-    assert.ok(height >= 800, `${asset} must include the complete signed-in settings page`)
+  for (const base of ['subscription-overview-2.2', 'creative-overview-2.2']) {
+    for (const suffix of ['', '-en']) {
+      const asset = `docs/assets/${base}${suffix}.png`
+      assert.deepEqual(pngDimensions(asset), { width: 1600, height: 1050 }, 'localized product visuals share a consistent canvas')
+    }
   }
   {
     const { width, height } = pngDimensions('docs/assets/composer-quota.png')
@@ -196,10 +193,10 @@ test('plugin-owned marketplace screenshots stay valid and show both product lang
     assert.equal(existsSync(new URL(`../${path}`, import.meta.url)), true, `marketplace screenshot must exist: ${path}`)
   }
   for (const path of [
-    'docs/assets/settings-models-2.2-en.png',
-    'docs/assets/settings-creative-2.2-en.png',
-    'docs/assets/settings-models-2.2.png',
-    'docs/assets/settings-creative-2.2.png',
+    'docs/assets/subscription-overview-2.2-en.png',
+    'docs/assets/creative-overview-2.2-en.png',
+    'docs/assets/subscription-overview-2.2.png',
+    'docs/assets/creative-overview-2.2.png',
   ]) assert.equal(screenshots.includes(path), true, `marketplace must show ${path}`)
 })
 
