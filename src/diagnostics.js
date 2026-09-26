@@ -26,7 +26,7 @@ function safeRequests(network) {
 }
 
 /** Build a support report that deliberately excludes OAuth and account metadata. */
-export async function createSubscriptionDiagnostics({ auth, preferences, login = { phase: 'idle' }, network, modelCatalog }) {
+export async function createSubscriptionDiagnostics({ auth, preferences, login = { phase: 'idle' }, network, modelCatalog, connection, compaction }) {
   let account = { status: 'unknown' }
   const issues = []
   try {
@@ -57,6 +57,8 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     account,
     login,
     requests: safeRequests(network),
+    ...(connection ? { websocket: safeCounters(connection, ['requests', 'connectionsCreated', 'connectionsReused', 'deltaRequests', 'websocketFailures', 'sseFallbacks']) } : {}),
+    ...(compaction ? { compaction: safeCounters(compaction, ['requests', 'checkpointsSaved', 'checkpointsReused']) } : {}),
     ...(catalog && ['fallback', 'online'].includes(catalog.source)
       && ['idle', 'refreshing', 'ok', 'failed'].includes(catalog.refresh)
       ? { catalog: { source: catalog.source, refresh: catalog.refresh, ...(gaps.length ? { unsupported: gaps } : {}) } } : {}),
@@ -71,4 +73,9 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     },
     issues,
   }
+}
+
+function safeCounters(source, keys) {
+  const values = source.snapshot()
+  return Object.fromEntries(keys.filter(key => Number.isSafeInteger(values?.[key]) && values[key] >= 0).map(key => [key, values[key]]))
 }

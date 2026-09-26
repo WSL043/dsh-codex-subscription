@@ -18,7 +18,7 @@ export function DiagnosticsCard({ rpc, t }) {
   }
   return <div className="codexSubscriptionCard codexSubscriptionDiagnostics">
     <div className="codexSubscriptionSectionHead">
-      <div className="codexSubscriptionSectionTitle"><h3>{t('diagnostics')}</h3></div>
+      <div className="codexSubscriptionSectionTitle"><h3>{t('diagnostics')}</h3><p className="codexSubscriptionHelp">{t('diagnosticsHint')}</p></div>
       <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{busy ? t('diagnosticsLoading') : t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={copy}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}<a className="codexSubscriptionLink" href={SUPPORT_ISSUE_URL} target="_blank" rel="noreferrer">{t('feedbackOpen')}</a></div>
     </div>
     {report === undefined ? null : <pre>{JSON.stringify(report, null, 2)}</pre>}

@@ -10,6 +10,7 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
 export function createCompactionBridge({ enabled = () => false, threshold = () => 100000, accountScope, diagnostic = () => {}, now = Date.now }) {
  const scope = new AsyncLocalStorage()
+ const stats = { requests: 0, checkpointsSaved: 0, checkpointsReused: 0 }
  const wrapStream = (factory, options) => (async function* () {
   if (!enabled() || options.provider !== 'openai-codex') { yield* factory(options); return }
   const identity = await accountScope(options)
@@ -40,12 +41,14 @@ export function createCompactionBridge({ enabled = () => false, threshold = () =
      const items = state.captured
      const checkpoint = { createdAt: now(), scope: state.identity, prefix: historyHash(state.original), content: hash(state.blocks.filter(Boolean)), items, digest: hash(items) }
      event = { ...event, replayState: { ...event.replayState, response: { ...event.replayState.response, [key]: checkpoint } } }
+     stats.checkpointsSaved = Math.min(Number.MAX_SAFE_INTEGER, stats.checkpointsSaved + 1)
     }
     yield event
    }
   } finally { await scope.run(state, () => iterator.return?.()) }
  })()
  return {
+  snapshot: () => ({ ...stats }),
   wrapAdapter(adapter) {
    return new Proxy(adapter, { get(target, property) {
     if (property === 'stream') return options => wrapStream(o => target.stream(o), options)
@@ -57,6 +60,11 @@ export function createCompactionBridge({ enabled = () => false, threshold = () =
   preparePayload(payload, contextWindow) {
    const state = scope.getStore()
    if (!state) return payload
+   if (!state.counted) {
+    state.counted = true
+    stats.requests = Math.min(Number.MAX_SAFE_INTEGER, stats.requests + 1)
+    if (state.suffix) stats.checkpointsReused = Math.min(Number.MAX_SAFE_INTEGER, stats.checkpointsReused + 1)
+   }
    const configured = threshold()
    if (!Number.isSafeInteger(configured) || configured < 1000) throw new Error('Invalid compaction threshold')
    const limit = Number.isFinite(contextWindow) && contextWindow >= 2000
