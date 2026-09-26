@@ -170,6 +170,21 @@ dsh --profile headless "只回复：ok"
 
 <a id="codex-subtask-runtime"></a>
 
+## 图标与社区设计
+
+<p align="center"><img src="icon-subscription.webp" width="112" height="112" alt="目前使用的 DSH Codex Subscription 插件图标"></p>
+
+这是插件目前使用的 icon。下面是它在 **DSH 0.1.7-alpha.2** 插件详情页中的实际显示效果，后续宿主版本的布局可能不同。
+
+<details>
+<summary>查看新版 DSH 中的实际展示</summary>
+
+<img src="docs/assets/plugin-icon-in-dsh-0.1.7-alpha.2.jpg" width="1000" alt="DSH 0.1.7-alpha.2 中订阅插件的真实详情页和图标">
+
+</details>
+
+有更好的想法？欢迎通过[设计建议](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml)提交图标或产品展示方案，附上设计思路、浅色/深色背景预览，以及小尺寸效果。先收集方案，候选充足后再集中展示，邀请社区投票。
+
 ## 更多设置
 
 普通订阅聊天无需 Codex CLI。需要 **Codex 独立子任务** 时，可在“模型与运行”中点击“安装组件”，停用和卸载也在同一处完成。其余实验选项按需开启。

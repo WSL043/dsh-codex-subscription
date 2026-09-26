@@ -169,6 +169,21 @@ Layers, native curves, brushes, undo/redo, and shortcuts are supported. Save mul
 
 <a id="codex-subtask-runtime"></a>
 
+## Icon and community design
+
+<p align="center"><img src="icon-subscription.webp" width="112" height="112" alt="Current DSH Codex Subscription plugin icon"></p>
+
+This is the plugin's current icon. Below is its actual appearance on the plugin details page in **DSH 0.1.7-alpha.2**; layouts may differ in later host versions.
+
+<details>
+<summary>See it in the updated DSH interface</summary>
+
+<img src="docs/assets/plugin-icon-in-dsh-0.1.7-alpha.2-en.jpg" width="1000" alt="Actual subscription plugin details and icon in DSH 0.1.7-alpha.2">
+
+</details>
+
+Have another direction in mind? Submit an icon or product visual through [design suggestions](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml), with your rationale, light/dark previews, and a small-size example. Once enough suitable candidates are collected, we can showcase them together and invite a community vote.
+
 ## More settings
 
 Normal subscription chat needs no Codex CLI. For **Codex independent subtasks**, use Install component under Models & runtime; disabling and uninstalling are available in the same place. Other experimental options remain opt-in.
