@@ -9,10 +9,12 @@
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "lib/*.js",
+    "locale/*.json",
     "cordis.patch.yml",
     "README.md",
     "README.en.md",

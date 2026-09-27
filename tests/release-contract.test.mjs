@@ -11,6 +11,16 @@ const pngDimensions = path => {
   return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) }
 }
 const manifest = JSON.parse(text('package.json'))
+test('plugin card translations are exported and included in the published package', () => {
+  assert.equal(manifest.exports['./locale/*.json'], './locale/*.json')
+  assert.ok(manifest.files.includes('locale/*.json'))
+  for (const language of ['en', 'zh-CN']) {
+    const { meta } = JSON.parse(text(`locale/${language}.json`))
+    assert.ok(meta.title.trim())
+    assert.ok(meta.description.trim())
+  }
+  assert.match(JSON.parse(text('locale/zh-CN.json')).meta.description, /订阅/)
+})
 const compatibility = JSON.parse(text('compatibility.json'))
 
 test('normal installation does not pull the optional Codex executable runtime', () => {
