@@ -1,3 +1,4 @@
+import { compatibleAttachmentService } from './attachment-request-compat.js'
 import { createSettingsAdapter } from './settings-adapter.js'
 import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { createSubscriptionConnection } from './subscription-connection.js'
@@ -306,7 +307,7 @@ export function apply(ctx, config = {}) {
       return resolved.auth.apiKey
     },
     auth: adapterAuth,
-    resolveAttachments: () => ctx.get?.('attachments'),
+    resolveAttachments: () => compatibleAttachmentService(ctx.get?.('attachments')),
   })
   ctx.llm.registerAdapter([PROVIDER], compaction.wrapAdapter(adapter))
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
