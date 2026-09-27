@@ -293,7 +293,7 @@ Diagnostics exclude credentials, account identifiers, raw responses, and full lo
 
 ## Current icon
 
-Our current icon, followed by its appearance in DSH’s Installed list. [Share a design idea](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml); we can vote together once there are candidates.
+The current plugin icon and its appearance in DSH’s Installed list.
 
 <p align="center"><img src="icon-subscription.webp" width="200" height="200" alt="Current Codex Subscription plugin icon"></p>
 
