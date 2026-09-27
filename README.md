@@ -20,6 +20,8 @@
 
 </div>
 
+<p align="center"><img src="docs/assets/product-account-demo.png" width="1100" alt="Codex 订阅账号与额度界面：模型选择、双周期额度与提醒；使用演示数据"></p>
+
 ## 功能一览
 
 把订阅接入、模型控制、额度管理和图片创作放在同一个 DSH 工作流里。下面逐项列出插件提供的能力；模型权限和额度以账号实际返回为准。
@@ -291,9 +293,11 @@ dsh plugin --profile web remove dsh-codex-subscription
 
 ## 当前图标
 
-页首是目前使用的插件图标，下面是它在 DSH 插件列表中的实际效果。欢迎[提交新的设计想法](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml)，有候选方案后再一起投票。
+这是目前使用的插件图标，以及它在 DSH「已安装」列表中的实际效果。欢迎[提交新的设计想法](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml)，有候选方案后再一起投票。
 
-<p align="center"><img src="docs/assets/plugin-list-2.2.png" width="1000" alt="DSH 插件列表中的 Codex 订阅图标与插件入口"></p>
+<p align="center"><img src="icon-subscription.webp" width="200" height="200" alt="当前 Codex 订阅插件图标"></p>
+
+<p align="center"><img src="docs/assets/plugin-installed.png" width="800" alt="DSH 已安装列表中的 Codex 订阅插件卡片"></p>
 
 <sub>DSH 0.1.7-alpha.2 实机界面。</sub>
 

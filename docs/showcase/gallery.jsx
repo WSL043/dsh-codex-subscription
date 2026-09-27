@@ -1,5 +1,6 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import { AccountDemo } from './account-demo.jsx'
 const lang = new URLSearchParams(location.search).get('lang') === 'en' ? 'en' : 'zh'
 const copy = (zh, en) => lang === 'en' ? en : zh
 function Gallery() {
@@ -16,8 +17,8 @@ function Gallery() {
       <div className="install"><span>{copy('在 DSH 插件页添加', 'ADD IN DSH PLUGINS')}</span><code>dsh-codex-subscription</code></div>
     </section>
     <figure className="product">
-      <img src={`/account-demo-${lang}.png`} alt={copy('DSH 中完整的 Codex 订阅账号与额度设置页面', 'Complete Codex subscription account and quota settings in DSH')}/>
-      <figcaption><span className="live-dot"/>{copy('真实界面 · 截图时的账号与额度状态', 'Actual interface · Account and quota at capture time')}</figcaption>
+      <AccountDemo lang={lang} />
+      <figcaption><span className="live-dot"/>{copy('界面演示 · 虚构账号与额度数据', 'Interface demo · Fictional account and quota data')}</figcaption>
     </figure>
     <footer><span>{copy('模型与额度以账号权限为准', 'Model access and quota depend on your account')}</span></footer>
   </main>

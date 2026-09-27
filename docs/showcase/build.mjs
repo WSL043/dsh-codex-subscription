@@ -3,6 +3,7 @@ import { build } from 'tsdown'
 // An isolated documentation build; never load the production configuration.
 await build({
   config: false,
+  alias: { '@deepseek-ai/dsh-client-ui-primitives': new URL('./primitives.jsx', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1') },
   entry: ['docs/showcase/gallery.jsx'],
   outDir: '.artifacts/showcase',
   platform: 'browser',
