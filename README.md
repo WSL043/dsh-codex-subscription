@@ -293,7 +293,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 
 ## 当前图标
 
-这是目前使用的插件图标，以及它在 DSH「已安装」列表中的实际效果。欢迎[提交新的设计想法](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml)，有候选方案后再一起投票。
+这是当前使用的插件图标，以及它在 DSH「已安装」列表中的实际显示效果。
 
 <p align="center"><img src="icon-subscription.webp" width="200" height="200" alt="当前 Codex 订阅插件图标"></p>
 
