@@ -168,7 +168,7 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /\birm\b|dsh-codex-setup\.ps1/iu)
   assert.doesNotMatch(readmeZh, /安装提示词|更新提示词|卸载提示词/u)
   assert.match(readme, /cropped screenshots from the actual DSH interface/u)
-  assert.match(readmeZh, /docs\/assets\/composer-quota\.png/u)
+  assert.match(readmeZh, /docs\/assets\/composer-astra-fast\.png/u)
   assert.doesNotMatch(readmeZh, /docs\/assets\/composer-quota-en\.png/u)
   for (const doc of [readme, readmeZh]) {
     for (const match of doc.matchAll(/docs\/assets\/([^\s)]+\.png)/gu)) {
