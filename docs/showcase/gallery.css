@@ -24,3 +24,13 @@ h1 em { color: #a5dacc; font-style: normal; }
 .product figcaption { margin-top: 17px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #91a3ae; font-size: 12px; }
 .live-dot { height: 5px; width: 5px; border-radius: 50%; background: #8bb7a8; }
 footer { position: absolute; left: 76px; bottom: 49px; width: 550px; display: flex; justify-content: space-between; color: #748692; font-size: 11px; }
+body { background:#10171e; }
+.product { top:135px; }
+.account-demo { width:832px; padding:28px; background:#252527; border:1px solid #ffffff15; border-radius:24px; box-shadow:0 30px 70px #0006; color:#eee; font-size:14px; --dsw-alias-border-l2:#ffffff15; --dsw-alias-border-l3:#ffffff30; --dsw-alias-bg-module:#303033; --dsw-alias-bg-module-platform:#353538; --dsw-alias-label-primary:#f4f4f5; --dsw-alias-label-secondary:#c1c1c7; --dsw-alias-label-tertiary:#a3a3ac; --dsw-alias-label-dimmed:#888; --dsw-alias-state-success-primary:#36cb80; }
+.demo-top {display:flex;justify-content:space-between;color:#aaa;font-size:12px;margin-bottom:22px;letter-spacing:.3px}
+.account-demo button {font:inherit;color:inherit;cursor:pointer}
+.account-demo h2 {font-size:21px;margin:0 0 20px}
+.account-demo .codexSubscriptionCard {background:#202022}
+.account-demo .codexSubscriptionActions button,.account-demo .codexSubscriptionRefresh {background:transparent;border:1px solid #ffffff25;border-radius:999px;padding:8px 15px;font-size:12px}
+.demo-note {text-align:right;color:#93939c;font-size:11px;margin-top:18px}
+.account-demo { --dsw-alias-bg-layer-1:#222224; --dsw-alias-bg-base:#222224; }

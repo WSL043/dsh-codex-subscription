@@ -20,6 +20,8 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 
 </div>
 
+<p align="center"><img src="docs/assets/product-account-demo-en.png" width="1100" alt="Codex subscription account and quota interface with model choices, quota windows and alerts; demonstration data"></p>
+
 ## Feature overview
 
 Subscription access, model controls, quota management, and image creation in one DSH workflow. Each capability is listed below; model access and quota depend on your account.
@@ -291,9 +293,11 @@ Diagnostics exclude credentials, account identifiers, raw responses, and full lo
 
 ## Current icon
 
-The icon at the top is our current design. Here it is in the actual DSH plugin list. [Share a design idea](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml); we can vote together once there are candidates.
+Our current icon, followed by its appearance in DSH’s Installed list. [Share a design idea](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml); we can vote together once there are candidates.
 
-<p align="center"><img src="docs/assets/plugin-list-2.2-en.png" width="1000" alt="Codex Subscription icon and entry in the DSH plugin list"></p>
+<p align="center"><img src="icon-subscription.webp" width="200" height="200" alt="Current Codex Subscription plugin icon"></p>
+
+<p align="center"><img src="docs/assets/plugin-installed-en.png" width="800" alt="Codex Subscription plugin card in the DSH Installed list"></p>
 
 <sub>Captured in DSH 0.1.7-alpha.2.</sub>
 
