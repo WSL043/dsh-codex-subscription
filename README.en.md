@@ -78,7 +78,7 @@ Subscription access, model controls, quota management, and image creation in one
 | **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
 | **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
 | **WebSocket transport** | Experimentally reuse connections and context transfers, with SSE fallback on connection failure | Beta / experimental; SSE by default, no speed guarantee |
-| **Support diagnostics** | Generate diagnostic information without credentials or conversation text | Settings → Maintenance |
+| **Support diagnostics** | Inspect prerequisites, recent operation results and host registrations without credentials or conversation text | Settings → Maintenance; unverified does not mean broken |
 | **Forecast cache cleanup** | Inspect and clear local quota forecast history | Keeps sign-in, drafts, originals, and shared dependencies |
 
 [Usage details, limitations, and optional components →](docs/GUIDE.en.md)
