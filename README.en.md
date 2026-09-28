@@ -85,7 +85,7 @@ Subscription access, model controls, quota management, and image creation in one
 
 ## Prepare DSH
 
-Compatible with DSH `0.1.7-rc.2` plugin compatibility checks and settings APIs, while retaining support for previously supported versions.
+Compatible with DSH `0.2.0-rc.1` plugin compatibility checks and settings APIs, while retaining support for previously supported versions.
 
 This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 

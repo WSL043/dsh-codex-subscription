@@ -98,14 +98,14 @@ Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only *
 
 In **Settings → Codex → Models & runtime → Independent subtasks**, click **Install component**. DSH handles installation; the page shows its stage and offers cancellation before applying. Restart after completion, then choose Codex. Installation does not enable subtasks automatically.
 
-Prefer **Install component** above. The plugin selects a component matching the current DSH version: DSH `0.1.7-rc.2` installs component `0.1.7-rc.2`, while DSH `0.1.5-rc.2` installs component `0.1.5-rc.2`. An existing `0.1.5-rc.3` component is recognized only on a matching host. Do not omit the component version or substitute `@next`.
+Prefer **Install component** above. The plugin selects a component matching the current DSH version: DSH `0.2.0-rc.1` installs component `0.2.0-rc.1`, while DSH `0.1.5-rc.2` installs component `0.1.5-rc.2`. An existing `0.1.5-rc.3` component is recognized only on a matching host. Do not omit the component version or substitute `@next`.
 
 ### Manual installation on older hosts and offline preparation
 
-Enter a component version matching the current DSH version in the plugin installer. As a pinned-version example, for DSH `0.1.7-rc.2`, enter `@deepseek-ai/dsh-subagent-codex@0.1.7-rc.2`, or run:
+Enter a component version matching the current DSH version in the plugin installer. As a pinned-version example, for DSH `0.2.0-rc.1`, enter `@deepseek-ai/dsh-subagent-codex@0.2.0-rc.1`, or run:
 
 ```sh
-dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.1.7-rc.2
+dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.0-rc.1
 ```
 
 Use the same profile as the subscription plugin and restart afterwards. Offline preparation requires a complete runtime installed and verified on the target OS and architecture; copying only the subscription plugin or Codex launcher is insufficient. Model requests still need connectivity.

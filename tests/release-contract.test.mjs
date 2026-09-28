@@ -28,8 +28,8 @@ test('normal installation does not pull the optional Codex executable runtime', 
   assert.equal(manifest.dependencies?.[runtime], undefined)
   assert.equal(manifest.optionalDependencies?.[runtime], undefined)
   assert.equal(manifest.peerDependenciesMeta?.[runtime]?.optional, true)
-  assert.equal(manifest.peerDependencies[runtime], '0.1.5-rc.2 || 0.1.5-rc.3 || 0.1.7-rc.1 || 0.1.7-rc.2')
-  assert.equal(manifest.devDependencies[runtime], '0.1.7-rc.2')
+  assert.equal(manifest.peerDependencies[runtime], '0.1.5-rc.2 || 0.1.5-rc.3 || 0.1.7-rc.1 || 0.1.7-rc.2 || 0.2.0-rc.1')
+  assert.equal(manifest.devDependencies[runtime], '0.2.0-rc.1')
   assert.equal(SUBAGENT_RUNTIME_VERSION, manifest.devDependencies[runtime])
   assert.deepEqual(new Set(SUPPORTED_RUNTIME_VERSIONS), new Set(manifest.peerDependencies[runtime].split(' || ')))
 })
@@ -66,7 +66,7 @@ test('release acceptance includes the exact declared DSH release alongside publi
   assert.match(workflow, /channel: \[latest, accepted, 0\.1\.7-alpha\.1, alpha\]/u)
   assert.match(workflow, /Get-Content -LiteralPath compatibility\.json -Raw \| ConvertFrom-Json\)\.latestTested/u)
   const ci = text('.github/workflows/ci.yml')
-  assert.match(ci, /channel: \[latest, accepted, 0\.1\.7-alpha\.1, alpha\]/u)
+  assert.match(ci, /channel: \[latest, accepted, 0\.1\.7-alpha\.1, alpha, next\]/u)
   assert.match(ci, /Get-Content -LiteralPath compatibility\.json -Raw \| ConvertFrom-Json\)\.latestTested/u)
 })
 
@@ -351,7 +351,9 @@ test('official DSH install and web startup are hard gates before a release', () 
 
   for (const workflow of [ci, publish]) {
     assert.match(workflow, /Official DSH acceptance/u)
-    assert.match(workflow, /channel: \[latest, (?:accepted, )?0\.1\.7-alpha\.1, alpha\]/u)
+    assert.match(workflow, workflow === ci
+      ? /channel: \[latest, (?:accepted, )?0\.1\.7-alpha\.1, alpha, next\]/u
+      : /channel: \[latest, (?:accepted, )?0\.1\.7-alpha\.1, alpha\]/u)
     assert.match(workflow, /-DshVersion \$version/u)
     assert.match(workflow, /accept-official-release\.ps1/u)
     assert.match(workflow, /accept-official-release\.ps1 -PackagePath \$package -DshRunner pnpm/u)
