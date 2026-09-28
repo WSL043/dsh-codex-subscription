@@ -2,7 +2,7 @@ import { CapabilityPreferences } from './capability-preferences.jsx'
 import { RuntimeManagement } from './client-runtime-management.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { Button, IconChevronDownOutline14, Input, Menu } from './client-primitives.js'
-import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, clampModelContext, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
+import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, clampModelContext, INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
 import { reconcileContextDrafts } from './context-draft-state.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
 export function QuickQuotaPreference({ preference, t }) {
@@ -44,6 +44,17 @@ export function SearchProviderPreference({ preference, t }) {
     </div>
     </div>
     <CapabilityPreferences preference={preference} t={t} section="search" />
+  </div>
+}
+
+export function InputImageDetailPreference({ preference, t }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  const writable = snapshot.status === 'ready' && snapshot.writable === true
+  return <div className="codexSubscriptionPreference">
+    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('inputImageDetail')}</span><span className="codexSubscriptionPreferenceHint">{t('inputImageDetailHint')}</span></div>
+    <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('inputImageDetail')}>
+      {INPUT_IMAGE_DETAILS.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-input-image-detail" checked={snapshot.inputImageDetail === value} disabled={!writable} onChange={() => { void preference.set({ [INPUT_IMAGE_DETAIL_FIELD]: value }) }} /><span>{t(`inputImageDetail_${value}`)}</span></label>)}
+    </div>
   </div>
 }
 
@@ -108,6 +119,8 @@ export function PreferencesCard({ preference, rpc, t, section = "display" }) {
         <SearchProviderPreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <ContextWindowPreference preference={preference} t={t} />
+        <div className="codexSubscriptionDivider" />
+        <InputImageDetailPreference preference={preference} t={t} />
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('connectionTitle')}>
         <div className="codexSubscriptionPreference">
