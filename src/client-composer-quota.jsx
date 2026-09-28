@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
+import { ComposerControl } from './client-composer-space.jsx'
 import { useAnchoredPosition, useDismissOnOutsidePointer } from './client-primitives.js'
 import { QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
 import { fill, percent, windowLabel, usePreferenceSnapshot, formatRunway, formatQuotaForecast } from './client-shared.js'
@@ -44,7 +45,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
   const warning = quotaWarning({ fetchedAt: quotas[0]?.fetchedAt, rateLimits: [{ id: 'current', windows: quotas }] }, preferenceSnapshot.quotaAlerts, Date.now(), preferenceSnapshot)
   const label = quotas.map(quota => `${windowLabel(quota.windowSeconds, t)}: ${fill(t('remaining'), { value: percent(quota.remainingPercent) })}`).join('; ')
   return <>
-    <button ref={trigger} type="button" className="codexComposerQuota" data-mode={preferenceSnapshot.quickQuotaMode} data-warning={warning ? true : undefined} aria-label={`${t('quotaDetails')}: ${label}${warning ? `; ${t('quotaThresholdReached')}` : ''}`}
+    <ComposerControl priority={1} onHide={dismiss}><button ref={trigger} type="button" className="codexComposerQuota" data-mode={preferenceSnapshot.quickQuotaMode} data-warning={warning ? true : undefined} aria-label={`${t('quotaDetails')}: ${label}${warning ? `; ${t('quotaThresholdReached')}` : ''}`}
       aria-haspopup="dialog" aria-expanded={visible} aria-controls={visible ? id : undefined}
       onMouseEnter={enter} onMouseLeave={leave}
       onClick={() => { if (pinned.current) dismiss(); else { pinned.current = true; setOpen(true); requestAnimationFrame(() => panel.current?.focus()) } }}>
@@ -53,7 +54,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
         {preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR ? <progress className="codexComposerQuotaBar" max={100} value={quota.remainingPercent} aria-hidden="true" /> : null}
         {preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_BAR ? <span>{`${percent(quota.remainingPercent)}%`}{forecastMode ? ` · ${forecastText(quota, t)}` : ''}</span> : null}
       </span>)}
-    </button>
+    </button></ComposerControl>
     {visible ? createPortal(<section ref={panel} id={id} role="dialog" aria-label={t('quotaDetails')}
       className="codexQuotaPopover" tabIndex={-1} onMouseEnter={enter} onMouseLeave={leave}
       style={{ ...position, visibility: position ? 'visible' : 'hidden' }}>

@@ -1,4 +1,5 @@
 import { useCallback, useRef, useSyncExternalStore } from 'react'
+import { ComposerControl } from './client-composer-space.jsx'
 import { Button, Tooltip } from './client-primitives.js'
 import { SketchWorkspace } from './sketch-workspace.jsx'
 import { WorkspaceIcon } from './workspace-icons.jsx'
@@ -13,11 +14,11 @@ export function ImageWorkspace(props) {
     return () => { workspace.current = null; dispose() }
   }, [registerOpen])
   return <>
-    {settings.imageSketch && settings.imageEditing ? <Tooltip label={t('sketch')}>
+    {settings.imageSketch && settings.imageEditing ? <ComposerControl priority={2}><Tooltip label={t('sketch')}>
       <Button variant="toolbar" size="sm" aria-label={t('sketch')}
         onClick={event => workspace.current?.('sketch', event.currentTarget)}
         icon={<WorkspaceIcon name="pen" size={16} />} />
-    </Tooltip> : null}
+    </Tooltip></ComposerControl> : null}
     <SketchWorkspace key={props.sessionId} {...props} registerOpen={registerWorkspace} />
   </>
 }

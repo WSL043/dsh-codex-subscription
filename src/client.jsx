@@ -108,6 +108,16 @@ export function apply(ctx) {
   const uiConversation = ctx.get('uiConversation')
   const sketchOpeners = createSessionOpeners()
   const sketchSessions = createSketchSessionRegistry()
+  ctx.inject(['commandUi'], scope => scope.effect(() => scope.get('commandUi').register({
+    name: 'sketch',
+    description: () => t('sketchTitle'),
+    available: ({ sessionId }) => {
+      const settings = preference.getSnapshot()
+      return settings.imageSketch && settings.imageEditing && sketchOpeners.has(sessionId)
+    },
+    ui: { kind: 'action', run: ({ sessionId }) => sketchOpeners.get(sessionId)?.('sketch') },
+  }), 'codex-subscription: Sketch command'))
+
   const lifetime = new AbortController()
   ctx.effect(() => () => { lifetime.abort(); imageViewer.close(); sketchOpeners.clear(); sketchSessions.dispose() }, 'codex-subscription: sketch sessions')
   ctx.inject(['inputTriggers'], triggerContext => triggerContext.effect(() => triggerContext.get('inputTriggers').registerSource(createSketchTrigger({
