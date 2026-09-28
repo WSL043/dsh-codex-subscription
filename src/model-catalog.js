@@ -1,3 +1,4 @@
+import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { PACKAGE_VERSION, USER_AGENT } from './version.js'
 
 export const CODEX_MODELS_URL = `https://chatgpt.com/backend-api/codex/models?client_version=${encodeURIComponent(PACKAGE_VERSION)}`
@@ -129,12 +130,8 @@ export function createOfficialModelCatalog(options = {}) {
     let timer
     const timeoutError = new Error('Codex model catalog refresh timed out')
     const work = (async () => {
-      const auth = await options.getAuth({ signal: requestSignal })
+      const { access, accountId } = await readSubscriptionCredentials(options.getAuth, options.readCredential, requestSignal)
       if (currentGeneration !== generation || requestSignal.aborted) return false
-      const credential = await options.readCredential({ signal: requestSignal })
-      if (currentGeneration !== generation || requestSignal.aborted) return false
-      const access = auth?.auth?.apiKey
-      const accountId = credential?.type === 'oauth' ? credential.accountId : undefined
       if (typeof access !== 'string' || access.length === 0 || typeof accountId !== 'string' || accountId.length === 0) {
         return false
       }

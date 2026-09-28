@@ -1,5 +1,7 @@
 import { PACKAGE_VERSION } from './version.js'
-import { collectChecks, diagnosticCapabilities } from './diagnostic-checks.js'
+import { collectChecks } from './diagnostic-checks.js'
+import { capabilityCoverage } from './diagnostic-capabilities.js'
+import { safeOperations } from './diagnostic-operations.js'
 
 const requestAreas = new Set(['login', 'model', 'catalog', 'quota', 'quota-reset', 'search', 'image'])
 const statuses = new Set(['ok', 'failed'])
@@ -42,7 +44,7 @@ function safeRequests(network) {
 }
 
 /** Build a support report that deliberately excludes OAuth and account metadata. */
-export async function createSubscriptionDiagnostics({ auth, preferences, login = { phase: 'idle' }, network, modelCatalog, connection, compaction, inspectionOptions }) {
+export async function createSubscriptionDiagnostics({ auth, preferences, login = { phase: 'idle' }, network, modelCatalog, connection, compaction, inspectionOptions, operations, runtimeManagement, storage, tools }) {
   const collected = {}
   const checks = await collectChecks([
     ['account', 'account', () => auth.status()],
@@ -53,6 +55,15 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     ['history', 'transport', () => safeHistory(network?.history?.())],
     ['websocket', 'transport', () => connection ? safeCounters(connection, ['requests', 'connectionsCreated', 'connectionsReused', 'deltaRequests', 'websocketFailures', 'sseFallbacks']) : undefined],
     ['compaction', 'compaction', () => compaction ? safeCounters(compaction, ['requests', 'checkpointsSaved', 'checkpointsReused']) : undefined],
+    ['operations', 'transport', () => safeOperations(operations?.snapshot?.())],
+    ['runtime', 'subagents', async () => {
+      const value = await runtimeManagement?.status?.()
+      return value ? Object.fromEntries(['available', 'installed', 'restartRequired'].filter(key => typeof value[key] === 'boolean').map(key => [key, value[key]])) : undefined
+    }],
+    ['storage', 'storage', async () => typeof storage === 'function' ? (await storage(), { readable: true }) : undefined],
+    ['tools', 'host-ui', () => typeof tools?.get === 'function' ? {
+      images: !!tools.get('codex_image_generate'), sketch: !!tools.get('codex_sketch'),
+    } : undefined],
   ].map(([id, capability, read]) => ({ id, capability, run: read ? async signal => {
     const value = await read()
     if (value === undefined) return { status: 'unknown', reason: 'not-instrumented' }
@@ -88,7 +99,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
       schemaVersion: 1,
       meaning: 'collection-success-is-not-feature-success',
       checks,
-      capabilities: diagnosticCapabilities.map(id => ({ id, checks: checks.filter(check => check.capability === id).map(check => check.id), execution: 'not-verified' })),
+      capabilities: capabilityCoverage({ account, preference, runtime: collected.runtime, catalog, tools: collected.tools, storage: collected.storage, checks, operations: collected.operations }),
     },
     package: 'dsh-codex-subscription',
     version: PACKAGE_VERSION,
@@ -97,6 +108,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     login,
     requests: collected.requests ?? {},
     ...(collected.history ? { requestHistory: collected.history } : {}),
+    ...(collected.operations ? { operations: collected.operations } : {}),
     ...(collected.websocket ? { websocket: collected.websocket } : {}),
     ...(collected.compaction ? { compaction: collected.compaction } : {}),
     ...(catalog && ['fallback', 'online'].includes(catalog.source)

@@ -176,7 +176,7 @@ test('usage reader is single-flight, short cached, and never exposes bearer or a
     now: () => now,
     ttlMs: 60_000,
     async getAuth() { return { auth: { apiKey: 'bearer-secret' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'account-secret' } },
+    async readCredential() { return { type: 'oauth', access: 'bearer-secret', accountId: 'account-secret' } },
     async fetch(url, init) {
       requests += 1
       seen.push({ url, init })
@@ -225,7 +225,7 @@ test('clearing usage invalidates an older in-flight account request', async () =
   })
   const reader = createCodexUsageReader({
     async getAuth() { return { auth: { apiKey: 'account-token' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'account-id' } },
+    async readCredential() { return { type: 'oauth', access: 'account-token', accountId: 'account-id' } },
     async fetch() {
       requests += 1
       if (requests === 1) {
@@ -256,7 +256,7 @@ test('usage reader cools down repeated failures and honors bounded retry-after o
     failureTtlMs: 5_000,
     maxRetryAfterMs: 60_000,
     async getAuth() { return { auth: { apiKey: 'account-token' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'account-id' } },
+    async readCredential() { return { type: 'oauth', access: 'account-token', accountId: 'account-id' } },
     async fetch() {
       requests += 1
       if (requests === 1) {
@@ -293,7 +293,7 @@ test('usage reader briefly negative-caches transport failures and clear removes 
   const reader = createCodexUsageReader({
     failureTtlMs: 5_000,
     async getAuth() { return { auth: { apiKey: 'account-token' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'account-id' } },
+    async readCredential() { return { type: 'oauth', access: 'account-token', accountId: 'account-id' } },
     async fetch() {
       requests += 1
       throw new Error('private proxy address')
@@ -318,7 +318,7 @@ test('usage reader fails closed with bounded public errors', async () => {
 
   const failed = createCodexUsageReader({
     async getAuth() { return { auth: { apiKey: 'access-secret' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'account-secret' } },
+    async readCredential() { return { type: 'oauth', access: 'access-secret', accountId: 'account-secret' } },
     async fetch() { return { ok: false, status: 503 } },
   })
   await assert.rejects(failed.read(), error => {

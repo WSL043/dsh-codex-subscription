@@ -1,12 +1,12 @@
 const states = new Set(['pass', 'fail', 'warn', 'unknown', 'not-applicable'])
 
 /** Adapters return bounded reason codes, never exceptions or raw service data. */
-export async function collectChecks(definitions, { timeoutMs = 1500, now = Date.now } = {}) {
+export async function collectChecks(definitions, { timeoutMs = 1500, now = Date.now, source = 'server', scope = 'plugin-process' } = {}) {
   return Promise.all(definitions.map(async ({ id, capability, run }) => {
     const startedAt = now()
     let timer
     const controller = new AbortController()
-    const base = { id, capability, source: 'server', scope: 'plugin-process' }
+    const base = { id, capability, source, scope }
     try {
       if (!run) return { ...base, status: 'unknown', reason: 'not-instrumented', observedAt: now() }
       const result = await Promise.race([

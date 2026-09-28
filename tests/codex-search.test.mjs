@@ -42,7 +42,7 @@ test('Codex search uses refreshed subscription OAuth and returns structured cite
     },
     async readCredential(options) {
       assert.equal(options.signal, signal)
-      return { type: 'oauth', accountId: 'account-local' }
+      return { type: 'oauth', access: 'access-secret', accountId: 'account-local' }
     },
     resolveModel: () => 'gpt-5.6-luna',
     resolveSessionId: () => 'session-local',
@@ -111,7 +111,7 @@ test('Codex search safely supports concurrent provider calls across supported DS
   const pending = []
   const provider = createCodexSearchProvider({
     async getAuth() { return { auth: { apiKey: 'access-secret' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'account-local' } },
+    async readCredential() { return { type: 'oauth', access: 'access-secret', accountId: 'account-local' } },
     async fetch(_url, init) {
       const query = JSON.parse(init.body).input
       await new Promise(resolve => pending.push(resolve))
@@ -137,7 +137,7 @@ test('Codex search safely supports concurrent provider calls across supported DS
 test('Codex search drops the raw endpoint dump and preserves full structured source copy', async () => {
   const provider = createCodexSearchProvider({
     async getAuth() { return { auth: { apiKey: 'access-secret' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'account-local' } },
+    async readCredential() { return { type: 'oauth', access: 'access-secret', accountId: 'account-local' } },
     async fetch() {
       return new Response(JSON.stringify({
         output: `raw-search-dump\n${'x'.repeat(20_000)}`,
@@ -182,7 +182,7 @@ test('Codex search fails closed when the subscription is signed out', async () =
 test('Codex search reports subscription, provider, and cancellation failures without fallback', async () => {
   const authed = fetchSearch => createCodexSearchProvider({
     async getAuth() { return { auth: { apiKey: 'access-secret' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'account-local' } },
+    async readCredential() { return { type: 'oauth', access: 'access-secret', accountId: 'account-local' } },
     resolveModel: () => 'gpt-5.6-luna',
     resolveSessionId: () => 'session-local',
     fetch: fetchSearch,

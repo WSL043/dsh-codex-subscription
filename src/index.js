@@ -31,6 +31,7 @@ import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL } from './image-models.js'
 import { OriginalImageStore } from './image-original-store.js'
 import { inheritedOriginalImageRef } from './image-original-contract.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
+import { createDiagnosticOperations } from './diagnostic-operations.js'
 import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeQuickQuotaMode, normalizeOutputVerbosity, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_FIELD, SETTINGS_NAMESPACE, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 import { createCodexQuotaRetryHandler } from './quota-retry.js'
@@ -111,6 +112,8 @@ export function apply(ctx, config = {}) {
   const settings = createSettingsAdapter(ctx, z.object(settingsFields), config, SETTINGS_NAMESPACE)
   const searchProvider = createSearchProviderSwitcher(ctx.loader)
   const network = createCodexNetworkTransport()
+  const diagnosticOperations = createDiagnosticOperations()
+  ctx.effect(() => ctx.on?.('tools/result', (exec, result) => diagnosticOperations.tool(exec, result)), 'codex-subscription: operation evidence')
   const originalImages = new OriginalImageStore()
   const accountVault = ACCOUNT_VAULT_KEY !== undefined
     && typeof ctx.credentials.readRecord === 'function'
@@ -432,7 +435,8 @@ export function apply(ctx, config = {}) {
     preferences,
     runtimeManagement,
     onAccountChanged: quotaRetryHandler.notifyAccountChanged,
-    diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction }),
+    diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
+    onCleanupFailure: () => diagnosticOperations.record('account/cleanup', 'failed'),
     modelCatalog,
     closeConnections: () => connection.dispose(),
     originalImages,
@@ -442,7 +446,7 @@ export function apply(ctx, config = {}) {
     ),
   })
 
-  const handler=(endpoint,payload,signal)=>endpoint.startsWith('sketch/')?sketchBridge.rpc(endpoint,payload):subscriptionHandler(endpoint,payload,signal)
+  const handler=diagnosticOperations.wrap((endpoint,payload,signal)=>endpoint.startsWith('sketch/')?sketchBridge.rpc(endpoint,payload):subscriptionHandler(endpoint,payload,signal))
   ctx.effect(() => {
     void modelCatalog.refresh().catch(error => ctx.logger?.debug?.('could not refresh Codex model catalog: %s', error.message))
   }, 'codex-subscription: official model catalog')

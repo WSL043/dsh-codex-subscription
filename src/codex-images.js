@@ -1,3 +1,4 @@
+import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { ORIGINAL_IMAGE_SCHEMA_VERSION } from './image-original-contract.js'
@@ -355,10 +356,7 @@ export function createCodexImageTool(options) {
       const prompt = nonEmpty(args.prompt)
       if (prompt === undefined) throw new Error('prompt must be a non-empty string')
       const imageOptions = normalizeImageOptions(args)
-      const auth = await options.getAuth({ signal: exec.signal })
-      const credential = await options.readCredential({ signal: exec.signal })
-      const access = auth?.auth?.apiKey
-      const accountId = credential?.type === 'oauth' ? credential.accountId : undefined
+      const { access, accountId } = await readSubscriptionCredentials(options.getAuth, options.readCredential, exec.signal)
       if (typeof access !== 'string' || access.length === 0
         || typeof accountId !== 'string' || accountId.length === 0) {
         throw new Error('ChatGPT subscription is not signed in')

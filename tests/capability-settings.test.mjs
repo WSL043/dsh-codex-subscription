@@ -68,7 +68,7 @@ test('search settings control the request and filter domains without suffix conf
   const provider = createCodexSearchProvider({
     resolvePreferences: () => preferences,
     async getAuth() { authCalls++; return { auth: { apiKey: 'fixture' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'fixture' } },
+    async readCredential() { return { type: 'oauth', access: 'fixture', accountId: 'fixture' } },
     async fetch(url, init) { bodies.push(JSON.parse(init.body)); return Response.json({ results: ['example.com', 'docs.example.com', 'evilexample.com', 'example.com.evil.org'].map(host => ({ url: `https://${host}/`, title: host })) }) },
   })
   await assert.rejects(provider.search({ query: 'query' }), /disabled/)
