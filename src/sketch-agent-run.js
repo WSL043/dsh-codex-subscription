@@ -4,7 +4,7 @@ export function createSketchAgentRun({ execute, open, changed, busy = () => fals
   let state = 'idle', generation = 0, runNumber = 0, pending = false, runId, timer, completed
   const update = next => { state = next; changed(next) }
   const clear = () => { clearTimeout(timer); timer = undefined }
-  const expire = () => { clear(); generation++; if (state !== 'stopped') update('failed') }
+  const expire = () => { clear(); generation++; if (state === 'drawing') update('failed') }
   return {
     get state() { return state },
     get locked() { return state === 'drawing' },
