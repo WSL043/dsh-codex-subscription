@@ -7,13 +7,32 @@ import { capabilityCoverage } from '../src/diagnostic-capabilities.js'
 import { projectHostSlots, createHostDiagnostics } from '../src/diagnostic-host.js'
 import { diagnosticSummary } from '../src/diagnostic-summary.js'
 
+test('cancellation and unrelated success cannot clear a failure, even with browser clock skew', () => {
+  const report = { generatedAt: new Date(100).toISOString(), inspection: { checks: [], capabilities: [] }, operations: { dropped: 1, events: [
+    { capability: 'settings', source: 'rpc', action: 'preferences/update', status: 'failed', observedAt: 10 },
+    { capability: 'settings', source: 'rpc', action: 'preferences/update', status: 'cancelled', observedAt: 20 },
+    { capability: 'storage', source: 'rpc', action: 'storage/status', status: 'completed', observedAt: 30 },
+  ] } }
+  const summary = diagnosticSummary(report, 9_000_000)
+  const failure = summary.findings.find(x => x.code === 'recent-failure')
+  assert.equal(failure.evidence[0].action, 'preferences/update')
+  assert.equal(failure.evidence[0].observedAt, 10)
+  assert.equal(failure.next, 'reproduce')
+  assert.ok(summary.findings.some(x => x.code === 'evidence-truncated'))
+  const row = capabilityCoverage({ account: {}, preference: {}, checks: [], operations: report.operations, now: 100 }).find(x => x.id === 'settings')
+  assert.equal(row.latest.status, 'cancelled')
+  assert.equal(row.unresolved.length, 1)
+  report.operations.events.push({ capability: 'settings', source: 'rpc', action: 'preferences/update', status: 'completed', observedAt: 40 })
+  assert.equal(diagnosticSummary(report).findings.some(x => x.code === 'recent-failure'), false)
+})
+
 test('summary distinguishes missing collection, unsupported capabilities, failure and recovery', () => {
   assert.ok(diagnosticSummary({}).findings.some(x => x.code === 'collection-incomplete'))
   const report = { inspection: { checks: [], capabilities: [] }, catalog: { unsupported: [{ model: 'gpt-test' }] }, operations: { events: [
     { source: 'rpc', action: 'preferences/update', status: 'failed', observedAt: 1 },
     { source: 'rpc', action: 'preferences/update', status: 'completed', observedAt: 2 },
   ] } }
-  assert.deepEqual(diagnosticSummary(report, 3).findings, [{ code: 'catalog-gap' }])
+  assert.deepEqual(diagnosticSummary(report, 3).findings.map(x => x.code), ['catalog-gap'])
   report.operations.events.pop()
   assert.ok(diagnosticSummary(report, 3).findings.some(x => x.code === 'recent-failure'))
   assert.equal(diagnosticSummary(report, 1_000_000).findings.some(x => x.code === 'recent-failure'), false)

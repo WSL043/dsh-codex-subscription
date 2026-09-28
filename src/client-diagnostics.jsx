@@ -30,14 +30,18 @@ export function DiagnosticsCard({ rpc, t, diagnostics }) {
     </div>
     {report === undefined ? null : <>
       <p className="codexSubscriptionHelp">{t('diagnosticsCoverageHint')}</p>
-      <div role="status">{report.summary?.findings.length ? <ul>{report.summary.findings.map(item => <li key={item.code}>{t(`diagnosticFinding_${item.code}`)}</li>)}</ul> : <p>{t('diagnosticsNoRecordedFailure')}</p>}</div>
-      {report.version && report.client?.version && report.version !== report.client.version ? <p role="status">{t('diagnosticsVersionMismatch')}</p> : null}
+      {report.generatedAt ? <p className="codexSubscriptionHelp">{t('diagnosticsSnapshotTime')} {new Date(report.generatedAt).toLocaleString()}</p> : null}
+      <div role="status">{report.summary?.findings.length ? <ul>{report.summary.findings.map(item => <li key={item.code}>
+        <strong>{t(`diagnosticSeverity_${item.severity}`)}</strong> · {t(`diagnosticFinding_${item.code}`)}
+        <p className="codexSubscriptionHelp">{t(`diagnosticNext_${item.next}`)}</p>
+        {item.code === 'recent-failure' ? <ul>{item.evidence.map(event => <li key={`${event.source}:${event.action}`}>{event.action} · {t(`diagnosticSource_${event.source}`)} · {new Date(event.observedAt).toLocaleTimeString()}</li>)}</ul> : null}
+      </li>)}</ul> : <p>{t('diagnosticsNoRecordedFailure')}</p>}</div>
       <table style={{ width: '100%', fontSize: 12, textAlign: 'left', borderSpacing: '0 8px' }}>
         <thead><tr><th>{t('diagnosticsCapability')}</th><th>{t('diagnosticsReadiness')}</th><th>{t('diagnosticsEvidence')}</th></tr></thead>
         <tbody>{(report.inspection?.capabilities ?? []).map(item => <tr key={item.id}>
           <td>{t(`diagnosticCapability_${item.id}`)}</td>
           <td>{t(`diagnosticReason_${item.reason}`)}{item.blockedBy ? ` · ${t(`diagnosticCapability_${item.blockedBy}`)}` : ''}</td>
-          <td>{item.latest ? `${item.latest.action} · ${t(`diagnosticSource_${item.latest.source}`)} · ${t(`diagnosticOutcome_${item.latest.status}`)} · ${new Date(item.latest.observedAt).toLocaleTimeString()}` : t('diagnosticsUnverified')}</td>
+          <td>{item.latest ? `${item.latest.action} · ${t(`diagnosticSource_${item.latest.source}`)} · ${t(`diagnosticOutcome_${item.latest.status}`)} · ${new Date(item.latest.observedAt).toLocaleTimeString()}` : t('diagnosticsUnverified')}{item.unresolved?.length ? <p>{t('diagnosticsUnresolved')}</p> : null}</td>
         </tr>)}</tbody>
       </table>
       <p className="codexSubscriptionHelp">{report.client?.topology?.length ? t('diagnosticsHostCollected') : t('diagnosticsHostUnknown')}</p>
