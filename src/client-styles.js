@@ -125,6 +125,9 @@ export const STYLE = `
 .codexSubscriptionCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .codexSubscriptionCreditRows{display:flex;flex-direction:column;gap:6px}
 .codexSubscriptionResetMeta{display:flex;min-width:0;flex-direction:column;gap:1px}
+.codexSubscriptionResetDisclosure>summary{cursor:pointer;width:fit-content;color:var(--dsw-alias-label-primary);border-radius:6px}
+.codexSubscriptionResetDisclosure>summary:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+.codexSubscriptionResetDisclosure[open]>summary{margin-bottom:10px}
 .codexSubscriptionResetBalance{display:flex;flex-direction:column;gap:8px}
 .codexSubscriptionResetCard{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;padding:9px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:9px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionResetCard .codexSubscriptionResetMeta{flex:1}

@@ -47,6 +47,23 @@ test('abandoned runs unlock after a bounded idle interval',async()=>{
  assert.equal(run.locked,false);assert.equal(run.state,'failed');run.dispose()
 })
 
+test('transport failure does not report a drawing failure without an active run',async()=>{
+ const states=[]
+ const run=createSketchAgentRun({execute:async()=>({}),open:()=>{},changed:state=>states.push(state)})
+ run.fail()
+ assert.equal(run.state,'idle')
+ await run.execute({action:'inspect'})
+ run.fail()
+ assert.equal(run.state,'failed')
+ run.resume()
+ const next=await run.execute({action:'inspect'})
+ await run.execute({action:'finish',runId:next.runId})
+ run.fail()
+ assert.equal(run.state,'finished')
+ assert.deepEqual(states,['drawing','failed','idle','drawing','finished'])
+ run.dispose()
+})
+
 test('failed writes tell the caller to inspect and allow recovery without partial mutation',async()=>{
  let revision=0
  const run=createSketchAgentRun({execute:async r=>{if(r.action==='apply'&&r.invalid)throw Error('commands[2]: malformed curve');if(r.action==='apply')revision++;return {revision}},open:()=>{},changed:()=>{}})
