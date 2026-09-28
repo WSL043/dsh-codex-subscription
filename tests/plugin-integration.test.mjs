@@ -309,10 +309,16 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   const diagnostics = await host.request('diagnostics', {}, signal)
   assert.equal(diagnostics.value.catalog.source, 'fallback')
   assert.ok(['idle', 'refreshing'].includes(diagnostics.value.catalog.refresh))
+  assert.ok(Number.isFinite(Date.parse(diagnostics.value.generatedAt)))
+  assert.equal(diagnostics.value.inspection.meaning, 'collection-success-is-not-feature-success')
+  assert.ok(diagnostics.value.inspection.capabilities.every(item => item.execution === 'not-verified'))
   assert.deepEqual(diagnostics, {
     ok: true,
     value: {
       schemaVersion: 3,
+      generatedAt: diagnostics.value.generatedAt,
+      inspection: diagnostics.value.inspection,
+      requestHistory: { scope: 'plugin-process', capacity: 32, dropped: 0, events: [] },
       package: 'dsh-codex-subscription',
       version: PACKAGE_VERSION,
       runtime: { node: process.version, platform: process.platform, arch: process.arch },

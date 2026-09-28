@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process'
+import { createDiagnosticEvents } from './diagnostic-events.js'
 import { request as httpsRequest } from 'node:https'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { PassThrough, Readable } from 'node:stream'
@@ -248,6 +249,8 @@ const elapsedBucket = elapsed => elapsed < 1_000 ? 'under-1s' : elapsed < 5_000 
 export function createCodexNetworkTransport(options = {}) {
   const attempts = new Map()
   const now = options.now ?? Date.now
+  const evidence = createDiagnosticEvents({ now })
+  const remember = (area, value) => { attempts.set(area, value); evidence.record(area, value) }
   const run = async (area, operation, connection = {}) => {
     const startedAt = now()
     let route = attempts.get(area)?.route ?? 'direct'
@@ -255,18 +258,19 @@ export function createCodexNetworkTransport(options = {}) {
     try {
       const value = await withCodexNetwork(operation, { ...options, ...connection, onRoute: source => { route = source; routed = true } })
       if (value instanceof Response && !value.ok) {
-        attempts.set(area, { status: 'failed', stage: 'http', code: 'http-error', httpStatus: value.status, route, elapsed: elapsedBucket(now() - startedAt) })
+        remember(area, { status: 'failed', stage: 'http', code: 'http-error', httpStatus: value.status, route, elapsed: elapsedBucket(now() - startedAt) })
       } else if (routed || value instanceof Response) {
-        attempts.set(area, { status: 'ok', route, elapsed: elapsedBucket(now() - startedAt) })
+        remember(area, { status: 'ok', route, elapsed: elapsedBucket(now() - startedAt) })
       }
       return value
     } catch (error) {
-      if (routed) attempts.set(area, { status: 'failed', stage: 'transport', code: classifyTransportError(error), route, elapsed: elapsedBucket(now() - startedAt) })
+      if (routed) remember(area, { status: 'failed', stage: 'transport', code: classifyTransportError(error), route, elapsed: elapsedBucket(now() - startedAt) })
       throw error
     }
   }
   return Object.freeze({
     run,
+    history: evidence.snapshot,
     fetch: (area, input, init) => run(area, () => globalThis.fetch(input, init)),
     snapshot: () => Object.fromEntries([...attempts].map(([area, value]) => [area, { ...value }])),
   })
