@@ -19,7 +19,7 @@ on:
         required: false
         type: string
       contributor_prs:
-        description: Comma-separated merged contributor PR numbers to credit
+        description: Comma-separated merged or adopted contributor PR numbers to credit
         required: false
         type: string
       release_notes_en:
@@ -258,7 +258,15 @@ jobs:
               }
               pr_json="$(gh pr view "$pr_number" --repo "$GITHUB_REPOSITORY" --json author,mergedAt,number,url)"
               merged_at="$(jq -r '.mergedAt' <<< "$pr_json")"
-              test "$merged_at" != 'null'
+              if [[ "$merged_at" == 'null' ]]; then
+                # An adopted PR is closed rather than merged; accept it only when
+                # a commit in the release history records the adoption.
+                git fetch --quiet --no-tags --depth=200 origin "$GITHUB_SHA"
+                git log --format=%B -n 200 FETCH_HEAD | grep -qE "Adopted from PR #$pr_number( |\.|$)" || {
+                  echo "PR #$pr_number is neither merged nor recorded as adopted." >&2
+                  return 1
+                }
+              fi
               author="$(jq -r '.author.login' <<< "$pr_json")"
               number="$(jq -r '.number' <<< "$pr_json")"
               url="$(jq -r '.url' <<< "$pr_json")"
