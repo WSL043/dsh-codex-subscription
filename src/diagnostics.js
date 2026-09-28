@@ -99,7 +99,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
       schemaVersion: 1,
       meaning: 'collection-success-is-not-feature-success',
       checks,
-      capabilities: capabilityCoverage({ account, preference, runtime: collected.runtime, catalog, tools: collected.tools, storage: collected.storage, checks, operations: collected.operations }),
+      capabilities: capabilityCoverage({ account, preference, runtime: collected.runtime, catalog, tools: collected.tools, storage: collected.storage, checks, operations: collected.operations, history: collected.history }),
     },
     package: 'dsh-codex-subscription',
     version: PACKAGE_VERSION,

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button } from './client-primitives.js'
 import { SUPPORT_ISSUE_URL } from './client-shared.js'
 import { recoveryCall, clientDiagnostic } from './client-recovery.js'
+import { diagnosticSummary } from './diagnostic-summary.js'
 export function DiagnosticsCard({ rpc, t, diagnostics }) {
   const [report, setReport] = useState()
   const [busy, setBusy] = useState(false)
@@ -12,8 +13,9 @@ export function DiagnosticsCard({ rpc, t, diagnostics }) {
     setBusy(true); setError(false); setCopied(false); setCopyError(false)
     void Promise.allSettled([recoveryCall(rpc, 'diagnostics'), Promise.resolve().then(() => diagnostics?.collect())]).then(([server, client]) => {
       setError(server.status === 'rejected')
-      setReport({ ...(server.status === 'fulfilled' ? server.value : clientDiagnostic(server.reason)),
-        client: client.status === 'fulfilled' && client.value ? client.value : { status: 'unknown' } })
+      const combined = { ...(server.status === 'fulfilled' ? server.value : clientDiagnostic(server.reason)),
+        client: client.status === 'fulfilled' && client.value ? client.value : { status: 'unknown' } }
+      setReport({ ...combined, summary: diagnosticSummary(combined) })
     }).finally(() => setBusy(false))
   }
   const copy = () => {
@@ -28,8 +30,8 @@ export function DiagnosticsCard({ rpc, t, diagnostics }) {
     </div>
     {report === undefined ? null : <>
       <p className="codexSubscriptionHelp">{t('diagnosticsCoverageHint')}</p>
+      <div role="status">{report.summary?.findings.length ? <ul>{report.summary.findings.map(item => <li key={item.code}>{t(`diagnosticFinding_${item.code}`)}</li>)}</ul> : <p>{t('diagnosticsNoRecordedFailure')}</p>}</div>
       {report.version && report.client?.version && report.version !== report.client.version ? <p role="status">{t('diagnosticsVersionMismatch')}</p> : null}
-      {(report.inspection?.checks ?? []).some(item => ['inspection-failed', 'inspection-timeout'].includes(item.reason)) ? <p role="status">{t('diagnosticsPartial')}</p> : null}
       <table style={{ width: '100%', fontSize: 12, textAlign: 'left', borderSpacing: '0 8px' }}>
         <thead><tr><th>{t('diagnosticsCapability')}</th><th>{t('diagnosticsReadiness')}</th><th>{t('diagnosticsEvidence')}</th></tr></thead>
         <tbody>{(report.inspection?.capabilities ?? []).map(item => <tr key={item.id}>

@@ -5,6 +5,30 @@ import { createSubscriptionRpcHandler } from '../src/subscription-rpc.js'
 import { createDiagnosticOperations, safeOperations } from '../src/diagnostic-operations.js'
 import { capabilityCoverage } from '../src/diagnostic-capabilities.js'
 import { projectHostSlots, createHostDiagnostics } from '../src/diagnostic-host.js'
+import { diagnosticSummary } from '../src/diagnostic-summary.js'
+
+test('summary distinguishes missing collection, unsupported capabilities, failure and recovery', () => {
+  assert.ok(diagnosticSummary({}).findings.some(x => x.code === 'collection-incomplete'))
+  const report = { inspection: { checks: [], capabilities: [] }, catalog: { unsupported: [{ model: 'gpt-test' }] }, operations: { events: [
+    { source: 'rpc', action: 'preferences/update', status: 'failed', observedAt: 1 },
+    { source: 'rpc', action: 'preferences/update', status: 'completed', observedAt: 2 },
+  ] } }
+  assert.deepEqual(diagnosticSummary(report, 3).findings, [{ code: 'catalog-gap' }])
+  report.operations.events.pop()
+  assert.ok(diagnosticSummary(report, 3).findings.some(x => x.code === 'recent-failure'))
+  assert.equal(diagnosticSummary(report, 1_000_000).findings.some(x => x.code === 'recent-failure'), false)
+})
+
+test('network evidence is available without claiming full execution or plugin identity', () => {
+  const rows = capabilityCoverage({ account: {}, preference: {}, checks: [], now: 10,
+    history: { events: [{ area: 'quota', status: 'ok', observedAt: 9 }] } })
+  assert.equal(rows.find(x => x.id === 'quota').latest.source, 'network')
+  assert.equal(rows.find(x => x.id === 'transport').execution, 'observed')
+  assert.equal(rows.find(x => x.id === 'quota').readiness, 'unknown')
+  const slots = projectHostSlots({ snapshot: name => [{ type: 'slot', name, occupants: [{ registrant: 'cf', active: true }] }] })
+  assert.equal(slots[0].occupants[0].identity, 'unverified-host-label')
+  assert.equal(slots[0].occupants[0].owner, undefined)
+})
 
 test('account switch never combines old token with the new account header', async () => {
   let calls = 0
@@ -44,7 +68,7 @@ test('operation recording preserves failures and recovery without inputs or outp
 test('host inspection uses official topology, excludes labels and degrades on unsupported hosts', async () => {
   assert.equal(projectHostSlots({}), undefined)
   const slots = { snapshot: name => [{ type: 'slot', name, occupants: [{ registrant: 'dsh-other', active: true, label: 'private' }, { registrant: 'C:/private', active: false }] }] }
-  assert.doesNotMatch(JSON.stringify(projectHostSlots(slots)), /private|label/)
+  assert.doesNotMatch(JSON.stringify(projectHostSlots(slots)), /private|"label"\s*:/)
   const health = createHostDiagnostics(), stop = health.register(slots)
   assert.equal((await health.collect()).topology.length, 1)
   stop()

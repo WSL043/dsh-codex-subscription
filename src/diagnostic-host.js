@@ -12,7 +12,8 @@ export function projectHostSlots(slots) {
     const occupants = Array.isArray(node?.occupants) ? node.occupants : []
     return { name, declared: !!node, truncated: occupants.length > 16,
       occupants: occupants.slice(0, 16).map(value => ({
-        owner: typeof value.registrant === 'string' && packageName.test(value.registrant) ? value.registrant : 'unknown',
+        registrant: typeof value.registrant === 'string' && packageName.test(value.registrant) ? value.registrant : 'unknown',
+        identity: 'unverified-host-label',
         active: value.active === true,
       })),
     }

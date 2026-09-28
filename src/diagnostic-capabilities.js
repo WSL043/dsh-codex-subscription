@@ -1,7 +1,7 @@
 import { diagnosticCapabilities } from './diagnostic-checks.js'
 
 // A satisfied precondition is not an end-to-end test result.
-export function capabilityCoverage({ account, preference, runtime, catalog, tools, storage, checks, operations, now = Date.now() }) {
+export function capabilityCoverage({ account, preference, runtime, catalog, tools, storage, checks, operations, history, now = Date.now() }) {
   const disabled = {
     images: preference.imageGeneration === false && preference.imageEditing === false,
     sketch: preference.imageSketch === false || preference.imageEditing === false,
@@ -10,7 +10,7 @@ export function capabilityCoverage({ account, preference, runtime, catalog, tool
     subagents: preference.subagentBackend === 'dsh',
   }
   return diagnosticCapabilities.map(id => {
-    let readiness = 'unknown', reason = 'not-instrumented', blockedBy
+    let readiness = 'unknown', reason = 'no-readiness-check', blockedBy
     if (disabled[id]) { readiness = 'not-applicable'; reason = 'disabled-or-host-owned' }
     else if (['models', 'quota', 'search', 'images', 'compaction'].includes(id) && account.status === 'signed-out') {
       readiness = 'warn'; reason = 'sign-in-required'; blockedBy = 'account'
@@ -27,9 +27,19 @@ export function capabilityCoverage({ account, preference, runtime, catalog, tool
     } else if (tools && (id === 'images' || (id === 'sketch' && preference.imageSketchAgent === true))) {
       readiness = tools[id] ? 'pass' : 'warn'; reason = tools[id] ? 'tool-registered' : 'tool-missing'
     }
-    const recent = (operations?.events ?? []).filter(event => event.capability === id && now >= event.observedAt && now - event.observedAt <= 15 * 60_000).at(-1)
+    const areas = { catalog: 'models', quota: 'quota', search: 'search', image: 'images', model: 'transport', login: 'account', 'quota-reset': 'quota' }
+    const evidence = [
+      ...(operations?.events ?? []).filter(event => event.capability === id),
+      ...(history?.events ?? []).filter(event => id === 'transport' || areas[event.area] === id)
+        .map(event => ({ action: event.area, source: 'network', status: event.status === 'ok' ? 'completed' : 'failed', observedAt: event.observedAt })),
+    ].filter(event => now >= event.observedAt && now - event.observedAt <= 15 * 60_000)
+      .sort((a, b) => a.observedAt - b.observedAt)
+    const recent = evidence.at(-1)
+    const relatedChecks = checks.filter(check => check.capability === id || (['images', 'sketch'].includes(id) && check.id === 'tools'))
+    const collectionIssue = relatedChecks.find(check => ['inspection-failed', 'inspection-timeout'].includes(check.reason))
+    if (collectionIssue && readiness === 'unknown') reason = collectionIssue.reason
     return { id, readiness, reason, ...(blockedBy ? { blockedBy } : {}),
-      checks: checks.filter(check => check.capability === id).map(check => check.id),
+      checks: relatedChecks.map(check => check.id),
       execution: recent ? 'observed' : 'not-verified',
       ...(recent ? { latest: { action: recent.action, source: recent.source, status: recent.status, observedAt: recent.observedAt } } : {}),
     }
