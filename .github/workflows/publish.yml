@@ -385,6 +385,16 @@ jobs:
           <!-- dsh-codex-install -->
           ## Installation
 
+          ### From the Plugins page (recommended)
+          
+          Open **Plugins → Add plugin** and paste this package name into **Package name or address**:
+          
+          ```text
+          dsh-codex-subscription
+          ```
+          
+          Click **Install** and follow the page instructions. This field takes the package name, not the terminal command below.
+
           ### Standard DSH command
 
           ```sh
@@ -430,6 +440,16 @@ jobs:
           cat >> .release/install.md <<'NOTES'
 
           ## 安装
+
+          ### 插件页面安装（推荐）
+          
+          打开 **插件 → 添加插件**，在 **包名或地址** 中粘贴：
+          
+          ```text
+          dsh-codex-subscription
+          ```
+          
+          点击 **安装**，按页面提示完成。这里填写包名，不是下面的整条终端命令。
 
           ### DSH 标准命令
 
