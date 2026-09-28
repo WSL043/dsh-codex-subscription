@@ -364,11 +364,12 @@ test('preference writes keep ready surfaces mounted while persistence is pending
   assert.match(client, /\.codexSubscriptionSearchChoices\[data-saving=true\].*opacity:1/u)
 })
 
-test('support diagnostics stay compact without an extra expand step', async () => {
+test('support diagnostics show findings before expandable raw details', async () => {
   const source = await text('src/client.jsx')
   assert.doesNotMatch(source, /diagnosticsOpen|diagnosticsClose|setDiagnosticsOpen|aria-expanded=\{diagnosticsOpen\}/u)
   assert.match(source, /codexSubscriptionDiagnostics[\s\S]*t\('diagnosticsLoad'\)/u)
-  assert.match(source, /report === undefined \? null : <pre>/u)
+  assert.match(source, /diagnosticsClientScope/u)
+  assert.match(source, /<details><summary>\{t\('diagnosticsDetails'\)\}/u)
   assert.match(source, /diagnosticsCopy/u)
 })
 

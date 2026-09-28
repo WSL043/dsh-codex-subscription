@@ -4,6 +4,7 @@ import { recoveryCall } from './client-recovery.js'
 import { CHANNEL, QUICK_QUOTA_REFRESH_EVENT, QUICK_QUOTA_REFRESH_MS, unwrap } from './client-shared.js'
 export function useQuickQuota(rpc, enabled, model) {
   const [quota, setQuota] = useState()
+  const [state, setState] = useState('loading')
   useEffect(() => {
     if (!enabled) {
       setQuota(undefined)
@@ -11,6 +12,7 @@ export function useQuickQuota(rpc, enabled, model) {
     }
     // Do not show the previous model's quota while the new route loads.
     setQuota(undefined)
+    setState('loading')
     let live = true
     let loading = false
     const load = async () => {
@@ -21,12 +23,17 @@ export function useQuickQuota(rpc, enabled, model) {
         if (!live) return
         if (account?.authenticated !== true) {
           setQuota(undefined)
+          setState('signed-out')
           return
         }
         const usage = await recoveryCall(rpc, 'usage', { force: false })
-        if (live) setQuota(selectModelQuotaWindows(usage, model)?.map(window => ({ ...window, fetchedAt: usage.fetchedAt })))
+        if (live) {
+          const windows = selectModelQuotaWindows(usage, model)?.map(window => ({ ...window, fetchedAt: usage.fetchedAt }))
+          setQuota(windows)
+          setState(windows?.length ? 'ready' : 'no-matching-quota')
+        }
       } catch {
-        if (live) setQuota(undefined)
+        if (live) { setQuota(undefined); setState('request-failed') }
       } finally {
         loading = false
       }
@@ -41,5 +48,5 @@ export function useQuickQuota(rpc, enabled, model) {
       window.removeEventListener(QUICK_QUOTA_REFRESH_EVENT, refresh)
     }
   }, [rpc, enabled, model])
-  return quota
+  return { quota, state }
 }

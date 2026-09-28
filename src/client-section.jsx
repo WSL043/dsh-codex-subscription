@@ -6,7 +6,7 @@ import { AccountCard, AccountFailureCard } from './client-account.jsx'
 import { DiagnosticsCard } from './client-diagnostics.jsx'
 import { StorageCard } from './client-storage.jsx'
 import { UsageCard } from './client-usage.jsx'
-export function CodexSection({ preference, rpc, accountStatus, t }) {
+export function CodexSection({ preference, rpc, accountStatus, t, health }) {
   const [tab, setTab] = useState('account')
   const id = useId()
   const tabs = ['account', 'advanced', 'creative', 'maintenance']
@@ -43,7 +43,7 @@ export function CodexSection({ preference, rpc, accountStatus, t }) {
       <ImagePreferences preference={preference} t={t} section="sketch" />
     </div>
     <div role="tabpanel" id={`${id}-maintenance`} aria-labelledby={`${id}-maintenance-tab`} hidden={tab !== 'maintenance'}>
-      <StorageCard rpc={rpc} t={t} /><DiagnosticsCard rpc={rpc} t={t} />
+      <StorageCard rpc={rpc} t={t} /><DiagnosticsCard rpc={rpc} t={t} health={health} />
     </div>
   </section>
 }
