@@ -34,6 +34,7 @@ import {
   CUSTOM_CONTEXT_WINDOW_FIELD,
   CONTEXT_MODE_FIELD,
   formatContextWindow,
+  INPUT_IMAGE_DETAIL_FIELD,
   normalizeAutoQuotaRetry,
   normalizeQuickQuotaMode,
   normalizeSearchProvider,
@@ -44,6 +45,7 @@ import {
   QUICK_QUOTA_MODE_PERCENT,
   OUTPUT_VERBOSITY_DEFAULT,
   OUTPUT_VERBOSITY_FIELD,
+  STREAM_IDLE_TIMEOUT_MINUTES_FIELD,
   SEARCH_PROVIDER_AUTO,
   SEARCH_PROVIDER_CODEX,
   SEARCH_PROVIDER_DSH,
@@ -116,7 +118,7 @@ function fakeContext({ connection = true, webServer = true } = {}) {
   const settings = []
   const webUpdates = []
   const provided = new Map()
-  let preference = { autoQuotaRetry: false, quickQuotaVisible: false, searchProvider: SEARCH_PROVIDER_AUTO, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, speedMode: SPEED_MODE_STANDARD, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 1_000_000, customContextGpt56: 1_000_000 }
+  let preference = { autoQuotaRetry: false, quickQuotaVisible: false, searchProvider: SEARCH_PROVIDER_AUTO, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, streamIdleTimeoutMinutes: 10, speedMode: SPEED_MODE_STANDARD, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 1_000_000, customContextGpt56: 1_000_000 }
   const preferenceWatchers = new Set()
   let credential
   const webEntry = {
@@ -266,6 +268,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.equal('CODEX_PROVIDER_POLICY' in plugin, false, 'do not replace the removed boundary with cosmetic metadata')
   assert.deepEqual(host.registered.map(item => item.providers), [['openai-codex']])
   const profile = host.registered[0].adapter.current().profiles.get('openai-codex')
+  assert.equal(profile.streamIdleTimeoutMs, 10 * 60 * 1000)
   assert.deepEqual({
     maxRequestImageBytes: profile.maxRequestImageBytes,
     requestImagePixelBudget: profile.requestImagePixelBudget,
@@ -375,21 +378,26 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.equal(typeof preferenceStatus.value.subagentRuntimeInstalled, 'boolean')
   assert.deepEqual(preferenceStatus, {
     ok: true,
-    value: { autoQuotaRetry: false, compactionMode: 'dsh', connectionMode: 'sse', subagentBackend: 'dsh', subagentBackendAvailable: false, subagentRuntimeInstalled: preferenceStatus.value.subagentRuntimeInstalled, ...IMAGE_FEATURE_DEFAULTS, imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', quotaShortThreshold: 20, quotaLongThreshold: 20, writable: true },
+    value: { autoQuotaRetry: false, compactionMode: 'dsh', connectionMode: 'sse', subagentBackend: 'dsh', subagentBackendAvailable: false, subagentRuntimeInstalled: preferenceStatus.value.subagentRuntimeInstalled, ...IMAGE_FEATURE_DEFAULTS, imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, inputImageDetail: 'auto', streamIdleTimeoutMinutes: 10, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', quotaShortThreshold: 20, quotaLongThreshold: 20, writable: true },
   })
   const preferenceUpdate = await host.request('preferences/update', {
     [AUTO_QUOTA_RETRY_FIELD]: false,
     quickQuotaMode: QUICK_QUOTA_MODE_BAR,
     searchProvider: 'dsh',
     speedMode: SPEED_MODE_FAST,
+    [INPUT_IMAGE_DETAIL_FIELD]: 'high',
+    [STREAM_IDLE_TIMEOUT_MINUTES_FIELD]: 5,
     contextMode: CONTEXT_MODE_EXTENDED,
     customContextWindow: 500_000,
     customContextGpt54Mini: 400_000,
   }, signal)
   assert.deepEqual(preferenceUpdate, {
     ok: true,
-    value: { autoQuotaRetry: false, compactionMode: 'dsh', connectionMode: 'sse', subagentBackend: 'dsh', subagentBackendAvailable: false, subagentRuntimeInstalled: preferenceStatus.value.subagentRuntimeInstalled, ...IMAGE_FEATURE_DEFAULTS, imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 272_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', quotaShortThreshold: 20, quotaLongThreshold: 20, writable: true },
+    value: { autoQuotaRetry: false, compactionMode: 'dsh', connectionMode: 'sse', subagentBackend: 'dsh', subagentBackendAvailable: false, subagentRuntimeInstalled: preferenceStatus.value.subagentRuntimeInstalled, ...IMAGE_FEATURE_DEFAULTS, imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, inputImageDetail: 'high', streamIdleTimeoutMinutes: 5, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 272_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', quotaShortThreshold: 20, quotaLongThreshold: 20, writable: true },
   })
+  assert.equal(host.registered[0].adapter.current().profiles.get('openai-codex').streamIdleTimeoutMs, 5 * 60 * 1000)
+  await host.request('preferences/update', { [STREAM_IDLE_TIMEOUT_MINUTES_FIELD]: 10 }, signal)
+  assert.equal(host.registered[0].adapter.current().profiles.get('openai-codex').streamIdleTimeoutMs, 10 * 60 * 1000)
   const downstream = { kind: 'downstream' }
   const requestErrorListener = host.listeners.find(listener => listener.event === 'agent/request-error').listener
   assert.equal(await requestErrorListener({

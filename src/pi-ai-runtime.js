@@ -7,6 +7,7 @@ import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
   customContextModelKey,
+  normalizeInputImageDetail,
   OUTPUT_VERBOSITY_DEFAULT,
   SPEED_MODE_FAST,
   supportsCodexFastMode,
@@ -18,6 +19,30 @@ const FAST_SERVICE_TIER = 'priority'
 
 export { createModels } from '@earendil-works/pi-ai'
 export { createOpenAICodexProvider as openaiCodexProvider }
+
+/** Apply the chosen detail to user and tool-result images after the provider assembles the request. */
+function withInputImageDetail(payload, detail) {
+  if (!Array.isArray(payload.input)) return payload
+  let changed = false
+  const input = payload.input.map(item => {
+    const field = Array.isArray(item?.content)
+      ? 'content'
+      : ['function_call_output', 'custom_tool_call_output'].includes(item?.type) && Array.isArray(item.output)
+        ? 'output'
+        : undefined
+    if (field === undefined) return item
+    let itemChanged = false
+    const parts = item[field].map(part => {
+      if (part?.type !== 'input_image' || part.detail === detail) return part
+      itemChanged = true
+      return { ...part, detail }
+    })
+    if (!itemChanged) return item
+    changed = true
+    return { ...item, [field]: parts }
+  })
+  return changed ? { ...payload, input } : payload
+}
 
 /**
  * Preserve pi-ai's native Codex OAuth provider while allowing DSH's generic
@@ -34,6 +59,7 @@ export { createOpenAICodexProvider as openaiCodexProvider }
 export function openaiCodexSubscriptionProvider({
   resolveSpeedMode = () => undefined,
   resolveOutputVerbosity = () => OUTPUT_VERBOSITY_DEFAULT,
+  resolveInputImageDetail = () => undefined,
   resolveContextMode = () => undefined,
   resolveCustomContextWindow = () => undefined,
   catalog,
@@ -62,6 +88,7 @@ export function openaiCodexSubscriptionProvider({
       : undefined
     const fast = resolveSpeedMode() === SPEED_MODE_FAST
       && (metadata?.supportsFast ?? supportsCodexFastMode(model?.id))
+    const inputImageDetail = normalizeInputImageDetail(resolveInputImageDetail())
     const onPayload = options.onPayload
     return {
       ...options,
@@ -75,9 +102,12 @@ export function openaiCodexSubscriptionProvider({
         }
         const managed = compaction?.preparePayload(preferred, model?.contextWindow) ?? preferred
         const next = await onPayload?.(managed, requestModel)
+        const detailed = inputImageDetail === 'auto'
+          ? next ?? managed
+          : withInputImageDetail(next ?? managed, inputImageDetail)
         return {
-          ...(next ?? managed),
-          ...(textVerbosity === undefined ? {} : { text: { ...((next ?? managed).text ?? {}), verbosity: textVerbosity } }),
+          ...detailed,
+          ...(textVerbosity === undefined ? {} : { text: { ...(detailed.text ?? {}), verbosity: textVerbosity } }),
           ...(fast ? { service_tier: FAST_SERVICE_TIER } : {}),
         }
       },

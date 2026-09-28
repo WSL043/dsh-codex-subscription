@@ -85,6 +85,8 @@ see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-
 
 Opt in under **Models & runtime**. SSE and DSH subtasks remain the defaults:
 
+- Set **Input image detail** under **Settings → Codex → Models & runtime**. It defaults to Auto; higher detail uses more input tokens.
+- Set **Stream inactivity timeout** in the same area (default: 10 minutes). It limits time without streamed data, not the overall response duration; lower values may interrupt slow but valid reasoning and hand the request to DSH retry handling.
 - **WebSocket** reuses connections and eligible context transfers. Failed handshakes can fall back to SSE; interrupted responses surface an error without automatic replay. Applies to the next request, does not expand context limits, and is not guaranteed to be faster.
 - **Codex independent subtasks** reuse your subscription login and the official DSH Codex runtime, without a separate login; install its optional component in settings. They inherit the current subscription model and workspace permissions by default. Enable DSH subtask model selection, configure allowed models and start a new session to specify the child model and reasoning effort in chat. Non-subscription sessions must explicitly select a subscription model. Shared-context subtasks remain with DSH.
 
@@ -98,14 +100,14 @@ Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only *
 
 In **Settings → Codex → Models & runtime → Independent subtasks**, click **Install component**. DSH handles installation; the page shows its stage and offers cancellation before applying. Restart after completion, then choose Codex. Installation does not enable subtasks automatically.
 
-Prefer **Install component** above. The plugin selects a component matching the current DSH version: DSH `0.1.7-rc.2` installs component `0.1.7-rc.2`, while DSH `0.1.5-rc.2` installs component `0.1.5-rc.2`. An existing `0.1.5-rc.3` component is recognized only on a matching host. Do not omit the component version or substitute `@next`.
+Prefer **Install component** above. The plugin selects a component matching the current DSH version: DSH `0.2.0-rc.1` installs component `0.2.0-rc.1`, while DSH `0.1.5-rc.2` installs component `0.1.5-rc.2`. An existing `0.1.5-rc.3` component is recognized only on a matching host. Do not omit the component version or substitute `@next`.
 
 ### Manual installation on older hosts and offline preparation
 
-Enter a component version matching the current DSH version in the plugin installer. As a pinned-version example, for DSH `0.1.7-rc.2`, enter `@deepseek-ai/dsh-subagent-codex@0.1.7-rc.2`, or run:
+Enter a component version matching the current DSH version in the plugin installer. As a pinned-version example, for DSH `0.2.0-rc.1`, enter `@deepseek-ai/dsh-subagent-codex@0.2.0-rc.1`, or run:
 
 ```sh
-dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.1.7-rc.2
+dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.0-rc.1
 ```
 
 Use the same profile as the subscription plugin and restart afterwards. Offline preparation requires a complete runtime installed and verified on the target OS and architecture; copying only the subscription plugin or Codex launcher is insufficient. Model requests still need connectivity.

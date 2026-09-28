@@ -35,8 +35,10 @@ Subscription access, model controls, quota management, and image creation in one
 | **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
 | **Fast mode** | Switch supported models between Standard and Fast, with a lightning indicator | Standard by default; Fast increases usage |
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
+| **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
 | **Subscription web search** | Use Codex search or choose DSH search | Auto, DSH, and Codex routing options |
 | **Search scope** | Choose live / cached search, disable search, or restrict domains | Configure under Models & runtime |
+| **Stream inactivity timeout** | Set how long a request can receive no streamed data before it is aborted | 10 minutes by default; not an overall response deadline |
 | **Context budget** | Use standard, extended, or custom budgets per model | Limited by the model catalog |
 | **GPT-Reserve** | Select the reserve model when your account offers it | Experimental; no promise of a separate reserve quota |
 
@@ -85,7 +87,7 @@ Subscription access, model controls, quota management, and image creation in one
 
 ## Prepare DSH
 
-Compatible with DSH `0.1.7-rc.2` plugin compatibility checks and settings APIs, while retaining support for previously supported versions.
+Compatible with DSH `0.2.0-rc.1` plugin compatibility checks and settings APIs, while retaining support for previously supported versions.
 
 This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 
