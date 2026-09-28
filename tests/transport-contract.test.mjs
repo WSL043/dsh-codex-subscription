@@ -11,6 +11,7 @@ import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
   CONTEXT_MODE_STANDARD,
+  normalizeInputImageDetail,
 } from '../src/settings-contract.js'
 
 const jwt = accountId => {
@@ -21,6 +22,14 @@ const jwt = accountId => {
 }
 
 const sse = events => `${events.map(event => `data: ${JSON.stringify(event)}`).join('\n\n')}\n\n`
+const pixelPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+
+test('input image detail normalization falls back to auto for unknown values', () => {
+  assert.equal(normalizeInputImageDetail('low'), 'low')
+  assert.equal(normalizeInputImageDetail('original'), 'original')
+  assert.equal(normalizeInputImageDetail('unknown'), 'auto')
+  assert.equal(normalizeInputImageDetail(undefined), 'auto')
+})
 
 const memoryCredentials = initial => {
   let value = initial
@@ -298,6 +307,54 @@ test('output detail reaches only verbosity-capable Codex requests', async () => 
     assert.equal(wires[0].text.verbosity, 'high')
     assert.equal(wires[1].text.verbosity, 'low')
     assert.equal(wires[2].text.verbosity, 'low', 'Spark retains the audited pi-ai wire default when the catalog does not advertise verbosity')
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
+test('input image detail follows the selected level on each Codex request', async () => {
+  const previousFetch = globalThis.fetch
+  const wires = []
+  let nativeAutoDetail
+  globalThis.fetch = async (_input, init) => {
+    wires.push(JSON.parse(zstdDecompressSync(Buffer.from(init.body)).toString('utf8')))
+    return new Response(sse([
+      { type: 'response.created', response: { id: `resp_i${wires.length}` } },
+      { type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: `msg_i${wires.length}`, role: 'assistant', content: [] } },
+      { type: 'response.output_text.delta', output_index: 0, content_index: 0, delta: 'ok' },
+      { type: 'response.output_item.done', output_index: 0, item: { type: 'message', id: `msg_i${wires.length}`, role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'ok', annotations: [] }] } },
+      { type: 'response.done', response: { id: `resp_i${wires.length}`, status: 'completed', output: [], usage: { input_tokens: 2, output_tokens: 1, total_tokens: 3 } } },
+    ]), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+  }
+  try {
+    let detail = 'auto'
+    const provider = openaiCodexSubscriptionProvider({ resolveInputImageDetail: () => detail })
+    const model = provider.getModels().find(value => value.id === 'gpt-5.6-sol')
+    assert.ok(model)
+    for (const value of ['auto', 'low', 'high', 'original']) {
+      detail = value
+      for await (const _event of provider.streamSimple(model, {
+        systemPrompt: 'Image detail check',
+        messages: [
+          { role: 'user', content: [{ type: 'text', text: 'Inspect this image' }, { type: 'image', mimeType: 'image/png', data: pixelPng }], timestamp: 1 },
+          { role: 'assistant', provider: model.provider, api: model.api, model: model.id, content: [{ type: 'toolCall', id: 'call_image|fc_image', name: 'inspect', arguments: {} }], usage: { totalTokens: 0 }, timestamp: 2 },
+          { role: 'toolResult', toolCallId: 'call_image|fc_image', toolName: 'inspect', content: [{ type: 'text', text: 'Tool image' }, { type: 'image', mimeType: 'image/png', data: pixelPng }], timestamp: 3 },
+        ],
+      }, {
+        apiKey: jwt('account-images'), sessionId: `image-${value}`, transport: 'sse',
+        onPayload: payload => {
+          if (value === 'auto') nativeAutoDetail = payload.input[0].content.find(part => part.type === 'input_image')?.detail
+          return payload
+        },
+      })) {
+        if (_event.type === 'error') throw _event.error
+      }
+    }
+    const levels = ['auto', 'low', 'high', 'original']
+    assert.deepEqual(wires.map(wire => wire.input[0].content.find(part => part.type === 'input_image').detail), levels)
+    assert.deepEqual(wires.map(wire => wire.input.find(item => item.type === 'function_call_output').output.find(part => part.type === 'input_image').detail), levels)
+    assert.equal(wires[0].input[0].content[0].text, 'Inspect this image')
+    assert.equal(wires[0].input[0].content.find(part => part.type === 'input_image').detail, nativeAutoDetail, 'auto leaves the pi-ai native image detail unchanged')
   } finally {
     globalThis.fetch = previousFetch
   }
