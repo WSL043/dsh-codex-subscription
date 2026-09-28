@@ -25,6 +25,9 @@ export const OUTPUT_VERBOSITY_LOW = 'low'
 export const OUTPUT_VERBOSITY_MEDIUM = 'medium'
 export const OUTPUT_VERBOSITY_HIGH = 'high'
 export const DEFAULT_OUTPUT_VERBOSITY = OUTPUT_VERBOSITY_DEFAULT
+export const INPUT_IMAGE_DETAIL_FIELD = 'inputImageDetail'
+export const INPUT_IMAGE_DETAILS = Object.freeze(['low', 'high', 'original', 'auto'])
+export const DEFAULT_INPUT_IMAGE_DETAIL = 'auto'
 export const CONTEXT_MODE_FIELD = 'contextMode'
 export const CONTEXT_MODE_STANDARD = 'standard'
 export const CONTEXT_MODE_EXTENDED = 'extended'
@@ -70,6 +73,10 @@ export const normalizeOutputVerbosity = value => [
   OUTPUT_VERBOSITY_MEDIUM,
   OUTPUT_VERBOSITY_HIGH,
 ].includes(value) ? value : DEFAULT_OUTPUT_VERBOSITY
+
+export const normalizeInputImageDetail = value => INPUT_IMAGE_DETAILS.includes(value)
+  ? value
+  : DEFAULT_INPUT_IMAGE_DETAIL
 
 export const normalizeSpeedMode = value => [SPEED_MODE_STANDARD, SPEED_MODE_FAST].includes(value)
   ? value

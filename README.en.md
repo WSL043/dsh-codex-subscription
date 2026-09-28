@@ -35,6 +35,7 @@ Subscription access, model controls, quota management, and image creation in one
 | **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
 | **Fast mode** | Switch supported models between Standard and Fast, with a lightning indicator | Standard by default; Fast increases usage |
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
+| **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
 | **Subscription web search** | Use Codex search or choose DSH search | Auto, DSH, and Codex routing options |
 | **Search scope** | Choose live / cached search, disable search, or restrict domains | Configure under Models & runtime |
 | **Context budget** | Use standard, extended, or custom budgets per model | Limited by the model catalog |
