@@ -38,6 +38,7 @@ Subscription access, model controls, quota management, and image creation in one
 | **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
 | **Subscription web search** | Use Codex search or choose DSH search | Auto, DSH, and Codex routing options |
 | **Search scope** | Choose live / cached search, disable search, or restrict domains | Configure under Models & runtime |
+| **Stream inactivity timeout** | Set how long a request can receive no streamed data before it is aborted | 10 minutes by default; not an overall response deadline |
 | **Context budget** | Use standard, extended, or custom budgets per model | Limited by the model catalog |
 | **GPT-Reserve** | Select the reserve model when your account offers it | Experimental; no promise of a separate reserve quota |
 
