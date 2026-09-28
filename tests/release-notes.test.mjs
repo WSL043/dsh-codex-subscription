@@ -72,10 +72,11 @@ test('release lifecycle commands keep update and uninstall in separate sections'
 })
 
 test('feature releases credit merged contributor PRs with verified authors and links', () => {
-  assert.match(releaseWorkflow, /contributor_prs:[\s\S]*merged contributor PR numbers/iu)
+  assert.match(releaseWorkflow, /contributor_prs:[\s\S]*merged or adopted contributor PR numbers/iu)
   assert.match(releaseWorkflow, /CONTRIBUTOR_PRS: \$\{\{ inputs\.contributor_prs \}\}/u)
   assert.match(releaseWorkflow, /gh pr view "\$pr_number"[\s\S]*author,mergedAt,number,url/u)
-  assert.match(releaseWorkflow, /test "\$merged_at" != 'null'/u)
+  assert.match(releaseWorkflow, /Adopted from PR #\$pr_number/u)
+  assert.match(releaseWorkflow, /if \[\[ "\$merged_at" == 'null' \]\]; then/u)
   assert.match(releaseWorkflow, /Thanks to \[@\$author\][\s\S]*for contributing in \[#\$number\]/u)
 })
 
