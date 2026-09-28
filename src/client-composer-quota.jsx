@@ -5,21 +5,15 @@ import { QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_OFF }
 import { fill, percent, windowLabel, usePreferenceSnapshot, formatRunway, formatQuotaForecast } from './client-shared.js'
 import { useQuickQuota } from './client-quota.jsx'
 import { quotaWarning } from './capability-settings.js'
-import { quotaHealth } from './client-health.js'
 
-export function CodexComposerQuota({ preference, rpc, t, directory, health }) {
+export function CodexComposerQuota({ preference, rpc, t, directory }) {
   const preferenceSnapshot = usePreferenceSnapshot(preference)
   const modelState = useSyncExternalStore(listener => directory.subscribe(listener), () => directory.getSnapshot())
   const current = modelState.current
   const quotaEnabled = preferenceSnapshot.status === 'ready' && preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_OFF && current?.provider === 'openai-codex'
-  const { quota: quotas, state: quotaState } = useQuickQuota(rpc, quotaEnabled, current?.model)
+  const quotas = useQuickQuota(rpc, quotaEnabled, current?.model)
   const [open, setOpen] = useState(false)
   const trigger = useRef(null)
-  useEffect(() => health?.observe(() => quotaHealth({
-    preferencesReady: preferenceSnapshot.status === 'ready',
-    enabled: preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_OFF,
-    subscriptionModel: current?.provider === 'openai-codex', request: quotaState, element: trigger.current,
-  })), [health, preferenceSnapshot.status, preferenceSnapshot.quickQuotaMode, current?.provider, quotaState])
   const panel = useRef(null)
   const pinned = useRef(false)
   const dismissTimer = useRef(null)
