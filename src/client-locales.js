@@ -1,4 +1,13 @@
 export const zh = {
+  "diagnosticsSnapshotTime": "报告快照时间：",
+  "diagnosticsUnresolved": "仍有其他未恢复的失败记录，见上方摘要。",
+  "diagnosticSeverity_warning": "需关注",
+  "diagnosticSeverity_info": "信息",
+  "diagnosticNext_restart": "重启后重新生成报告；若版本仍不一致，检查插件更新是否生效。",
+  "diagnosticNext_regenerate": "复现问题后立即重新生成报告；若仍不完整，连同操作步骤反馈。",
+  "diagnosticNext_supported-options": "继续使用当前可选档位即可；新增能力需要适配验证，不建议手动填入未知参数。",
+  "diagnosticNext_reproduce": "核对下列操作与时间是否对应你的问题；若持续失败，反馈操作步骤和本报告。",
+  "diagnosticFinding_evidence-truncated": "部分旧记录或宿主作用域未包含在快照中，报告不能覆盖全部历史。",
   "diagnosticsNoRecordedFailure": "当前记录未发现失败；未执行的功能仍未验证。",
   "diagnosticFinding_version-mismatch": "前后端版本不一致，请重启 DSH 后重新生成报告。",
   "diagnosticFinding_collection-incomplete": "部分检查未能完成，请查看详情中的失败或超时项。",
@@ -198,6 +207,15 @@ export const zh = {
 }
 
 export const en = {
+  "diagnosticsSnapshotTime": "Report captured at:",
+  "diagnosticsUnresolved": "Other failures remain without a later success; see the summary.",
+  "diagnosticSeverity_warning": "Attention",
+  "diagnosticSeverity_info": "Information",
+  "diagnosticNext_restart": "Restart and regenerate. If versions still differ, check that the plugin update took effect.",
+  "diagnosticNext_regenerate": "Regenerate immediately after reproducing. If collection remains incomplete, include the steps with your report.",
+  "diagnosticNext_supported-options": "Keep using supported choices. New capabilities need adapter validation; do not insert unknown parameters manually.",
+  "diagnosticNext_reproduce": "Match the operations and timestamps below to your problem. If failures persist, provide reproduction steps and this report.",
+  "diagnosticFinding_evidence-truncated": "Older records or additional host scopes are omitted. This snapshot does not cover the entire history.",
   "diagnosticsNoRecordedFailure": "No failure in the current records; unused features remain unverified.",
   "diagnosticFinding_version-mismatch": "Client and server versions differ. Restart DSH and regenerate the report.",
   "diagnosticFinding_collection-incomplete": "Some checks could not finish. Inspect failed or timed-out collectors in the details.",

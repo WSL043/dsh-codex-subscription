@@ -1,4 +1,5 @@
 import { diagnosticCapabilities } from './diagnostic-checks.js'
+import { diagnosticEvidence, unresolvedFailures } from './diagnostic-evidence.js'
 
 // A satisfied precondition is not an end-to-end test result.
 export function capabilityCoverage({ account, preference, runtime, catalog, tools, storage, checks, operations, history, now = Date.now() }) {
@@ -9,6 +10,7 @@ export function capabilityCoverage({ account, preference, runtime, catalog, tool
     compaction: preference.compactionMode === 'dsh',
     subagents: preference.subagentBackend === 'dsh',
   }
+  const observed = diagnosticEvidence({ operations, history }, now)
   return diagnosticCapabilities.map(id => {
     let readiness = 'unknown', reason = 'no-readiness-check', blockedBy
     if (disabled[id]) { readiness = 'not-applicable'; reason = 'disabled-or-host-owned' }
@@ -27,13 +29,8 @@ export function capabilityCoverage({ account, preference, runtime, catalog, tool
     } else if (tools && (id === 'images' || (id === 'sketch' && preference.imageSketchAgent === true))) {
       readiness = tools[id] ? 'pass' : 'warn'; reason = tools[id] ? 'tool-registered' : 'tool-missing'
     }
-    const areas = { catalog: 'models', quota: 'quota', search: 'search', image: 'images', model: 'transport', login: 'account', 'quota-reset': 'quota' }
-    const evidence = [
-      ...(operations?.events ?? []).filter(event => event.capability === id),
-      ...(history?.events ?? []).filter(event => id === 'transport' || areas[event.area] === id)
-        .map(event => ({ action: event.area, source: 'network', status: event.status === 'ok' ? 'completed' : 'failed', observedAt: event.observedAt })),
-    ].filter(event => now >= event.observedAt && now - event.observedAt <= 15 * 60_000)
-      .sort((a, b) => a.observedAt - b.observedAt)
+    const evidence = observed.filter(event => event.capability === id || (id === 'transport' && event.source === 'network'))
+    const failures = unresolvedFailures(evidence)
     const recent = evidence.at(-1)
     const relatedChecks = checks.filter(check => check.capability === id || (['images', 'sketch'].includes(id) && check.id === 'tools'))
     const collectionIssue = relatedChecks.find(check => ['inspection-failed', 'inspection-timeout'].includes(check.reason))
@@ -41,6 +38,7 @@ export function capabilityCoverage({ account, preference, runtime, catalog, tool
     return { id, readiness, reason, ...(blockedBy ? { blockedBy } : {}),
       checks: relatedChecks.map(check => check.id),
       execution: recent ? 'observed' : 'not-verified',
+      ...(failures.length ? { unresolved: failures } : {}),
       ...(recent ? { latest: { action: recent.action, source: recent.source, status: recent.status, observedAt: recent.observedAt } } : {}),
     }
   })
