@@ -71,6 +71,22 @@ test('failed persistence restores tool configuration', async () => {
   assert.deepEqual(spawn.fiber.config, { provider: 'spawn' })
 })
 
+test('backend restoration preserves edits made while Codex is selected', async () => {
+  const spawn = entry('spawn', { toolName: 'before', maxDepth: 2 })
+  const switcher = createSubagentBackendSwitcher({ entries: () => [spawn], prepare: async () => {} })
+  await switcher.select('codex')
+  spawn.fiber.config.toolName = 'after'
+  spawn.fiber.config.maxDepth = 7
+  await switcher.select('dsh')
+  assert.equal(spawn.fiber.config.toolName, 'after')
+  assert.equal(spawn.fiber.config.maxDepth, 7)
+  await switcher.select('codex')
+  spawn.fiber.config.toolName = 'latest'
+  await switcher.dispose()
+  assert.equal(spawn.fiber.config.toolName, 'latest')
+  assert.equal(spawn.fiber.config.maxDepth, 7)
+})
+
 test('web preset tools mounted after selection receive the chosen backend', async () => {
   const dormant = { options: { name: '@deepseek-ai/dsh-tool-subagent', disabled: true, config: { provider: 'spawn' } } }
   const switcher = createSubagentBackendSwitcher({ entries: () => [dormant], prepare: async () => {} })

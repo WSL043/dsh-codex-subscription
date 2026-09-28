@@ -1,3 +1,4 @@
+import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { USER_AGENT } from './version.js'
 
 export const CODEX_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
@@ -188,10 +189,7 @@ export function createCodexUsageReader(options) {
   let generation = 0
 
   const load = async signal => {
-    const auth = await getAuth({ signal })
-    const credential = await readCredential({ signal })
-    const access = auth?.auth?.apiKey
-    const accountId = credential?.type === 'oauth' ? credential.accountId : undefined
+    const { access, accountId } = await readSubscriptionCredentials(getAuth, readCredential, signal)
     if (typeof access !== 'string' || access.length === 0
       || typeof accountId !== 'string' || accountId.length === 0) {
       throw new Error('ChatGPT subscription is not signed in')

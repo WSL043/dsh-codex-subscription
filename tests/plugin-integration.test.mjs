@@ -319,6 +319,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
       generatedAt: diagnostics.value.generatedAt,
       inspection: diagnostics.value.inspection,
       requestHistory: { scope: 'plugin-process', capacity: 32, dropped: 0, events: [] },
+      operations: { scope: 'plugin-process', capacity: 32, dropped: 0, events: [] },
       package: 'dsh-codex-subscription',
       version: PACKAGE_VERSION,
       runtime: { node: process.version, platform: process.platform, arch: process.arch },

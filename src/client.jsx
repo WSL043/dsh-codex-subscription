@@ -21,12 +21,15 @@ import { createSubscriptionRpcClient } from './rpc-contract.js'
 import { CodexComposerQuota } from './client-composer-quota.jsx'
 import { CodexModelSelect } from './client-model-select.jsx'
 import { CodexSection } from './client-section.jsx'
+import { createHostDiagnostics } from './diagnostic-host.js'
 
 export const inject = [
   'slots', 'locale', 'connection', 'remote', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
 ]
 
 export function apply(ctx) {
+  const diagnostics = createHostDiagnostics()
+  ctx.effect(() => diagnostics.register(ctx.slots), 'codex-subscription: host inspection')
   const imageViewer = new SubscriptionImageViewerService()
   ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'codex-subscription: copy')
   ctx.effect(() => {
@@ -68,10 +71,11 @@ export function apply(ctx) {
   }, SubscriptionImageViewerOverlay))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'codex-subscription', order: 15,
-    label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: rpc, accountStatus, t }),
+    label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: rpc, accountStatus, t, diagnostics }),
   }, CodexSection))
   const sessions = ctx.get('sessions')
   const installDirectorySlots = scope => {
+    scope.effect(() => diagnostics.register(scope.slots), 'codex-subscription: scoped host inspection')
     const modelDirectories = scope.get('modelDirectories')
     scope.slots.inject('conversation.input.right', () => scope.slots.register({
       name: 'conversation.input.right', id: 'codex-subscription-quota', order: 15,

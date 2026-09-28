@@ -7,7 +7,7 @@ const publicError = (code, message) => ({
   error: { code, message, details: { issues: [] } },
 })
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, runtimeManagement, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, runtimeManagement, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
   return async (endpoint, payload, signal) => {
     if (endpoint === 'storage/status' || endpoint === 'storage/clear-forecast') {
       try {
@@ -173,22 +173,19 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
       }
     }
     const result = await authHandler(endpoint, payload, signal)
-    if (result.ok === true && ['logout', 'account/select', 'account/remove'].includes(endpoint)) closeConnections?.()
-    if (endpoint === 'account/remove' && result.ok === true && typeof payload?.id === 'string') {
-      await usageReader.clearScope(payload.id)
-    }
-    if (endpoint === 'logout' && result.ok === true) {
-      await usageReader.clear()
-      resetCreditService.clear()
-      modelCatalog?.clear()
-      onAccountChanged?.()
-    } else if (result.ok === true && (endpoint === 'account/select' || endpoint === 'account/remove'
+    if (result.ok === true && (endpoint === 'logout' || endpoint === 'account/select' || endpoint === 'account/remove'
       || (endpoint === 'login/status' && result.value?.authenticated === true))) {
-      usageReader.clearCache()
-      resetCreditService.clear()
-      modelCatalog?.clear()
-      onAccountChanged?.()
-      void modelCatalog?.refresh({ signal: undefined }).catch(() => {})
+      // The account transaction has committed. Auxiliary cache failures must not
+      // misreport that transaction or prevent the remaining invalidations.
+      const tasks = [() => closeConnections?.(), () => usageReader.clearCache(),
+        () => resetCreditService.clear(), () => modelCatalog?.clear(), () => onAccountChanged?.()]
+      if (endpoint === 'logout') tasks.push(() => usageReader.clear())
+      if (endpoint === 'account/remove' && typeof payload?.id === 'string') tasks.push(() => usageReader.clearScope(payload.id))
+      const outcomes = await Promise.allSettled(tasks.map(task => Promise.resolve().then(task)))
+      if (outcomes.some(value => value.status === 'rejected')) {
+        try { onCleanupFailure?.() } catch { /* Diagnostics must not change account results. */ }
+      }
+      if (endpoint !== 'logout') void Promise.resolve().then(() => modelCatalog?.refresh({ signal: undefined })).catch(() => {})
     } else if (result.ok === true && (endpoint === 'status' || result.value?.authenticated === true)) {
       void modelCatalog?.refresh({ signal: undefined }).catch(() => {})
     }

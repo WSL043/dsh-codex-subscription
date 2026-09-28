@@ -1,3 +1,4 @@
+import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { randomUUID as nodeRandomUUID } from 'node:crypto'
 
 import { USER_AGENT } from './version.js'
@@ -24,9 +25,7 @@ function safeCopy(value) {
     : undefined
 }
 
-function credentialsOf(auth, credential) {
-  const access = auth?.auth?.apiKey
-  const accountId = credential?.type === 'oauth' ? credential.accountId : undefined
+function credentialsOf({ access, accountId }) {
   if (typeof access !== 'string' || access.length === 0
     || typeof accountId !== 'string' || accountId.length === 0) {
     throw new Error('ChatGPT subscription is not signed in')
@@ -123,10 +122,7 @@ export function createCodexResetCreditService(options) {
     ...(credit.creditExpiresAt === undefined ? {} : { expiresAt: credit.creditExpiresAt }),
   })
 
-  const resolveCredentials = async signal => credentialsOf(
-    await getAuth({ signal }),
-    await readCredential({ signal }),
-  )
+  const resolveCredentials = async signal => credentialsOf(await readSubscriptionCredentials(getAuth, readCredential, signal))
 
   const readDetails = async (signal, credentials) => {
     const { access, accountId } = credentials ?? await resolveCredentials(signal)

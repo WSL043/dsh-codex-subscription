@@ -33,7 +33,7 @@ test('catalog commit and account clearing notify host observers, failed and unch
   const catalog = createOfficialModelCatalog({
     baseModels: () => base,
     getAuth: async () => ({ auth: { apiKey: 'test' } }),
-    readCredential: async () => ({ type: 'oauth', accountId: 'test' }),
+    readCredential: async () => ({ type: 'oauth', access: 'test', accountId: 'test' }),
     onUpdated: () => notices++,
     fetch: async () => status === 200 ? Response.json({ models: [remote()] }) : new Response(null, { status }),
   })
@@ -53,7 +53,7 @@ test('unsupported catalog capabilities are diagnostic-only and follow catalog li
   const catalog = createOfficialModelCatalog({
     baseModels: () => base,
     getAuth: async () => ({ auth: { apiKey: 'test-token' } }),
-    readCredential: async () => ({ type: 'oauth', accountId: 'test-account' }),
+    readCredential: async () => ({ type: 'oauth', access: 'test-token', accountId: 'test-account' }),
     fetch: async () => unchanged ? new Response(null, { status: 304 }) : Response.json({ models: [remote({
       supported_reasoning_levels: [{ effort: 'max' }, { effort: 'ultra' }, { effort: 'private text' }],
       input_modalities: ['text', 'image', 'audio', null],
@@ -121,7 +121,7 @@ test('Astra from the official catalog reaches DSH with the selected context wind
   const catalog = createOfficialModelCatalog({
     baseModels: () => openaiCodexProvider().getModels(),
     async getAuth() { return { auth: { apiKey: 'test-token' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'test-account' } },
+    async readCredential() { return { type: 'oauth', access: 'test-token', accountId: 'test-account' } },
     async fetch() {
       return Response.json({ models: [remote({
         slug: 'gpt-6-astra', display_name: 'GPT-6 Astra',
@@ -168,7 +168,7 @@ test('new Codex models appear from the account catalog with supported reasoning 
   const catalog = createOfficialModelCatalog({
     baseModels: () => openaiCodexProvider().getModels(),
     async getAuth() { return { auth: { apiKey: 'test-token' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'test-account' } },
+    async readCredential() { return { type: 'oauth', access: 'test-token', accountId: 'test-account' } },
     async fetch() {
       return Response.json({ models: [
         remote({ slug: 'gpt-6-sol', display_name: 'GPT-6-Sol', priority: 2,
@@ -199,7 +199,7 @@ test('catalog refresh is conditional, keeps the last good result, and never expo
   const catalog = createOfficialModelCatalog({
     baseModels: () => base,
     async getAuth() { return { auth: { apiKey: 'secret-token' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'secret-account' } },
+    async readCredential() { return { type: 'oauth', access: 'secret-token', accountId: 'secret-account' } },
     async fetch(input, init) {
       requests.push({ input: String(input), headers: new Headers(init.headers) })
       if (mode === 'not-modified') return new Response(null, { status: 304 })
@@ -228,7 +228,7 @@ test('catalog timeout rejects even when an injected request ignores abort and dr
     baseModels: () => base,
     timeoutMs: 10,
     async getAuth() { return { auth: { apiKey: 'test-token' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'test-account' } },
+    async readCredential() { return { type: 'oauth', access: 'test-token', accountId: 'test-account' } },
     async fetch() {
       return new Promise(resolve => { resolveFetch = resolve })
     },
@@ -264,22 +264,20 @@ test('clear aborts the old flight without letting its timer invalidate the repla
     setTimeout: scheduleTimeout,
     clearTimeout: cancelTimeout,
     async getAuth() { return { auth: { apiKey: 'test-token' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'test-account' } },
+    async readCredential() { return { type: 'oauth', access: 'test-token', accountId: 'test-account' } },
     async fetch() {
       return new Promise(resolve => fetches.push(resolve))
     },
   })
 
   const old = catalog.refresh()
-  await Promise.resolve()
-  await Promise.resolve()
+  await new Promise(resolve => setImmediate(resolve))
   assert.equal(fetches.length, 1)
   now = 10
   catalog.clear()
   await assert.rejects(old)
   const replacement = catalog.refresh()
-  await Promise.resolve()
-  await Promise.resolve()
+  await new Promise(resolve => setImmediate(resolve))
   assert.equal(timers.length, 2)
   assert.equal(timers[0].cleared, true)
   advanceTo(50)
@@ -296,7 +294,7 @@ test('catalog support state distinguishes fallback, successful refresh, and reta
   const catalog = createOfficialModelCatalog({
     baseModels: () => base,
     getAuth: async () => ({ auth: { apiKey: 'test-token' } }),
-    readCredential: async () => ({ type: 'oauth', accountId: 'test-account' }),
+    readCredential: async () => ({ type: 'oauth', access: 'test-token', accountId: 'test-account' }),
     fetch: async () => fail ? new Response('', { status: 403 }) : Response.json({ models: [remote()] }),
   })
   assert.deepEqual(catalog.status(), { source: 'fallback', refresh: 'idle' })

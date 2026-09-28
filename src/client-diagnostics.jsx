@@ -1,27 +1,47 @@
 import { useState } from 'react'
 import { Button } from './client-primitives.js'
-import { CHANNEL, SUPPORT_ISSUE_URL, unwrap } from './client-shared.js'
+import { SUPPORT_ISSUE_URL } from './client-shared.js'
 import { recoveryCall, clientDiagnostic } from './client-recovery.js'
-export function DiagnosticsCard({ rpc, t }) {
+export function DiagnosticsCard({ rpc, t, diagnostics }) {
   const [report, setReport] = useState()
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState(false)
+  const [copyError, setCopyError] = useState(false)
   const load = () => {
-    setBusy(true); setError(false); setCopied(false)
-    void recoveryCall(rpc, 'diagnostics').then(setReport)
-      .catch(error => { setReport(clientDiagnostic(error)); setError(true) }).finally(() => setBusy(false))
+    setBusy(true); setError(false); setCopied(false); setCopyError(false)
+    void Promise.allSettled([recoveryCall(rpc, 'diagnostics'), Promise.resolve().then(() => diagnostics?.collect())]).then(([server, client]) => {
+      setError(server.status === 'rejected')
+      setReport({ ...(server.status === 'fulfilled' ? server.value : clientDiagnostic(server.reason)),
+        client: client.status === 'fulfilled' && client.value ? client.value : { status: 'unknown' } })
+    }).finally(() => setBusy(false))
   }
   const copy = () => {
     if (report === undefined) return
-    void navigator.clipboard.writeText(JSON.stringify(report, null, 2)).then(() => setCopied(true)).catch(() => setError(true))
+    setCopyError(false)
+    void Promise.resolve().then(() => navigator.clipboard.writeText(JSON.stringify(report, null, 2))).then(() => setCopied(true)).catch(() => setCopyError(true))
   }
   return <div className="codexSubscriptionCard codexSubscriptionDiagnostics">
     <div className="codexSubscriptionSectionHead">
       <div className="codexSubscriptionSectionTitle"><h3>{t('diagnostics')}</h3><p className="codexSubscriptionHelp">{t('diagnosticsHint')}</p></div>
       <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{busy ? t('diagnosticsLoading') : t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={copy}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}<a className="codexSubscriptionLink" href={SUPPORT_ISSUE_URL} target="_blank" rel="noreferrer">{t('feedbackOpen')}</a></div>
     </div>
-    {report === undefined ? null : <pre>{JSON.stringify(report, null, 2)}</pre>}
+    {report === undefined ? null : <>
+      <p className="codexSubscriptionHelp">{t('diagnosticsCoverageHint')}</p>
+      {report.version && report.client?.version && report.version !== report.client.version ? <p role="status">{t('diagnosticsVersionMismatch')}</p> : null}
+      {(report.inspection?.checks ?? []).some(item => ['inspection-failed', 'inspection-timeout'].includes(item.reason)) ? <p role="status">{t('diagnosticsPartial')}</p> : null}
+      <table style={{ width: '100%', fontSize: 12, textAlign: 'left', borderSpacing: '0 8px' }}>
+        <thead><tr><th>{t('diagnosticsCapability')}</th><th>{t('diagnosticsReadiness')}</th><th>{t('diagnosticsEvidence')}</th></tr></thead>
+        <tbody>{(report.inspection?.capabilities ?? []).map(item => <tr key={item.id}>
+          <td>{t(`diagnosticCapability_${item.id}`)}</td>
+          <td>{t(`diagnosticReason_${item.reason}`)}{item.blockedBy ? ` · ${t(`diagnosticCapability_${item.blockedBy}`)}` : ''}</td>
+          <td>{item.latest ? `${item.latest.action} · ${t(`diagnosticSource_${item.latest.source}`)} · ${t(`diagnosticOutcome_${item.latest.status}`)} · ${new Date(item.latest.observedAt).toLocaleTimeString()}` : t('diagnosticsUnverified')}</td>
+        </tr>)}</tbody>
+      </table>
+      <p className="codexSubscriptionHelp">{report.client?.topology?.length ? t('diagnosticsHostCollected') : t('diagnosticsHostUnknown')}</p>
+      <details><summary>{t('diagnosticsDetails')}</summary><pre>{JSON.stringify(report, null, 2)}</pre></details>
+    </>}
     {error ? <p className="codexSubscriptionError" role="alert">{t('diagnosticsFailed')}</p> : null}
+    {copyError ? <p className="codexSubscriptionError" role="alert">{t('diagnosticsCopyFailed')}</p> : null}
   </div>
 }

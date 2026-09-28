@@ -87,6 +87,16 @@ export function createSubagentBackendSwitcher({ entries, prepare, persist }) {
   const standard = (entry, config) => entry?.options?.name === '@deepseek-ai/dsh-tool-subagent'
     && config?.provider === 'spawn' && !config.agentOptions && !config.persona && !config.toolFilter
   const convert = config => ({ ...config, provider: SUBAGENT_PROVIDER, modelSelectionSettings: true, backgroundMode: 'one-shot', maxDepth: 'provider-managed' })
+  const ownedFields = ['provider', 'modelSelectionSettings', 'backgroundMode', 'maxDepth']
+  const restore = (current, original) => {
+    const result = { ...current }, applied = convert(original)
+    for (const key of ownedFields) {
+      if (current[key] !== applied[key]) continue
+      if (Object.hasOwn(original, key)) result[key] = original[key]
+      else delete result[key]
+    }
+    return result
+  }
   const configure = (fiber, config) => {
     if (!standard(fiber.entry, config)) return config
     if (!originals.has(fiber)) originals.set(fiber, { ...config })
@@ -112,7 +122,8 @@ export function createSubagentBackendSwitcher({ entries, prepare, persist }) {
           if (fiber.entry && fiber.entry.fiber !== fiber) { originals.delete(fiber); continue }
           const before = { ...fiber.config }
           changed.push({ fiber, before })
-          await fiber.update(mode === 'codex' ? convert(original) : original, true)
+          if (mode === 'codex' && before.provider !== SUBAGENT_PROVIDER) originals.set(fiber, { ...before })
+          await fiber.update(mode === 'codex' ? convert(before) : restore(before, original), true)
         }
         await persist?.(mode)
       } catch (error) {
@@ -132,7 +143,7 @@ export function createSubagentBackendSwitcher({ entries, prepare, persist }) {
       disposed = true
       selected = 'dsh'
       for (const [fiber, original] of originals) {
-        if (fiber.config?.provider === SUBAGENT_PROVIDER) await fiber.update(original, true)
+        if (fiber.config?.provider === SUBAGENT_PROVIDER) await fiber.update(restore(fiber.config, original), true)
       }
       originals.clear()
     },

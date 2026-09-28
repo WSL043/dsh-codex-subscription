@@ -73,7 +73,7 @@ function fixture(overrides = {}) {
       async remove() {},
     },
     async getAuth() { return { auth: { apiKey: 'oauth-access-token' } } },
-    async readCredential() { return { type: 'oauth', accountId: 'account-123' } },
+    async readCredential() { return { type: 'oauth', access: 'oauth-access-token', accountId: 'account-123' } },
     async fetch(url, init) {
       requests.push({ url, init })
       return new Response(JSON.stringify({
@@ -190,7 +190,7 @@ test('model defaults and explicit model overrides reach the subscription endpoin
 
 test('disabling image editing during authentication prevents the outgoing image request', async () => {
   let imageEditing=true
-  const {tool,requests} = fixture({getFeatures:()=>({imageEditing}),getAuth:async()=>{imageEditing=false;return {auth:{apiKey:'test'}}}})
+  const {tool,requests} = fixture({getFeatures:()=>({imageEditing}),getAuth:async()=>{imageEditing=false;return {auth:{apiKey:'oauth-access-token'}}}})
   await assert.rejects(tool.execute({prompt:'edit',referenceImages:[IMAGE_REF]},execContext('disabled')),/disabled/)
   assert.equal(requests.length,0)
 })

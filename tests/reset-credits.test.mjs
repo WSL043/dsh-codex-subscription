@@ -23,7 +23,7 @@ function fixture(overrides = {}) {
     now: () => now,
     randomUUID: () => '11111111-2222-4333-8444-555555555555',
     async getAuth() { return { auth: { apiKey: overrides.token ?? 'bearer-secret' } } },
-    async readCredential() { return { type: 'oauth', accountId: overrides.accountId ?? 'account-secret' } },
+    async readCredential() { return { type: 'oauth', access: overrides.token ?? 'bearer-secret', accountId: overrides.accountId ?? 'account-secret' } },
     usageReader: {
       async read(options) {
         assert.equal(options.force, true)
@@ -196,7 +196,7 @@ test('a prepared challenge is account-bound and cannot POST after account switch
   let accountId = 'account-one'
   const { service, requests, advance } = fixture({
     options: {
-      async readCredential() { return { type: 'oauth', accountId } },
+      async readCredential() { return { type: 'oauth', access: 'bearer-secret', accountId } },
     },
   })
   const prepared = await service.prepare({ signal })
