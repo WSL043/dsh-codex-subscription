@@ -33,3 +33,17 @@ DSH 0.2.0-rc.2 was published on 2026-09-29. Two things stopped the plugin from w
 
 - The optional Codex subtask component on rc.2 (the pinned component version moves to 0.2.0-rc.2 but was not installed or run).
 - Image generation, the sketch canvas and quota reset flows on rc.2.
+
+## Official desktop app acceptance (Windows x64, 0.2.0-rc.2, 2026-09-30)
+
+Real ChatGPT account, isolated data directory, plugin installed as `dsh-codex-subscription@2.2.10` from the plugin dialog.
+
+| Check | Result |
+| --- | --- |
+| Plugin installs by exact version, survives restart, "Codex 订阅" settings page appears | pass |
+| Bare-name install picks 2.2.4 (24h release-age rule) and is rejected as incompatible | as documented in README |
+| Device-code / browser login completes; account and quota show | pass |
+| Model list is the account catalog (8 models); hiding two shrinks the count to 6/8 and the picker drops them | pass |
+| Chat with `GPT-5.6-Luna`: shell tool call then answer | pass |
+
+Not checked on the desktop build: WebSocket, cloud compaction, Codex subtasks, images and sketch (covered on the 0.2.0-rc.2 web host and by tests).
