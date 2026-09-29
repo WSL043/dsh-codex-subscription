@@ -46,7 +46,7 @@ export function retirementNotice(value, now = Date.now(), targetDisplayName) {
   const upgradeTo = upgradeModelId(value)
   const upgradeName = upgradeTo === undefined ? undefined : nonEmpty(targetDisplayName) ?? upgradeTo
   const text = `Retires on ${dateText} (UTC).${upgradeName === undefined ? '' : ` Switch to ${upgradeName} to keep working.`}`
-  return { text, at, upgradeTo }
+  return { text, at, upgradeTo, dateText }
 }
 
 function reasoningMap(levels) {
@@ -99,7 +99,9 @@ function visibleModel(value, displayNames, now) {
   return {
     ...(Object.keys(unsupported).length ? { unsupported } : {}),
     id,
-    name: reserve ? 'GPT-Reserve (Experimental)' : nonEmpty(value.display_name) ?? id,
+    // The host's model menu only renders names for plugin models, so the date has
+    // to live in the name to be visible. The id, and so any saved selection, is untouched.
+    name: `${reserve ? 'GPT-Reserve (Experimental)' : nonEmpty(value.display_name) ?? id}${retirement === undefined ? '' : ` (retires ${retirement.dateText})`}`,
     description: notice === undefined ? description : description === undefined ? notice : `${description}\n${notice}`,
     ...(retirement === undefined ? {} : { retirement: { at: retirement.at, upgradeTo: retirement.upgradeTo } }),
     priority: Number.isFinite(value.priority) ? value.priority : 0,

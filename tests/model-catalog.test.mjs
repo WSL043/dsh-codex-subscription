@@ -45,7 +45,7 @@ test('snake_case retirement notices use directory display names without changing
   assert.deepEqual(models.map(model => model.id), ['gpt-5.6-sol', 'gpt-5.5'])
   const retiring = models[1]
   assert.equal(retiring.id, 'gpt-5.5')
-  assert.equal(retiring.name, 'GPT-5.5')
+  assert.equal(retiring.name, 'GPT-5.5 (retires 2026-10-14)')
   assert.equal(retiring.priority, 20)
   assert.equal(retiring.description, 'Current account model\nRetires on 2026-10-14 (UTC). Switch to GPT-5.6 Sol to keep working.')
   assert.deepEqual(retiring.retirement, { at: RETIREMENT_SECONDS * 1000, upgradeTo: 'gpt-5.6-sol' })
@@ -110,7 +110,7 @@ test('online model lists receive the notice while catalog metadata preserves ret
 
   const retiring = catalog.getModels(base).find(model => model.id === 'gpt-5.5')
   assert.equal(retiring.id, 'gpt-5.5')
-  assert.equal(retiring.name, 'GPT-5.5')
+  assert.equal(retiring.name, 'GPT-5.5 (retires 2026-10-14)')
   assert.equal(retiring.description, 'Current account model\nRetires on 2026-10-14 (UTC). Switch to GPT-5.6 Sol to keep working.')
   assert.deepEqual(catalog.metadata('gpt-5.5').retirement, { at: RETIREMENT_SECONDS * 1000, upgradeTo: 'gpt-5.6-sol' })
   assert.equal(catalog.metadata('gpt-5.5').priority, 25)
@@ -443,6 +443,8 @@ test('the real HTTP catalog shape nests an ISO retirement date under upgrade', (
 
   const retiring = models.find(model => model.id === 'gpt-5.5')
   assert.equal(retiring.description, 'Legacy coding model.\nRetires on 2026-10-14 (UTC). Switch to GPT-5.6 Sol to keep working.')
+  assert.equal(retiring.name, 'GPT-5.5 (retires 2026-10-14)')
+  assert.equal(retiring.id, 'gpt-5.5')
   assert.equal(retiring.retirement.at, Date.UTC(2026, 9, 14, 19))
   assert.equal(retiring.retirement.upgradeTo, 'gpt-5.6-sol')
   assert.equal(models.find(model => model.id === 'gpt-5.6-sol').retirement, undefined)
