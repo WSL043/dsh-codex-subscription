@@ -42,6 +42,7 @@ export function createPreferenceController(scope, rpc) {
   let availableModels = []
   let verbosityModels = []
   let fastModels
+  let ultrafastModels = []
   let catalogStatus
   let modelsLoading = false
   let modelError = false
@@ -93,6 +94,7 @@ export function createPreferenceController(scope, rpc) {
       disabledModels: normalizeDisabledModels(value?.[DISABLED_MODELS_FIELD]),
       verbosityModels,
       fastModels,
+      ultrafastModels,
       catalogStatus,
       modelsLoading,
       modelError,
@@ -120,6 +122,7 @@ export function createPreferenceController(scope, rpc) {
       availableModels = Array.isArray(value?.availableModels) ? value.availableModels : []
       verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
       fastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
+      ultrafastModels = Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : []
       catalogStatus = value?.catalogStatus
     }
     fallbackStatus = 'ready'
@@ -167,6 +170,8 @@ export function createPreferenceController(scope, rpc) {
           availableModels = Array.isArray(value?.availableModels) ? value.availableModels : []
           verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
           fastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
+          ultrafastModels = Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : []
+      ultrafastModels = Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : []
           catalogStatus = value?.catalogStatus
         }
       }
@@ -191,16 +196,19 @@ export function createPreferenceController(scope, rpc) {
       const nextAvailableModels = Array.isArray(value?.availableModels) ? value.availableModels : []
       const nextVerbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
       const nextFastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
+      const nextUltrafastModels = Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : []
       catalogStatus = value?.catalogStatus
       const changed = !sameModels(contextModels, nextContextModels)
         || !sameModels(availableModels, nextAvailableModels)
         || !sameModels(verbosityModels, nextVerbosityModels)
         || JSON.stringify(fastModels) !== JSON.stringify(nextFastModels)
+        || JSON.stringify(ultrafastModels) !== JSON.stringify(nextUltrafastModels)
       if (changed) {
         contextModels = nextContextModels
         availableModels = nextAvailableModels
         verbosityModels = nextVerbosityModels
         fastModels = nextFastModels
+        ultrafastModels = nextUltrafastModels
         publish()
       }
       return changed

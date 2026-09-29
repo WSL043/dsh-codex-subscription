@@ -19,6 +19,7 @@ export const DEFAULT_SEARCH_PROVIDER = SEARCH_PROVIDER_AUTO
 export const SPEED_MODE_FIELD = 'speedMode'
 export const SPEED_MODE_STANDARD = 'standard'
 export const SPEED_MODE_FAST = 'fast'
+export const SPEED_MODE_ULTRAFAST = 'ultrafast'
 export const DEFAULT_SPEED_MODE = SPEED_MODE_STANDARD
 export const OUTPUT_VERBOSITY_FIELD = 'outputVerbosity'
 export const OUTPUT_VERBOSITY_DEFAULT = 'default'
@@ -90,7 +91,7 @@ export const normalizeStreamIdleTimeoutMinutes = value => STREAM_IDLE_TIMEOUT_MI
   ? value
   : DEFAULT_STREAM_IDLE_TIMEOUT_MINUTES
 
-export const normalizeSpeedMode = value => [SPEED_MODE_STANDARD, SPEED_MODE_FAST].includes(value)
+export const normalizeSpeedMode = value => [SPEED_MODE_STANDARD, SPEED_MODE_FAST, SPEED_MODE_ULTRAFAST].includes(value)
   ? value
   : DEFAULT_SPEED_MODE
 

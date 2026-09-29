@@ -81,6 +81,8 @@ With a supported Codex model selected, open the composer's model menu to choose 
 Standard adds no icon; only Fast shows a lightning icon before the model name. Spark does not show the speed entry. Fast mode increases speed and uses more Credits;
 see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) for the current rules.
 
+**Ultrafast (Beta).** A model's speed menu gains "Ultrafast" only when the current account's catalog lists an `ultrafast` tier for that model (at the developer event: GPT-6 Astra on Pro 500 only). If you chose Ultrafast and switch to a model without it, requests go out on the standard tier; the plugin never substitutes Fast for you. It is the fastest tier and uses allowance and Credits faster. It stays Beta because it has not been run on a Pro 500 account yet.
+
 ### Advanced experiments
 
 Opt in under **Models & runtime**. SSE and DSH subtasks remain the defaults:

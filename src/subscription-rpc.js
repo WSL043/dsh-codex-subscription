@@ -73,6 +73,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
             contextModels: Array.isArray(value?.contextModels) ? value.contextModels : [],
             verbosityModels: Array.isArray(value?.verbosityModels) ? value.verbosityModels : [],
             fastModels: Array.isArray(value?.fastModels) ? value.fastModels : [],
+            ultrafastModels: Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : [],
             catalogStatus: value?.catalogStatus,
           },
         }

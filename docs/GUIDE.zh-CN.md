@@ -79,6 +79,8 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 只有高速模式会在模型名称左侧显示闪电；Spark 不显示速度入口。高速模式会提高速度，也会消耗更多 Credits；具体规则见
 [OpenAI Codex Speed 文档](https://learn.chatgpt.com/docs/agent-configuration/speed)。
 
+**极速 Ultrafast（Beta）**：只有当前账号的模型目录给某个模型列出 `ultrafast` 档位时（发布会上仅限 Pro 500 的 GPT-6 Astra），该模型的速度菜单才会多出“极速”。选了极速后，切到不支持它的模型会按标准档发送，不会替你改用 Fast。该档位速度最快，额度和 Credits 消耗也更快。因为还没有在 Pro 500 账号上实机验证，所以标为 Beta。
+
 ### 高级实验选项
 
 在 **模型与运行** 中按需开启，默认仍使用 SSE 和 DSH 子任务：
