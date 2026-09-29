@@ -22,9 +22,18 @@ export function subagentThreadPolicy(parent, policy, requested = {}) {
     modelProvider: 'openai',
     approvalPolicy: 'never',
     sandbox: policy.mode,
-    config: effort === undefined ? {} : { model_reasoning_effort: effort },
+    config: { ...CHILD_FEATURES_OFF, ...(effort === undefined ? {} : { model_reasoning_effort: effort }) },
   }
 }
+
+/**
+ * A ChatGPT-authenticated Codex child would otherwise expose the account's
+ * connected apps (calendar, site deploys, ...) and plugin installs, all
+ * auto-approved. A DSH subtask gets the workspace tools only.
+ */
+const CHILD_FEATURES_OFF = Object.freeze({
+  features: Object.freeze(Object.fromEntries(['apps', 'plugins', 'plugin_sharing', 'remote_plugin', 'tool_suggest', 'browser_use', 'browser_use_external', 'browser_use_full_cdp_access', 'computer_use', 'in_app_browser'].map(name => [name, false]))),
+})
 
 /** Reuse the official DSH process/turn provider; keep only subscription auth here. */
 export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store, refresh, loadRuntime, maintenance = () => false }) {
@@ -76,6 +85,19 @@ export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store
     prepare: () => { if (maintenance()) return Promise.reject(new Error('Restart DSH after changing the Codex subtask component')); return load() },
     dispose() { disposed = true; for (const controller of active) controller.abort() },
   }
+}
+
+/**
+ * DSH 0.2 mounts Agent preset rows once, at boot and before plugins load, so the
+ * Loader never lists them and `internal/config` never reaches a later listener.
+ * Read them from the preset registry; a host without it simply has none.
+ */
+export function presetEntries(ctx) {
+  try {
+    const generations = ctx.get?.('agentPresets')?.generations
+    if (!(generations instanceof Map)) return []
+    return [...generations.values()].flatMap(generation => [...(generation.mount?.tree?.entries?.() ?? [])])
+  } catch { return [] }
 }
 
 /** Change only standard independent spawn tools; leave fork/custom tools untouched. */
