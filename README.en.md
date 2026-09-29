@@ -104,7 +104,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@2.2.10
+   dsh-codex-subscription@2.2.11
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
