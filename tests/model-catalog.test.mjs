@@ -425,3 +425,27 @@ test('catalog support state distinguishes fallback, successful refresh, and reta
   catalog.clear()
   assert.deepEqual(catalog.status(), { source: 'fallback', refresh: 'idle' })
 })
+
+test('the real HTTP catalog shape nests an ISO retirement date under upgrade', () => {
+  const models = parseOfficialModelCatalog({ models: [
+    remote({
+      slug: 'gpt-5.5', display_name: 'GPT-5.5', description: 'Legacy coding model.', priority: 12,
+      upgrade: {
+        model: 'gpt-5.6-sol',
+        migration_markdown: 'GPT-5.5 retires on October 14, 2026. Switch to GPT-5.6 Sol to continue working in Codex.',
+        retirement_at: '2026-10-14T19:00:00Z',
+      },
+    }),
+    remote({ slug: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', priority: 30, upgrade: null }),
+    remote({ slug: 'bad-date', upgrade: { model: 'x', retirement_at: 'soon' } }),
+    remote({ slug: 'numeric-string', upgrade: { model: 'x', retirement_at: '1792004400' } }),
+  ] }, CATALOG_NOW)
+
+  const retiring = models.find(model => model.id === 'gpt-5.5')
+  assert.equal(retiring.description, 'Legacy coding model.\nRetires on 2026-10-14 (UTC). Switch to GPT-5.6 Sol to keep working.')
+  assert.equal(retiring.retirement.at, Date.UTC(2026, 9, 14, 19))
+  assert.equal(retiring.retirement.upgradeTo, 'gpt-5.6-sol')
+  assert.equal(models.find(model => model.id === 'gpt-5.6-sol').retirement, undefined)
+  assert.equal(models.find(model => model.id === 'bad-date').retirement, undefined)
+  assert.equal(models.find(model => model.id === 'numeric-string').retirement, undefined)
+})

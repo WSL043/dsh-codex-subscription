@@ -18,12 +18,27 @@ function upgradeModelId(value) {
     ?? (record(value.upgradeInfo) ? nonEmpty(value.upgradeInfo.model) : undefined)
 }
 
+// The HTTP catalog nests the notice as `upgrade: { model, retirement_at: '<ISO date>' }`;
+// the app-server shape uses `upgradeInfo.retirementAt` in Unix seconds. Accept both.
+function retirementMillis(value) {
+  for (const source of [value, value.upgrade, value.upgrade_info, value.upgradeInfo]) {
+    if (!record(source)) continue
+    for (const raw of [source.retirement_at, source.retirementAt]) {
+      const seconds = positiveInteger(raw)
+      if (seconds !== undefined && Number.isSafeInteger(seconds * 1000)) return seconds * 1000
+      if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|[+-]\d{2}:\d{2})$/u.test(raw)) {
+        const parsed = Date.parse(raw)
+        if (Number.isFinite(parsed) && parsed > 0) return parsed
+      }
+    }
+  }
+  return undefined
+}
+
 export function retirementNotice(value, now = Date.now(), targetDisplayName) {
   if (!record(value) || !Number.isFinite(now)) return undefined
-  const seconds = positiveInteger(value.retirement_at) ?? positiveInteger(value.retirementAt)
-  if (seconds === undefined) return undefined
-  const at = seconds * 1000
-  if (!Number.isSafeInteger(at) || at <= now) return undefined
+  const at = retirementMillis(value)
+  if (at === undefined || at <= now) return undefined
   const date = new Date(at)
   if (!Number.isFinite(date.getTime())) return undefined
   const year = String(date.getUTCFullYear()).padStart(4, '0')
