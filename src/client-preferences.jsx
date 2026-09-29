@@ -1,7 +1,7 @@
 import { CapabilityPreferences } from './capability-preferences.jsx'
 import { RuntimeManagement } from './client-runtime-management.jsx'
 import { useEffect, useRef, useState } from 'react'
-import { Button, IconChevronDownOutline14, Input, Menu } from './client-primitives.js'
+import { Button, IconChevronDownOutline14, Input, Menu, Switch } from './client-primitives.js'
 import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, DISABLED_MODELS_FIELD, clampModelContext, INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
 import { reconcileContextDrafts } from './context-draft-state.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
@@ -25,7 +25,7 @@ export function AutoQuotaRetryPreference({ preference, t }) {
   const writable = snapshot.status === 'ready' && snapshot.writable === true
   return <div className="codexSubscriptionPreference">
     <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('autoQuotaRetry')}</span><span className="codexSubscriptionPreferenceHint">{t('autoQuotaRetryHint')}</span></div>
-    <button className="codexSubscriptionSwitch" type="button" role="switch" aria-label={t('autoQuotaRetry')} aria-checked={snapshot.autoQuotaRetry} disabled={!writable} onClick={() => { void preference.set({ [AUTO_QUOTA_RETRY_FIELD]: !snapshot.autoQuotaRetry }) }}><span className="codexSubscriptionSwitchKnob" /></button>
+    <Switch checked={snapshot.autoQuotaRetry} label={t('autoQuotaRetry')} disabled={!writable} onChange={next => { void preference.set({ [AUTO_QUOTA_RETRY_FIELD]: next }) }} />
   </div>
 }
 
@@ -78,18 +78,21 @@ export function PickerModelsPreference({ preference, t }) {
     const next = hidden.includes(modelId) ? hidden.filter(id => id !== modelId) : [...hidden, modelId]
     void preference.set({ [DISABLED_MODELS_FIELD]: next })
   }
+  const [open, setOpen] = useState(false)
   const shown = snapshot.availableModels.filter(model => !hidden.includes(model.id)).length
   if (snapshot.availableModels.length === 0) return null
-  return <details className="codexSubscriptionSearchOptions">
-    <summary>{t('pickerModelsTitle')}<span>{shown} / {snapshot.availableModels.length}</span></summary>
-    <p className="codexSubscriptionPreferenceHint">{t('pickerModelsHint')}</p>
-    <div className="codexSubscriptionPickerModels" role="group" aria-label={t('pickerModelsTitle')}>
-      {snapshot.availableModels.map(model => <label className="codexSubscriptionPickerModel" key={model.id}>
-        <input type="checkbox" checked={!hidden.includes(model.id)} disabled={!writable} onChange={() => toggle(model.id)} />
-        <span>{model.name}</span>
-      </label>)}
+  return <div className="codexSubscriptionPickerSetting">
+    <div className="codexSubscriptionPreference">
+      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('pickerModelsTitle')}</span><span className="codexSubscriptionPreferenceHint">{t('pickerModelsHint')}</span></div>
+      <button className="codexSubscriptionContextTrigger" type="button" aria-expanded={open} onClick={() => setOpen(value => !value)}><span>{shown} / {snapshot.availableModels.length}</span><IconChevronDownOutline14 /></button>
     </div>
-  </details>
+    {open ? <div className="codexSubscriptionPickerModels" role="group" aria-label={t('pickerModelsTitle')}>
+      {snapshot.availableModels.map(model => <div className="codexSubscriptionPickerModel" key={model.id}>
+        <span>{model.name}</span>
+        <Switch checked={!hidden.includes(model.id)} label={model.name} disabled={!writable} onChange={() => toggle(model.id)} />
+      </div>)}
+    </div> : null}
+  </div>
 }
 
 export function ContextWindowPreference({ preference, t }) {

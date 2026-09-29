@@ -35,12 +35,6 @@ export const STYLE = `
 .codexSubscriptionPreferenceCopy{display:flex;min-width:0;flex-direction:column;gap:2px}
 .codexSubscriptionPreferenceLabel{display:flex;align-items:center;gap:6px}
 .codexSubscriptionPreferenceHint{max-width:300px;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
-.codexSubscriptionSwitch{position:relative;flex:none;width:36px;height:20px;padding:2px;border:0;border-radius:999px;background:var(--dsw-alias-bg-module-platform);cursor:pointer;transition:background 120ms var(--ds-ease-in-out)}
-.codexSubscriptionSwitch[aria-checked=true]{background:var(--dsw-alias-label-primary)}
-.codexSubscriptionSwitch:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:2px}
-.codexSubscriptionSwitch:disabled{cursor:not-allowed;opacity:.5}
-.codexSubscriptionSwitchKnob{display:block;width:16px;height:16px;border-radius:50%;background:var(--dsw-alias-bg-layer-1);box-shadow:0 1px 2px var(--dsw-alias-border-l3);transition:transform 120ms var(--ds-ease-in-out)}
-.codexSubscriptionSwitch[aria-checked=true] .codexSubscriptionSwitchKnob{transform:translateX(16px)}
 .codexSubscriptionQuotaModes{display:flex;align-items:center;gap:3px;padding:2px;border-radius:9px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionQuotaMode{position:relative;display:flex;align-items:center;justify-content:center;min-height:26px;padding:0 9px;border-radius:7px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;cursor:pointer;white-space:nowrap}
 .codexSubscriptionQuotaMode small{margin-left:3px;font-size:9px;line-height:1;color:var(--dsw-alias-label-tertiary)}
@@ -49,7 +43,8 @@ export const STYLE = `
 .codexSubscriptionQuotaMode:has(input:disabled){cursor:not-allowed;opacity:.5}
 .codexSubscriptionQuotaMode input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
 .codexSubscriptionContext{display:flex;flex-direction:column;gap:8px}
-.codexSubscriptionContextHead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.codexSubscriptionPickerSetting{display:flex;flex-direction:column;gap:8px}
+.codexSubscriptionContextHead{font-size:13px;line-height:20px;display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .codexSubscriptionContextCopy{display:flex;min-width:0;flex:1;flex-direction:column;gap:2px}
 .codexSubscriptionContextHint{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionContextTrigger{height:32px;min-width:108px;display:inline-flex;align-items:center;justify-content:space-between;gap:10px;padding:0 10px 0 12px;border:0;border-radius:999px;outline:0;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;cursor:pointer}
@@ -113,10 +108,10 @@ export const STYLE = `
 .codexSubscriptionLimitMeta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionLimitPeriod{display:flex;gap:8px;flex-wrap:wrap}
 .codexSubscriptionSearchOptions{margin-top:10px;font-size:12px}
-.codexSubscriptionPickerModels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 16px}
-.codexSubscriptionPickerModel{display:flex;align-items:center;gap:8px;min-height:28px;font-size:12px;line-height:18px;cursor:pointer}
-.codexSubscriptionPickerModel span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.codexSubscriptionPickerModel input{flex:none;margin:0}
+.codexSubscriptionDivider+.codexSubscriptionDivider{display:none}
+.codexSubscriptionPickerModels{display:flex;flex-direction:column;max-height:224px;overflow:auto;border-top:1px solid var(--dsw-alias-border-l2)}
+.codexSubscriptionPickerModel{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:36px;border-bottom:1px solid var(--dsw-alias-border-l2);font-size:13px}
+.codexSubscriptionPickerModel:last-child{border-bottom:0}
 .codexSubscriptionSearchOptions>summary{cursor:pointer;color:var(--dsw-alias-label-primary);padding:6px 0}
 .codexSubscriptionSearchOptions>summary>span{float:right;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionSearchOptions[open]>summary{margin-bottom:8px}
