@@ -217,7 +217,7 @@ test('public readmes provide explicit update commands and verification', () => {
   assert.match(readmeZh, /dsh plugin --profile web add dsh-codex-subscription/u)
   assert.match(readmeEn, /dsh plugin --profile web add dsh-codex-subscription/u)
   for (const readme of [readmeZh, readmeEn]) {
-    assert.match(readme, /```text\s+dsh-codex-subscription\s+```/u)
+    assert.match(readme, /```text\s+dsh-codex-subscription@\d+\.\d+\.\d+\s+```/u)
     assert.doesNotMatch(readme, /npx -y @deepseek-ai/u)
   }
   assert.doesNotMatch(readmeZh, /^## \d+\.\d+\.\d+ 重点变化$/mu)
@@ -418,4 +418,11 @@ test('beta publishing stays a prerelease and never replaces npm latest or stable
   assert.match(workflow, /IS_PRERELEASE[\s\S]*dsh-codex-subscription\.tgz/u)
   assert.match(workflow, /IS_PRERELEASE[\s\S]*cp dsh-codex\.ps1/u)
   assert.match(workflow, /IS_PRERELEASE[\s\S]*--latest/u)
+})
+
+test('the README install step names the exact released version, so a new release installs on its first day', () => {
+  for (const [label, readme] of [['zh', text('README.md')], ['en', text('README.en.md')]]) {
+    const pinned = readme.match(/```text\s+dsh-codex-subscription@([\d.]+)\s+```/u)?.[1]
+    assert.equal(pinned, manifest.version, `${label} README install step must pin ${manifest.version}`)
+  }
 })

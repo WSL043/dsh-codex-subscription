@@ -101,16 +101,16 @@
 ### 在插件页面安装（推荐）
 
 1. 打开 DSH 的 **插件 → 添加插件**。
-2. 在 **包名或地址** 输入框中粘贴下面的包名：
+2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
 
    ```text
-   dsh-codex-subscription
+   dsh-codex-subscription@2.2.10
    ```
 
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
 4. 打开 **设置 → Codex 订阅**，登录 ChatGPT，然后在会话中选择 Codex 模型。
 
-默认安装最新正式版。指定版本时填 `dsh-codex-subscription@版本号`，版本号见[发布页](https://github.com/WSL043/dsh-codex-subscription/releases)。
+为什么要带版本号：DSH 的插件页只会安装发布满 24 小时的版本，只填包名时，新版本发布后的第一天可能装到更早的旧版，而旧版不一定兼容你的 DSH。带上版本号可以直接装到这一版；发布一天后只填 `dsh-codex-subscription` 也会装到最新正式版。其他版本号见[发布页](https://github.com/WSL043/dsh-codex-subscription/releases)。
 
 <details>
 <summary>终端安装（已能运行 dsh 命令）</summary>

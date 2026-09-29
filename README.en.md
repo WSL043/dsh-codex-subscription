@@ -101,16 +101,16 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 ### Install from the Plugins page (recommended)
 
 1. Open **Plugins → Add plugin** in DSH.
-2. Paste this package name into the **Package name or address** field:
+2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription
+   dsh-codex-subscription@2.2.10
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
 4. Open **Settings → Codex**, sign in to ChatGPT, then select a Codex model in your conversation.
 
-The package name installs the latest stable release. For a specific version, enter `dsh-codex-subscription@version`; find version numbers on the [releases page](https://github.com/WSL043/dsh-codex-subscription/releases).
+Why the version is included: DSH's plugin page only installs versions that are at least 24 hours old, so the bare package name can install an older release during the first day after a new one, and that older release may not support your DSH. With the version you get exactly this release; a day after release the bare `dsh-codex-subscription` also resolves to the latest stable release. Other version numbers are on the [releases page](https://github.com/WSL043/dsh-codex-subscription/releases).
 
 <details>
 <summary>Terminal installation (with an existing dsh command)</summary>
