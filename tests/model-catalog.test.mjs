@@ -202,7 +202,7 @@ test('official model catalog filters hidden entries and preserves advertised cap
     id: 'gpt-next', name: 'GPT Next', description: 'Current account model', priority: 10,
     input: ['text', 'image'], contextWindow: 400_000, reasoning: true,
     thinkingLevelMap: { off: null, minimal: null, low: 'low', medium: null, high: null, xhigh: null, max: 'max' },
-    supportVerbosity: true, defaultVerbosity: 'medium', supportsFast: true,
+    supportVerbosity: true, defaultVerbosity: 'medium', supportsFast: true, supportsUltrafast: false,
   })
 })
 
@@ -488,4 +488,21 @@ test('an unchanged catalog drops a retirement notice once its date has passed', 
   assert.equal(catalog.metadata('gpt-5.5').retirement, undefined)
   assert.equal(notices, 2)
   assert.equal(catalog.revision(), revision + 1)
+})
+
+test('Ultrafast is offered only for models whose account catalog lists it, and is not reported as unsupported', () => {
+  const models = parseOfficialModelCatalog({ models: [
+    remote({ slug: 'gpt-6-astra', service_tiers: [
+      { id: 'priority', name: 'Fast', description: '' }, { id: 'ultrafast', name: 'Ultrafast', description: '' },
+    ] }),
+    remote({ slug: 'gpt-6-luna' }),
+    remote({ slug: 'gpt-6-sol', service_tiers: [{ id: 'priority', name: 'Fast', description: '' }, { id: 'turbo', name: 'Turbo', description: '' }] }),
+  ] })
+  const byId = Object.fromEntries(models.map(model => [model.id, model]))
+  assert.equal(byId['gpt-6-astra'].supportsUltrafast, true)
+  assert.equal(byId['gpt-6-astra'].supportsFast, true)
+  assert.equal(byId['gpt-6-astra'].unsupported?.speeds, undefined)
+  assert.equal(byId['gpt-6-luna'].supportsUltrafast, false)
+  assert.equal(byId['gpt-6-sol'].supportsUltrafast, false)
+  assert.deepEqual(byId['gpt-6-sol'].unsupported.speeds, ['turbo'])
 })

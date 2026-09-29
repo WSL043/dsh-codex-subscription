@@ -10,12 +10,14 @@ import {
   normalizeInputImageDetail,
   OUTPUT_VERBOSITY_DEFAULT,
   SPEED_MODE_FAST,
+  SPEED_MODE_ULTRAFAST,
   supportsCodexFastMode,
   modelContextMaximum,
   clampModelContext,
 } from './settings-contract.js'
 
 const FAST_SERVICE_TIER = 'priority'
+const ULTRAFAST_SERVICE_TIER = 'ultrafast'
 
 export { createModels } from '@earendil-works/pi-ai'
 export { createOpenAICodexProvider as openaiCodexProvider }
@@ -86,19 +88,25 @@ export function openaiCodexSubscriptionProvider({
         ? metadata?.defaultVerbosity ?? 'medium'
         : requestedVerbosity
       : undefined
-    const fast = resolveSpeedMode() === SPEED_MODE_FAST
-      && (metadata?.supportsFast ?? supportsCodexFastMode(model?.id))
+    // A tier is sent only when the account catalog advertises it for this model;
+    // otherwise the request stays on the standard tier.
+    const speedMode = resolveSpeedMode()
+    const serviceTier = speedMode === SPEED_MODE_ULTRAFAST && metadata?.supportsUltrafast === true
+      ? ULTRAFAST_SERVICE_TIER
+      : speedMode === SPEED_MODE_FAST && (metadata?.supportsFast ?? supportsCodexFastMode(model?.id))
+        ? FAST_SERVICE_TIER
+        : undefined
     const inputImageDetail = normalizeInputImageDetail(resolveInputImageDetail())
     const onPayload = options.onPayload
     return {
       ...options,
       ...(textVerbosity === undefined ? {} : { textVerbosity }),
-      ...(fast ? { serviceTier: FAST_SERVICE_TIER } : {}),
+      ...(serviceTier === undefined ? {} : { serviceTier }),
       async onPayload(payload, requestModel) {
         const preferred = {
           ...payload,
           ...(textVerbosity === undefined ? {} : { text: { ...(payload.text ?? {}), verbosity: textVerbosity } }),
-          ...(fast ? { service_tier: FAST_SERVICE_TIER } : {}),
+          ...(serviceTier === undefined ? {} : { service_tier: serviceTier }),
         }
         const managed = compaction?.preparePayload(preferred, model?.contextWindow) ?? preferred
         const next = await onPayload?.(managed, requestModel)
@@ -108,7 +116,7 @@ export function openaiCodexSubscriptionProvider({
         return {
           ...detailed,
           ...(textVerbosity === undefined ? {} : { text: { ...(detailed.text ?? {}), verbosity: textVerbosity } }),
-          ...(fast ? { service_tier: FAST_SERVICE_TIER } : {}),
+          ...(serviceTier === undefined ? {} : { service_tier: serviceTier }),
         }
       },
     }
