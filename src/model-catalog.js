@@ -64,6 +64,11 @@ function reasoningMap(levels) {
 const capabilityNames = values => [...new Set(values.filter(value =>
   typeof value === 'string' && /^[a-z][a-z0-9_-]{0,31}$/u.test(value)))].sort().slice(0, 16)
 
+const speedTierIds = value => [
+  ...(Array.isArray(value.additional_speed_tiers) ? value.additional_speed_tiers : []),
+  ...(Array.isArray(value.service_tiers) ? value.service_tiers.map(tier => tier?.id) : []),
+]
+
 function unsupportedCapabilities(value) {
   const reasoning = capabilityNames((value.supported_reasoning_levels ?? []).map(item => item?.effort))
     .filter(level => !['none', ...LEVELS.slice(1)].includes(level))
@@ -72,7 +77,7 @@ function unsupportedCapabilities(value) {
   const speeds = capabilityNames([
     ...(Array.isArray(value.additional_speed_tiers) ? value.additional_speed_tiers : []),
     ...(Array.isArray(value.service_tiers) ? value.service_tiers.map(tier => tier?.id) : []),
-  ]).filter(tier => !['auto', 'default', 'standard', 'fast', 'priority'].includes(tier))
+  ]).filter(tier => !['auto', 'default', 'standard', 'fast', 'priority', 'ultrafast'].includes(tier))
   return {
     ...(reasoning.length ? { reasoning } : {}),
     ...(inputs.length ? { inputs } : {}),
@@ -112,9 +117,9 @@ function visibleModel(value, displayNames, now) {
     thinkingLevelMap: reasoningMap(supported),
     supportVerbosity: value.support_verbosity === true,
     defaultVerbosity: ['low', 'medium', 'high'].includes(value.default_verbosity) ? value.default_verbosity : undefined,
-    supportsFast: [...(Array.isArray(value.additional_speed_tiers) ? value.additional_speed_tiers : []),
-      ...(Array.isArray(value.service_tiers) ? value.service_tiers.map(tier => tier?.id) : [])]
-      .some(tier => tier === 'fast' || tier === 'priority'),
+    supportsFast: speedTierIds(value).some(tier => tier === 'fast' || tier === 'priority'),
+    // Only offered when this account's catalog lists it for the model (Pro 500 today).
+    supportsUltrafast: speedTierIds(value).includes('ultrafast'),
   }
 }
 

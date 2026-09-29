@@ -201,6 +201,7 @@ export function apply(ctx, config = {}) {
         availableModels: models.map(({ id, name }) => ({ id, name })),
         catalogStatus: modelCatalog.status(),
         verbosityModels: provider.getModels().filter(model => modelCatalog.metadata(model.id)?.supportVerbosity ?? model.id !== 'gpt-5.3-codex-spark').map(model => model.id),
+        ultrafastModels: provider.getModels().filter(model => modelCatalog.metadata(model.id)?.supportsUltrafast === true).map(model => model.id),
         fastModels: provider.getModels().filter(model => modelCatalog.metadata(model.id)?.supportsFast ?? supportsCodexFastMode(model.id)).map(model => model.id),
         writable: ctx.settings.writable,
       }

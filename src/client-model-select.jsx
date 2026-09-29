@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { BoltIcon } from '@heroicons/react/16/solid'
 import { IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14 } from './client-primitives.js'
-import { OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, SPEED_MODE_FAST, SPEED_MODE_FIELD, SPEED_MODE_STANDARD, supportsCodexFastMode } from './settings-contract.js'
+import { OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, SPEED_MODE_FAST, SPEED_MODE_FIELD, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST, supportsCodexFastMode } from './settings-contract.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
 export function CodexModelSelect({ locked, available, directory, load, select, preference, t }) {
   const state = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
@@ -47,7 +47,10 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
   const modelLabel = currentChoice?.model.name ?? t('selectModel')
   const speedSupported = state.current?.provider === 'openai-codex' && (preferenceSnapshot.fastModels?.includes(state.current?.model) ?? supportsCodexFastMode(state.current?.model))
   const speedWritable = preferenceSnapshot.status === 'ready' && preferenceSnapshot.writable === true
-  const fast = speedSupported && preferenceSnapshot.speedMode === SPEED_MODE_FAST
+  const ultrafastSupported = state.current?.provider === 'openai-codex' && (preferenceSnapshot.ultrafastModels ?? []).includes(state.current?.model)
+  const ultrafast = ultrafastSupported && preferenceSnapshot.speedMode === SPEED_MODE_ULTRAFAST
+  const fast = ultrafast || (speedSupported && preferenceSnapshot.speedMode === SPEED_MODE_FAST)
+  const speedKey = ultrafast ? 'speedUltrafast' : fast ? 'speedFast' : 'speedStandard'
   const verbositySupported = state.current?.provider === 'openai-codex' && preferenceSnapshot.verbosityModels.includes(state.current?.model)
   const verbosityWritable = preferenceSnapshot.status === 'ready' && preferenceSnapshot.writable === true
   const verbosityItems = [
@@ -174,7 +177,8 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
   } else if (pane === 'speed') {
     submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('speedTitle')}>
       {option({ key: SPEED_MODE_STANDARD, label: t('speedStandard'), description: t('speedStandardHint'), selected: !fast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_STANDARD) })}
-      {option({ key: SPEED_MODE_FAST, label: t('speedFast'), description: t(state.current?.model === 'gpt-6-astra' ? 'speedFastAstraHint' : 'speedFastHint'), selected: fast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_FAST) })}
+      {speedSupported && option({ key: SPEED_MODE_FAST, label: t('speedFast'), description: t(state.current?.model === 'gpt-6-astra' ? 'speedFastAstraHint' : 'speedFastHint'), selected: fast && !ultrafast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_FAST) })}
+      {ultrafastSupported && option({ key: SPEED_MODE_ULTRAFAST, label: t('speedUltrafast'), description: t('speedUltrafastHint'), selected: ultrafast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_ULTRAFAST) })}
     </div>
   } else if (pane === 'verbosity') {
     submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('verbosityTitle')}>
@@ -208,7 +212,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     {open ? <div className="codexModelSelectMenu" id={`${id}-menu`} role="menu" aria-label={t('modelMenuAria')} aria-busy={state.status === 'loading' || busy}>
       {cell('model', t('modelLabel'), modelLabel)}
       {reasoning === undefined ? null : cell('effort', t('effortLabel'), effortLabel)}
-      {speedSupported && cell('speed', t('speedTitle'), t(fast ? 'speedFast' : 'speedStandard'))}
+      {(speedSupported || ultrafastSupported) && cell('speed', t('speedTitle'), t(speedKey))}
       {verbositySupported && cell('verbosity', t('verbosityTitle'), verbosityLabel)}
       {submenu}
     </div> : null}

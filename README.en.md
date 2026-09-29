@@ -16,11 +16,20 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Features](#feature-overview) · [Install](#install) · [Daily use](#inside-the-plugin) · [Examples](#from-sketch-to-image) · [User guide](docs/GUIDE.en.md) · [Update and uninstall](#update-and-uninstall)
+[What's new](#whats-new-in-230) · [Features](#feature-overview) · [Install](#install) · [Daily use](#inside-the-plugin) · [Examples](#from-sketch-to-image) · [User guide](docs/GUIDE.en.md) · [Update and uninstall](#update-and-uninstall)
 
 </div>
 
 <p align="center"><img src="docs/assets/product-account-demo-en.png" width="1100" alt="Codex subscription account and quota interface with model choices, quota windows and alerts; demonstration data"></p>
+
+## What's new in 2.3.0
+
+- **The official desktop app works.** The official DeepSeek Harness desktop app (0.2.0-rc.2) passed a hands-on acceptance run: plugin install, sign-in, model list, hiding models, a chat with a tool call, and image generation. See [Install](#install).
+- **Models come only from your account.** The model list is read entirely from the account catalog; before sign-in or when the read fails no model is shown, and there is no built-in fallback. Under Models & runtime you can show or hide each model in the composer.
+- **Settings reorganised.** Models and search are separate cards, switches use DSH's own control, and dead buttons no longer appear while signed out.
+- **Ultrafast speed tier (Beta).** The new tier from OpenAI's developer event. It appears in the model menu only when your account catalog lists it for that model (today Pro 500 with GPT-6 Astra); other accounts never see it and it is never silently swapped for another tier. It is Beta because it has not been run on a Pro 500 account yet.
+- **Shorter support diagnostics.** "Copy report" now copies the conclusions, recent failures and per-feature status (about 1 KB); the full report can still be copied separately from the details.
+- **Subtasks and stability.** Codex subtasks now really take effect on 0.2.0 and no longer expose the apps connected to your account; image generation being rejected by the host on the desktop app is fixed (2.2.11).
 
 ## Feature overview
 
@@ -34,7 +43,7 @@ Subscription access, model controls, quota management, and image creation in one
 | **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh; models marked for retirement show their retirement date next to the model name, without automatically switching your selection | New models appear when your account offers them; the account catalog is the only source, so signed out or when it cannot be read no models are shown and no bundled list stands in |
 | **Model list** | Show or hide individual models in the composer picker under Models & runtime | Display only; selected models and requests still work |
 | **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
-| **Fast mode** | Switch supported models between Standard and Fast, with a lightning indicator | Standard by default; Fast increases usage |
+| **Speed tiers** | Switch supported models between Standard and Fast; Ultrafast (Beta) too when the account catalog offers it, with a lightning indicator | Standard by default; Fast and Ultrafast increase usage, and Ultrafast is Pro 500 only today |
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
 | **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
 | **Subscription web search** | Use Codex search or choose DSH search | Auto, DSH, and Codex routing options |
@@ -81,7 +90,7 @@ Subscription access, model controls, quota management, and image creation in one
 | **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
 | **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
 | **WebSocket transport** | Experimentally reuse connections and context transfers, with SSE fallback on connection failure | Beta / experimental; SSE by default, no speed guarantee |
-| **Support diagnostics** | Inspect prerequisites, recent operation results and host registrations without credentials or conversation text | Settings → Maintenance; unverified does not mean broken |
+| **Support diagnostics** | Inspect prerequisites and recent operation results, and copy a short report (about 1 KB; the full one can be copied separately) without credentials or conversation text | Settings → Maintenance; unverified does not mean broken |
 | **Forecast cache cleanup** | Inspect and clear local quota forecast history | Keeps sign-in, drafts, originals, and shared dependencies |
 
 [Usage details, limitations, and optional components →](docs/GUIDE.en.md)
@@ -104,7 +113,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@2.2.11
+   dsh-codex-subscription@2.3.0
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -139,7 +148,7 @@ dsh --profile headless "Reply with only the word: ok"
 
 ### Everyday controls, right in the composer
 
-Choose a model, adjust reasoning, enable Fast mode, and check remaining quota without opening settings for every request.
+Choose a model, adjust reasoning, switch speed tiers, and check remaining quota without opening settings for every request.
 
 <p align="center"><img src="docs/assets/composer-quota-en.png" width="800" alt="DSH composer with GPT-6-Luna, reasoning controls and remaining quota"></p>
 

@@ -422,3 +422,48 @@ test('context presets preserve catalog defaults and cap every supported model in
   perModel.set('gpt-5.5', 200_000)
   assert.equal(contexts()['gpt-5.5'], 200_000)
 })
+
+test('the Ultrafast tier reaches the wire only for a model the account catalog lists it for', async () => {
+  const previousFetch = globalThis.fetch
+  const wires = []
+  globalThis.fetch = async (_input, init) => {
+    wires.push(JSON.parse(zstdDecompressSync(Buffer.from(init.body)).toString('utf8')))
+    return new Response(sse([
+      { type: 'response.created', response: { id: `resp_u${wires.length}` } },
+      { type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: `msg_u${wires.length}`, role: 'assistant', content: [] } },
+      { type: 'response.output_text.delta', output_index: 0, content_index: 0, delta: 'ok' },
+      { type: 'response.output_item.done', output_index: 0, item: { type: 'message', id: `msg_u${wires.length}`, role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'ok', annotations: [] }] } },
+      { type: 'response.done', response: { id: `resp_u${wires.length}`, status: 'completed', output: [], usage: { input_tokens: 2, output_tokens: 1, total_tokens: 3 } } },
+    ]), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+  }
+  try {
+    let speedMode = 'ultrafast'
+    const metadata = { 'gpt-6-astra': { supportsFast: true, supportsUltrafast: true }, 'gpt-6-sol': { supportsFast: true, supportsUltrafast: false } }
+    const base = openaiCodexProvider().getModels()[0]
+    const catalog = {
+      getModels: () => Object.keys(metadata).map(id => ({ ...base, id, name: id })),
+      metadata: id => metadata[id],
+    }
+    const provider = openaiCodexSubscriptionProvider({ catalog, resolveSpeedMode: () => speedMode })
+    const profiles = new Map([['openai-codex', {
+      provider: 'openai-codex', displayName: 'ChatGPT subscription', piProvider: provider,
+      configuredMaxTokens: new Map(), modelErrors: new Map(), transport: 'sse', streamIdleTimeoutMs: 10_000,
+    }]])
+    const adapter = new PiAiAdapter({ profiles: () => profiles, resolveApiKey: async () => jwt('account-ultra') })
+    const run = async modelId => {
+      for await (const chunk of adapter.stream({
+        provider: 'openai-codex', model: modelId,
+        messages: [{ role: 'user', content: [{ type: 'text', text: 'hello' }] }], sessionId: `session-u-${modelId}`,
+      })) void chunk
+    }
+    await run('gpt-6-astra')
+    await run('gpt-6-sol')
+    speedMode = 'fast'
+    await run('gpt-6-astra')
+    assert.equal(wires[0].service_tier, 'ultrafast')
+    assert.equal('service_tier' in wires[1], false, 'a model without the tier stays standard, never downgraded to another tier')
+    assert.equal(wires[2].service_tier, 'priority')
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})

@@ -3,6 +3,7 @@ import { Button } from './client-primitives.js'
 import { SUPPORT_ISSUE_URL } from './client-shared.js'
 import { recoveryCall, clientDiagnostic } from './client-recovery.js'
 import { diagnosticSummary } from './diagnostic-summary.js'
+import { compactDiagnostic } from './diagnostic-compact.js'
 export function DiagnosticsCard({ rpc, t, diagnostics }) {
   const [report, setReport] = useState()
   const [busy, setBusy] = useState(false)
@@ -18,15 +19,15 @@ export function DiagnosticsCard({ rpc, t, diagnostics }) {
       setReport({ ...combined, summary: diagnosticSummary(combined) })
     }).finally(() => setBusy(false))
   }
-  const copy = () => {
+  const copy = (full = false) => {
     if (report === undefined) return
     setCopyError(false)
-    void Promise.resolve().then(() => navigator.clipboard.writeText(JSON.stringify(report, null, 2))).then(() => setCopied(true)).catch(() => setCopyError(true))
+    void Promise.resolve().then(() => navigator.clipboard.writeText(JSON.stringify(full ? report : compactDiagnostic(report), null, 2))).then(() => setCopied(true)).catch(() => setCopyError(true))
   }
   return <div className="codexSubscriptionCard codexSubscriptionDiagnostics">
     <div className="codexSubscriptionSectionHead">
       <div className="codexSubscriptionSectionTitle"><h3>{t('diagnostics')}</h3><p className="codexSubscriptionHelp">{t('diagnosticsHint')}</p></div>
-      <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{busy ? t('diagnosticsLoading') : t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={copy}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}<a className="codexSubscriptionLink" href={SUPPORT_ISSUE_URL} target="_blank" rel="noreferrer">{t('feedbackOpen')}</a></div>
+      <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{busy ? t('diagnosticsLoading') : t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={() => copy()}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}<a className="codexSubscriptionLink" href={SUPPORT_ISSUE_URL} target="_blank" rel="noreferrer">{t('feedbackOpen')}</a></div>
     </div>
     {report === undefined ? null : <>
       <p className="codexSubscriptionHelp">{t('diagnosticsCoverageHint')}</p>
@@ -45,7 +46,7 @@ export function DiagnosticsCard({ rpc, t, diagnostics }) {
         </tr>)}</tbody>
       </table>
       <p className="codexSubscriptionHelp">{report.client?.topology?.length ? t('diagnosticsHostCollected') : t('diagnosticsHostUnknown')}</p>
-      <details><summary>{t('diagnosticsDetails')}</summary><pre>{JSON.stringify(report, null, 2)}</pre></details>
+      <details><summary>{t('diagnosticsDetails')}</summary><Button type="button" variant="outline" onClick={() => copy(true)}>{t('diagnosticsCopyFull')}</Button><pre>{JSON.stringify(report, null, 2)}</pre></details>
     </>}
     {error ? <p className="codexSubscriptionError" role="alert">{t('diagnosticsFailed')}</p> : null}
     {copyError ? <p className="codexSubscriptionError" role="alert">{t('diagnosticsCopyFailed')}</p> : null}

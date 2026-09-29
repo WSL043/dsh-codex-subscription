@@ -47,3 +47,17 @@ Real ChatGPT account, isolated data directory, plugin installed as `dsh-codex-su
 | Chat with `GPT-5.6-Luna`: shell tool call then answer | pass |
 
 Not checked on the desktop build: WebSocket, cloud compaction, Codex subtasks, images and sketch (covered on the 0.2.0-rc.2 web host and by tests).
+
+## 2.3.0 candidate on the official desktop app (2026-09-30)
+
+The packed 2.3.0 candidate (installed from a local folder) on the official Windows desktop app, real ChatGPT account, isolated data directory.
+
+| Check | Result |
+| --- | --- |
+| Plugin loads, sign-in, account and quota | pass |
+| Models and search are separate cards; catalog status, 9 of 9 models listed | pass |
+| Speed menu on GPT-6-Astra shows Standard and Fast only, no Ultrafast (this account's catalog has none) | pass, as designed |
+| Chat plus image generation on GPT-6-Astra with Fast selected: 17+25 answered, 1254x1254 image generated, turn completed | pass |
+| The short diagnostics report is produced; the full JSON is still in the details | pass |
+| Ultrafast on the wire, and its menu entry | not run: no Pro 500 account; covered by catalog and transport tests only, so it is Beta |
+| The `ultra` reasoning level advertised for several models | not adapted: DSH has no such level; documented in the guide |
