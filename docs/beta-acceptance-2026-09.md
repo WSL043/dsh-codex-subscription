@@ -50,6 +50,16 @@ All three options were turned on.
 
 Not covered: undo and layer edits after Agent drawing, stopping a drawing halfway, aspect ratios other than 1:1, very large canvases, whether the returned preview itself was what the model looked at (the answer could also come from its own drawing commands).
 
+## Image 2.5 Flare and Sunburst (experimental)
+
+| Check | Result |
+| --- | --- |
+| Flare: "green apple" returns an image, recorded as requested model `gpt-image-2.5-flare`, 1254 x 1254 | pass |
+| Sunburst: "yellow banana" returns an image, recorded as `gpt-image-2.5-sunburst`, size auto gives 1536 x 1024 | pass |
+| Server never reports the image model actually used, so the requested name is the only evidence | unchanged |
+
+They stay labelled experimental: only one prompt each, and there is no way to confirm the server really used the 2.5 models.
+
 ## Decision
 
 All of them keep their Beta label. Each has a passing happy path, but the failure paths (fallback, cancel, permission inheritance) have no live evidence yet, and compaction can drop content the user considers unimportant.
