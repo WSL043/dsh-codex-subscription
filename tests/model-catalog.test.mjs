@@ -451,3 +451,40 @@ test('the real HTTP catalog shape nests an ISO retirement date under upgrade', (
   assert.equal(models.find(model => model.id === 'bad-date').retirement, undefined)
   assert.equal(models.find(model => model.id === 'numeric-string').retirement, undefined)
 })
+
+test('an unchanged catalog drops a retirement notice once its date has passed', async () => {
+  let now = Date.UTC(2026, 9, 1)
+  let status = 200
+  let notices = 0
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => base,
+    now: () => now,
+    getAuth: async () => ({ auth: { apiKey: 'test-token' } }),
+    readCredential: async () => ({ type: 'oauth', access: 'test-token', accountId: 'test-account' }),
+    onUpdated: () => notices++,
+    fetch: async () => status === 304
+      ? new Response(null, { status: 304 })
+      : Response.json({ models: [remote({
+        slug: 'gpt-5.5', display_name: 'GPT-5.5',
+        upgrade: { model: 'gpt-5.6-sol', retirement_at: '2026-10-14T19:00:00Z' },
+      })] }, { headers: { etag: 'rev-1' } }),
+  })
+  await catalog.refresh()
+  assert.equal(catalog.getModels([])[0].name, 'GPT-5.5 (retires 2026-10-14)')
+  assert.equal(notices, 1)
+
+  status = 304
+  await catalog.refresh()
+  assert.equal(catalog.getModels([])[0].name, 'GPT-5.5 (retires 2026-10-14)')
+  assert.equal(notices, 1)
+
+  now = Date.UTC(2026, 9, 15)
+  const revision = catalog.revision()
+  await catalog.refresh()
+  const [model] = catalog.getModels([])
+  assert.equal(model.name, 'GPT-5.5')
+  assert.equal(model.id, 'gpt-5.5')
+  assert.equal(catalog.metadata('gpt-5.5').retirement, undefined)
+  assert.equal(notices, 2)
+  assert.equal(catalog.revision(), revision + 1)
+})

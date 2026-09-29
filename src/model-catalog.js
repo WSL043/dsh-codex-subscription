@@ -166,6 +166,7 @@ export function createOfficialModelCatalog(options = {}) {
   let models
   let metadata = new Map()
   let etag
+  let rawCatalog
   let revision = 0
   let refreshing
   let generation = 0
@@ -203,10 +204,20 @@ export function createOfficialModelCatalog(options = {}) {
       if (currentGeneration !== generation || requestSignal.aborted) return false
       if (response.status === 304) {
         outcome = 'ok'
-        return false
+        // An unchanged catalog can still have crossed a retirement date since it was parsed.
+        if (rawCatalog === undefined) return false
+        const remote = parseOfficialModelCatalog(rawCatalog, getNow())
+        const next = remote.map(model => mergeModel(options.baseModels(), model)).filter(Boolean)
+        if (next.length === 0 || JSON.stringify(next) === JSON.stringify(models)) return false
+        models = next
+        metadata = new Map(remote.map(model => [model.id, model]))
+        revision += 1
+        options.onUpdated?.()
+        return true
       }
       if (!response.ok) throw new Error(`Codex model catalog failed (HTTP ${response.status})`)
-      const remote = parseOfficialModelCatalog(await response.json(), getNow())
+      const raw = await response.json()
+      const remote = parseOfficialModelCatalog(raw, getNow())
       if (currentGeneration !== generation || requestSignal.aborted) return false
       if (remote.length === 0) throw new Error('Codex returned an empty model catalog')
       const baseModels = options.baseModels()
@@ -214,6 +225,7 @@ export function createOfficialModelCatalog(options = {}) {
       if (next.length === 0) throw new Error('Codex model catalog has no compatible models')
       if (currentGeneration !== generation || requestSignal.aborted) return false
       models = next
+      rawCatalog = raw
       metadata = new Map(remote.map(model => [model.id, model]))
       etag = nonEmpty(response.headers.get('etag')) ?? etag
       revision += 1
@@ -263,6 +275,7 @@ export function createOfficialModelCatalog(options = {}) {
       refreshing = undefined
       flight?.cancel()
       models = undefined
+      rawCatalog = undefined
       metadata = new Map()
       etag = undefined
       refreshStatus = 'idle'
