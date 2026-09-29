@@ -20,6 +20,12 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
       ...(model.reasoning?.defaultEffort === undefined ? {} : { reasoningEffort: model.reasoning.defaultEffort }),
     },
   }))), [state.groups])
+  const visibleGroups = useMemo(() => {
+    const hidden = new Set(preferenceSnapshot.disabledModels)
+    return state.groups.map(group => group.id === 'openai-codex'
+      ? { ...group, models: group.models.filter(model => !hidden.has(model.id)) }
+      : group).filter(group => group.models.length > 0)
+  }, [state.groups, preferenceSnapshot.disabledModels])
   const currentChoice = choices.find(choice => choice.selection.provider === state.current?.provider && choice.selection.model === state.current?.model)
   const reasoning = currentChoice?.model.reasoning
   const effectiveEffort = state.current?.reasoningEffort ?? reasoning?.defaultEffort
@@ -139,7 +145,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
       {state.status === 'loading' ? <div className="codexModelSelectStatus">{t('modelsLoading')}</div> : null}
       {state.error === null ? null : <div className="codexModelSelectError"><span>{fill(t('modelFailed'), { value: state.error })}</span><button className="codexModelSelectRetry" type="button" onClick={load}>{t('modelRetry')}</button></div>}
       {state.failures.map(failure => <div className="codexModelSelectWarning" key={failure.id}>{fill(t('groupFailed'), { name: failure.name, value: failure.message })}</div>)}
-      <div className="codexModelSelectGroups scrollable">{state.groups.map(group => <section className="codexModelSelectGroup" role="group" aria-labelledby={`${id}-${group.id}`} key={group.id}>
+      <div className="codexModelSelectGroups scrollable">{visibleGroups.map(group => <section className="codexModelSelectGroup" role="group" aria-labelledby={`${id}-${group.id}`} key={group.id}>
         <div className="codexModelSelectGroupTitle" id={`${id}-${group.id}`}>{group.name}</div>
         {group.models.map(model => option({
           key: model.id,
@@ -150,7 +156,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
           onClick: () => chooseModel({ provider: group.id, model: model.id }),
         }))}
       </section>)}</div>
-      {state.status === 'ready' && choices.length === 0 ? <div className="codexModelSelectEmpty">{t('modelsEmpty')}</div> : null}
+      {state.status === 'ready' && visibleGroups.length === 0 ? <div className="codexModelSelectEmpty">{t(choices.length === 0 ? 'modelsEmpty' : 'modelsHidden')}</div> : null}
     </div>
   } else if (pane === 'effort') {
     submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('effortLabel')}>
@@ -206,4 +212,3 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     </div> : null}
   </div>
 }
-
