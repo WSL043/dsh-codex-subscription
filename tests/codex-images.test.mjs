@@ -159,6 +159,7 @@ test('generated and edited images expose a readable host path in model-visible c
       assert.match(content[0].text, /DSH host/u)
       assert.equal(content[1].type, 'image')
       assert.ok(JSON.stringify(deferred).includes('Original PNG saved'))
+      assert.deepEqual(deferred.map(message => message.source), [{ kind: 'codex-subscription-image' }])
       assert.equal('localPath' in tool.output.presentationMeta(args, value), false)
     }
   } finally {
