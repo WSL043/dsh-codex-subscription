@@ -259,16 +259,17 @@ export function createOfficialModelCatalog(options = {}) {
 
   return Object.freeze({
     refresh,
-    // Spark's research preview retired on 2026-09-14. A bundled offline list
-    // must not resurrect it; a successful official catalog remains authoritative.
-    getModels: fallback => models ?? fallback.filter(model => model.id !== 'gpt-5.3-codex-spark'),
+    // The account's catalog is the only list. Signed out, or before the first
+    // successful read, there are no models: without the account or the network
+    // no request could succeed, so a bundled list would only mislead.
+    getModels: () => models ?? [],
     metadata: modelId => metadata.get(modelId),
     revision: () => revision,
     capabilityGaps: () => [...metadata.values()]
       .filter(model => model.unsupported && /^[a-z][a-z0-9._-]{0,79}$/u.test(model.id))
       .slice(0, 20)
       .map(model => ({ model: model.id, ...structuredClone(model.unsupported) })),
-    status: () => ({ source: models === undefined ? 'fallback' : 'online', refresh: refreshStatus }),
+    status: () => ({ source: models === undefined ? 'unavailable' : 'online', refresh: refreshStatus }),
     clear() {
       generation += 1
       const flight = refreshing

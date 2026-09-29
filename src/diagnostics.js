@@ -111,7 +111,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     ...(collected.operations ? { operations: collected.operations } : {}),
     ...(collected.websocket ? { websocket: collected.websocket } : {}),
     ...(collected.compaction ? { compaction: collected.compaction } : {}),
-    ...(catalog && ['fallback', 'online'].includes(catalog.source)
+    ...(catalog && ['unavailable', 'online'].includes(catalog.source)
       && ['idle', 'refreshing', 'ok', 'failed'].includes(catalog.refresh)
       ? { catalog: { source: catalog.source, refresh: catalog.refresh, ...(gaps.length ? { unsupported: gaps } : {}) } } : {}),
     configuration: {

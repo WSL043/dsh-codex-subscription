@@ -23,7 +23,7 @@ export function capabilityCoverage({ account, preference, runtime, catalog, tool
     } else if (id === 'subagents' && runtime) {
       readiness = runtime.installed && !runtime.restartRequired ? 'pass' : 'warn'; reason = runtime.restartRequired ? 'restart-required' : runtime.installed ? 'runtime-present' : 'runtime-missing'
     } else if (id === 'models' && catalog) {
-      readiness = catalog.source === 'online' ? 'pass' : 'warn'; reason = catalog.source === 'online' ? 'catalog-online' : 'catalog-fallback'
+      readiness = catalog.source === 'online' ? 'pass' : 'warn'; reason = catalog.source === 'online' ? 'catalog-online' : 'catalog-unavailable'
     } else if (id === 'storage' && storage?.readable) {
       readiness = 'pass'; reason = 'storage-readable'
     } else if (tools && (id === 'images' || (id === 'sketch' && preference.imageSketchAgent === true))) {

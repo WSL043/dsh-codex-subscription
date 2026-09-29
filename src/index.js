@@ -175,7 +175,7 @@ export function apply(ctx, config = {}) {
   })
   const preferences = {
     status: () => {
-      const models = modelCatalog.getModels(baseProvider.getModels())
+      const models = modelCatalog.getModels()
       return {
         [DISABLED_MODELS_FIELD]: normalizeDisabledModels(settings.get()[DISABLED_MODELS_FIELD]),
         [AUTO_QUOTA_RETRY_FIELD]: normalizeAutoQuotaRetry(settings.get()[AUTO_QUOTA_RETRY_FIELD]),

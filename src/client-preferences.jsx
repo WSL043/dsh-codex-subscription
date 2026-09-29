@@ -133,14 +133,27 @@ export function ContextWindowPreference({ preference, t }) {
     { id: CONTEXT_MODE_CUSTOM, label: t('contextCustom') },
   ]
   const selectedMode = contextModeItems.find(item => item.id === snapshot.contextMode)?.label ?? t('contextStandard')
+  if (snapshot.contextModels.length === 0) return null
   return <div className="codexSubscriptionContext">
     <div className="codexSubscriptionContextHead">
       <div className="codexSubscriptionContextCopy"><span className="codexSubscriptionPreferenceLabel">{t('contextTitle')}</span><span className="codexSubscriptionContextHint">{hint}</span></div>
       <Menu open={menuOpen} items={contextModeItems} selectedId={snapshot.contextMode} onSelect={value => { setMenuOpen(false); void preference.set({ [CONTEXT_MODE_FIELD]: value }) }} onClose={() => setMenuOpen(false)} align="end" side="bottom" portal compact anchor={<button className="codexSubscriptionContextTrigger" type="button" aria-label={t('contextTitle')} aria-haspopup="menu" aria-expanded={menuOpen} disabled={!writable} onClick={() => setMenuOpen(value => !value)}><span>{selectedMode}</span><IconChevronDownOutline14 /></button>} />
     </div>
     {snapshot.contextMode === CONTEXT_MODE_CUSTOM ? <div className="codexSubscriptionContextModels">{modelRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextMaximum'), { minimum: String(Math.min(MIN_CUSTOM_CONTEXT_WINDOW, model.maximum)), value: String(model.maximum) })}</span></span><Input aria-label={`${model.label} ${t('contextTokens')}`} className="codexSubscriptionContextInput" type="number" inputMode="numeric" min={Math.min(MIN_CUSTOM_CONTEXT_WINDOW, model.maximum)} max={model.maximum} step={1} value={drafts[model.key] ?? ''} disabled={!writable} onChange={event => { const nextValue = event.currentTarget.value; setDrafts(current => ({ ...current, [model.key]: nextValue })) }} onBlur={() => commit(model.key)} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /></div>)}{fixedRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextFixed'), { value: formatContextWindow(model.maximum) })}</span></span><span className="codexSubscriptionContextHint">{formatContextWindow(model.maximum)}</span></div>)}</div> : null}
-    <div className="codexSubscriptionPreference"><span className="codexSubscriptionPreferenceHint">{t(snapshot.catalogStatus?.source === 'online' ? 'catalogOnline' : 'catalogFallback')}</span><Button type="button" variant="outline" disabled={snapshot.modelsLoading} aria-busy={snapshot.modelsLoading} onClick={() => { void preference.refreshModels() }}>{t(snapshot.modelsLoading ? 'refreshing' : 'catalogRefresh')}</Button></div>
-    {snapshot.modelError ? <p className="codexSubscriptionError" role="alert">{t('modelDirectoryFailed')}</p> : null}
+  </div>
+}
+
+/** The account catalog is the only model list: say why it is empty, and offer one refresh. */
+export function ModelCatalogStatus({ preference, t }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  const online = snapshot.catalogStatus?.source === 'online'
+  const { refresh: catalogRefresh } = snapshot.catalogStatus ?? {}
+  const failed = snapshot.modelError || catalogRefresh === 'failed'
+  const loading = snapshot.modelsLoading || catalogRefresh === 'refreshing'
+  const message = loading ? 'catalogLoading' : failed && !online ? 'catalogFailed' : online ? 'catalogOnline' : 'catalogSignedOut'
+  return <div className="codexSubscriptionPreference">
+    <span className={failed && !online ? 'codexSubscriptionError' : 'codexSubscriptionPreferenceHint'} role={failed && !online ? 'alert' : undefined}>{t(message)}</span>
+    <Button type="button" variant="outline" disabled={snapshot.modelsLoading} aria-busy={snapshot.modelsLoading} onClick={() => { void preference.refreshModels() }}>{t(snapshot.modelsLoading ? 'refreshing' : 'catalogRefresh')}</Button>
   </div>
 }
 
@@ -148,15 +161,19 @@ export function PreferencesCard({ preference, rpc, t, section = "display" }) {
   const snapshot = usePreferenceSnapshot(preference)
   return <div className={section === 'advanced' ? 'codexSubscriptionAdvancedPreferences' : 'codexSubscriptionCard codexSubscriptionPreferencesCard'}>
     {section === 'advanced' ? <>
-      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('advancedModelSearch')}>
-        <h3>{t('advancedModelSearch')}</h3>
-        <SearchProviderPreference preference={preference} t={t} />
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('modelsSectionTitle')}>
+        <h3>{t('modelsSectionTitle')}</h3>
+        <ModelCatalogStatus preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <PickerModelsPreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <ContextWindowPreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <InputImageDetailPreference preference={preference} t={t} />
+      </section>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('searchSectionTitle')}>
+        <h3>{t('searchSectionTitle')}</h3>
+        <SearchProviderPreference preference={preference} t={t} />
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('connectionTitle')}>
         <div className="codexSubscriptionPreference">
