@@ -60,6 +60,10 @@ Not covered: undo and layer edits after Agent drawing, stopping a drawing halfwa
 
 They stay labelled experimental: only one prompt each, and there is no way to confirm the server really used the 2.5 models.
 
+## Input image detail "original"
+
+With the setting on "original", an attached sketch was accepted by `GPT-5.6-Luna` and answered correctly ("Three"). Other models were not tried, so no per-model gating was added.
+
 ## Decision
 
 All of them keep their Beta label. Each has a passing happy path, but the failure paths (fallback, cancel, permission inheritance) have no live evidence yet, and compaction can drop content the user considers unimportant.
