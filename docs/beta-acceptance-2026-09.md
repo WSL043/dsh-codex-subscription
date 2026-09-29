@@ -1,6 +1,6 @@
 # Beta acceptance, 2026-09-29
 
-Real ChatGPT account, `dsh-codex-subscription` 2.2.6, isolated DSH `0.2.0-rc.1` web host, model `GPT-5.6-Luna`. Results come from the plugin's own diagnostics counters and the visible conversation. No code changed in this round, so there is no release.
+Real ChatGPT account, `dsh-codex-subscription` 2.2.6, isolated DSH `0.2.0-rc.1` web host, model `GPT-5.6-Luna`. Results come from the plugin's own diagnostics counters and the visible conversation. The subtask section found two defects on `0.2.0-rc.1`, fixed in 2.2.7 (below); everything else needed no code change.
 
 ## WebSocket connection (Beta)
 
@@ -29,22 +29,25 @@ Not covered: other models, thresholds other than the default, compaction while a
 
 ## Independent subtasks (Beta)
 
+**Correction.** The first two rounds reported subtasks as passing, but the child was DSH's own agent, not Codex: on `0.2.0-rc.1` the "Codex" choice never took effect. The child listed DSH tools (`pwsh`, `read`, ...) and said it ran inside the DSH harness, and no `codex.exe` process existed. Those earlier results (permission, cancel) therefore described DSH subtasks and are replaced by the table below.
+
+Defects found and fixed in 2.2.7:
+
+- Since 0.2.0 the host mounts Agent preset rows once at boot, before plugins load and in a separate event realm. The plugin's config hook never saw the subagent row and the Loader does not list it, so the switch converted nothing. The plugin now also reads the preset registry's mounted rows.
+- With the switch really working, the Codex child exposed about 300 `mcp__codex_apps__*` tools from the ChatGPT account's connected apps (calendar create and delete, site deploy, parental-control update and so on) and could call them under automatic approval. The child now runs with apps, plugins, browser and computer control switched off; a retest lists no `mcp__` tools.
+
+Checked with the fix, real Codex app-server (`codex.exe` is a child of DSH while a subtask runs):
+
 | Check | Result |
 | --- | --- |
-| Optional Codex runtime component installs from the settings page, the host asks for a restart, and it is detected afterwards | pass |
-| With the Codex option selected, the model delegates through `functions.subagent`, the subtask runs `node --version` and returns v24.14.1, the parent reports it | pass |
-| That the subtask really ran on the Codex runtime rather than DSH's own | not confirmed; diagnostics do not expose it |
+| Optional Codex runtime installs from settings and is detected after a restart | pass |
+| Switching DSH to Codex takes effect without restarting DSH; a new session's subtask starts the Codex runtime | pass |
+| `list_subagent_models` lists exactly the models ticked under Plugins → Subagent; a call naming `openai-codex` / `gpt-5.5` runs | pass |
+| Permissions: writing a file outside the workspace is refused ("blocked by policy"), the file is not created, the parent reports it | pass |
+| Cancel: stopping the turn ends the subtask, no sleeping shell and no runtime process is left | pass |
+| Child tool list: workspace tools only, no connected-app tools | pass |
 
-Failure paths, checked in a second round (environment rebuilt, same account):
-
-| Check | Result |
-| --- | --- |
-| Permissions: a subtask asked to write a file outside the workspace is refused ("file access denied under workspace-write mode"), the file is not created, and the parent reports the denial | pass |
-| Cancel: stopping a running subtask (a 120 second sleep) marks it stopped, leaves no sleeping shell process behind, and the parent is told the subtask was stopped without a result | pass |
-| Two subtasks in one conversation (one finished, one running) are listed and can be opened separately | pass |
-| The subtask view shows access mode "Custom" instead of the parent's "workspace edit"; the sandbox still applied the parent's limit | noted, cosmetic |
-
-Not covered: model and effort selection for subtasks (needs the DSH-side setting), many subtasks at once, a subtask that outlives a DSH restart.
+Not covered: the reasoning effort actually applied (the child cannot report it), many subtasks at once, a subtask across a DSH restart, and the Codex child's own `multi_agent` tools, which stayed available when the feature was switched off.
 
 ## Sketch canvas, Agent drawing, preview return (Beta)
 
@@ -75,4 +78,4 @@ With the setting on "original", an attached sketch was accepted by `GPT-5.6-Luna
 
 ## Decision
 
-All of them keep their Beta label. Each has a passing happy path, but WebSocket fallback has no live evidence, subtask model selection is untested, and compaction can drop content the user considers unimportant.
+All of them keep their Beta label. Each has a passing happy path, but WebSocket fallback has no live evidence, subtask reasoning effort and nested Codex agents are unchecked, and compaction can drop content the user considers unimportant.
