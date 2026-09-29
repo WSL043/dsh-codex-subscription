@@ -271,6 +271,13 @@ dsh plugin --profile web remove dsh-codex-subscription
 ## Troubleshooting
 
 <details>
+<summary>DSH 0.2.0-rc.1 reports plugin 2.2.4 as incompatible?</summary>
+
+DSH 0.2.0-rc.1 did not exist when 2.2.4 and earlier were published, and a published package's compatibility declaration cannot be changed. Update to 2.2.5 or later from the **Plugins** page, or run `dsh plugin --profile web update dsh-codex-subscription`, then restart DSH.
+
+</details>
+
+<details>
 <summary>No dsh command on your computer?</summary>
 
 Use **Plugins → Add plugin** in DSH and paste the package name. No terminal setup is needed.
