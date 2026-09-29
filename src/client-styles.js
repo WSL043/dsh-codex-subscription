@@ -109,7 +109,7 @@ export const STYLE = `
 .codexSubscriptionLimitPeriod{display:flex;gap:8px;flex-wrap:wrap}
 .codexSubscriptionSearchOptions{margin-top:10px;font-size:12px}
 .codexSubscriptionDivider+.codexSubscriptionDivider{display:none}
-.codexSubscriptionPickerModels{display:flex;flex-direction:column;max-height:224px;overflow:auto;border-top:1px solid var(--dsw-alias-border-l2)}
+.codexSubscriptionPickerModels{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}
 .codexSubscriptionPickerModel{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:36px;border-bottom:1px solid var(--dsw-alias-border-l2);font-size:13px}
 .codexSubscriptionPickerModel:last-child{border-bottom:0}
 .codexSubscriptionSearchOptions>summary{cursor:pointer;color:var(--dsw-alias-label-primary);padding:6px 0}
