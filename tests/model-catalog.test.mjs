@@ -3,7 +3,7 @@ import test from 'node:test'
 
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 
-import { CODEX_MODELS_URL, createOfficialModelCatalog, parseOfficialModelCatalog } from '../src/model-catalog.js'
+import { CODEX_MODELS_URL, createOfficialModelCatalog, parseOfficialModelCatalog, retirementNotice } from '../src/model-catalog.js'
 import { openaiCodexProvider, openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
 import { contextModelGroups } from '../src/settings-contract.js'
 
@@ -26,6 +26,120 @@ const remote = (overrides = {}) => ({
   default_verbosity: 'medium', context_window: 400_000, input_modalities: ['text', 'image'],
   service_tiers: [{ id: 'priority', name: 'Fast', description: 'Priority' }],
   ...overrides,
+})
+
+const RETIREMENT_SECONDS = 1792004400
+const CATALOG_NOW = Date.UTC(2026, 8, 29)
+
+test('snake_case retirement notices use directory display names without changing model identity or visibility', () => {
+  const models = parseOfficialModelCatalog({ models: [
+    remote({
+      slug: 'gpt-5.5', display_name: 'GPT-5.5', description: 'Current account model', priority: 20,
+      retirement_at: RETIREMENT_SECONDS, upgrade: { model: 'gpt-5.6-sol' },
+      migration_markdown: '[Switch now](https://example.invalid/migrate)',
+    }),
+    remote({ slug: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', priority: 30 }),
+    remote({ slug: 'hidden-retiring', visibility: 'hide', retirement_at: RETIREMENT_SECONDS }),
+  ] }, CATALOG_NOW)
+
+  assert.deepEqual(models.map(model => model.id), ['gpt-5.6-sol', 'gpt-5.5'])
+  const retiring = models[1]
+  assert.equal(retiring.id, 'gpt-5.5')
+  assert.equal(retiring.name, 'GPT-5.5 (retires 2026-10-14)')
+  assert.equal(retiring.priority, 20)
+  assert.equal(retiring.description, 'Current account model\nRetires on 2026-10-14 (UTC). Switch to GPT-5.6 Sol to keep working.')
+  assert.deepEqual(retiring.retirement, { at: RETIREMENT_SECONDS * 1000, upgradeTo: 'gpt-5.6-sol' })
+  assert.equal(retiring.description.includes('migration_markdown'), false)
+  assert.equal(retiring.description.includes('Switch now'), false)
+})
+
+test('camelCase retirement notices use upgradeInfo and add only the notice when description is absent', () => {
+  const [retiring] = parseOfficialModelCatalog({ models: [
+    remote({
+      slug: 'legacy-model', display_name: 'Legacy Model', description: null,
+      retirementAt: RETIREMENT_SECONDS, upgradeInfo: { model: 'replacement-model' },
+      migrationMarkdown: '**Switch** [to the new model](https://example.invalid/migrate).',
+    }),
+  ] }, CATALOG_NOW)
+
+  assert.equal(retiring.description, 'Retires on 2026-10-14 (UTC). Switch to replacement-model to keep working.')
+  assert.deepEqual(retiring.retirement, { at: RETIREMENT_SECONDS * 1000, upgradeTo: 'replacement-model' })
+  assert.equal(retiring.description.includes('**Switch**'), false)
+  assert.equal(retiring.description.includes('example.invalid'), false)
+})
+
+test('retirement targets support string upgrades, snake_case upgrade_info, and date-only notices', () => {
+  const [stringUpgrade] = parseOfficialModelCatalog({ models: [
+    remote({ slug: 'string-upgrade', description: '', retirement_at: RETIREMENT_SECONDS,
+      upgrade: 'not-in-directory', migration_markdown: '[Do not show](https://example.invalid)' }),
+  ] }, CATALOG_NOW)
+  assert.equal(stringUpgrade.description, 'Retires on 2026-10-14 (UTC). Switch to not-in-directory to keep working.')
+  assert.deepEqual(stringUpgrade.retirement, { at: RETIREMENT_SECONDS * 1000, upgradeTo: 'not-in-directory' })
+
+  const [infoUpgrade] = parseOfficialModelCatalog({ models: [
+    remote({ slug: 'info-upgrade', retirement_at: RETIREMENT_SECONDS, upgrade_info: { model: 'next-model' } }),
+    remote({ slug: 'next-model', display_name: 'Next Model' }),
+  ] }, CATALOG_NOW)
+  assert.equal(infoUpgrade.description, 'Current account model\nRetires on 2026-10-14 (UTC). Switch to Next Model to keep working.')
+  assert.deepEqual(infoUpgrade.retirement, { at: RETIREMENT_SECONDS * 1000, upgradeTo: 'next-model' })
+
+  const [dateOnly] = parseOfficialModelCatalog({ models: [
+    remote({ slug: 'date-only', description: undefined, retirementAt: RETIREMENT_SECONDS,
+      migrationMarkdown: 'Never use this server-provided migration copy.' }),
+  ] }, CATALOG_NOW)
+  assert.equal(dateOnly.description, 'Retires on 2026-10-14 (UTC).')
+  assert.deepEqual(dateOnly.retirement, { at: RETIREMENT_SECONDS * 1000, upgradeTo: undefined })
+  assert.equal(dateOnly.description.includes('server-provided'), false)
+})
+
+test('online model lists receive the notice while catalog metadata preserves retirement fields', async () => {
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => base,
+    now: () => CATALOG_NOW,
+    getAuth: async () => ({ auth: { apiKey: 'test-token' } }),
+    readCredential: async () => ({ type: 'oauth', access: 'test-token', accountId: 'test-account' }),
+    fetch: async () => Response.json({ models: [
+      remote({
+        slug: 'gpt-5.5', display_name: 'GPT-5.5', retirement_at: RETIREMENT_SECONDS,
+        upgrade: 'gpt-5.6-sol', priority: 25,
+      }),
+      remote({ slug: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', priority: 30 }),
+    ] }),
+  })
+  await catalog.refresh()
+
+  const retiring = catalog.getModels(base).find(model => model.id === 'gpt-5.5')
+  assert.equal(retiring.id, 'gpt-5.5')
+  assert.equal(retiring.name, 'GPT-5.5 (retires 2026-10-14)')
+  assert.equal(retiring.description, 'Current account model\nRetires on 2026-10-14 (UTC). Switch to GPT-5.6 Sol to keep working.')
+  assert.deepEqual(catalog.metadata('gpt-5.5').retirement, { at: RETIREMENT_SECONDS * 1000, upgradeTo: 'gpt-5.6-sol' })
+  assert.equal(catalog.metadata('gpt-5.5').priority, 25)
+})
+
+test('expired or invalid retirement timestamps produce no notice and never throw', () => {
+  const invalidValues = [
+    remote({ slug: 'missing' }),
+    remote({ slug: 'undefined', retirement_at: undefined }),
+    remote({ slug: 'null', retirement_at: null }),
+    remote({ slug: 'string', retirement_at: String(RETIREMENT_SECONDS) }),
+    remote({ slug: 'negative', retirement_at: -1 }),
+    remote({ slug: 'nan', retirement_at: Number.NaN }),
+    remote({ slug: 'null-camel', retirementAt: null }),
+  ]
+  for (const value of invalidValues) {
+    assert.doesNotThrow(() => retirementNotice(value, CATALOG_NOW))
+    assert.equal(retirementNotice(value, CATALOG_NOW), undefined)
+    const [model] = parseOfficialModelCatalog({ models: [value] }, CATALOG_NOW)
+    assert.equal(model.description, 'Current account model')
+    assert.equal('retirement' in model, false)
+  }
+
+  const expired = remote({ slug: 'expired', retirement_at: Date.UTC(2026, 8, 28) / 1000 })
+  assert.doesNotThrow(() => retirementNotice(expired, CATALOG_NOW))
+  assert.equal(retirementNotice(expired, CATALOG_NOW), undefined)
+  const [model] = parseOfficialModelCatalog({ models: [expired] }, CATALOG_NOW)
+  assert.equal(model.description, 'Current account model')
+  assert.equal('retirement' in model, false)
 })
 
 test('catalog commit and account clearing notify host observers, failed and unchanged refreshes do not', async () => {
@@ -310,4 +424,67 @@ test('catalog support state distinguishes fallback, successful refresh, and reta
   assert.deepEqual(catalog.status(), { source: 'online', refresh: 'failed' })
   catalog.clear()
   assert.deepEqual(catalog.status(), { source: 'fallback', refresh: 'idle' })
+})
+
+test('the real HTTP catalog shape nests an ISO retirement date under upgrade', () => {
+  const models = parseOfficialModelCatalog({ models: [
+    remote({
+      slug: 'gpt-5.5', display_name: 'GPT-5.5', description: 'Legacy coding model.', priority: 12,
+      upgrade: {
+        model: 'gpt-5.6-sol',
+        migration_markdown: 'GPT-5.5 retires on October 14, 2026. Switch to GPT-5.6 Sol to continue working in Codex.',
+        retirement_at: '2026-10-14T19:00:00Z',
+      },
+    }),
+    remote({ slug: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', priority: 30, upgrade: null }),
+    remote({ slug: 'bad-date', upgrade: { model: 'x', retirement_at: 'soon' } }),
+    remote({ slug: 'numeric-string', upgrade: { model: 'x', retirement_at: '1792004400' } }),
+  ] }, CATALOG_NOW)
+
+  const retiring = models.find(model => model.id === 'gpt-5.5')
+  assert.equal(retiring.description, 'Legacy coding model.\nRetires on 2026-10-14 (UTC). Switch to GPT-5.6 Sol to keep working.')
+  assert.equal(retiring.name, 'GPT-5.5 (retires 2026-10-14)')
+  assert.equal(retiring.id, 'gpt-5.5')
+  assert.equal(retiring.retirement.at, Date.UTC(2026, 9, 14, 19))
+  assert.equal(retiring.retirement.upgradeTo, 'gpt-5.6-sol')
+  assert.equal(models.find(model => model.id === 'gpt-5.6-sol').retirement, undefined)
+  assert.equal(models.find(model => model.id === 'bad-date').retirement, undefined)
+  assert.equal(models.find(model => model.id === 'numeric-string').retirement, undefined)
+})
+
+test('an unchanged catalog drops a retirement notice once its date has passed', async () => {
+  let now = Date.UTC(2026, 9, 1)
+  let status = 200
+  let notices = 0
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => base,
+    now: () => now,
+    getAuth: async () => ({ auth: { apiKey: 'test-token' } }),
+    readCredential: async () => ({ type: 'oauth', access: 'test-token', accountId: 'test-account' }),
+    onUpdated: () => notices++,
+    fetch: async () => status === 304
+      ? new Response(null, { status: 304 })
+      : Response.json({ models: [remote({
+        slug: 'gpt-5.5', display_name: 'GPT-5.5',
+        upgrade: { model: 'gpt-5.6-sol', retirement_at: '2026-10-14T19:00:00Z' },
+      })] }, { headers: { etag: 'rev-1' } }),
+  })
+  await catalog.refresh()
+  assert.equal(catalog.getModels([])[0].name, 'GPT-5.5 (retires 2026-10-14)')
+  assert.equal(notices, 1)
+
+  status = 304
+  await catalog.refresh()
+  assert.equal(catalog.getModels([])[0].name, 'GPT-5.5 (retires 2026-10-14)')
+  assert.equal(notices, 1)
+
+  now = Date.UTC(2026, 9, 15)
+  const revision = catalog.revision()
+  await catalog.refresh()
+  const [model] = catalog.getModels([])
+  assert.equal(model.name, 'GPT-5.5')
+  assert.equal(model.id, 'gpt-5.5')
+  assert.equal(catalog.metadata('gpt-5.5').retirement, undefined)
+  assert.equal(notices, 2)
+  assert.equal(catalog.revision(), revision + 1)
 })

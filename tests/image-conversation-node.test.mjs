@@ -25,3 +25,19 @@ test('unfinished, failed and unrelated tools do not create image nodes', () => {
   assert.equal(definition.match({ type: 'tool/result', data: { meta: { kind: 'other' } } }), null)
   assert.equal(definition.buildViewNode(context([{ type: 'turn/end', seq: 14, data: { turn: 1 } }])), null)
 })
+
+test('the real host result shape, with unwrapped rendered blocks, also creates the image node', () => {
+  const real = { type: 'tool/result', seq: 10, data: {
+    turn: 1, step: 2, meta: { kind: 'codex-subscription-image' },
+    message: { content: [{ type: 'text', text: 'Generated a 1254x1254 image.' }, { type: 'image', attachment: { id: 'a' } }] },
+  } }
+  assert.notEqual(definition.match(real), null)
+  const node = definition.buildViewNode(context([real, { type: 'turn/end', seq: 14, data: { turn: 1 } }]))
+  assert.equal(node.data.blocks.length, 1)
+  assert.equal(node.data.blocks[0].kind, 'tool-result')
+  assert.equal(node.data.blocks[0].toolCallId, '1:2')
+  assert.equal(node.data.blocks[0].content.find(part => part.type === 'image').attachment.id, 'a')
+  assert.equal(node.data.blocks[0].meta.kind, 'codex-subscription-image')
+  const textOnly = { ...real, data: { ...real.data, message: { content: [{ type: 'text', text: 'failed' }] } } }
+  assert.equal(definition.match(textOnly), null)
+})

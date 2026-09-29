@@ -9,6 +9,46 @@ const record = value => value !== null && typeof value === 'object' && !Array.is
 const nonEmpty = value => typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
 const positiveInteger = value => Number.isSafeInteger(value) && value > 0 ? value : undefined
 
+function upgradeModelId(value) {
+  const direct = typeof value.upgrade === 'string'
+    ? nonEmpty(value.upgrade)
+    : record(value.upgrade) ? nonEmpty(value.upgrade.model) : undefined
+  return direct
+    ?? (record(value.upgrade_info) ? nonEmpty(value.upgrade_info.model) : undefined)
+    ?? (record(value.upgradeInfo) ? nonEmpty(value.upgradeInfo.model) : undefined)
+}
+
+// The HTTP catalog nests the notice as `upgrade: { model, retirement_at: '<ISO date>' }`;
+// the app-server shape uses `upgradeInfo.retirementAt` in Unix seconds. Accept both.
+function retirementMillis(value) {
+  for (const source of [value, value.upgrade, value.upgrade_info, value.upgradeInfo]) {
+    if (!record(source)) continue
+    for (const raw of [source.retirement_at, source.retirementAt]) {
+      const seconds = positiveInteger(raw)
+      if (seconds !== undefined && Number.isSafeInteger(seconds * 1000)) return seconds * 1000
+      if (typeof raw === 'string' && /^\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|[+-]\d{2}:\d{2})$/u.test(raw)) {
+        const parsed = Date.parse(raw)
+        if (Number.isFinite(parsed) && parsed > 0) return parsed
+      }
+    }
+  }
+  return undefined
+}
+
+export function retirementNotice(value, now = Date.now(), targetDisplayName) {
+  if (!record(value) || !Number.isFinite(now)) return undefined
+  const at = retirementMillis(value)
+  if (at === undefined || at <= now) return undefined
+  const date = new Date(at)
+  if (!Number.isFinite(date.getTime())) return undefined
+  const year = String(date.getUTCFullYear()).padStart(4, '0')
+  const dateText = `${year}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
+  const upgradeTo = upgradeModelId(value)
+  const upgradeName = upgradeTo === undefined ? undefined : nonEmpty(targetDisplayName) ?? upgradeTo
+  const text = `Retires on ${dateText} (UTC).${upgradeName === undefined ? '' : ` Switch to ${upgradeName} to keep working.`}`
+  return { text, at, upgradeTo, dateText }
+}
+
 function reasoningMap(levels) {
   const supported = new Set((Array.isArray(levels) ? levels : [])
     .map(level => nonEmpty(record(level) ? level.effort : undefined))
@@ -40,7 +80,7 @@ function unsupportedCapabilities(value) {
   }
 }
 
-function visibleModel(value) {
+function visibleModel(value, displayNames, now) {
   if (!record(value)) return undefined
   const id = nonEmpty(value.slug)
   // Reserve is a manually selected experiment, only when the account catalog
@@ -52,11 +92,18 @@ function visibleModel(value) {
     ? value.input_modalities.filter(item => ['text', 'image'].includes(item))
     : ['text', 'image']
   const unsupported = unsupportedCapabilities({ ...value, supported_reasoning_levels: supported })
+  const upgradeTo = upgradeModelId(value)
+  const retirement = retirementNotice(value, now, displayNames.get(upgradeTo))
+  const notice = retirement?.text
+  const description = nonEmpty(value.description)
   return {
     ...(Object.keys(unsupported).length ? { unsupported } : {}),
     id,
-    name: reserve ? 'GPT-Reserve (Experimental)' : nonEmpty(value.display_name) ?? id,
-    description: nonEmpty(value.description),
+    // The host's model menu only renders names for plugin models, so the date has
+    // to live in the name to be visible. The id, and so any saved selection, is untouched.
+    name: `${reserve ? 'GPT-Reserve (Experimental)' : nonEmpty(value.display_name) ?? id}${retirement === undefined ? '' : ` (retires ${retirement.dateText})`}`,
+    description: notice === undefined ? description : description === undefined ? notice : `${description}\n${notice}`,
+    ...(retirement === undefined ? {} : { retirement: { at: retirement.at, upgradeTo: retirement.upgradeTo } }),
     priority: Number.isFinite(value.priority) ? value.priority : 0,
     input: input.length > 0 ? input : ['text'],
     contextWindow: positiveInteger(value.context_window) ?? positiveInteger(value.max_context_window),
@@ -71,11 +118,18 @@ function visibleModel(value) {
   }
 }
 
-export function parseOfficialModelCatalog(value) {
+export function parseOfficialModelCatalog(value, now = Date.now()) {
   if (!record(value) || !Array.isArray(value.models)) throw new Error('Codex returned a malformed model catalog')
+  const displayNames = new Map()
+  for (const model of value.models) {
+    if (!record(model)) continue
+    const id = nonEmpty(model.slug)
+    const name = nonEmpty(model.display_name)
+    if (id !== undefined && name !== undefined && !displayNames.has(id)) displayNames.set(id, name)
+  }
   const seen = new Set()
   return value.models
-    .map(visibleModel)
+    .map(model => visibleModel(model, displayNames, now))
     .filter(model => model !== undefined && !seen.has(model.id) && seen.add(model.id))
     .sort((left, right) => Number(left.id === 'gpt-reserve') - Number(right.id === 'gpt-reserve')
       || right.priority - left.priority)
@@ -90,6 +144,7 @@ function mergeModel(baseModels, remote) {
     ...base,
     id: remote.id,
     name: remote.name,
+    ...(remote.retirement === undefined || remote.description === undefined ? {} : { description: remote.description }),
     input: remote.input,
     reasoning: remote.reasoning,
     thinkingLevelMap: remote.thinkingLevelMap,
@@ -102,6 +157,7 @@ function mergeModel(baseModels, remote) {
 
 export function createOfficialModelCatalog(options = {}) {
   const fetchCatalog = options.fetch ?? fetch
+  const getNow = options.now ?? Date.now
   const scheduleTimeout = options.setTimeout ?? setTimeout
   const cancelTimeout = options.clearTimeout ?? clearTimeout
   const timeoutMs = Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
@@ -110,6 +166,7 @@ export function createOfficialModelCatalog(options = {}) {
   let models
   let metadata = new Map()
   let etag
+  let rawCatalog
   let revision = 0
   let refreshing
   let generation = 0
@@ -147,10 +204,20 @@ export function createOfficialModelCatalog(options = {}) {
       if (currentGeneration !== generation || requestSignal.aborted) return false
       if (response.status === 304) {
         outcome = 'ok'
-        return false
+        // An unchanged catalog can still have crossed a retirement date since it was parsed.
+        if (rawCatalog === undefined) return false
+        const remote = parseOfficialModelCatalog(rawCatalog, getNow())
+        const next = remote.map(model => mergeModel(options.baseModels(), model)).filter(Boolean)
+        if (next.length === 0 || JSON.stringify(next) === JSON.stringify(models)) return false
+        models = next
+        metadata = new Map(remote.map(model => [model.id, model]))
+        revision += 1
+        options.onUpdated?.()
+        return true
       }
       if (!response.ok) throw new Error(`Codex model catalog failed (HTTP ${response.status})`)
-      const remote = parseOfficialModelCatalog(await response.json())
+      const raw = await response.json()
+      const remote = parseOfficialModelCatalog(raw, getNow())
       if (currentGeneration !== generation || requestSignal.aborted) return false
       if (remote.length === 0) throw new Error('Codex returned an empty model catalog')
       const baseModels = options.baseModels()
@@ -158,6 +225,7 @@ export function createOfficialModelCatalog(options = {}) {
       if (next.length === 0) throw new Error('Codex model catalog has no compatible models')
       if (currentGeneration !== generation || requestSignal.aborted) return false
       models = next
+      rawCatalog = raw
       metadata = new Map(remote.map(model => [model.id, model]))
       etag = nonEmpty(response.headers.get('etag')) ?? etag
       revision += 1
@@ -207,6 +275,7 @@ export function createOfficialModelCatalog(options = {}) {
       refreshing = undefined
       flight?.cancel()
       models = undefined
+      rawCatalog = undefined
       metadata = new Map()
       etag = undefined
       refreshStatus = 'idle'

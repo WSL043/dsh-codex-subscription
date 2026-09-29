@@ -1,7 +1,17 @@
 const KIND = 'codex-image-output'
-const resultsOf = event => event?.type === 'tool/result' && event.data.meta?.kind === 'codex-subscription-image'
-  ? (event.data.message?.content ?? []).filter(block => block.type === 'tool-result' && !block.isError
-    && block.content?.some(part => part.type === 'image' && part.attachment)) : []
+const hasImage = block => block?.content?.some(part => part.type === 'image' && part.attachment)
+const isImage = part => part?.type === 'image' && part.attachment
+// The host delivers a tool result's rendered blocks directly in `message.content`
+// (`[text, image]`); a wrapped `tool-result` block is accepted as well.
+const resultsOf = event => {
+  if (event?.type !== 'tool/result' || event.data.meta?.kind !== 'codex-subscription-image') return []
+  const content = event.data.message?.content ?? []
+  const wrapped = content.filter(block => block.type === 'tool-result' && !block.isError && hasImage(block))
+  if (wrapped.length > 0) return wrapped
+  return content.some(isImage)
+    ? [{ type: 'tool-result', toolCallId: `${event.data.turn}:${event.data.step ?? event.seq}`, isError: false, content }]
+    : []
+}
 
 // Presentation only: project existing durable results, without inserting another
 // message into the model's context or expanding unrelated tool calls.
