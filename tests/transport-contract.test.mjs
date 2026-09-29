@@ -418,7 +418,7 @@ test('context presets preserve catalog defaults and cap every supported model in
 
   if ('gpt-6-astra' in contexts()) assert.equal(contexts()['gpt-6-astra'], 500_000)
   customContextWindow = 64_000
-  assert.equal(contexts()['gpt-5.4'], 128_000)
-  perModel.set('gpt-5.4-mini', 200_000)
-  assert.equal(contexts()['gpt-5.4-mini'], 200_000)
+  assert.equal(contexts()['gpt-5.5'], 128_000)
+  perModel.set('gpt-5.5', 200_000)
+  assert.equal(contexts()['gpt-5.5'], 200_000)
 })
