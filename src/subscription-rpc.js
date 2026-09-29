@@ -1,7 +1,7 @@
 import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { capabilityPatch } from './capability-settings.js'
 import { ORIGINAL_IMAGE_CHUNK_BYTES, ORIGINAL_IMAGE_ID_PATTERN } from './image-original-contract.js'
-import { AUTO_QUOTA_RETRY_FIELD, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, normalizeCustomContextWindow } from './settings-contract.js'
+import { AUTO_QUOTA_RETRY_FIELD, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DISABLED_MODELS_FIELD, normalizeCustomContextWindow, normalizeDisabledModels } from './settings-contract.js'
 const publicError = (code, message) => ({
   ok: false,
   error: { code, message, details: { issues: [] } },
@@ -69,6 +69,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
         return {
           ok: true,
           value: {
+            availableModels: Array.isArray(value?.availableModels) ? value.availableModels : [],
             contextModels: Array.isArray(value?.contextModels) ? value.contextModels : [],
             verbosityModels: Array.isArray(value?.verbosityModels) ? value.verbosityModels : [],
             fastModels: Array.isArray(value?.fastModels) ? value.fastModels : [],
@@ -85,6 +86,13 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
         signal.throwIfAborted()
         if (endpoint === 'preferences/update') {
           const patch = capabilityPatch(payload)
+          if (Object.hasOwn(payload ?? {}, DISABLED_MODELS_FIELD)) {
+            const disabled = payload[DISABLED_MODELS_FIELD]
+            if (!Array.isArray(disabled) || disabled.length > 100 || disabled.length !== normalizeDisabledModels(disabled).length) {
+              return publicError('internal', 'Invalid disabled models preference')
+            }
+            patch[DISABLED_MODELS_FIELD] = disabled
+          }
           if (Object.hasOwn(payload ?? {}, AUTO_QUOTA_RETRY_FIELD)) {
             if (typeof payload[AUTO_QUOTA_RETRY_FIELD] !== 'boolean') {
               return publicError('internal', 'Invalid automatic quota retry preference')

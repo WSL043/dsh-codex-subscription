@@ -135,6 +135,7 @@ export const zh = {
 
   searchOptions: '搜索选项', searchDomainCount: '个域名',
   catalogRefresh: '刷新模型', catalogOnline: '已加载账户在线模型目录', catalogFallback: '当前使用内置模型目录；登录后可刷新账户可用模型',
+  pickerModelsTitle: '输入框模型列表', pickerModelsHint: '只控制输入框中的模型列表；不会影响已选模型或模型请求。新模型默认显示。',
   searchMode: '订阅搜索模式', searchMode_live: '实时', searchMode_cached: '缓存（实验）', searchMode_disabled: '停用',
   searchModeHint: '仅影响 Codex 订阅搜索。缓存模式请求已有索引，需实机确认账户支持；失败时不会自动切换来源。',
   searchDomains: '结果域名筛选', searchDomainsHint: '留空显示全部结果；最多 20 个域名，逗号分隔，包含其子域名。只筛选返回结果，不限制搜索服务访问范围。', searchDomainsInvalid: '请输入域名，不含网址协议、路径或通配符。最多 20 个。',
@@ -205,7 +206,7 @@ export const zh = {
   speedFast: '高速', speedFastHint: '优先处理，速度取决于模型，消耗更多 Credits',
   verbosityTitle: '输出详略', verbosityDefault: '模型默认', verbosityDefaultHint: '使用官方模型目录推荐值', verbosityLow: '简洁', verbosityLowHint: '更短、更直接', verbosityMedium: '均衡', verbosityMediumHint: '兼顾完整性与长度', verbosityHigh: '详细', verbosityHighHint: '更充分的说明与结构',
   modelMenuAria: '模型、推理等级、速度与输出详略', modelLabel: '模型', effortLabel: '推理等级', providerDefault: 'Default', selectModel: '选择模型',
-  modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelDirectoryFailed: '模型目录加载失败，请重试。', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
+  modelsLoading: '正在读取模型…', modelsEmpty: '没有可用模型。', modelsHidden: '所有模型都已从列表中隐藏；可在设置中重新显示。', effortsEmpty: '当前模型未提供推理等级。', modelRetry: '重试', modelDirectoryFailed: '模型目录加载失败，请重试。', modelFailed: '模型目录加载失败：{value}', groupFailed: '{name}：{value}',
   imageGenerate: '生成图片', imageBeta: 'Beta', imageGenerating: '正在生成…', imageGenerated: '已生成', imageFailed: '生成失败',
   imageLabel: '生成的图片', imageOpen: '查看图片', imageOpenNamed: '查看 {value}', imageLoading: '正在加载图片…', imageLoadFailed: '图片加载失败，点击重试', imagePreview: '图片预览',  imageClosePreview: '关闭预览', imageDownload: '下载', imageDownloadPreparing: '正在准备原图…', imageDownloadFailed: '下载失败，重试',   imageFit: '适合窗口',
   imageAnnotate: '标注部位', imageAnnotateCancel: '取消标注', imageAnnotateHint: '点击图片添加编号标注', imageAnnotation: '标注 {value}', imageAnnotationPlaceholder: '描述这个部位要修改什么', imageRegions: '区域备注', imageCopyNotes: '复制备注', imageCopied: '已复制', imagePrevious: '上一张图片', imageNext: '下一张图片', imageZoomHint: '滚轮缩放 · 拖动查看 · 双击切换原始大小', imageActual: '原始大小',  imageEditDefault: '编辑这张图片。', imageRegionNotes: '部位修改：', imageEdit: '在输入框中继续编辑', imageEditPreparing: '正在添加到输入框…', imageEditFailed: '回填失败：请填写每个标记的备注，并确认输入框可接收图片后重试。', imageRemoveAnnotation: '删除标注',
@@ -348,6 +349,7 @@ export const en = {
 
   searchOptions: 'Search options', searchDomainCount: 'domains',
   catalogRefresh: 'Refresh models', catalogOnline: 'Account model catalog loaded', catalogFallback: 'Using the built-in catalog. Sign in to refresh account models.',
+  pickerModelsTitle: 'Models in picker', pickerModelsHint: 'Only controls the composer model list. Selected models and requests still work. New models appear by default.',
   searchMode: 'Subscription search mode', searchMode_live: 'Live', searchMode_cached: 'Cached (experimental)', searchMode_disabled: 'Disabled',
   searchModeHint: 'Applies only to Codex subscription search. Cached mode requests indexed results; account support needs live acceptance. Failures do not switch providers.',
   searchDomains: 'Filter result domains', searchDomainsHint: 'Empty allows all results. Up to 20 comma-separated domains, including subdomains. Filters returned results, not the search service network access.', searchDomainsInvalid: 'Enter up to 20 domains without URL schemes, paths, or wildcards.',
@@ -418,7 +420,7 @@ export const en = {
   speedFast: 'Fast', speedFastHint: 'Priority processing; speed varies by model; higher Credits use',
   verbosityTitle: 'Output detail', verbosityDefault: 'Model default', verbosityDefaultHint: 'Use the official model catalog recommendation', verbosityLow: 'Concise', verbosityLowHint: 'Shorter and more direct', verbosityMedium: 'Balanced', verbosityMediumHint: 'Balance completeness and length', verbosityHigh: 'Detailed', verbosityHighHint: 'More explanation and structure',
   modelMenuAria: 'Model, effort, speed, and output detail', modelLabel: 'Model', effortLabel: 'Effort', providerDefault: 'Default', selectModel: 'Select model',
-  modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelDirectoryFailed: 'Could not load the model directory. Try again.', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
+  modelsLoading: 'Loading models…', modelsEmpty: 'No models available.', modelsHidden: 'All models are hidden from this list. Show one in settings.', effortsEmpty: 'This model provides no reasoning effort levels.', modelRetry: 'Retry', modelDirectoryFailed: 'Could not load the model directory. Try again.', modelFailed: 'Could not load models: {value}', groupFailed: '{name}: {value}',
   imageGenerate: 'Generate image', imageBeta: 'Beta', imageGenerating: 'Generating…', imageGenerated: 'Generated', imageFailed: 'Generation failed',
   imageLabel: 'Generated image', imageOpen: 'View image', imageOpenNamed: 'View {value}', imageLoading: 'Loading image…', imageLoadFailed: 'Image failed to load. Click to retry', imagePreview: 'Image preview',  imageClosePreview: 'Close preview', imageDownload: 'Download', imageDownloadPreparing: 'Preparing original…', imageDownloadFailed: 'Download failed. Retry',   imageFit: 'Fit to window',
   imageAnnotate: 'Annotate', imageAnnotateCancel: 'Cancel marking', imageAnnotateHint: 'Click the image to add a numbered note', imageAnnotation: 'Note {value}', imageAnnotationPlaceholder: 'Describe what should change in this area', imageRegions: 'Region notes', imageCopyNotes: 'Copy notes', imageCopied: 'Copied', imagePrevious: 'Previous image', imageNext: 'Next image', imageZoomHint: 'Wheel to zoom · drag to pan · double-click for 100%', imageActual: '100%',  imageEditDefault: 'Edit this image.', imageRegionNotes: 'Region changes:', imageEdit: 'Continue editing in composer', imageEditPreparing: 'Adding to composer…', imageEditFailed: 'Handoff failed. Add a note to every marker and ensure the composer accepts images, then retry.', imageRemoveAnnotation: 'Remove note',

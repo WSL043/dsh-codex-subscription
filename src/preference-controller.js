@@ -3,6 +3,7 @@ import {
   AUTO_QUOTA_RETRY_FIELD,
   clampModelContext,
   CONTEXT_MODE_FIELD,
+  DISABLED_MODELS_FIELD,
   CUSTOM_CONTEXT_MODEL_CAPS,
   CUSTOM_CONTEXT_MODEL_DEFAULTS,
   CUSTOM_CONTEXT_MODEL_FIELDS,
@@ -13,6 +14,7 @@ import {
   normalizeAutoQuotaRetry,
   normalizeContextMode,
   normalizeCustomContextWindow,
+  normalizeDisabledModels,
   normalizeInputImageDetail,
   normalizeStreamIdleTimeoutMinutes,
   normalizeOutputVerbosity,
@@ -37,6 +39,7 @@ export function createPreferenceController(scope, rpc) {
   let failedPatch
   let generation = 0
   let contextModels = []
+  let availableModels = []
   let verbosityModels = []
   let fastModels
   let catalogStatus
@@ -86,6 +89,8 @@ export function createPreferenceController(scope, rpc) {
         ...Object.fromEntries(contextModels.map(model => [model.key, clampModelContext(capabilities[CUSTOM_CONTEXT_OVERRIDES_FIELD][model.key] ?? value?.[CUSTOM_CONTEXT_MODEL_FIELDS[model.key]], model.maximum, model.default ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[model.key])])),
       },
       contextModels,
+      availableModels,
+      disabledModels: normalizeDisabledModels(value?.[DISABLED_MODELS_FIELD]),
       verbosityModels,
       fastModels,
       catalogStatus,
@@ -112,6 +117,7 @@ export function createPreferenceController(scope, rpc) {
     subagentRuntimeInstalled = value?.subagentRuntimeInstalled === true
     if (!modelRefreshStarted) {
       contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
+      availableModels = Array.isArray(value?.availableModels) ? value.availableModels : []
       verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
       fastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
       catalogStatus = value?.catalogStatus
@@ -120,6 +126,7 @@ export function createPreferenceController(scope, rpc) {
     fallback = {
       status: 'ready',
       value: {
+        [DISABLED_MODELS_FIELD]: normalizeDisabledModels(value?.[DISABLED_MODELS_FIELD]),
         [AUTO_QUOTA_RETRY_FIELD]: normalizeAutoQuotaRetry(value?.[AUTO_QUOTA_RETRY_FIELD]),
         connectionMode: value?.connectionMode === 'websocket' ? 'websocket' : 'sse',
         compactionMode: value?.compactionMode === 'cloud' ? 'cloud' : 'dsh',
@@ -157,6 +164,7 @@ export function createPreferenceController(scope, rpc) {
       if (nativeSnapshot().status === 'ready') {
         if (!modelRefreshStarted) {
           contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
+          availableModels = Array.isArray(value?.availableModels) ? value.availableModels : []
           verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
           fastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
           catalogStatus = value?.catalogStatus
@@ -180,14 +188,17 @@ export function createPreferenceController(scope, rpc) {
       const value = unwrap(await rpc.call(CHANNEL, 'preferences/models', {}))
       if (disposed || current !== modelRefreshGeneration) return false
       const nextContextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
+      const nextAvailableModels = Array.isArray(value?.availableModels) ? value.availableModels : []
       const nextVerbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
       const nextFastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
       catalogStatus = value?.catalogStatus
       const changed = !sameModels(contextModels, nextContextModels)
+        || !sameModels(availableModels, nextAvailableModels)
         || !sameModels(verbosityModels, nextVerbosityModels)
         || JSON.stringify(fastModels) !== JSON.stringify(nextFastModels)
       if (changed) {
         contextModels = nextContextModels
+        availableModels = nextAvailableModels
         verbosityModels = nextVerbosityModels
         fastModels = nextFastModels
         publish()
