@@ -75,7 +75,7 @@ test('composer quota modes use the public composer slot before the model selecto
   assert.match(client, /QUICK_QUOTA_MODE_BAR/u)
   assert.match(client, /QUICK_QUOTA_MODE_FORECAST/u)
   assert.match(client, /role=['"]radiogroup['"]/u)
-  assert.match(client, /role=['"]switch['"]/u)
+  assert.match(client, /<Switch /u, 'the automatic retry option uses the DSH host switch')
   assert.match(client, /AUTO_QUOTA_RETRY_FIELD/u)
   assert.match(client, /type=['"]radio['"]/u)
   assert.match(client, /role=['"]status['"]/u)

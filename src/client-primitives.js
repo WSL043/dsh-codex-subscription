@@ -1,6 +1,7 @@
 import * as primitives from '@deepseek-ai/dsh-client-ui-primitives'
 export const Input = primitives.Input
 export const Button = primitives.Button
+export const Switch = primitives.Switch
 export const useAnchoredPosition = primitives.useAnchoredPosition
 export const useDismissOnOutsidePointer = primitives.useDismissOnOutsidePointer
 export const IconCheckOutline16 = primitives.IconCheckOutline16 ?? primitives.IconCheckOutlineRegular
