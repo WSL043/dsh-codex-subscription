@@ -9,6 +9,31 @@ const record = value => value !== null && typeof value === 'object' && !Array.is
 const nonEmpty = value => typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
 const positiveInteger = value => Number.isSafeInteger(value) && value > 0 ? value : undefined
 
+function upgradeModelId(value) {
+  const direct = typeof value.upgrade === 'string'
+    ? nonEmpty(value.upgrade)
+    : record(value.upgrade) ? nonEmpty(value.upgrade.model) : undefined
+  return direct
+    ?? (record(value.upgrade_info) ? nonEmpty(value.upgrade_info.model) : undefined)
+    ?? (record(value.upgradeInfo) ? nonEmpty(value.upgradeInfo.model) : undefined)
+}
+
+export function retirementNotice(value, now = Date.now(), targetDisplayName) {
+  if (!record(value) || !Number.isFinite(now)) return undefined
+  const seconds = positiveInteger(value.retirement_at) ?? positiveInteger(value.retirementAt)
+  if (seconds === undefined) return undefined
+  const at = seconds * 1000
+  if (!Number.isSafeInteger(at) || at <= now) return undefined
+  const date = new Date(at)
+  if (!Number.isFinite(date.getTime())) return undefined
+  const year = String(date.getUTCFullYear()).padStart(4, '0')
+  const dateText = `${year}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
+  const upgradeTo = upgradeModelId(value)
+  const upgradeName = upgradeTo === undefined ? undefined : nonEmpty(targetDisplayName) ?? upgradeTo
+  const text = `Retires on ${dateText} (UTC).${upgradeName === undefined ? '' : ` Switch to ${upgradeName} to keep working.`}`
+  return { text, at, upgradeTo }
+}
+
 function reasoningMap(levels) {
   const supported = new Set((Array.isArray(levels) ? levels : [])
     .map(level => nonEmpty(record(level) ? level.effort : undefined))
@@ -40,7 +65,7 @@ function unsupportedCapabilities(value) {
   }
 }
 
-function visibleModel(value) {
+function visibleModel(value, displayNames, now) {
   if (!record(value)) return undefined
   const id = nonEmpty(value.slug)
   // Reserve is a manually selected experiment, only when the account catalog
@@ -52,11 +77,16 @@ function visibleModel(value) {
     ? value.input_modalities.filter(item => ['text', 'image'].includes(item))
     : ['text', 'image']
   const unsupported = unsupportedCapabilities({ ...value, supported_reasoning_levels: supported })
+  const upgradeTo = upgradeModelId(value)
+  const retirement = retirementNotice(value, now, displayNames.get(upgradeTo))
+  const notice = retirement?.text
+  const description = nonEmpty(value.description)
   return {
     ...(Object.keys(unsupported).length ? { unsupported } : {}),
     id,
     name: reserve ? 'GPT-Reserve (Experimental)' : nonEmpty(value.display_name) ?? id,
-    description: nonEmpty(value.description),
+    description: notice === undefined ? description : description === undefined ? notice : `${description}\n${notice}`,
+    ...(retirement === undefined ? {} : { retirement: { at: retirement.at, upgradeTo: retirement.upgradeTo } }),
     priority: Number.isFinite(value.priority) ? value.priority : 0,
     input: input.length > 0 ? input : ['text'],
     contextWindow: positiveInteger(value.context_window) ?? positiveInteger(value.max_context_window),
@@ -71,11 +101,18 @@ function visibleModel(value) {
   }
 }
 
-export function parseOfficialModelCatalog(value) {
+export function parseOfficialModelCatalog(value, now = Date.now()) {
   if (!record(value) || !Array.isArray(value.models)) throw new Error('Codex returned a malformed model catalog')
+  const displayNames = new Map()
+  for (const model of value.models) {
+    if (!record(model)) continue
+    const id = nonEmpty(model.slug)
+    const name = nonEmpty(model.display_name)
+    if (id !== undefined && name !== undefined && !displayNames.has(id)) displayNames.set(id, name)
+  }
   const seen = new Set()
   return value.models
-    .map(visibleModel)
+    .map(model => visibleModel(model, displayNames, now))
     .filter(model => model !== undefined && !seen.has(model.id) && seen.add(model.id))
     .sort((left, right) => Number(left.id === 'gpt-reserve') - Number(right.id === 'gpt-reserve')
       || right.priority - left.priority)
@@ -90,6 +127,7 @@ function mergeModel(baseModels, remote) {
     ...base,
     id: remote.id,
     name: remote.name,
+    ...(remote.retirement === undefined || remote.description === undefined ? {} : { description: remote.description }),
     input: remote.input,
     reasoning: remote.reasoning,
     thinkingLevelMap: remote.thinkingLevelMap,
@@ -102,6 +140,7 @@ function mergeModel(baseModels, remote) {
 
 export function createOfficialModelCatalog(options = {}) {
   const fetchCatalog = options.fetch ?? fetch
+  const getNow = options.now ?? Date.now
   const scheduleTimeout = options.setTimeout ?? setTimeout
   const cancelTimeout = options.clearTimeout ?? clearTimeout
   const timeoutMs = Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
@@ -150,7 +189,7 @@ export function createOfficialModelCatalog(options = {}) {
         return false
       }
       if (!response.ok) throw new Error(`Codex model catalog failed (HTTP ${response.status})`)
-      const remote = parseOfficialModelCatalog(await response.json())
+      const remote = parseOfficialModelCatalog(await response.json(), getNow())
       if (currentGeneration !== generation || requestSignal.aborted) return false
       if (remote.length === 0) throw new Error('Codex returned an empty model catalog')
       const baseModels = options.baseModels()

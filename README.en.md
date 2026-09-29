@@ -31,7 +31,7 @@ Subscription access, model controls, quota management, and image creation in one
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
 | **Subscription sign-in** | Sign in to ChatGPT and use Codex subscription models without an API key | Normal chat needs no Codex CLI |
-| **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh | New models appear when your account offers them |
+| **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh; models marked for retirement show their retirement date and suggested replacement, without automatically switching your selection | New models appear when your account offers them |
 | **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
 | **Fast mode** | Switch supported models between Standard and Fast, with a lightning indicator | Standard by default; Fast increases usage |
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |

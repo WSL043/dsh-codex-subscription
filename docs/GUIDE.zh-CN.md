@@ -14,7 +14,7 @@
 
 ### GPT-6 Sol / Luna
 
-GPT-6 Sol 和 GPT-6 Luna 已在 [OpenAI 的 Codex 模型说明](https://learn.chatgpt.com/docs/models)中列出。插件会从当前账号的 Codex 模型目录自动读取可用模型及推理档位，无需手动添加型号；账号尚未开放时不会显示。Sol 适合复杂编程，Luna 适合高频、目标明确的任务。两者的扩展上下文上限和高速模式以账号目录返回值为准。
+GPT-6 Sol 和 GPT-6 Luna 已在 [OpenAI 的 Codex 模型说明](https://learn.chatgpt.com/docs/models)中列出。插件会从当前账号的 Codex 模型目录自动读取可用模型及推理档位，无需手动添加型号；账号尚未开放时不会显示。Sol 适合复杂编程，Luna 适合高频、目标明确的任务。两者的扩展上下文上限和高速模式以账号目录返回值为准。目录标注退役的模型会显示退役日期与建议替代型号，不会自动切换你的选择。
 
 ### GPT-6 Astra 上下文
 
