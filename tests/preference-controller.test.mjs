@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createPreferenceController } from '../src/preference-controller.js'
-import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD } from '../src/settings-contract.js'
+import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, DISABLED_MODELS_FIELD } from '../src/settings-contract.js'
 
 function harness({ fail = false, rpcCall } = {}) {
   let native = {
@@ -101,6 +101,19 @@ test('automatic quota retry defaults off and persists an explicit enable', async
   settle()
   await pending
   assert.equal(controller.getSnapshot().autoQuotaRetry, true)
+})
+
+test('the full model list stays visible while a disabled choice is saved', async () => {
+  const availableModels = [{ id: 'gpt-5.5', name: 'GPT-5.5' }, { id: 'gpt-6-astra', name: 'GPT-6 Astra' }]
+  const { controller, settle } = harness({ rpcCall: async () => ({ ok: true, value: { availableModels } }) })
+  await controller.load()
+  assert.deepEqual(controller.getSnapshot().availableModels, availableModels)
+  const saving = controller.set({ [DISABLED_MODELS_FIELD]: ['gpt-5.5'] })
+  assert.deepEqual(controller.getSnapshot().disabledModels, ['gpt-5.5'])
+  assert.deepEqual(controller.getSnapshot().availableModels, availableModels)
+  settle()
+  await saving
+  assert.deepEqual(controller.getSnapshot().disabledModels, ['gpt-5.5'])
 })
 
 test('preference save reflects the chosen value while keeping ready surfaces mounted', async () => {

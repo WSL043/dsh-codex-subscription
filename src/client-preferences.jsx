@@ -2,7 +2,7 @@ import { CapabilityPreferences } from './capability-preferences.jsx'
 import { RuntimeManagement } from './client-runtime-management.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { Button, IconChevronDownOutline14, Input, Menu } from './client-primitives.js'
-import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, clampModelContext, INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
+import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, DISABLED_MODELS_FIELD, clampModelContext, INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
 import { reconcileContextDrafts } from './context-draft-state.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
 export function QuickQuotaPreference({ preference, t }) {
@@ -69,6 +69,26 @@ export function StreamIdleTimeoutPreference({ preference, t }) {
   </div>
 }
 
+/** Show every account model while saving which entries the composer picker hides. */
+export function PickerModelsPreference({ preference, t }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  const writable = snapshot.status === 'ready' && snapshot.writable === true
+  const hidden = snapshot.disabledModels
+  const toggle = modelId => {
+    const next = hidden.includes(modelId) ? hidden.filter(id => id !== modelId) : [...hidden, modelId]
+    void preference.set({ [DISABLED_MODELS_FIELD]: next })
+  }
+  return <div className="codexSubscriptionContext">
+    <div className="codexSubscriptionContextCopy"><span className="codexSubscriptionPreferenceLabel">{t('pickerModelsTitle')}</span><span className="codexSubscriptionContextHint">{t('pickerModelsHint')}</span></div>
+    <div className="codexSubscriptionContextModels" role="group" aria-label={t('pickerModelsTitle')}>
+      {snapshot.availableModels.map(model => <div className="codexSubscriptionContextModel" key={model.id}>
+        <span className="codexSubscriptionContextModelCopy"><strong>{model.name}</strong></span>
+        <button className="codexSubscriptionSwitch" type="button" role="switch" aria-label={model.name} aria-checked={!hidden.includes(model.id)} disabled={!writable} onClick={() => toggle(model.id)}><span className="codexSubscriptionSwitchKnob" /></button>
+      </div>)}
+    </div>
+  </div>
+}
+
 export function ContextWindowPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = snapshot.status === 'ready' && snapshot.writable === true
@@ -128,6 +148,8 @@ export function PreferencesCard({ preference, rpc, t, section = "display" }) {
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('advancedModelSearch')}>
         <h3>{t('advancedModelSearch')}</h3>
         <SearchProviderPreference preference={preference} t={t} />
+        <div className="codexSubscriptionDivider" />
+        <PickerModelsPreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <ContextWindowPreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
