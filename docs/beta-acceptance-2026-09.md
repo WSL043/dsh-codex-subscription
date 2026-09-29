@@ -37,6 +37,19 @@ Not covered: other models, thresholds other than the default, compaction while a
 
 Not covered: model and effort selection for subtasks, permission inheritance, cancelling a running subtask, several subtasks at once.
 
+## Sketch canvas, Agent drawing, preview return (Beta)
+
+All three options were turned on.
+
+| Check | Result |
+| --- | --- |
+| `@sketch` appears in the composer menu; "draw a red circle with a blue square below it" opens the canvas, the Agent draws both shapes correctly and reports done | pass |
+| With "return preview" on, the drawing turn used 5 steps and 42K tokens, matching the documented extra image input cost | pass |
+| Manual canvas entry reopens the drawing; adding a green line by hand and pressing attach puts the image in the composer | pass |
+| The model reads the attached sketch: "Red circle, green horizontal line, blue square." | pass |
+
+Not covered: undo and layer edits after Agent drawing, stopping a drawing halfway, aspect ratios other than 1:1, very large canvases, whether the returned preview itself was what the model looked at (the answer could also come from its own drawing commands).
+
 ## Decision
 
-All three keep their Beta label. Each has a passing happy path, but the failure paths (fallback, cancel, permission inheritance) have no live evidence yet, and compaction can drop content the user considers unimportant.
+All of them keep their Beta label. Each has a passing happy path, but the failure paths (fallback, cancel, permission inheritance) have no live evidence yet, and compaction can drop content the user considers unimportant.
