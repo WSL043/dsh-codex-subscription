@@ -3,7 +3,7 @@ import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { createSubscriptionConnection } from './subscription-connection.js'
 import { createCompactionBridge } from './subscription-compaction.js'
 import { registerSubscriptionTransport } from './subscription-transport.js'
-import { createSubagentBackendSwitcher, createSubscriptionSubagent, loadSubagentRuntime } from './subagent-backend.js'
+import { createSubagentBackendSwitcher, createSubscriptionSubagent, loadSubagentRuntime, presetEntries } from './subagent-backend.js'
 import { inspectSubagentRuntime } from './subagent-runtime.js'
 import { createRuntimeManagement } from './runtime-management.js'
 import { createSketchAgentBridge } from './sketch-agent-bridge.js'
@@ -255,7 +255,7 @@ export function apply(ctx, config = {}) {
     })
     scoped.subagents.registerProvider(instance.provider)
     const switcher = createSubagentBackendSwitcher({
-      entries: () => scoped.loader.entries(), prepare: instance.prepare,
+      entries: () => [...scoped.loader.entries(), ...presetEntries(scoped)], prepare: instance.prepare,
       persist: mode => settings.update({ subagentBackend: mode }),
     })
     // Web presets mount their scoped tool rows lazily, after the settings page.
