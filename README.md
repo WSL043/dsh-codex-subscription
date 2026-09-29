@@ -88,11 +88,12 @@
 
 ## 准备 DSH
 
-已验证兼容 DSH `0.2.0-rc.1`（`next` 通道）和 `0.1.7-rc.2`（`latest` 通道），并继续支持更早的已验收版本。
+已验证兼容 DSH `0.2.0-rc.2`（`next` 通道）和 `0.1.7-rc.2`（`latest` 通道），并继续支持更早的已验收版本。
 
 本插件支持软件包元数据中记录的最新版 DeepSeek Harness，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
 
-- 不想配置 Node.js：使用 [DSH-Portable](https://github.com/WSL043/DSH-Portable)。这是面向 Windows、macOS 和 Linux 的社区便携桌面分发；
+- **推荐：官方桌面端**。DeepSeek 已发布 [DeepSeek Harness 桌面版](https://www.deepseek.com/harness/)（macOS Apple Silicon、Windows 64 位，预览版、开源），无需配置 Node.js，安装后按下文在插件页面添加本插件即可。桌面端与网页版、命令行使用同一套 DSH 插件系统；本插件的端到端验收主要在网页版上完成，桌面端遇到问题请[提交 issue](https://github.com/WSL043/dsh-codex-subscription/issues)；
+- 需要 Linux，或想要社区便携分发：使用 [DSH-Portable](https://github.com/WSL043/DSH-Portable)。这是面向 Windows、macOS 和 Linux 的社区便携桌面分发；
 - 想按官方方式运行：查看 [DeepSeek Harness 官方说明](https://github.com/deepseek-ai/deepseek-harness#run)。
 
 ## 安装
@@ -272,9 +273,9 @@ dsh plugin --profile web remove dsh-codex-subscription
 ## 常见问题
 
 <details>
-<summary>DSH 0.2.0-rc.1 提示插件 2.2.4 不兼容？</summary>
+<summary>DSH 0.2.0-rc.2 提示插件 2.2.4 不兼容？</summary>
 
-2.2.4 及更早版本发布时 DSH 0.2.0-rc.1 还不存在，其兼容声明无法事后修改。请更新到 2.2.5 或更高版本：在 **插件** 页面更新，或运行 `dsh plugin --profile web update dsh-codex-subscription`，然后重启 DSH。
+2.2.4 及更早版本发布时 DSH 0.2.0-rc.2 还不存在，其兼容声明无法事后修改。请更新到 2.2.5 或更高版本：在 **插件** 页面更新，或运行 `dsh plugin --profile web update dsh-codex-subscription`，然后重启 DSH。
 
 </details>
 
