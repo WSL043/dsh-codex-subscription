@@ -9,7 +9,7 @@ Real ChatGPT account, `dsh-codex-subscription` 2.2.6, isolated DSH `0.2.0-rc.1` 
 | Setting the mode to WebSocket and chatting over several turns works, and context carries across turns ("417" then "add 1" gives 418) | pass |
 | Connections are reused: 3 requests, 2 connections created, 1 reused, 1 delta request | pass |
 | No failures on a healthy network: `websocketFailures` 0, `sseFallbacks` 0 | pass |
-| Falling back to SSE when the connection fails | not exercised live; covered only by unit tests |
+| Falling back to SSE when the connection fails | not reproducible live (WebSocket and SSE share one host and one tunnel); covered by integration tests that use a local proxy rejecting CONNECT, including that a disconnect after the response was accepted is reported and not replayed over SSE |
 
 ## Cloud compaction (Beta)
 
@@ -35,7 +35,16 @@ Not covered: other models, thresholds other than the default, compaction while a
 | With the Codex option selected, the model delegates through `functions.subagent`, the subtask runs `node --version` and returns v24.14.1, the parent reports it | pass |
 | That the subtask really ran on the Codex runtime rather than DSH's own | not confirmed; diagnostics do not expose it |
 
-Not covered: model and effort selection for subtasks, permission inheritance, cancelling a running subtask, several subtasks at once.
+Failure paths, checked in a second round (environment rebuilt, same account):
+
+| Check | Result |
+| --- | --- |
+| Permissions: a subtask asked to write a file outside the workspace is refused ("file access denied under workspace-write mode"), the file is not created, and the parent reports the denial | pass |
+| Cancel: stopping a running subtask (a 120 second sleep) marks it stopped, leaves no sleeping shell process behind, and the parent is told the subtask was stopped without a result | pass |
+| Two subtasks in one conversation (one finished, one running) are listed and can be opened separately | pass |
+| The subtask view shows access mode "Custom" instead of the parent's "workspace edit"; the sandbox still applied the parent's limit | noted, cosmetic |
+
+Not covered: model and effort selection for subtasks (needs the DSH-side setting), many subtasks at once, a subtask that outlives a DSH restart.
 
 ## Sketch canvas, Agent drawing, preview return (Beta)
 
@@ -66,4 +75,4 @@ With the setting on "original", an attached sketch was accepted by `GPT-5.6-Luna
 
 ## Decision
 
-All of them keep their Beta label. Each has a passing happy path, but the failure paths (fallback, cancel, permission inheritance) have no live evidence yet, and compaction can drop content the user considers unimportant.
+All of them keep their Beta label. Each has a passing happy path, but WebSocket fallback has no live evidence, subtask model selection is untested, and compaction can drop content the user considers unimportant.
