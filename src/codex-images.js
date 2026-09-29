@@ -447,7 +447,8 @@ export function createCodexImageTool(options) {
       if (exec.parent !== undefined) {
         exec.deferContext(createUserMessage({
           content: imageContent(result),
-          source: { kind: 'plugin', plugin: 'codex-subscription' },
+          // The host has no shared catch-all kind: a producer declares its own.
+          source: { kind: 'codex-subscription-image' },
         }))
       }
       return result
