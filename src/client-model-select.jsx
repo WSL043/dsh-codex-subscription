@@ -22,9 +22,10 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
   }))), [state.groups])
   const visibleGroups = useMemo(() => {
     const hidden = new Set(preferenceSnapshot.disabledModels)
+    // A group whose every model is hidden keeps its title, so the menu says why it is empty.
     return state.groups.map(group => group.id === 'openai-codex'
-      ? { ...group, models: group.models.filter(model => !hidden.has(model.id)) }
-      : group).filter(group => group.models.length > 0)
+      ? { ...group, models: group.models.filter(model => !hidden.has(model.id)), allHidden: group.models.length > 0 && group.models.every(model => hidden.has(model.id)) }
+      : group).filter(group => group.models.length > 0 || group.allHidden === true)
   }, [state.groups, preferenceSnapshot.disabledModels])
   const currentChoice = choices.find(choice => choice.selection.provider === state.current?.provider && choice.selection.model === state.current?.model)
   const reasoning = currentChoice?.model.reasoning
@@ -147,6 +148,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
       {state.failures.map(failure => <div className="codexModelSelectWarning" key={failure.id}>{fill(t('groupFailed'), { name: failure.name, value: failure.message })}</div>)}
       <div className="codexModelSelectGroups scrollable">{visibleGroups.map(group => <section className="codexModelSelectGroup" role="group" aria-labelledby={`${id}-${group.id}`} key={group.id}>
         <div className="codexModelSelectGroupTitle" id={`${id}-${group.id}`}>{group.name}</div>
+        {group.allHidden === true ? <div className="codexModelSelectEmpty">{t('modelsHidden')}</div> : null}
         {group.models.map(model => option({
           key: model.id,
           label: model.name,
