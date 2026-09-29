@@ -310,6 +310,13 @@ The current plugin icon and its appearance in DSH’s Installed list.
 
 <sub>Captured in DSH 0.1.7-alpha.2.</sub>
 
+## Positioning and boundaries
+
+- **ChatGPT / Codex subscription only**, done in depth: quota and forecasting, images and sketches, subtasks, diagnostics. Other subscriptions such as Claude or Grok are out of scope.
+- **Fail explicitly**: requests never silently fall back to another paid route, and quota windows the account does not return are never invented.
+- **Tracks official DSH releases**: every release is accepted end to end (install, start, remove, reinstall) against official DSH channels such as latest and next; verified versions are recorded in the [compatibility notes](docs/dsh-020-compatibility.md).
+- Models, quota and features depend on what your account actually returns; the ChatGPT backend and DSH can change independently.
+
 ## Scope and support
 
 The ChatGPT Codex backend and DSH can change independently. This community project is not affiliated with or endorsed by DeepSeek or OpenAI.
