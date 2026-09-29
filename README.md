@@ -273,9 +273,9 @@ dsh plugin --profile web remove dsh-codex-subscription
 ## 常见问题
 
 <details>
-<summary>DSH 0.2.0-rc.2 提示插件 2.2.4 不兼容？</summary>
+<summary>DSH 0.2.0-rc.2 提示插件不兼容？</summary>
 
-2.2.4 及更早版本发布时 DSH 0.2.0-rc.2 还不存在，其兼容声明无法事后修改。请更新到 2.2.5 或更高版本：在 **插件** 页面更新，或运行 `dsh plugin --profile web update dsh-codex-subscription`，然后重启 DSH。
+2.2.10 之前的所有版本发布时 DSH 0.2.0-rc.2 还不存在，其兼容声明无法事后修改。请安装 2.2.10 或更高版本（只填包名时，发布满 24 小时前可能装到旧版，请直接填 `dsh-codex-subscription@2.2.10`）：在 **插件** 页面更新，或运行 `dsh plugin --profile web update dsh-codex-subscription`，然后重启 DSH。
 
 </details>
 
