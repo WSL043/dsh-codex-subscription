@@ -113,7 +113,7 @@ export function openaiCodexSubscriptionProvider({
       },
     }
   }
-  const getModels = () => (catalog?.getModels(provider.getModels()) ?? provider.getModels()).map(model => {
+  const getModels = () => (catalog?.getModels() ?? provider.getModels()).map(model => {
     const maximum = modelContextMaximum(model)
     const mode = resolveContextMode()
     if (model.id === 'gpt-5.3-codex-spark' || ![CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM].includes(mode)) return model

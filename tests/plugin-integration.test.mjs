@@ -244,41 +244,26 @@ test('plugin activates without the web connection service in Headless mode', () 
   assert.equal(host.handled.length, 0)
 })
 
-test('every advertised Codex model resolves and prepares without reading credentials', async () => {
+test('signed out, the account advertises no models and model metadata never reads credentials', async () => {
   const host = fakeContext()
   applyPlugin(host.ctx)
-  // Activation may inspect account state; model metadata must not require it.
   host.ctx.credentials.resolve = async () => assert.fail('model metadata must not read credentials')
   const adapter = host.registered[0].adapter
-  const models = await adapter.listModels('openai-codex')
-  assert.ok(models.length > 0)
-  for (const model of models) {
-    const resolved = await adapter.resolveModel('openai-codex', model.id)
-    assert.equal(resolved.provider, 'openai-codex')
-    assert.equal(resolved.id, model.id)
-    assert.ok(resolved.context.contextWindow > 0)
-    const prepared = await adapter.prepareCall('openai-codex', model.id)
-    assert.deepEqual(prepared.model, resolved)
-    assert.equal(typeof prepared.stream, 'function')
-  }
+  assert.deepEqual(await adapter.listModels('openai-codex'), [], 'no bundled list stands in for the account catalog')
+  await assert.rejects(adapter.resolveModel('openai-codex', 'gpt-5.5'))
 })
 
-test('hiding a model in the picker leaves it routable through DSH', async () => {
+test('hiding a model only changes the saved display list, not what the adapter advertises', async () => {
   const host = fakeContext()
   applyPlugin(host.ctx)
   const adapter = host.registered[0].adapter
   const signal = new AbortController().signal
-  const before = await adapter.listModels('openai-codex')
-  const hidden = before[0].id
-  const updated = await host.request('preferences/update', { [DISABLED_MODELS_FIELD]: [hidden] }, signal)
+  const updated = await host.request('preferences/update', { [DISABLED_MODELS_FIELD]: ['gpt-5.5'] }, signal)
   assert.equal(updated.ok, true)
-  assert.deepEqual(updated.value.disabledModels, [hidden])
-  assert.deepEqual(updated.value.availableModels.map(model => model.id), before.map(model => model.id))
-  assert.deepEqual((await adapter.listModels('openai-codex')).map(model => model.id), before.map(model => model.id))
-  assert.equal((await adapter.resolveModel('openai-codex', hidden)).id, hidden)
-  assert.equal(typeof (await adapter.prepareCall('openai-codex', hidden)).stream, 'function')
+  assert.deepEqual(updated.value.disabledModels, ['gpt-5.5'])
+  assert.deepEqual(updated.value.availableModels, [])
+  assert.deepEqual(await adapter.listModels('openai-codex'), [])
   await host.request('preferences/update', { [DISABLED_MODELS_FIELD]: [] }, signal)
-  assert.deepEqual((await adapter.listModels('openai-codex')).map(model => model.id), before.map(model => model.id))
 })
 
 test('plugin registers one Codex route, subscription image tool, and DSH-trusted redacted RPC', async () => {
@@ -305,14 +290,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.equal(host.listeners.filter(listener => listener.event === 'agent/request-error').length, 1)
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
   const models = await host.registered[0].adapter.listModels('openai-codex')
-  assert.ok(models.length > 0, 'the supported DSH adapter must receive auth before creating its model registry')
-  assert.equal((await host.registered[0].adapter.resolveModel('openai-codex', 'gpt-5.5')).context.contextWindow, 272_000)
-  await host.updateSettings({ [CONTEXT_MODE_FIELD]: CONTEXT_MODE_EXTENDED })
-  assert.equal((await host.registered[0].adapter.resolveModel('openai-codex', 'gpt-5.5')).context.contextWindow, 1_000_000)
-  await host.updateSettings({ [CONTEXT_MODE_FIELD]: CONTEXT_MODE_CUSTOM, customContextGpt54Mini: 400_000, customContextGpt55: 500_000 })
-  assert.equal((await host.registered[0].adapter.resolveModel('openai-codex', 'gpt-5.4-mini')).context.contextWindow, 400_000)
-  assert.equal((await host.registered[0].adapter.resolveModel('openai-codex', 'gpt-5.5')).context.contextWindow, 500_000)
-  await host.updateSettings({ [CONTEXT_MODE_FIELD]: CONTEXT_MODE_STANDARD, [CUSTOM_CONTEXT_WINDOW_FIELD]: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000 })
+  assert.deepEqual(models, [], 'signed out there is no account catalog to advertise')
   assert.equal(host.handled.length, RPC_ENDPOINTS.length + 1)
   assert.equal(host.handled[0].path, '/api/codex-subscription/status')
   assert.ok(host.handled.filter(route => route.path !== '/api/codex-subscription/sketch-psd-worker').every(route => route.methods.length === 1 && route.methods[0] === 'POST'))
@@ -330,7 +308,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.doesNotMatch(JSON.stringify(status), /access|refresh|accountId/)
 
   const diagnostics = await host.request('diagnostics', {}, signal)
-  assert.equal(diagnostics.value.catalog.source, 'fallback')
+  assert.equal(diagnostics.value.catalog.source, 'unavailable')
   assert.ok(['idle', 'refreshing'].includes(diagnostics.value.catalog.refresh))
   assert.ok(Number.isFinite(Date.parse(diagnostics.value.generatedAt)))
   assert.equal(diagnostics.value.inspection.meaning, 'collection-success-is-not-feature-success')
@@ -382,23 +360,15 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
 
   const preferenceStatus = await host.request('preferences/status', {}, signal)
   const activeContextModels = preferenceStatus.value.contextModels
-  assert.partialDeepStrictEqual(activeContextModels, [
-    { key: 'gpt-5.4', label: 'GPT-5.4', maximum: 1_000_000 },
-    { key: 'gpt-5.4-mini', label: 'GPT-5.4 mini', maximum: 400_000 },
-    { key: 'gpt-5.5', label: 'GPT-5.5', maximum: 1_000_000 },
-    { key: 'gpt-5.6', label: 'GPT-5.6 Luna / Sol / Terra', maximum: 1_000_000 },
-  ])
-  for (const model of activeContextModels) {
-    assert.equal(typeof model.label, 'string')
-    assert.ok(model.maximum > 0 && model.maximum <= 1_000_000)
-  }
+  assert.deepEqual(activeContextModels, [], 'signed out there are no per-model context rows')
+  assert.deepEqual(preferenceStatus.value.availableModels, [])
   const verbosityModels = preferenceStatus.value.verbosityModels
-  assert.partialDeepStrictEqual(verbosityModels, ['gpt-5.4', 'gpt-5.4-mini', 'gpt-5.5', 'gpt-5.6-luna', 'gpt-5.6-sol', 'gpt-5.6-terra'])
+  assert.deepEqual(verbosityModels, [])
   assert.equal(verbosityModels.includes('gpt-5.3-codex-spark'), false)
   assert.equal(typeof preferenceStatus.value.subagentRuntimeInstalled, 'boolean')
   assert.deepEqual(preferenceStatus, {
     ok: true,
-    value: { disabledModels: [], autoQuotaRetry: false, compactionMode: 'dsh', connectionMode: 'sse', subagentBackend: 'dsh', subagentBackendAvailable: false, subagentRuntimeInstalled: preferenceStatus.value.subagentRuntimeInstalled, ...IMAGE_FEATURE_DEFAULTS, imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, inputImageDetail: 'auto', streamIdleTimeoutMinutes: 10, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 272_000, customContextGpt54Mini: 272_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, availableModels: preferenceStatus.value.availableModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', quotaShortThreshold: 20, quotaLongThreshold: 20, writable: true },
+    value: { disabledModels: [], autoQuotaRetry: false, compactionMode: 'dsh', connectionMode: 'sse', subagentBackend: 'dsh', subagentBackendAvailable: false, subagentRuntimeInstalled: preferenceStatus.value.subagentRuntimeInstalled, ...IMAGE_FEATURE_DEFAULTS, imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', speedMode: SPEED_MODE_STANDARD, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, inputImageDetail: 'auto', streamIdleTimeoutMinutes: 10, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 1_000_000, customContextGpt56: 1_000_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, availableModels: preferenceStatus.value.availableModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', quotaShortThreshold: 20, quotaLongThreshold: 20, writable: true },
   })
   const preferenceUpdate = await host.request('preferences/update', {
     [AUTO_QUOTA_RETRY_FIELD]: false,
@@ -413,7 +383,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   }, signal)
   assert.deepEqual(preferenceUpdate, {
     ok: true,
-    value: { disabledModels: [], autoQuotaRetry: false, compactionMode: 'dsh', connectionMode: 'sse', subagentBackend: 'dsh', subagentBackendAvailable: false, subagentRuntimeInstalled: preferenceStatus.value.subagentRuntimeInstalled, ...IMAGE_FEATURE_DEFAULTS, imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, inputImageDetail: 'high', streamIdleTimeoutMinutes: 5, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 272_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 272_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, availableModels: preferenceStatus.value.availableModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', quotaShortThreshold: 20, quotaLongThreshold: 20, writable: true },
+    value: { disabledModels: [], autoQuotaRetry: false, compactionMode: 'dsh', connectionMode: 'sse', subagentBackend: 'dsh', subagentBackendAvailable: false, subagentRuntimeInstalled: preferenceStatus.value.subagentRuntimeInstalled, ...IMAGE_FEATURE_DEFAULTS, imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', speedMode: SPEED_MODE_FAST, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, inputImageDetail: 'high', streamIdleTimeoutMinutes: 5, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 1_000_000, customContextGpt56: 1_000_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, availableModels: preferenceStatus.value.availableModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', quotaShortThreshold: 20, quotaLongThreshold: 20, writable: true },
   })
   assert.equal(host.registered[0].adapter.current().profiles.get('openai-codex').streamIdleTimeoutMs, 5 * 60 * 1000)
   await host.request('preferences/update', { [STREAM_IDLE_TIMEOUT_MINUTES_FIELD]: 10 }, signal)
@@ -683,10 +653,10 @@ test('catalog diagnostics includes refresh failures without copying private meta
     auth: { status: async () => ({ authenticated: false }) },
     preferences: { status: () => ({}) },
     network: { snapshot: () => ({ catalog: { status: 'failed', stage: 'http', code: 'http-error', httpStatus: 403, route: 'direct', elapsed: 'under-1s', url: 'private-url' } }) },
-    modelCatalog: { status: () => ({ source: 'fallback', refresh: 'failed', accountId: 'private-account' }) },
+    modelCatalog: { status: () => ({ source: 'unavailable', refresh: 'failed', accountId: 'private-account' }) },
   })
   assert.equal(report.requests.catalog.httpStatus, 403)
-  assert.deepEqual(report.catalog, { source: 'fallback', refresh: 'failed' })
+  assert.deepEqual(report.catalog, { source: 'unavailable', refresh: 'failed' })
   assert.doesNotMatch(JSON.stringify(report), /private-|accountId|url/)
 })
 
