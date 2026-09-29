@@ -88,11 +88,12 @@ Subscription access, model controls, quota management, and image creation in one
 
 ## Prepare DSH
 
-Verified against DSH `0.2.0-rc.1` (`next` channel) and `0.1.7-rc.2` (`latest` channel), with earlier accepted versions still supported.
+Verified against DSH `0.2.0-rc.2` (`next` channel) and `0.1.7-rc.2` (`latest` channel), with earlier accepted versions still supported.
 
 This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 
-- Do not want to configure Node.js? Use [DSH-Portable](https://github.com/WSL043/DSH-Portable), a community portable desktop distribution for Windows, macOS, and Linux.
+- **Recommended: the official desktop app.** DeepSeek now ships a [DeepSeek Harness desktop app](https://www.deepseek.com/harness/) (macOS on Apple Silicon and 64-bit Windows; preview, open source). It needs no Node.js setup: install it, then add this plugin from the Plugins page as described below. The desktop app, the web app and the CLI share one DSH plugin system; this plugin's end-to-end acceptance is mainly run on the web app, so please [open an issue](https://github.com/WSL043/dsh-codex-subscription/issues) if the desktop app misbehaves.
+- Need Linux, or prefer a community portable build? Use [DSH-Portable](https://github.com/WSL043/DSH-Portable), a community portable desktop distribution for Windows, macOS, and Linux.
 - Prefer the official route? Follow the [DeepSeek Harness run guide](https://github.com/deepseek-ai/deepseek-harness#run).
 
 ## Install
@@ -272,9 +273,9 @@ dsh plugin --profile web remove dsh-codex-subscription
 ## Troubleshooting
 
 <details>
-<summary>DSH 0.2.0-rc.1 reports plugin 2.2.4 as incompatible?</summary>
+<summary>DSH 0.2.0-rc.2 reports plugin 2.2.4 as incompatible?</summary>
 
-DSH 0.2.0-rc.1 did not exist when 2.2.4 and earlier were published, and a published package's compatibility declaration cannot be changed. Update to 2.2.5 or later from the **Plugins** page, or run `dsh plugin --profile web update dsh-codex-subscription`, then restart DSH.
+DSH 0.2.0-rc.2 did not exist when 2.2.4 and earlier were published, and a published package's compatibility declaration cannot be changed. Update to 2.2.5 or later from the **Plugins** page, or run `dsh plugin --profile web update dsh-codex-subscription`, then restart DSH.
 
 </details>
 
