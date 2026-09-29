@@ -78,15 +78,18 @@ export function PickerModelsPreference({ preference, t }) {
     const next = hidden.includes(modelId) ? hidden.filter(id => id !== modelId) : [...hidden, modelId]
     void preference.set({ [DISABLED_MODELS_FIELD]: next })
   }
-  return <div className="codexSubscriptionContext">
-    <div className="codexSubscriptionContextCopy"><span className="codexSubscriptionPreferenceLabel">{t('pickerModelsTitle')}</span><span className="codexSubscriptionContextHint">{t('pickerModelsHint')}</span></div>
-    <div className="codexSubscriptionContextModels" role="group" aria-label={t('pickerModelsTitle')}>
-      {snapshot.availableModels.map(model => <div className="codexSubscriptionContextModel" key={model.id}>
-        <span className="codexSubscriptionContextModelCopy"><strong>{model.name}</strong></span>
-        <button className="codexSubscriptionSwitch" type="button" role="switch" aria-label={model.name} aria-checked={!hidden.includes(model.id)} disabled={!writable} onClick={() => toggle(model.id)}><span className="codexSubscriptionSwitchKnob" /></button>
-      </div>)}
+  const shown = snapshot.availableModels.filter(model => !hidden.includes(model.id)).length
+  if (snapshot.availableModels.length === 0) return null
+  return <details className="codexSubscriptionSearchOptions">
+    <summary>{t('pickerModelsTitle')}<span>{shown} / {snapshot.availableModels.length}</span></summary>
+    <p className="codexSubscriptionPreferenceHint">{t('pickerModelsHint')}</p>
+    <div className="codexSubscriptionPickerModels" role="group" aria-label={t('pickerModelsTitle')}>
+      {snapshot.availableModels.map(model => <label className="codexSubscriptionPickerModel" key={model.id}>
+        <input type="checkbox" checked={!hidden.includes(model.id)} disabled={!writable} onChange={() => toggle(model.id)} />
+        <span>{model.name}</span>
+      </label>)}
     </div>
-  </div>
+  </details>
 }
 
 export function ContextWindowPreference({ preference, t }) {

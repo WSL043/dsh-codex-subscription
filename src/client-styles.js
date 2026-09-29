@@ -113,6 +113,10 @@ export const STYLE = `
 .codexSubscriptionLimitMeta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionLimitPeriod{display:flex;gap:8px;flex-wrap:wrap}
 .codexSubscriptionSearchOptions{margin-top:10px;font-size:12px}
+.codexSubscriptionPickerModels{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 16px}
+.codexSubscriptionPickerModel{display:flex;align-items:center;gap:8px;min-height:28px;font-size:12px;line-height:18px;cursor:pointer}
+.codexSubscriptionPickerModel span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.codexSubscriptionPickerModel input{flex:none;margin:0}
 .codexSubscriptionSearchOptions>summary{cursor:pointer;color:var(--dsw-alias-label-primary);padding:6px 0}
 .codexSubscriptionSearchOptions>summary>span{float:right;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionSearchOptions[open]>summary{margin-bottom:8px}
