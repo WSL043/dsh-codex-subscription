@@ -108,7 +108,7 @@ export function createSketchCommandSession(adapter) {
       for (const key of ['compare','grid']) if (request[key] !== undefined && typeof request[key] !== 'boolean') throw Error(`${key} must be true or false`)
       return {...current, png:await adapter.preview({compare:request.compare===true,grid:request.grid===true}), ...(request.grid?{gridStep:100}:{})}
     }
-    if (!['apply','save'].includes(request.action)) throw Error('Unknown sketch action')
+    if (!['apply','save','reference'].includes(request.action)) throw Error('Unknown sketch action')
     if (typeof request.requestId !== 'string' || !request.requestId.length || request.requestId.length > 100) throw Error('A unique requestId is required')
     const key = `${current.documentId}:${request.requestId}`, fingerprint = JSON.stringify({...request,runId:undefined})
     const cached = completed.get(key)
@@ -124,6 +124,9 @@ export function createSketchCommandSession(adapter) {
       adapter.commit(next)
       const previous=new Map(before.layers.flatMap(l=>l.strokes.map(s=>[`${l.id}:${s.id}`,s])))
       changedObjects=next.layers.flatMap(l=>l.strokes.filter(s=>previous.get(`${l.id}:${s.id}`)!==s).map(s=>({layer:l.id,id:s.id})))
+    } else if (request.action === 'reference') {
+      if (typeof request.image !== 'string' || !/^data:image\/(png|jpeg|webp);base64,/.test(request.image) || request.image.length > 1_900_000) throw Error('A PNG, JPEG or WebP reference image is required')
+      pending=true;try{await adapter.addReference(request.image,typeof request.name==='string'?request.name.slice(0,40):'reference')}finally{pending=false}
     } else {
       if(request.name!==undefined && (typeof request.name!=='string'||request.name.length>60))throw Error('Invalid draft name')
       pending=true;try{await adapter.save(request.name)}finally{pending=false}
