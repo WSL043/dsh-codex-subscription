@@ -1,0 +1,31 @@
+name: Stale reporter follow-up
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/stale@v10
+        with:
+          only-issue-labels: waiting-for-reporter
+          days-before-pr-stale: -1
+          days-before-pr-close: -1
+          days-before-issue-stale: 14
+          days-before-issue-close: 7
+          stale-issue-label: stale
+          remove-stale-when-updated: true
+          stale-issue-message: >
+            We are still waiting for the details requested above (plugin version, DSH version, and the exact message).
+            Without them we cannot reproduce this, and it will be closed in 7 days. Reply or edit the issue to keep it open, and it can always be reopened.
+            我们仍在等待上面要求的信息（插件版本、DSH 版本和完整提示）。没有这些信息无法复现，7 天后将自动关闭；回复或编辑 issue 即可保留，之后也可以随时重新打开。
+          close-issue-message: >
+            Closing because the requested details were not provided. Please open a new Bug report, or reopen this one, with the plugin version, the DSH version, and the exact message.
+            因未收到所需信息，先关闭本 issue。补充插件版本、DSH 版本和完整提示后，可重新打开或新建 Bug 表单。

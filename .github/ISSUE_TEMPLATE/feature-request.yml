@@ -3,6 +3,11 @@ description: Suggest a focused improvement with a clear user need
 labels:
   - enhancement
 body:
+  - type: markdown
+    attributes:
+      value: |
+        This form is for new ideas. If something is broken, fails to install, or shows an error, please use the Bug report form instead so we get the versions and diagnostics needed to reproduce it.
+
   - type: textarea
     id: use_case
     attributes:
