@@ -1,4 +1,5 @@
 import { CapabilityPreferences } from './capability-preferences.jsx'
+import { DefaultModelPreference } from './default-model-preferences.jsx'
 import { RuntimeManagement } from './client-runtime-management.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { Button, IconChevronDownOutline14, Input, Menu, Switch } from './client-primitives.js'
@@ -173,12 +174,16 @@ export function ModelCatalogStatus({ preference, t }) {
   </div>
 }
 
-export function PreferencesCard({ preference, rpc, t, section = "display" }) {
+export function PreferencesCard({ preference, rpc, t, defaultModel, section = "display" }) {
   const snapshot = usePreferenceSnapshot(preference)
   return <div className={section === 'advanced' ? 'codexSubscriptionAdvancedPreferences' : 'codexSubscriptionCard codexSubscriptionPreferencesCard'}>
     {section === 'advanced' ? <>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('modelsSectionTitle')}>
         <h3>{t('modelsSectionTitle')}</h3>
+        {defaultModel === undefined ? null : <>
+          <DefaultModelPreference preference={preference} defaultModel={defaultModel} t={t} />
+          <div className="codexSubscriptionDivider" />
+        </>}
         <ModelCatalogStatus preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <PickerModelsPreference preference={preference} t={t} />

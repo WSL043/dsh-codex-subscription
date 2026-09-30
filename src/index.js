@@ -1,4 +1,5 @@
 import { createSettingsAdapter } from './settings-adapter.js'
+import { createDefaultModelController } from './default-model.js'
 import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { createSubscriptionConnection } from './subscription-connection.js'
 import { createCompactionBridge } from './subscription-compaction.js'
@@ -147,6 +148,12 @@ export function apply(ctx, config = {}) {
     fetch: (input, init) => network.fetch('catalog', input, init),
   })
   const connection = createSubscriptionConnection({ resolveMode: () => settings.get().connectionMode })
+  // The settings surface edits DSH's own default model instead of keeping a
+  // second copy, so every new conversation opens on what the user selected.
+  const defaultModel = createDefaultModelController({
+    resolveService: () => ctx.get?.('agentDefaultModel'),
+    listModels: () => modelCatalog.getModels().map(model => model.id),
+  })
   const compaction = createCompactionBridge({
     enabled: () => settings.get().compactionMode === 'cloud',
     accountScope: async () => {
@@ -443,6 +450,7 @@ export function apply(ctx, config = {}) {
     usageReader,
     resetCreditService,
     preferences,
+    defaultModel,
     runtimeManagement,
     onAccountChanged: quotaRetryHandler.notifyAccountChanged,
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
@@ -475,6 +483,7 @@ export function apply(ctx, config = {}) {
 export { createCodexAuthService, DshOAuthCredentialStore } from './credential-store.js'
 export { createSubscriptionDiagnostics } from './diagnostics.js'
 export { normalizeContextMode, normalizeCustomContextWindow } from './settings-contract.js'
+export { createDefaultModelController, DEFAULT_MODEL_PROVIDER } from './default-model.js'
 export { assertCodexAuthUrl, commandForCodexAuthUrl, openCodexAuthUrl } from './external-url.js'
 export { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinator.js'
 export { CODEX_USAGE_URL, createCodexUsageReader, parseCodexUsage } from './usage.js'
