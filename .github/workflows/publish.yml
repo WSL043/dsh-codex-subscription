@@ -694,3 +694,27 @@ jobs:
         env:
           NPM_TAG: ${{ needs.preflight.outputs.npm_tag }}
         run: npm publish ./.release-artifact/dsh-codex-subscription.tgz --access public --tag "$NPM_TAG"
+
+  # npm can take many minutes to serve a new version and move its dist-tag.
+  # Wait for that, then refresh the China mirror so users there see it too.
+  # A failure here never fails the release, which is already published.
+  sync-mirror:
+    needs: [preflight, publish-npm]
+    if: needs.publish-npm.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    continue-on-error: true
+    steps:
+      - name: Wait for the npm dist-tag, then sync the mirror
+        env:
+          RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
+          NPM_TAG: ${{ needs.preflight.outputs.npm_tag }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          for _ in $(seq 1 140); do
+            current="$(npm view dsh-codex-subscription "dist-tags.$NPM_TAG" 2>/dev/null || true)"
+            [[ "$current" == "$version" ]] && break
+            sleep 30
+          done
+          [[ "$current" == "$version" ]] || { echo "npm still serves ${current:-nothing} for $NPM_TAG after the wait; not syncing the mirror."; exit 1; }
+          curl --fail --silent --show-error -X PUT https://registry-direct.npmmirror.com/-/package/dsh-codex-subscription/syncs
