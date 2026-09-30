@@ -104,7 +104,10 @@ export function createSketchCommandSession(adapter) {
     }
     if (request.documentId !== current.documentId) throw Error('Document changed; inspect again')
     if (pending || adapter.busy()) throw Error('Sketch is being edited; retry after it settles')
-    if (request.action === 'preview') return {...current, png:await adapter.preview()}
+    if (request.action === 'preview') {
+      for (const key of ['compare','grid']) if (request[key] !== undefined && typeof request[key] !== 'boolean') throw Error(`${key} must be true or false`)
+      return {...current, png:await adapter.preview({compare:request.compare===true,grid:request.grid===true}), ...(request.grid?{gridStep:100}:{})}
+    }
     if (!['apply','save'].includes(request.action)) throw Error('Unknown sketch action')
     if (typeof request.requestId !== 'string' || !request.requestId.length || request.requestId.length > 100) throw Error('A unique requestId is required')
     const key = `${current.documentId}:${request.requestId}`, fingerprint = JSON.stringify({...request,runId:undefined})

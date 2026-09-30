@@ -25,6 +25,7 @@ import {
   resizeSketch
 } from './sketch-layers.js'
 import { paintSketchLayers } from './sketch-layer-renderer.js'
+import { composeSketchPreview } from './sketch-preview.js'
 import { smoothStrokePoints } from './sketch-input.js'
 import { sketchDrafts } from './sketch-drafts.js'
 import { useSketchView } from './sketch-view.jsx'
@@ -486,9 +487,19 @@ export function SketchStudio({
       setError('')
       schedule()
     },
-    preview: async () => {
-      paint()
-      return canvas.current.toDataURL('image/png')
+    preview: async (options) => {
+      const w = doc.current.width ?? SKETCH_SIZE,
+        h = doc.current.height ?? SKETCH_SIZE
+      return composeSketchPreview({
+        doc: doc.current,
+        images: images.current,
+        width: w,
+        height: h,
+        options,
+        paintLayers: paintSketchLayers,
+        makeSurface: (width, height) =>
+          Object.assign(document.createElement('canvas'), { width, height })
+      })
     },
     save: save
   })
