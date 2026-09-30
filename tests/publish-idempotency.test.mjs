@@ -11,3 +11,12 @@ test('rebuilding the same GitHub Release does not fail on an already-published n
   assert.match(workflow, /if: steps\.npm-version\.outputs\.needed == 'true'/u)
   assert.match(workflow, /npm publish \.\/\.release-artifact\/dsh-codex-subscription\.tgz --access public/u)
 })
+
+test('the mirror sync waits for the npm dist-tag and can never fail a published release', () => {
+  const job = workflow.slice(workflow.indexOf('  sync-mirror:'))
+  assert.match(job, /needs: \[preflight, publish-npm\]/)
+  assert.match(job, /continue-on-error: true/)
+  assert.match(job, /dist-tags\.\$NPM_TAG/)
+  assert.match(job, /registry-direct\.npmmirror\.com\/-\/package\/dsh-codex-subscription\/syncs/)
+  assert.ok(job.indexOf('dist-tags') < job.indexOf('npmmirror'), 'sync only after the tag is visible')
+})
