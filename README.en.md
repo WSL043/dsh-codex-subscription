@@ -16,26 +16,11 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[What's new](#whats-new-in-240) · [Features](#feature-overview) · [Install](#install) · [Daily use](#inside-the-plugin) · [Examples](#from-sketch-to-image) · [User guide](docs/GUIDE.en.md) · [Update and uninstall](#update-and-uninstall)
+[Features](#feature-overview) · [Install](#install) · [Daily use](#inside-the-plugin) · [Examples](#from-sketch-to-image) · [User guide](docs/GUIDE.en.md) · [Update and uninstall](#update-and-uninstall)
 
 </div>
 
 <p align="center"><img src="docs/assets/product-account-demo-en.png" width="1100" alt="Codex subscription account and quota interface with model choices, quota windows and alerts; demonstration data"></p>
-
-## What's new in 2.4.0
-
-- **Stronger agent drawing (Beta).** A new SVG drawing command lets the model draw a whole layer in the notation it knows best; the result is still editable, undoable and exportable native strokes. Approximations such as gradients or clamped points are reported, and unsupported elements are refused by name.
-- **New showcase.** GPT-6.1-Sol at Xhigh and GPT-6-Astra at Low compared side by side on a mechanical cutaway and a blue-green landscape, run on the official desktop app; see [From sketch to image](#from-sketch-to-image).
-- **Desktop app fixes.** On the official desktop app the Codex subtask component now detects the host version and installs; support diagnostics report the real DSH version; a failed image request says whether it timed out or the connection dropped.
-
-### 2.3.0
-
-- **The official desktop app works.** The official DeepSeek Harness desktop app (0.2.0-rc.2) passed a hands-on acceptance run: plugin install, sign-in, model list, hiding models, a chat with a tool call, and image generation. See [Install](#install).
-- **Models come only from your account.** The model list is read entirely from the account catalog; before sign-in or when the read fails no model is shown, and there is no built-in fallback. Under Models & runtime you can show or hide each model in the composer.
-- **Settings reorganised.** Models and search are separate cards, switches use DSH's own control, and dead buttons no longer appear while signed out.
-- **Ultrafast speed tier (Beta).** The new tier from OpenAI's developer event. It appears in the model menu only when your account catalog lists it for that model (today Pro 500 with GPT-6 Astra); other accounts never see it and it is never silently swapped for another tier. It is Beta because it has not been run on a Pro 500 account yet.
-- **Shorter support diagnostics.** "Copy report" now copies the conclusions, recent failures and per-feature status (about 1 KB); the full report can still be copied separately from the details.
-- **Subtasks and stability.** Codex subtasks now really take effect on 0.2.0 and no longer expose the apps connected to your account; image generation being rejected by the host on the desktop app is fixed (2.2.11).
 
 ## Feature overview
 
