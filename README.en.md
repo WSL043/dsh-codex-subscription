@@ -183,9 +183,9 @@ Draw by hand with the canvas button, or ask the agent with `@sketch` and your dr
 The prompt (sent in Chinese): draw "Lighthouse and Homecoming" on a 4:3 canvas — a red-and-white lighthouse on a rocky cape casting a fan of light, an orange-sailed fishing boat heading home with a V-shaped wake, a half-risen sun, three cloud bands, three gulls and surf around the rocks, in six named layers; then turn the sketch into a warm watercolor travel poster with no text, keeping the composition.
 
 <details>
-<summary>Advanced examples · Mechanical cutaway and blue-green landscape (Sol Xhigh vs Astra Low)</summary>
+<summary>Advanced examples · Mechanical cutaway, blue-green landscape and a reference-copy challenge</summary>
 
-Both subjects were chosen to expose quality differences: a mechanical cutaway tests structure and detail (meshing gears, pendulum, chains, tiny figures on a staircase), and a Song-dynasty blue-green landscape tests composition and taste (the "three distances", empty space, texture strokes and mineral color). The same prompt went to **GPT-6.1-Sol · Xhigh** and **GPT-6-Astra · Low**, one run each, on the official desktop app, with GPT Image 2 (quality: high).
+The first two subjects were chosen to expose quality differences: a mechanical cutaway tests structure and detail (meshing gears, pendulum, chains, tiny figures on a staircase), and a Song-dynasty blue-green landscape tests composition and taste (the "three distances", empty space, texture strokes and mineral color). The same prompt went to **GPT-6.1-Sol · Xhigh** and **GPT-6-Astra · Low**, one run each, on the official desktop app, with GPT Image 2 (quality: high).
 
 **Clock Tower Cutaway**
 
@@ -207,7 +207,19 @@ Sol first computed tooth counts (48, 38, 27, 46, 36, 24, 34, 30, 22) and pitch c
 
 Sol Xhigh took about 28 minutes and Astra Low about 5. Both kept the main peak, waterfall, plank path and river in place; Sol's receding ranges and mist bands are more complete.
 
-The full Chinese prompts for both subjects are in the [Chinese README](README.md#从草图到作品).
+**"DeepSeek-chan" · copy a reference image (draw only, no image generation)**
+
+Here the reference image is attached to the message and the model copies it on the canvas, which tests proportions, gradient long hair, lace trim, hand lettering and small motifs. The reference is a community sticker of the DeepSeek mascot girl. Each cell is one run on the official desktop app with no image generation; the native-stroke runs had "return preview when finished" enabled, and the SVG runs added one sentence to the same prompt asking for the svg command on every layer.
+
+<table>
+<tr><th width="20%">Reference</th><th width="40%">Native strokes</th><th width="40%">SVG</th></tr>
+<tr><td rowspan="2"><img src="docs/assets/sketch-niang-reference.webp" alt="DeepSeek-chan sticker reference" width="220"></td><td><img src="docs/assets/sketch-niang-sol-native.webp" alt="Sol native strokes" width="330"><br><sub><b>Sol Xhigh</b> · 40 min 50 s · 526 strokes</sub></td><td><img src="docs/assets/sketch-niang-sol-svg.webp" alt="Sol SVG" width="330"><br><sub><b>Sol Xhigh</b> · 31 min 48 s · 463 strokes</sub></td></tr>
+<tr><td><img src="docs/assets/sketch-niang-astra-native.webp" alt="Astra native strokes" width="330"><br><sub><b>Astra Medium</b> · about 7 min · 332 strokes</sub></td><td><img src="docs/assets/sketch-niang-astra-svg.webp" alt="Astra SVG" width="330"><br><sub><b>Astra Medium</b> · 10 min 5 s</sub></td></tr>
+</table>
+
+The SVG runs have finer hair highlights, lace trim and lettering, and Sol was almost 9 minutes faster with SVG than stroke by stroke; Astra spent about 3 extra minutes on SVG for clearly richer detail. Neither model got the face shape right (too long and flat) or the small whale motif on the apron, though Sol's whale looks more like a whale.
+
+The full Chinese prompts for all three subjects are in the [Chinese README](README.md#从草图到作品).
 
 Each example is a single run, not a measure of consistent quality. Sol Xhigh is much slower; Astra or a lower reasoning level is enough for everyday sketches.
 
