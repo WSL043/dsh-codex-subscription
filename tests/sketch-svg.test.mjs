@@ -97,3 +97,9 @@ test('an svg batch reports gradient warnings back through the report object', ()
   applySketchCommands(doc, [{ op: 'svg', svg: wrap('<defs><linearGradient id="g"><stop stop-color="#f00"/><stop stop-color="#00f"/></linearGradient></defs><rect width="200" height="200" fill="url(#g)"/>') }], report)
   assert.match(report.warnings[0], /average color/)
 })
+
+test('an over-budget batch says which limit it hit and what to do', () => {
+  let body = ''
+  for (let i = 0; i < 1100; i++) body += `<rect x="${i % 900}" y="${i % 700}" width="9" height="9" fill="#123456" stroke="#000"/>`
+  assert.throws(() => applySketchCommands(doc, [{ op: 'svg', svg: wrap(body) }]), /2200 strokes; the limit is 2000\. Merge shapes/)
+})
