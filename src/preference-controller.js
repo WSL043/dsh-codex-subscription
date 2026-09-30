@@ -171,7 +171,6 @@ export function createPreferenceController(scope, rpc) {
           verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
           fastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
           ultrafastModels = Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : []
-      ultrafastModels = Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : []
           catalogStatus = value?.catalogStatus
         }
       }
@@ -223,6 +222,21 @@ export function createPreferenceController(scope, rpc) {
       if (!disposed && current === modelRefreshGeneration) { modelsLoading = false; publish() }
     }
   }
+  // The Host may publish an accepted write a moment after `scope.set` resolves;
+  // judge the write only once its snapshot settles, so a slow update does not
+  // read as a rejection and snap the control back.
+  const accepted = (entries, wait = 1500) => new Promise(resolve => {
+    const matches = () => entries.every(([field, value]) => JSON.stringify(nativeSnapshot().value?.[field]) === JSON.stringify(value))
+    if (matches()) return resolve(true)
+    let timer
+    const stop = scope.subscribe(() => {
+      if (!matches()) return
+      clearTimeout(timer)
+      stop()
+      resolve(true)
+    })
+    timer = setTimeout(() => { stop(); resolve(matches()) }, wait)
+  })
   const set = async patch => {
     if (disposed || snapshot.status !== 'ready' || snapshot.writable !== true) return
     const current = ++generation
@@ -240,8 +254,7 @@ export function createPreferenceController(scope, rpc) {
           await scope.set(field, value)
         }
         if (current !== generation) return
-        const accepted = nativeSnapshot().value
-        error = entries.some(([field, value]) => JSON.stringify(accepted?.[field]) !== JSON.stringify(value))
+        error = !await accepted(entries)
         if (error) failedPatch = patch
         pendingPatch = undefined
       } else {
