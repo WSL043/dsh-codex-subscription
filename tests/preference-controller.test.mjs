@@ -254,3 +254,32 @@ test('a stale account model response cannot replace the newer directory', async 
   assert.deepEqual(controller.getSnapshot().contextModels, astraModels)
   assert.deepEqual(controller.getSnapshot().verbosityModels, ['gpt-6-astra'])
 })
+
+test('a write the host publishes a moment late is accepted, not reverted', async () => {
+  let native = { status: 'ready', writable: true, value: { quickQuotaMode: 'forecast' } }
+  const listeners = new Set()
+  const scope = {
+    getSnapshot: () => native,
+    subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener) },
+    async set(field, value) {
+      setTimeout(() => { native = { ...native, value: { ...native.value, [field]: value } }; for (const listener of listeners) listener() }, 60)
+    },
+  }
+  const controller = createPreferenceController(scope, { call: async () => ({ ok: true, value: {} }) })
+  await controller.set({ quickQuotaMode: 'percent' })
+  assert.equal(controller.getSnapshot().quickQuotaMode, 'percent')
+  assert.equal(controller.getSnapshot().error, false)
+  controller.dispose()
+})
+
+test('a write the host never applies still reports failure and restores the shown value', async () => {
+  const native = { status: 'ready', writable: true, value: { quickQuotaMode: 'forecast' } }
+  const scope = { getSnapshot: () => native, subscribe: () => () => {}, async set() {} }
+  const controller = createPreferenceController(scope, { call: async () => ({ ok: true, value: {} }) })
+  const started = Date.now()
+  await controller.set({ quickQuotaMode: 'percent' })
+  assert.equal(controller.getSnapshot().error, true)
+  assert.equal(controller.getSnapshot().quickQuotaMode, 'forecast')
+  assert.ok(Date.now() - started < 3000)
+  controller.dispose()
+})
