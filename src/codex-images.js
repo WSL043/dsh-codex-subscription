@@ -22,6 +22,28 @@ const FILE_NAME_ATTACHMENT_ID = /\.[A-Za-z0-9]{1,16}$/u
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 const nonEmpty = value => typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
 
+const NETWORK_REASONS = {
+  UND_ERR_HEADERS_TIMEOUT: 'the image service sent no response within 5 minutes',
+  UND_ERR_BODY_TIMEOUT: 'the image response stalled',
+  UND_ERR_CONNECT_TIMEOUT: 'the connection to the image service timed out',
+  UND_ERR_SOCKET: 'the connection closed unexpectedly',
+  ECONNRESET: 'the connection was reset',
+  ETIMEDOUT: 'the connection timed out',
+  ENOTFOUND: 'DNS lookup failed',
+  ECONNREFUSED: 'the connection was refused',
+  EAI_AGAIN: 'DNS lookup failed',
+}
+
+// A network-level failure carries no HTTP status, so say what the transport reported.
+// Only a bounded error code is shown; no URL, header, or body can leak through it.
+export function requestFailureReason(error) {
+  const source = error?.cause ?? error
+  const code = [source?.code, error?.code].find(value => typeof value === 'string' && /^[A-Z][A-Z0-9_]{2,39}$/u.test(value))
+  if (code !== undefined) return `: ${NETWORK_REASONS[code] ?? 'network error'} (${code})`
+  if (error?.name === 'TimeoutError') return ': the image request timed out'
+  return ''
+}
+
 export function normalizeImageOptions(args) {
   const quality = nonEmpty(args?.quality) ?? 'auto'
   const background = nonEmpty(args?.background) ?? 'auto'
@@ -402,7 +424,7 @@ export function createCodexImageTool(options) {
         })
       } catch (error) {
         if (exec.signal.aborted) throw exec.signal.reason
-        throw new Error(`Codex image ${editing ? 'edit' : 'generation'} request failed`, { cause: error })
+        throw new Error(`Codex image ${editing ? 'edit' : 'generation'} request failed${requestFailureReason(error)}`, { cause: error })
       }
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) {
