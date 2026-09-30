@@ -15,6 +15,7 @@ import { SUBSCRIPTION_IMAGE_VIEWER_CSS } from './subscription-image-viewer-style
 import { SubscriptionImageViewerService } from './subscription-image-viewer.js'
 import { SETTINGS_NAMESPACE } from './settings-contract.js'
 import { createPreferenceController } from './preference-controller.js'
+import { createDefaultModelController } from './default-model-controller.js'
 import { createAccountStatusController } from './account-status-controller.js'
 import { NS, CHANNEL, unwrap } from './client-shared.js'
 import { createSubscriptionRpcClient } from './rpc-contract.js'
@@ -45,6 +46,7 @@ export function apply(ctx) {
     subscribe: () => () => {},
   }
   const preference = createPreferenceController(scope, rpc)
+  const defaultModel = createDefaultModelController(rpc)
   ctx.effect(() => {
     let previous = JSON.stringify(preference.getSnapshot(), (key,value) => key.startsWith('image') || key === '' ? value : undefined)
     return preference.subscribe(() => {
@@ -61,6 +63,7 @@ export function apply(ctx) {
     return () => {
       disposeReset?.()
       preference.dispose()
+      defaultModel.dispose()
       accountStatus.dispose()
     }
   }, 'codex-subscription: preferences and account status')
@@ -71,7 +74,7 @@ export function apply(ctx) {
   }, SubscriptionImageViewerOverlay))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'codex-subscription', order: 15,
-    label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: rpc, accountStatus, t, diagnostics }),
+    label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: rpc, accountStatus, t, diagnostics, defaultModel }),
   }, CodexSection))
   const sessions = ctx.get('sessions')
   const installDirectorySlots = scope => {

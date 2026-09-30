@@ -22,6 +22,10 @@ GPT-6 Sol and GPT-6 Luna are listed in [OpenAI's Codex model guidance](https://l
 
 When the official model catalog exposes GPT-6 Astra, Standard preserves the catalog window, Extended uses 872000 tokens, and Custom accepts 128000–872000 tokens (initially 272000). This limit follows the [official Codex model catalog](https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34), not the API model's total context capacity. These settings only adjust DSH's local context budget; they do not grant model access or guarantee an account's server-side capacity. Actual availability remains subject to the service.
 
+### Default model
+
+Choose the model a new conversation opens with under **Settings → Codex → Models & runtime → Models → Default model**. It writes DSH's own default-model setting, the same one a model switch inside a chat writes: every conversation created afterwards uses it, and switching to another model in a chat (including a non-subscription one) is reflected here as **Follow DSH default**. The control is unavailable for models the catalog does not offer, while signed out, or with an empty catalog.
+
 ### Composer quota
 
 Quota groups follow backend-provided data; missing limits are not invented.

@@ -7,8 +7,29 @@ const publicError = (code, message) => ({
   error: { code, message, details: { issues: [] } },
 })
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, runtimeManagement, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, defaultModel, runtimeManagement, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
   return async (endpoint, payload, signal) => {
+    if (endpoint === 'default-model/status' || endpoint === 'default-model/select') {
+      try {
+        signal.throwIfAborted()
+        if (!defaultModel) return publicError('unavailable', 'The default model is unavailable')
+        const value = endpoint === 'default-model/status'
+          ? defaultModel.status()
+          : await defaultModel.select({ model: payload?.model })
+        return { ok: true, value }
+      } catch (error) {
+        if (signal.aborted) throw error
+        if (error?.code === 'invalid-model') return publicError('invalid-input', 'Invalid default model')
+        if (error?.code === 'unavailable') {
+          return publicError('unavailable', endpoint === 'default-model/status'
+            ? 'The default model is unavailable'
+            : 'Could not save the default model')
+        }
+        return publicError('internal', endpoint === 'default-model/status'
+          ? 'Could not read the default model'
+          : 'Could not save the default model')
+      }
+    }
     if (endpoint === 'storage/status' || endpoint === 'storage/clear-forecast') {
       try {
         signal.throwIfAborted()

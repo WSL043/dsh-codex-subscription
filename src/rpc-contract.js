@@ -3,6 +3,7 @@ export const RPC_ENDPOINTS = Object.freeze([
   'status', 'login/start', 'login/status', 'login/submit', 'login/cancel', 'logout',
   'account/select', 'account/remove', 'usage', 'diagnostics',
   'preferences/status', 'preferences/models', 'preferences/update',
+  'default-model/status', 'default-model/select',
   'runtime/status', 'runtime/install', 'runtime/remove', 'runtime/cancel',
   'storage/status', 'storage/clear-forecast',
   'reset-credit/inspect', 'reset-credit/prepare', 'reset-credit/consume',

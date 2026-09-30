@@ -33,6 +33,7 @@ Subscription access, model controls, quota management, and image creation in one
 | **Subscription sign-in** | Sign in to ChatGPT and use Codex subscription models without an API key | Normal chat needs no Codex CLI |
 | **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh; models marked for retirement show their retirement date next to the model name, without automatically switching your selection | New models appear when your account offers them; the account catalog is the only source, so signed out or when it cannot be read no models are shown and no bundled list stands in |
 | **Model list** | Show or hide individual models in the composer picker under Models & runtime | Display only; selected models and requests still work |
+| **Default model** | Choose the model a new conversation opens with under Models & runtime → Models | Writes the DSH default model setting, the same one a model switch inside a chat writes; unset it to follow the DSH default |
 | **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
 | **Speed tiers** | Switch supported models between Standard and Fast; Ultrafast (Beta) too when the account catalog offers it, with a lightning indicator | Standard by default; Fast and Ultrafast increase usage, and Ultrafast is Pro 500 only today |
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
@@ -104,7 +105,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@2.4.1
+   dsh-codex-subscription@2.4.2
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
