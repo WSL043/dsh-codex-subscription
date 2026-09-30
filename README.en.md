@@ -220,21 +220,15 @@ Here the reference image is attached to the message and the model copies it on t
 
 The SVG runs have finer hair highlights, lace trim and lettering, and Sol was almost 9 minutes faster with SVG than stroke by stroke; Astra spent about 3 extra minutes on SVG for clearly richer detail. Neither model got the face shape right (too long and flat) or the small whale motif on the apron, though Sol's whale looks more like a whale.
 
-**The same challenge again, with the reference on the board and the model checking itself against it**
+**The same challenge again, with the model checking itself against the reference**
 
-This time the reference is not a chat attachment; it is placed in a picture layer with the board's Pictures button. While previewing, the model can turn on `compare` (the drawing and the reference blended 50/50, so position errors show up as ghosting) and `grid` (a labelled line every 100 pixels for reading positions). Same prompt and the same Astra Medium on the official desktop app, one run, no image generation: 22 min 54 s, 6 layers and 851 native strokes; the model also generated hair strands and lace with scripts.
+Same prompt and the same way of attaching the image as above; the plugin just gives the model two more things. It can use `reference` to put the image attached in the chat onto the board as a hidden picture layer, and while previewing it can turn on `compare` (the drawing and the reference blended 50/50, so position errors show up as ghosting) and `grid` (a labelled line every 100 pixels). Same Astra Medium on the official desktop app, one run, no image generation: 20 min 57 s, 7 drawing layers and 686 native strokes. The model also generated hair strands and lace with scripts, and checked against the overlay several times while drawing, fixing lettering and lace overlaps.
 
 <table>
-<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" alt="Astra Medium with overlay checks" width="380"><br><sub><b>Astra Medium</b> · 22 min 54 s · 851 strokes</sub></td><td><img src="docs/assets/sketch-niang-astra-overlay.webp" alt="The overlay preview the model saw" width="260"><br><sub>The overlay the model saw: ghosting on the lettering and fin edges is the error</sub></td></tr>
+<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" alt="Astra Medium with overlay checks" width="380"><br><sub><b>Astra Medium</b> · 20 min 57 s · 686 strokes</sub></td><td><img src="docs/assets/sketch-niang-astra-overlay.webp" alt="The overlay preview the model saw" width="260"><br><sub>The overlay the model saw: ghosting on the lettering and hair edges is the error</sub></td></tr>
 </table>
 
 The face shape, hair flow, lace, hand and speech-bubble lettering are all closer to the reference than the two Astra runs above, at about twice the time of the SVG run. This is a single run; other prompts and references may behave differently.
-
-The full Chinese prompts for all three subjects are in the [Chinese README](README.md#从草图到作品).
-
-Each example is a single run, not a measure of consistent quality. Sol Xhigh is much slower; Astra or a lower reasoning level is enough for everyday sketches.
-
-</details>
 
 <details>
 <summary>View Images & sketch settings</summary>
