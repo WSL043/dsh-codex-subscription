@@ -13,6 +13,13 @@ const bugBody = (plugin, dsh) => [
   '### Plugin version', '', plugin, '', '### DSH version', '', dsh, '', '### Failing area', '', 'Install or update',
 ].join('\n')
 
+const peers = (...versions) => ({ '@deepseek-ai/dsh-llm': versions.join(' || ') })
+// What npm returns: each release declares the DSH versions it was verified against.
+const registry = {
+  '2.3.0': { version: '2.3.0', peerDependencies: peers('0.1.7-rc.2', '0.2.0-rc.1', '0.2.0-rc.2') },
+  '2.2.4': { version: '2.2.4', peerDependencies: peers('0.1.7-rc.1', '0.1.7-rc.2') },
+}
+
 async function run({ labels, body, action = 'opened' }) {
   const comments = []
   const added = []
@@ -25,7 +32,11 @@ async function run({ labels, body, action = 'opened' }) {
     } },
   }
   const previousFetch = globalThis.fetch
-  globalThis.fetch = async () => Response.json({ version: '2.3.0' })
+  globalThis.fetch = async url => {
+    const tag = String(url).split('/').pop()
+    const manifest = tag === 'latest' ? registry['2.3.0'] : registry[tag]
+    return manifest ? Response.json(manifest) : new Response('not found', { status: 404 })
+  }
   try {
     await intake(github, { repo: { owner: 'o', repo: 'r' }, issue: { number: 1 }, payload: { action, issue: { labels: labels.map(name => ({ name })), body } } })
   } finally {
@@ -41,9 +52,21 @@ test('a bug with a complete, current report only gets the acknowledgement', asyn
   assert.deepEqual(added, [])
 })
 
-test('DSH 0.2 with a plugin older than 2.2.10 gets the exact-version install advice and the outdated notice', async () => {
+test("an older plugin that does not declare the reporter's DSH gets the exact newest version from the registry", async () => {
   const { comments } = await run({ labels: ['bug'], body: bugBody('2.2.4', '0.2.0-rc.2') })
-  assert.ok(comments.some(text => text.includes('dsh-version-check:needs-2.2.10') && text.includes('dsh-codex-subscription@2.3.0')))
+  assert.ok(comments.some(text => text.includes('dsh-version-check:plugin-predates-dsh') && text.includes('dsh-codex-subscription@2.3.0')))
+  assert.ok(comments.some(text => text.includes('dsh-version-check:outdated:2.3.0')))
+})
+
+test('a DSH version the newest release does not declare is reported as untested, not blamed on the reporter', async () => {
+  const { comments } = await run({ labels: ['bug'], body: bugBody('2.3.0', '0.3.0') })
+  assert.ok(comments.some(text => text.includes('dsh-version-check:dsh-untested') && text.includes('0.2.0-rc.2')))
+  assert.equal(comments.some(text => text.includes('plugin-predates-dsh')), false)
+})
+
+test("an older plugin that already declares the reporter's DSH only gets the outdated notice", async () => {
+  const { comments } = await run({ labels: ['bug'], body: bugBody('2.2.4', '0.1.7-rc.2') })
+  assert.equal(comments.some(text => text.includes('plugin-predates-dsh')), false)
   assert.ok(comments.some(text => text.includes('dsh-version-check:outdated:2.3.0')))
 })
 

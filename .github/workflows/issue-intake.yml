@@ -92,17 +92,29 @@ jobs:
               )
               await needInfo()
             }
-            const num = version => version.replace(/^v/u, '').split(/[.-]/u).slice(0, 3).map(Number)
-            const pluginParts = num(version)
-            const before = (left, right) => {
-              for (let index = 0; index < 3; index += 1) if (left[index] !== right[index]) return left[index] < right[index]
-              return false
+            const packageAt = async tag => {
+              const response = await fetch(`https://registry.npmjs.org/dsh-codex-subscription/${tag}`)
+              return response.ok ? response.json() : undefined
             }
-            if (dshVersion && /^v?0\.2\./u.test(dshVersion) && before(pluginParts, [2, 2, 10])) {
-              await commentOnce(
-                '<!-- dsh-version-check:needs-2.2.10 -->',
-                `DSH ${dshVersion} needs plugin 2.2.10 or later, and ${version} predates it. DSH only installs releases at least 24 hours old when you enter a bare package name, so enter the exact version instead, for example \`dsh-codex-subscription@2.3.0\`, then restart DSH.\n\nDSH ${dshVersion} 需要插件 2.2.10 或更高版本，而 ${version} 更早。只填包名时 DSH 只会装发布满 24 小时的版本，请改填带版本号的包名，例如 \`dsh-codex-subscription@2.3.0\`，然后重启 DSH。`,
-              )
+            const supported = manifest => new Set(String(manifest?.peerDependencies?.['@deepseek-ai/dsh-llm'] ?? '').split('||').map(item => item.trim()).filter(Boolean))
+            const reported = dshVersion?.replace(/^v/u, '')
+            if (reported) {
+              const [current, latestManifest] = await Promise.all([packageAt(version.replace(/^v/u, '')), packageAt('latest')])
+              const latestVersion = String(latestManifest?.version ?? '')
+              const latestSupports = supported(latestManifest)
+              if (current && latestManifest && latestSupports.size) {
+                if (!supported(current).has(reported) && latestSupports.has(reported)) {
+                  await commentOnce(
+                    '<!-- dsh-version-check:plugin-predates-dsh -->',
+                    `Plugin ${version} does not declare support for DSH ${reported}, but the current release ${latestVersion} does. DSH only installs releases at least 24 hours old when you enter a bare package name, so enter the exact version, \`dsh-codex-subscription@${latestVersion}\`, then restart DSH.\n\n插件 ${version} 没有声明支持 DSH ${reported}，而当前版本 ${latestVersion} 已支持。只填包名时 DSH 只会装发布满 24 小时的版本，请填带版本号的 \`dsh-codex-subscription@${latestVersion}\`，然后重启 DSH。`,
+                  )
+                } else if (!latestSupports.has(reported)) {
+                  await commentOnce(
+                    '<!-- dsh-version-check:dsh-untested -->',
+                    `DSH ${reported} is not in the list of DSH versions that release ${latestVersion} declares support for (${[...latestSupports].slice(-4).join(', ')}, ...). We will check whether it is newer than what has been tested; please also tell us if it works with one of the listed versions.\n\nDSH ${reported} 不在当前版本 ${latestVersion} 声明支持的 DSH 版本列表内（${[...latestSupports].slice(-4).join('、')} 等）。我们会确认它是否比已验收的版本更新；如果换成列表中的版本可以正常使用，也请告诉我们。`,
+                  )
+                }
+              }
             }
 
             const response = await fetch('https://registry.npmjs.org/dsh-codex-subscription/latest')
