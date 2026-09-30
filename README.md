@@ -16,13 +16,19 @@
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[更新亮点](#230-更新亮点) · [功能](#功能一览) · [安装](#安装) · [日常使用](#界面一览) · [作品案例](#从草图到作品) · [使用指南](docs/GUIDE.zh-CN.md) · [更新与卸载](#更新与卸载)
+[更新亮点](#240-更新亮点) · [功能](#功能一览) · [安装](#安装) · [日常使用](#界面一览) · [作品案例](#从草图到作品) · [使用指南](docs/GUIDE.zh-CN.md) · [更新与卸载](#更新与卸载)
 
 </div>
 
 <p align="center"><img src="docs/assets/product-account-demo.png" width="1100" alt="Codex 订阅账号与额度界面：模型选择、双周期额度与提醒；使用演示数据"></p>
 
-## 2.3.0 更新亮点
+## 2.4.0 更新亮点
+
+- **Agent 绘图更强（Beta）**：新增 SVG 绘图命令，模型可用最擅长的 SVG 一次画完一整层，导入后仍是可编辑、可撤销、可导出的原生笔画；渐变、越界等近似处理会明确回报，不支持的元素会点名拒绝。
+- **全新作品案例**：在官方桌面版上用 GPT-6.1-Sol · Xhigh 与 GPT-6-Astra · Low 实测，机械剖面与青绿山水两道题并排对照，见[从草图到作品](#从草图到作品)。
+- **桌面版修复**：官方桌面版上 Codex 子任务组件现在能正确识别宿主版本并安装；支持诊断会报告真实的 DSH 版本；图片请求网络失败时会说明是超时还是连接中断。
+
+### 2.3.0
 
 - **官方桌面端可用**：DeepSeek Harness 官方桌面版（0.2.0-rc.2）已完成实机验收——安装插件、登录、模型列表、隐藏模型、带工具调用的对话、图片生成均通过；安装方式见[安装](#安装)。
 - **模型只来自你的账号**：模型列表完全读取账号目录，登录前或读取失败时不显示任何模型，也没有内置兜底；“模型与运行”里可逐个显示 / 隐藏输入框中的模型。
@@ -79,7 +85,7 @@
 | **笔画平滑与导航** | 抬笔后平滑整条路径；拖动、缩放、撤销重做 | 快捷键可自定义和关闭 |
 | **多份草稿** | 保存并重新编辑最多 20 份本地草稿 | 保存在当前浏览器 |
 | **导入与导出** | 导出 PNG、分层 PSD，或交换保留原生笔画的草稿文件 | PSD 导入仅支持有限的普通像素图层 |
-| **Agent 绘图** | 用 `@sketch` 让 Agent 绘制，查看进度并随时停止 | Beta；默认关闭，需同时开启画板 |
+| **Agent 绘图** | 用 `@sketch` 让 Agent 绘制，查看进度并随时停止；Agent 可用 SVG 整段作画，导入为可编辑原生笔画 | Beta；默认关闭，需同时开启画板 |
 | **绘图结果回看** | 完成后向模型返回画布预览，帮助后续检查 | Beta；默认关闭，会增加图片输入用量 |
 
 ### 进阶能力与维护
@@ -113,7 +119,7 @@
 2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
 
    ```text
-   dsh-codex-subscription@2.3.0
+   dsh-codex-subscription@2.4.0
    ```
 
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
@@ -183,59 +189,55 @@ dsh --profile headless "只回复：ok"
 手动画图时点击画板按钮；让 Agent 绘图时发送 `@sketch` 加绘图要求。
 
 <table>
-<tr><th width="50%">画板原草图</th><th width="50%">插件实际生成结果</th></tr>
-<tr><td><img src="docs/assets/sketch-demo-source.png" alt="山峰与小屋草图" width="480"></td><td><img src="docs/assets/sketch-demo-result.png" alt="根据草图生成的水彩山间小屋" width="480"></td></tr>
+<tr><th width="50%">Agent 绘制的原生草图</th><th width="50%">以草图为唯一参考的生图结果</th></tr>
+<tr><td><img src="docs/assets/sketch-lighthouse-sketch.webp" alt="GPT-6.1-Sol 绘制的灯塔与归航草图" width="480"></td><td><img src="docs/assets/sketch-lighthouse-result.webp" alt="根据草图生成的灯塔水彩海报" width="480"></td></tr>
 </table>
 
-示例要求：保留山峰与小屋的构图，生成温暖的水彩旅行插画，青绿山峰、橙色屋顶、草地小溪与柔和晨光，不保留蓝色线条。
-
-<details>
-<summary>进阶展示 · 分层插画与蒙娜丽莎</summary>
-
-**《画布背面有人》**
-
-**Astra 绘制草图，GPT Image 2 生成成图。** 原生草图共 6 层、427 笔，可继续编辑；生图请求保留构图，精修纸艺与手绘质感。请求型号为 `gpt-image-2`，服务端未报告实际执行型号。
-
-<table>
-<tr><th width="50%">原生草图</th><th width="50%">实际生成结果</th></tr>
-<tr><td><img src="docs/assets/sketch-advanced-source.png" alt="Sketch" width="480"></td><td><img src="docs/assets/sketch-advanced-result.png" alt="Result" width="480"></td></tr>
-</table>
-
-<details>
-<summary>展开复现提示词与原始生图请求</summary>
-
-**草图复现提示词（按原画面整理，非完整原始对话）**
-
-原案例由 Astra 分阶段绘制，下面提供同主题的复现起点，不保证得到完全相同的画面。
+**GPT-6.1-Sol · Xhigh**，官方桌面版 0.2.0-rc.2 实测：一条 `@sketch` 消息完成 6 个图层、229 笔可编辑原生笔画，再以这张草图为唯一参考调用一次 GPT Image 2（质量：高），全程约 13 分钟。
 
 ```text
-@sketch 用 4:3 横版画板绘制《画布背面有人》：中央偏上是一处撕开的纸洞，洞内是深蓝星空和一位拿颜料桶的小画师；蓝色颜料从桶中流出，形成 S 形河流，流向下方城市。左侧城市保持未上色线稿，右侧城市被暖色点亮，加入纸船与飞鸟。按纸面、洞内世界、颜料河流、城市、画师和细节分层绘制，保留原生可编辑笔画。
+@sketch 用 4:3 横版画板绘制《灯塔与归航》：左侧礁石岬角上立一座红白条纹灯塔，塔顶灯室射出扇形光束；右侧海面上一艘挂橙色小帆的渔船正驶回港湾，船后拖出 V 形水痕；地平线上是半个初升的太阳，天空有三条横向云带和三只海鸥，前景礁石间有一圈白色浪花。按天空、太阳与云、海面、礁石与灯塔、渔船、海鸥与浪花分层绘制，保留原生可编辑笔画。画完后，把这张草图作为唯一参考图，调用订阅图片工具一次生成成品：保持构图不变，做成温暖的水彩旅行海报，晨光金橙配靛青海面，有纸纹和柔和晕染，不添加文字。
 ```
 
-**实际生图提示词**
+<details>
+<summary>进阶展示 · 机械剖面与青绿山水（Sol Xhigh 与 Astra Low 对照）</summary>
+
+两道题都选了容易暴露差距的题材：机械剖面考结构与细节（齿轮咬合、摆锤、链条、楼梯上的人物），青绿山水考构图与审美（三远法、留白、皴法与设色）。同一条提示词分别交给 **GPT-6.1-Sol · Xhigh** 和 **GPT-6-Astra · Low**，各跑一次，均在官方桌面版上完成，生图统一为 GPT Image 2（质量：高）。
+
+**《钟塔剖面图》**
+
+<table>
+<tr><th></th><th width="45%">原生草图</th><th width="45%">生图结果</th></tr>
+<tr><td><b>Sol<br>Xhigh</b></td><td><img src="docs/assets/sketch-clocktower-sol-sketch.webp" alt="Sol 绘制的钟塔剖面草图" width="400"></td><td><img src="docs/assets/sketch-clocktower-sol-result.webp" alt="Sol 草图生成的钟塔剖面插画" width="400"></td></tr>
+<tr><td><b>Astra<br>Low</b></td><td><img src="docs/assets/sketch-clocktower-astra-sketch.webp" alt="Astra 绘制的钟塔剖面草图" width="400"></td><td><img src="docs/assets/sketch-clocktower-astra-result.webp" alt="Astra 草图生成的钟塔剖面插画" width="400"></td></tr>
+</table>
+
+Sol 先用脚本算出 9 个齿轮的齿数（48、38、27、46、36、24、34、30、22）与节圆，再按咬合位置排布，绘图约 1 小时；第一次生图请求失败，按它的询问同意重试一次后成功。Astra Low 约 5 分钟完成全部草图与生图，结构更简化，齿轮没有逐一校准。
+
+**《千峰翠色》**
+
+<table>
+<tr><th></th><th width="45%">原生草图</th><th width="45%">生图结果</th></tr>
+<tr><td><b>Sol<br>Xhigh</b></td><td><img src="docs/assets/sketch-shanshui-sol-sketch.webp" alt="Sol 绘制的青绿山水草图" width="400"></td><td><img src="docs/assets/sketch-shanshui-sol-result.webp" alt="Sol 草图生成的青绿山水" width="400"></td></tr>
+<tr><td><b>Astra<br>Low</b></td><td><img src="docs/assets/sketch-shanshui-astra-sketch.webp" alt="Astra 绘制的青绿山水草图" width="400"></td><td><img src="docs/assets/sketch-shanshui-astra-result.webp" alt="Astra 草图生成的青绿山水" width="400"></td></tr>
+</table>
+
+Sol Xhigh 约 28 分钟，Astra Low 约 5 分钟。两者都保留了主峰、瀑布、栈道与江面的位置；Sol 的远山层次和雾带留白更完整。
+
+<details>
+<summary>展开两道题的完整提示词</summary>
 
 ```text
-请基于本条附加草图实际调用订阅图片工具一次，生成成品插画。quality=low，模型使用当前默认，不切换型号，不额外生成。主题《画布背面有人》：保留4:3横构图、中央偏上的撕纸洞口、洞内拿颜料桶的小画师、流出成为S形河流的蓝色颜料、下方左侧未上色城市与右侧被点亮城市、纸船飞鸟。精修为惊艳的立体纸艺与精细手绘结合的编辑插画，纸张纤维、真实撕边及柔和投影，深靛蓝洞内星月，丰富青蓝颜料层次和流动质感，赭橙画师与暖色建筑，微小清晰的叙事细节。不重构为风景，不添加文字水印。必须使用本条参考图片编辑，不能仅凭文字生成。生成后简短说明完成即可。
+@sketch 用 3:4 竖版画板绘制《钟塔剖面图》：蒸汽朋克风格的钟塔纵向剖面技术插图。最上方是圆形大钟面（十二个刻度、两根指针）和一口铜钟；钟面下一层是齿轮机房：至少 9 个大小不同、齿数正确、彼此咬合的齿轮（相邻齿轮转向相反，齿廓要画出锯齿），另有一个锚形擒纵机构；中段是一根贯穿的长摆杆，末端为铜制圆盘摆锤，旁边两条挂着配重铁块的链条；塔壁一侧是沿墙盘旋而上的螺旋楼梯，梯上有三个微小的工匠人物；底部是石砌地基与拱门。剖面用厚实的暗色砖石墙体框出，内部露出黄铜与铁质结构，加入铆钉、管道，以及从小窗透进来的光柱。按背景砖墙、结构框架、齿轮组、摆锤与链条、楼梯与人物、光影与细节分层绘制。画完后，把这张草图作为唯一参考图，调用订阅图片工具一次生成成品：保持每个部件的位置、比例与咬合关系不变，做成精密的蒸汽朋克剖面图插画——黄铜与旧钢的金属质感、细致的机械倒影和铆钉、羊皮纸底色配墨线渲染、暖色灯光，不添加文字。
+```
+
+```text
+@sketch 用 3:4 竖版画板绘制《千峰翠色》：宋代青绿山水的构图，严格运用「三远法」。高远：右侧一座主峰拔地而起，占画面上半部，山体用层叠的块面表现，山腰有横向的云雾留白；深远：主峰后方还有两重淡青色远山，越远越淡，之间隔着大片留白的雾带；平远：下方是舒展的江面，一叶渔舟和两只飞鸟。左侧一挂瀑布从中段峭壁倾泻而下，落入山涧，涧边有三株松树，松针成簇；山腰有一座小亭和一条曲折栈道，栈道上有两个极小的行者；前景是坡石与芦苇，用勾勒加披麻皴式的笔触表现。色彩层次为石青、石绿、赭石，远山用淡青。按远山与天空、雾带留白、主峰、瀑布与松树、亭台栈道与行者、江面舟鸟与前景分层绘制。画完后，把这张草图作为唯一参考图，调用订阅图片工具一次生成成品：保持山体、瀑布、栈道、江面的位置和三远法的层次不变，做成宋代青绿山水绢本设色——石青石绿矿物颜料的沉着厚重、细腻的皴擦与勾勒、绢面纹理与微微泛黄的古意、云雾留白，不添加文字或印章。
 ```
 
 </details>
 
-原案例首发：[Beta v2.1.0-beta.2](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.2)
-
-**《蒙娜丽莎》：Astra 草图 → GPT 生图**
-
-案例版本：[2.1.0-beta.5](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.5)
-
-用户在另一台电脑上的实际效果：先让 Astra 在竖版画板上绘制，再通过 GPT 生图转成油画。
-
-<table>
-<tr><th width="50%">Astra 原生草图</th><th width="50%">GPT 生图：油画效果</th></tr>
-<tr><td><img src="docs/assets/sketch-mona-lisa-source.png" alt="Astra 绘制的蒙娜丽莎草图" width="480"></td><td><img src="docs/assets/sketch-mona-lisa-result.png" alt="草图转换后的蒙娜丽莎油画" width="480"></td></tr>
-</table>
-
-草图提示词：`@sketch 用竖版画板画一幅《蒙娜丽莎》`
-
-生图提示词：`帮我变成油画`
+每个例子只跑一次，不代表稳定水平；Sol Xhigh 耗时明显更长，日常草图用 Astra 或较低推理档即可。
 
 </details>
 

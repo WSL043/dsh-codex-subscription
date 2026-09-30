@@ -67,9 +67,9 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 
 | 画板原草图 | 插件实际生成结果 |
 | --- | --- |
-| ![山峰与小屋草图](assets/sketch-demo-source.png) | ![根据草图生成的水彩山间小屋](assets/sketch-demo-result.png) |
+| ![GPT-6.1-Sol 绘制的灯塔草图](assets/sketch-lighthouse-sketch.webp) | ![根据草图生成的灯塔水彩海报](assets/sketch-lighthouse-result.webp) |
 
-示例要求：保留山峰与小屋的构图，生成温暖的水彩旅行插画，青绿山峰、橙色屋顶、草地小溪与柔和晨光，不保留蓝色线条。实际出图型号由订阅后端决定。
+示例：GPT-6.1-Sol · Xhigh 用 `@sketch` 画出 6 层原生草图，再以草图为唯一参考生成温暖的水彩旅行海报（完整提示词与进阶对照见 README）。Agent 优先用 SVG 命令整段绘制，导入后仍是可编辑的原生笔画。实际出图型号由订阅后端决定。
 
 图片请求中的 Flare / Sunburst 型号选项仍属实验性功能。成功生成不代表订阅后端确认采用指定型号或质量；不会把请求参数当成实际返回型号。
 

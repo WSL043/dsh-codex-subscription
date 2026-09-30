@@ -11,13 +11,26 @@ export const SUPPORTED_RUNTIME_VERSIONS = Object.freeze(['0.1.5-rc.2', '0.1.5-rc
 const require = createRequire(import.meta.url)
 const execute = promisify(execFile)
 
+/** The DSH release this plugin is loaded into, read from the host's own LLM package. */
+// A desktop build bundles DSH next to its host entry, not next to this plugin,
+// so also resolve from the host process's entry script.
+export function hostDshVersion(resolve = require.resolve, entry = process.argv[1]) {
+  const attempts = [() => resolve('@deepseek-ai/dsh-llm/package.json')]
+  if (typeof entry === 'string' && entry) attempts.push(() => require.resolve('@deepseek-ai/dsh-llm/package.json', { paths: [dirname(entry)] }))
+  for (const attempt of attempts) {
+    try {
+      const { version } = JSON.parse(readFileSync(attempt(), 'utf8'))
+      if (typeof version === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(version)) return version
+    } catch {}
+  }
+  return undefined
+}
+
 // The official component declares exact DSH cohort peers. Installing the
 // newest component into an older host can appear to succeed but fail at load.
 export function matchingSubagentRuntimeVersion(resolve = require.resolve) {
-  try {
-    const host = JSON.parse(readFileSync(resolve('@deepseek-ai/dsh-llm/package.json'), 'utf8'))
-    return SUPPORTED_RUNTIME_VERSIONS.includes(host.version) ? host.version : undefined
-  } catch { return undefined }
+  const version = hostDshVersion(resolve, resolve === require.resolve ? process.argv[1] : '')
+  return SUPPORTED_RUNTIME_VERSIONS.includes(version) ? version : undefined
 }
 
 // Resolve from this plugin's dependency graph, then use the provider's own

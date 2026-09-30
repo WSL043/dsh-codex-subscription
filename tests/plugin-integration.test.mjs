@@ -24,6 +24,7 @@ test('every subscription preference remains editable on supported DSH settings h
 })
 
 import * as plugin from '../src/index.js'
+import { hostDshVersion } from '../src/subagent-runtime.js'
 import { PACKAGE_VERSION } from '../src/version.js'
 import {
   AUTO_QUOTA_RETRY_FIELD,
@@ -323,7 +324,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
       operations: { scope: 'plugin-process', capacity: 32, dropped: 0, events: [] },
       package: 'dsh-codex-subscription',
       version: PACKAGE_VERSION,
-      runtime: { node: process.version, platform: process.platform, arch: process.arch },
+      runtime: { node: process.version, platform: process.platform, arch: process.arch, dsh: hostDshVersion() },
       account: { status: 'signed-out' },
       login: { phase: 'idle' },
       requests: {},

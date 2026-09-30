@@ -6,7 +6,9 @@ export function compactDiagnostic(report) {
   return {
     format: 'compact-1',
     plugin: report.version,
-    dsh: report.client?.version,
+    dsh: report.runtime?.dsh,
+    ...(report.client?.version && report.client.version !== report.version ? { pluginClient: report.client.version } : {}),
+    platform: report.runtime ? `${report.runtime.platform}-${report.runtime.arch}` : undefined,
     generatedAt: report.generatedAt,
     account: report.account?.status,
     catalog: report.catalog ? { source: report.catalog.source, refresh: report.catalog.refresh } : undefined,

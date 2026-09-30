@@ -3,7 +3,7 @@ import { readdirSync } from 'node:fs'
 const deliveryTests = new Set([
   'ci-change-plan', 'client-contract', 'prepare-compat-release',
   'official-cohort', 'publish-idempotency', 'release-contract', 'release-notes',
-  'subscription-image-viewer-contract', 'support-intake',
+  'subscription-image-viewer-contract', 'support-intake', 'issue-intake-behavior',
 ])
 
 /** New tests default to behavior, so adding a suite cannot silently skip CI. */

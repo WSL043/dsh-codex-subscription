@@ -69,9 +69,9 @@ The board supports editable shapes and text, native curves, and a side control f
 
 | Original sketch | Actual plugin output |
 | --- | --- |
-| ![Mountains and cabin sketch](assets/sketch-demo-source.png) | ![Watercolor mountain cabin generated from the sketch](assets/sketch-demo-result.png) |
+| ![Lighthouse sketch drawn by GPT-6.1-Sol](assets/sketch-lighthouse-sketch.webp) | ![Watercolor lighthouse poster generated from the sketch](assets/sketch-lighthouse-result.webp) |
 
-The request preserves the mountain and cabin composition while creating a warm watercolor travel illustration with green peaks, an orange roof, a meadow stream and morning light, without the blue outlines. The subscription backend determines the actual image model.
+Example: GPT-6.1-Sol at Xhigh drew a six-layer native sketch with `@sketch`, then generated a warm watercolor travel poster with the sketch as the only reference (full prompt and advanced comparisons are in the README). The agent prefers the SVG command to draw a whole stage at once; the import still yields editable native strokes.
 
 Flare / Sunburst request overrides remain experimental: successful generation does not confirm which image engine or quality the subscription backend used.
 

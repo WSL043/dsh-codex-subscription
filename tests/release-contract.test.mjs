@@ -188,16 +188,18 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   assert.equal(existsSync(new URL('../docs/assets/sidebar-en.png', import.meta.url)), false)
 })
 
-test('plugin-owned marketplace screenshots stay valid and show both product languages', () => {
+test('plugin-owned marketplace screenshots stay valid and each shows a different page', () => {
   const screenshots = JSON.parse(text('screenshots.json'))
-  assert.ok(screenshots.length >= 1 && screenshots.length <= 8, 'marketplace accepts 1-8 screenshots')
+  assert.ok(Array.isArray(screenshots) && screenshots.length >= 5 && screenshots.length <= 8, 'marketplace accepts 1-8 screenshots; show the key pages')
   for (const path of screenshots) {
     assert.equal(existsSync(new URL(`../${path}`, import.meta.url)), true, `marketplace screenshot must exist: ${path}`)
   }
-  for (const path of [
-    'docs/assets/real-creative-en.png',
-    'docs/assets/real-creative-zh.png',
-  ]) assert.equal(screenshots.includes(path), true, `marketplace must show ${path}`)
+  // The same page in two languages reads as a duplicate in a storefront carousel.
+  const page = path => path.replace(/-(?:en|zh)(?=.[a-z]+$)/u, '')
+  assert.equal(new Set(screenshots.map(page)).size, screenshots.length, 'no page may appear twice')
+  for (const key of ['account', 'composer', 'models', 'images', 'sketch-board']) {
+    assert.ok(screenshots.some(path => path.includes(key)), `marketplace must show the ${key} page`)
+  }
 })
 
 test('each complete README stays in one language and links to the complete translation', () => {
