@@ -80,7 +80,9 @@ export function applySketchCommands(source, commands, report) {
     const stroke = { id, ...(shape==='text'?{text:command.text}:{}), shape, color, width, opacity, fill, brush:'pen', points:points.map(p=>({x:p.x,y:p.y})) }
     doc = {...doc,layers:doc.layers.map(item=>item===layer?{...item,strokes:[...item.strokes,stroke]}:item)}
   }
-  if (strokeCount(doc) > MAX_SKETCH_STROKES || doc.layers.reduce((n,l)=>n+l.strokes.reduce((m,s)=>m+s.points.length,0),0) > MAX_SKETCH_POINTS) throw Error('Sketch resource budget exceeded')
+  const strokes = strokeCount(doc), points = doc.layers.reduce((n,l)=>n+l.strokes.reduce((m,s)=>m+s.points.length,0),0)
+  if (strokes > MAX_SKETCH_STROKES) throw Error(`Sketch would hold ${strokes} strokes; the limit is ${MAX_SKETCH_STROKES}. Merge shapes or drop small details, then send this batch again`)
+  if (points > MAX_SKETCH_POINTS) throw Error(`Sketch would hold ${points} points; the limit is ${MAX_SKETCH_POINTS}. Use fewer or simpler paths, then send this batch again`)
   return doc
 }
 
