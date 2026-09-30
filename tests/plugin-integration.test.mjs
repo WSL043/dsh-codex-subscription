@@ -672,3 +672,47 @@ test('sketch tool is absent until both Beta switches are enabled and removed whe
  await host.updateSettings({imageSketchAgent:false})
  assert.equal(registered(),false)
 })
+
+test('the settings default model writes the DSH default a new conversation starts on', async () => {
+  const host = fakeContext()
+  applyPlugin(host.ctx)
+  const signal = new AbortController().signal
+  // The default-model service may mount after this plugin, so a missing service
+  // is reported instead of cached.
+  assert.deepEqual(await host.request('default-model/status', {}, signal), {
+    ok: true,
+    value: { available: false, managed: false },
+  })
+  assert.deepEqual(await host.request('default-model/select', { model: 'gpt-5.6-terra' }, signal), {
+    ok: false,
+    error: { code: 'unavailable', message: 'Could not save the default model', details: { issues: [] } },
+  })
+
+  let selection = { provider: 'deepseek-account', model: 'deepseek-flash', reasoningEffort: 'high' }
+  const writes = []
+  host.ctx.provide('agentDefaultModel', {
+    currentSelection: () => ({ ...selection }),
+    async saveSelection(next) {
+      writes.push({ ...next })
+      selection = { ...next }
+    },
+  })
+  assert.deepEqual(await host.request('default-model/status', {}, signal), {
+    ok: true,
+    value: { available: true, managed: false, provider: 'deepseek-account', model: 'deepseek-flash', reasoningEffort: 'high' },
+  })
+  assert.deepEqual(await host.request('default-model/select', { model: 'gpt-5.6-terra' }, signal), {
+    ok: true,
+    value: { available: true, managed: true, provider: 'openai-codex', model: 'gpt-5.6-terra' },
+  })
+  assert.deepEqual(writes, [{ provider: 'openai-codex', model: 'gpt-5.6-terra' }])
+  assert.deepEqual(await host.request('default-model/select', { model: 'gpt 5.6' }, signal), {
+    ok: false,
+    error: { code: 'invalid-input', message: 'Invalid default model', details: { issues: [] } },
+  })
+  assert.deepEqual(await host.request('default-model/select', {}, signal), {
+    ok: false,
+    error: { code: 'invalid-input', message: 'Invalid default model', details: { issues: [] } },
+  })
+  assert.equal(writes.length, 1, 'a rejected selection never reaches the host service')
+})
