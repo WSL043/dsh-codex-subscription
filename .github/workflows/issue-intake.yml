@@ -47,7 +47,22 @@ jobs:
               )
             }
 
+            const needInfo = () => github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['waiting-for-reporter'],
+            })
+
             if (context.payload.action === 'opened' && isFeature) {
+              const text = context.payload.issue.body ?? ''
+              if (/不兼容|装不上|无法安装|安装失败|报错|崩溃|失败|incompatible|(?:can'?t|cannot|unable to|fails? to) install|error|crash|not working|doesn'?t work/iu.test(text)) {
+                await commentOnce(
+                  '<!-- dsh-misfiled -->',
+                  'This reads like something that is not working rather than a new idea. Please open a Bug report instead (or edit this issue to include the plugin version, the DSH version, and the exact message), so we can reproduce it: https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml\n\n这看起来是遇到了故障，而不是新功能建议。请改用 Bug 表单提交，或在本 issue 里补充插件版本、DSH 版本和完整提示，方便我们复现：https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml',
+                )
+                await needInfo()
+              }
               await commentOnce(
                 '<!-- dsh-feature-ack -->',
                 'Thanks for the suggestion. We\'ll first check whether DSH already provides this capability and whether it fits this plugin\'s scope, then follow up here.\n\n感谢建议。我们会先确认 DSH 是否已有对应能力，以及它是否适合由本插件负责，再在这里回复。',
@@ -64,7 +79,30 @@ jobs:
                 '<!-- dsh-version-check:missing -->',
                 'Please edit the report and provide the exact plugin version from Settings or `dsh plugin --profile web list dsh-codex-subscription --depth 0`. If installation never completed, enter `not installed`.',
               )
+              await needInfo()
               return
+            }
+
+            const dshValue = /^### DSH version\s*\n+([^\n]+)/imu.exec(body)?.[1]?.trim() ?? ''
+            const dshVersion = /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?=\s|$)/u.exec(dshValue)?.[0]
+            if (!dshVersion) {
+              await commentOnce(
+                '<!-- dsh-version-check:dsh-missing -->',
+                'Please edit the report and give the exact DSH version (About, or startup output), for example `0.2.0-rc.2`, and how you run DSH (official desktop app, web, or DSH-Portable).\n\n请编辑 issue，补充准确的 DSH 版本号（关于页或启动输出，例如 `0.2.0-rc.2`）以及运行方式（官方桌面版 / 网页版 / DSH-Portable）。',
+              )
+              await needInfo()
+            }
+            const num = version => version.replace(/^v/u, '').split(/[.-]/u).slice(0, 3).map(Number)
+            const pluginParts = num(version)
+            const before = (left, right) => {
+              for (let index = 0; index < 3; index += 1) if (left[index] !== right[index]) return left[index] < right[index]
+              return false
+            }
+            if (dshVersion && /^v?0\.2\./u.test(dshVersion) && before(pluginParts, [2, 2, 10])) {
+              await commentOnce(
+                '<!-- dsh-version-check:needs-2.2.10 -->',
+                `DSH ${dshVersion} needs plugin 2.2.10 or later, and ${version} predates it. DSH only installs releases at least 24 hours old when you enter a bare package name, so enter the exact version instead, for example \`dsh-codex-subscription@2.3.0\`, then restart DSH.\n\nDSH ${dshVersion} 需要插件 2.2.10 或更高版本，而 ${version} 更早。只填包名时 DSH 只会装发布满 24 小时的版本，请改填带版本号的包名，例如 \`dsh-codex-subscription@2.3.0\`，然后重启 DSH。`,
+              )
             }
 
             const response = await fetch('https://registry.npmjs.org/dsh-codex-subscription/latest')
