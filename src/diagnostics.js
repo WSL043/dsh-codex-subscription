@@ -1,3 +1,4 @@
+import { hostDshVersion } from './subagent-runtime.js'
 import { PACKAGE_VERSION } from './version.js'
 import { collectChecks } from './diagnostic-checks.js'
 import { capabilityCoverage } from './diagnostic-capabilities.js'
@@ -103,7 +104,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     },
     package: 'dsh-codex-subscription',
     version: PACKAGE_VERSION,
-    runtime: { node: process.version, platform: process.platform, arch: process.arch },
+    runtime: { node: process.version, platform: process.platform, arch: process.arch, ...(hostDshVersion() ? { dsh: hostDshVersion() } : {}) },
     account,
     login,
     requests: collected.requests ?? {},

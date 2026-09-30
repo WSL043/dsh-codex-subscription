@@ -45,6 +45,21 @@ bezier and eraser. Bezier accepts either `start` plus 1–64 complete segments o
 the legacy 4/7/10/... point array, never both. Invalid geometry is rejected rather
 than guessed or silently repaired.
 
+### SVG command
+
+`{op:"svg",svg:"<svg viewBox=\"0 0 1024 768\">…</svg>",layer:1}` lets the model draw a whole scene in the notation it is best at. A stroke command carries every Bezier point as a JSON object, roughly three times the tokens of the same curve in SVG path syntax, and models are trained on vastly more SVG than on this protocol, so long illustrations were slow and less detailed than the model could make them.
+
+The SVG is converted to the same native strokes (bezier, polygon, line, pen) in one batch, so the result stays editable, layered, exportable, and undoable as a single step.
+
+Supported: `path` (M L H V C S Q T A Z, relative forms, compact arc flags), `rect` (with `rx`/`ry`), `circle`, `ellipse`, `line`, `polyline`, `polygon`, `g`, `use` of an element in the same SVG, `transform` (matrix, translate, scale, rotate, skew), `fill`, `stroke`, `stroke-width`, `opacity`, `fill-opacity`, `stroke-opacity` and `style="…"` declarations, colors as `#rgb`, `#rrggbb`, `rgb()` or a basic name.
+
+Reported, not silent:
+- Gradients are flattened to their average color and returned in `warnings`; stack several bands for a real gradient.
+- A filled path with more than 64 curve segments is flattened to a polygon (`warnings`).
+- Points outside the canvas are clamped; the number is returned as `clampedPoints`.
+
+Refused with the element or attribute named: `text`, `image`, `filter`, `clipPath`, `mask`, `pattern`, `marker`, `symbol`, `style`, `foreignObject`, and `clip-path`/`mask`/`filter` attributes. The `viewBox` must match the canvas ratio. One command may hold up to 200000 characters, and a batch still stops at the stroke and point budgets.
+
 ## Lifecycle and recovery
 
 Document, history, run state and deduplication receipts belong to the plugin's

@@ -16,13 +16,19 @@ No OpenAI API key or Codex CLI. Models, search, quota, and image generation stay
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[What's new](#whats-new-in-230) · [Features](#feature-overview) · [Install](#install) · [Daily use](#inside-the-plugin) · [Examples](#from-sketch-to-image) · [User guide](docs/GUIDE.en.md) · [Update and uninstall](#update-and-uninstall)
+[What's new](#whats-new-in-240) · [Features](#feature-overview) · [Install](#install) · [Daily use](#inside-the-plugin) · [Examples](#from-sketch-to-image) · [User guide](docs/GUIDE.en.md) · [Update and uninstall](#update-and-uninstall)
 
 </div>
 
 <p align="center"><img src="docs/assets/product-account-demo-en.png" width="1100" alt="Codex subscription account and quota interface with model choices, quota windows and alerts; demonstration data"></p>
 
-## What's new in 2.3.0
+## What's new in 2.4.0
+
+- **Stronger agent drawing (Beta).** A new SVG drawing command lets the model draw a whole layer in the notation it knows best; the result is still editable, undoable and exportable native strokes. Approximations such as gradients or clamped points are reported, and unsupported elements are refused by name.
+- **New showcase.** GPT-6.1-Sol at Xhigh and GPT-6-Astra at Low compared side by side on a mechanical cutaway and a blue-green landscape, run on the official desktop app; see [From sketch to image](#from-sketch-to-image).
+- **Desktop app fixes.** On the official desktop app the Codex subtask component now detects the host version and installs; support diagnostics report the real DSH version; a failed image request says whether it timed out or the connection dropped.
+
+### 2.3.0
 
 - **The official desktop app works.** The official DeepSeek Harness desktop app (0.2.0-rc.2) passed a hands-on acceptance run: plugin install, sign-in, model list, hiding models, a chat with a tool call, and image generation. See [Install](#install).
 - **Models come only from your account.** The model list is read entirely from the account catalog; before sign-in or when the read fails no model is shown, and there is no built-in fallback. Under Models & runtime you can show or hide each model in the composer.
@@ -79,7 +85,7 @@ Subscription access, model controls, quota management, and image creation in one
 | **Smoothing and navigation** | Smooth complete strokes after release; pan, zoom, undo, and redo | Shortcuts can be customized or disabled |
 | **Multiple drafts** | Save and reopen up to 20 local drafts | Stored in the current browser |
 | **Import and export** | Export PNG, layered PSD, or native drafts that preserve editable strokes | PSD import supports a limited set of ordinary pixel layers |
-| **Agent drawing** | Ask the agent to draw with `@sketch`, follow progress, and stop it | Beta; off by default, requires the canvas |
+| **Agent drawing** | Ask the agent to draw with `@sketch`, follow progress, and stop it; the agent can draw whole stages in SVG, imported as editable native strokes | Beta; off by default, requires the canvas |
 | **Result preview for the model** | Return a canvas image after drawing for subsequent review | Beta; off by default, adds image input usage |
 
 ### Advanced capabilities and maintenance
@@ -113,7 +119,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@2.3.0
+   dsh-codex-subscription@2.4.0
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -183,59 +189,42 @@ Image generation, editing, and the sketch canvas are **Beta**. The canvas and ag
 Draw by hand with the canvas button, or ask the agent with `@sketch` and your drawing request.
 
 <table>
-<tr><th width="50%">Original sketch</th><th width="50%">Actual plugin output</th></tr>
-<tr><td><img src="docs/assets/sketch-demo-source.png" alt="Mountains and cabin sketch" width="480"></td><td><img src="docs/assets/sketch-demo-result.png" alt="Watercolor mountain cabin generated from the sketch" width="480"></td></tr>
+<tr><th width="50%">Native sketch drawn by the agent</th><th width="50%">Image generated with the sketch as the only reference</th></tr>
+<tr><td><img src="docs/assets/sketch-lighthouse-sketch.webp" alt="Lighthouse sketch drawn by GPT-6.1-Sol" width="480"></td><td><img src="docs/assets/sketch-lighthouse-result.webp" alt="Watercolor lighthouse poster generated from the sketch" width="480"></td></tr>
 </table>
 
-The request keeps the mountain and cabin composition, turning it into a warm watercolor illustration with green peaks, an orange roof, a meadow stream, and soft morning light, without the blue outlines.
+**GPT-6.1-Sol · Xhigh** on the official desktop app 0.2.0-rc.2: one `@sketch` message produced 6 layers and 229 editable native strokes, then called GPT Image 2 (quality: high) once with the sketch as the only reference. About 13 minutes end to end.
+
+The prompt (sent in Chinese): draw "Lighthouse and Homecoming" on a 4:3 canvas — a red-and-white lighthouse on a rocky cape casting a fan of light, an orange-sailed fishing boat heading home with a V-shaped wake, a half-risen sun, three cloud bands, three gulls and surf around the rocks, in six named layers; then turn the sketch into a warm watercolor travel poster with no text, keeping the composition.
 
 <details>
-<summary>Advanced examples · Layered illustration and Mona Lisa</summary>
+<summary>Advanced examples · Mechanical cutaway and blue-green landscape (Sol Xhigh vs Astra Low)</summary>
 
-**Someone Behind the Canvas**
+Both subjects were chosen to expose quality differences: a mechanical cutaway tests structure and detail (meshing gears, pendulum, chains, tiny figures on a staircase), and a Song-dynasty blue-green landscape tests composition and taste (the "three distances", empty space, texture strokes and mineral color). The same prompt went to **GPT-6.1-Sol · Xhigh** and **GPT-6-Astra · Low**, one run each, on the official desktop app, with GPT Image 2 (quality: high).
 
-**Astra draws the sketch; GPT Image 2 generates the illustration.** The editable original has 427 strokes across six layers. The image request retains its composition and adds paper-art and hand-painted detail. The requested model is `gpt-image-2`; the server does not report the executing model.
-
-<table>
-<tr><th width="50%">Native sketch</th><th width="50%">Generated result</th></tr>
-<tr><td><img src="docs/assets/sketch-advanced-source.png" alt="Sketch" width="480"></td><td><img src="docs/assets/sketch-advanced-result.png" alt="Result" width="480"></td></tr>
-</table>
-
-<details>
-<summary>Show the reproduction prompt and original image request</summary>
-
-**Sketch reproduction prompt (reconstructed from the artwork, not the original conversation)**
-
-Astra drew the original in stages. This Chinese prompt provides a starting point for the same concept, not a guarantee of an identical result.
-
-```text
-@sketch 用 4:3 横版画板绘制《画布背面有人》：中央偏上是一处撕开的纸洞，洞内是深蓝星空和一位拿颜料桶的小画师；蓝色颜料从桶中流出，形成 S 形河流，流向下方城市。左侧城市保持未上色线稿，右侧城市被暖色点亮，加入纸船与飞鸟。按纸面、洞内世界、颜料河流、城市、画师和细节分层绘制，保留原生可编辑笔画。
-```
-
-**Actual image-generation prompt (original Chinese)**
-
-```text
-请基于本条附加草图实际调用订阅图片工具一次，生成成品插画。quality=low，模型使用当前默认，不切换型号，不额外生成。主题《画布背面有人》：保留4:3横构图、中央偏上的撕纸洞口、洞内拿颜料桶的小画师、流出成为S形河流的蓝色颜料、下方左侧未上色城市与右侧被点亮城市、纸船飞鸟。精修为惊艳的立体纸艺与精细手绘结合的编辑插画，纸张纤维、真实撕边及柔和投影，深靛蓝洞内星月，丰富青蓝颜料层次和流动质感，赭橙画师与暖色建筑，微小清晰的叙事细节。不重构为风景，不添加文字水印。必须使用本条参考图片编辑，不能仅凭文字生成。生成后简短说明完成即可。
-```
-
-</details>
-
-Original example released in: [Beta v2.1.0-beta.2](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.2)
-
-**Mona Lisa: Astra sketch → GPT image generation**
-
-Example version: [2.1.0-beta.5](https://github.com/WSL043/dsh-codex-subscription/releases/tag/v2.1.0-beta.5)
-
-Actual results supplied by the user from another computer: Astra draws on a portrait canvas, then GPT image generation turns the sketch into an oil painting.
+**Clock Tower Cutaway**
 
 <table>
-<tr><th width="50%">Native Astra sketch</th><th width="50%">GPT-generated oil painting</th></tr>
-<tr><td><img src="docs/assets/sketch-mona-lisa-source.png" alt="Mona Lisa sketch drawn by Astra" width="480"></td><td><img src="docs/assets/sketch-mona-lisa-result.png" alt="Mona Lisa oil painting generated from the sketch" width="480"></td></tr>
+<tr><th></th><th width="45%">Native sketch</th><th width="45%">Generated image</th></tr>
+<tr><td><b>Sol<br>Xhigh</b></td><td><img src="docs/assets/sketch-clocktower-sol-sketch.webp" alt="Clock tower sketch by Sol" width="400"></td><td><img src="docs/assets/sketch-clocktower-sol-result.webp" alt="Clock tower illustration from Sol's sketch" width="400"></td></tr>
+<tr><td><b>Astra<br>Low</b></td><td><img src="docs/assets/sketch-clocktower-astra-sketch.webp" alt="Clock tower sketch by Astra" width="400"></td><td><img src="docs/assets/sketch-clocktower-astra-result.webp" alt="Clock tower illustration from Astra's sketch" width="400"></td></tr>
 </table>
 
-Original sketch prompt: `@sketch 用竖版画板画一幅《蒙娜丽莎》` (Draw the Mona Lisa on a portrait canvas.)
+Sol first computed tooth counts (48, 38, 27, 46, 36, 24, 34, 30, 22) and pitch circles for the nine gears with a script, then placed them in mesh; drawing took about an hour. Its first image request failed; it asked, was allowed one retry, and succeeded. Astra Low finished sketch and image in about 5 minutes, with a simpler structure and gears that are not individually calibrated.
 
-Original image prompt: `帮我变成油画` (Turn it into an oil painting.)
+**A Thousand Green Peaks**
+
+<table>
+<tr><th></th><th width="45%">Native sketch</th><th width="45%">Generated image</th></tr>
+<tr><td><b>Sol<br>Xhigh</b></td><td><img src="docs/assets/sketch-shanshui-sol-sketch.webp" alt="Landscape sketch by Sol" width="400"></td><td><img src="docs/assets/sketch-shanshui-sol-result.webp" alt="Blue-green landscape from Sol's sketch" width="400"></td></tr>
+<tr><td><b>Astra<br>Low</b></td><td><img src="docs/assets/sketch-shanshui-astra-sketch.webp" alt="Landscape sketch by Astra" width="400"></td><td><img src="docs/assets/sketch-shanshui-astra-result.webp" alt="Blue-green landscape from Astra's sketch" width="400"></td></tr>
+</table>
+
+Sol Xhigh took about 28 minutes and Astra Low about 5. Both kept the main peak, waterfall, plank path and river in place; Sol's receding ranges and mist bands are more complete.
+
+The full Chinese prompts for both subjects are in the [Chinese README](README.md#从草图到作品).
+
+Each example is a single run, not a measure of consistent quality. Sol Xhigh is much slower; Astra or a lower reasoning level is enough for everyday sketches.
 
 </details>
 
