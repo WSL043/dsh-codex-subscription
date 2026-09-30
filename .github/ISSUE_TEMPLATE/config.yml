@@ -1,2 +1,5 @@
 blank_issues_enabled: false
-contact_links: []
+contact_links:
+  - name: Troubleshooting and FAQ
+    url: https://github.com/WSL043/dsh-codex-subscription#%E5%B8%B8%E8%A7%81%E9%97%AE%E9%A2%98
+    about: Install, sign-in, and DSH version questions are answered in the README troubleshooting section.
