@@ -25,6 +25,7 @@ import {
   resizeSketch
 } from './sketch-layers.js'
 import { paintSketchLayers } from './sketch-layer-renderer.js'
+import { composeSketchPreview } from './sketch-preview.js'
 import { smoothStrokePoints } from './sketch-input.js'
 import { sketchDrafts } from './sketch-drafts.js'
 import { useSketchView } from './sketch-view.jsx'
@@ -49,7 +50,6 @@ import { encodeSketchDocument, exportSketchPsd } from './sketch-formats.js'
 export function SketchStudio({
   open,
   agentEnabled,
-  agentPreview,
   onOpen,
   onClose,
   attachSketch,
@@ -448,7 +448,6 @@ export function SketchStudio({
       setNoticeHidden(false)
     },
     available: () => enabled && agentEnabled,
-    previewEnabled: () => agentPreview,
     open: () => onOpen(),
     busy: () =>
       operationGate.current.running ||
@@ -486,9 +485,23 @@ export function SketchStudio({
       setError('')
       schedule()
     },
-    preview: async () => {
-      paint()
-      return canvas.current.toDataURL('image/png')
+    preview: async (options) => {
+      const w = doc.current.width ?? SKETCH_SIZE,
+        h = doc.current.height ?? SKETCH_SIZE
+      return composeSketchPreview({
+        doc: doc.current,
+        images: images.current,
+        width: w,
+        height: h,
+        options,
+        paintLayers: paintSketchLayers,
+        makeSurface: (width, height) =>
+          Object.assign(document.createElement('canvas'), { width, height })
+      })
+    },
+    addReference: async (dataUrl, name) => {
+      const blob = await (await fetch(dataUrl)).blob()
+      await importImage(new File([blob], name, { type: blob.type }), { visible: false })
     },
     save: save
   })
@@ -497,8 +510,7 @@ export function SketchStudio({
     execute: (request) => agentSession.current(request),
     open: () => agentAdapter.current.open(),
     changed: (state) => agentAdapter.current.changed?.(state),
-    busy: () => agentAdapter.current.busy(),
-    previewEnabled: () => agentAdapter.current.previewEnabled()
+    busy: () => agentAdapter.current.busy()
   })
   useEffect(() => {
     if (!enabled || !agentEnabled || !hydrated) return

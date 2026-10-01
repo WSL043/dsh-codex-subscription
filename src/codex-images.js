@@ -189,6 +189,16 @@ function sessionImageReferences(messages) {
   return references
 }
 
+// One image the user attached to this session, resolved from its attachmentId like an edit reference.
+export async function readSessionImage(attachmentId, attachments, signal, messages) {
+  const id = normalizeAttachmentId(attachmentId)
+  if (id === undefined) invalidAttachmentId({ attachmentId })
+  const selected = sessionImageReferences(messages).get(id)
+  if (selected === undefined) throw new Error('The selected image attachment cannot be found in the current session. Copy attachmentId from the image block of the user message; never pass a path or filename.')
+  const stored = await attachments.readImage(referenceOf(selected, attachments), signal)
+  return { data: stored.data, mediaType: stored.ref.mediaType, name: stored.ref.name }
+}
+
 async function editImages(values, attachments, signal, messages) {
   if (!Array.isArray(values) || values.length === 0 || values.length > MAX_REFERENCE_IMAGES) {
     throw new Error(`referenceImages must contain between 1 and ${MAX_REFERENCE_IMAGES} images`)

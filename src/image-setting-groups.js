@@ -4,7 +4,6 @@ export const IMAGE_SETTING_GROUPS = Object.freeze({
   imageEntryPoints: ['imageShortcut'],
   sketchCanvas: ['imageSketch'],
   sketchAgent: ['imageSketchAgent'],
-  sketchAgentPreview: ['imageSketchAgentPreview'],
   imageBrowsing: ['imageViewer', 'imageAnnotations'],
 })
 export function imageGroupValue(snapshot, group) {

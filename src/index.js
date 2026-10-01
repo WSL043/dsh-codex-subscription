@@ -439,7 +439,7 @@ export function apply(ctx, config = {}) {
     let dispose
     const sync=()=>{
       const value=settings.get()
-      if(value.imageSketchAgent && value.imageSketch && value.imageEditing){dispose??=ctx.tools.register(createSketchAgentTool(sketchBridge,ctx.attachments))}
+      if(value.imageSketchAgent && value.imageSketch && value.imageEditing){dispose??=ctx.tools.register(createSketchAgentTool(sketchBridge,ctx.attachments,sessionId=>ctx.get?.('sessions')?.get?.(sessionId)?.deriveMessages?.()??[]))}
       else {dispose?.();dispose=undefined;sketchBridge.dispose()}
     }
     sync();const unwatch=settings.watch(sync)
