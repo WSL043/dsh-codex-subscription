@@ -105,7 +105,7 @@
 2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
 
    ```text
-   dsh-codex-subscription@2.4.2
+   dsh-codex-subscription@2.5.0
    ```
 
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
@@ -221,6 +221,16 @@ Sol Xhigh 约 28 分钟，Astra Low 约 5 分钟。两者都保留了主峰、�
 </table>
 
 SVG 版的发丝高光、蕾丝褶边和手写字更精细，Sol 用 SVG 还比逐笔绘制快了近 9 分钟；Astra 用 SVG 多花约 3 分钟，换来明显更丰富的细节。两个模型都没能画准脸型（偏长偏平）和围裙上的小鲸鱼图案，Sol 的鲸鱼更像鲸。
+
+**同一题再跑一次：让模型自己叠图对照**
+
+这一次提示词和附件方式都和上面一样，只是插件多了两样东西：模型可以用 `reference` 把聊天里附的参考图放进画板（作为隐藏的图片图层），并且在预览时打开 `compare`（把画作和参考图各占 50% 叠在一起，位置偏差会显示成重影）和 `grid`（每 100 像素一条带数字的网格）。同一题、同一个 Astra Medium，在官方桌面版上跑了一次，没有调用生图，共 20 分 57 秒、7 个绘画图层、686 条原生笔画；模型还用脚本批量生成了发丝和花边，并在画的过程中多次叠图检查、修正文字和蕾丝遮挡。
+
+<table>
+<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" alt="Astra Medium 叠图对照版" width="380"><br><sub><b>Astra Medium</b> · 20 分 57 秒 · 686 笔</sub></td><td><img src="docs/assets/sketch-niang-astra-overlay.webp" alt="模型看到的叠图对照预览" width="260"><br><sub>模型看到的叠图预览：文字和发丝边缘的重影就是偏差</sub></td></tr>
+</table>
+
+脸型、长发走向、蕾丝、手和气泡字都比上面的两个 Astra 版更接近参考图，耗时约是 SVG 版的两倍。这是单次运行，不同提示词和参考图的效果可能不同。
 
 <details>
 <summary>展开三道题的完整提示词</summary>

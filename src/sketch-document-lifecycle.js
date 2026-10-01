@@ -106,7 +106,7 @@ export function createSketchDocumentLifecycle(
     await decodeImages(row.doc, decoded)
     replace(row.doc, decoded, { id: row.id, name: row.name })
   }
-  const importImage = async (file) => {
+  const importImage = async (file, { visible = true } = {}) => {
     if (
       file.name?.toLowerCase().endsWith('.psd') ||
       file.name?.toLowerCase().endsWith('.dsh-sketch.json')
@@ -134,7 +134,7 @@ export function createSketchDocumentLifecycle(
     const layer = {
       id: doc.current.nextId,
       name: file.name?.slice(0, 40) || t('sketchImport'),
-      visible: true,
+      visible,
       strokes: [],
       image: {
         src: image.src,
@@ -149,7 +149,7 @@ export function createSketchDocumentLifecycle(
     doc.current = {
       ...doc.current,
       nextId: layer.id + 1,
-      active: layer.id,
+      active: visible ? layer.id : doc.current.active,
       layers: [...doc.current.layers, layer]
     }
     schedule()

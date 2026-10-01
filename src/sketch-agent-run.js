@@ -1,6 +1,6 @@
 // One run spans tool calls; closing the view is not a run event.
 // Short run handles are scoped to the unique documentId, never authentication tokens.
-export function createSketchAgentRun({ execute, open, changed, busy = () => false, previewEnabled = () => false, idleMs = 180_000 }) {
+export function createSketchAgentRun({ execute, open, changed, busy = () => false, idleMs = 180_000 }) {
   let state = 'idle', generation = 0, runNumber = 0, pending = false, runId, timer, completed
   const update = next => { state = next; changed(next) }
   const clear = () => { clearTimeout(timer); timer = undefined }
@@ -27,9 +27,7 @@ export function createSketchAgentRun({ execute, open, changed, busy = () => fals
         const value = await execute(request.action === 'finish' ? {...request, action:'save'} : request)
         if (version !== generation) throw Error('Drawing interrupted')
         if (request.action !== 'finish') return {...value,runId}
-        const result = previewEnabled() ? await execute({action:'preview',documentId:value.documentId}) : value
-        if (version !== generation) throw Error('Drawing interrupted')
-        completed={key:JSON.stringify(request),value:{...result,runId}}
+        completed={key:JSON.stringify(request),value:{...value,runId}}
         update('finished')
         return completed.value
       } catch (error) {
