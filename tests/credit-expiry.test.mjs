@@ -9,7 +9,9 @@ const at = (y, m, d) => Date.UTC(y, m - 1, d, 12)
 test('a Pro balance covering the compensation grant is estimated to expire on 2026-12-31', () => {
   const expiry = creditExpiry({ planType: 'pro', balance: '63561.07' }, at(2026, 10, 2))
   assert.deepEqual(expiry, { expiresAt: PRO_200_COMPENSATION.expiresAt, source: 'estimate' })
-  assert.equal(new Date(expiry.expiresAt).toISOString().slice(0, 10), '2026-12-31')
+  for (const timeZone of ['Asia/Tokyo', 'Asia/Shanghai', 'UTC', 'America/Los_Angeles']) {
+    assert.equal(new Date(expiry.expiresAt).toLocaleDateString('en-CA', { timeZone }), '2026-12-31', timeZone)
+  }
 })
 
 test('no estimate for other plans, small balances or after the date; the API value always wins', () => {
