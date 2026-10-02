@@ -15,14 +15,9 @@ export function creditExpiry({ planType, balance, apiExpiresAt }, now = Date.now
   return undefined
 }
 
-/** Days left, urgency, and how much has to be spent per day to use the balance up in time. */
-export function creditExpiryStatus(expiry, balance, now = Date.now()) {
+/** Whole days left, and whether the expiry is close enough to call out. */
+export function creditExpiryStatus(expiry, now = Date.now()) {
   if (expiry === undefined) return undefined
   const daysLeft = Math.max(0, Math.ceil((expiry.expiresAt - now) / DAY_MS))
-  const amount = Number(balance)
-  return {
-    daysLeft,
-    level: daysLeft <= 7 ? 'urgent' : daysLeft <= 30 ? 'warn' : 'info',
-    ...(Number.isFinite(amount) && amount > 0 && daysLeft > 0 ? { perDay: Math.ceil(amount / daysLeft) } : {}),
-  }
+  return { daysLeft, soon: daysLeft <= 30 }
 }

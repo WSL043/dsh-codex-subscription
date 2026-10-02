@@ -9,11 +9,10 @@ const count = value => Number(value).toLocaleString()
 export function CreditExpiry({ credits, t }) {
   const date = validDate(credits.expiresAt)
   if (date === undefined || credits.unlimited) return null
-  const status = creditExpiryStatus({ expiresAt: credits.expiresAt }, credits.balance)
+  const status = creditExpiryStatus({ expiresAt: credits.expiresAt })
   const estimate = credits.expirySource === 'estimate'
-  return <div className="codexSubscriptionCreditExpiry" data-level={status.level} role="status">
+  return <div className="codexSubscriptionCreditExpiry" data-soon={status.soon} role="status">
     <p>{fill(t(status.daysLeft === 0 ? 'creditsExpiredToday' : 'creditsExpires'), { date: date.toLocaleDateString(), days: status.daysLeft })}{estimate ? ` ${t('creditsExpiryEstimate')}` : ''}</p>
-    {status.perDay === undefined ? null : <p>{fill(t('creditsPerDay'), { value: count(status.perDay) })}</p>}
   </div>
 }
 export function ResetTime({ resetsAt, t }) {
@@ -197,6 +196,7 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
       <div className="codexSubscriptionCreditRows">
         {visibleUsage?.credits ? <div className="codexSubscriptionCreditBalance"><span>{t('creditsBalance')}</span><strong>{visibleUsage.credits.unlimited ? t('unlimited') : `${visibleUsage.credits.balance ?? t('unavailable')} ${t('creditsUnit')}`}</strong></div> : null}
         {visibleUsage?.credits ? <CreditExpiry credits={visibleUsage.credits} t={t} /> : null}
+        {visibleUsage?.credits && !visibleUsage.credits.unlimited ? <p className="codexSubscriptionCreditNote">{t('creditsAfterAllowance')}</p> : null}
         {visibleUsage?.credits?.approxLocalMessages ? <p className="codexSubscriptionCreditNote">{fill(t('creditsMessages'), { local: `${count(visibleUsage.credits.approxLocalMessages[0])}–${count(visibleUsage.credits.approxLocalMessages[1])}`, cloud: visibleUsage.credits.approxCloudMessages ? `${count(visibleUsage.credits.approxCloudMessages[0])}–${count(visibleUsage.credits.approxCloudMessages[1])}` : t('unavailable') })}</p> : null}
         {visibleUsage?.resetCredits?.availableCount > 0 ? <details className="codexSubscriptionCreditBalance codexSubscriptionResetDisclosure"><summary>{fill(t('resetCreditsAvailable'), { count: visibleUsage.resetCredits.availableCount })}</summary><ResetCreditList rpc={rpc} t={t} count={visibleUsage.resetCredits.availableCount} nextExpiresAt={visibleUsage.resetCredits.nextExpiresAt} initialCredits={visibleUsage.resetCredits.credits} refreshKey={`${resetKey}:${usageRefreshGeneration}`} hasExhaustedQuota={exhausted} onConsumed={() => load(true)} /></details> : null}
         {visibleUsage?.individualLimit ? <div className="codexSubscriptionSpendLimit">

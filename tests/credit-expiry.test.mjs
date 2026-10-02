@@ -20,12 +20,11 @@ test('no estimate for other plans, small balances or after the date; the API val
   assert.deepEqual(creditExpiry({ planType: 'pro', balance: '70000', apiExpiresAt: api }, at(2026, 10, 2)), { expiresAt: api, source: 'api' })
 })
 
-test('status counts days, raises urgency, and says what to spend per day', () => {
+test('status counts days and calls out the last 30', () => {
   const expiry = { expiresAt: at(2026, 12, 31) }
-  assert.deepEqual(creditExpiryStatus(expiry, '63000', at(2026, 10, 2)), { daysLeft: 90, level: 'info', perDay: 700 })
-  assert.equal(creditExpiryStatus(expiry, '63000', at(2026, 12, 10)).level, 'warn')
-  assert.equal(creditExpiryStatus(expiry, '63000', at(2026, 12, 28)).level, 'urgent')
-  assert.equal(creditExpiryStatus(undefined, '1'), undefined)
+  assert.deepEqual(creditExpiryStatus(expiry, at(2026, 10, 2)), { daysLeft: 90, soon: false })
+  assert.equal(creditExpiryStatus(expiry, at(2026, 12, 10)).soon, true)
+  assert.equal(creditExpiryStatus(undefined), undefined)
 })
 
 test('the usage projection carries expiry, message estimates and ChatPass without touching rate limits', () => {
