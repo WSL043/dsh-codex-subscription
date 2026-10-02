@@ -121,6 +121,7 @@ export const STYLE = `
 .codexSubscriptionSearchOptions[open]>summary{margin-bottom:8px}
 .codexSubscriptionCreditSection{display:flex;flex-direction:column;gap:7px}
 .codexSubscriptionCreditNote{font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionCreditExpiry{display:grid;gap:2px;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}.codexSubscriptionCreditExpiry p{margin:0}.codexSubscriptionCreditExpiry[data-soon=true]{color:var(--dsw-alias-label-secondary);font-weight:600}
 .codexSubscriptionCreditRows{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}
 .codexSubscriptionCreditBalance,.codexSubscriptionSpendLimit{min-width:0;border-radius:10px;padding:12px 14px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionCreditBalance{display:flex;flex-direction:column;gap:6px}
