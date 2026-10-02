@@ -4,8 +4,6 @@ import { Button } from './client-primitives.js'
 import { CHANNEL, unwrap, fill, percent, windowLabel, validDate, notifyQuickQuota, formatQuotaForecast } from './client-shared.js'
 import { creditExpiryStatus } from './credit-expiry.js'
 
-const count = value => Number(value).toLocaleString()
-
 export function CreditExpiry({ credits, t }) {
   const date = validDate(credits.expiresAt)
   if (date === undefined || credits.unlimited) return null
@@ -166,7 +164,7 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
   const limits = visibleUsage?.rateLimits ?? []
   const exhausted = limits.some(limit => limit.id !== 'code_review'
     && limit.windows.some(window => window.usedPercent >= 100))
-  const hasUsageDetails = limits.length > 0 || visibleUsage?.chatPass !== undefined || visibleUsage?.credits !== undefined
+  const hasUsageDetails = limits.length > 0 || visibleUsage?.credits !== undefined
     || visibleUsage?.individualLimit !== undefined || visibleUsage?.resetCredits?.availableCount > 0
   const fetchedAt = typeof visibleUsage?.fetchedAt === 'number' ? validDate(visibleUsage.fetchedAt) : undefined
   return <div className="codexSubscriptionCard codexSubscriptionUsageCard">
@@ -186,18 +184,12 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
         <progress max="100" value={window.remainingPercent} aria-label={`${limit.name ?? limit.id} ${fill(t('remaining'), { value: percent(window.remainingPercent) })}`} />
         <div className="codexSubscriptionLimitMeta"><span className="codexSubscriptionLimitPeriod"><span>{windowLabel(window.windowSeconds, t)}</span><span>{formatQuotaForecast(window.forecast, t)}</span></span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
       </div>))}</div>}
-    {visibleUsage?.chatPass === undefined ? null : <div className="codexSubscriptionLimits">{visibleUsage.chatPass.windows.map((window, index) => <div className="codexSubscriptionLimit" key={`chatpass-${window.windowSeconds}-${index}`}>
-        <div className="codexSubscriptionLimitTop"><span className="codexSubscriptionLimitLabel">{t('chatPass')}</span><strong>{percent(window.remainingPercent)}%</strong></div>
-        <progress max="100" value={window.remainingPercent} aria-label={`${t('chatPass')} ${fill(t('remaining'), { value: percent(window.remainingPercent) })}`} />
-        <div className="codexSubscriptionLimitMeta"><span className="codexSubscriptionLimitPeriod"><span>{windowLabel(window.windowSeconds, t)}</span></span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
-      </div>)}</div>}
     {visibleUsage?.credits === undefined && visibleUsage?.individualLimit === undefined && !(visibleUsage?.resetCredits?.availableCount > 0) ? null : <div className="codexSubscriptionCreditSection">
       <p className="codexSubscriptionCreditNote">{t('creditsNote')}</p>
       <div className="codexSubscriptionCreditRows">
         {visibleUsage?.credits ? <div className="codexSubscriptionCreditBalance"><span>{t('creditsBalance')}</span><strong>{visibleUsage.credits.unlimited ? t('unlimited') : `${visibleUsage.credits.balance ?? t('unavailable')} ${t('creditsUnit')}`}</strong></div> : null}
         {visibleUsage?.credits ? <CreditExpiry credits={visibleUsage.credits} t={t} /> : null}
         {visibleUsage?.credits && !visibleUsage.credits.unlimited ? <p className="codexSubscriptionCreditNote">{t('creditsAfterAllowance')}</p> : null}
-        {visibleUsage?.credits?.approxLocalMessages ? <p className="codexSubscriptionCreditNote">{fill(t('creditsMessages'), { local: `${count(visibleUsage.credits.approxLocalMessages[0])}–${count(visibleUsage.credits.approxLocalMessages[1])}`, cloud: visibleUsage.credits.approxCloudMessages ? `${count(visibleUsage.credits.approxCloudMessages[0])}–${count(visibleUsage.credits.approxCloudMessages[1])}` : t('unavailable') })}</p> : null}
         {visibleUsage?.resetCredits?.availableCount > 0 ? <details className="codexSubscriptionCreditBalance codexSubscriptionResetDisclosure"><summary>{fill(t('resetCreditsAvailable'), { count: visibleUsage.resetCredits.availableCount })}</summary><ResetCreditList rpc={rpc} t={t} count={visibleUsage.resetCredits.availableCount} nextExpiresAt={visibleUsage.resetCredits.nextExpiresAt} initialCredits={visibleUsage.resetCredits.credits} refreshKey={`${resetKey}:${usageRefreshGeneration}`} hasExhaustedQuota={exhausted} onConsumed={() => load(true)} /></details> : null}
         {visibleUsage?.individualLimit ? <div className="codexSubscriptionSpendLimit">
           <div className="codexSubscriptionSpendTop"><span className="codexSubscriptionCreditLabel">{t('monthlyCreditLimit')}</span><strong>{fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}</strong></div>

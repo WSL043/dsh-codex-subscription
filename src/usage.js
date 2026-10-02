@@ -46,11 +46,7 @@ function epochSeconds(value, label) {
   return value
 }
 
-// Optional extras the API has started to send; anything malformed is dropped, never an error.
-function messageRange(value) {
-  return Array.isArray(value) && value.length === 2 && value.every(item => Number.isSafeInteger(item) && item >= 0) ? [value[0], value[1]] : undefined
-}
-
+// Optional extra the API may send; anything malformed is dropped, never an error.
 function expiryOf(value) {
   const raw = value?.expires_at
   if (Number.isSafeInteger(raw) && raw > 0) return raw * 1_000
@@ -69,22 +65,11 @@ function creditsOf(value, planType) {
   if (!value.has_credits) return undefined
   const balance = value.balance === undefined || value.balance === null ? undefined : decimal(value.balance, 'credit balance')
   const expiry = value.unlimited ? undefined : creditExpiry({ planType, balance, apiExpiresAt: expiryOf(value) })
-  const local = messageRange(value.approx_local_messages), cloud = messageRange(value.approx_cloud_messages)
   return {
     unlimited: value.unlimited,
     ...(balance === undefined ? {} : { balance }),
     ...(expiry === undefined ? {} : { expiresAt: expiry.expiresAt, expirySource: expiry.source }),
-    ...(local === undefined ? {} : { approxLocalMessages: local }),
-    ...(cloud === undefined ? {} : { approxCloudMessages: cloud }),
   }
-}
-
-// The weekly "ChatPass" windows share the rate-limit window shape. They are kept out of rateLimits so
-// quota warnings, retries and the sidebar keep meaning Codex/Work usage only.
-function chatPassOf(value) {
-  if (!record(value) || !Array.isArray(value.windows)) return undefined
-  const windows = value.windows.map(windowOf).filter(Boolean)
-  return windows.length === 0 ? undefined : { windows }
 }
 
 function individualOf(value) {
@@ -169,14 +154,12 @@ export function parseCodexUsage(value) {
     addLimit(limitOf(entry.metered_feature, entry.limit_name || undefined, entry.rate_limit))
   }
   addLimit(limitOf('code_review', 'Code review', value.code_review_rate_limit))
-  const chatPass = chatPassOf(value.chatpass)
   const credits = creditsOf(value.credits, typeof value.plan_type === 'string' ? value.plan_type : undefined)
   const individualLimit = individualOf(value.spend_control)
   const spendControlReached = spendControlReachedOf(value.spend_control)
   const resetCredits = resetCreditsOf(value.rate_limit_reset_credits)
   return {
     rateLimits,
-    ...(chatPass === undefined ? {} : { chatPass }),
     ...(credits === undefined ? {} : { credits }),
     ...(individualLimit === undefined ? {} : { individualLimit }),
     ...(spendControlReached === undefined ? {} : { spendControlReached }),

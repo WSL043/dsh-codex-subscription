@@ -29,17 +29,10 @@ test('status counts days and calls out the last 30', () => {
   assert.equal(creditExpiryStatus(undefined), undefined)
 })
 
-test('the usage projection carries expiry, message estimates and ChatPass without touching rate limits', () => {
-  const usage = parseCodexUsage({
-    plan_type: 'pro',
-    chatpass: { windows: [{ used_percent: 10, limit_window_seconds: 604800, reset_at: 1791503997 }] },
-    credits: { has_credits: true, unlimited: false, balance: '63561.07', approx_local_messages: [15890, 82629], approx_cloud_messages: [2542, 15890] },
-  })
-  assert.deepEqual(usage.rateLimits, [])
-  assert.equal(usage.chatPass.windows[0].remainingPercent, 90)
+test('the usage projection carries the expiry and drops malformed credit details quietly', () => {
+  const usage = parseCodexUsage({ plan_type: 'pro', credits: { has_credits: true, unlimited: false, balance: '63561.07' } })
   assert.equal(usage.credits.expirySource, 'estimate')
-  assert.deepEqual(usage.credits.approxLocalMessages, [15890, 82629])
-  const odd = parseCodexUsage({ credits: { has_credits: true, unlimited: false, balance: '1', approx_local_messages: 'x' }, chatpass: { windows: 'x' } })
-  assert.equal(odd.credits.approxLocalMessages, undefined)
-  assert.equal(odd.chatPass, undefined)
+  assert.equal(usage.credits.approxLocalMessages, undefined)
+  const api = parseCodexUsage({ plan_type: 'plus', credits: { has_credits: true, unlimited: false, balance: '1', expires_at: '2099-01-01T00:00:00Z' } })
+  assert.equal(api.credits.expirySource, 'api')
 })
