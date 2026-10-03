@@ -16,7 +16,7 @@ export function vendorDependencies(manifest) {
   return Object.entries({ ...manifest.dependencies, ...manifest.optionalDependencies })
     .filter(([name]) => /^@deepseek-ai\/(?:cordis(?:-plugin-[a-z-]+)?|cosmokit|schemastery)$/.test(name))
     .map(([name, range]) => {
-      const match = /^[~^]?(\d+\.\d+\.\d+)$/.exec(range)
+      const match = /^[~^]?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/.exec(range)
       if (!match) throw new Error(`Unsupported official vendor range: ${name}@${range}`)
       return [name, match[1]]
     })

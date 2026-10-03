@@ -12,6 +12,14 @@ test('official vendor services retain their declared generation', () => {
   } }), [['@deepseek-ai/cordis', '4.0.2'], ['@deepseek-ai/cordis-plugin-hmr', '1.0.17'], ['@deepseek-ai/cosmokit', '1.8.3']])
 })
 
+test('a prerelease vendor range pins to that exact prerelease', () => {
+  assert.deepEqual(vendorDependencies({ dependencies: {
+    '@deepseek-ai/cordis': '~4.0.5-alpha.1',
+    '@deepseek-ai/cosmokit': '^1.8.3',
+  } }), [['@deepseek-ai/cordis', '4.0.5-alpha.1'], ['@deepseek-ai/cosmokit', '1.8.3']])
+  assert.throws(() => vendorDependencies({ dependencies: { '@deepseek-ai/cordis': '>=4' } }), /Unsupported official vendor range/)
+})
+
 test('cohort resolves vendor transitives and rejects conflicting identities', async () => {
   const { mkdtemp, readFile, rm } = await import('node:fs/promises')
   const { tmpdir } = await import('node:os')
