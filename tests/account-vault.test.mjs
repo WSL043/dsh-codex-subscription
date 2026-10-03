@@ -82,6 +82,28 @@ test('account vault adds, switches, refreshes, and removes accounts independentl
   assert.equal(raw.payload.accounts.find(account => account.id === 'local-2'), undefined)
 })
 
+test('account vault clears the legacy pointer when its account is removed', async () => {
+  const backend = memoryCredentials({ refs: { CODEX_OAUTH: JSON.stringify(oauth('one')) } })
+  const ids = ['local-1', 'local-2']
+  const vault = new DshOAuthAccountVault(backend, {
+    key: 'dsh-codex-subscription/accounts',
+    legacyRef: 'CODEX_OAUTH',
+    createId: () => ids.shift(),
+  })
+
+  await vault.list()
+  await vault.add('Work', oauth('two'))
+  await vault.select('local-1')
+  await vault.remove('local-1')
+
+  const raw = backend.readRecordRaw('dsh-codex-subscription/accounts')
+  assert.equal('legacyAccountId' in raw.payload, false)
+  assert.equal(raw.payload.activeId, 'local-2')
+  assert.deepEqual(raw.payload.accounts.map(account => account.id), ['local-2'])
+  assert.deepEqual(await vault.readActive(), oauth('two'))
+  assert.equal(backend.readRef('CODEX_OAUTH'), undefined)
+})
+
 test('account vault serializes refreshes against the selected account snapshot', async () => {
   const backend = memoryCredentials({ refs: { CODEX_OAUTH: JSON.stringify(oauth('zero')) } })
   const vault = new DshOAuthAccountVault(backend, {
