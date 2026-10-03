@@ -233,7 +233,12 @@ test('Windows manager updates from a checksum-verified immutable release asset',
   const manager = text('dsh-codex.ps1')
   const managedVersion = manager.match(/\$PackageVersion = '(\d+\.\d+\.\d+)'/u)?.[1]
   assert.match(managedVersion ?? '', /^\d+\.\d+\.\d+$/u)
-  assert.equal(managedVersion, manifest.version, 'stable release manager must install the package being released')
+  if (manifest.version.includes('-')) {
+    // During a preview beta the manager stays on the last stable release.
+    assert.ok(compareVersions(managedVersion, manifest.version) < 0, `stable release manager must stay behind ${manifest.version}`)
+  } else {
+    assert.equal(managedVersion, manifest.version, 'stable release manager must install the package being released')
+  }
   assert.equal(manager.includes(`$PackageSpec = 'dsh-codex-subscription@${managedVersion}'`), true)
   assert.doesNotMatch(manager, /dsh-codex-subscription@\d+\.\d+\.\d+-beta\.\d+/u)
   assert.match(manager, /api\.github\.com\/repos\/WSL043\/dsh-codex-subscription\/releases\/latest/u)
@@ -422,9 +427,22 @@ test('beta publishing stays a prerelease and never replaces npm latest or stable
   assert.match(workflow, /IS_PRERELEASE[\s\S]*--latest/u)
 })
 
+test('an alpha newer than the declared compatibility list is a notice, never a release blocker', () => {
+  for (const file of ['.github/workflows/ci.yml', '.github/workflows/publish.yml']) {
+    const workflow = text(file)
+    assert.match(workflow, /matrix\.channel \}\}'\s+-eq 'alpha'[\s\S]*?-notcontains \$version[\s\S]*?::notice title=DSH preview not declared::[\s\S]*?exit 0/u, file)
+  }
+})
+
 test('the README install step names the exact released version, so a new release installs on its first day', () => {
   for (const [label, readme] of [['zh', text('README.md')], ['en', text('README.en.md')]]) {
     const pinned = readme.match(/```text\s+dsh-codex-subscription@([\d.]+)\s+```/u)?.[1]
-    assert.equal(pinned, manifest.version, `${label} README install step must pin ${manifest.version}`)
+    if (manifest.version.includes('-')) {
+      // A preview plugin beta is not advertised: the README keeps pinning the last stable release.
+      assert.match(pinned, /^\d+\.\d+\.\d+$/u, `${label} README install step must pin a stable release`)
+      assert.ok(compareVersions(pinned, manifest.version) < 0, `${label} README install step must not pin ${pinned} ahead of ${manifest.version}`)
+    } else {
+      assert.equal(pinned, manifest.version, `${label} README install step must pin ${manifest.version}`)
+    }
   }
 })
