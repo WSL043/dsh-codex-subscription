@@ -425,6 +425,12 @@ test('beta publishing stays a prerelease and never replaces npm latest or stable
 test('the README install step names the exact released version, so a new release installs on its first day', () => {
   for (const [label, readme] of [['zh', text('README.md')], ['en', text('README.en.md')]]) {
     const pinned = readme.match(/```text\s+dsh-codex-subscription@([\d.]+)\s+```/u)?.[1]
-    assert.equal(pinned, manifest.version, `${label} README install step must pin ${manifest.version}`)
+    if (manifest.version.includes('-')) {
+      // A preview plugin beta is not advertised: the README keeps pinning the last stable release.
+      assert.match(pinned, /^\d+\.\d+\.\d+$/u, `${label} README install step must pin a stable release`)
+      assert.ok(compareVersions(pinned, manifest.version) < 0, `${label} README install step must not pin ${pinned} ahead of ${manifest.version}`)
+    } else {
+      assert.equal(pinned, manifest.version, `${label} README install step must pin ${manifest.version}`)
+    }
   }
 })
