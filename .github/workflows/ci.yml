@@ -151,5 +151,12 @@ jobs:
             (& pnpm view '@deepseek-ai/dsh@${{ matrix.channel }}' version --json | Out-String).Trim().Trim('"')
           }
           if ($version -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$') { throw 'Could not resolve the official DSH version.' }
+          if ('${{ matrix.channel }}' -eq 'alpha') {
+            $declared = Get-Content -LiteralPath compatibility.json -Raw | ConvertFrom-Json
+            if ((@($declared.supported) + @($declared.previews)) -notcontains $version) {
+              Write-Host "::notice title=DSH preview not declared::DSH $version is newer than the declared compatibility list. It is accepted once the compatibility update for it lands."
+              exit 0
+            }
+          }
           Write-Host "Accepting official DSH $version"
           .\.github\scripts\accept-official-release.ps1 -PackagePath $package -DshRunner pnpm -DshVersion $version
