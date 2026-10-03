@@ -427,6 +427,13 @@ test('beta publishing stays a prerelease and never replaces npm latest or stable
   assert.match(workflow, /IS_PRERELEASE[\s\S]*--latest/u)
 })
 
+test('an alpha newer than the declared compatibility list is a notice, never a release blocker', () => {
+  for (const file of ['.github/workflows/ci.yml', '.github/workflows/publish.yml']) {
+    const workflow = text(file)
+    assert.match(workflow, /matrix\.channel \}\}'\s+-eq 'alpha'[\s\S]*?-notcontains \$version[\s\S]*?::notice title=DSH preview not declared::[\s\S]*?exit 0/u, file)
+  }
+})
+
 test('the README install step names the exact released version, so a new release installs on its first day', () => {
   for (const [label, readme] of [['zh', text('README.md')], ['en', text('README.en.md')]]) {
     const pinned = readme.match(/```text\s+dsh-codex-subscription@([\d.]+)\s+```/u)?.[1]
