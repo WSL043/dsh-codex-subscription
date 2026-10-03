@@ -233,7 +233,12 @@ test('Windows manager updates from a checksum-verified immutable release asset',
   const manager = text('dsh-codex.ps1')
   const managedVersion = manager.match(/\$PackageVersion = '(\d+\.\d+\.\d+)'/u)?.[1]
   assert.match(managedVersion ?? '', /^\d+\.\d+\.\d+$/u)
-  assert.equal(managedVersion, manifest.version, 'stable release manager must install the package being released')
+  if (manifest.version.includes('-')) {
+    // During a preview beta the manager stays on the last stable release.
+    assert.ok(compareVersions(managedVersion, manifest.version) < 0, `stable release manager must stay behind ${manifest.version}`)
+  } else {
+    assert.equal(managedVersion, manifest.version, 'stable release manager must install the package being released')
+  }
   assert.equal(manager.includes(`$PackageSpec = 'dsh-codex-subscription@${managedVersion}'`), true)
   assert.doesNotMatch(manager, /dsh-codex-subscription@\d+\.\d+\.\d+-beta\.\d+/u)
   assert.match(manager, /api\.github\.com\/repos\/WSL043\/dsh-codex-subscription\/releases\/latest/u)
