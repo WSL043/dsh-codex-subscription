@@ -5,10 +5,13 @@ import test from 'node:test'
 import {
   boundedArtifactPaths,
   compareVersions,
+  cordisHostOf,
   extractDeepSeekReleaseAgeSelectors,
+  hostOf,
   planCompatibilityUpdate,
   rewriteBoundedVersions,
   rewriteReleaseAgeCohort,
+  rewriteSubagentRuntime,
   rewriteWorkspaceCohort,
   selectNextUntestedVersion,
 } from '../scripts/prepare-compat-release.mjs'
@@ -181,4 +184,71 @@ test('current repository bounded artifacts can prepare the next DSH candidate', 
  const candidate = current.replace(/^(\d+)\.(\d+)\.(\d+).*$/, (_, major, minor, patch) => major + '.' + minor + '.' + (Number(patch) + 1))
  const update = planCompatibilityUpdate(state, candidate)
  for (const file of boundedArtifactPaths(update)) assert.doesNotThrow(() => rewriteBoundedVersions(read(file), update, file), file)
+})
+
+const withHostPeers = state => {
+  state.manifest.peerDependencies['@deepseek-ai/cordis'] = '4.0.3 || 4.0.4'
+  state.manifest.peerDependencies['@deepseek-ai/dsh-subagent-codex'] = '0.1.1-rc.2'
+  state.manifest.peerDependenciesMeta = { '@deepseek-ai/dsh-subagent-codex': { optional: true } }
+  state.manifest.devDependencies['@deepseek-ai/dsh-subagent-codex'] = '0.1.1-rc.2'
+  return state
+}
+
+test('the cordis host comes from the exact version a DSH release declares', () => {
+  assert.equal(cordisHostOf({ dependencies: { '@deepseek-ai/cordis': '~4.0.5-alpha.1' } }), '4.0.5-alpha.1')
+  assert.equal(cordisHostOf({ dependencies: { '@deepseek-ai/cordis': '^4.0.4' } }), '4.0.4')
+  assert.equal(cordisHostOf({ dependencies: { '@deepseek-ai/cordis': '>=4' } }), undefined)
+  assert.equal(cordisHostOf({}), undefined)
+})
+
+test('a preview widens the cordis host and the optional subtask runtime peer without touching its dev pin', () => {
+  const state = withHostPeers(previewFixture())
+  const update = planCompatibilityUpdate({ ...state, host: { cordis: '4.0.5-alpha.1', subagentRuntime: '0.1.2-alpha.3' } }, '0.1.2-alpha.3')
+  assert.equal(update.manifest.peerDependencies['@deepseek-ai/cordis'], '4.0.3 || 4.0.4 || 4.0.5-alpha.1')
+  assert.equal(update.manifest.peerDependencies['@deepseek-ai/dsh-subagent-codex'], '0.1.1-rc.2 || 0.1.2-alpha.3')
+  assert.equal(update.manifest.devDependencies['@deepseek-ai/dsh-subagent-codex'], '0.1.1-rc.2')
+  assert.equal(update.subagentRuntime, '0.1.2-alpha.3')
+  const again = planCompatibilityUpdate({ ...state, host: { cordis: '4.0.4' } }, '0.1.2-alpha.3')
+  assert.equal(again.manifest.peerDependencies['@deepseek-ai/cordis'], '4.0.3 || 4.0.4')
+  assert.equal(again.subagentRuntime, undefined)
+})
+
+test('a stable release also pins the subtask runtime it installs', () => {
+  const state = withHostPeers(previewFixture())
+  const update = planCompatibilityUpdate({ ...state, host: { subagentRuntime: '0.1.2' } }, '0.1.2')
+  assert.equal(update.manifest.devDependencies['@deepseek-ai/dsh-subagent-codex'], '0.1.2')
+  assert.equal(update.manifest.peerDependencies['@deepseek-ai/dsh-subagent-codex'], '0.1.1-rc.2 || 0.1.2')
+})
+
+test('the subtask runtime list follows the update: a preview is added, a stable release becomes the installed version', () => {
+  const source = [
+    "export const SUBAGENT_RUNTIME_VERSION = '0.2.0-rc.2'",
+    "export const SUPPORTED_RUNTIME_VERSIONS = Object.freeze(['0.2.0-rc.1', SUBAGENT_RUNTIME_VERSION])",
+  ].join('\n')
+  const preview = rewriteSubagentRuntime(source, { subagentRuntime: '0.2.1-alpha.1', updateStableReferences: false })
+  assert.match(preview, /SUBAGENT_RUNTIME_VERSION = '0\.2\.0-rc\.2'/)
+  assert.match(preview, /\['0\.2\.0-rc\.1', SUBAGENT_RUNTIME_VERSION, '0\.2\.1-alpha\.1'\]/)
+  const stable = rewriteSubagentRuntime(preview, { subagentRuntime: '0.2.1', updateStableReferences: true })
+  assert.match(stable, /SUBAGENT_RUNTIME_VERSION = '0\.2\.1'/)
+  assert.match(stable, /\['0\.2\.0-rc\.1', '0\.2\.0-rc\.2', '0\.2\.1-alpha\.1', SUBAGENT_RUNTIME_VERSION\]/)
+  assert.equal(rewriteSubagentRuntime(source, {}), source)
+  assert.throws(() => rewriteSubagentRuntime('nothing here', { subagentRuntime: '1.0.0' }), /expected SUBAGENT_RUNTIME_VERSION/)
+})
+
+test('host inspection reads the release manifest and treats a missing subtask runtime as absent', async () => {
+  const registry = {
+    '@deepseek-ai/dsh@0.2.1-alpha.1': { version: '0.2.1-alpha.1', dependencies: { '@deepseek-ai/cordis': '~4.0.5-alpha.1' } },
+    '@deepseek-ai/dsh-subagent-codex@0.2.1-alpha.1': { version: '0.2.1-alpha.1' },
+    '@deepseek-ai/dsh@0.2.2': { version: '0.2.2', dependencies: { '@deepseek-ai/cordis': '~4.0.6' } },
+  }
+  const fetchManifest = async (name, version) => registry[`${name}@${version}`]
+  assert.deepEqual(await hostOf('0.2.1-alpha.1', fetchManifest), { cordis: '4.0.5-alpha.1', subagentRuntime: '0.2.1-alpha.1' })
+  assert.deepEqual(await hostOf('0.2.2', fetchManifest), { cordis: '4.0.6' })
+  await assert.rejects(hostOf('9.9.9', fetchManifest), /Cannot inspect @deepseek-ai\/dsh@9\.9\.9/)
+})
+
+test('the real subagent runtime source can be rewritten', () => {
+  const source = readFileSync(new URL('../src/subagent-runtime.js', import.meta.url), 'utf8')
+  const next = rewriteSubagentRuntime(source, { subagentRuntime: '9.0.0-alpha.1', updateStableReferences: false })
+  assert.match(next, /SUPPORTED_RUNTIME_VERSIONS = Object\.freeze\(\[[^\]]*'9\.0\.0-alpha\.1'\]\)/)
 })
