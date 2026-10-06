@@ -89,6 +89,22 @@ function previousDocumentedPluginVersion(version) {
   return `${parsed.core[0]}.${parsed.core[1]}.${parsed.core[2] - 1}`
 }
 
+const SUBAGENT_RUNTIME = '@deepseek-ai/dsh-subagent-codex'
+
+// Add one exact version to an `a || b || c` peer list, keeping existing entries.
+function widenPeer(manifest, name, version) {
+  const current = manifest.peerDependencies?.[name]
+  if (version === undefined || typeof current !== 'string') return
+  const versions = current.split('||').map(entry => entry.trim()).filter(Boolean)
+  if (!versions.includes(version)) manifest.peerDependencies[name] = [...versions, version].join(' || ')
+}
+
+/** The exact cordis host a DSH release ships, read from its declared range (e.g. ~4.0.5-alpha.1). */
+export function cordisHostOf(dshManifest) {
+  const range = { ...dshManifest?.dependencies, ...dshManifest?.optionalDependencies }['@deepseek-ai/cordis']
+  return /^[~^]?(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/.exec(range ?? '')?.[1]
+}
+
 export function planCompatibilityUpdate(state, candidate) {
   parseVersion(candidate)
   const preview = isPreviewVersion(candidate)
@@ -118,6 +134,11 @@ export function planCompatibilityUpdate(state, candidate) {
     }
     if (manifest.dependencies?.['@deepseek-ai/dsh-home-paths']) manifest.dependencies['@deepseek-ai/dsh-home-paths'] = candidate
   }
+  // The DSH plugin manager also checks the cordis host and the optional Codex subtask runtime.
+  widenPeer(manifest, '@deepseek-ai/cordis', state.host?.cordis)
+  const subagentRuntime = state.host?.subagentRuntime
+  widenPeer(manifest, SUBAGENT_RUNTIME, subagentRuntime)
+  if (subagentRuntime !== undefined && !preview && manifest.devDependencies?.[SUBAGENT_RUNTIME]) manifest.devDependencies[SUBAGENT_RUNTIME] = subagentRuntime
   const supportedRange = [...compatibility.supported, ...compatibility.previews].sort(compareVersions).join(' || ')
   for (const name of Object.keys(manifest.peerDependencies ?? {})) {
     if (name.startsWith('@deepseek-ai/dsh-') && !manifest.peerDependenciesMeta?.[name]?.optional) manifest.peerDependencies[name] = supportedRange
@@ -130,6 +151,7 @@ export function planCompatibilityUpdate(state, candidate) {
     previousDocumentedPluginVersion: previousDocumentedPluginVersion(previousPluginVersion),
     pluginVersion: manifest.version,
     updateStableReferences: !preview,
+    ...(subagentRuntime === undefined ? {} : { subagentRuntime }),
     compatibility,
     manifest,
   }
@@ -158,6 +180,24 @@ export function rewriteBoundedVersions(source, update, label) {
   if (rewritten === source) throw new Error(`no bounded version reference changed in ${label}`)
   if (rewritten.includes(previousVersion)) throw new Error(`stale plugin version remains in ${label}`)
   return rewritten
+}
+
+/** Keep SUPPORTED_RUNTIME_VERSIONS in step with the peer list; a stable release also becomes the installed runtime. */
+export function rewriteSubagentRuntime(source, update) {
+  if (update.subagentRuntime === undefined) return source
+  const constant = /^(export const SUBAGENT_RUNTIME_VERSION = ')([^'\r\n]+)(')$/mu
+  const list = /^(export const SUPPORTED_RUNTIME_VERSIONS = Object\.freeze\(\[)([^\]\r\n]*)(\]\))$/mu
+  const current = constant.exec(source)?.[2], items = list.exec(source)?.[2]
+  if (current === undefined || items === undefined) throw new Error('expected SUBAGENT_RUNTIME_VERSION and SUPPORTED_RUNTIME_VERSIONS in subagent-runtime.js')
+  const versions = items.split(',').map(item => item.trim()).filter(Boolean)
+    .map(item => item === 'SUBAGENT_RUNTIME_VERSION' ? current : /^'([^']+)'$/u.exec(item)?.[1])
+  if (versions.some(version => version === undefined)) throw new Error('unexpected SUPPORTED_RUNTIME_VERSIONS entry')
+  const installed = update.updateStableReferences ? update.subagentRuntime : current
+  const next = [...new Set([...versions, update.subagentRuntime])].sort(compareVersions)
+    .map(version => version === installed ? 'SUBAGENT_RUNTIME_VERSION' : `'${version}'`).join(', ')
+  return source
+    .replace(constant, (_match, prefix, _version, suffix) => prefix + installed + suffix)
+    .replace(list, (_match, prefix, _items, suffix) => prefix + next + suffix)
 }
 
 export function boundedArtifactPaths(update) {
@@ -202,6 +242,21 @@ export function rewriteReleaseAgeCohort(workspace, selectors) {
   return `${workspace.slice(0, start)}${block}${workspace.slice(end + RELEASE_AGE_END.length)}`
 }
 
+async function registryManifest(name, version) {
+  const response = await fetch(`https://registry.npmjs.org/${encodeURIComponent(name)}/${version}`, { signal: AbortSignal.timeout(30_000) })
+  if (response.status === 404) return undefined
+  if (!response.ok) throw new Error(`Cannot inspect ${name}@${version} (${response.status})`)
+  return response.json()
+}
+
+/** What the candidate DSH release ships that the plugin manager checks besides the dsh-* cohort. */
+export async function hostOf(candidate, fetchManifest = registryManifest) {
+  const dsh = await fetchManifest('@deepseek-ai/dsh', candidate)
+  if (dsh?.version !== candidate) throw new Error(`Cannot inspect @deepseek-ai/dsh@${candidate}`)
+  const subagent = await fetchManifest(SUBAGENT_RUNTIME, candidate)
+  return { cordis: cordisHostOf(dsh), ...(subagent?.version === candidate ? { subagentRuntime: candidate } : {}) }
+}
+
 async function prepare(root, candidate) {
   const compatibilityPath = resolve(root, 'compatibility.json')
   const manifestPath = resolve(root, 'package.json')
@@ -209,8 +264,12 @@ async function prepare(root, candidate) {
     readFile(compatibilityPath, 'utf8').then(JSON.parse),
     readFile(manifestPath, 'utf8').then(JSON.parse),
   ])
-  const update = planCompatibilityUpdate({ compatibility, manifest }, candidate)
+  const update = planCompatibilityUpdate({ compatibility, manifest, host: await hostOf(candidate) }, candidate)
   if (update === null) return { changed: false, dshVersion: candidate, pluginVersion: manifest.version }
+
+  const runtimePath = resolve(root, 'src/subagent-runtime.js')
+  const runtimeSource = await readFile(runtimePath, 'utf8')
+  const nextRuntime = rewriteSubagentRuntime(runtimeSource, update)
 
   const boundedPaths = boundedArtifactPaths(update)
   const sources = await Promise.all(boundedPaths.map(path => readFile(resolve(root, path), 'utf8')))
@@ -224,6 +283,7 @@ async function prepare(root, candidate) {
     writeFile(compatibilityPath, `${JSON.stringify(update.compatibility, null, 2)}\n`),
     writeFile(manifestPath, `${JSON.stringify(update.manifest, null, 2)}\n`),
     writeFile(workspacePath, nextWorkspace),
+    ...(nextRuntime === runtimeSource ? [] : [writeFile(runtimePath, nextRuntime)]),
     ...boundedPaths.map((path, index) => writeFile(resolve(root, path), rewritten[index])),
   ])
   return { changed: true, ...update }
