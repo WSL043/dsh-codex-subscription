@@ -62,7 +62,7 @@ function publicAccountStatusError(error) {
 
 /** Own the account-status request lifecycle independently from account actions. */
 export function createAccountStatusController(rpc, options = {}) {
-  const request = options.request ?? (() => rpc.call(CHANNEL, 'status', {}))
+  const request = options.request ?? (signal => rpc.call(CHANNEL, 'status', {}, signal))
   const scheduleTimeout = options.setTimeout ?? setTimeout
   const cancelTimeout = options.clearTimeout ?? clearTimeout
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
