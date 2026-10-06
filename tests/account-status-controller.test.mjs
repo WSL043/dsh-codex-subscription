@@ -137,3 +137,46 @@ test('invalid account status responses fail closed instead of becoming signed ou
   assert.equal(controller.getSnapshot().status, 'error')
   assert.equal(controller.getSnapshot().error.code, 'unknown')
 })
+
+test('the default RPC request receives the abort signal on timeout, retry and dispose', async () => {
+  const timers = []
+  const calls = []
+  const rpc = {
+    call(channel, endpoint, payload, signal) {
+      calls.push({ channel, endpoint, payload, signal })
+      return new Promise(() => {})
+    },
+  }
+  const controller = createAccountStatusController(rpc, {
+    timeoutMs: 10_000,
+    setTimeout(callback, delay) {
+      const timer = { callback, delay, cleared: false }
+      timers.push(timer)
+      return timer
+    },
+    clearTimeout(timer) {
+      timer.cleared = true
+    },
+  })
+
+  const first = controller.load()
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(calls[0].endpoint, 'status')
+  assert.ok(calls[0].signal instanceof AbortSignal)
+  timers[0].callback()
+  await first
+  assert.equal(calls[0].signal.aborted, true)
+  assert.equal(controller.getSnapshot().error.code, 'timeout')
+
+  const second = controller.retry()
+  await new Promise(resolve => setImmediate(resolve))
+  timers[1].callback()
+  await second
+  assert.equal(calls[1].signal.aborted, true)
+
+  controller.retry()
+  await new Promise(resolve => setImmediate(resolve))
+  controller.dispose()
+  assert.equal(calls.length, 3)
+  assert.ok(calls.every(call => call.signal.aborted))
+})
