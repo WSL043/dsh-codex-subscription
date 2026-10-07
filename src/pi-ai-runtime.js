@@ -97,9 +97,10 @@ export function openaiCodexSubscriptionProvider({
         ? FAST_SERVICE_TIER
         : undefined
     const inputImageDetail = normalizeInputImageDetail(resolveInputImageDetail())
-    const onPayload = options.onPayload
+    // The ChatGPT Codex backend rejects `temperature` (DSH's auto-review sets it).
+    const { temperature: _temperature, onPayload, ...rest } = options
     return {
-      ...options,
+      ...rest,
       ...(textVerbosity === undefined ? {} : { textVerbosity }),
       ...(serviceTier === undefined ? {} : { serviceTier }),
       async onPayload(payload, requestModel) {
@@ -113,8 +114,9 @@ export function openaiCodexSubscriptionProvider({
         const detailed = inputImageDetail === 'auto'
           ? next ?? managed
           : withInputImageDetail(next ?? managed, inputImageDetail)
+        const { temperature: _dropped, ...accepted } = detailed
         return {
-          ...detailed,
+          ...accepted,
           ...(textVerbosity === undefined ? {} : { text: { ...(detailed.text ?? {}), verbosity: textVerbosity } }),
           ...(serviceTier === undefined ? {} : { service_tier: serviceTier }),
         }
