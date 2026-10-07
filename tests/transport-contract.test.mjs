@@ -316,6 +316,37 @@ test('output detail reaches only verbosity-capable Codex requests', async () => 
   }
 })
 
+test('Codex requests never carry temperature, which the backend rejects', async () => {
+  const previousFetch = globalThis.fetch
+  const wires = []
+  globalThis.fetch = async (_input, init) => {
+    wires.push(JSON.parse(zstdDecompressSync(Buffer.from(init.body)).toString('utf8')))
+    return new Response(sse([
+      { type: 'response.created', response: { id: 'resp_t' } },
+      { type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: 'msg_t', role: 'assistant', content: [] } },
+      { type: 'response.output_text.delta', output_index: 0, content_index: 0, delta: 'ok' },
+      { type: 'response.output_item.done', output_index: 0, item: { type: 'message', id: 'msg_t', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: 'ok', annotations: [] }] } },
+      { type: 'response.done', response: { id: 'resp_t', status: 'completed', output: [], usage: { input_tokens: 2, output_tokens: 1, total_tokens: 3 } } },
+    ]), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+  }
+  try {
+    const provider = openaiCodexSubscriptionProvider()
+    const profiles = new Map([['openai-codex', {
+      provider: 'openai-codex', displayName: 'ChatGPT subscription', piProvider: provider,
+      configuredMaxTokens: new Map(), modelErrors: new Map(), transport: 'sse', streamIdleTimeoutMs: 10_000,
+    }]])
+    const adapter = new PiAiAdapter({ profiles: () => profiles, resolveApiKey: async () => jwt('account-temperature') })
+    for await (const _chunk of adapter.stream({
+      provider: 'openai-codex', model: 'gpt-5.6-sol', temperature: 0,
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'review' }] }], sessionId: 'temperature-review',
+    })) {}
+    assert.equal(wires.length, 1)
+    assert.equal('temperature' in wires[0], false)
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
 test('input image detail follows the selected level on each Codex request', async () => {
   const previousFetch = globalThis.fetch
   const wires = []
