@@ -26,7 +26,7 @@ export function ResetTime({ resetsAt, t }) {
 
 export function ResetCreditExpiry({ expiresAt, t }) {
   const date = validDate(expiresAt)
-  return <span className="codexSubscriptionResetExpiry">{date === undefined ? t('resetCreditExpiryUnknown') : <time dateTime={date.toISOString()} title={date.toLocaleString()}>{fill(t('resetCreditExpires'), { value: date.toLocaleString() })}</time>}</span>
+  return <span className="codexSubscriptionResetExpiry">{date === undefined ? t('resetCreditExpiryUnknown') : <time dateTime={date.toISOString()} title={date.toLocaleString()}>{fill(t('resetCreditExpires'), { value: date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) })}</time>}</span>
 }
 
 export function ResetCreditList({ rpc, t, count, nextExpiresAt, initialCredits, refreshKey, hasExhaustedQuota, onConsumed }) {
@@ -103,7 +103,7 @@ export function ResetCreditControl({ rpc, t, credit, hasExhaustedQuota, onConsum
 
   return <div className="codexSubscriptionResetCard">
     {challenge === undefined ? <>
-      <div className="codexSubscriptionResetMeta"><strong>{credit.name ?? t('resetCreditDefaultName')}</strong><ResetCreditExpiry expiresAt={credit.expiresAt} t={t} /></div><div className="codexSubscriptionActions"><Button className="codexSubscriptionResetUse" type="button" variant="outline" disabled={resetBusy || typeof credit.ref !== 'string'} aria-busy={resetBusy} onClick={prepareReset}>{resetBusy ? t('resetPreparing') : t('resetUse')}</Button></div>
+      <div className="codexSubscriptionResetMeta"><strong>{credit.name === undefined ? t('resetCreditDefaultName') : /^full reset$/iu.test(credit.name) ? t('resetFull') : credit.name}</strong><ResetCreditExpiry expiresAt={credit.expiresAt} t={t} /></div><div className="codexSubscriptionActions"><Button className="codexSubscriptionResetUse" type="button" variant="outline" disabled={resetBusy || typeof credit.ref !== 'string'} aria-busy={resetBusy} onClick={prepareReset}>{resetBusy ? t('resetPreparing') : t('resetUse')}</Button></div>
     </> : <div className="codexSubscriptionResetFlow" role="group" aria-labelledby="codex-reset-confirm-title">
       <h4 id="codex-reset-confirm-title">{challenge.title ?? t('resetConfirmTitle')}</h4>
       {challenge.description ? <p className="codexSubscriptionResetWarning">{challenge.description}</p> : null}
@@ -198,7 +198,7 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
         {visibleUsage?.credits ? <CreditExpiry credits={visibleUsage.credits} t={t} /> : null}
         {visibleUsage?.credits && !visibleUsage.credits.unlimited ? <p className="codexSubscriptionCreditNote">{t('creditsAfterAllowance')}</p> : null}
         {visibleUsage?.credits?.approxLocalMessages ? <p className="codexSubscriptionCreditNote">{fill(t('creditsMessages'), { local: `${count(visibleUsage.credits.approxLocalMessages[0])}–${count(visibleUsage.credits.approxLocalMessages[1])}`, cloud: visibleUsage.credits.approxCloudMessages ? `${count(visibleUsage.credits.approxCloudMessages[0])}–${count(visibleUsage.credits.approxCloudMessages[1])}` : t('unavailable') })}</p> : null}
-        {visibleUsage?.resetCredits?.availableCount > 0 ? <details className="codexSubscriptionCreditBalance codexSubscriptionResetDisclosure"><summary>{fill(t('resetCreditsAvailable'), { count: visibleUsage.resetCredits.availableCount })}</summary><ResetCreditList rpc={rpc} t={t} count={visibleUsage.resetCredits.availableCount} nextExpiresAt={visibleUsage.resetCredits.nextExpiresAt} initialCredits={visibleUsage.resetCredits.credits} refreshKey={`${resetKey}:${usageRefreshGeneration}`} hasExhaustedQuota={exhausted} onConsumed={() => load(true)} /></details> : null}
+        {visibleUsage?.resetCredits?.availableCount > 0 ? <section className="codexSubscriptionResetPanel" aria-label={t('resetCredits')}><div className="codexSubscriptionResetHead"><strong>{t('resetCredits')}</strong><span>{t('resetCreditsHint')}</span></div><div className="codexSubscriptionResetBox"><div className="codexSubscriptionResetTabs"><span>{t('resetAvailableTab')}<b>{visibleUsage.resetCredits.availableCount}</b></span></div><ResetCreditList rpc={rpc} t={t} count={visibleUsage.resetCredits.availableCount} nextExpiresAt={visibleUsage.resetCredits.nextExpiresAt} initialCredits={visibleUsage.resetCredits.credits} refreshKey={`${resetKey}:${usageRefreshGeneration}`} hasExhaustedQuota={exhausted} onConsumed={() => load(true)} /></div></section> : null}
         {visibleUsage?.individualLimit ? <div className="codexSubscriptionSpendLimit">
           <div className="codexSubscriptionSpendTop"><span className="codexSubscriptionCreditLabel">{t('monthlyCreditLimit')}</span><strong>{fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}</strong></div>
           <progress max="100" value={visibleUsage.individualLimit.remainingPercent} aria-label={`${t('monthlyCreditLimit')} ${fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}`} />
