@@ -22,6 +22,12 @@
 
 <p align="center"><img src="docs/assets/product-account-demo.png" width="1100" alt="Codex 订阅账号与额度界面：模型选择、双周期额度与提醒；使用演示数据"></p>
 
+<details>
+<summary><b>界面演示（动图，点击展开）</b>：选模型、提问、出图、标注、草图、额度与重置</summary>
+<br>
+<p align="center"><img src="docs/assets/readme-demo.webp" width="1100" alt="演示：登录 ChatGPT 选订阅模型、提问、用订阅出图、查看与标注、进入草图、查看额度与重置"></p>
+</details>
+
 ## 功能一览
 
 把订阅接入、模型控制、额度管理和图片创作放在同一个 DSH 工作流里。下面逐项列出插件提供的能力；模型权限和额度以账号实际返回为准。
