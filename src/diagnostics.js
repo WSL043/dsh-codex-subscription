@@ -45,7 +45,7 @@ function safeRequests(network) {
 }
 
 /** Build a support report that deliberately excludes OAuth and account metadata. */
-export async function createSubscriptionDiagnostics({ auth, preferences, login = { phase: 'idle' }, network, modelCatalog, connection, compaction, inspectionOptions, operations, runtimeManagement, storage, tools }) {
+export async function createSubscriptionDiagnostics({ auth, preferences, login = { phase: 'idle' }, network, modelCatalog, connection, compaction, review, inspectionOptions, operations, runtimeManagement, storage, tools }) {
   const collected = {}
   const checks = await collectChecks([
     ['account', 'account', () => auth.status()],
@@ -56,6 +56,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     ['history', 'transport', () => safeHistory(network?.history?.())],
     ['websocket', 'transport', () => connection ? safeCounters(connection, ['requests', 'connectionsCreated', 'connectionsReused', 'deltaRequests', 'websocketFailures', 'sseFallbacks']) : undefined],
     ['compaction', 'compaction', () => compaction ? safeCounters(compaction, ['requests', 'checkpointsSaved', 'checkpointsReused']) : undefined],
+    ['review', 'transport', () => typeof review?.reviewCounters === 'function' ? safeCounters({ snapshot: () => review.reviewCounters() }, ['requests', 'routed', 'sessionModel']) : undefined],
     ['operations', 'transport', () => safeOperations(operations?.snapshot?.())],
     ['runtime', 'subagents', async () => {
       const value = await runtimeManagement?.status?.()
@@ -112,6 +113,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     ...(collected.operations ? { operations: collected.operations } : {}),
     ...(collected.websocket ? { websocket: collected.websocket } : {}),
     ...(collected.compaction ? { compaction: collected.compaction } : {}),
+    ...(collected.review ? { review: collected.review } : {}),
     ...(catalog && ['unavailable', 'online'].includes(catalog.source)
       && ['idle', 'refreshing', 'ok', 'failed'].includes(catalog.refresh)
       ? { catalog: { source: catalog.source, refresh: catalog.refresh, ...(gaps.length ? { unsupported: gaps } : {}) } } : {}),

@@ -206,6 +206,14 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
         <div className="codexSubscriptionDivider" />
         <StreamIdleTimeoutPreference preference={preference} t={t} />
       </section>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('reviewModelTitle')}>
+        <div className="codexSubscriptionPreference">
+          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('reviewModelTitle')} <small>Beta</small></span><span className="codexSubscriptionPreferenceHint">{t('reviewModelHint')}</span></div>
+          <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('reviewModelTitle')} aria-busy={snapshot.saving || undefined}>
+            {['session', 'official'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-review-model" checked={snapshot.reviewModel === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ reviewModel: value }) }} /><span>{t(`reviewModel_${value}`)}</span></label>)}
+          </div>
+        </div>
+      </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('compactionTitle')}>
         <div className="codexSubscriptionPreference">
           <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('compactionTitle')} <small>Beta</small></span><span className="codexSubscriptionPreferenceHint">{t('compactionHint')}</span></div>
