@@ -9,7 +9,6 @@ import { inspectSubagentRuntime } from './subagent-runtime.js'
 import { createRuntimeManagement } from './runtime-management.js'
 import { createSketchAgentBridge } from './sketch-agent-bridge.js'
 import { createSketchAgentTool } from './sketch-agent-tool.js'
-import { registerSketchCodec } from './sketch-codec-route.js'
 import * as dshCredentials from '@deepseek-ai/dsh-credentials'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { LlmError } from '@deepseek-ai/dsh-llm'
@@ -177,6 +176,7 @@ export function apply(ctx, config = {}) {
       if (field === undefined) return undefined
       return normalizeCustomContextWindow(settings.get()[field] ?? CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey], CUSTOM_CONTEXT_MODEL_CAPS[modelKey])
     },
+    resolveReviewModel: () => settings.get().reviewModel,
     catalog: modelCatalog,
     runNetwork: network.run,
   })
@@ -188,6 +188,7 @@ export function apply(ctx, config = {}) {
         [AUTO_QUOTA_RETRY_FIELD]: normalizeAutoQuotaRetry(settings.get()[AUTO_QUOTA_RETRY_FIELD]),
         compactionMode: settings.get().compactionMode ?? 'dsh',
         connectionMode: settings.get().connectionMode ?? 'sse',
+        reviewModel: settings.get().reviewModel ?? 'session',
         subagentBackend: settings.get().subagentBackend ?? 'dsh',
         subagentBackendAvailable: subagentBackend !== undefined,
         subagentRuntimeInstalled: inspectSubagentRuntime().installed,
@@ -453,7 +454,7 @@ export function apply(ctx, config = {}) {
     defaultModel,
     runtimeManagement,
     onAccountChanged: quotaRetryHandler.notifyAccountChanged,
-    diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
+    diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, review: provider, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
     onCleanupFailure: () => diagnosticOperations.record('account/cleanup', 'failed'),
     modelCatalog,
     closeConnections: () => connection.dispose(),
@@ -470,12 +471,7 @@ export function apply(ctx, config = {}) {
   }, 'codex-subscription: official model catalog')
 
   ctx.inject(['connection'], connectionContext => connectionContext.effect(
-    () => {
-      const transport=registerSubscriptionTransport(connectionContext.connection, handler)
-      let codec
-      try{codec=registerSketchCodec(connectionContext.connection)}catch(error){transport();throw error}
-      return ()=>{codec();transport()}
-    },
+    () => registerSubscriptionTransport(connectionContext.connection, handler),
     'codex-subscription: DSH-trusted account RPC',
   ))
 }

@@ -138,4 +138,3 @@ Uninstalling does not clear shared package caches or guarantee a fixed amount of
 
 **Storage and cache** under Maintenance shows the quota forecast cache size and lets you confirm clearing its local history. New samples are required afterwards; server quotas do not change. Support diagnostics include observed WebSocket connection, reuse and fallback counts, plus cloud compaction checkpoint saves and reuse. These counters exclude response bodies and session identifiers and do not establish a performance improvement.
 
-PSD import asks for confirmation first: simple 8-bit RGB files, up to 8 layers, 32 MB and 4096 pixels per side. Layers become images and the longest side is reduced to 1024 pixels. Masks, adjustments and special blending effects are unsupported. The source file stays unchanged. Use the native DSH sketch format to preserve editable strokes and objects.

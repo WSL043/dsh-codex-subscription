@@ -1,7 +1,6 @@
 import { SketchLayerPanel } from './sketch-layer-panel.jsx'
 import { SketchPicturePanel } from './sketch-picture-panel.jsx'
 import { SketchControls } from './sketch-controls.jsx'
-import { useSketchImportConfirm } from './sketch-import-confirm.jsx'
 import { newTextBounds } from './sketch-text.js'
 import { updateSketchGesture } from './sketch-gesture.js'
 import { createSketchDocumentLifecycle } from './sketch-document-lifecycle.js'
@@ -46,7 +45,7 @@ import {
 } from './sketch-commands.js'
 import { createSketchAgentRun } from './sketch-agent-run.js'
 import { connectSketchAgent } from './sketch-agent-client.js'
-import { encodeSketchDocument, exportSketchPsd } from './sketch-formats.js'
+import { encodeSketchDocument } from './sketch-formats.js'
 export function SketchStudio({
   open,
   agentEnabled,
@@ -61,7 +60,6 @@ export function SketchStudio({
   sessionState
 }) {
   const localSession = useRef(null)
-  const psdImport = useSketchImportConfirm(t)
   localSession.current ??= sessionState ?? createSketchSessionState()
   const {
     doc,
@@ -245,7 +243,6 @@ export function SketchStudio({
       cache,
       setSelection,
       setTextEdit,
-      confirmPsd: psdImport.confirmPsd,
       setRecovered
     })
   useEffect(() => localSession.current.retain?.(), [])
@@ -579,14 +576,6 @@ export function SketchStudio({
           type: 'application/json'
         }),
         extension: 'dsh-sketch.json'
-      }
-    if (format === 'psd')
-      return {
-        blob: new Blob(
-          [await exportSketchPsd(doc.current, images.current, canvas.current)],
-          { type: 'image/vnd.adobe.photoshop' }
-        ),
-        extension: 'psd'
       }
     if (format !== 'png') throw Error('Unsupported format')
     return {
@@ -1187,7 +1176,6 @@ export function SketchStudio({
             ) : null}
           </p>
         ) : null}
-        {psdImport.prompt}
       </dialog>
     </>
   )
