@@ -61,7 +61,7 @@ Subscription access, model controls, quota management, and image creation in one
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **Image generation** | Generate through your subscription and adjust available request model / quality options | Beta; on by default, can be disabled |
+| **Image generation** | Generate through your subscription and adjust available request model / quality options; ask for a transparent-background PNG when needed | Beta; on by default, can be disabled |
 | **Reference image editing** | Continue refining an image with references | Beta; on by default, can be disabled |
 | **Image viewing and download** | Completed images appear after the answer without expanding tool activity; zoom, pan, fit to window, and download verified originals | Built-in viewer; older images may only have previews |
 | **Region-based editing** | Mark regions, add notes, and continue editing with location references | Fills the composer for you to review and send |
