@@ -56,7 +56,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     ['history', 'transport', () => safeHistory(network?.history?.())],
     ['websocket', 'transport', () => connection ? safeCounters(connection, ['requests', 'connectionsCreated', 'connectionsReused', 'deltaRequests', 'websocketFailures', 'sseFallbacks']) : undefined],
     ['compaction', 'compaction', () => compaction ? safeCounters(compaction, ['requests', 'checkpointsSaved', 'checkpointsReused']) : undefined],
-    ['review', 'transport', () => typeof review?.reviewCounters === 'function' ? safeCounters({ snapshot: () => review.reviewCounters() }, ['requests', 'routed', 'sessionModel']) : undefined],
+    ['review', 'transport', () => typeof review?.reviewCounters === 'function' ? safeCounters({ snapshot: () => review.reviewCounters() }, ['requests', 'routed', 'sessionModel', 'retries']) : undefined],
     ['operations', 'transport', () => safeOperations(operations?.snapshot?.())],
     ['runtime', 'subagents', async () => {
       const value = await runtimeManagement?.status?.()
