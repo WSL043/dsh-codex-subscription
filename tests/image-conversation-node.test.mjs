@@ -7,13 +7,14 @@ const result = (error = false) => ({ type: 'tool/result', seq: 10, data: {
   message: { content: [{ type: 'tool-result', isError: error, content: [{ type: 'image', attachment: { id: 'a' } }] }] },
 } })
 const context = events => ({ key: 'images:1', id: '1', matches: events.map(event => ({ event,
-  location: { turn: { steps: [{ data: new Map([['assistant-step', { finalNode: { seq: 12 } }]]) }] } },
+  location: { kind: 'turn', turn: { turn: event.data.turn, steps: [{ data: new Map([['assistant-step', { finalNode: { seq: 12 } }]]) }] } },
 })) })
 test('completed images project after final answer, outside process fold, without mutating history', () => {
   const events = [result(), { type: 'turn/end', seq: 14, data: { turn: 1 } }]
   const before = structuredClone(events)
   const node = definition.buildViewNode(context(events))
   assert.equal(node.anchorSeq, 12.025)
+  assert.deepEqual(node.location, { kind: 'session' }, 'completed output must not enter a collapsed Turn or Step group')
   assert.equal(node.data.blocks[0].kind, 'tool-result')
   assert.equal(node.data.blocks[0].meta.kind, 'codex-subscription-image')
   assert.deepEqual(events, before)
