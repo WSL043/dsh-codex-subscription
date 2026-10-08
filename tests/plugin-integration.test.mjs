@@ -233,7 +233,7 @@ function fakeContext({ connection = true, webServer = true } = {}) {
 test('account routes register without directly accessing the web server', () => {
   const host = fakeContext({ webServer: false })
   assert.doesNotThrow(() => applyPlugin(host.ctx))
-  assert.equal(host.handled.length, RPC_ENDPOINTS.length + 1)
+  assert.equal(host.handled.length, RPC_ENDPOINTS.length)
   assert.equal(host.tools.length, 1)
 })
 
@@ -292,10 +292,9 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
   const models = await host.registered[0].adapter.listModels('openai-codex')
   assert.deepEqual(models, [], 'signed out there is no account catalog to advertise')
-  assert.equal(host.handled.length, RPC_ENDPOINTS.length + 1)
+  assert.equal(host.handled.length, RPC_ENDPOINTS.length)
   assert.equal(host.handled[0].path, '/api/codex-subscription/status')
-  assert.ok(host.handled.filter(route => route.path !== '/api/codex-subscription/sketch-psd-worker').every(route => route.methods.length === 1 && route.methods[0] === 'POST'))
-  assert.deepEqual(host.handled.find(route => route.path === '/api/codex-subscription/sketch-psd-worker').methods, ['GET'])
+  assert.ok(host.handled.every(route => route.methods.length === 1 && route.methods[0] === 'POST'))
   assert.equal(host.settings.length, 1)
   assert.equal(host.provided.size, 0, 'the plugin should not publish undocumented host services')
   assert.equal('CodexCacheTelemetry' in plugin, false, 'cache diagnostics are outside the subscription route boundary')

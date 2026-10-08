@@ -9,7 +9,6 @@ import { inspectSubagentRuntime } from './subagent-runtime.js'
 import { createRuntimeManagement } from './runtime-management.js'
 import { createSketchAgentBridge } from './sketch-agent-bridge.js'
 import { createSketchAgentTool } from './sketch-agent-tool.js'
-import { registerSketchCodec } from './sketch-codec-route.js'
 import * as dshCredentials from '@deepseek-ai/dsh-credentials'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { LlmError } from '@deepseek-ai/dsh-llm'
@@ -470,12 +469,7 @@ export function apply(ctx, config = {}) {
   }, 'codex-subscription: official model catalog')
 
   ctx.inject(['connection'], connectionContext => connectionContext.effect(
-    () => {
-      const transport=registerSubscriptionTransport(connectionContext.connection, handler)
-      let codec
-      try{codec=registerSketchCodec(connectionContext.connection)}catch(error){transport();throw error}
-      return ()=>{codec();transport()}
-    },
+    () => registerSubscriptionTransport(connectionContext.connection, handler),
     'codex-subscription: DSH-trusted account RPC',
   ))
 }

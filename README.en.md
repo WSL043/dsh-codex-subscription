@@ -70,7 +70,7 @@ Subscription access, model controls, quota management, and image creation in one
 | **Layers and image import** | Work in layers and bring images into the canvas | Images are managed as layers |
 | **Smoothing and navigation** | Smooth complete strokes after release; pan, zoom, undo, and redo | Shortcuts can be customized or disabled |
 | **Multiple drafts** | Save and reopen up to 20 local drafts | Stored in the current browser |
-| **Import and export** | Export PNG, layered PSD, or native drafts that preserve editable strokes | PSD import supports a limited set of ordinary pixel layers |
+| **Import and export** | Export PNG, or native drafts that preserve editable strokes | Drafts can be imported again to keep editing |
 | **Agent drawing** | Ask the agent to draw with `@sketch`, follow progress, and stop it; the agent can draw whole stages in SVG, imported as editable native strokes | Beta; off by default, requires the canvas |
 | **Result preview for the model** | Return a canvas image after drawing for subsequent review | Beta; off by default, adds image input usage |
 
@@ -105,7 +105,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@2.5.5
+   dsh-codex-subscription@2.5.6
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -239,9 +239,9 @@ Settings shown directly as cropped screenshots from the actual DSH interface.
 
 </details>
 
-Layers, native curves, brushes, undo/redo, and shortcuts are supported. Save multiple drafts, export PNG or layered PSD, and annotate generated images before continuing an edit.
+Layers, native curves, brushes, undo/redo, and shortcuts are supported. Save multiple drafts, export PNG or editable drafts, and annotate generated images before continuing an edit.
 
-[Image editing, draft storage, and PSD limitations →](docs/GUIDE.en.md#image-generation-and-editing-beta)
+[Image editing and draft storage →](docs/GUIDE.en.md#image-generation-and-editing-beta)
 
 <a id="codex-subtask-runtime"></a>
 

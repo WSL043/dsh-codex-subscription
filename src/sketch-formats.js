@@ -2,18 +2,8 @@ import { paintSketch } from './sketch-document.js'
 import { applySketchCommands } from './sketch-commands.js'
 import { createSketchLayers, SKETCH_RATIOS } from './sketch-layers.js'
 
-export const SKETCH_FILE_ACCEPT = '.psd,.dsh-sketch.json,image/png,image/jpeg,image/webp'
+export const SKETCH_FILE_ACCEPT = '.dsh-sketch.json,image/png,image/jpeg,image/webp'
 const canvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c}
-export function runPsdCodec(action,payload) {
-  return new Promise((resolve,reject)=>{
-    const worker=new Worker('/api/codex-subscription/sketch-psd-worker',{type:'module'})
-    const finish=(callback,value)=>{clearTimeout(timer);worker.terminate();callback(value)}
-    const timer=setTimeout(()=>finish(reject,Error('PSD operation timed out')),30_000)
-    worker.onerror=()=>finish(reject,Error('PSD codec could not be loaded'))
-    worker.onmessage=event=>event.data.ok?finish(resolve,event.data.value):finish(reject,Error(event.data.error))
-    worker.postMessage({action,payload})
-  })
-}
 export function encodeSketchDocument(doc) {
   return JSON.stringify({format:'dsh-sketch',version:1,doc})
 }
@@ -53,36 +43,5 @@ export function decodeSketchDocument(text) {
   }
   const activeIndex=source.layers.findIndex(layer=>layer.id===source.active)
   doc.active=doc.layers[Math.max(0,activeIndex)].id
-  return doc
-}
-export async function exportSketchPsd(doc, images, composite) {
-  const width=doc.width??1024,height=doc.height??1024
-  const children=doc.layers.map((layer,i)=>{
-    const c=canvas(width,height),ctx=c.getContext('2d'),ref=layer.image
-    if(ref)ctx.drawImage(images.get(ref.src),ref.x*width,ref.y*height,ref.width*width,ref.height*height)
-    paintSketch(ctx,layer.strokes,width,true,height)
-    return {name:layer.name||`Layer ${i+1}`,hidden:!layer.visible,opacity:1,blendMode:'normal',imageData:ctx.getImageData(0,0,width,height)}
-  })
-  // The sketch editor's white paper is part of the exported PSD, including transparency below strokes.
-  const paper=canvas(width,height),context=paper.getContext('2d');context.fillStyle='#fff';context.fillRect(0,0,width,height)
-  // Bake the implicit paper into the bottom layer, keeping the public layer count stable.
-  if(children[0] && !children[0].hidden){const bottom=canvas(width,height);bottom.getContext('2d').putImageData(children[0].imageData,0,0);context.drawImage(bottom,0,0);children[0].imageData=context.getImageData(0,0,width,height)}
-  else {
-    if(children.length>=8)throw Error('Show the bottom layer before exporting this eight-layer drawing')
-    children.unshift({name:'Paper',opacity:1,blendMode:'normal',imageData:context.getImageData(0,0,width,height)})
-  }
-  return runPsdCodec('write',{width,height,children,imageData:composite.getContext('2d').getImageData(0,0,width,height)})
-}
-
-export async function importSketchPsd(file) {
-  if(file.size>32*1024*1024)throw Error('PSD exceeds 32 MB')
-  const psd=await runPsdCodec('read',await file.arrayBuffer())
-  const scale=Math.min(1,1024/Math.max(psd.width,psd.height)),width=Math.max(1,Math.round(psd.width*scale)),height=Math.max(1,Math.round(psd.height*scale))
-  const doc={...createSketchLayers(),width,height,ratio:Object.keys(SKETCH_RATIOS).find(k=>SKETCH_RATIOS[k][0]===width&&SKETCH_RATIOS[k][1]===height)??'custom',layers:[],nextId:psd.layers.length+1}
-  for(const [i,layer]of psd.layers.entries()){
-    const src=canvas(layer.imageData.width,layer.imageData.height);src.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray(layer.imageData.data),layer.imageData.width,layer.imageData.height),0,0)
-    const out=canvas(width,height),ctx=out.getContext('2d');ctx.globalAlpha=layer.opacity;ctx.drawImage(src,layer.left*scale,layer.top*scale,src.width*scale,src.height*scale)
-    doc.layers.push({id:i+1,name:layer.name,visible:!layer.hidden,strokes:[],image:{src:out.toDataURL('image/png'),x:0,y:0,width:1,height:1}})
-  }
   return doc
 }
