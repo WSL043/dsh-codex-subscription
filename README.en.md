@@ -61,7 +61,7 @@ Subscription access, model controls, quota management, and image creation in one
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **Image generation** | Generate through your subscription and adjust available request model / quality options | Beta; on by default, can be disabled |
+| **Image generation** | Generate through your subscription and adjust available request model / quality options; ask for a transparent-background PNG when needed | Beta; on by default, can be disabled |
 | **Reference image editing** | Continue refining an image with references | Beta; on by default, can be disabled |
 | **Image viewing and download** | Completed images appear after the answer without expanding tool activity; zoom, pan, fit to window, and download verified originals | Built-in viewer; older images may only have previews |
 | **Region-based editing** | Mark regions, add notes, and continue editing with location references | Fills the composer for you to review and send |
@@ -70,7 +70,7 @@ Subscription access, model controls, quota management, and image creation in one
 | **Layers and image import** | Work in layers and bring images into the canvas | Images are managed as layers |
 | **Smoothing and navigation** | Smooth complete strokes after release; pan, zoom, undo, and redo | Shortcuts can be customized or disabled |
 | **Multiple drafts** | Save and reopen up to 20 local drafts | Stored in the current browser |
-| **Import and export** | Export PNG, layered PSD, or native drafts that preserve editable strokes | PSD import supports a limited set of ordinary pixel layers |
+| **Import and export** | Export PNG, or native drafts that preserve editable strokes | Drafts can be imported again to keep editing |
 | **Agent drawing** | Ask the agent to draw with `@sketch`, follow progress, and stop it; the agent can draw whole stages in SVG, imported as editable native strokes | Beta; off by default, requires the canvas |
 | **Result preview for the model** | Return a canvas image after drawing for subsequent review | Beta; off by default, adds image input usage |
 
@@ -82,6 +82,7 @@ Subscription access, model controls, quota management, and image creation in one
 | **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
 | **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
 | **WebSocket transport** | Experimentally reuse connections and context transfers, with SSE fallback on connection failure | Beta / experimental; SSE by default, no speed guarantee |
+| **Codex reviewer for Auto review** | DSH Auto review judges tool calls with Codex's own review model; DSH keeps its review policy and allow/deny flow | Beta; off by default, applies when your account catalog offers the model |
 | **Support diagnostics** | Inspect prerequisites and recent operation results, and copy a short report (about 1 KB; the full one can be copied separately) without credentials or conversation text | Settings → Maintenance; unverified does not mean broken |
 | **Forecast cache cleanup** | Inspect and clear local quota forecast history | Keeps sign-in, drafts, originals, and shared dependencies |
 
@@ -105,7 +106,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@2.5.5
+   dsh-codex-subscription@2.5.6
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -239,9 +240,9 @@ Settings shown directly as cropped screenshots from the actual DSH interface.
 
 </details>
 
-Layers, native curves, brushes, undo/redo, and shortcuts are supported. Save multiple drafts, export PNG or layered PSD, and annotate generated images before continuing an edit.
+Layers, native curves, brushes, undo/redo, and shortcuts are supported. Save multiple drafts, export PNG or editable drafts, and annotate generated images before continuing an edit.
 
-[Image editing, draft storage, and PSD limitations →](docs/GUIDE.en.md#image-generation-and-editing-beta)
+[Image editing and draft storage →](docs/GUIDE.en.md#image-generation-and-editing-beta)
 
 <a id="codex-subtask-runtime"></a>
 

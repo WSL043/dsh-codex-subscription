@@ -506,3 +506,18 @@ test('Ultrafast is offered only for models whose account catalog lists it, and i
   assert.equal(byId['gpt-6-sol'].supportsUltrafast, false)
   assert.deepEqual(byId['gpt-6-sol'].unsupported.speeds, ['turbo'])
 })
+
+test('official reviewer follows the account catalog, overrides and low effort', async () => {
+  const { officialReviewModel } = await import('../src/model-catalog.js')
+  const levels = efforts => efforts.map(effort => ({ effort }))
+  const catalog = { models: [
+    { slug: 'gpt-6-sol', visibility: 'list' },
+    { slug: 'gpt-6-astra', visibility: 'list', auto_review_model_override: 'astra-review' },
+    { slug: 'codex-auto-review', visibility: 'hide', supported_reasoning_levels: levels(['low', 'medium']), default_reasoning_level: 'medium' },
+    { slug: 'astra-review', visibility: 'hide', supported_reasoning_levels: levels(['medium']), default_reasoning_level: 'medium' },
+  ] }
+  assert.deepEqual(officialReviewModel(catalog, 'gpt-6-sol'), { id: 'codex-auto-review', effort: 'low' })
+  assert.deepEqual(officialReviewModel(catalog, 'gpt-6-astra'), { id: 'astra-review', effort: 'medium' })
+  assert.equal(officialReviewModel({ models: [{ slug: 'gpt-6-sol' }] }, 'gpt-6-sol'), undefined)
+  assert.equal(officialReviewModel(undefined, 'gpt-6-sol'), undefined)
+})

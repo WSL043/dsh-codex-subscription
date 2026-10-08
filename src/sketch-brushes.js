@@ -1,5 +1,5 @@
 // Versioned tips preserve the appearance of existing drafts. Grain is generated
-// once per color, never randomly during painting (or PNG/PSD export).
+// once per color, never randomly during painting (or PNG export).
 const grains = new Map()
 function pencilGrain(context, color) {
   if (!context.createPattern || typeof document === 'undefined') return color

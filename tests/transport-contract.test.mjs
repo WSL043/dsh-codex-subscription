@@ -347,6 +347,52 @@ test('Codex requests never carry temperature, which the backend rejects', async 
   }
 })
 
+test('official reviewer routes only DSH Auto review calls to the catalog reviewer model', async () => {
+  const previousFetch = globalThis.fetch
+  const wires = []
+  globalThis.fetch = async (_input, init) => {
+    wires.push(JSON.parse(zstdDecompressSync(Buffer.from(init.body)).toString('utf8')))
+    return new Response(sse([
+      { type: 'response.created', response: { id: 'resp_r' } },
+      { type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: 'msg_r', role: 'assistant', content: [] } },
+      { type: 'response.output_text.delta', output_index: 0, content_index: 0, delta: '{"risk":"low","decision":"allow"}' },
+      { type: 'response.output_item.done', output_index: 0, item: { type: 'message', id: 'msg_r', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: '{"risk":"low","decision":"allow"}', annotations: [] }] } },
+      { type: 'response.done', response: { id: 'resp_r', status: 'completed', output: [], usage: { input_tokens: 2, output_tokens: 1, total_tokens: 3 } } },
+    ]), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+  }
+  try {
+    let reviewModel = 'official'
+    let route = { id: 'codex-auto-review', effort: 'low' }
+    const catalog = { getModels: () => openaiCodexProvider().getModels(), metadata: () => undefined, reviewModel: parent => { assert.equal(parent, 'gpt-5.6-sol'); return route } }
+    const provider = openaiCodexSubscriptionProvider({ resolveReviewModel: () => reviewModel, resolveSpeedMode: () => 'fast', catalog })
+    const model = provider.getModels().find(candidate => candidate.id === 'gpt-5.6-sol')
+    // DSH's adapter hands the reviewer policy over as `systemPrompt`.
+    const run = async systemPrompt => {
+      for await (const _chunk of provider.streamSimple(model,
+        { systemPrompt, messages: [{ role: 'user', content: 'pending action', timestamp: 1 }] },
+        { apiKey: jwt('account-review'), temperature: 0, sessionId: 'review' })) {}
+    }
+    const policy = 'REVIEW_POLICY\nYou are the final authorization reviewer for exactly one pending tool call.'
+    await run(policy)
+    await run('You are a helpful assistant.')
+    route = undefined
+    await run(policy)
+    reviewModel = 'session'
+    route = { id: 'codex-auto-review', effort: 'low' }
+    await run(policy)
+    assert.equal(wires[0].model, 'codex-auto-review')
+    assert.equal(wires[0].reasoning?.effort, 'low')
+    for (const key of ['temperature', 'service_tier', 'text']) assert.equal(key in wires[0], false, key)
+    assert.equal(wires[1].model, 'gpt-5.6-sol', 'ordinary requests keep the conversation model')
+    assert.equal(wires[1].service_tier, 'priority')
+    assert.equal(wires[2].model, 'gpt-5.6-sol', 'without a catalog reviewer the session model reviews')
+    assert.equal(wires[3].model, 'gpt-5.6-sol', 'the default setting keeps the session model')
+    assert.deepEqual(provider.reviewCounters(), { requests: 2, routed: 1, sessionModel: 1 })
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
 test('input image detail follows the selected level on each Codex request', async () => {
   const previousFetch = globalThis.fetch
   const wires = []

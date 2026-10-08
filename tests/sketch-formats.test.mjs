@@ -19,8 +19,3 @@ test('editable draft rejects unsupported version and oversized embedded image be
  doc.layers[0].image={src:'data:image/png;base64,'+header.toString('base64'),x:0,y:0,width:1,height:1}
  assert.throws(()=>decodeSketchDocument(encodeSketchDocument(doc)),/image size/)
 })
-test('PSD codec route uses buffered GET',async()=>{
- const {registerSketchCodec}=await import('../src/sketch-codec-route.js')
- let route;registerSketchCodec({fetch:{register(value){route=value;return ()=>{}}}})
- assert.deepEqual(route.methods,['GET']);assert.equal(route.requestBody,'buffered')
-})

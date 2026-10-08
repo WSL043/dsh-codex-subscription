@@ -8,16 +8,16 @@ const deferred = () => { let resolve; const promise = new Promise(done => { reso
 test('agent export excludes concurrent export and file work through blob serialization', async () => {
   const gate = createSketchOperationGate(), encoded = deferred(), bytes = deferred(), states = []
   const options = { gate, working: state => states.push(state), report() {}, exportFile: () => encoded.promise }
-  const first = exportSketchAgentFile('psd', options)
+  const first = exportSketchAgentFile('draft', options)
   assert.equal(gate.running, true)
   await assert.rejects(exportSketchAgentFile('png', options), /being edited/)
   assert.equal(await gate.run(() => assert.fail('manual operation must wait'), options), false)
   assert.equal(gate.running, true)
-  encoded.resolve({ extension: 'psd', blob: { type: 'image/vnd.adobe.photoshop', arrayBuffer: () => bytes.promise } })
+  encoded.resolve({ extension: 'dsh-sketch.json', blob: { type: 'application/json', arrayBuffer: () => bytes.promise } })
   await Promise.resolve()
   assert.equal(gate.running, true)
   bytes.resolve(Uint8Array.from([0, 127, 128, 255]).buffer)
-  assert.deepEqual(await first, { extension: 'psd', mediaType: 'image/vnd.adobe.photoshop', base64: 'AH+A/w==' })
+  assert.deepEqual(await first, { extension: 'dsh-sketch.json', mediaType: 'application/json', base64: 'AH+A/w==' })
   assert.equal(gate.running, false)
   assert.deepEqual(states, [true, false])
 })

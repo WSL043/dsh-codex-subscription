@@ -123,6 +123,27 @@ function visibleModel(value, displayNames, now) {
   }
 }
 
+/** Codex's dedicated approval reviewer when the account catalog advertises it. */
+export const CODEX_REVIEW_MODEL = 'codex-auto-review'
+
+/**
+ * Mirror Codex's reviewer selection: a parent model's override, else the
+ * default reviewer, used only when the account catalog lists that slug (any
+ * visibility), with low reasoning when the reviewer supports it.
+ */
+export function officialReviewModel(value, parentId) {
+  if (!record(value) || !Array.isArray(value.models)) return undefined
+  const parent = value.models.find(model => record(model) && model.slug === parentId)
+  const id = nonEmpty(parent?.auto_review_model_override) ?? CODEX_REVIEW_MODEL
+  const preset = value.models.find(model => record(model) && model.slug === id)
+  if (preset === undefined) return undefined
+  const levels = Array.isArray(preset.supported_reasoning_levels) ? preset.supported_reasoning_levels : []
+  const effort = levels.some(level => (record(level) ? level.effort : level) === 'low')
+    ? 'low'
+    : nonEmpty(preset.default_reasoning_level)
+  return { id, ...(effort === undefined ? {} : { effort }) }
+}
+
 export function parseOfficialModelCatalog(value, now = Date.now()) {
   if (!record(value) || !Array.isArray(value.models)) throw new Error('Codex returned a malformed model catalog')
   const displayNames = new Map()
@@ -269,6 +290,7 @@ export function createOfficialModelCatalog(options = {}) {
     // no request could succeed, so a bundled list would only mislead.
     getModels: () => models ?? [],
     metadata: modelId => metadata.get(modelId),
+    reviewModel: parentId => officialReviewModel(rawCatalog, parentId),
     revision: () => revision,
     capabilityGaps: () => [...metadata.values()]
       .filter(model => model.unsupported && /^[a-z][a-z0-9._-]{0,79}$/u.test(model.id))

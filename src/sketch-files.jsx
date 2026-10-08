@@ -131,7 +131,6 @@ export function SketchFiles({
           >
             {[
               ['png', 'PNG'],
-              ['psd', 'PSD'],
               ['draft', t('sketchEditableFile')]
             ].map(([value, label]) => (
               <button

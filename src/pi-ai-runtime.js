@@ -46,6 +46,25 @@ function withInputImageDetail(payload, detail) {
   return changed ? { ...payload, input } : payload
 }
 
+// DSH's experimental Auto review sends its fixed policy as the system prompt.
+const DSH_REVIEW_POLICY_PREFIX = 'REVIEW_POLICY\nYou are the final authorization reviewer'
+export const REVIEW_MODEL_SESSION = 'session'
+export const REVIEW_MODEL_OFFICIAL = 'official'
+
+function systemText(context) {
+  if (typeof context?.systemPrompt === 'string') return context.systemPrompt
+  const first = Array.isArray(context?.messages) ? context.messages[0] : undefined
+  if (first?.role !== 'system') return ''
+  return typeof first.content === 'string'
+    ? first.content
+    : Array.isArray(first.content) ? first.content.map(part => part?.text ?? '').join('') : ''
+}
+
+/** Whether this request is DSH Auto review judging one pending tool call. */
+export function isDshAutoReview(context) {
+  return systemText(context).startsWith(DSH_REVIEW_POLICY_PREFIX)
+}
+
 /**
  * Preserve pi-ai's native Codex OAuth provider while allowing DSH's generic
  * PiAiAdapter to pass the access token resolved by the host credential store.
@@ -64,6 +83,7 @@ export function openaiCodexSubscriptionProvider({
   resolveInputImageDetail = () => undefined,
   resolveContextMode = () => undefined,
   resolveCustomContextWindow = () => undefined,
+  resolveReviewModel = () => REVIEW_MODEL_SESSION,
   catalog,
   connection,
   compaction,
@@ -135,15 +155,43 @@ export function openaiCodexSubscriptionProvider({
     const requested = clampModelContext(resolveCustomContextWindow(customContextModelKey(model.id)), maximum, model.contextWindow)
     return { ...model, contextWindow: requested }
   })
-  const networkIterable = (factory, options) => {
+  const review = { requests: 0, routed: 0, sessionModel: 0 }
+  // With the official reviewer chosen, a DSH Auto review call uses the model
+  // Codex itself reviews approvals with, when this account's catalog lists it.
+  const reviewRoute = (model, context) => {
+    if (resolveReviewModel() !== REVIEW_MODEL_OFFICIAL || !isDshAutoReview(context)) return undefined
+    review.requests += 1
+    const route = catalog?.reviewModel?.(model?.id)
+    if (route === undefined) review.sessionModel += 1
+    else review.routed += 1
+    return route
+  }
+  const withReview = (route, options = {}) => {
+    const { temperature: _temperature, onPayload, ...rest } = options
+    return {
+      ...rest,
+      async onPayload(payload, requestModel) {
+        const next = await onPayload?.(payload, requestModel) ?? payload
+        // The reviewer keeps DSH's prompt and answer contract; only the model and effort change.
+        const { temperature: _dropped, service_tier: _tier, text: _text, ...accepted } = next
+        return {
+          ...accepted,
+          model: route.id,
+          ...(route.effort === undefined ? {} : { reasoning: { ...(accepted.reasoning ?? {}), effort: route.effort } }),
+        }
+      },
+    }
+  }
+  const networkIterable = (factory, options, direct = false) => {
     let iterator
     let prepared
     const step = async (method, value) => {
-      const request = await (prepared ??= connection?.prepare(options) ?? Promise.resolve({ options }))
+      // Review calls are one-shot: no WebSocket continuation or cloud compaction.
+      const request = await (prepared ??= (direct ? undefined : connection?.prepare(options)) ?? Promise.resolve({ options }))
       const result = await runNetwork('model', () => {
-        iterator ??= factory(compaction?.requestOptions(request.options) ?? request.options)[Symbol.asyncIterator]()
+        iterator ??= factory(direct ? request.options : compaction?.requestOptions(request.options) ?? request.options)[Symbol.asyncIterator]()
         return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
-      }, compaction?.networkOptions(request.network) ?? request.network)
+      }, direct ? request.network : compaction?.networkOptions(request.network) ?? request.network)
       return result.done ? result : { ...result, value: normalizeTransportEvent(result.value, request.options?.signal) }
     }
     return {
@@ -157,8 +205,19 @@ export function openaiCodexSubscriptionProvider({
     ...provider,
     auth: Object.freeze({ ...provider.auth, apiKey: requestToken }),
     getModels,
-    stream: (model, context, options) => networkIterable(prepared => provider.stream(model, context, prepared), withPreferences(model, options)),
-    streamSimple: (model, context, options) => networkIterable(prepared => provider.streamSimple(model, context, prepared), withPreferences(model, options)),
+    stream: (model, context, options) => {
+      const route = reviewRoute(model, context)
+      return route === undefined
+        ? networkIterable(prepared => provider.stream(model, context, prepared), withPreferences(model, options))
+        : networkIterable(prepared => provider.stream(model, context, prepared), withReview(route, options), true)
+    },
+    streamSimple: (model, context, options) => {
+      const route = reviewRoute(model, context)
+      return route === undefined
+        ? networkIterable(prepared => provider.streamSimple(model, context, prepared), withPreferences(model, options))
+        : networkIterable(prepared => provider.streamSimple(model, context, prepared), withReview(route, options), true)
+    },
+    reviewCounters: () => ({ ...review }),
   })
 }
 

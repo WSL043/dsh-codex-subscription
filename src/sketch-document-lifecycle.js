@@ -6,7 +6,7 @@ import {
   decodeSketchImages,
   importSketchImage
 } from './sketch-drafts.js'
-import { decodeSketchDocument, importSketchPsd } from './sketch-formats.js'
+import { decodeSketchDocument } from './sketch-formats.js'
 
 // Document ownership is independent of the dialog and its render cycle.
 export function createSketchDocumentLifecycle(
@@ -20,7 +20,6 @@ export function createSketchDocumentLifecycle(
     setSelection,
     setTextEdit,
     setRecovered,
-    confirmPsd = async () => false,
     store = sketchDrafts,
     decodeImages = decodeSketchImages,
     readImage = importSketchImage
@@ -107,15 +106,9 @@ export function createSketchDocumentLifecycle(
     replace(row.doc, decoded, { id: row.id, name: row.name })
   }
   const importImage = async (file, { visible = true } = {}) => {
-    if (
-      file.name?.toLowerCase().endsWith('.psd') ||
-      file.name?.toLowerCase().endsWith('.dsh-sketch.json')
-    ) {
+    if (file.name?.toLowerCase().endsWith('.dsh-sketch.json')) {
       if (file.size > 32 * 1024 * 1024) throw Error('File exceeds 32 MB')
-      if (file.name.toLowerCase().endsWith('.psd') && !await confirmPsd()) return
-      const next = file.name.toLowerCase().endsWith('.psd')
-        ? await importSketchPsd(file)
-        : decodeSketchDocument(await file.text())
+      const next = decodeSketchDocument(await file.text())
       const decoded = new Map()
       await decodeImages(next, decoded)
       await saveChanges()
