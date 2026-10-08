@@ -34,9 +34,10 @@ export const imageConversationNode = {
     const answer = turn?.steps?.at(-1)?.data.get('assistant-step')
     const lastResultSeq = Math.max(...context.matches.filter(match => resultsOf(match.event).length).map(match => match.event.seq))
     const answerSeq = answer?.finalNode?.seq
-    // Between the final answer and its action row, outside the process fold.
+    // The host folds unknown Turn-scoped kinds into process groups, even after the answer.
+    // Scope only this display node to the Session; retain its source Turn id and anchor.
     const anchorSeq = answerSeq > lastResultSeq ? answerSeq + 0.025 : end.event.seq - 0.025
     return { key: context.key, id: context.id, kind: KIND, target: 'chat',
-      location: end.location, anchorSeq, visibility: 'visible', data: { blocks } }
+      location: { kind: 'session' }, anchorSeq, visibility: 'visible', data: { blocks } }
   },
 }

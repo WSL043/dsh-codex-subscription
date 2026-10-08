@@ -63,7 +63,7 @@ Subscription access, model controls, quota management, and image creation in one
 | --- | --- | --- |
 | **Image generation** | Generate through your subscription and adjust available request model / quality options | Beta; on by default, can be disabled |
 | **Reference image editing** | Continue refining an image with references | Beta; on by default, can be disabled |
-| **Image viewing and download** | Zoom, pan, fit to window, and download verified originals | Built-in viewer; older images may only have previews |
+| **Image viewing and download** | Completed images appear after the answer without expanding tool activity; zoom, pan, fit to window, and download verified originals | Built-in viewer; older images may only have previews |
 | **Region-based editing** | Mark regions, add notes, and continue editing with location references | Fills the composer for you to review and send |
 | **Manual canvas** | Choose an aspect ratio and draw with pen, pencil, marker, and erasers | Beta; canvas off by default |
 | **Shapes and text** | Draw lines, arrows, shapes, native curves, and editable text / objects | Available in the sketch canvas |
