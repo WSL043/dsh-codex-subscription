@@ -49,6 +49,9 @@ function withInputImageDetail(payload, detail) {
 // DSH's experimental Auto review sends its fixed policy as the system prompt.
 const DSH_REVIEW_POLICY_PREFIX = 'REVIEW_POLICY\nYou are the final authorization reviewer'
 export const REVIEW_MODEL_SESSION = 'session'
+const REVIEW_RETRIES = 2
+// Transient stream/transport drops only; never policy, auth or quota errors.
+const TRANSIENT_REVIEW_FAILURE = /stream ended (?:before|without)|\b(?:network|connection|socket)\b|\bECONN[A-Z]+\b|other side closed|premature close|\bterminated\b|WebSocket closed (?:1006|1011|1012|1013)/iu
 export const REVIEW_MODEL_OFFICIAL = 'official'
 
 function systemText(context) {
@@ -155,7 +158,7 @@ export function openaiCodexSubscriptionProvider({
     const requested = clampModelContext(resolveCustomContextWindow(customContextModelKey(model.id)), maximum, model.contextWindow)
     return { ...model, contextWindow: requested }
   })
-  const review = { requests: 0, routed: 0, sessionModel: 0 }
+  const review = { requests: 0, routed: 0, sessionModel: 0, retries: 0 }
   // With the official reviewer chosen, a DSH Auto review call uses the model
   // Codex itself reviews approvals with, when this account's catalog lists it.
   const reviewRoute = (model, context) => {
@@ -182,6 +185,37 @@ export function openaiCodexSubscriptionProvider({
       },
     }
   }
+  // DSH Auto review asks once and blocks the tool on any failure. A review
+  // that drops before producing its answer is replayed, buffered so a failed
+  // attempt never leaks partial output to the reviewer's parser.
+  const reviewIterable = create => {
+    let replay
+    const run = async function* () {
+      for (let attempt = 0; ; attempt += 1) {
+        const events = []
+        let failure
+        let thrown
+        try {
+          for await (const event of create()) {
+            events.push(event)
+            if (event?.type === 'error') failure = event.error?.errorMessage
+          }
+        } catch (error) {
+          thrown = error
+          failure = error?.message
+        }
+        if (failure !== undefined && attempt < REVIEW_RETRIES && TRANSIENT_REVIEW_FAILURE.test(failure)) {
+          review.retries += 1
+          continue
+        }
+        if (thrown !== undefined && events.length === 0) throw thrown
+        yield* events
+        if (thrown !== undefined) throw thrown
+        return
+      }
+    }
+    return { [Symbol.asyncIterator]: () => (replay ??= run()) }
+  }
   const networkIterable = (factory, options, direct = false) => {
     let iterator
     let prepared
@@ -201,22 +235,19 @@ export function openaiCodexSubscriptionProvider({
       throw: error => iterator ? step('throw', error) : Promise.reject(error),
     }
   }
+  const routed = (method, model, context, options) => {
+    const route = reviewRoute(model, context)
+    const create = () => route === undefined
+      ? networkIterable(prepared => provider[method](model, context, prepared), withPreferences(model, options))
+      : networkIterable(prepared => provider[method](model, context, prepared), withReview(route, options), true)
+    return isDshAutoReview(context) ? reviewIterable(create) : create()
+  }
   return Object.freeze({
     ...provider,
     auth: Object.freeze({ ...provider.auth, apiKey: requestToken }),
     getModels,
-    stream: (model, context, options) => {
-      const route = reviewRoute(model, context)
-      return route === undefined
-        ? networkIterable(prepared => provider.stream(model, context, prepared), withPreferences(model, options))
-        : networkIterable(prepared => provider.stream(model, context, prepared), withReview(route, options), true)
-    },
-    streamSimple: (model, context, options) => {
-      const route = reviewRoute(model, context)
-      return route === undefined
-        ? networkIterable(prepared => provider.streamSimple(model, context, prepared), withPreferences(model, options))
-        : networkIterable(prepared => provider.streamSimple(model, context, prepared), withReview(route, options), true)
-    },
+    stream: (model, context, options) => routed('stream', model, context, options),
+    streamSimple: (model, context, options) => routed('streamSimple', model, context, options),
     reviewCounters: () => ({ ...review }),
   })
 }

@@ -387,7 +387,51 @@ test('official reviewer routes only DSH Auto review calls to the catalog reviewe
     assert.equal(wires[1].service_tier, 'priority')
     assert.equal(wires[2].model, 'gpt-5.6-sol', 'without a catalog reviewer the session model reviews')
     assert.equal(wires[3].model, 'gpt-5.6-sol', 'the default setting keeps the session model')
-    assert.deepEqual(provider.reviewCounters(), { requests: 2, routed: 1, sessionModel: 1 })
+    assert.deepEqual(provider.reviewCounters(), { requests: 2, routed: 1, sessionModel: 1, retries: 0 })
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
+test('a DSH Auto review that drops before its answer is retried without leaking the failed attempt', async () => {
+  const previousFetch = globalThis.fetch
+  let calls = 0
+  const answer = '{"risk":"low","decision":"allow"}'
+  globalThis.fetch = async () => {
+    calls += 1
+    const events = calls === 1
+      ? [{ type: 'response.created', response: { id: 'resp_d' } },
+        { type: 'error', message: 'upstream stream ended before a completion event; this turn may be incomplete' }]
+      : [{ type: 'response.created', response: { id: 'resp_ok' } },
+        { type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: 'msg_ok', role: 'assistant', content: [] } },
+        { type: 'response.output_text.delta', output_index: 0, content_index: 0, delta: answer },
+        { type: 'response.output_item.done', output_index: 0, item: { type: 'message', id: 'msg_ok', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: answer, annotations: [] }] } },
+        { type: 'response.done', response: { id: 'resp_ok', status: 'completed', output: [], usage: { input_tokens: 2, output_tokens: 1, total_tokens: 3 } } }]
+    return new Response(sse(events), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+  }
+  try {
+    const provider = openaiCodexSubscriptionProvider()
+    const model = provider.getModels().find(candidate => candidate.id === 'gpt-5.6-sol')
+    const context = { systemPrompt: 'REVIEW_POLICY' + String.fromCharCode(10) + 'You are the final authorization reviewer for exactly one pending tool call.', messages: [{ role: 'user', content: 'pending action', timestamp: 1 }] }
+    const events = []
+    for await (const event of provider.streamSimple(model, context, { apiKey: jwt('account-retry'), sessionId: 'review-retry' })) events.push(event)
+    assert.equal(calls, 2)
+    assert.equal(events.some(event => event.type === 'error'), false, 'the dropped attempt stays hidden')
+    assert.equal(events.at(-1).type, 'done')
+    assert.equal(events.at(-1).message.content.find(part => part.type === 'text')?.text, answer)
+    assert.equal(provider.reviewCounters().retries, 1)
+
+    calls = 0
+    globalThis.fetch = async () => { calls += 1; return new Response(sse([{ type: 'error', message: 'upstream stream ended before a completion event' }]), { status: 200, headers: { 'content-type': 'text/event-stream' } }) }
+    const failed = []
+    for await (const event of provider.streamSimple(model, context, { apiKey: jwt('account-retry'), sessionId: 'review-retry' })) failed.push(event)
+    assert.equal(calls, 3, 'two retries, then the failure reaches DSH so it can fail closed')
+    assert.equal(failed.at(-1).type, 'error')
+
+    calls = 0
+    const ordinary = []
+    for await (const event of provider.streamSimple(model, { messages: context.messages }, { apiKey: jwt('account-retry'), sessionId: 'chat' })) ordinary.push(event)
+    assert.equal(calls, 1, 'ordinary turns keep DSH retry semantics')
   } finally {
     globalThis.fetch = previousFetch
   }

@@ -129,9 +129,21 @@ export const STYLE = `
 .codexSubscriptionCreditBalance strong{font:600 18px/24px ui-monospace,SFMono-Regular,Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .codexSubscriptionCreditRows{display:flex;flex-direction:column;gap:6px}
 .codexSubscriptionResetMeta{display:flex;min-width:0;flex-direction:column;gap:1px}
-.codexSubscriptionResetDisclosure>summary{cursor:pointer;width:fit-content;color:var(--dsw-alias-label-primary);border-radius:6px}
-.codexSubscriptionResetDisclosure>summary:focus-visible{outline:2px solid currentColor;outline-offset:4px}
-.codexSubscriptionResetDisclosure[open]>summary{margin-bottom:10px}
+.codexSubscriptionResetPanel{display:flex;flex-direction:column;gap:10px;margin-top:6px}
+.codexSubscriptionResetHead{display:flex;flex-direction:column;gap:2px}
+.codexSubscriptionResetHead strong{font-size:14px;line-height:20px;font-weight:600;color:var(--dsw-alias-label-primary)}
+.codexSubscriptionResetHead span{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionResetBox{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;padding:6px 14px 2px}
+.codexSubscriptionResetTabs{display:flex;gap:8px;padding:6px 0 10px;border-bottom:1px solid var(--dsw-alias-border-l2)}
+.codexSubscriptionResetTabs span{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);font-size:12px;line-height:18px;font-weight:600;color:var(--dsw-alias-label-primary)}
+.codexSubscriptionResetTabs b{font-weight:400;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionResetBox .codexSubscriptionResetBalance{gap:0}
+.codexSubscriptionResetBox .codexSubscriptionResetCard{padding:12px 0;border:0;border-radius:0;background:none}
+.codexSubscriptionResetBox .codexSubscriptionResetCard+.codexSubscriptionResetCard{border-top:1px solid var(--dsw-alias-border-l2)}
+.codexSubscriptionResetBox .codexSubscriptionResetCard strong{font-size:13px;line-height:20px;font-weight:600}
+.codexSubscriptionResetBox .codexSubscriptionResetExpiry{font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionResetBox .codexSubscriptionResetUse{min-height:28px;padding:0 12px;border:0!important;border-radius:8px;background:var(--dsw-alias-bg-module-platform);font-size:12px;font-weight:600}
+.codexSubscriptionResetBox>.codexSubscriptionResetBalance>.codexSubscriptionCreditNote{padding:12px 0}
 .codexSubscriptionResetBalance{display:flex;flex-direction:column;gap:8px}
 .codexSubscriptionResetCard{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0;padding:9px 10px;border:1px solid var(--dsw-alias-border-l2);border-radius:9px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionResetCard{flex-wrap:wrap}
