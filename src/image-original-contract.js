@@ -46,16 +46,13 @@ export function originalImageRefsEqual(left, right) {
 /** Resolve only an exact original reference copied into a DSH fork prefix. */
 export function inheritedOriginalImageRef(session, assetId) {
   const parentSession = session?.header?.parentSession
-  const seedLength = Number.isSafeInteger(session?.inheritedEventCount)
-    ? session.inheritedEventCount
-    : session?.header?.seedLength
+  const seedLength = session?.inheritedEventCount
   if (typeof parentSession !== 'string' || parentSession.length === 0
     || !Number.isSafeInteger(seedLength) || seedLength < 0
     || !ORIGINAL_IMAGE_ID_PATTERN.test(assetId)) return undefined
-  let events = session?.events
-  if (!Array.isArray(events) && typeof session?.snapshotEvents === 'function') {
-    try { events = session.snapshotEvents() } catch { return undefined }
-  }
+  if (typeof session?.snapshotEvents !== 'function') return undefined
+  let events
+  try { events = session.snapshotEvents() } catch { return undefined }
   if (!Array.isArray(events)) return undefined
   for (const event of events) {
     if (!Number.isSafeInteger(event?.seq) || event.seq < 0 || event.seq >= seedLength

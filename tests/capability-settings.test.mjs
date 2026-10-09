@@ -19,10 +19,10 @@ test('capability updates reject malformed settings and normalize domain spelling
   for (const patch of [{ searchMode: 'indexed' }, { quotaAlerts: 'always' }, { customContextModels: { model: -1 } }, { customContextModels: JSON.parse('{"__proto__":400000}') }, { searchDomains: ['https://example.com'] }, { searchDomains: ['*.example.com'] }, { searchDomains: Array(21).fill('example.com') }]) assert.throws(() => capabilityPatch(patch))
 })
 
-test('dynamic contexts migrate legacy values and accept cloned native object writes', async () => {
-  let value = { customContextGpt54: 500000 }
-  const scope = { getSnapshot: () => ({ status: 'ready', writable: true, value }), subscribe: () => () => {}, async set(field, next) { value = { ...value, [field]: structuredClone(next) } } }
-  const controller = createPreferenceController(scope, { async call() { return { ok: true, value: { contextModels: contextModelGroups([{ id: 'gpt-5.4', contextWindow: 272000 }, { id: 'future', contextWindow: 300000, maxContextWindow: 900000 }]), fastModels: ['future'] } } } })
+test('dynamic contexts migrate legacy values and accept object writes through the host', async () => {
+  let value = { customContextGpt54: 500000, writable: true }
+  const catalog = { contextModels: contextModelGroups([{ id: 'gpt-5.4', contextWindow: 272000 }, { id: 'future', contextWindow: 300000, maxContextWindow: 900000 }]), fastModels: ['future'] }
+  const controller = createPreferenceController({ async call(_channel, method, patch) { if (method === 'preferences/update') value = { ...value, ...structuredClone(patch) }; return { ok: true, value: { ...value, ...catalog } } } })
   await controller.load()
   assert.equal(controller.getSnapshot().customContextWindows['gpt-5.4'], 500000)
   assert.equal(controller.getSnapshot().customContextWindows.future, 300000)
@@ -45,17 +45,23 @@ test('quota warnings exclude stale, reset and code-review windows', () => {
   assert.equal(quotaWarning({ ...usage, fetchedAt: now + 1 }, 'early', now), undefined)
 })
 
-test('a native write rejected without throwing can retry the intended value', async () => {
+test('a rejected write can retry the intended value', async () => {
   let accepted = false
-  let value = { searchMode: 'live' }
-  const controller = createPreferenceController({
-    getSnapshot: () => ({ status: 'ready', writable: true, value }), subscribe: () => () => {},
-    async set(field, next) { if (accepted) value = { ...value, [field]: next } },
-  }, { call() { throw new Error('Retry should write the failed preference, not reload') } })
+  let loads = 0
+  let value = { searchMode: 'live', writable: true }
+  const controller = createPreferenceController({ async call(_channel, method, patch) {
+    if (method === 'preferences/status') { loads++; return { ok: true, value } }
+    if (!accepted) throw new Error('write failed')
+    value = { ...value, ...patch }
+    return { ok: true, value }
+  } })
+  await controller.load()
   await controller.set({ searchMode: 'disabled' })
+  assert.equal(controller.getSnapshot().searchMode, 'live')
   assert.equal(controller.getSnapshot().error, true)
   accepted = true
   await controller.retry()
+  assert.equal(loads, 1, 'retry writes the failed preference instead of reloading')
   assert.equal(controller.getSnapshot().searchMode, 'disabled')
   assert.equal(controller.getSnapshot().error, false)
   controller.dispose()

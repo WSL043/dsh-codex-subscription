@@ -1,19 +1,18 @@
-// Keep version-dependent navigation and lifetime ownership at one boundary.
+// Keep session navigation and lifetime ownership at one boundary.
 export async function withComposerSession(sessions, id, operation) {
-  const reference = typeof sessions.retain === 'function'
-    ? sessions.retain(id, { source: 'controllerOperation' }) : undefined
+  if (typeof sessions?.retain !== 'function') throw new Error('Image composer is unavailable')
+  const reference = sessions.retain(id, { source: 'controllerOperation' })
   try {
-    if (reference) await reference.ready
-    const context = reference ? reference.binding.ctx : sessions.scope(id)
+    await reference.ready
+    const context = reference.binding.ctx
     if (!context) throw new Error('Image composer is unavailable')
     return await operation(context)
-  } finally { reference?.release() }
+  } finally { reference.release() }
 }
 
-export function openComposerSession(sessions, workspace, id) {
-  if (typeof workspace?.openSession === 'function') workspace.openSession(id)
-  else if (typeof sessions.open === 'function') sessions.open(id)
-  else throw new Error('Session navigation is unavailable')
+export function openComposerSession(_sessions, workspace, id) {
+  if (typeof workspace?.openSession !== 'function') throw new Error('Session navigation is unavailable')
+  workspace.openSession(id)
 }
 
 export function createSessionOpeners() {

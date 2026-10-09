@@ -1,6 +1,5 @@
 import { MAX_CONTEXT_BUDGET, validModelKey } from './capability-settings.js'
 
-export const SETTINGS_NAMESPACE = 'codex-subscription'
 export const DISABLED_MODELS_FIELD = 'disabledModels'
 export const AUTO_QUOTA_RETRY_FIELD = 'autoQuotaRetry'
 export const DEFAULT_AUTO_QUOTA_RETRY = false

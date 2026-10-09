@@ -19,13 +19,15 @@ test('async image work holds the exact retained session until success or failure
   assert.equal(released, 3)
 })
 
-test('legacy scope remains supported; navigation follows the available host API', async () => {
-  assert.equal(await withComposerSession({ scope: () => ({ id: 1 }) }, 's', ctx => ctx.id), 1)
+test('composer sessions are retained and released; navigation uses the workspace', async () => {
+  let released = 0
+  const sessions = { retain: () => ({ ready: Promise.resolve(), binding: { ctx: { id: 1 } }, release: () => { released += 1 } }) }
+  assert.equal(await withComposerSession(sessions, 's', ctx => ctx.id), 1)
+  assert.equal(released, 1)
+  await assert.rejects(withComposerSession({}, 's', () => {}), /unavailable/)
   const calls = []
-  const sessions = { open: id => calls.push('legacy:' + id) }
-  openComposerSession(sessions, undefined, 'a')
-  openComposerSession(sessions, { openSession: id => calls.push('modern:' + id) }, 'b')
-  assert.deepEqual(calls, ['legacy:a', 'modern:b'])
+  openComposerSession(sessions, { openSession: id => calls.push(id) }, 'b')
+  assert.deepEqual(calls, ['b'])
   assert.throws(() => openComposerSession({}, {}, 's'), /unavailable/)
 })
 

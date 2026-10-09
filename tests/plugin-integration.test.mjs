@@ -5,12 +5,11 @@ import test from 'node:test'
 import Schema from '@deepseek-ai/schemastery'
 
 test('settings schema survives the native browser JSON round trip', () => {
-  const host = fakeContext()
-  applyPlugin(host.ctx)
-  const schema = host.settings[0].schema
-  const value = schema({ imageSketch: true, imageSketchAgent: true, searchDomains: ['EXAMPLE.com', 'example.com'], disabledModels: ['gpt-5.5'] })
+  const schema = plugin.Config
+  const plain = config => Object.fromEntries(Object.entries(config).map(([key, field]) => [key, typeof field?.get === 'function' ? field.get() : field]))
+  const value = plain(schema({ imageSketch: true, imageSketchAgent: true, searchDomains: ['EXAMPLE.com', 'example.com'], disabledModels: ['gpt-5.5'] }))
   const browserSchema = new Schema(JSON.parse(JSON.stringify(schema)))
-  assert.deepEqual(browserSchema(JSON.parse(JSON.stringify(value))), value)
+  assert.deepEqual(plain(browserSchema(JSON.parse(JSON.stringify(value)))), value)
   assert.equal(value.autoQuotaRetry, false)
   assert.deepEqual(value.disabledModels, ['gpt-5.5'])
   assert.deepEqual(value.searchDomains, ['example.com'])
@@ -121,9 +120,9 @@ function fakeContext({ connection = true, webServer = true } = {}) {
   const settings = []
   const webUpdates = []
   const provided = new Map()
-  let preference = { autoQuotaRetry: false, quickQuotaVisible: false, searchProvider: SEARCH_PROVIDER_AUTO, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, streamIdleTimeoutMinutes: 10, speedMode: SPEED_MODE_STANDARD, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 1_000_000, customContextGpt56: 1_000_000 }
-  const preferenceWatchers = new Set()
+  const preference = { autoQuotaRetry: false, quickQuotaVisible: false, searchProvider: SEARCH_PROVIDER_AUTO, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, streamIdleTimeoutMinutes: 10, speedMode: SPEED_MODE_STANDARD, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 1_000_000, customContextGpt56: 1_000_000 }
   let credential
+  const records = new Map()
   const webEntry = {
     options: { id: 'web', config: { searchProvider: 'deepseek-official', fetchProvider: 'local' } },
     fiber: {
@@ -135,11 +134,23 @@ function fakeContext({ connection = true, webServer = true } = {}) {
     },
   }
   const searchProviderMap = new Map([['deepseek-official', { id: 'deepseek-official', available: () => true, async search() { return { sources: [], truncated: false } } }]])
+  const updateSettings = async patch => {
+    Object.assign(preference, patch)
+    await Promise.all(listeners.filter(entry => entry.event === 'loader/volatile-update').map(entry => entry.listener()))
+  }
   const ctx = {
     credentials: {
       async resolve() { return credential === undefined ? undefined : { value: credential } },
       async set(_ref, value) { credential = value },
       async unset() { credential = undefined },
+      async readRecord(key) { return records.get(key) },
+      async modifyRecord(key, mutate) {
+        const next = await mutate(records.get(key))
+        if (next === undefined) records.delete(key)
+        else records.set(key, next)
+        return next
+      },
+      async deleteRecord(key) { records.delete(key) },
     },
     llm: {
       registerAdapter(providers, adapter) {
@@ -180,22 +191,16 @@ function fakeContext({ connection = true, webServer = true } = {}) {
     } : undefined,
     settings: {
       writable: true,
-      register(namespace, schema) {
-        settings.push({ namespace, schema })
-         return {
-           get: () => preference,
-           async update(patch) {
-             const previous = preference
-             preference = { ...preference, ...patch }
-             await Promise.all([...preferenceWatchers].map(callback => callback(preference, previous)))
-           },
-           watch(callback) {
-             preferenceWatchers.add(callback)
-             return () => preferenceWatchers.delete(callback)
-           },
-         }
+      configure(presentation) {
+        settings.push(presentation)
+        return () => {}
+      },
+      async update(id, patch) {
+        assert.equal(id, 'codex-subscription')
+        await updateSettings(patch)
       },
     },
+    fiber: { entry: { options: { id: 'codex-subscription' } } },
     loader: {
       * entries() { yield webEntry },
     },
@@ -215,24 +220,20 @@ function fakeContext({ connection = true, webServer = true } = {}) {
     effect(register) { return register() },
   }
   return {
-    ctx, registered, handled, listeners, provided, searchProviders, settings, tools, webUpdates,
+    ctx, config: preference, registered, handled, listeners, provided, searchProviders, settings, tools, webUpdates,
     async request(endpoint, payload, signal) {
       const method = 'codex-subscription/' + endpoint
       const route = handled.find(route => route.path === '/api/' + method)
       const response = await route.fetch(new Request('http://localhost' + route.path, {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({type:'client-request',rpcId:'test-rpc',method,payload}), signal}))
       return (await response.json()).result
     },
-    async updateSettings(patch) {
-      const previous = preference
-      preference = { ...preference, ...patch }
-      await Promise.all([...preferenceWatchers].map(callback => callback(preference, previous)))
-    },
+    updateSettings,
   }
 }
 
 test('account routes register without directly accessing the web server', () => {
   const host = fakeContext({ webServer: false })
-  assert.doesNotThrow(() => applyPlugin(host.ctx))
+  assert.doesNotThrow(() => applyPlugin(host.ctx, host.config))
   assert.equal(host.handled.length, RPC_ENDPOINTS.length)
   assert.equal(host.tools.length, 1)
 })
@@ -240,14 +241,14 @@ test('account routes register without directly accessing the web server', () => 
 test('plugin activates without the web connection service in Headless mode', () => {
   const host = fakeContext({ connection: false })
 
-  assert.doesNotThrow(() => applyPlugin(host.ctx))
+  assert.doesNotThrow(() => applyPlugin(host.ctx, host.config))
   assert.deepEqual(host.registered.map(item => item.providers), [['openai-codex']])
   assert.equal(host.handled.length, 0)
 })
 
 test('signed out, the account advertises no models and model metadata never reads credentials', async () => {
   const host = fakeContext()
-  applyPlugin(host.ctx)
+  applyPlugin(host.ctx, host.config)
   host.ctx.credentials.resolve = async () => assert.fail('model metadata must not read credentials')
   const adapter = host.registered[0].adapter
   assert.deepEqual(await adapter.listModels('openai-codex'), [], 'no bundled list stands in for the account catalog')
@@ -256,7 +257,7 @@ test('signed out, the account advertises no models and model metadata never read
 
 test('hiding a model only changes the saved display list, not what the adapter advertises', async () => {
   const host = fakeContext()
-  applyPlugin(host.ctx)
+  applyPlugin(host.ctx, host.config)
   const adapter = host.registered[0].adapter
   const signal = new AbortController().signal
   const updated = await host.request('preferences/update', { [DISABLED_MODELS_FIELD]: ['gpt-5.5'] }, signal)
@@ -269,7 +270,7 @@ test('hiding a model only changes the saved display list, not what the adapter a
 
 test('plugin registers one Codex route, subscription image tool, and DSH-trusted redacted RPC', async () => {
   const host = fakeContext()
-  applyPlugin(host.ctx)
+  applyPlugin(host.ctx, host.config)
 
   assert.equal('CODEX_PROVIDER_POLICY' in plugin, false, 'do not replace the removed boundary with cosmetic metadata')
   assert.deepEqual(host.registered.map(item => item.providers), [['openai-codex']])
@@ -303,7 +304,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   const status = await host.request('status', {}, signal)
   assert.deepEqual(status, {
     ok: true,
-    value: { authenticated: false, provider: 'openai-codex' },
+    value: { authenticated: false, provider: 'openai-codex', accounts: [] },
   })
   assert.doesNotMatch(JSON.stringify(status), /access|refresh|accountId/)
 
@@ -438,7 +439,7 @@ test('successful account changes wake parked quota recovery while failed changes
 
 test('Astra custom context is persisted through settings RPC with its audited bounds', async () => {
   const host = fakeContext()
-  applyPlugin(host.ctx)
+  applyPlugin(host.ctx, host.config)
   const rpc = (method, payload = {}) => host.request(method, payload, new AbortController().signal)
   assert.equal((await rpc('preferences/status')).value.customContextGpt6Astra, 272_000)
   for (const value of [128_000, 500_000, 872_000]) {
@@ -662,7 +663,7 @@ test('catalog diagnostics includes refresh failures without copying private meta
 })
 
 test('sketch tool is absent until both Beta switches are enabled and removed when disabled',async()=>{
- const host=fakeContext();applyPlugin(host.ctx)
+ const host=fakeContext();applyPlugin(host.ctx, host.config)
  const registered=()=>host.tools.some(tool=>tool.name==='codex_sketch')
  assert.equal(registered(),false)
  await host.updateSettings({imageSketch:true,imageEditing:true})
@@ -675,7 +676,7 @@ test('sketch tool is absent until both Beta switches are enabled and removed whe
 
 test('the settings default model writes the DSH default a new conversation starts on', async () => {
   const host = fakeContext()
-  applyPlugin(host.ctx)
+  applyPlugin(host.ctx, host.config)
   const signal = new AbortController().signal
   // The default-model service may mount after this plugin, so a missing service
   // is reported instead of cached.

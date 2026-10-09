@@ -4,8 +4,8 @@ const DEFAULT_MAX_WAIT_MS = 6 * 60 * 60 * 1000
 const DEFAULT_RESET_MARGIN_MS = 10_000
 const EXHAUSTED_PERCENT = 99.9
 // pi-ai converts Codex's usage_limit_reached response into this bounded friendly
-// message. DSH releases through 0.1.2-rc.1 classify that text as PI_AI_ERROR
-// because their generic classifier recognizes "rate limit", but not "usage limit".
+// message. DSH's generic classifier files that text under PI_AI_ERROR because it
+// recognizes "rate limit", but not "usage limit".
 const CODEX_USAGE_LIMIT_MESSAGE = /^You have hit your ChatGPT usage limit(?: \([a-z0-9][a-z0-9 ._-]{0,39} plan\))?\.(?: Try again in ~\d{1,6} min\.)?$/u
 
 const isCodexRateLimit = failure => failure?.code === 'RATE_LIMIT'

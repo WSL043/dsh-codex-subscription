@@ -13,7 +13,6 @@ import { createAnnotatedImageReference } from './image-edit-reference.js'
 import { SubscriptionImageViewerOverlay } from './subscription-image-viewer.jsx'
 import { SUBSCRIPTION_IMAGE_VIEWER_CSS } from './subscription-image-viewer-styles.js'
 import { SubscriptionImageViewerService } from './subscription-image-viewer.js'
-import { SETTINGS_NAMESPACE } from './settings-contract.js'
 import { createPreferenceController } from './preference-controller.js'
 import { createDefaultModelController } from './default-model-controller.js'
 import { createAccountStatusController } from './account-status-controller.js'
@@ -41,11 +40,7 @@ export function apply(ctx) {
     return () => tag.remove()
   }, 'codex-subscription: style')
   const rpc = createSubscriptionRpcClient(ctx.get('connection').rpc)
-  const scope = ctx.get('settingsScope')?.bind({ namespace: SETTINGS_NAMESPACE }) ?? {
-    getSnapshot: () => ({ status: 'unavailable' }),
-    subscribe: () => () => {},
-  }
-  const preference = createPreferenceController(scope, rpc)
+  const preference = createPreferenceController(rpc)
   const defaultModel = createDefaultModelController(rpc)
   ctx.effect(() => {
     let previous = JSON.stringify(preference.getSnapshot(), (key,value) => key.startsWith('image') || key === '' ? value : undefined)
@@ -151,9 +146,6 @@ export function apply(ctx) {
     const tool = Array.isArray(extraFiles)
     if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
     return withComposerSession(sessions, sessionId, async actx => {
-      if (conversation.input?.for === undefined) {
-        throw new Error('This DSH version does not provide the image composer bridge')
-      }
       const response = await fetch(src, { signal: lifetime.signal })
       if (!response.ok) throw new Error('Could not read generated image')
       const blob = await response.blob()

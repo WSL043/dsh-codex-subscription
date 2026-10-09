@@ -2,7 +2,7 @@
 
 ## Changes
 
-- Use volatile Config fields and profile-entry settings updates on the new host; retain namespace registration on older hosts.
+- Use volatile Config fields and profile-entry settings updates on the new host; (historical) older hosts used namespace registration; support for them was removed in 3.0.0.
 - Do not require the removed client settingsScope service. The existing preference RPC handles hosts without it.
 - Resolve renamed UI icons through one compatibility module.
 - Include the new preview dependency cohort without widening support to untested versions.
