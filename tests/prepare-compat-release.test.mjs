@@ -179,7 +179,7 @@ test('regenerates exact release-age exceptions from the accepted lock graph', ()
 
 test('current repository bounded artifacts can prepare the next DSH candidate', () => {
  const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8')
- const state = { manifest: JSON.parse(read('package.json')), compatibility: JSON.parse(read('compatibility.json')) }
+ const state = { manifest: JSON.parse(read('package.json')), compatibility: JSON.parse(read('compatibility.json')), documentedVersion: read('README.md').match(/dsh-codex-subscription@(\d+\.\d+\.\d+)/u)?.[1] }
  const current = state.compatibility.latestTested
  const candidate = current.replace(/^(\d+)\.(\d+)\.(\d+).*$/, (_, major, minor, patch) => major + '.' + minor + '.' + (Number(patch) + 1))
  const update = planCompatibilityUpdate(state, candidate)

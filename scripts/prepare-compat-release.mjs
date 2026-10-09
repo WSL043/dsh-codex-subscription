@@ -79,12 +79,18 @@ function nextBetaVersion(version) {
   return `${parsed.core.join('.')}-beta.${parsed.prerelease[1] + 1}`
 }
 
-function previousDocumentedPluginVersion(version) {
+// A beta of a new minor or major (x.y.0-beta.n) has no patch to step back from, so the
+// stable version the README documents is passed in.
+function previousDocumentedPluginVersion(version, documented) {
   const parsed = parseVersion(version)
   if (parsed.prerelease.length === 0) return version
   if (parsed.prerelease.length !== 2 || parsed.prerelease[0] !== 'beta'
-    || !Number.isInteger(parsed.prerelease[1]) || parsed.core[2] === 0) {
+    || !Number.isInteger(parsed.prerelease[1])) {
     throw new Error(`unsupported plugin prerelease: ${version}`)
+  }
+  if (parsed.core[2] === 0) {
+    if (typeof documented !== 'string') throw new Error(`unsupported plugin prerelease: ${version}`)
+    return documented
   }
   return `${parsed.core[0]}.${parsed.core[1]}.${parsed.core[2] - 1}`
 }
@@ -148,7 +154,7 @@ export function planCompatibilityUpdate(state, candidate) {
     previousDshVersion,
     dshVersion: candidate,
     previousPluginVersion,
-    previousDocumentedPluginVersion: previousDocumentedPluginVersion(previousPluginVersion),
+    previousDocumentedPluginVersion: previousDocumentedPluginVersion(previousPluginVersion, state.documentedVersion),
     pluginVersion: manifest.version,
     updateStableReferences: !preview,
     ...(subagentRuntime === undefined ? {} : { subagentRuntime }),
@@ -264,7 +270,7 @@ async function prepare(root, candidate) {
     readFile(compatibilityPath, 'utf8').then(JSON.parse),
     readFile(manifestPath, 'utf8').then(JSON.parse),
   ])
-  const update = planCompatibilityUpdate({ compatibility, manifest, host: await hostOf(candidate) }, candidate)
+  const update = planCompatibilityUpdate({ compatibility, manifest, host: await hostOf(candidate), documentedVersion: (await readFile(resolve(root, 'README.md'), 'utf8')).match(/dsh-codex-subscription@(\d+\.\d+\.\d+)/u)?.[1] }, candidate)
   if (update === null) return { changed: false, dshVersion: candidate, pluginVersion: manifest.version }
 
   const runtimePath = resolve(root, 'src/subagent-runtime.js')
