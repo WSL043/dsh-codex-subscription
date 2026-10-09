@@ -332,6 +332,13 @@ dsh plugin --profile web remove dsh-codex-subscription
 </details>
 
 <details>
+<summary>和官方插件列表里的 Codex 组合包（dsh-hooks-codex）是什么关系？</summary>
+
+没有关系，可以同时安装。官方的 Codex / Claude Code 组合包让 DSH 运行 Codex 或 Claude Code 格式的 hooks 配置（工具调用前后自动执行的脚本）；本插件负责用 ChatGPT 订阅登录、使用 Codex 模型、查看额度、搜索、生图和手机远程控制。
+
+</details>
+
+<details>
 <summary>电脑没有 dsh 命令，怎么安装？</summary>
 
 直接使用 DSH 的 **插件 → 添加插件**，粘贴包名即可，无需配置终端命令。
