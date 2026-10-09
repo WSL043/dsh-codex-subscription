@@ -52,9 +52,7 @@ const PROVIDER = 'openai-codex'
 const OAUTH_EXPIRY_SKEW_MS = 60_000
 const CREDENTIAL_REF = dshCredentials.credentialRef('OPENAI_CODEX_SUBSCRIPTION_OAUTH')
 const LEGACY_CREDENTIAL_REF = dshCredentials.credentialRef('WSL043_OPENAI_CODEX_OAUTH')
-const ACCOUNT_VAULT_KEY = typeof dshCredentials.credentialKey === 'function'
-  ? dshCredentials.credentialKey('codex-subscription', 'accounts')
-  : undefined
+const ACCOUNT_VAULT_KEY = dshCredentials.credentialKey('codex-subscription', 'accounts')
 const WEB_ENTRY_ID = 'web'
 const DSH_SEARCH_PROVIDER_FALLBACK = 'deepseek-official'
 const MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
@@ -122,16 +120,11 @@ export function apply(ctx, config = {}) {
   const diagnosticOperations = createDiagnosticOperations()
   ctx.effect(() => ctx.on?.('tools/result', (exec, result) => diagnosticOperations.tool(exec, result)), 'codex-subscription: operation evidence')
   const originalImages = new OriginalImageStore()
-  const accountVault = ACCOUNT_VAULT_KEY !== undefined
-    && typeof ctx.credentials.readRecord === 'function'
-    && typeof ctx.credentials.modifyRecord === 'function'
-    && typeof ctx.credentials.deleteRecord === 'function'
-    ? new DshOAuthAccountVault(ctx.credentials, {
-        key: ACCOUNT_VAULT_KEY,
-        legacyRef: CREDENTIAL_REF,
-        legacyRefs: [LEGACY_CREDENTIAL_REF],
-      })
-    : undefined
+  const accountVault = new DshOAuthAccountVault(ctx.credentials, {
+    key: ACCOUNT_VAULT_KEY,
+    legacyRef: CREDENTIAL_REF,
+    legacyRefs: [LEGACY_CREDENTIAL_REF],
+  })
   const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF], {
     expirySkewMs: OAUTH_EXPIRY_SKEW_MS,
     vault: accountVault,

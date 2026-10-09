@@ -122,6 +122,7 @@ function fakeContext({ connection = true, webServer = true } = {}) {
   const provided = new Map()
   const preference = { autoQuotaRetry: false, quickQuotaVisible: false, searchProvider: SEARCH_PROVIDER_AUTO, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, streamIdleTimeoutMinutes: 10, speedMode: SPEED_MODE_STANDARD, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 1_000_000, customContextGpt56: 1_000_000 }
   let credential
+  const records = new Map()
   const webEntry = {
     options: { id: 'web', config: { searchProvider: 'deepseek-official', fetchProvider: 'local' } },
     fiber: {
@@ -142,6 +143,14 @@ function fakeContext({ connection = true, webServer = true } = {}) {
       async resolve() { return credential === undefined ? undefined : { value: credential } },
       async set(_ref, value) { credential = value },
       async unset() { credential = undefined },
+      async readRecord(key) { return records.get(key) },
+      async modifyRecord(key, mutate) {
+        const next = await mutate(records.get(key))
+        if (next === undefined) records.delete(key)
+        else records.set(key, next)
+        return next
+      },
+      async deleteRecord(key) { records.delete(key) },
     },
     llm: {
       registerAdapter(providers, adapter) {
@@ -295,7 +304,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   const status = await host.request('status', {}, signal)
   assert.deepEqual(status, {
     ok: true,
-    value: { authenticated: false, provider: 'openai-codex' },
+    value: { authenticated: false, provider: 'openai-codex', accounts: [] },
   })
   assert.doesNotMatch(JSON.stringify(status), /access|refresh|accountId/)
 
