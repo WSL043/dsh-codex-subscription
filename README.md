@@ -42,7 +42,7 @@
 2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
 
    ```text
-   dsh-codex-subscription@2.7.1
+   dsh-codex-subscription@3.0.0
    ```
 
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
@@ -54,7 +54,7 @@
 <summary>终端安装（已能运行 dsh 命令）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@2.7.1
+dsh plugin --profile web add dsh-codex-subscription@3.0.0
 ```
 
 安装完成后按提示重启 DSH，再到 **设置 → Codex 订阅** 登录。插件页面和终端均由 DSH 管理安装。
@@ -67,7 +67,7 @@ dsh plugin --profile web add dsh-codex-subscription@2.7.1
 先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@2.7.1
+dsh plugin --profile headless add dsh-codex-subscription@3.0.0
 dsh --profile headless "只回复：ok"
 ```
 
@@ -106,10 +106,10 @@ dsh --profile headless "只回复：ok"
 - 批准工具调用或回答提问时手机直接弹出；手机掉线，重新打开会再弹一次，否则交回电脑处理；
 - 回复边生成边显示；命令、文件修改（带差异）、任务清单、联网搜索、连接器调用和生成的图片用手机原生视图显示；
 - 发图片，@ 搜电脑上的文件，/ 选 DSH 技能，只读 git 查看改动，用真实的文件夹选择器新建对话；
-- DSH 工作区对应手机上的项目；可以从手机分叉对话，看用量额度、累计用量和上下文用量；DSH 带有 `/compact` 时（0.2.1-rc.1 起）还能从手机压缩上下文；
+- DSH 工作区对应手机上的项目；可以从手机分叉对话，看用量额度、累计用量和上下文用量；DSH 带有 `/compact` 时（0.2.0-rc.2 起）还能从手机压缩上下文；
 - 模型报错会显示在手机上；设置里能看到已配对的手机，随时移除。
 
-默认关闭：**设置 → Codex 订阅 → 模型与运行 → 手机远程控制**。电脑需要保持开机、联网并打开 DSH。这是 OpenAI 尚未向第三方开放的 ChatGPT 能力，随时可能变化，所以标为 Beta，目前在预发布版中提供：`dsh-codex-subscription@3.0.0-beta.8`。
+默认关闭：**设置 → Codex 订阅 → 模型与运行 → 手机远程控制**。电脑需要保持开机、联网并打开 DSH。这是 OpenAI 尚未向第三方开放的 ChatGPT 能力，随时可能变化，所以标为 Beta。
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-zh-dark.png"><img src="docs/assets/ui-remote-zh-light.png" width="560" alt="设置里的手机远程控制：开关、配对二维码和手动码、已配对的手机"></picture></p>
 
@@ -199,7 +199,7 @@ dsh --profile headless "只回复：ok"
 
 | 功能 | 你可以做什么 | 使用方式 / 条件 |
 | --- | --- | --- |
-| **手机远程控制** | 在 ChatGPT 手机 App 的 Codex 里直接指挥电脑上的 DSH：新建、续聊、归档对话，切换模型和权限，回答审批和提问，DeepSeek 等任意 DSH 模型都能用 | Beta（3.0.0-beta.8）；默认关闭，设置 → Codex 订阅 → 模型与运行 → 手机远程控制，扫码或输入手动码配对 |
+| **手机远程控制** | 在 ChatGPT 手机 App 的 Codex 里直接指挥电脑上的 DSH：新建、续聊、归档对话，切换模型和权限，回答审批和提问，DeepSeek 等任意 DSH 模型都能用 | Beta；默认关闭，设置 → Codex 订阅 → 模型与运行 → 手机远程控制，扫码或输入手动码配对 |
 | **Codex 独立子任务** | 复用订阅登录和工作区权限执行独立任务，可指定允许的模型与推理档位 | Beta；默认 DSH，Codex 需安装可选组件并配置模型选择 |
 | **子任务组件管理** | 在设置里安装、停用或卸载官方 Codex 子任务组件 | 由支持的 DSH 宿主管理，无需额外登录 |
 | **云端上下文压缩** | 使用 Codex 云端压缩继续长对话，同时保留 DSH 历史与原生压缩 | Beta / 实验性；默认关闭，开启的请求使用 SSE |
@@ -355,7 +355,7 @@ DSH 实机设置截图，随浅色 / 深色主题切换。
 <summary>终端方式</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@2.7.1
+dsh plugin --profile web update dsh-codex-subscription@3.0.0
 ```
 
 仅在需要卸载时运行：
