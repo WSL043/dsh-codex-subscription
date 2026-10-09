@@ -118,7 +118,7 @@ Why the version is included: DSH's plugin page only installs versions that are a
 <summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription
+dsh plugin --profile web add dsh-codex-subscription@2.5.9
 ```
 
 Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
@@ -131,7 +131,7 @@ Follow the restart instructions, then sign in under **Settings → Codex**. Both
 After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription
+dsh plugin --profile headless add dsh-codex-subscription@2.5.9
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -266,7 +266,7 @@ Find this plugin on the DSH **Plugins** page and use its update or uninstall act
 <summary>Terminal commands</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription
+dsh plugin --profile web update dsh-codex-subscription@2.5.9
 ```
 
 Run only when you want to uninstall:
@@ -282,7 +282,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 <details>
 <summary>DSH 0.2.0-rc.2 reports the plugin as incompatible?</summary>
 
-DSH 0.2.0-rc.2 did not exist when any release before 2.2.10 was published, and a published package's compatibility declaration cannot be changed. Install 2.2.10 or later (a bare package name can resolve to an older release during the first 24 hours, so enter `dsh-codex-subscription@2.2.10`) from the **Plugins** page, or run `dsh plugin --profile web update dsh-codex-subscription`, then restart DSH.
+DSH 0.2.0-rc.2 did not exist when any release before 2.2.10 was published, and a published package's compatibility declaration cannot be changed. Install 2.2.10 or later (a bare package name can resolve to an older release during the first 24 hours, so enter `dsh-codex-subscription@2.2.10`) from the **Plugins** page, or run `dsh plugin --profile web update dsh-codex-subscription@2.5.9`, then restart DSH.
 
 </details>
 

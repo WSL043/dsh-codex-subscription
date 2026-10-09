@@ -444,5 +444,9 @@ test('the README install step names the exact released version, so a new release
     } else {
       assert.equal(pinned, manifest.version, `${label} README install step must pin ${manifest.version}`)
     }
+    // Install and update commands pin the same version: a bare name can resolve to an older release for the first day.
+    const commands = [...readme.matchAll(/^dsh plugin --profile \w+ (?:add|update) (\S+)$/gmu)].map(match => match[1])
+    assert.ok(commands.length >= 3, `${label} README lists install and update commands`)
+    for (const spec of commands) assert.equal(spec, `dsh-codex-subscription@${pinned}`, `${label} README command must pin ${pinned}`)
   }
 })
