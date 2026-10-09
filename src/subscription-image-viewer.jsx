@@ -37,7 +37,33 @@ function ViewerAction({ action, annotations, item, service, revision, t, onStart
   const [state, setState] = useState('idle')
   const [menu, setMenu] = useState()
   const active = useRef(true)
+  const menuRef = useRef(null)
+  const menuButtonRef = useRef(null)
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
+  useEffect(() => {
+    if (menu === undefined) return undefined
+    menuRef.current?.querySelector('[role="menuitem"]')?.focus()
+    // Capture on window so Escape closes only the menu, not the whole viewer.
+    const onKeyDown = event => {
+      const items = [...(menuRef.current?.querySelectorAll('[role="menuitem"]') ?? [])]
+      if (event.key === 'Escape') {
+        event.preventDefault(); event.stopPropagation(); setMenu(undefined); menuButtonRef.current?.focus()
+      } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && items.length > 0) {
+        event.preventDefault(); event.stopPropagation()
+        const step = event.key === 'ArrowDown' ? 1 : -1
+        items[(items.indexOf(document.activeElement) + step + items.length) % items.length].focus()
+      } else if (event.key === 'Tab') setMenu(undefined)
+    }
+    const onPointerDown = event => {
+      if (!menuRef.current?.contains(event.target) && !menuButtonRef.current?.contains(event.target)) setMenu(undefined)
+    }
+    window.addEventListener('keydown', onKeyDown, true)
+    window.addEventListener('pointerdown', onPointerDown, true)
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true)
+      window.removeEventListener('pointerdown', onPointerDown, true)
+    }
+  }, [menu])
   const invoke = async (extra = {}) => {
     if (state === 'pending') return
     setState('pending')
@@ -53,13 +79,13 @@ function ViewerAction({ action, annotations, item, service, revision, t, onStart
   if (action.kind === 'tool') return <button type="button" className="dcsiv-button dcsiv-icon-button" title={label} aria-label={label} data-state={state} disabled={state === 'pending'} onClick={() => { void invoke() }}><ToolIcon id={action.id} /></button>
   if (action.id === 'sketch' && state === 'idle') return <button type="button" className="dcsiv-button dcsiv-icon-button" title={action.label} aria-label={action.label} onClick={() => { void invoke() }}><ToolIcon id="sketch" /></button>
   if (action.kind === 'choice') return <>
-    <button type="button" aria-haspopup="menu" aria-expanded={menu !== undefined} disabled={state === 'pending'} onClick={event => {
+    <button ref={menuButtonRef} type="button" aria-haspopup="menu" aria-expanded={menu !== undefined} data-state={state} disabled={state === 'pending'} onClick={event => {
       // The toolbar scrolls and is transformed, so the menu renders in the overlay root.
       const box = event.currentTarget.getBoundingClientRect()
       const host = event.currentTarget.closest('.dcsiv-root')
       setMenu(value => value === undefined && host ? { host, style: { left: box.left, bottom: window.innerHeight - box.top + 8 } } : undefined)
     }} className="dcsiv-button dcsiv-icon-button" title={label} aria-label={label}><ToolIcon id={action.id} /></button>
-    {menu ? createPortal(<span className="dcsiv-menu" role="menu" style={menu.style}>{action.options.map(option => <button type="button" role="menuitem" key={option.value} onClick={() => { setMenu(undefined); void invoke({ option: option.value }) }}>{option.label}</button>)}</span>, menu.host) : null}
+    {menu ? createPortal(<span ref={menuRef} className="dcsiv-menu" role="menu" aria-label={action.label} style={menu.style}>{action.options.map(option => <button type="button" role="menuitem" key={option.value} onClick={() => { setMenu(undefined); void invoke({ option: option.value }) }}>{option.label}</button>)}</span>, menu.host) : null}
   </>
   return <button type="button" className="dcsiv-button dcsiv-edit-action" aria-label={label ?? t('imageEdit')} disabled={state === 'pending'} onClick={() => { void invoke() }}><IconEditOutline16 /><span className="dcsiv-label">{label ?? t('imageEdit')}</span><span className="dcsiv-edit-short">{state === 'idle' ? (action.id === 'sketch' ? t('imageToSketch') : t('imageEditShort')) : label}</span></button>
 }
@@ -110,6 +136,10 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
   const [strokes, setStrokes] = useState([])
   const [brush, setBrush] = useState(0.05)
   const [sending, setSending] = useState(false)
+  const [sendFailed, setSendFailed] = useState(false)
+  const [brushCursor, setBrushCursor] = useState()
+  const eraseRef = useRef({ erasing: undefined, sending: false })
+  eraseRef.current = { erasing, sending }
   const drawingRef = useRef(false)
   const maskRef = useRef(null)
   const rootRef = useRef(null)
@@ -141,6 +171,22 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
     document.body.style.overflow = 'hidden'
     rootRef.current?.focus()
     const onKeyDown = event => {
+      if (eraseRef.current.erasing !== undefined) {
+        // Erase mode owns Escape, undo and brush size, and keeps the image in place.
+        const key = event.key.toLowerCase()
+        if (event.key === 'Escape') {
+          event.preventDefault()
+          if (!eraseRef.current.sending) { setErasing(undefined); setStrokes([]) }
+          return
+        }
+        if ((event.ctrlKey || event.metaKey) && key === 'z') {
+          event.preventDefault(); if (!eraseRef.current.sending) setStrokes(current => current.slice(0, -1)); return
+        }
+        if (event.key === '[' || event.key === ']') {
+          event.preventDefault(); setBrush(value => Math.round(clamp(value + (event.key === ']' ? 0.01 : -0.01), 0.01, 0.15) * 100) / 100); return
+        }
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') return
+      }
       if (event.key === 'Escape') {
         event.preventDefault()
         if (event.target instanceof Element && event.target.closest('.dcsiv-inline-note') !== null) {
@@ -213,6 +259,8 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
       setStrokes(current => [...current, { size: brush / transformRef.current.zoom, points: [point] }])
     },
     onPointerMove: event => {
+      const bounds = maskRef.current?.getBoundingClientRect()
+      if (bounds !== undefined) setBrushCursor({ left: event.clientX, top: event.clientY, span: Math.min(bounds.width, bounds.height) / transformRef.current.zoom })
       if (!drawingRef.current) return
       const point = strokePoint(event)
       if (point === undefined) return
@@ -220,12 +268,14 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
     },
     onPointerUp: () => { drawingRef.current = false },
     onPointerCancel: () => { drawingRef.current = false },
+    onPointerLeave: () => { setBrushCursor(undefined) },
   }
-  const startMask = action => { resetGesture(); setAnnotating(false); setStrokes([]); setErasing(action) }
+  const startMask = action => { resetGesture(); setAnnotating(false); setStrokes([]); setSendFailed(false); setBrushCursor(undefined); setErasing(action) }
   const sendMask = async () => {
     const image = imageRef.current
     if (!erasing || strokes.length === 0 || image === null || sending) return
     setSending(true)
+    setSendFailed(false)
     try {
       const canvas = document.createElement('canvas')
       canvas.width = image.naturalWidth
@@ -236,6 +286,9 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
       setErasing(undefined)
       setStrokes([])
       if (erasing.closeOnSuccess) service.close()
+    } catch {
+      // Keep the strokes so the user can retry.
+      setSendFailed(true)
     } finally { setSending(false) }
   }
 
@@ -327,8 +380,9 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
         <label>{t('imageBrushSize')}<input type="range" min="0.01" max="0.15" step="0.01" value={brush} onChange={event => setBrush(Number(event.target.value))} /></label>
         <button type="button" className="dcsiv-button" disabled={strokes.length === 0 || sending} onClick={() => setStrokes(current => current.slice(0, -1))}>{t('imageUndo')}</button>
         <button type="button" className="dcsiv-button" disabled={sending} onClick={() => { setErasing(undefined); setStrokes([]) }}>{t('cancel')}</button>
-        <button type="button" className="dcsiv-button dcsiv-primary" disabled={strokes.length === 0 || sending} onClick={() => { void sendMask() }}>{sending ? t('imageEditPreparing') : t('imageSend')}</button>
+        <button type="button" className="dcsiv-button dcsiv-primary" data-state={sendFailed ? 'failed' : undefined} disabled={strokes.length === 0 || sending} onClick={() => { void sendMask() }}>{sending ? t('imageEditPreparing') : sendFailed ? t('imageEditFailed') : t('imageSend')}</button>
       </div> : null}
+      {erasing && brushCursor ? <span className="dcsiv-brush-cursor" aria-hidden="true" style={{ left: brushCursor.left, top: brushCursor.top, width: brush * brushCursor.span, height: brush * brushCursor.span }} /> : null}
       {annotations.some(annotation => annotation.note.trim() !== '') ? <button type="button" className="dcsiv-copy-notes" onClick={() => { void copyNotes() }}><IconCopyOutline16 />{copied ? t('imageCopied') : t('imageCopyNotes')}</button> : null}
     </div>
   </div>
