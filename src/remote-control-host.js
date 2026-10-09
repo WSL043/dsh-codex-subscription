@@ -7,6 +7,8 @@ const METHOD_NOT_FOUND = -32601
 const INVALID_PARAMS = -32602
 const INTERNAL_ERROR = -32603
 const MAX_SEEN = 128
+// Called constantly by the phone and never interesting when debugging.
+const QUIET = new Set(['command/exec', 'thread/attachment/list', 'thread/list', 'thread/queue/list', 'threadSection/list', 'config/read', 'configRequirements/read'])
 
 export class RpcError extends Error {
   constructor(code, message) {
@@ -47,7 +49,8 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
         const onAbort = () => { done(); reject(new RpcError(-32800, 'Request cancelled')) }
         if (signal?.aborted) return onAbort()
         signal?.addEventListener('abort', onAbort, { once: true })
-        pending.set(id, { resolve: value => { done(); resolve(value) }, reject: error => { done(); reject(error) } })
+        record({ method: `ask:${method}`, params: JSON.stringify(params ?? null).slice(0, 400) })
+        pending.set(id, { resolve: value => { record({ method: `answer:${method}`, params: JSON.stringify(value ?? null).slice(0, 400) }); done(); resolve(value) }, reject: error => { record({ method: `answer:${method}`, error: String(error?.message ?? error).slice(0, 200) }); done(); reject(error) } })
         client.send({ id, method, params }).catch(error => { done(); reject(error) })
       })
       // Bridges keep only the notify function per connection, so it also carries the ask.
@@ -80,6 +83,7 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
           note('request', method)
           // The relay probes every host with `initialize`; a real client asks for more.
           if (!active && method !== 'initialize') { active = true; onActive?.(client) }
+          if (debug && !QUIET.has(method)) record({ method: `request:${method}`, params: JSON.stringify(params ?? null).slice(0, 700) })
           const handler = methods[method]
           if (!handler) {
             record({ method, missing: true, params: JSON.stringify(params ?? null).slice(0, 600) })
@@ -94,7 +98,7 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
           aborts.add(controller)
           void Promise.resolve()
             .then(() => handler(params, { ...context, signal: controller.signal }))
-            .then(result => reply(id, result ?? {}), error => { record({ method, error: String(error?.message ?? error).slice(0, 300), params: JSON.stringify(params ?? null).slice(0, 600) }); return fail(id, error) })
+            .then(result => reply(id, result ?? {}), error => { if (!QUIET.has(method)) record({ method, error: String(error?.message ?? error).slice(0, 300), params: JSON.stringify(params ?? null).slice(0, 600) }); return fail(id, error) })
             .catch(() => {})
             .finally(() => aborts.delete(controller))
         },

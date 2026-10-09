@@ -26,6 +26,9 @@ function parseArguments(value) {
 }
 
 /** One user message starts a turn; assistant blocks and tool results fill it. */
+/** What the person typed: DSH appends its own system reminders (skills, context) to user messages. */
+export const visibleText = content => textOf(content).replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gu, '').trim()
+
 export function projectTurns(messages, at = Date.now()) {
   const turns = []
   let turn
@@ -33,9 +36,11 @@ export function projectTurns(messages, at = Date.now()) {
   const close = () => { if (turn && turn.items.length > 0) { turn.status = 'completed'; turn.completedAt = turn.startedAt; turns.push(turn) } turn = undefined }
   for (const message of messages) {
     if (message.role === 'user') {
+      const text = visibleText(message.content)
+      if (text === '') continue
       close()
       turn = { ...emptyTurn(), id: message.id, startedAt: seconds(at) }
-      turn.items.push({ type: 'userMessage', id: message.id, clientId: null, content: [{ type: 'text', text: textOf(message.content), text_elements: [] }] })
+      turn.items.push({ type: 'userMessage', id: message.id, clientId: null, content: [{ type: 'text', text, text_elements: [] }] })
     } else if (message.role === 'assistant') {
       turn ??= { ...emptyTurn(), startedAt: seconds(at) }
       for (const [index, block] of message.content.entries()) {
@@ -75,7 +80,7 @@ function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns 
 /**
  * @param {{ controller: () => any, agents: () => any, permissions?: () => any, userAgent: string }} options
  */
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, userAgent }) {
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, userAgent }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
@@ -123,12 +128,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     await (catalog ? undefined : loadCatalog().catch(() => undefined))
     const session = agent.session
     const messages = session.deriveMessages()
-    const first = messages.find(message => message.role === 'user')
+    const first = messages.find(message => message.role === 'user' && visibleText(message.content) !== '')
     return {
       agent,
       thread: thread({
         id, cwd: session.meta?.cwd, createdAt: session.meta?.createdAt, running: active.has(id),
-        preview: first ? textOf(first.content).slice(0, 200) : '', turns: projectTurns(messages, session.meta?.createdAt),
+        preview: first ? visibleText(first.content).slice(0, 200) : '', turns: projectTurns(messages, session.meta?.createdAt),
       }),
     }
   }
@@ -252,14 +257,30 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'thread/unsubscribe': () => ({ status: 'notSubscribed' }),
     'thread/list': async (params, { signal }) => {
       const value = await service().list({}, signal)
+      const archived = new Set(workspaces()?.archivedSessionIds ?? [])
+      const wantArchived = params?.archived === true
       const data = (value.items ?? [])
-        .filter(item => item.origin !== 'subagent' && !item.blank)
+        .filter(item => item.origin !== 'subagent' && !item.blank && archived.has(item.sessionId) === wantArchived)
         .map(item => thread({
           id: item.sessionId, cwd: item.cwd, createdAt: item.updatedAt, updatedAt: item.updatedAt,
           running: item.running, title: item.projections?.values?.title ?? null,
         }))
         .filter(entry => !params?.searchTerm || `${entry.name ?? ''} ${entry.preview}`.toLocaleLowerCase().includes(String(params.searchTerm).toLocaleLowerCase()))
       return { data, nextCursor: null, backwardsCursor: null }
+    },
+    // Archiving is DSH's registry-wide archive set, the same one the desktop sidebar uses.
+    'thread/archive': async params => {
+      const registry = workspaces()
+      if (!registry) throw new RpcError(-32603, 'DSH archive is unavailable in this profile')
+      try { await registry.archiveSession(params?.threadId, { stopActivity: true }) } catch { throw notFound(params?.threadId) }
+      active.delete(params?.threadId)
+      return {}
+    },
+    'thread/unarchive': async params => {
+      const registry = workspaces()
+      if (!registry) throw new RpcError(-32603, 'DSH archive is unavailable in this profile')
+      await registry.unarchiveSession(params?.threadId)
+      return { thread: (await openThread(params?.threadId)).thread }
     },
     'thread/read': async params => ({ thread: (await openThread(params?.threadId)).thread }),
     'thread/resume': async (params, { notify }) => {
@@ -341,11 +362,45 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
    * DSH approval answerer: while a phone drives a turn, it answers that turn's approvals.
    * Without a phone (or if it drops) the request goes on to DSH's own prompt.
    */
-  const onApproval = (request, next) => {
+  /** The phone driving this agent's running turn, when there is one. */
+  const phoneFor = request => {
     const session = request.agent?.session
     const running = session ? active.get(session.id) : undefined
     const phone = session ? [...(subscribers.get(session.id) ?? [])].find(notify => typeof notify.ask === 'function') : undefined
-    if (!running || !phone) return next()
+    return running && phone ? { session, running, phone } : undefined
+  }
+
+  /** DSH's ask-user tool: show the questions on the phone that drives the turn, else leave them to DSH. */
+  const onQuestion = (request, next) => {
+    const found = phoneFor(request)
+    if (!found) return next()
+    const { session, running, phone } = found
+    const labels = new Map(request.questions.map(question => [question.id, new Set((question.options ?? []).map(option => option.label))]))
+    return phone.ask('item/tool/requestUserInput', {
+      threadId: session.id, turnId: running.turn.id, itemId: request.wait?.callId ?? randomUUID(),
+      questions: request.questions.map(question => ({
+        id: question.id, header: question.header ?? '', question: question.detail ? `${question.question}\n\n${question.detail}` : question.question,
+        isOther: true, isSecret: false,
+        options: question.options?.length ? question.options.map(option => ({ label: option.label, description: option.description ?? '' })) : null,
+      })),
+    }, request.signal).then(
+      answer => ({
+        answers: request.questions.map(question => {
+          const given = Array.isArray(answer?.answers?.[question.id]?.answers) ? answer.answers[question.id].answers.map(String) : []
+          const known = labels.get(question.id)
+          const selected = given.filter(value => known.has(value))
+          const custom = given.filter(value => !known.has(value)).join('\n')
+          return { id: question.id, selected, ...(custom === '' ? {} : { custom }) }
+        }),
+      }),
+      () => next(),
+    )
+  }
+
+  const onApproval = (request, next) => {
+    const found = phoneFor(request)
+    if (!found) return next()
+    const { session, running, phone } = found
     return phone.ask('item/commandExecution/requestApproval', {
       threadId: session.id, turnId: running.turn.id, itemId: request.callId ?? randomUUID(), startedAtMs: Date.now(),
       command: commandText(session, request), cwd: session.meta?.cwd ?? null, reason: request.displayReason?.en ?? request.reason ?? null,
@@ -385,5 +440,5 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     }
   }
 
-  return { methods, onSessionEvent, onApproval, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
+  return { methods, onSessionEvent, onApproval, onQuestion, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
 }

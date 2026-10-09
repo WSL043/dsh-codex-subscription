@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRemoteControlHost, RpcError } from '../src/remote-control-host.js'
-import { createDshRemoteControl, modelKey, parseModelKey, projectTurns } from '../src/remote-control-dsh.js'
+import { createDshRemoteControl, modelKey, parseModelKey, projectTurns, visibleText } from '../src/remote-control-dsh.js'
 import { createRemoteControlRelay, remoteControlEndpoints } from '../src/remote-control-relay.js'
 
 const wait = (ms = 5) => new Promise(resolve => setTimeout(resolve, ms))
@@ -223,4 +223,52 @@ test('the phone can prepare a working folder before a new chat', async () => {
   assert.equal(meta.isDirectory, true)
   assert.equal(meta.isSymlink, false)
   assert.deepEqual(await methods['fs/readDirectory']({ path: 'x' }), { entries: [] })
+})
+
+test('ask-user questions go to the phone during its turn and map back to DSH answers', async () => {
+  const { bridge, session } = fakeControl()
+  const asked = []
+  const notify = async () => {}
+  notify.ask = async (method, params) => { asked.push([method, params]); return { answers: { pick: { answers: ['Blue', 'my own'] }, why: { answers: ['because'] } } } }
+  const request = {
+    agent: { session }, wait: { callId: 'q1' },
+    questions: [{ id: 'pick', question: 'Colour?', options: [{ label: 'Red' }, { label: 'Blue', description: 'cool' }] }, { id: 'why', question: 'Why?', header: 'Reason' }],
+  }
+  assert.equal(await bridge.onQuestion(request, async () => 'dsh'), 'dsh', 'no phone turn, DSH asks')
+  await bridge.methods['turn/start'](hello('go'), { notify })
+  const answer = await bridge.onQuestion(request, async () => 'dsh')
+  assert.equal(asked[0][0], 'item/tool/requestUserInput')
+  assert.equal(asked[0][1].questions[0].options[1].description, 'cool')
+  assert.equal(asked[0][1].questions[1].options, null)
+  assert.deepEqual(answer.answers, [{ id: 'pick', selected: ['Blue'], custom: 'my own' }, { id: 'why', selected: [], custom: 'because' }])
+  notify.ask = async () => { throw new Error('gone') }
+  assert.equal(await bridge.onQuestion(request, async () => 'dsh'), 'dsh', 'a dropped phone falls back to DSH')
+})
+
+test("DSH's own system reminders never show up as something the person typed", () => {
+  const reminder = '<system-reminder>\nskills catalog\n</system-reminder>'
+  assert.equal(visibleText([{ type: 'text', text: `hello\n${reminder}` }]), 'hello')
+  const turns = projectTurns([
+    { role: 'user', id: 'a', content: [{ type: 'text', text: reminder }] },
+    { role: 'user', id: 'b', content: [{ type: 'text', text: `ask me\n${reminder}` }] },
+    { role: 'assistant', id: 'c', content: [{ type: 'text', text: 'ok' }] },
+  ])
+  assert.equal(turns.length, 1)
+  assert.equal(turns[0].items[0].content[0].text, 'ask me')
+})
+
+test('threads can be archived and restored from the phone through the DSH archive set', async () => {
+  const archived = new Set()
+  const registry = {
+    get archivedSessionIds() { return [...archived] },
+    archiveSession: async (id, options) => { assert.deepEqual(options, { stopActivity: true }); archived.add(id) },
+    unarchiveSession: async id => { archived.delete(id) },
+  }
+  const bridgeWith = createDshRemoteControl({ controller: () => ({ list: async () => ({ items: [{ sessionId: 's1', updatedAt: 2_000_000, blank: false }] }), resolveAgent: async () => ({ agent: { session: { id: 's1', meta: {}, deriveMessages: () => [] }, options: {} } }) }), agents: () => ({}), workspaces: () => registry, userAgent: 'x' })
+  assert.equal((await bridgeWith.methods['thread/list']({}, {})).data.length, 1)
+  await bridgeWith.methods['thread/archive']({ threadId: 's1' })
+  assert.equal((await bridgeWith.methods['thread/list']({}, {})).data.length, 0)
+  assert.equal((await bridgeWith.methods['thread/list']({ archived: true }, {})).data.length, 1)
+  await bridgeWith.methods['thread/unarchive']({ threadId: 's1' })
+  assert.equal((await bridgeWith.methods['thread/list']({}, {})).data.length, 1)
 })
