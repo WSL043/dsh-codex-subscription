@@ -9,6 +9,10 @@ export function createSettingsAdapter(ctx, config) {
   return {
     get,
     update: patch => ctx.settings.update(id, patch),
-    watch(listener) { return ctx.on('loader/volatile-update', () => listener(get())) },
+    // The host reports only that settings changed; keep the last values so watchers can compare.
+    watch(listener) {
+      let previous = get()
+      return ctx.on('loader/volatile-update', () => { const value = get(); const before = previous; previous = value; listener(value, before) })
+    },
   }
 }
