@@ -30,10 +30,9 @@ import { readCapabilitySettings, CUSTOM_CONTEXT_OVERRIDES_FIELD } from './capabi
 
 
 
-export function createPreferenceController(scope, rpc) {
+export function createPreferenceController(rpc) {
   let updating = false
   let error = false
-  let fallbackStatus = 'loading'
   let fallback
   let pendingPatch
   let failedPatch
@@ -54,14 +53,8 @@ export function createPreferenceController(scope, rpc) {
 
   const sameModels = (left, right) => left.length === right.length
     && left.every((model, index) => JSON.stringify(model) === JSON.stringify(right[index]))
-  const nativeSnapshot = () => scope.getSnapshot()
   const read = () => {
-    const native = nativeSnapshot()
-    const current = native.status === 'ready'
-      ? native
-      : fallbackStatus === 'ready'
-        ? fallback
-        : native
+    const current = fallback ?? { status: 'unavailable' }
     const value = pendingPatch === undefined ? current.value : { ...current.value, ...pendingPatch }
     const capabilities = readCapabilitySettings(value)
     return Object.freeze({
@@ -111,11 +104,6 @@ export function createPreferenceController(scope, rpc) {
     snapshot = read()
     for (const listener of listeners) listener()
   }
-  const disposeScope = scope.subscribe(() => {
-    error = false
-    if (!updating) failedPatch = undefined
-    publish()
-  })
   const acceptFallback = value => {
     subagentBackendAvailable = value?.subagentBackendAvailable === true
     subagentRuntimeInstalled = value?.subagentRuntimeInstalled === true
@@ -127,7 +115,6 @@ export function createPreferenceController(scope, rpc) {
       ultrafastModels = Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : []
       catalogStatus = value?.catalogStatus
     }
-    fallbackStatus = 'ready'
     fallback = {
       status: 'ready',
       value: {
@@ -159,30 +146,16 @@ export function createPreferenceController(scope, rpc) {
     const current = ++generation
     updating = false
     pendingPatch = undefined
-    fallbackStatus = 'loading'
     fallback = undefined
     error = false
     publish()
     try {
       const value = unwrap(await rpc.call(CHANNEL, 'preferences/status', {}))
       if (current !== generation || disposed) return
-      subagentBackendAvailable = value?.subagentBackendAvailable === true
-      subagentRuntimeInstalled = value?.subagentRuntimeInstalled === true
-      if (nativeSnapshot().status === 'ready') {
-        if (!modelRefreshStarted) {
-          contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
-          availableModels = Array.isArray(value?.availableModels) ? value.availableModels : []
-          verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
-          fastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
-          ultrafastModels = Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : []
-          catalogStatus = value?.catalogStatus
-        }
-      }
-      else acceptFallback(value)
+      acceptFallback(value)
       publish()
     } catch {
-      if (current !== generation || disposed || nativeSnapshot().status === 'ready') return
-      fallbackStatus = 'unavailable'
+      if (current !== generation || disposed) return
       publish()
     }
   }
@@ -226,48 +199,20 @@ export function createPreferenceController(scope, rpc) {
       if (!disposed && current === modelRefreshGeneration) { modelsLoading = false; publish() }
     }
   }
-  // The Host may publish an accepted write a moment after `scope.set` resolves;
-  // judge the write only once its snapshot settles, so a slow update does not
-  // read as a rejection and snap the control back.
-  const accepted = (entries, wait = 1500) => new Promise(resolve => {
-    const matches = () => entries.every(([field, value]) => JSON.stringify(nativeSnapshot().value?.[field]) === JSON.stringify(value))
-    if (matches()) return resolve(true)
-    let timer
-    const stop = scope.subscribe(() => {
-      if (!matches()) return
-      clearTimeout(timer)
-      stop()
-      resolve(true)
-    })
-    timer = setTimeout(() => { stop(); resolve(matches()) }, wait)
-  })
   const set = async patch => {
     if (disposed || snapshot.status !== 'ready' || snapshot.writable !== true) return
     const current = ++generation
-    const entries = Object.entries(patch)
     updating = true
     pendingPatch = patch
     error = false
     failedPatch = undefined
     publish()
     try {
-      const native = nativeSnapshot()
-      if (native.status === 'ready' && !Object.hasOwn(patch, 'subagentBackend')) {
-        for (const [field, value] of entries) {
-          if (current !== generation) return
-          await scope.set(field, value)
-        }
-        if (current !== generation) return
-        error = !await accepted(entries)
-        if (error) failedPatch = patch
-        pendingPatch = undefined
-      } else {
-        const value = unwrap(await rpc.call(CHANNEL, 'preferences/update', patch))
-        if (current !== generation) return
-        acceptFallback(value)
-        // The Host may normalize or reject a requested value; its response wins.
-        pendingPatch = undefined
-      }
+      const value = unwrap(await rpc.call(CHANNEL, 'preferences/update', patch))
+      if (current !== generation) return
+      acceptFallback(value)
+      // The Host may normalize or reject a requested value; its response wins.
+      pendingPatch = undefined
     } catch {
       if (current === generation) {
         pendingPatch = undefined
@@ -295,7 +240,6 @@ export function createPreferenceController(scope, rpc) {
       disposed = true
       generation += 1
       modelRefreshGeneration += 1
-      disposeScope()
     },
   }
 }

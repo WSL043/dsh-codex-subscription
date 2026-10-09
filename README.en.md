@@ -93,7 +93,7 @@ Subscription access, model controls, quota management, and image creation in one
 
 ## Prepare DSH
 
-Verified against DSH `0.2.0-rc.2` (`next` channel) and `0.1.7-rc.2` (`latest` channel), with earlier accepted versions still supported.
+Verified against DSH `0.2.0-rc.2` (`latest` and `next` channels); the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
 
 This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 

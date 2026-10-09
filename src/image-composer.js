@@ -1,16 +1,11 @@
 // Shared admission and cleanup for sketches and existing-image edits.
 export function attachImageFiles(conversation, input, files, sessionId) {
-  // DSH 0.1.5 generalizes image drafts into session-owned attachments.
-  const modern = typeof conversation.createDrafts === 'function'
-  const create = modern ? () => conversation.createDrafts(sessionId, files) : () => conversation.createDraftImages(files)
-  const release = modern ? items => conversation.releaseDraftAttachments(items) : items => conversation.releaseDraftImages(items)
-  const add = modern ? input.addAttachments : input.addImages
-  if (typeof add !== 'function' || (modern && !sessionId)) throw new Error('Image composer is unavailable')
-  const created = create()
+  if (typeof conversation.createDrafts !== 'function' || typeof input.addAttachments !== 'function' || !sessionId) throw new Error('Image composer is unavailable')
+  const created = conversation.createDrafts(sessionId, files)
   try {
-    if (!add.call(input, created.map(item => item.id))) throw new Error('The composer is busy')
+    if (!input.addAttachments(created.map(item => item.id))) throw new Error('The composer is busy')
   } catch (error) {
-    release(created)
+    conversation.releaseDraftAttachments(created)
     throw error
   }
   return created

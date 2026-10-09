@@ -3,51 +3,38 @@ import test from 'node:test'
 import { createPreferenceController } from '../src/preference-controller.js'
 import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, DISABLED_MODELS_FIELD } from '../src/settings-contract.js'
 
-function harness({ fail = false, rpcCall } = {}) {
-  let native = {
-    status: 'ready',
-    writable: true,
-    value: {
-      contextMode: CONTEXT_MODE_STANDARD,
-      searchProvider: 'auto',
-      quickQuotaMode: 'off',
-      speedMode: 'standard',
-      outputVerbosity: 'default',
-    },
+function harness({ fail = false, extra = () => ({}), models } = {}) {
+  let value = {
+    contextMode: CONTEXT_MODE_STANDARD,
+    searchProvider: 'auto',
+    quickQuotaMode: 'off',
+    speedMode: 'standard',
+    outputVerbosity: 'default',
   }
-  const listeners = new Set()
   let settle
-  const scope = {
-    getSnapshot: () => native,
-    subscribe(listener) {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
-    },
-    set(field, value) {
+  const status = () => ({ ok: true, value: { ...value, ...extra(), writable: true } })
+  const rpc = {
+    async call(_channel, method, patch) {
+      if (method === 'preferences/models') return models()
+      if (method !== 'preferences/update') return status()
       return new Promise((resolve, reject) => {
         settle = () => {
-          if (fail) {
-            reject(new Error('write failed'))
-            return
-          }
-          native = { ...native, value: { ...native.value, [field]: value } }
-          for (const listener of listeners) listener()
-          resolve()
+          if (fail) return reject(new Error('write failed'))
+          value = { ...value, ...patch }
+          resolve(status())
         }
       })
     },
   }
-  const rpc = { call: rpcCall ?? (async () => ({ ok: true, value: native.value })) }
-  return { controller: createPreferenceController(scope, rpc), settle: () => settle?.() }
+  const controller = createPreferenceController(rpc)
+  return { controller, ready: () => controller.load(), settle: () => settle?.() }
 }
 
 const fallbackModels = [{ key: 'gpt-5.5', label: 'GPT-5.5', maximum: 1_000_000 }]
 
 test('missing Codex runtime leaves ordinary preferences and the DSH backend usable', async () => {
   let installed = false
-  const { controller } = harness({ rpcCall: async () => ({ ok: true, value: {
-    subagentBackendAvailable: true, subagentRuntimeInstalled: installed,
-  } }) })
+  const { controller } = harness({ extra: () => ({ subagentBackendAvailable: true, subagentRuntimeInstalled: installed }) })
   await controller.load()
   assert.equal(controller.getSnapshot().subagentRuntimeInstalled, false)
   assert.equal(controller.getSnapshot().subagentBackend, 'dsh')
@@ -71,15 +58,6 @@ const fallbackValue = {
 
 function deferredModelHarness() {
   const pendingModels = []
-  const listeners = new Set()
-  const scope = {
-    getSnapshot: () => ({ status: 'loading', writable: false, value: undefined }),
-    subscribe(listener) {
-      listeners.add(listener)
-      return () => listeners.delete(listener)
-    },
-    set: async () => {},
-  }
   const rpc = {
     call: async (_channel, method) => {
       if (method === 'preferences/status') return { ok: true, value: fallbackValue }
@@ -89,11 +67,12 @@ function deferredModelHarness() {
       return { ok: true, value: fallbackValue }
     },
   }
-  return { controller: createPreferenceController(scope, rpc), pendingModels, listeners }
+  return { controller: createPreferenceController(rpc), pendingModels }
 }
 
 test('automatic quota retry defaults off and persists an explicit enable', async () => {
-  const { controller, settle } = harness()
+  const { controller, ready, settle } = harness()
+  await ready()
   assert.equal(controller.getSnapshot().autoQuotaRetry, false)
 
   const pending = controller.set({ [AUTO_QUOTA_RETRY_FIELD]: true })
@@ -105,8 +84,8 @@ test('automatic quota retry defaults off and persists an explicit enable', async
 
 test('the full model list stays visible while a disabled choice is saved', async () => {
   const availableModels = [{ id: 'gpt-5.5', name: 'GPT-5.5' }, { id: 'gpt-6-astra', name: 'GPT-6 Astra' }]
-  const { controller, settle } = harness({ rpcCall: async () => ({ ok: true, value: { availableModels } }) })
-  await controller.load()
+  const { controller, ready, settle } = harness({ extra: () => ({ availableModels }) })
+  await ready()
   assert.deepEqual(controller.getSnapshot().availableModels, availableModels)
   const saving = controller.set({ [DISABLED_MODELS_FIELD]: ['gpt-5.5'] })
   assert.deepEqual(controller.getSnapshot().disabledModels, ['gpt-5.5'])
@@ -117,7 +96,8 @@ test('the full model list stays visible while a disabled choice is saved', async
 })
 
 test('preference save reflects the chosen value while keeping ready surfaces mounted', async () => {
-  const { controller, settle } = harness()
+  const { controller, ready, settle } = harness()
+  await ready()
   const pending = controller.set({ [CONTEXT_MODE_FIELD]: CONTEXT_MODE_EXTENDED })
 
   assert.equal(controller.getSnapshot().status, 'ready')
@@ -133,7 +113,8 @@ test('preference save reflects the chosen value while keeping ready surfaces mou
 })
 
 test('failed preference save rolls back the optimistic value and keeps retry state', async () => {
-  const { controller, settle } = harness({ fail: true })
+  const { controller, ready, settle } = harness({ fail: true })
+  await ready()
   const pending = controller.set({ [CONTEXT_MODE_FIELD]: CONTEXT_MODE_EXTENDED })
 
   assert.equal(controller.getSnapshot().contextMode, CONTEXT_MODE_EXTENDED)
@@ -144,12 +125,7 @@ test('failed preference save rolls back the optimistic value and keeps retry sta
   assert.equal(controller.getSnapshot().error, true)
 })
 
-test('fallback preference save adopts the Host accepted value instead of the optimistic patch', async () => {
-  let state = {
-    status: 'loading',
-    writable: false,
-    value: undefined,
-  }
+test('preference save adopts the Host accepted value instead of the optimistic patch', async () => {
   const accepted = {
     contextMode: CONTEXT_MODE_STANDARD,
     searchProvider: 'auto',
@@ -163,12 +139,7 @@ test('fallback preference save adopts the Host accepted value instead of the opt
       ? { ok: true, value: accepted }
       : { ok: true, value: accepted },
   }
-  const scope = {
-    getSnapshot: () => state,
-    subscribe: () => () => {},
-    set: async () => {},
-  }
-  const controller = createPreferenceController(scope, rpc)
+  const controller = createPreferenceController(rpc)
   await controller.load()
   assert.equal(controller.getSnapshot().contextMode, CONTEXT_MODE_STANDARD)
 
@@ -224,11 +195,8 @@ test('a no-op model refresh keeps the model arrays and reports loading transitio
 
 test('model metadata refresh does not interrupt a pending preference save', async () => {
   let resolveModels
-  const { controller, settle } = harness({
-    rpcCall: async (_channel, method) => method === 'preferences/models'
-      ? new Promise(resolve => { resolveModels = resolve })
-      : { ok: true, value: {} },
-  })
+  const { controller, ready, settle } = harness({ models: () => new Promise(resolve => { resolveModels = resolve }) })
+  await ready()
   const saving = controller.set({ [CONTEXT_MODE_FIELD]: CONTEXT_MODE_EXTENDED })
   const refreshing = controller.refreshModels()
   resolveModels({ ok: true, value: { contextModels: astraModels, verbosityModels: ['gpt-6-astra'] } })
@@ -253,33 +221,4 @@ test('a stale account model response cannot replace the newer directory', async 
   assert.equal(await oldRefresh, false)
   assert.deepEqual(controller.getSnapshot().contextModels, astraModels)
   assert.deepEqual(controller.getSnapshot().verbosityModels, ['gpt-6-astra'])
-})
-
-test('a write the host publishes a moment late is accepted, not reverted', async () => {
-  let native = { status: 'ready', writable: true, value: { quickQuotaMode: 'forecast' } }
-  const listeners = new Set()
-  const scope = {
-    getSnapshot: () => native,
-    subscribe: listener => { listeners.add(listener); return () => listeners.delete(listener) },
-    async set(field, value) {
-      setTimeout(() => { native = { ...native, value: { ...native.value, [field]: value } }; for (const listener of listeners) listener() }, 60)
-    },
-  }
-  const controller = createPreferenceController(scope, { call: async () => ({ ok: true, value: {} }) })
-  await controller.set({ quickQuotaMode: 'percent' })
-  assert.equal(controller.getSnapshot().quickQuotaMode, 'percent')
-  assert.equal(controller.getSnapshot().error, false)
-  controller.dispose()
-})
-
-test('a write the host never applies still reports failure and restores the shown value', async () => {
-  const native = { status: 'ready', writable: true, value: { quickQuotaMode: 'forecast' } }
-  const scope = { getSnapshot: () => native, subscribe: () => () => {}, async set() {} }
-  const controller = createPreferenceController(scope, { call: async () => ({ ok: true, value: {} }) })
-  const started = Date.now()
-  await controller.set({ quickQuotaMode: 'percent' })
-  assert.equal(controller.getSnapshot().error, true)
-  assert.equal(controller.getSnapshot().quickQuotaMode, 'forecast')
-  assert.ok(Date.now() - started < 3000)
-  controller.dispose()
 })

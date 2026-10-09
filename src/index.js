@@ -38,7 +38,7 @@ import { OriginalImageStore } from './image-original-store.js'
 import { inheritedOriginalImageRef } from './image-original-contract.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
 import { createDiagnosticOperations } from './diagnostic-operations.js'
-import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_FIELD, SETTINGS_NAMESPACE, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
+import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 import { createCodexQuotaRetryHandler } from './quota-retry.js'
 import { createQuotaForecastReader } from './quota-forecast.js'
@@ -52,9 +52,7 @@ const PROVIDER = 'openai-codex'
 const OAUTH_EXPIRY_SKEW_MS = 60_000
 const CREDENTIAL_REF = dshCredentials.credentialRef('OPENAI_CODEX_SUBSCRIPTION_OAUTH')
 const LEGACY_CREDENTIAL_REF = dshCredentials.credentialRef('WSL043_OPENAI_CODEX_OAUTH')
-const ACCOUNT_VAULT_KEY = typeof dshCredentials.credentialKey === 'function'
-  ? dshCredentials.credentialKey('codex-subscription', 'accounts')
-  : undefined
+const ACCOUNT_VAULT_KEY = dshCredentials.credentialKey('codex-subscription', 'accounts')
 const WEB_ENTRY_ID = 'web'
 const DSH_SEARCH_PROVIDER_FALLBACK = 'deepseek-official'
 const MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
@@ -116,22 +114,17 @@ const settingsFields = {
 export const Config = z.object(Object.fromEntries(Object.entries(settingsFields).map(([key, field]) => [key, field.extra('volatile', true)])))
 
 export function apply(ctx, config = {}) {
-  const settings = createSettingsAdapter(ctx, z.object(settingsFields), config, SETTINGS_NAMESPACE)
+  const settings = createSettingsAdapter(ctx, config)
   const searchProvider = createSearchProviderSwitcher(ctx.loader)
   const network = createCodexNetworkTransport()
   const diagnosticOperations = createDiagnosticOperations()
   ctx.effect(() => ctx.on?.('tools/result', (exec, result) => diagnosticOperations.tool(exec, result)), 'codex-subscription: operation evidence')
   const originalImages = new OriginalImageStore()
-  const accountVault = ACCOUNT_VAULT_KEY !== undefined
-    && typeof ctx.credentials.readRecord === 'function'
-    && typeof ctx.credentials.modifyRecord === 'function'
-    && typeof ctx.credentials.deleteRecord === 'function'
-    ? new DshOAuthAccountVault(ctx.credentials, {
-        key: ACCOUNT_VAULT_KEY,
-        legacyRef: CREDENTIAL_REF,
-        legacyRefs: [LEGACY_CREDENTIAL_REF],
-      })
-    : undefined
+  const accountVault = new DshOAuthAccountVault(ctx.credentials, {
+    key: ACCOUNT_VAULT_KEY,
+    legacyRef: CREDENTIAL_REF,
+    legacyRefs: [LEGACY_CREDENTIAL_REF],
+  })
   const store = new DshOAuthCredentialStore(ctx.credentials, CREDENTIAL_REF, [LEGACY_CREDENTIAL_REF], {
     expirySkewMs: OAUTH_EXPIRY_SKEW_MS,
     vault: accountVault,

@@ -2,8 +2,8 @@ import { createHash, randomUUID } from 'node:crypto'
 import { closeOpenAICodexWebSocketSessions, resetOpenAICodexWebSocketDebugStats, getOpenAICodexWebSocketDebugStats } from '@earendil-works/pi-ai/api/openai-codex-responses'
 import { resolveCodexOAuthProxy } from './oauth-network.js'
 
-// Keep the native protocol, continuation and pre-stream fallback. Scope its
-// cache even on older pi-ai hosts whose socket pool is keyed by session alone.
+// Keep the native protocol, continuation and pre-stream fallback, with its
+// socket cache scoped to this plugin's own sessions.
 export function createSubscriptionConnection({ resolveMode = () => 'sse', resolveProxy = resolveCodexOAuthProxy } = {}) {
   const namespace = randomUUID()
   const sessions = new Set()

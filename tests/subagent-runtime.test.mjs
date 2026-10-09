@@ -15,8 +15,8 @@ test('preparation checks the provider-local CLI without shell or PATH and suppor
   const root = await mkdtemp(join(tmpdir(), 'subscription-runtime-'))
   try {
     const provider = join(root, 'package.json'), host = join(root, 'host.json'), entry = join(root, 'index.js')
-    await writeFile(provider, JSON.stringify({ version: '0.1.5-rc.2' }))
-    await writeFile(host, JSON.stringify({ version: '0.1.5-rc.2' }))
+    await writeFile(provider, JSON.stringify({ version: '0.1.7-rc.2' }))
+    await writeFile(host, JSON.stringify({ version: '0.1.7-rc.2' }))
     for (const [name, data] of [['@openai/codex', {version:'0.153.4',bin:{codex:'bin/codex.js'}}], ['@deepseek-ai/dsh-sdk-protocol', {main:'index.js'}]]) {
       const dir = join(root,'node_modules',name); await mkdir(dir,{recursive:true}); await writeFile(join(dir,'package.json'),JSON.stringify(data)); await writeFile(join(dir,'index.js'),'')
     }
@@ -32,14 +32,14 @@ test('preparation checks the provider-local CLI without shell or PATH and suppor
     fail = false
     const result = await loadSubagentRuntime({resolve,run,importModule:async url => url.endsWith('/index.js') ? {apply(){},JsonRpcLineTransport:class {}} : assert.fail()})
     assert.equal(typeof result.Transport,'function'); assert.equal(calls,2)
-    await writeFile(provider,JSON.stringify({version:'0.1.5-rc.3'}))
+    await writeFile(provider,JSON.stringify({version:'0.2.0-rc.1'}))
     assert.deepEqual(inspectSubagentRuntime(resolve),{installed:false,present:true})
-    await writeFile(host,JSON.stringify({version:'0.1.5-rc.3'}))
+    await writeFile(host,JSON.stringify({version:'0.2.0-rc.1'}))
     assert.deepEqual(inspectSubagentRuntime(resolve),{installed:true})
     await loadSubagentRuntime({resolve,run,importModule:async()=>({JsonRpcLineTransport:class {}})})
-    await writeFile(provider,JSON.stringify({version:'0.1.7-rc.1'}))
-    await writeFile(host,JSON.stringify({version:'0.1.7-rc.1'}))
-    assert.equal(matchingSubagentRuntimeVersion(resolve),'0.1.7-rc.1')
+    await writeFile(provider,JSON.stringify({version:'0.2.0-rc.2'}))
+    await writeFile(host,JSON.stringify({version:'0.2.0-rc.2'}))
+    assert.equal(matchingSubagentRuntimeVersion(resolve),'0.2.0-rc.2')
     assert.deepEqual(inspectSubagentRuntime(resolve),{installed:true})
     await loadSubagentRuntime({resolve,run,importModule:async()=>({JsonRpcLineTransport:class {}})})
     await writeFile(provider,JSON.stringify({version:'0.1.7-rc.2'}))

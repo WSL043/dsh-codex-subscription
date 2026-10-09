@@ -33,20 +33,18 @@ test('original store preserves exact PNG bytes and isolates them by session', as
 test('fork access requires an exact original reference in the inherited event prefix', async () => withStore(async store => {
   const ref = await store.save('session-parent', PNG)
   const presentation = { kind: 'codex-subscription-image', schemaVersion: 1, original: ref }
-  const child = {
-    header: { parentSession: 'session-parent', seedLength: 2 },
-    events: [
-      { seq: 0, type: 'user/message', data: {} },
-      { seq: 1, type: 'tool/result', data: { meta: presentation } },
-      { seq: 2, type: 'tool/result', data: { meta: presentation } },
-    ],
-  }
+  const events = [
+    { seq: 0, type: 'user/message', data: {} },
+    { seq: 1, type: 'tool/result', data: { meta: presentation } },
+    { seq: 2, type: 'tool/result', data: { meta: presentation } },
+  ]
+  const child = { header: { parentSession: 'session-parent' }, inheritedEventCount: 2, snapshotEvents: () => events }
   const inherited = inheritedOriginalImageRef(child, ref.assetId)
   assert.equal(originalImageRefsEqual(inherited, ref), true)
   assert.deepEqual((await store.read('session-child', ref.assetId, inherited))?.data, PNG)
   assert.equal(await store.read('session-child', ref.assetId, { ...ref, sha256: '0'.repeat(64) }), undefined)
-  assert.equal(inheritedOriginalImageRef({ ...child, header: { parentSession: 'session-parent', seedLength: 1 } }, ref.assetId), undefined)
-  assert.equal(inheritedOriginalImageRef({ header: {}, events: child.events }, ref.assetId), undefined)
+  assert.equal(inheritedOriginalImageRef({ ...child, inheritedEventCount: 1 }, ref.assetId), undefined)
+  assert.equal(inheritedOriginalImageRef({ ...child, header: {} }, ref.assetId), undefined)
 }))
 
 test('real DSH forks inherit only original references present before their fork boundary', async () => withStore(async store => {
