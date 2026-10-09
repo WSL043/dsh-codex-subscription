@@ -118,7 +118,7 @@
 <summary>终端安装（已能运行 dsh 命令）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription
+dsh plugin --profile web add dsh-codex-subscription@2.5.9
 ```
 
 安装完成后按提示重启 DSH，再到 **设置 → Codex 订阅** 登录。插件页面和终端均由 DSH 管理安装。
@@ -131,7 +131,7 @@ dsh plugin --profile web add dsh-codex-subscription
 先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription
+dsh plugin --profile headless add dsh-codex-subscription@2.5.9
 dsh --profile headless "只回复：ok"
 ```
 
@@ -295,7 +295,7 @@ DSH 实机设置截图。
 <summary>终端方式</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription
+dsh plugin --profile web update dsh-codex-subscription@2.5.9
 ```
 
 仅在需要卸载时运行：
@@ -311,7 +311,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 <details>
 <summary>DSH 0.2.0-rc.2 提示插件不兼容？</summary>
 
-2.2.10 之前的所有版本发布时 DSH 0.2.0-rc.2 还不存在，其兼容声明无法事后修改。请安装 2.2.10 或更高版本（只填包名时，发布满 24 小时前可能装到旧版，请直接填 `dsh-codex-subscription@2.2.10`）：在 **插件** 页面更新，或运行 `dsh plugin --profile web update dsh-codex-subscription`，然后重启 DSH。
+2.2.10 之前的所有版本发布时 DSH 0.2.0-rc.2 还不存在，其兼容声明无法事后修改。请安装 2.2.10 或更高版本（只填包名时，发布满 24 小时前可能装到旧版，请直接填 `dsh-codex-subscription@2.2.10`）：在 **插件** 页面更新，或运行 `dsh plugin --profile web update dsh-codex-subscription@2.5.9`，然后重启 DSH。
 
 </details>
 
