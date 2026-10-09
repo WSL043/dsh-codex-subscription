@@ -121,8 +121,8 @@ function bodyBytes(body) {
 export function transportError(error, signal) {
   if (signal?.aborted || error?.name === 'AbortError' || error?.code === 'ABORT_ERR') return error
   if (!/^(?:ECONNRESET|ECONNREFUSED|EPIPE|ETIMEDOUT|ENETUNREACH|EHOSTUNREACH|EAI_AGAIN|ERR_STREAM_PREMATURE_CLOSE)$/.test(error?.code ?? '')) return error
-  // pi-ai currently flattens Error to its message. Preserve both the original
-  // typed cause and a stable transport signature for older host classifiers.
+  // pi-ai flattens Error to its message. Preserve both the original typed cause
+  // and a stable transport signature for DSH's error classifier.
   return Object.assign(new Error(`Network transport failure (${error.code}): ${error.message}`, { cause: error }), { code: error.code })
 }
 

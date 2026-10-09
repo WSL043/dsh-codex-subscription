@@ -22,11 +22,11 @@ test('generation and editing switches are independent and strictly boolean', () 
 })
 test('composer rejects release all newly created attachments, including thrown errors', () => {
   const created = [{id:'a'},{id:'b'}]; let released
-  const conversation={createDraftImages:()=>created,releaseDraftImages:value=>{released=value}}
-  assert.throws(()=>attachImageFiles(conversation,{addImages:()=>false},[]))
+  const conversation={createDrafts:()=>created,releaseDraftAttachments:value=>{released=value}}
+  assert.throws(()=>attachImageFiles(conversation,{addAttachments:()=>false},[],'s'))
   assert.equal(released,created)
   released=undefined
-  assert.throws(()=>attachImageFiles(conversation,{addImages:()=>{throw Error('busy')}},[]))
+  assert.throws(()=>attachImageFiles(conversation,{addAttachments:()=>{throw Error('busy')}},[],'s'))
   assert.equal(released,created)
 })
 test('image instruction insertion preserves existing draft and refuses to flatten reference chips', () => {

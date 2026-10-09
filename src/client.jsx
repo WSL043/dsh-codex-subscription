@@ -151,9 +151,6 @@ export function apply(ctx) {
     const tool = Array.isArray(extraFiles)
     if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
     return withComposerSession(sessions, sessionId, async actx => {
-      if (conversation.input?.for === undefined) {
-        throw new Error('This DSH version does not provide the image composer bridge')
-      }
       const response = await fetch(src, { signal: lifetime.signal })
       if (!response.ok) throw new Error('Could not read generated image')
       const blob = await response.blob()
