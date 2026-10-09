@@ -12,6 +12,7 @@ const TARGET_SEGMENT_BYTES = 100 * 1024
 const MAX_MESSAGE_BYTES = 100 * 1024 * 1024
 const MAX_CHUNKS = 1024
 const INITIAL_RECONNECT_MS = 1_000
+const CONFLICT_RENEW_MS = 15 * 60_000
 const MAX_RECONNECT_MS = 30_000
 const REQUEST_TIMEOUT_MS = 30_000
 const REFRESH_MARGIN_MS = 5 * 60_000
@@ -71,6 +72,7 @@ function enrollment(value) {
  * }} options
  */
 export function createRemoteControlRelay(options) {
+  let installation = options.installationId
   const endpoints = remoteControlEndpoints(options.base)
   const doFetch = options.fetch ?? globalThis.fetch
   const now = options.now ?? Date.now
@@ -109,12 +111,12 @@ export function createRemoteControlRelay(options) {
       'chatgpt-account-id': accountId,
       'content-type': 'application/json',
       'user-agent': options.userAgent,
-      'x-codex-installation-id': options.installationId,
+      'x-codex-installation-id': installation,
     }
     const refresh = enrolled !== undefined
     const body = refresh
-      ? { installation_id: options.installationId, server_id: enrolled.serverId }
-      : { app_server_version: options.userAgent.split('/').at(-1), arch: process.arch, installation_id: options.installationId, name: options.hostName, os: process.platform }
+      ? { installation_id: installation, server_id: enrolled.serverId }
+      : { app_server_version: options.userAgent.split('/').at(-1), arch: process.arch, installation_id: installation, name: options.hostName, os: process.platform }
     const next = enrollment(await request(refresh ? endpoints.refresh : endpoints.enroll, { method: 'POST', headers, body: JSON.stringify(body) }, signal))
     if (refresh && next.serverId !== enrolled.serverId) throw new RemoteControlError('bad-response', 'Remote Control returned a mismatched enrollment')
     enrolled = next
@@ -236,7 +238,7 @@ export function createRemoteControlRelay(options) {
         headers: {
           authorization: `Bearer ${current.token}`,
           'user-agent': options.userAgent,
-          'x-codex-installation-id': options.installationId,
+          'x-codex-installation-id': installation,
           'x-codex-name': Buffer.from(options.hostName).toString('base64'),
           'x-codex-protocol-version': PROTOCOL_VERSION,
           'x-codex-server-id': current.serverId,
@@ -262,6 +264,8 @@ export function createRemoteControlRelay(options) {
 
   const loop = async signal => {
     let delay = INITIAL_RECONNECT_MS
+    let conflicts = 0
+    let conflictSince = 0
     while (!signal.aborted) {
       state.status = 'connecting'
       try {
@@ -269,8 +273,18 @@ export function createRemoteControlRelay(options) {
         delay = INITIAL_RECONNECT_MS
       } catch (error) {
         state.lastError = error?.code ?? 'network'
+        if (options.debug) state.detail = String(error?.message ?? error).slice(0, 160)
         state.status = 'error'
-        if (error?.code === 'unauthorized') enrolled = undefined
+        // 409: the relay still holds a stale connection for this host; enroll again after a few tries.
+        conflicts = /409/u.test(String(error?.message)) ? conflicts + 1 : 0
+        if (conflicts === 1) conflictSince = now()
+        if (error?.code === 'unauthorized' || conflicts >= 3) enrolled = undefined
+        // Still refused after fresh enrollments: this host id is stuck on the relay, so take a new one.
+        // A restarted host is refused for a few minutes until the relay drops the old connection;
+        // only a host stuck far longer gets a new id (its phones then need to pair again).
+        if (conflicts >= 3 && now() - conflictSince >= (options.conflictRenewMs ?? CONFLICT_RENEW_MS) && options.renewInstallation) {
+          installation = await options.renewInstallation(); enrolled = undefined; conflicts = 0
+        }
         if (error?.code === 'not-signed-in') { state.status = 'stopped'; return }
       }
       if (signal.aborted) break

@@ -7,8 +7,9 @@ import { createRemoteControlRelay } from './remote-control-relay.js'
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu
 
 /** The installation id only tells ChatGPT "this is the same machine"; it is not a secret. */
-async function installationId(filename) {
+async function installationId(filename, fresh = false) {
   try {
+    if (fresh) throw Object.assign(new Error('rotate'), { code: 'ENOENT' })
     const value = JSON.parse(await readFile(filename, 'utf8'))?.installationId
     if (typeof value === 'string' && UUID.test(value)) return value
   } catch (error) {
@@ -40,10 +41,13 @@ export function createRemoteControl(options) {
   let starting
   const ensureRelay = async () => {
     relay ??= createRemoteControlRelay({
+      debug: process.env.DSH_CODEX_REMOTE_DEBUG === '1',
       credentials: options.credentials,
       fetch: options.fetch,
       WebSocket: options.WebSocket,
       installationId: await installationId(options.stateFile),
+      // The relay keeps answering 409 for a host id it still thinks is connected; a new id is the way out.
+      renewInstallation: () => installationId(options.stateFile, true),
       hostName: options.hostName,
       userAgent: options.userAgent,
       base: options.base,
