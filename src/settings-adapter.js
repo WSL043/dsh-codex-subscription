@@ -1,6 +1,5 @@
-// Stable DSH owns a settings namespace; newer hosts persist volatile Config fields.
-export function createSettingsAdapter(ctx, schema, config, namespace) {
-  if (typeof ctx.settings.register === 'function') return ctx.settings.register(namespace, schema)
+// DSH persists volatile Config fields; writes go through the profile entry.
+export function createSettingsAdapter(ctx, config) {
   if (typeof ctx.settings.configure !== 'function' || typeof ctx.settings.update !== 'function') throw new Error('DSH settings API is unavailable')
   ctx.effect(() => ctx.settings.configure({ auto: false }))
   const entry = ctx.fiber.entry
