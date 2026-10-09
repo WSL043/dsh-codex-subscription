@@ -91,13 +91,13 @@ see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-
 
 ### Phone remote control (Beta)
 
-Turn it on under **Models & runtime → Phone remote control** and this computer's DSH appears in the ChatGPT mobile app's Codex host list. Press Generate pairing code, then scan the QR code or type the manual code in the app; the code lasts about 10 minutes.
+Turn it on under **Settings → Codex → Models & runtime → Phone remote control** and this computer's DSH appears in the ChatGPT mobile app's Codex host list. Press Generate pairing code, then scan the QR code or type the manual code in the app; the code lasts about 10 minutes.
 
-- From the phone you can browse history, start and continue conversations, interrupt, queue messages, and switch model (including DeepSeek and other third-party models), reasoning level and permissions (workspace write / full access).
-- When DSH needs approval for a tool call, the phone shows Approve, Decline and Cancel; if the phone is offline the prompt falls back to the computer.
+- From the phone you can browse history, start and continue conversations, interrupt, queue, archive and unarchive conversations, and switch model (including DeepSeek and other third-party models), reasoning level and permissions (workspace write / full access).
+- When DSH needs a tool approval or asks you a question, the phone shows the choices; if the phone dropped, reopening the conversation within two minutes asks again, otherwise the computer handles it.
 - Model errors (missing key, exhausted quota, ...) are shown on the phone.
 - Only a host identifier is stored locally; pairing credentials are never written to disk, and turning the switch off disconnects.
-- This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. For safety the phone cannot run commands on the computer directly (so command-backed views such as the change viewer are unavailable); choosing a workspace for new conversations and sending images are not supported yet.
+- This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. For safety the phone cannot run commands on the computer directly (so command-backed views such as the change viewer are unavailable); conversations started from the phone use DSH's default workspace, and sending images is not supported yet.
 
 ### Advanced experiments
 
