@@ -115,3 +115,13 @@ test('immutable releases are drafted, verified with the package and optional man
   assert.match(releaseWorkflow, /gh release edit "\$RELEASE_TAG"[\s\S]*--draft=false/u)
   assert.match(releaseWorkflow, /gh release delete[\s\S]*--cleanup-tag/u)
 })
+
+test('stable release notes pin the released version in every install and update command', () => {
+  const notesStart = releaseWorkflow.indexOf('- name: Prepare beginner-facing release notes')
+  const notesEnd = releaseWorkflow.indexOf('- name: Build immutable release assets')
+  const notesStep = releaseWorkflow.slice(notesStart, notesEnd)
+  const stable = notesStep.slice(notesStep.lastIndexOf('<!-- dsh-codex-install -->'))
+  assert.equal(stable.match(/dsh-codex-subscription@__PLUGIN_VERSION__/gu)?.length, 6)
+  assert.match(stable, /sed -i "s\/__PLUGIN_VERSION__\/\$RELEASE_VERSION\/g" \.release\/install\.md/u)
+  assert.doesNotMatch(stable.replace(/dsh-codex-subscription@__PLUGIN_VERSION__/gu, ''), /(?:add|update) dsh-codex-subscription\s*$/mu)
+})
