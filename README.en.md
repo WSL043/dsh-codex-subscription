@@ -10,6 +10,8 @@
 
 Sign in with ChatGPT Plus / Pro to use GPT-6 and other Codex models, quota, web search, and image generation inside DSH. No OpenAI API key or Codex CLI.
 
+**New: control the DSH on your computer from the ChatGPT mobile app (Beta)** — DeepSeek and any other DSH model work from your phone.
+
 [![CI](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml/badge.svg)](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/dsh-codex-subscription?logo=npm&label=npm)](https://www.npmjs.com/package/dsh-codex-subscription)
 [![total npm downloads](https://img.shields.io/npm/dt/dsh-codex-subscription?logo=npm&label=total%20downloads)](https://www.npmjs.com/package/dsh-codex-subscription)
@@ -78,7 +80,7 @@ Subscription access, model controls, quota management, and image creation in one
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start and continue conversations, switch model and permissions, approve tool calls; DeepSeek and any other DSH model work | Beta; off by default; Settings → Models & runtime → Phone remote control, pair by QR or manual code |
+| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta (3.0.0-beta.1); off by default; Settings → Codex → Models & runtime → Phone remote control, pair by QR or manual code |
 | **Codex independent subtasks** | Reuse subscription sign-in and workspace permissions; select allowed models and reasoning levels | Beta; DSH by default, Codex requires the optional component and model-selection setup |
 | **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
 | **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
@@ -152,6 +154,19 @@ Choose a model, adjust reasoning, switch speed tiers, and check remaining quota 
 
 <p align="center"><img src="docs/assets/composer-quota-en.png" width="800" alt="DSH composer with GPT-6-Luna, reasoning controls and remaining quota"></p>
 
+### Control DSH from your phone (Beta)
+
+Turn on **Settings → Codex → Models & runtime → Phone remote control** and pair by scanning the QR code in the Codex section of the ChatGPT mobile app. This computer's DSH then appears in the phone's host list:
+
+- browse, start, continue, interrupt and archive DSH conversations from the phone, with DeepSeek, Codex or any other DSH model;
+- switch model, reasoning level and permissions (workspace write / full access) from the phone;
+- when DSH needs a tool approval or asks you a question, it pops up on the phone; if the phone dropped, it is asked again when you return, otherwise the computer handles it;
+- model errors are shown on the phone.
+
+Off by default. The computer must stay on, online and running DSH. This uses a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. Currently available in the pre-release `dsh-codex-subscription@3.0.0-beta.1`.
+
+<p align="center"><img src="docs/assets/remote-control-en.png" width="560" alt="Official desktop app settings: phone remote control connected, showing a pairing QR code and manual code"></p>
+
 ### Accounts and preferences, in one place
 
 Open **Settings → Codex** to manage accounts and quota. Enable other features as your tasks need them.
@@ -162,7 +177,7 @@ Open **Settings → Codex** to manage accounts and quota. Enable other features 
 | Settings tab | What it controls |
 | --- | --- |
 | **Account** | Sign-in, account switching, reset times, quota display and alerts |
-| **Models & runtime** | Subscription search, context budget, connections and subtasks |
+| **Models & runtime** | Subscription search, context budget, connections, subtasks and phone remote control |
 | **Images & sketch** | Separate switches for image generation, the canvas, and agent drawing |
 | **Maintenance** | Support diagnostics and local quota forecast cache |
 
