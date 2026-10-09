@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRemoteControlHost, RpcError } from '../src/remote-control-host.js'
-import { createDshRemoteControl, modelKey, parseModelKey, projectTurns } from '../src/remote-control-dsh.js'
+import { createDshRemoteControl, localFolder, modelKey, parseModelKey, projectTurns, visibleText } from '../src/remote-control-dsh.js'
 import { createRemoteControlRelay, remoteControlEndpoints } from '../src/remote-control-relay.js'
 
 const wait = (ms = 5) => new Promise(resolve => setTimeout(resolve, ms))
@@ -75,7 +75,7 @@ function fakeControl({ error } = {}) {
     modelCatalog: async () => ({ default: { provider: 'openai-codex', model: 'gpt-6' }, groups: [{ id: 'openai-codex', name: 'Codex', models: [{ id: 'gpt-6', name: 'GPT-6' }] }, { id: 'deepseek', name: 'DeepSeek', models: [{ id: 'chat', name: 'Chat' }] }] }),
     selectModel: async request => { calls.push(['selectModel', request]) },
     prompt: async request => { calls.push(['prompt', request]); if (error) throw new Error(error); return { accepted: true } },
-    create: async () => ({ sessionId: 's1' }),
+    create: async request => { calls.push(['create', request]); return { sessionId: 's1' } },
     cancel: request => { calls.push(['cancel', request]) },
     rename: async () => ({}),
   }
@@ -223,4 +223,119 @@ test('the phone can prepare a working folder before a new chat', async () => {
   assert.equal(meta.isDirectory, true)
   assert.equal(meta.isSymlink, false)
   assert.deepEqual(await methods['fs/readDirectory']({ path: 'x' }), { entries: [] })
+})
+
+test('ask-user questions go to the phone during its turn and map back to DSH answers', async () => {
+  const { bridge, session } = fakeControl()
+  const asked = []
+  const notify = async () => {}
+  notify.ask = async (method, params) => { asked.push([method, params]); return { answers: { pick: { answers: ['Blue', 'my own'] }, why: { answers: ['because'] } } } }
+  const request = {
+    agent: { session }, wait: { callId: 'q1' },
+    questions: [{ id: 'pick', question: 'Colour?', options: [{ label: 'Red' }, { label: 'Blue', description: 'cool' }] }, { id: 'why', question: 'Why?', header: 'Reason' }],
+  }
+  assert.equal(await bridge.onQuestion(request, async () => 'dsh'), 'dsh', 'no phone turn, DSH asks')
+  await bridge.methods['turn/start'](hello('go'), { notify })
+  const answer = await bridge.onQuestion(request, async () => 'dsh')
+  assert.equal(asked[0][0], 'item/tool/requestUserInput')
+  assert.equal(asked[0][1].questions[0].options[1].description, 'cool')
+  assert.equal(asked[0][1].questions[1].options, null)
+  assert.deepEqual(answer.answers, [{ id: 'pick', selected: ['Blue'], custom: 'my own' }, { id: 'why', selected: [], custom: 'because' }])
+  notify.ask = async () => { throw new Error('gone') }
+  assert.equal(await bridge.onQuestion(request, async () => 'dsh'), 'dsh', 'a dropped phone falls back to DSH')
+})
+
+test("DSH's own system reminders never show up as something the person typed", () => {
+  const reminder = '<system-reminder>\nskills catalog\n</system-reminder>'
+  assert.equal(visibleText([{ type: 'text', text: `hello\n${reminder}` }]), 'hello')
+  const turns = projectTurns([
+    { role: 'user', id: 'a', content: [{ type: 'text', text: reminder }] },
+    { role: 'user', id: 'b', content: [{ type: 'text', text: `ask me\n${reminder}` }] },
+    { role: 'assistant', id: 'c', content: [{ type: 'text', text: 'ok' }] },
+  ])
+  assert.equal(turns.length, 1)
+  assert.equal(turns[0].items[0].content[0].text, 'ask me')
+})
+
+test('threads can be archived and restored from the phone through the DSH archive set', async () => {
+  const archived = new Set()
+  const registry = {
+    get archivedSessionIds() { return [...archived] },
+    archiveSession: async (id, options) => { assert.deepEqual(options, { stopActivity: true }); archived.add(id) },
+    unarchiveSession: async id => { archived.delete(id) },
+  }
+  const bridgeWith = createDshRemoteControl({ controller: () => ({ list: async () => ({ items: [{ sessionId: 's1', updatedAt: 2_000_000, blank: false }] }), resolveAgent: async () => ({ agent: { session: { id: 's1', meta: {}, deriveMessages: () => [] }, options: {} } }) }), agents: () => ({}), workspaces: () => registry, userAgent: 'x' })
+  assert.equal((await bridgeWith.methods['thread/list']({}, {})).data.length, 1)
+  await bridgeWith.methods['thread/archive']({ threadId: 's1' })
+  assert.equal((await bridgeWith.methods['thread/list']({}, {})).data.length, 0)
+  assert.equal((await bridgeWith.methods['thread/list']({ archived: true }, {})).data.length, 1)
+  await bridgeWith.methods['thread/unarchive']({ threadId: 's1' })
+  assert.equal((await bridgeWith.methods['thread/list']({}, {})).data.length, 1)
+})
+
+test('a host id the relay keeps refusing with 409 is enrolled again and finally replaced', async () => {
+  let renewals = 0, enrolls = 0
+  class Refused { constructor() { this.handlers = {}; setTimeout(() => this.handlers.error?.(new Error('Unexpected server response: 409')), 1) } on(name, handler) { this.handlers[name] = handler } close() {} }
+  const fetch = async () => { enrolls += 1; return { ok: true, json: async () => ({ environment_id: 'env', server_id: 'srv', remote_control_token: 'tok', expires_at: new Date(Date.now() + 3_600_000).toISOString() }) } }
+  const relay = createRemoteControlRelay({
+    credentials: async () => ({ access: 'a', accountId: 'b' }), fetch, WebSocket: Refused, installationId: 'i', hostName: 'h', userAgent: 'x/1',
+    serve: () => ({ receive() {}, close() {} }), wait: () => new Promise(resolve => setTimeout(resolve, 2)),
+    renewInstallation: async () => { renewals += 1; return `new-${renewals}` }, conflictRenewMs: 0,
+  })
+  void relay.start()
+  await new Promise(resolve => setTimeout(resolve, 300))
+  await relay.stop()
+  assert.ok(renewals >= 1, 'a new host id is taken')
+  assert.ok(enrolls >= 3, 'enrollment is repeated first')
+})
+
+test('the app title thread is answered in place and never becomes a DSH conversation', async () => {
+  const { bridge, calls } = fakeControl()
+  const notes = []
+  const notify = async (method, params) => { notes.push([method, params]) }
+  await bridge.methods['turn/start'](hello('请向我提出一个问题'), { notify })
+  const started = await bridge.methods['thread/start']({ ephemeral: true, threadSource: 'thread_title', cwd: '/Documents/Codex/x' }, { notify })
+  assert.match(started.thread.id, /^ephemeral-/u)
+  const creates = calls.filter(([name]) => name === 'create').length
+  await bridge.methods['turn/start']({ threadId: started.thread.id, input: [{ type: 'text', text: 'You are a helpful assistant...\n\n请向我提出一个问题' }] }, { notify })
+  await new Promise(resolve => setTimeout(resolve, 5))
+  const done = notes.find(([method, params]) => method === 'turn/completed' && params.threadId === started.thread.id)
+  assert.equal(done[1].turn.items[0].text, '请向我提出一个问题')
+  assert.equal(calls.filter(([name]) => name === 'create').length, creates, 'no DSH session was created')
+  assert.equal(calls.filter(([name, request]) => name === 'prompt' && request.sessionId === started.thread.id).length, 0)
+})
+
+test('a folder the phone invents is not used as the conversation folder', () => {
+  assert.equal(localFolder('/Documents/Codex/2026-10-09/new-chat'), undefined)
+  assert.equal(localFolder('relative/path'), undefined)
+  assert.equal(localFolder(process.cwd()), process.cwd())
+})
+
+test("DSH's injected runtime context never shows up as a message from the person", () => {
+  const turns = projectTurns([
+    { role: 'user', id: 'a', source: { kind: 'user' }, content: [{ type: 'text', text: 'ask me' }] },
+    { role: 'assistant', id: 'b', content: [{ type: 'text', text: 'ok' }] },
+    { role: 'user', id: 'c', source: { kind: 'runtime-context' }, content: [{ type: 'text', text: 'Current runtime context. ...' }] },
+    { role: 'assistant', id: 'd', content: [{ type: 'text', text: 'next' }] },
+  ])
+  assert.equal(turns.length, 1)
+  assert.deepEqual(turns[0].items.map(item => item.type), ['userMessage', 'agentMessage', 'agentMessage'])
+})
+
+test('a question waits for a phone that dropped and asks it again when it reopens the thread', async () => {
+  const { bridge, session } = fakeControl()
+  const first = async () => {}
+  let rejectFirst
+  first.ask = () => new Promise((_resolve, reject) => { rejectFirst = reject })
+  await bridge.methods['turn/start'](hello('go'), { notify: first })
+  const request = { agent: { session }, questions: [{ id: 'q', question: 'Why?' }] }
+  const answer = bridge.onQuestion(request, async () => 'dsh')
+  await new Promise(resolve => setTimeout(resolve, 5))
+  bridge.forget(first)
+  rejectFirst(new Error('Client disconnected'))
+  await new Promise(resolve => setTimeout(resolve, 5))
+  const second = async () => {}
+  second.ask = async () => ({ answers: { q: { answers: ['because'] } } })
+  await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: second })
+  assert.deepEqual((await answer).answers, [{ id: 'q', selected: [], custom: 'because' }])
 })
