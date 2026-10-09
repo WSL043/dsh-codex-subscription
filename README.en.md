@@ -303,6 +303,13 @@ DSH 0.2.0-rc.2 did not exist when any release before 2.2.10 was published, and a
 </details>
 
 <details>
+<summary>How does this relate to the official Codex bundle (dsh-hooks-codex) in the plugin list?</summary>
+
+They are unrelated and can be installed together. The official Codex / Claude Code bundles let DSH run Codex or Claude Code style hooks configs (scripts that run before and after tool calls). This plugin signs in with your ChatGPT subscription and provides Codex models, quota, search, images and phone remote control.
+
+</details>
+
+<details>
 <summary>No dsh command on your computer?</summary>
 
 Use **Plugins → Add plugin** in DSH and paste the package name. No terminal setup is needed.
