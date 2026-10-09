@@ -1,6 +1,7 @@
 import { CapabilityPreferences } from './capability-preferences.jsx'
 import { DefaultModelPreference } from './default-model-preferences.jsx'
 import { RuntimeManagement } from './client-runtime-management.jsx'
+import { RemoteControlCard } from './client-remote-control.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { Button, IconChevronDownOutline14, Input, Menu, Switch } from './client-primitives.js'
 import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, DISABLED_MODELS_FIELD, clampModelContext, INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
@@ -214,6 +215,7 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
           </div>
         </div>
       </section>
+      <RemoteControlCard rpc={rpc} preference={preference} snapshot={snapshot} t={t} />
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('compactionTitle')}>
         <div className="codexSubscriptionPreference">
           <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('compactionTitle')} <small>Beta</small></span><span className="codexSubscriptionPreferenceHint">{t('compactionHint')}</span></div>
