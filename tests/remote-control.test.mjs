@@ -284,6 +284,7 @@ test('a host id the relay keeps refusing with 409 is enrolled again and finally 
   })
   void relay.start()
   await new Promise(resolve => setTimeout(resolve, 300))
+  assert.equal(relay.status().lastError, 'conflict', 'a refused restart reads as waiting, not as a failure')
   await relay.stop()
   assert.ok(renewals >= 1, 'a new host id is taken')
   assert.ok(enrolls >= 3, 'enrollment is repeated first')

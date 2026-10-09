@@ -4,7 +4,7 @@ import { Button } from './client-primitives.js'
 import { CHANNEL } from './rpc-contract.js'
 
 const PAIR_URL = 'https://chatgpt.com/codex/pair?pairing_code='
-const STATUS_KEYS = { connected: 'remoteConnected', connecting: 'remoteConnecting', error: 'remoteError', stopped: 'remoteStopped' }
+const STATUS_KEYS = { connected: 'remoteConnected', connecting: 'remoteConnecting', waiting: 'remoteWaiting', error: 'remoteError', stopped: 'remoteStopped' }
 const MARGIN = 2
 
 // Only the encoder is imported: the package's own renderers pull in Node's fs.
