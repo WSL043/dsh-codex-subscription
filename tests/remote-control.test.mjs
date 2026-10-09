@@ -212,7 +212,7 @@ test('the browser bundle stays free of Node built-ins (the QR encoder must not p
   const bundle = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8').catch(() => undefined)
   const source = await readFile(new URL('../src/client-remote-control.jsx', import.meta.url), 'utf8').catch(() => undefined)
   if (bundle === undefined || source === undefined) return t.skip('build output not present')
-  assert.doesNotMatch(bundle, /require\((["'])(?:node:)?(?:fs|path|os|zlib|stream|child_process|net|tls)\)/u)
+  assert.doesNotMatch(bundle, /require\((["'])(?:node:)?(?:fs|path|os|zlib|stream|child_process|net|tls)\1\)/u)
   assert.match(source, /from 'qrcode\/lib\/core\/qrcode\.js'/u)
 })
 
