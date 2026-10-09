@@ -146,7 +146,9 @@ export function apply(ctx) {
     imageViewer.close()
     liveOpen('sketch', document.activeElement, new File([blob], name || 'image.png', {type:blob.type || 'image/png'}))
   }
-  const attachForEdit = sessionId => async (src, filename, draft, annotations = [], referenceName, sourceInDraft = false) => {
+  const attachForEdit = sessionId => async (src, filename, draft, annotations = [], referenceName, sourceInDraft = false, extraFiles) => {
+    // Official image tools pass their own files (possibly none) and always carry an instruction.
+    const tool = Array.isArray(extraFiles)
     if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
     return withComposerSession(sessions, sessionId, async actx => {
       if (conversation.input?.for === undefined) {
@@ -160,15 +162,16 @@ export function apply(ctx) {
         const reference = await createAnnotatedImageReference(blob, annotations)
         files.push(new File([reference], referenceName, { type: 'image/png' }))
       }
+      if (tool) files.push(...extraFiles)
       lifetime.signal.throwIfAborted()
       const input = conversation.input.for(actx)
       if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
       if (files.length) attachImageFiles(conversation, input, files, sessionId)
       openComposerSession(sessions, ctx.get('uiWorkspace'), sessionId)
       // Preserve text typed while the asynchronous image preparation ran.
-      if (sourceInDraft && !annotations.length) return
+      if (sourceInDraft && !annotations.length && !tool) return
       if (!input.state.getSnapshot().draft.trim()) input.setDraft(draft)
-      else if (annotations.length) {
+      else if (annotations.length || tool) {
         if (!input.state.getSnapshot().occurrences?.length) appendImagePrompt(input, draft)
         else input.notify('info', draft)
       }

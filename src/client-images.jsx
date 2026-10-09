@@ -1,4 +1,5 @@
 import { PhotoIcon, ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
+import { officialImageTools } from './image-official-tools.js'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { buildImageEditDraft } from './image-edit.js'
 import { decodeImagePresentation } from './image-original-contract.js'
@@ -72,7 +73,7 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
               sourceName, referenceName,
             }), annotations, referenceName)
           },
-        }, ...(features.imageSketch && openSketchImage ? [{id:'sketch',label:t('imageToSketch'),pendingLabel:t('imageEditPreparing'),errorLabel:t('imageEditFailed'),onInvoke:()=>openSketchImage(src,downloadName)}] : [])],
+        }, ...officialImageTools({ src, name: downloadName, t, attachForEdit }), ...(features.imageSketch && openSketchImage ? [{id:'sketch',label:t('imageToSketch'),pendingLabel:t('imageEditPreparing'),errorLabel:t('imageEditFailed'),onInvoke:()=>openSketchImage(src,downloadName)}] : [])],
       }],
       opener: triggerRef.current,
       source: 'codex-generated',

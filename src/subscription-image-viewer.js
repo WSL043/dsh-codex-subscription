@@ -16,6 +16,8 @@ const actionsOf = value => Array.isArray(value) ? value.flatMap((action, positio
     pendingLabel: typeof action.pendingLabel === 'string' && action.pendingLabel !== '' ? action.pendingLabel : action.label,
     errorLabel: typeof action.errorLabel === 'string' && action.errorLabel !== '' ? action.errorLabel : action.label,
     closeOnSuccess: action.closeOnSuccess === true,
+    kind: ['tool', 'mask', 'choice'].includes(action.kind) ? action.kind : 'edit',
+    options: Array.isArray(action.options) ? action.options.filter(option => typeof option?.value === 'string' && typeof option?.label === 'string') : [],
     onInvoke: action.onInvoke,
   }]
 }) : []

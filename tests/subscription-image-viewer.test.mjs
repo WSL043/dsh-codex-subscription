@@ -23,7 +23,7 @@ test('normalizes an internal viewer request without importing optional plugins',
     pendingLabel: 'Preparing', errorLabel: 'Retry', onInvoke: invoke,
   })
   assert.deepEqual(value.items[1].actions, [{
-    id: 'action-1', label: 'Edit', pendingLabel: 'Edit', errorLabel: 'Edit', closeOnSuccess: true, onInvoke: invoke,
+    id: 'action-1', label: 'Edit', pendingLabel: 'Edit', errorLabel: 'Edit', closeOnSuccess: true, kind: 'edit', options: [], onInvoke: invoke,
   }])
 })
 
