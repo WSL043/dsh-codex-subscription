@@ -310,3 +310,32 @@ test('a folder the phone invents is not used as the conversation folder', () => 
   assert.equal(localFolder('relative/path'), undefined)
   assert.equal(localFolder(process.cwd()), process.cwd())
 })
+
+test("DSH's injected runtime context never shows up as a message from the person", () => {
+  const turns = projectTurns([
+    { role: 'user', id: 'a', source: { kind: 'user' }, content: [{ type: 'text', text: 'ask me' }] },
+    { role: 'assistant', id: 'b', content: [{ type: 'text', text: 'ok' }] },
+    { role: 'user', id: 'c', source: { kind: 'runtime-context' }, content: [{ type: 'text', text: 'Current runtime context. ...' }] },
+    { role: 'assistant', id: 'd', content: [{ type: 'text', text: 'next' }] },
+  ])
+  assert.equal(turns.length, 1)
+  assert.deepEqual(turns[0].items.map(item => item.type), ['userMessage', 'agentMessage', 'agentMessage'])
+})
+
+test('a question waits for a phone that dropped and asks it again when it reopens the thread', async () => {
+  const { bridge, session } = fakeControl()
+  const first = async () => {}
+  let rejectFirst
+  first.ask = () => new Promise((_resolve, reject) => { rejectFirst = reject })
+  await bridge.methods['turn/start'](hello('go'), { notify: first })
+  const request = { agent: { session }, questions: [{ id: 'q', question: 'Why?' }] }
+  const answer = bridge.onQuestion(request, async () => 'dsh')
+  await new Promise(resolve => setTimeout(resolve, 5))
+  bridge.forget(first)
+  rejectFirst(new Error('Client disconnected'))
+  await new Promise(resolve => setTimeout(resolve, 5))
+  const second = async () => {}
+  second.ask = async () => ({ answers: { q: { answers: ['because'] } } })
+  await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: second })
+  assert.deepEqual((await answer).answers, [{ id: 'q', selected: [], custom: 'because' }])
+})

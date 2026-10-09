@@ -34,9 +34,12 @@ function parseArguments(value) {
   try { return JSON.parse(value) } catch { return { raw: value } }
 }
 
-/** One user message starts a turn; assistant blocks and tool results fill it. */
 /** What the person typed: DSH appends its own system reminders (skills, context) to user messages. */
 export const visibleText = content => textOf(content).replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gu, '').trim()
+/** Text of a user-role message the person wrote; DSH's own injected ones (runtime context, notices) carry another source kind. */
+export const typedText = message => message.role === 'user' && (message.source === undefined || message.source?.kind === 'user') ? visibleText(message.content) : ''
+
+/** One user message starts a turn; assistant blocks and tool results fill it. */
 
 export function projectTurns(messages, at = Date.now()) {
   const turns = []
@@ -45,7 +48,7 @@ export function projectTurns(messages, at = Date.now()) {
   const close = () => { if (turn && turn.items.length > 0) { turn.status = 'completed'; turn.completedAt = turn.startedAt; turns.push(turn) } turn = undefined }
   for (const message of messages) {
     if (message.role === 'user') {
-      const text = visibleText(message.content)
+      const text = typedText(message)
       if (text === '') continue
       close()
       turn = { ...emptyTurn(), id: message.id, startedAt: seconds(at) }
@@ -89,7 +92,10 @@ function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns 
 /**
  * @param {{ controller: () => any, agents: () => any, permissions?: () => any, userAgent: string }} options
  */
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, trace = () => {}, userAgent }) {
+// How long a question or approval waits for a phone that dropped while it was open.
+const PHONE_RETURN_MS = 120_000
+
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
@@ -100,11 +106,24 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     if (!value) throw new RpcError(-32603, 'DSH session service is unavailable in this profile')
     return value
   }
+  const arrivals = new Map() // threadId -> Set<() => void>, woken when a phone opens the thread
   const subscribe = (threadId, notify) => {
     const set = subscribers.get(threadId) ?? new Set()
     set.add(notify)
     subscribers.set(threadId, set)
+    for (const wake of arrivals.get(threadId) ?? []) wake()
   }
+  /** Wait until a phone opens the thread again, the signal aborts, or the time runs out. */
+  const phoneReturns = (threadId, ms, signal) => new Promise(resolve => {
+    const set = arrivals.get(threadId) ?? new Set()
+    arrivals.set(threadId, set)
+    const done = value => { clearTimeout(timer); set.delete(wake); signal?.removeEventListener('abort', stop); if (set.size === 0) arrivals.delete(threadId); resolve(value) }
+    const wake = () => done(true)
+    const stop = () => done(false)
+    const timer = setTimeout(stop, ms)
+    set.add(wake)
+    signal?.addEventListener('abort', stop, { once: true })
+  })
   const emit = (threadId, method, params) => {
     for (const notify of subscribers.get(threadId) ?? []) void notify(method, params).catch(() => {})
   }
@@ -137,7 +156,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     await (catalog ? undefined : loadCatalog().catch(() => undefined))
     const session = agent.session
     const messages = session.deriveMessages()
-    const first = messages.find(message => message.role === 'user' && visibleText(message.content) !== '')
+    const first = messages.find(message => typedText(message) !== '')
     return {
       agent,
       thread: thread({
@@ -409,21 +428,39 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     return running && phone ? { session, running, phone } : undefined
   }
 
+  /**
+   * Ask whichever phone drives the turn. A phone that drops (app switched away, network) gets the
+   * same request again when it reopens the thread within PHONE_RETURN_MS; otherwise DSH decides.
+   */
+  const askPhone = async (request, method, params) => {
+    const sessionId = request.agent.session.id
+    for (;;) {
+      const phone = phoneFor(request)?.phone
+      if (!phone) throw new RpcError(-32800, 'No phone')
+      try { return await phone.ask(method, params, request.signal) } catch (error) {
+        // Still connected means the phone itself failed the request; only a dropped phone is waited for.
+        if (request.signal?.aborted || !active.has(sessionId) || phoneFor(request)?.phone === phone) throw error
+        trace({ method: `wait:${method}`, session: sessionId })
+        if (!phoneFor(request) && !await phoneReturns(sessionId, phoneReturnMs, request.signal)) throw error
+      }
+    }
+  }
+
   /** DSH's ask-user tool: show the questions on the phone that drives the turn, else leave them to DSH. */
   const onQuestion = (request, next) => {
     const found = phoneFor(request)
     trace({ method: 'hook:user-questions', phone: Boolean(found), session: request.agent?.session?.id ?? null })
     if (!found) return next()
-    const { session, running, phone } = found
+    const { session, running } = found
     const labels = new Map(request.questions.map(question => [question.id, new Set((question.options ?? []).map(option => option.label))]))
-    return phone.ask('item/tool/requestUserInput', {
+    return askPhone(request, 'item/tool/requestUserInput', {
       threadId: session.id, turnId: running.turn.id, itemId: request.wait?.callId ?? randomUUID(),
       questions: request.questions.map(question => ({
         id: question.id, header: question.header ?? '', question: question.detail ? `${question.question}\n\n${question.detail}` : question.question,
         isOther: true, isSecret: false,
         options: question.options?.length ? question.options.map(option => ({ label: option.label, description: option.description ?? '' })) : null,
       })),
-    }, request.signal).then(
+    }).then(
       answer => ({
         answers: request.questions.map(question => {
           const given = Array.isArray(answer?.answers?.[question.id]?.answers) ? answer.answers[question.id].answers.map(String) : []
@@ -441,12 +478,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const found = phoneFor(request)
     trace({ method: 'hook:approval', phone: Boolean(found), session: request.agent?.session?.id ?? null })
     if (!found) return next()
-    const { session, running, phone } = found
-    return phone.ask('item/commandExecution/requestApproval', {
+    const { session, running } = found
+    return askPhone(request, 'item/commandExecution/requestApproval', {
       threadId: session.id, turnId: running.turn.id, itemId: request.callId ?? randomUUID(), startedAtMs: Date.now(),
       command: commandText(session, request), cwd: session.meta?.cwd ?? null, reason: request.displayReason?.en ?? request.reason ?? null,
       commandActions: [], availableDecisions: ['accept', 'decline', 'cancel'],
-    }, request.signal).then(
+    }).then(
       answer => {
         const decision = typeof answer?.decision === 'string' ? answer.decision : ''
         return decision === 'accept' || decision === 'acceptForSession' ? 'allowed-once' : decision === 'cancel' ? 'cancelled' : 'rejected'
