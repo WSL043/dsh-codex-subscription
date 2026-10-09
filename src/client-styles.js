@@ -257,6 +257,7 @@ export const STYLE = `
 .codexSubscriptionSettingRows>.codexImagePreference+.codexImagePreference{border-top:1px solid var(--dsw-alias-border-l2)}
 .codexSubscriptionDiagnostics .codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column;gap:12px}
 .codexSubscriptionDiagnostics .codexSubscriptionSectionTitle{display:flex;flex-direction:column;gap:5px}
+.codexSubscriptionRemotePair{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:8px}.codexSubscriptionRemoteQr{width:168px;height:168px;flex:none;border-radius:12px;overflow:hidden;background:#fff}.codexSubscriptionRemoteQr svg{display:block;width:100%;height:100%}.codexSubscriptionRemoteCode{margin:6px 0;font:600 20px/28px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em;user-select:all}
 .codexSubscriptionStorageMeter{display:flex;flex-direction:column;gap:9px;padding:12px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionStorageMeter>div{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;line-height:18px}
 .codexSubscriptionStorageMeter output{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary)}
