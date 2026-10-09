@@ -213,3 +213,12 @@ test('the browser bundle stays free of Node built-ins (the QR encoder must not p
   const source = await readFile(new URL('../src/client-remote-control.jsx', import.meta.url), 'utf8')
   assert.match(source, /from 'qrcode\/lib\/core\/qrcode\.js'/u)
 })
+
+test('the phone can prepare a working folder before a new chat', async () => {
+  const { methods } = createDshRemoteControl({ controller: { }, agents: {}, permissions: {}, userAgent: 'test' })
+  assert.deepEqual(await methods['fs/createDirectory']({ path: 'x' }), {})
+  const meta = await methods['fs/getMetadata']({ path: 'x' })
+  assert.equal(meta.isDirectory, true)
+  assert.equal(meta.isSymlink, false)
+  assert.deepEqual(await methods['fs/readDirectory']({ path: 'x' }), { entries: [] })
+})

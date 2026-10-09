@@ -237,6 +237,10 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     // Arbitrary host commands bypass DSH's sandbox and approvals, so they stay off.
     'command/exec': () => { throw new RpcError(-32600, 'Running commands directly is not available on a DSH host; ask in the conversation instead') },
     'plugin/installed': () => ({ marketplaceLoadErrors: [], marketplaces: [] }),
+    // The app prepares a working folder before a new chat; sessions here use DSH's own folders, so nothing is created.
+    'fs/createDirectory': () => ({}),
+    'fs/getMetadata': () => ({ isDirectory: true, isFile: false, isSymlink: false, createdAtMs: Date.now(), modifiedAtMs: Date.now() }),
+    'fs/readDirectory': () => ({ entries: [] }),
     'collaborationMode/list': () => ({ data: [] }),
     'permissionProfile/list': () => ({ data: [], nextCursor: null }),
     'threadSection/list': () => ({ data: [], nextCursor: null }),

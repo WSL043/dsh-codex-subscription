@@ -89,6 +89,16 @@ see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-
 
 **The `ultra` reasoning level in the catalog.** Some models (for example GPT-6-Astra and GPT-6.1-Sol) list an `ultra` reasoning level, but DSH's reasoning table currently has only off, minimal, low, medium, high, xhigh and max, so the composer cannot select it, and the plugin does not remap it to another level. Codex subtasks can request `ultra` from the chat. Diagnostics under Settings → Maintenance lists it as a catalog capability that is not adapted yet, which does not mean the model is unavailable.
 
+### Phone remote control (Beta)
+
+Turn it on under **Models & runtime → Phone remote control** and this computer's DSH appears in the ChatGPT mobile app's Codex host list. Press Generate pairing code, then scan the QR code or type the manual code in the app; the code lasts about 10 minutes.
+
+- From the phone you can browse history, start and continue conversations, interrupt, queue messages, and switch model (including DeepSeek and other third-party models), reasoning level and permissions (workspace write / full access).
+- When DSH needs approval for a tool call, the phone shows Approve, Decline and Cancel; if the phone is offline the prompt falls back to the computer.
+- Model errors (missing key, exhausted quota, ...) are shown on the phone.
+- Only a host identifier is stored locally; pairing credentials are never written to disk, and turning the switch off disconnects.
+- This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. For safety the phone cannot run commands on the computer directly (so command-backed views such as the change viewer are unavailable); choosing a workspace for new conversations and sending images are not supported yet.
+
 ### Advanced experiments
 
 Opt in under **Models & runtime**. SSE and DSH subtasks remain the defaults:
