@@ -10,6 +10,8 @@
 
 用 ChatGPT Plus / Pro 订阅登录，即可在 DSH 中使用 GPT-6 等 Codex 模型、查额度、联网搜索和生图。无需 OpenAI API Key，也不依赖 Codex CLI。
 
+**新：用 ChatGPT 手机 App 远程控制电脑上的 DSH（Beta）**，DeepSeek 等任意 DSH 模型都能在手机上用。
+
 [![CI](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml/badge.svg)](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/dsh-codex-subscription?logo=npm&label=npm)](https://www.npmjs.com/package/dsh-codex-subscription)
 [![npm 总下载量](https://img.shields.io/npm/dt/dsh-codex-subscription?logo=npm&label=%E6%80%BB%E4%B8%8B%E8%BD%BD%E9%87%8F)](https://www.npmjs.com/package/dsh-codex-subscription)
@@ -78,7 +80,7 @@
 
 | 功能 | 你可以做什么 | 使用方式 / 条件 |
 | --- | --- | --- |
-| **手机远程控制** | 在 ChatGPT 手机 App 的 Codex 里直接指挥电脑上的 DSH：新建、续聊、切换模型和权限、批准工具调用，DeepSeek 等任意 DSH 模型都能用 | Beta；默认关闭，设置 → 模型与运行 → 手机远程控制，扫码或输入手动码配对 |
+| **手机远程控制** | 在 ChatGPT 手机 App 的 Codex 里直接指挥电脑上的 DSH：新建、续聊、归档对话，切换模型和权限，回答审批和提问，DeepSeek 等任意 DSH 模型都能用 | Beta（3.0.0-beta.1）；默认关闭，设置 → Codex 订阅 → 模型与运行 → 手机远程控制，扫码或输入手动码配对 |
 | **Codex 独立子任务** | 复用订阅登录和工作区权限执行独立任务，可指定允许的模型与推理档位 | Beta；默认 DSH，Codex 需安装可选组件并配置模型选择 |
 | **子任务组件管理** | 在设置里安装、停用或卸载官方 Codex 子任务组件 | 由支持的 DSH 宿主管理，无需额外登录 |
 | **云端上下文压缩** | 使用 Codex 云端压缩继续长对话，同时保留 DSH 历史与原生压缩 | Beta / 实验性；默认关闭，开启的请求使用 SSE |
@@ -152,6 +154,19 @@ dsh --profile headless "只回复：ok"
 
 <p align="center"><img src="docs/assets/composer-astra-fast.png" width="800" alt="DSH 输入框：GPT-6-Astra Max、闪电标识的 Fast 高速模式与剩余额度"></p>
 
+### 手机远程控制 DSH（Beta）
+
+打开 **设置 → Codex 订阅 → 模型与运行 → 手机远程控制**，用 ChatGPT 手机 App 的 Codex 扫码配对，这台电脑上的 DSH 就会出现在手机的主机列表里：
+
+- 在手机上查看、新建、续聊、中断和归档 DSH 对话，DeepSeek、Codex 以及其他 DSH 模型都能用；
+- 在手机上切换模型、推理档位和权限（工作区内修改 / 完全访问）；
+- DSH 需要批准工具调用或向你提问时，手机会直接弹出；手机掉线会在重新打开时再弹一次，否则交回电脑处理；
+- 模型报错会显示在手机上。
+
+默认关闭。电脑需要保持开机、联网并打开 DSH。这是 OpenAI 尚未向第三方开放的 ChatGPT 能力，随时可能变化，所以标为 Beta。目前在预发布版中提供：`dsh-codex-subscription@3.0.0-beta.1`。
+
+<p align="center"><img src="docs/assets/remote-control.png" width="560" alt="官方桌面版设置页：手机远程控制已连接，显示配对二维码和手动码"></p>
+
 ### 账号与偏好，集中管理
 
 在 **设置 → Codex 订阅** 中管理账号和额度；其余功能按任务需要开启。
@@ -162,7 +177,7 @@ dsh --profile headless "只回复：ok"
 | 设置页 | 在这里做什么 |
 | --- | --- |
 | **账号与额度** | 登录与切换账号、查看重置时间、设置额度显示和提醒 |
-| **模型与运行** | 订阅搜索、上下文预算、连接方式与独立子任务 |
+| **模型与运行** | 订阅搜索、上下文预算、连接方式、独立子任务与手机远程控制 |
 | **图片与草图** | 分别开启图片生成、画板和 Agent 绘图 |
 | **维护** | 生成支持诊断、管理本地额度预测缓存 |
 
