@@ -34,6 +34,8 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
   return Object.freeze({
     /** Methods remote clients called, for diagnostics; never params or content. */
     seen: () => Object.fromEntries(seen),
+    /** Add a development trace entry from the bridge; ignored unless debug is on. */
+    note: entry => record(entry),
     /** Development trace of recent calls; only filled when debug is on. */
     trace: () => [...trace],
     serve(client) {

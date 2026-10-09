@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createRemoteControlHost, RpcError } from '../src/remote-control-host.js'
-import { createDshRemoteControl, modelKey, parseModelKey, projectTurns, visibleText } from '../src/remote-control-dsh.js'
+import { createDshRemoteControl, localFolder, modelKey, parseModelKey, projectTurns, visibleText } from '../src/remote-control-dsh.js'
 import { createRemoteControlRelay, remoteControlEndpoints } from '../src/remote-control-relay.js'
 
 const wait = (ms = 5) => new Promise(resolve => setTimeout(resolve, ms))
@@ -75,7 +75,7 @@ function fakeControl({ error } = {}) {
     modelCatalog: async () => ({ default: { provider: 'openai-codex', model: 'gpt-6' }, groups: [{ id: 'openai-codex', name: 'Codex', models: [{ id: 'gpt-6', name: 'GPT-6' }] }, { id: 'deepseek', name: 'DeepSeek', models: [{ id: 'chat', name: 'Chat' }] }] }),
     selectModel: async request => { calls.push(['selectModel', request]) },
     prompt: async request => { calls.push(['prompt', request]); if (error) throw new Error(error); return { accepted: true } },
-    create: async () => ({ sessionId: 's1' }),
+    create: async request => { calls.push(['create', request]); return { sessionId: 's1' } },
     cancel: request => { calls.push(['cancel', request]) },
     rename: async () => ({}),
   }
@@ -280,11 +280,33 @@ test('a host id the relay keeps refusing with 409 is enrolled again and finally 
   const relay = createRemoteControlRelay({
     credentials: async () => ({ access: 'a', accountId: 'b' }), fetch, WebSocket: Refused, installationId: 'i', hostName: 'h', userAgent: 'x/1',
     serve: () => ({ receive() {}, close() {} }), wait: () => new Promise(resolve => setTimeout(resolve, 2)),
-    renewInstallation: async () => { renewals += 1; return `new-${renewals}` },
+    renewInstallation: async () => { renewals += 1; return `new-${renewals}` }, conflictRenewMs: 0,
   })
   void relay.start()
   await new Promise(resolve => setTimeout(resolve, 300))
   await relay.stop()
   assert.ok(renewals >= 1, 'a new host id is taken')
   assert.ok(enrolls >= 3, 'enrollment is repeated first')
+})
+
+test('the app title thread is answered in place and never becomes a DSH conversation', async () => {
+  const { bridge, calls } = fakeControl()
+  const notes = []
+  const notify = async (method, params) => { notes.push([method, params]) }
+  await bridge.methods['turn/start'](hello('请向我提出一个问题'), { notify })
+  const started = await bridge.methods['thread/start']({ ephemeral: true, threadSource: 'thread_title', cwd: '/Documents/Codex/x' }, { notify })
+  assert.match(started.thread.id, /^ephemeral-/u)
+  const creates = calls.filter(([name]) => name === 'create').length
+  await bridge.methods['turn/start']({ threadId: started.thread.id, input: [{ type: 'text', text: 'You are a helpful assistant...\n\n请向我提出一个问题' }] }, { notify })
+  await new Promise(resolve => setTimeout(resolve, 5))
+  const done = notes.find(([method, params]) => method === 'turn/completed' && params.threadId === started.thread.id)
+  assert.equal(done[1].turn.items[0].text, '请向我提出一个问题')
+  assert.equal(calls.filter(([name]) => name === 'create').length, creates, 'no DSH session was created')
+  assert.equal(calls.filter(([name, request]) => name === 'prompt' && request.sessionId === started.thread.id).length, 0)
+})
+
+test('a folder the phone invents is not used as the conversation folder', () => {
+  assert.equal(localFolder('/Documents/Codex/2026-10-09/new-chat'), undefined)
+  assert.equal(localFolder('relative/path'), undefined)
+  assert.equal(localFolder(process.cwd()), process.cwd())
 })

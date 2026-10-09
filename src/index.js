@@ -382,6 +382,7 @@ export function apply(ctx, config = {}) {
     agents: () => ctx.get?.('agents'),
     permissions: () => ctx.get?.('permissionPresets'),
     workspaces: () => ctx.get?.('workspaceRegistry'),
+    trace: entry => { try { remoteControl.host.note(entry) } catch { /* diagnostics only */ } },
     userAgent: USER_AGENT,
   })
   const remoteControl = createRemoteControl({
@@ -395,8 +396,9 @@ export function apply(ctx, config = {}) {
     onClose: (_client, notify) => remoteBridge.forget(notify),
   })
   ctx.on('session/event', (session, event) => { try { remoteBridge.onSessionEvent(session, event) } catch { /* the phone view must never disturb the session */ } })
-  ctx.on('approval/request', (request, next) => { try { return remoteBridge.onApproval(request, next) } catch { return next() } })
-  ctx.on('user-questions/request', (request, next) => { try { return remoteBridge.onQuestion(request, next) } catch { return next() } })
+  // Prepended: the DSH window answers these too and would otherwise claim them before the phone sees them.
+  ctx.on('approval/request', (request, next) => { try { return remoteBridge.onApproval(request, next) } catch { return next() } }, true)
+  ctx.on('user-questions/request', (request, next) => { try { return remoteBridge.onQuestion(request, next) } catch { return next() } }, true)
   ctx.effect(() => {
     // Remote Control stays off until the user switches it on; then it follows the setting.
     let wanted = false

@@ -4,7 +4,16 @@
 // the DSH web client uses: listing, creating, prompting, model selection.
 
 import { randomUUID } from 'node:crypto'
+import { statSync } from 'node:fs'
+import { isAbsolute } from 'node:path'
 import { RpcError, invalidParams } from './remote-control-host.js'
+
+/** A folder the phone named, only when it is an existing absolute folder on this machine. */
+export function localFolder(value) {
+  if (typeof value !== 'string' || value === '' || !isAbsolute(value)) return undefined
+  if (process.platform === 'win32' && !/^[A-Za-z]:[\\/]/u.test(value)) return undefined
+  try { return statSync(value).isDirectory() ? value : undefined } catch { return undefined }
+}
 
 const seconds = value => Math.floor((Number.isFinite(value) ? value : Date.now()) / 1000)
 const emptyTurn = () => ({ id: randomUUID(), items: [], itemsView: 'full', status: 'inProgress', error: null, startedAt: seconds(Date.now()), completedAt: null, durationMs: null })
@@ -80,7 +89,7 @@ function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns 
 /**
  * @param {{ controller: () => any, agents: () => any, permissions?: () => any, userAgent: string }} options
  */
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, userAgent }) {
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, trace = () => {}, userAgent }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
@@ -162,9 +171,35 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     permissions()?.set?.(agent.session, preset)
   }
 
+  // Throwaway title threads: a short title from the message the person just sent, no model call.
+  const titles = new Map() // threadId -> createdAt
+  const lastPrompt = { text: '' }
+  const titleThread = params => {
+    const id = `ephemeral-${randomUUID()}`
+    titles.set(id, Date.now())
+    for (const [key, at] of titles) if (Date.now() - at > 600_000) titles.delete(key)
+    return { ...settings(undefined, ''), thread: { ...thread({ id, cwd: '', createdAt: Date.now() }), ephemeral: true, modelProvider: 'dsh' } }
+  }
+  const titleTurn = async (params, notify) => {
+    const source = lastPrompt.text || inputText(params?.input).split(/\n\s*\n/u).map(part => part.trim()).filter(Boolean).at(-1) || 'DSH'
+    const title = source.split('\n')[0].trim().slice(0, 36)
+    const turn = { ...emptyTurn(), status: 'completed', completedAt: seconds(Date.now()) }
+    const item = { type: 'agentMessage', id: randomUUID(), text: title, phase: null, memoryCitation: null, delivery: null }
+    turn.items.push(item)
+    const threadId = params.threadId
+    titles.delete(threadId)
+    queueMicrotask(() => {
+      void notify('turn/started', { threadId, turn: { ...turn, items: [], status: 'inProgress', completedAt: null } }).catch(() => {})
+      void notify('item/completed', { threadId, turnId: turn.id, item, completedAtMs: Date.now() }).catch(() => {})
+      void notify('turn/completed', { threadId, turn }).catch(() => {})
+    })
+    return { turn: { ...turn, items: [], status: 'inProgress', completedAt: null } }
+  }
+
   async function startTurn(params, notify) {
     const text = inputText(params?.input)
     if (text === '') throw invalidParams('Only text input is supported')
+    lastPrompt.text = text
     const id = params?.threadId
     const agent = await agentFor(id)
     if (active.has(id)) throw new RpcError(-32602, 'A turn is already running in this conversation')
@@ -288,14 +323,18 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return { ...settings(agent, value.cwd), thread: value }
     },
     'thread/start': async (params, { notify }) => {
-      const created = await service().create(typeof params?.cwd === 'string' && params.cwd ? { cwd: params.cwd } : {})
+      // The app asks the host to title a new chat in a throwaway thread; answer it here instead of opening a DSH session.
+      if (params?.ephemeral === true) return titleThread(params)
+      // The app sends a folder it made up under its own home ("/Documents/Codex/<date>/new-chat"); only a real local folder is used.
+      const cwd = localFolder(params?.cwd)
+      const created = await service().create(cwd ? { cwd } : {})
       const agent = await agentFor(created.sessionId)
       await applySelection(agent, created.sessionId, params)
       const { thread: value } = await openThread(created.sessionId, notify)
       emit(created.sessionId, 'thread/started', { thread: value })
       return { ...settings(agent, value.cwd), thread: value }
     },
-    'turn/start': (params, { notify }) => startTurn(params, notify),
+    'turn/start': (params, { notify }) => titles.has(params?.threadId) ? titleTurn(params, notify) : startTurn(params, notify),
     'turn/interrupt': params => { service().cancel({ sessionId: params?.threadId }); return {} },
     'turn/steer': async params => {
       const text = inputText(params?.input)
@@ -373,6 +412,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   /** DSH's ask-user tool: show the questions on the phone that drives the turn, else leave them to DSH. */
   const onQuestion = (request, next) => {
     const found = phoneFor(request)
+    trace({ method: 'hook:user-questions', phone: Boolean(found), session: request.agent?.session?.id ?? null })
     if (!found) return next()
     const { session, running, phone } = found
     const labels = new Map(request.questions.map(question => [question.id, new Set((question.options ?? []).map(option => option.label))]))
@@ -399,6 +439,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
 
   const onApproval = (request, next) => {
     const found = phoneFor(request)
+    trace({ method: 'hook:approval', phone: Boolean(found), session: request.agent?.session?.id ?? null })
     if (!found) return next()
     const { session, running, phone } = found
     return phone.ask('item/commandExecution/requestApproval', {

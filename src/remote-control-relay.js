@@ -12,6 +12,7 @@ const TARGET_SEGMENT_BYTES = 100 * 1024
 const MAX_MESSAGE_BYTES = 100 * 1024 * 1024
 const MAX_CHUNKS = 1024
 const INITIAL_RECONNECT_MS = 1_000
+const CONFLICT_RENEW_MS = 15 * 60_000
 const MAX_RECONNECT_MS = 30_000
 const REQUEST_TIMEOUT_MS = 30_000
 const REFRESH_MARGIN_MS = 5 * 60_000
@@ -264,6 +265,7 @@ export function createRemoteControlRelay(options) {
   const loop = async signal => {
     let delay = INITIAL_RECONNECT_MS
     let conflicts = 0
+    let conflictSince = 0
     while (!signal.aborted) {
       state.status = 'connecting'
       try {
@@ -275,9 +277,14 @@ export function createRemoteControlRelay(options) {
         state.status = 'error'
         // 409: the relay still holds a stale connection for this host; enroll again after a few tries.
         conflicts = /409/u.test(String(error?.message)) ? conflicts + 1 : 0
+        if (conflicts === 1) conflictSince = now()
         if (error?.code === 'unauthorized' || conflicts >= 3) enrolled = undefined
         // Still refused after fresh enrollments: this host id is stuck on the relay, so take a new one.
-        if (conflicts >= 6 && options.renewInstallation) { installation = await options.renewInstallation(); enrolled = undefined; conflicts = 0 }
+        // A restarted host is refused for a few minutes until the relay drops the old connection;
+        // only a host stuck far longer gets a new id (its phones then need to pair again).
+        if (conflicts >= 3 && now() - conflictSince >= (options.conflictRenewMs ?? CONFLICT_RENEW_MS) && options.renewInstallation) {
+          installation = await options.renewInstallation(); enrolled = undefined; conflicts = 0
+        }
         if (error?.code === 'not-signed-in') { state.status = 'stopped'; return }
       }
       if (signal.aborted) break
