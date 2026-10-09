@@ -5,15 +5,15 @@ import {
 } from 'react'
 import {
   IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseOutline16,
-  IconCopyOutline16, IconDownloadOutline16, IconEditOutline16, IconFullscreenOutline16,
+  IconCopyOutline16, IconDownloadOutline16, IconEditOutline16,
 } from './client-primitives.js'
 import { SUBSCRIPTION_IMAGE_VIEWER_CSS } from './subscription-image-viewer-styles.js'
 import { useImageTransform } from './subscription-image-transform.js'
 import { paintEraseMask, paintEraseStrokes } from './image-official-tools.js'
 import { createPortal } from 'react-dom'
-import { ArrowsPointingOutIcon, PaintBrushIcon, ScissorsIcon } from '@heroicons/react/24/outline'
+import { ArrowsPointingOutIcon, ChatBubbleLeftEllipsisIcon, PaintBrushIcon, PencilIcon, ScissorsIcon } from '@heroicons/react/24/outline'
 
-const TOOL_ICONS = { 'remove-background': ScissorsIcon, erase: PaintBrushIcon, resize: ArrowsPointingOutIcon }
+const TOOL_ICONS = { 'remove-background': ScissorsIcon, erase: PaintBrushIcon, resize: ArrowsPointingOutIcon, sketch: PencilIcon, annotate: ChatBubbleLeftEllipsisIcon }
 const ToolIcon = ({ id }) => { const Icon = TOOL_ICONS[id]; return Icon ? <Icon className="dcsiv-tool-icon" aria-hidden="true" /> : null }
 
 const fill = (value, variables) => Object.entries(variables).reduce(
@@ -49,15 +49,16 @@ function ViewerAction({ action, annotations, item, service, revision, t, onStart
     } catch { if (active.current) setState('failed') }
   }
   const label = state === 'pending' ? action.pendingLabel : state === 'failed' ? action.errorLabel : action.label
-  if (action.kind === 'mask') return <button type="button" className="dcsiv-button" onClick={() => onStartMask(action)}><ToolIcon id={action.id} /><span className="dcsiv-label">{action.label}</span></button>
-  if (action.kind === 'tool') return <button type="button" className="dcsiv-button" disabled={state === 'pending'} onClick={() => { void invoke() }}><ToolIcon id={action.id} /><span className="dcsiv-label">{label}</span></button>
+  if (action.kind === 'mask') return <button type="button" className="dcsiv-button dcsiv-icon-button" title={action.label} aria-label={action.label} onClick={() => onStartMask(action)}><ToolIcon id={action.id} /></button>
+  if (action.kind === 'tool') return <button type="button" className="dcsiv-button dcsiv-icon-button" title={label} aria-label={label} data-state={state} disabled={state === 'pending'} onClick={() => { void invoke() }}><ToolIcon id={action.id} /></button>
+  if (action.id === 'sketch' && state === 'idle') return <button type="button" className="dcsiv-button dcsiv-icon-button" title={action.label} aria-label={action.label} onClick={() => { void invoke() }}><ToolIcon id="sketch" /></button>
   if (action.kind === 'choice') return <>
-    <button type="button" className="dcsiv-button" aria-haspopup="menu" aria-expanded={menu !== undefined} disabled={state === 'pending'} onClick={event => {
+    <button type="button" aria-haspopup="menu" aria-expanded={menu !== undefined} disabled={state === 'pending'} onClick={event => {
       // The toolbar scrolls and is transformed, so the menu renders in the overlay root.
       const box = event.currentTarget.getBoundingClientRect()
       const host = event.currentTarget.closest('.dcsiv-root')
       setMenu(value => value === undefined && host ? { host, style: { left: box.left, bottom: window.innerHeight - box.top + 8 } } : undefined)
-    }}><ToolIcon id={action.id} /><span className="dcsiv-label">{label}</span></button>
+    }} className="dcsiv-button dcsiv-icon-button" title={label} aria-label={label}><ToolIcon id={action.id} /></button>
     {menu ? createPortal(<span className="dcsiv-menu" role="menu" style={menu.style}>{action.options.map(option => <button type="button" role="menuitem" key={option.value} onClick={() => { setMenu(undefined); void invoke({ option: option.value }) }}>{option.label}</button>)}</span>, menu.host) : null}
   </>
   return <button type="button" className="dcsiv-button dcsiv-edit-action" aria-label={label ?? t('imageEdit')} disabled={state === 'pending'} onClick={() => { void invoke() }}><IconEditOutline16 /><span className="dcsiv-label">{label ?? t('imageEdit')}</span><span className="dcsiv-edit-short">{state === 'idle' ? (action.id === 'sketch' ? t('imageToSketch') : t('imageEditShort')) : label}</span></button>
@@ -88,7 +89,7 @@ function ViewerDownload({ download, item, t }) {
     : state === 'failed'
       ? download.errorLabel ?? t('imageDownloadFailed')
       : t('imageDownload')
-  return <button type="button" className="dcsiv-download" onClick={() => { void invoke() }}><IconDownloadOutline16 /><span className="dcsiv-label">{state === 'pending' ? `${label} ${progress}% · ${t('cancel')}` : label}</span></button>
+  return <button type="button" className="dcsiv-download" data-compact={state === 'idle'} title={label} aria-label={label} onClick={() => { void invoke() }}><IconDownloadOutline16 />{state === 'idle' ? null : <span className="dcsiv-label">{state === 'pending' ? `${label} ${progress}% · ${t('cancel')}` : label}</span>}</button>
 }
 
 export function SubscriptionImageViewerOverlay({ service, t }) {
@@ -283,13 +284,12 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
     <div className="dcsiv-title dcsiv-sr-only"><strong>{item.name}</strong>{meta !== '' ? <small>{meta}</small> : null}</div>
     <header className="dcsiv-topbar" role="toolbar" aria-label={t('imagePreview')}>
       <div className="dcsiv-actions">
-        {request.annotations ? <button type="button" className="dcsiv-button" data-active={annotating} aria-label={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-pressed={annotating} onClick={() => { resetGesture(); setAnnotating(value => !value) }}><IconEditOutline16 /><span className="dcsiv-label">{annotating ? t('imageAnnotateCancel') : t('imageAnnotate')}</span></button> : null}
+        {request.annotations ? <button type="button" className={annotating ? 'dcsiv-button' : 'dcsiv-button dcsiv-icon-button'} data-active={annotating} title={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-label={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-pressed={annotating} onClick={() => { resetGesture(); setAnnotating(value => !value) }}><ToolIcon id="annotate" />{annotating ? <span className="dcsiv-label">{t('imageAnnotateCancel')}</span> : null}</button> : null}
         {annotations.length > 0 ? <button type="button" className="dcsiv-button" data-active={selected !== undefined} onClick={() => { const first = annotations[0]; setSelected(current => current === undefined ? first.id : undefined); if (selected === undefined) setFocusNote(first.id) }}>{annotations.length} <span className="dcsiv-label">{t('imageRegions')}</span></button> : null}
-        <button type="button" className="dcsiv-button" aria-label={t('imageFit')} onClick={fit}><IconFullscreenOutline16 /><span className="dcsiv-label">{t('imageFit')}</span></button>
-        <button type="button" className="dcsiv-button" onClick={actual}>{t('imageActual')}</button>
-        <span className="dcsiv-zoom">{Math.round(transform.zoom * pixelScale * 100)}%</span>
+        <button type="button" className="dcsiv-button dcsiv-zoom" title={transform.zoom === 1 ? t('imageActual') : t('imageFit')} aria-label={transform.zoom === 1 ? t('imageActual') : t('imageFit')} onClick={() => { if (transform.zoom === 1) actual(); else fit() }}>{Math.round(transform.zoom * pixelScale * 100)}%</button>
+        <span className="dcsiv-divider" aria-hidden="true" />
         {item.download === undefined
-          ? <a className="dcsiv-download" href={item.src} download={downloadName(item.name)}><IconDownloadOutline16 /><span className="dcsiv-label">{t('imageDownload')}</span></a>
+          ? <a className="dcsiv-download" data-compact="true" href={item.src} download={downloadName(item.name)} title={t('imageDownload')} aria-label={t('imageDownload')}><IconDownloadOutline16 /></a>
           : <ViewerDownload key={item.id} download={item.download} item={item} t={t} />}
         {item.actions.map(action => <ViewerAction action={action} annotations={annotations} item={item} service={service} revision={request.revision} t={t} onStartMask={startMask} key={`${request.revision}:${index}:${action.id}`} />)}
       </div>
