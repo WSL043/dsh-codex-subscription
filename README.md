@@ -80,7 +80,7 @@
 
 | 功能 | 你可以做什么 | 使用方式 / 条件 |
 | --- | --- | --- |
-| **手机远程控制** | 在 ChatGPT 手机 App 的 Codex 里直接指挥电脑上的 DSH：新建、续聊、归档对话，切换模型和权限，回答审批和提问，DeepSeek 等任意 DSH 模型都能用 | Beta（3.0.0-beta.1）；默认关闭，设置 → Codex 订阅 → 模型与运行 → 手机远程控制，扫码或输入手动码配对 |
+| **手机远程控制** | 在 ChatGPT 手机 App 的 Codex 里直接指挥电脑上的 DSH：新建、续聊、归档对话，切换模型和权限，回答审批和提问，DeepSeek 等任意 DSH 模型都能用 | Beta；默认关闭，设置 → Codex 订阅 → 模型与运行 → 手机远程控制，扫码或输入手动码配对 |
 | **Codex 独立子任务** | 复用订阅登录和工作区权限执行独立任务，可指定允许的模型与推理档位 | Beta；默认 DSH，Codex 需安装可选组件并配置模型选择 |
 | **子任务组件管理** | 在设置里安装、停用或卸载官方 Codex 子任务组件 | 由支持的 DSH 宿主管理，无需额外登录 |
 | **云端上下文压缩** | 使用 Codex 云端压缩继续长对话，同时保留 DSH 历史与原生压缩 | Beta / 实验性；默认关闭，开启的请求使用 SSE |
@@ -109,7 +109,7 @@
 2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
 
    ```text
-   dsh-codex-subscription@2.5.9
+   dsh-codex-subscription@3.0.0
    ```
 
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
@@ -121,7 +121,7 @@
 <summary>终端安装（已能运行 dsh 命令）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@2.5.9
+dsh plugin --profile web add dsh-codex-subscription@3.0.0
 ```
 
 安装完成后按提示重启 DSH，再到 **设置 → Codex 订阅** 登录。插件页面和终端均由 DSH 管理安装。
@@ -134,7 +134,7 @@ dsh plugin --profile web add dsh-codex-subscription@2.5.9
 先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@2.5.9
+dsh plugin --profile headless add dsh-codex-subscription@3.0.0
 dsh --profile headless "只回复：ok"
 ```
 
@@ -163,7 +163,7 @@ dsh --profile headless "只回复：ok"
 - DSH 需要批准工具调用或向你提问时，手机会直接弹出；手机掉线会在重新打开时再弹一次，否则交回电脑处理；
 - 模型报错会显示在手机上。
 
-默认关闭。电脑需要保持开机、联网并打开 DSH。这是 OpenAI 尚未向第三方开放的 ChatGPT 能力，随时可能变化，所以标为 Beta。目前在预发布版中提供：`dsh-codex-subscription@3.0.0-beta.1`。
+默认关闭。电脑需要保持开机、联网并打开 DSH。这是 OpenAI 尚未向第三方开放的 ChatGPT 能力，随时可能变化，所以标为 Beta。
 
 <p align="center"><img src="docs/assets/remote-control.png" width="560" alt="官方桌面版设置页：手机远程控制已连接，显示配对二维码和手动码"></p>
 
@@ -311,7 +311,7 @@ DSH 实机设置截图。
 <summary>终端方式</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@2.5.9
+dsh plugin --profile web update dsh-codex-subscription@3.0.0
 ```
 
 仅在需要卸载时运行：
@@ -327,7 +327,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 <details>
 <summary>DSH 0.2.0-rc.2 提示插件不兼容？</summary>
 
-2.2.10 之前的所有版本发布时 DSH 0.2.0-rc.2 还不存在，其兼容声明无法事后修改。请安装 2.2.10 或更高版本（只填包名时，发布满 24 小时前可能装到旧版，请直接填 `dsh-codex-subscription@2.2.10`）：在 **插件** 页面更新，或运行 `dsh plugin --profile web update dsh-codex-subscription@2.5.9`，然后重启 DSH。
+2.2.10 之前的所有版本发布时 DSH 0.2.0-rc.2 还不存在，其兼容声明无法事后修改。请安装 2.2.10 或更高版本（只填包名时，发布满 24 小时前可能装到旧版，请直接填 `dsh-codex-subscription@2.2.10`）：在 **插件** 页面更新，或运行 `dsh plugin --profile web update dsh-codex-subscription@3.0.0`，然后重启 DSH。
 
 </details>
 

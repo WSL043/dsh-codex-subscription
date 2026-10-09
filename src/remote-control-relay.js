@@ -278,6 +278,8 @@ export function createRemoteControlRelay(options) {
         // 409: the relay still holds a stale connection for this host; enroll again after a few tries.
         conflicts = /409/u.test(String(error?.message)) ? conflicts + 1 : 0
         if (conflicts === 1) conflictSince = now()
+        // Expected right after a restart; shown as waiting rather than as a failure.
+        if (conflicts > 0) { state.status = 'waiting'; state.lastError = 'conflict' }
         if (error?.code === 'unauthorized' || conflicts >= 3) enrolled = undefined
         // Still refused after fresh enrollments: this host id is stuck on the relay, so take a new one.
         // A restarted host is refused for a few minutes until the relay drops the old connection;

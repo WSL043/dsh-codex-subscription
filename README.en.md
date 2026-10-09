@@ -80,7 +80,7 @@ Subscription access, model controls, quota management, and image creation in one
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta (3.0.0-beta.1); off by default; Settings → Codex → Models & runtime → Phone remote control, pair by QR or manual code |
+| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta; off by default; Settings → Codex → Models & runtime → Phone remote control, pair by QR or manual code |
 | **Codex independent subtasks** | Reuse subscription sign-in and workspace permissions; select allowed models and reasoning levels | Beta; DSH by default, Codex requires the optional component and model-selection setup |
 | **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
 | **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
@@ -109,7 +109,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@2.5.9
+   dsh-codex-subscription@3.0.0
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -121,7 +121,7 @@ Why the version is included: DSH's plugin page only installs versions that are a
 <summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@2.5.9
+dsh plugin --profile web add dsh-codex-subscription@3.0.0
 ```
 
 Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
@@ -134,7 +134,7 @@ Follow the restart instructions, then sign in under **Settings → Codex**. Both
 After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@2.5.9
+dsh plugin --profile headless add dsh-codex-subscription@3.0.0
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -163,7 +163,7 @@ Turn on **Settings → Codex → Models & runtime → Phone remote control** and
 - when DSH needs a tool approval or asks you a question, it pops up on the phone; if the phone dropped, it is asked again when you return, otherwise the computer handles it;
 - model errors are shown on the phone.
 
-Off by default. The computer must stay on, online and running DSH. This uses a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. Currently available in the pre-release `dsh-codex-subscription@3.0.0-beta.1`.
+Off by default. The computer must stay on, online and running DSH. This uses a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta.
 
 <p align="center"><img src="docs/assets/remote-control-en.png" width="560" alt="Official desktop app settings: phone remote control connected, showing a pairing QR code and manual code"></p>
 
@@ -282,7 +282,7 @@ Find this plugin on the DSH **Plugins** page and use its update or uninstall act
 <summary>Terminal commands</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@2.5.9
+dsh plugin --profile web update dsh-codex-subscription@3.0.0
 ```
 
 Run only when you want to uninstall:
@@ -298,7 +298,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 <details>
 <summary>DSH 0.2.0-rc.2 reports the plugin as incompatible?</summary>
 
-DSH 0.2.0-rc.2 did not exist when any release before 2.2.10 was published, and a published package's compatibility declaration cannot be changed. Install 2.2.10 or later (a bare package name can resolve to an older release during the first 24 hours, so enter `dsh-codex-subscription@2.2.10`) from the **Plugins** page, or run `dsh plugin --profile web update dsh-codex-subscription@2.5.9`, then restart DSH.
+DSH 0.2.0-rc.2 did not exist when any release before 2.2.10 was published, and a published package's compatibility declaration cannot be changed. Install 2.2.10 or later (a bare package name can resolve to an older release during the first 24 hours, so enter `dsh-codex-subscription@2.2.10`) from the **Plugins** page, or run `dsh plugin --profile web update dsh-codex-subscription@3.0.0`, then restart DSH.
 
 </details>
 
