@@ -274,7 +274,7 @@ export function createRemoteControlRelay(options) {
         if (options.debug) state.detail = String(error?.message ?? error).slice(0, 160)
         state.status = 'error'
         // 409: the relay still holds a stale connection for this host; enroll again after a few tries.
-        conflicts = /409/u.test(String(error?.message)) ? conflicts + 1 : 0
+        conflicts = /409/u.test(String(error?.message)) ? conflicts + 1 : 0
         if (error?.code === 'unauthorized' || conflicts >= 3) enrolled = undefined
         // Still refused after fresh enrollments: this host id is stuck on the relay, so take a new one.
         if (conflicts >= 6 && options.renewInstallation) { installation = await options.renewInstallation(); enrolled = undefined; conflicts = 0 }

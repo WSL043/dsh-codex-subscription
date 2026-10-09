@@ -272,3 +272,19 @@ test('threads can be archived and restored from the phone through the DSH archiv
   await bridgeWith.methods['thread/unarchive']({ threadId: 's1' })
   assert.equal((await bridgeWith.methods['thread/list']({}, {})).data.length, 1)
 })
+
+test('a host id the relay keeps refusing with 409 is enrolled again and finally replaced', async () => {
+  let renewals = 0, enrolls = 0
+  class Refused { constructor() { this.handlers = {}; setTimeout(() => this.handlers.error?.(new Error('Unexpected server response: 409')), 1) } on(name, handler) { this.handlers[name] = handler } close() {} }
+  const fetch = async () => { enrolls += 1; return { ok: true, json: async () => ({ environment_id: 'env', server_id: 'srv', remote_control_token: 'tok', expires_at: new Date(Date.now() + 3_600_000).toISOString() }) } }
+  const relay = createRemoteControlRelay({
+    credentials: async () => ({ access: 'a', accountId: 'b' }), fetch, WebSocket: Refused, installationId: 'i', hostName: 'h', userAgent: 'x/1',
+    serve: () => ({ receive() {}, close() {} }), wait: () => new Promise(resolve => setTimeout(resolve, 2)),
+    renewInstallation: async () => { renewals += 1; return `new-${renewals}` },
+  })
+  void relay.start()
+  await new Promise(resolve => setTimeout(resolve, 300))
+  await relay.stop()
+  assert.ok(renewals >= 1, 'a new host id is taken')
+  assert.ok(enrolls >= 3, 'enrollment is repeated first')
+})
