@@ -86,7 +86,7 @@ export const STYLE = `
 .codexSubscriptionRecover{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .codexSubscriptionRecover .codexSubscriptionError{flex:1}
 .codexSubscriptionRecover button{flex:0 0 auto}
-.codexSubscriptionDiagnostics{color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionDiagnostics{color:var(--dsw-alias-label-secondary)}.codexSubscriptionDiagnostics h3{color:var(--dsw-alias-label-primary)}
 .codexSubscriptionDiagnostics ul{margin:0;padding-left:18px;font-size:13px;line-height:20px}
 .codexSubscriptionDiagnostics li+li{margin-top:6px}
 .codexSubscriptionDiagnostics li strong{font-weight:600;color:var(--dsw-alias-label-primary)}
