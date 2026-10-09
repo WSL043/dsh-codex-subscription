@@ -5,6 +5,8 @@ import { CHANNEL, unwrap, fill, percent, windowLabel, validDate, notifyQuickQuot
 import { creditExpiryStatus } from './credit-expiry.js'
 
 const count = value => Number(value).toLocaleString()
+// The API reports credits as a long decimal string; two decimals are enough to read.
+const creditAmount = value => Number.isFinite(Number(value)) && String(value).trim() !== '' ? Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 }) : value
 
 export function CreditExpiry({ credits, t }) {
   const date = validDate(credits.expiresAt)
@@ -194,7 +196,7 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
     {visibleUsage?.credits === undefined && visibleUsage?.individualLimit === undefined && !(visibleUsage?.resetCredits?.availableCount > 0) ? null : <div className="codexSubscriptionCreditSection">
       <p className="codexSubscriptionCreditNote">{t('creditsNote')}</p>
       <div className="codexSubscriptionCreditRows">
-        {visibleUsage?.credits ? <div className="codexSubscriptionCreditBalance"><span>{t('creditsBalance')}</span><strong>{visibleUsage.credits.unlimited ? t('unlimited') : `${visibleUsage.credits.balance ?? t('unavailable')} ${t('creditsUnit')}`}</strong></div> : null}
+        {visibleUsage?.credits ? <div className="codexSubscriptionCreditBalance"><span>{t('creditsBalance')}</span><strong>{visibleUsage.credits.unlimited ? t('unlimited') : visibleUsage.credits.balance == null ? t('unavailable') : `${creditAmount(visibleUsage.credits.balance)} ${t('creditsUnit')}`}</strong></div> : null}
         {visibleUsage?.credits ? <CreditExpiry credits={visibleUsage.credits} t={t} /> : null}
         {visibleUsage?.credits && !visibleUsage.credits.unlimited ? <p className="codexSubscriptionCreditNote">{t('creditsAfterAllowance')}</p> : null}
         {visibleUsage?.credits?.approxLocalMessages ? <p className="codexSubscriptionCreditNote">{fill(t('creditsMessages'), { local: `${count(visibleUsage.credits.approxLocalMessages[0])}–${count(visibleUsage.credits.approxLocalMessages[1])}`, cloud: visibleUsage.credits.approxCloudMessages ? `${count(visibleUsage.credits.approxCloudMessages[0])}–${count(visibleUsage.credits.approxCloudMessages[1])}` : t('unavailable') })}</p> : null}
