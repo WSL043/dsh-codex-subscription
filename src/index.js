@@ -10,6 +10,12 @@ import { createRuntimeManagement } from './runtime-management.js'
 import { createSketchAgentBridge } from './sketch-agent-bridge.js'
 import { createSketchAgentTool } from './sketch-agent-tool.js'
 import * as dshCredentials from '@deepseek-ai/dsh-credentials'
+import WebSocket from 'ws'
+import { hostname } from 'node:os'
+import { readSubscriptionCredentials } from './subscription-credentials.js'
+import { USER_AGENT } from './version.js'
+import { createRemoteControl } from './remote-control.js'
+import { createDshRemoteControl } from './remote-control-dsh.js'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
@@ -189,6 +195,7 @@ export function apply(ctx, config = {}) {
         compactionMode: settings.get().compactionMode ?? 'dsh',
         connectionMode: settings.get().connectionMode ?? 'sse',
         reviewModel: settings.get().reviewModel ?? 'session',
+        remoteControl: settings.get().remoteControl ?? 'off',
         subagentBackend: settings.get().subagentBackend ?? 'dsh',
         subagentBackendAvailable: subagentBackend !== undefined,
         subagentRuntimeInstalled: inspectSubagentRuntime().installed,
@@ -370,6 +377,37 @@ export function apply(ctx, config = {}) {
     },
   })
   const coordinator = new CodexLoginCoordinator(auth)
+  const remoteBridge = createDshRemoteControl({
+    controller: () => ctx.get?.('sessionController'),
+    agents: () => ctx.get?.('agents'),
+    permissions: () => ctx.get?.('permissionPresets'),
+    userAgent: USER_AGENT,
+  })
+  const remoteControl = createRemoteControl({
+    credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal),
+    WebSocket,
+    fetch: (input, init) => network.fetch('remote', input, init),
+    stateFile: dshHomePath('state', 'codex-subscription', 'remote-control.json'),
+    hostName: `DSH (${hostname()})`,
+    userAgent: USER_AGENT,
+    methods: remoteBridge.methods,
+    onClose: (_client, notify) => remoteBridge.forget(notify),
+  })
+  ctx.on('session/event', (session, event) => { try { remoteBridge.onSessionEvent(session, event) } catch { /* the phone view must never disturb the session */ } })
+  ctx.on('approval/request', (request, next) => { try { return remoteBridge.onApproval(request, next) } catch { return next() } })
+  ctx.effect(() => {
+    // Remote Control stays off until the user switches it on; then it follows the setting.
+    let wanted = false
+    const follow = value => {
+      const next = value.remoteControl === 'on'
+      if (next === wanted) return
+      wanted = next
+      void (next ? remoteControl.enable() : remoteControl.disable()).catch(error => ctx.logger?.debug?.('Remote Control: %s', error?.code ?? error?.message))
+    }
+    follow(settings.get())
+    const unwatch = settings.watch(follow)
+    return () => { unwatch(); void remoteControl.disable().catch(() => {}) }
+  }, 'codex-subscription: Remote Control host')
   const baseUsageReader = createCodexUsageReader({
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
@@ -453,6 +491,7 @@ export function apply(ctx, config = {}) {
     preferences,
     defaultModel,
     runtimeManagement,
+    remoteControl,
     onAccountChanged: quotaRetryHandler.notifyAccountChanged,
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, review: provider, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
     onCleanupFailure: () => diagnosticOperations.record('account/cleanup', 'failed'),

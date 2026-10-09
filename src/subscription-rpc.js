@@ -7,7 +7,7 @@ const publicError = (code, message) => ({
   error: { code, message, details: { issues: [] } },
 })
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, defaultModel, runtimeManagement, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
   return async (endpoint, payload, signal) => {
     if (endpoint === 'default-model/status' || endpoint === 'default-model/select') {
       try {
@@ -28,6 +28,21 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
         return publicError('internal', endpoint === 'default-model/status'
           ? 'Could not read the default model'
           : 'Could not save the default model')
+      }
+    }
+    if (['remote/status', 'remote/enable', 'remote/disable', 'remote/pair'].includes(endpoint)) {
+      try {
+        signal.throwIfAborted()
+        if (!remoteControl) return publicError('unavailable', 'Remote Control is unavailable')
+        const action = endpoint.split('/')[1]
+        const value = action === 'status' ? remoteControl.status()
+          : action === 'enable' ? await remoteControl.enable()
+            : action === 'disable' ? await remoteControl.disable()
+              : await remoteControl.pair(signal)
+        return { ok: true, value }
+      } catch (error) {
+        if (signal.aborted) throw error
+        return publicError(typeof error?.code === 'string' ? error.code : 'operation-error', 'Remote Control request failed')
       }
     }
     if (endpoint === 'storage/status' || endpoint === 'storage/clear-forecast') {
