@@ -15,3 +15,9 @@ test('Codex transport is resolved from the DSH pi-ai adapter at the audited vers
   assert.equal(typeof createModels, 'function')
   assert.equal(typeof openaiCodexProvider, 'function')
 })
+
+test('Codex requests keep their own user-agent when the host sends one', async () => {
+  const { withoutUserAgent } = await import('../src/pi-ai-runtime.js')
+  assert.deepEqual(withoutUserAgent({ 'User-Agent': 'DSH/1', 'x-other': 'kept' }), { 'x-other': 'kept' })
+  assert.equal(withoutUserAgent(undefined), undefined)
+})
