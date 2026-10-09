@@ -23,6 +23,11 @@ export { createModels } from '@earendil-works/pi-ai'
 export { createOpenAICodexProvider as openaiCodexProvider }
 
 /** Apply the chosen detail to user and tool-result images after the provider assembles the request. */
+// pi-ai 1.1 lets a caller's user-agent replace its own; keep the Codex requests' established one.
+export const withoutUserAgent = headers => headers && typeof headers === 'object'
+  ? Object.fromEntries(Object.entries(headers).filter(([name]) => name.toLowerCase() !== 'user-agent'))
+  : headers
+
 function withInputImageDetail(payload, detail) {
   if (!Array.isArray(payload.input)) return payload
   let changed = false
@@ -124,6 +129,7 @@ export function openaiCodexSubscriptionProvider({
     const { temperature: _temperature, onPayload, ...rest } = options
     return {
       ...rest,
+      ...(rest.headers === undefined ? {} : { headers: withoutUserAgent(rest.headers) }),
       ...(textVerbosity === undefined ? {} : { textVerbosity }),
       ...(serviceTier === undefined ? {} : { serviceTier }),
       async onPayload(payload, requestModel) {
@@ -173,6 +179,7 @@ export function openaiCodexSubscriptionProvider({
     const { temperature: _temperature, onPayload, ...rest } = options
     return {
       ...rest,
+      ...(rest.headers === undefined ? {} : { headers: withoutUserAgent(rest.headers) }),
       async onPayload(payload, requestModel) {
         const next = await onPayload?.(payload, requestModel) ?? payload
         // The reviewer keeps DSH's prompt and answer contract; only the model and effort change.
@@ -252,4 +259,4 @@ export function openaiCodexSubscriptionProvider({
   })
 }
 
-export const PI_AI_RUNTIME_VERSIONS = Object.freeze(['0.85.1', '0.87.1'])
+export const PI_AI_RUNTIME_VERSIONS = Object.freeze(['0.85.1', '0.87.1', '1.1.0'])
