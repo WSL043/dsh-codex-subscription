@@ -33,7 +33,7 @@ export function createRemoteControl(options) {
     methods: options.methods,
     notifications: options.notifications,
     onConnection: options.onConnection,
-    onActive: client => { phones.add(client.id) },
+    onActive: (client, notify) => { phones.add(client.id); options.onActive?.(client, notify) },
     onClose: (client, notify) => { phones.delete(client.id); options.onClose?.(client, notify) },
     debug: process.env.DSH_CODEX_REMOTE_DEBUG === '1',
   })

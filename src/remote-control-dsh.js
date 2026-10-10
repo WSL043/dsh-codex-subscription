@@ -198,6 +198,8 @@ function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns 
  */
 // How long a question or approval waits for a phone that dropped while it was open.
 const PHONE_RETURN_MS = 120_000
+// How long after it last had a thread open a reconnecting phone is assumed to still want it.
+const ADOPT_WITHIN_MS = 600_000
 
 export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, projections = () => undefined, skills = () => undefined, llm = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
   const subscribers = new Map() // threadId -> Set<notify>
@@ -211,10 +213,16 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     return value
   }
   const arrivals = new Map() // threadId -> Set<() => void>, woken when a phone opens the thread
+  const openedBy = new Map() // clientId -> Map<threadId, last time one of its connections had the thread open>
   const subscribe = (threadId, notify) => {
     const set = subscribers.get(threadId) ?? new Set()
     set.add(notify)
     subscribers.set(threadId, set)
+    if (notify.clientId) {
+      const opened = openedBy.get(notify.clientId) ?? new Map()
+      opened.set(threadId, Date.now())
+      openedBy.set(notify.clientId, opened)
+    }
     for (const wake of arrivals.get(threadId) ?? []) wake()
   }
   /** Wait until a phone opens the thread again, the signal aborts, or the time runs out. */
@@ -240,9 +248,28 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     catalog = await service().modelCatalog()
     return catalog
   }
-  const selection = agent => agent?.options?.provider && agent?.options?.model
-    ? { provider: agent.options.provider, model: agent.options.model, reasoningEffort: agent.options.reasoningEffort }
-    : catalog?.default
+  // The model of a conversation is the last model/selection event in its log; a freshly loaded agent reports DSH's
+  // newest default instead. A pick the log has not recorded yet (DSH applies it at the next turn) is remembered here.
+  const pickedBy = new Map() // threadId -> { selection, was } (was: what the log said when it was picked)
+  const recorded = agent => {
+    try {
+      const events = agent?.session?.eventsSnapshot
+      for (let index = (events?.length ?? 0) - 1; index >= 0; index -= 1) {
+        const data = events[index]?.type === 'model/selection' ? events[index].data : undefined
+        if (data?.provider && data?.model) return { provider: data.provider, model: data.model, reasoningEffort: data.reasoningEffort }
+      }
+    } catch { /* fall back to the agent's own setting */ }
+    return agent?.options?.provider && agent?.options?.model
+      ? { provider: agent.options.provider, model: agent.options.model, reasoningEffort: agent.options.reasoningEffort }
+      : undefined
+  }
+  const sameSelection = (a, b) => a?.provider === b?.provider && a?.model === b?.model && a?.reasoningEffort === b?.reasoningEffort
+  const selection = agent => {
+    const saved = recorded(agent)
+    const remembered = pickedBy.get(agent?.session?.id)
+    if (remembered && sameSelection(saved, remembered.was)) return remembered.selection
+    return saved ?? catalog?.default
+  }
   const settings = (agent, cwd) => {
     const current = selection(agent)
     const preset = agent?.session ? presetOf(agent.session) : undefined
@@ -300,6 +327,18 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     }))
     return urls
   }
+  /** The turn DSH is running, as the phone should see it now: what is committed, plus the reply still being written. */
+  const withLiveTurn = (id, turns) => {
+    const live = active.get(id)
+    if (!live) return turns
+    const typed = item => (item?.content ?? []).filter(part => part.type === 'text').map(part => part.text).join('')
+    const writing = streams.get(id)
+    const tail = writing ? [{ ...writing.item, text: writing.text }] : []
+    const last = turns.at(-1)
+    const ours = last?.items[0]?.type === 'userMessage' && typed(last.items[0]) === typed(live.userItem)
+    const items = ours ? [...last.items, ...tail] : [live.userItem, ...tail]
+    return [...(ours ? turns.slice(0, -1) : turns), { ...live.turn, items, status: 'inProgress', error: null, completedAt: null, durationMs: null }]
+  }
   const openThread = async (id, notify) => {
     const agent = await agentFor(id)
     if (notify) subscribe(id, notify)
@@ -312,7 +351,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       agent,
       thread: thread({
         id, cwd: session.meta?.cwd, createdAt: session.meta?.createdAt, running: active.has(id), projectId: projectIdOf(id),
-        preview: first ? visibleText(first.content).slice(0, 200) : '', turns: projectTurns(messages, session.meta?.createdAt, imageUrls, session.meta?.cwd),
+        preview: first ? visibleText(first.content).slice(0, 200) : '', turns: withLiveTurn(id, projectTurns(messages, session.meta?.createdAt, imageUrls, session.meta?.cwd)),
       }),
     }
   }
@@ -326,6 +365,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     if (!next.provider || !next.model) return
     if (next.provider === current.provider && next.model === current.model && next.reasoningEffort === current.reasoningEffort) return
     await service().selectModel({ sessionId, ...next })
+    pickedBy.set(sessionId, { selection: next, was: recorded(agent) })
   }
 
   // DSH permission presets <-> Codex sandbox/approval: workspace-write and full access.
@@ -390,8 +430,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     await applySelection(agent, id, params)
     applyPermissions(agent, params)
     const turn = emptyTurn()
-    active.set(id, { turn, ended: undefined })
     const userItem = { type: 'userMessage', id: randomUUID(), clientId: params.clientUserMessageId ?? null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(picture => ({ type: 'image', url: picture.url }))] }
+    active.set(id, { turn, ended: undefined, userItem })
     emit(id, 'turn/started', { threadId: id, turn })
     emit(id, 'thread/status/changed', { threadId: id, status: { type: 'active', activeFlags: [] } })
     emit(id, 'item/started', { threadId: id, turnId: turn.id, item: userItem, startedAtMs: Date.now() })
@@ -819,5 +859,21 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     }
   }
 
-  return { methods, onSessionEvent, onStream, onApproval, onQuestion, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
+  /**
+   * A phone that reconnects on a new stream (the app was closed or refreshed) carries on with the threads its
+   * earlier streams had open, so a running turn keeps reaching it even if the app does not reopen the thread.
+   */
+  const adopt = notify => {
+    if (!notify.clientId) return
+    const opened = openedBy.get(notify.clientId)
+    if (!opened) return
+    for (const [threadId, at] of opened) {
+      if (Date.now() - at > ADOPT_WITHIN_MS) { opened.delete(threadId); continue }
+      const set = subscribers.get(threadId)
+      if (!set) continue
+      for (const other of [...set]) if (other !== notify && other.clientId === notify.clientId) set.delete(other)
+      if (!set.has(notify)) subscribe(threadId, notify)
+    }
+  }
+  return { methods, onSessionEvent, onStream, onApproval, onQuestion, adopt, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
 }
