@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { readdirSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { RpcError, invalidParams } from './remote-control-host.js'
+import { runGit } from './remote-control-git.js'
 
 /** A folder the phone named, only when it is an existing absolute folder on this machine. */
 export function localFolder(value) {
@@ -451,7 +452,15 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'thread/attachment/list': () => ({ data: [], nextCursor: null }),
     'config/batchWrite': () => ({ status: 'ok', version: '1', filePath: process.platform === 'win32' ? 'C:\dsh\config.toml' : '/dsh/config.toml', overriddenMetadata: null }),
     // Arbitrary host commands bypass DSH's sandbox and approvals, so they stay off.
-    'command/exec': () => { throw new RpcError(-32600, 'Running commands directly is not available on a DSH host; ask in the conversation instead') },
+    // Only read-only git inside a conversation folder, for the phone's changes view; nothing else runs.
+    'command/exec': async params => {
+      const items = (await service().list({}).catch(() => ({ items: [] }))).items ?? []
+      const folders = [...workspaceList().map(entry => entry.path), ...items.map(item => item.cwd)].filter(folder => typeof folder === 'string' && folder !== '')
+      try { return await runGit(params, { folders }) } catch (error) {
+        trace({ method: 'command/exec:refused', reason: String(error?.message).slice(0, 80), command: Array.isArray(params?.command) ? params.command.slice(0, 3).map(part => String(part).slice(0, 40)) : null })
+        throw new RpcError(-32600, error?.code === 'not-allowed' ? `Not available on a DSH host: ${error.message}` : 'Could not run the command')
+      }
+    },
     'plugin/installed': () => ({ marketplaceLoadErrors: [], marketplaces: [] }),
     // The app prepares a working folder before a new chat; sessions here use DSH's own folders, so nothing is created.
     'fs/createDirectory': () => ({}),
