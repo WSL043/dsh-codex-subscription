@@ -62,9 +62,9 @@ test('DSH messages project into Codex turns and items', () => {
     { role: 'user', id: 'u2', content: [{ type: 'text', text: 'again' }] },
   ])
   assert.equal(turns.length, 2)
-  assert.deepEqual(turns[0].items.map(item => item.type), ['userMessage', 'reasoning', 'agentMessage', 'dynamicToolCall'])
+  assert.deepEqual(turns[0].items.map(item => item.type), ['userMessage', 'reasoning', 'agentMessage', 'commandExecution'])
   assert.equal(turns[0].items[3].status, 'completed')
-  assert.deepEqual(turns[0].items[3].arguments, { command: 'ls' })
+  assert.deepEqual([turns[0].items[3].command, turns[0].items[3].aggregatedOutput], ['ls', 'a.txt'])
 })
 
 function fakeControl({ error } = {}) {
@@ -441,8 +441,7 @@ test('images in a conversation, the person\'s and the ones tools return, reach t
     { role: 'tool', toolCallId: 'c1', content: [{ type: 'text', text: 'Generated an image.' }, { type: 'image', attachment: { attachmentId: id } }] },
   ], 1_000_000, urls)
   assert.deepEqual(turns[0].items[0].content.map(part => part.type), ['text', 'image'])
-  assert.deepEqual(turns[0].items[1].contentItems.map(item => item.type), ['inputText', 'inputImage'])
-  assert.equal(turns[0].items[1].contentItems[1].imageUrl, PNG_URL)
+  assert.deepEqual([turns[0].items[1].type, turns[0].items[1].status, turns[0].items[1].result], ['imageGeneration', 'completed', PNG_URL.slice(PNG_URL.indexOf(',') + 1)])
 })
 
 test('the phone folder picker sees real local folders and nothing for made-up ones', async () => {
@@ -525,4 +524,121 @@ test('a server Retry-After is a floor for the next attempt and a flapping connec
   await relay.stop()
   assert.ok(waits[0] >= 90_000, 'Retry-After is honoured')
   assert.deepEqual(waits.slice(1, 5), [2000, 4000, 8000, 16000], 'quick drops do not reset the backoff')
+})
+
+function bridgeWithWorkspaces() {
+  const made = fakeControl()
+  const workspaces = { archivedSessionIds: [], list: () => [{ id: 'w1', path: 'C:/work/app', title: 'App', sessionIds: ['s1'], createdAt: 1_000_000, updatedAt: 2_000_000 }, { id: 'w2', path: 'C:/work/empty', title: '', sessionIds: [], createdAt: 1_000_000, updatedAt: 1_500_000 }] }
+  const forks = []
+  const bridge = createDshRemoteControl({
+    controller: () => ({
+      resolveAgent: async id => ({ agent: { session: { ...made.session, id }, options: { provider: 'openai-codex', model: 'gpt-6' } } }),
+      list: async () => ({ items: [{ sessionId: 's1', updatedAt: 2_000_000, blank: false, cwd: 'C:/work/app' }, { sessionId: 's2', updatedAt: 1_000_000, blank: false, cwd: 'C:/other' }, { sessionId: 's3', updatedAt: 500_000, blank: false, cwd: 'C:/other' }] }),
+      modelCatalog: async () => ({ groups: [] }), selectModel: async () => {},
+      create: async request => { forks.push(['create', request]); return { sessionId: 's1' } },
+      fork: async request => { forks.push(['fork', request]); return { sessionId: 's1' } },
+    }),
+    workspaces: () => workspaces, usage: () => ({ read: async () => ({ rateLimits: [{ id: 'codex', name: 'Codex', windows: [{ usedPercent: 42.4, remainingPercent: 57.6, windowSeconds: 18_000, resetsAt: 1_900_000_000 }, { usedPercent: 10, remainingPercent: 90, windowSeconds: 604_800 }] }] }) }), userAgent: 'x/1',
+  })
+  return { bridge, forks }
+}
+
+test('DSH workspaces appear as the phone projects and new chats can start in one', async () => {
+  const { bridge, forks } = bridgeWithWorkspaces()
+  const projects = await bridge.methods['project/list']({}, {})
+  assert.deepEqual(projects.data.map(project => [project.id, project.name, project.roots[0].path]), [['w1', 'App', 'C:/work/app'], ['w2', 'empty', 'C:/work/empty']])
+  assert.equal(projects.data[1].recencyAt, null)
+  assert.equal((await bridge.methods['project/read']({ projectId: 'w1' }, {})).project.name, 'App')
+  await assert.rejects(() => bridge.methods['project/read']({ projectId: 'nope' }, {}), /not found/u)
+  const listed = await bridge.methods['thread/list']({}, {})
+  assert.equal(listed.data.find(entry => entry.id === 's1').projectId, 'w1')
+  assert.deepEqual((await bridge.methods['thread/list']({ projectId: 'w1' }, {})).data.map(entry => entry.id), ['s1'])
+  await bridge.methods['thread/start']({ projectId: 'w1' }, { notify: async () => {} })
+  assert.deepEqual(forks.find(entry => entry[0] === 'create')[1], { workspaceId: 'w1' })
+})
+
+test('thread/list filters by folder and excluded ids and pages with a cursor', async () => {
+  const { bridge } = bridgeWithWorkspaces()
+  assert.deepEqual((await bridge.methods['thread/list']({ cwd: 'C:/other' }, {})).data.map(entry => entry.id), ['s2', 's3'])
+  assert.deepEqual((await bridge.methods['thread/list']({ excludedThreadIds: ['s1'] }, {})).data.map(entry => entry.id), ['s2', 's3'])
+  const first = await bridge.methods['thread/list']({ limit: 2 }, {})
+  assert.equal(first.data.length, 2)
+  const second = await bridge.methods['thread/list']({ limit: 2, cursor: first.nextCursor }, {})
+  assert.deepEqual([second.data.length, second.nextCursor], [1, null])
+})
+
+test('the phone reads Codex usage as rate-limit windows', async () => {
+  const { bridge } = bridgeWithWorkspaces()
+  const limits = await bridge.methods['account/rateLimits/read']({}, {})
+  assert.deepEqual([limits.rateLimits.primary.usedPercent, limits.rateLimits.primary.windowDurationMins, limits.rateLimits.primary.resetsAt], [42, 300, 1_900_000_000])
+  assert.equal(limits.rateLimits.secondary.windowDurationMins, 10_080)
+  assert.equal(Object.keys(limits.rateLimitsByLimitId)[0], 'codex')
+  const none = createDshRemoteControl({ controller: () => ({}), userAgent: 'x/1' })
+  assert.equal((await none.methods['account/rateLimits/read']({}, {})).rateLimits.primary, null)
+})
+
+test('a thread can be forked from the phone and its turns listed in pages', async () => {
+  const { bridge, forks } = bridgeWithWorkspaces()
+  const forked = await bridge.methods['thread/fork']({ threadId: 's1' }, { notify: async () => {} })
+  assert.equal(forked.thread.id, 's1')
+  assert.deepEqual(forks.find(entry => entry[0] === 'fork')[1], { sessionId: 's1' })
+  const turns = await bridge.methods['thread/turns/list']({ threadId: 's1', limit: 1 }, {})
+  assert.equal(turns.data.length, 1)
+})
+
+test('a new thread title and the token usage reach a phone that has the thread open', async () => {
+  const made = fakeControl()
+  const bridge = createDshRemoteControl({
+    controller: () => ({ resolveAgent: async () => ({ agent: { session: made.session, options: {}, whenIdle: () => Promise.resolve() } }), modelCatalog: async () => ({ groups: [] }), selectModel: async () => {}, prompt: async () => ({}) }),
+    projections: () => ({ snapshot: () => ({ values: { tokenUsage: { uncachedInputTokens: 100, outputTokens: 20, cacheReadTokens: 50, cacheWriteTokens: 0 }, contextPressure: { pressureTokens: 1234, contextWindow: 272000 } } }) }), userAgent: 'x/1',
+  })
+  const notes = []
+  const notify = async (method, params) => { notes.push([method, params]) }
+  await bridge.methods['thread/resume']({ threadId: 's1' }, { notify })
+  bridge.onSessionEvent(made.session, { type: 'session/title', data: { title: 'Fix the build' } })
+  assert.deepEqual(notes.find(([method]) => method === 'thread/name/updated')[1], { threadId: 's1', threadName: 'Fix the build' })
+  await bridge.methods['turn/start'](hello('go'), { notify })
+  await wait(20)
+  const usage = notes.find(([method]) => method === 'thread/tokenUsage/updated')[1].tokenUsage
+  assert.deepEqual([usage.total.totalTokens, usage.total.cachedInputTokens, usage.last.totalTokens, usage.modelContextWindow], [170, 50, 1234, 272000])
+})
+
+test("shell commands and file edits show up with the phone's own command and diff views", () => {
+  const call = (id, name, args) => ({ type: 'tool-call', id, name, arguments: JSON.stringify(args) })
+  const turns = projectTurns([
+    { role: 'user', id: 'u', content: [{ type: 'text', text: 'fix it' }] },
+    { role: 'assistant', id: 'a', content: [call('c1', 'bash', { command: 'git status', description: 'Show status' }), call('c2', 'edit', { file_path: 'src/a.js', old_string: 'one', new_string: 'two\nthree' }), call('c3', 'write', { file_path: 'b.txt', content: 'hi' }), call('c4', 'web_search', { query: 'x' })] },
+    { role: 'tool', toolCallId: 'c1', content: [{ type: 'text', text: 'clean' }] },
+    { role: 'tool', toolCallId: 'c2', isError: true, content: [{ type: 'text', text: 'no match' }] },
+    { role: 'tool', toolCallId: 'c3', content: [{ type: 'text', text: 'ok' }] },
+  ], 1_000_000, undefined, 'C:/w')
+  const [command, edit, write, other] = turns[0].items.slice(1)
+  assert.deepEqual([command.type, command.command, command.cwd, command.aggregatedOutput, command.exitCode, command.status], ['commandExecution', 'git status', 'C:/w', 'clean', 0, 'completed'])
+  assert.deepEqual([edit.type, edit.status, edit.changes[0].path, edit.changes[0].kind.type], ['fileChange', 'failed', 'src/a.js', 'update'])
+  assert.equal(edit.changes[0].diff, '@@\n-one\n+two\n+three')
+  assert.deepEqual([write.type, write.changes[0].kind.type, write.changes[0].diff, write.status], ['fileChange', 'add', '+hi', 'completed'])
+  assert.deepEqual([other.type, other.tool, other.status], ['dynamicToolCall', 'web_search', 'inProgress'])
+})
+
+test('a file edit approval uses the phone file-change request', async () => {
+  const { bridge, session } = fakeControl()
+  session.deriveMessages = () => [{ role: 'assistant', id: 'a', content: [{ type: 'tool-call', id: 'e1', name: 'edit', arguments: '{"file_path":"a.js","old_string":"x","new_string":"y"}' }] }]
+  const asked = []
+  const notify = async () => {}
+  notify.ask = async (method, params) => { asked.push([method, params]); return { decision: 'acceptForSession' } }
+  await bridge.methods['turn/start'](hello('go'), { notify })
+  const result = await bridge.onApproval({ agent: { session }, toolName: 'edit', callId: 'e1' }, async () => 'rejected')
+  assert.equal(result, 'allowed-once')
+  assert.equal(asked[0][0], 'item/fileChange/requestApproval')
+  assert.equal(asked[0][1].itemId, 'e1')
+})
+
+test('the DSH task list becomes the phone plan', async () => {
+  const { bridge, session, finish } = fakeControl()
+  const notes = []
+  await bridge.methods['turn/start'](hello('go'), { notify: async (method, params) => { notes.push([method, params]) } })
+  session.deriveMessages = () => [{ role: 'assistant', id: 'a', content: [{ type: 'tool-call', id: 't1', name: 'todo_write', arguments: JSON.stringify({ todos: [{ content: 'Read code', status: 'completed' }, { content: 'Fix bug', status: 'in_progress' }, { content: 'Test', status: 'pending' }] }) }] }]
+  bridge.onSessionEvent(session, { type: 'assistant/message' })
+  assert.deepEqual(notes.find(([method]) => method === 'turn/plan/updated')[1].plan, [{ step: 'Read code', status: 'completed' }, { step: 'Fix bug', status: 'inProgress' }, { step: 'Test', status: 'pending' }])
+  finish(); await wait()
 })
