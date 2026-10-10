@@ -339,3 +339,48 @@ test('a question waits for a phone that dropped and asks it again when it reopen
   await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: second })
   assert.deepEqual((await answer).answers, [{ id: 'q', selected: [], custom: 'because' }])
 })
+
+test('text the model is still writing reaches the phone as it arrives, then the committed message finishes the same item', async () => {
+  const { bridge, session, finish } = fakeControl()
+  const notes = []
+  const notify = async (method, params) => { notes.push([method, params]) }
+  await bridge.methods['turn/start'](hello('go'), { notify })
+  bridge.onStream(session, { type: 'start' })
+  bridge.onStream(session, { type: 'chunk', chunk: { type: 'reasoning-delta', text: 'thinking' } })
+  bridge.onStream(session, { type: 'chunk', chunk: { type: 'text-delta', text: 'Hel' } })
+  bridge.onStream(session, { type: 'chunk', chunk: { type: 'text-delta', text: 'lo' } })
+  const started = notes.filter(([method]) => method === 'item/started').at(-1)[1].item
+  assert.equal(started.type, 'agentMessage')
+  assert.deepEqual(notes.filter(([method]) => method === 'item/agentMessage/delta').map(([, params]) => [params.itemId, params.delta]), [[started.id, 'Hel'], [started.id, 'lo']])
+  session.deriveMessages = () => [{ role: 'assistant', id: 'a1', content: [{ type: 'text', text: 'Hello' }] }]
+  bridge.onSessionEvent(session, { type: 'assistant/message' })
+  bridge.onStream(session, { type: 'end', outcome: { kind: 'committed', eventType: 'assistant/message' } })
+  const done = notes.filter(([method]) => method === 'item/completed').map(([, params]) => params.item).filter(item => item.type === 'agentMessage')
+  assert.deepEqual(done.map(item => [item.id, item.text]), [[started.id, 'Hello']])
+  finish(); await wait()
+})
+
+test('a streamed attempt that never commits is closed instead of hanging on the phone', async () => {
+  const { bridge, session, finish } = fakeControl()
+  const notes = []
+  const notify = async (method, params) => { notes.push([method, params]) }
+  await bridge.methods['turn/start'](hello('go'), { notify })
+  bridge.onStream(session, { type: 'start' })
+  bridge.onStream(session, { type: 'chunk', chunk: { type: 'text-delta', text: 'partial' } })
+  bridge.onStream(session, { type: 'end', outcome: { kind: 'abandoned' } })
+  const done = notes.filter(([method]) => method === 'item/completed').map(([, params]) => params.item).filter(item => item.type === 'agentMessage')
+  assert.deepEqual(done.map(item => item.text), ['partial'])
+  finish(); await wait()
+})
+
+test('a reply without any reasoning block is not lost on its way to the phone', async () => {
+  const { bridge, session, finish } = fakeControl()
+  const notes = []
+  const notify = async (method, params) => { notes.push([method, params]) }
+  await bridge.methods['turn/start'](hello('go'), { notify })
+  session.deriveMessages = () => [{ role: 'assistant', id: 'a1', content: [{ type: 'text', text: 'Hi there' }] }]
+  bridge.onSessionEvent(session, { type: 'assistant/message' })
+  const texts = notes.filter(([method]) => method === 'item/completed').map(([, params]) => params.item).filter(item => item.type === 'agentMessage').map(item => item.text)
+  assert.deepEqual(texts, ['Hi there'])
+  finish(); await wait()
+})
