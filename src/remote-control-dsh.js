@@ -492,6 +492,36 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     )
   }
 
+  // Text the model is still writing, shown on the phone as it arrives; the committed message then completes the same item.
+  const streams = new Map() // threadId -> { item, text }
+  const onStream = (session, frame) => {
+    const running = session ? active.get(session.id) : undefined
+    if (!running || !subscribers.has(session.id)) return
+    const id = session.id
+    if (frame.type === 'start') { streams.delete(id); return }
+    if (frame.type === 'end') {
+      const stream = streams.get(id)
+      // A committed message completes the item itself; an abandoned or failed attempt must not leave it open.
+      if (stream && frame.outcome?.eventType !== 'assistant/message') {
+        streams.delete(id)
+        stream.item.text = stream.text
+        emit(id, 'item/completed', { threadId: id, turnId: running.turn.id, item: stream.item, completedAtMs: Date.now() })
+      }
+      return
+    }
+    const chunk = frame.chunk
+    if (chunk?.type !== 'text-delta' || typeof chunk.text !== 'string' || chunk.text === '') return
+    let stream = streams.get(id)
+    if (!stream) {
+      stream = { item: { type: 'agentMessage', id: randomUUID(), text: '', phase: null, memoryCitation: null, delivery: null }, text: '' }
+      streams.set(id, stream)
+      running.turn.items.push(stream.item)
+      emit(id, 'item/started', { threadId: id, turnId: running.turn.id, item: stream.item, startedAtMs: Date.now() })
+    }
+    stream.text += chunk.text
+    emit(id, 'item/agentMessage/delta', { threadId: id, turnId: running.turn.id, itemId: stream.item.id, delta: chunk.text })
+  }
+
   /** Forward committed assistant and tool events of a phone-started turn as items. */
   const onSessionEvent = (session, event) => {
     const running = active.get(session.id)
@@ -510,13 +540,24 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return
     }
     if (!message || message.role !== 'assistant') return
-    const items = projectTurns([{ role: 'user', id: 'x', content: [] }, message]).flatMap(turn => turn.items.slice(1))
+    const items = projectTurns([{ role: 'user', id: 'x', content: [{ type: 'text', text: 'x' }] }, message]).flatMap(turn => turn.items.slice(1))
+    const stream = streams.get(session.id)
+    streams.delete(session.id)
+    let reuse = stream?.item
     for (const item of items) {
+      if (reuse && item.type === 'agentMessage') {
+        // The text already on the phone: finish that item instead of showing the reply twice.
+        const shown = reuse
+        reuse = undefined
+        shown.text = item.text
+        emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item: shown, completedAtMs: Date.now() })
+        continue
+      }
       running.turn.items.push(item)
       emit(session.id, 'item/started', { threadId: session.id, turnId: running.turn.id, item, startedAtMs: Date.now() })
       emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item, completedAtMs: Date.now() })
     }
   }
 
-  return { methods, onSessionEvent, onApproval, onQuestion, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
+  return { methods, onSessionEvent, onStream, onApproval, onQuestion, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
 }
