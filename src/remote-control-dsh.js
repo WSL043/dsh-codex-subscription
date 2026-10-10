@@ -382,6 +382,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     active.set(id, { turn, ended: undefined })
     const userItem = { type: 'userMessage', id: randomUUID(), clientId: params.clientUserMessageId ?? null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(picture => ({ type: 'image', url: picture.url }))] }
     emit(id, 'turn/started', { threadId: id, turn })
+    emit(id, 'thread/status/changed', { threadId: id, status: { type: 'active', activeFlags: [] } })
     emit(id, 'item/started', { threadId: id, turnId: turn.id, item: userItem, startedAtMs: Date.now() })
     emit(id, 'item/completed', { threadId: id, turnId: turn.id, item: userItem, completedAtMs: Date.now() })
     try {
@@ -404,6 +405,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       const usageNow = tokenUsage(agent.session)
       if (usageNow) emit(id, 'thread/tokenUsage/updated', { threadId: id, turnId: turn.id, tokenUsage: usageNow })
       emit(id, 'turn/completed', { threadId: id, turn })
+      emit(id, 'thread/status/changed', { threadId: id, status: { type: 'idle' } })
       const [next, ...rest] = queues.get(id) ?? []
       if (next) {
         queues.set(id, rest)
@@ -616,6 +618,14 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
    */
   const askPhone = async (request, method, params) => {
     const sessionId = request.agent.session.id
+    // The phone's thread list shows "waiting for you" while a request is open.
+    const flag = method === 'item/tool/requestUserInput' ? 'waitingOnUserInput' : 'waitingOnApproval'
+    emit(sessionId, 'thread/status/changed', { threadId: sessionId, status: { type: 'active', activeFlags: [flag] } })
+    try { return await asked(request, method, params, sessionId) } finally {
+      if (active.has(sessionId)) emit(sessionId, 'thread/status/changed', { threadId: sessionId, status: { type: 'active', activeFlags: [] } })
+    }
+  }
+  const asked = async (request, method, params, sessionId) => {
     for (;;) {
       const phone = phoneFor(request)?.phone
       if (!phone) throw new RpcError(-32800, 'No phone')

@@ -27,6 +27,8 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
   const [now, setNow] = useState(Date.now())
+  const [clients, setClients] = useState()
+  const [removing, setRemoving] = useState()
   const alive = useRef(false)
   const on = snapshot.remoteControl === 'on'
   const read = async () => {
@@ -35,7 +37,29 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
       if (alive.current && result.ok) setState(result.value)
     } catch { /* the next poll retries */ }
   }
+  const readClients = async () => {
+    try {
+      const result = await rpc.call(CHANNEL, 'remote/clients', {})
+      if (alive.current && result.ok) setClients(result.value)
+    } catch { /* the next refresh retries */ }
+  }
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+  useEffect(() => {
+    if (!on) { setClients(undefined); return undefined }
+    let stopped = false, timer
+    const poll = async () => { await readClients(); if (!stopped) timer = setTimeout(poll, 20000) }
+    void poll()
+    return () => { stopped = true; clearTimeout(timer) }
+  }, [on, rpc])
+  const remove = async client => {
+    if (removing) return
+    setRemoving(client.clientId); setFailed(false)
+    try {
+      const result = await rpc.call(CHANNEL, 'remote/revoke', { clientId: client.clientId })
+      if (!alive.current) return
+      if (result.ok) setClients(result.value); else setFailed(true)
+    } catch { if (alive.current) setFailed(true) } finally { if (alive.current) setRemoving(undefined) }
+  }
   useEffect(() => {
     if (!on) { setState(undefined); setPairing(undefined); return undefined }
     let stopped = false, timer
@@ -84,6 +108,13 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
           <p className="codexSubscriptionHelp">{t('remoteExpires').replace('{minutes}', String(minutes))}</p>
         </div>
       </div> : pairing ? <p className="codexSubscriptionHelp">{t('remoteExpired')}</p> : null}
+      {clients ? <div className="codexSubscriptionRemoteClients" role="list" aria-label={t('remotePaired')}>
+        <span className="codexSubscriptionPreferenceLabel">{t('remotePaired')}</span>
+        {clients.length === 0 ? <p className="codexSubscriptionHelp">{t('remoteNoPhones')}</p> : clients.map(client => <div key={client.clientId} role="listitem" className="codexSubscriptionPreference">
+          <span>{[client.name ?? t('remotePhoneUnknown'), client.platform, client.lastSeenAt ? t('remoteLastSeen').replace('{date}', new Date(client.lastSeenAt).toLocaleString()) : null].filter(Boolean).join(' · ')}</span>
+          <Button type="button" variant="outline" disabled={Boolean(removing)} onClick={() => { void remove(client) }}>{t('remoteRevoke')}</Button>
+        </div>)}
+      </div> : null}
       <p className="codexSubscriptionHelp">{t('remoteLimits')}</p>
     </> : null}
   </section>
