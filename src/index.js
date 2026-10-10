@@ -388,6 +388,7 @@ export function apply(ctx, config = {}) {
     methods: remoteBridge.methods,
     onClose: (_client, notify) => remoteBridge.forget(notify),
   })
+  ctx.on('agent/assistant-stream', ({ agent, frame }) => { try { remoteBridge.onStream(agent?.session, frame) } catch { /* the phone view must never disturb the session */ } })
   ctx.on('session/event', (session, event) => { try { remoteBridge.onSessionEvent(session, event) } catch { /* the phone view must never disturb the session */ } })
   // Prepended: the DSH window answers these too and would otherwise claim them before the phone sees them.
   ctx.on('approval/request', (request, next) => { try { return remoteBridge.onApproval(request, next) } catch { return next() } }, true)
