@@ -692,3 +692,12 @@ test('DSH skills are offered to the phone and a picked skill is sent as a /name 
   await bridge.methods['turn/start']({ threadId: 's1', input: [{ type: 'skill', name: 'review-pr', path: '/s/review-pr' }, { type: 'text', text: 'check #4', text_elements: [] }, { type: 'skill', name: '../evil' }] }, { notify: async () => {} })
   assert.equal(calls[0].content[0].text, '/review-pr check #4')
 })
+
+test('the phone is told which models read images', async () => {
+  const bridge = createDshRemoteControl({
+    controller: () => ({ modelCatalog: async () => ({ default: { provider: 'openai-codex', model: 'gpt-6' }, groups: [{ id: 'openai-codex', name: 'Codex', models: [{ id: 'gpt-6', name: 'GPT-6' }, { id: 'text-only', name: 'T' }] }] }) }),
+    llm: () => ({ resolveModelInfo: async (_provider, model) => model === 'gpt-6' ? { inputModalities: ['text', 'image', 'audio'] } : { inputModalities: ['text'] } }), userAgent: 'x/1',
+  })
+  const models = (await bridge.methods['model/list']({}, {})).data
+  assert.deepEqual(models.map(model => model.inputModalities), [['text', 'image'], ['text']])
+})
