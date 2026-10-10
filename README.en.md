@@ -164,6 +164,7 @@ Turn on **Settings → Codex → Models & runtime → Phone remote control** and
 - replies appear on the phone as they are written;
 - commands, file edits (with diffs), the task list and generated images use the phone's native views, and file-edit approvals show the diff;
 - DSH workspaces appear as projects on the phone: start chats in them, fork a conversation, see usage limits and context usage;
+- on the phone, @ searches files on the computer, skills can be picked, and the changes view works (read-only git);
 - Settings lists the paired phones and lets you remove any of them;
 - send photos from the phone (with or without text), and images DSH produces show up on the phone;
 - the phone folder picker browses real folders on this computer, and a new chat can start in one of them;

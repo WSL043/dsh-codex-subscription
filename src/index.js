@@ -378,6 +378,7 @@ export function apply(ctx, config = {}) {
     attachments: () => ctx.attachments,
     usage: () => usageReader,
     projections: () => ctx.get?.('sessionProjections'),
+    skills: () => ctx.get?.('skills'),
     trace: entry => { try { remoteControl.host.note(entry) } catch { /* diagnostics only */ } },
     userAgent: USER_AGENT,
   })
