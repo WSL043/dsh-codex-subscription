@@ -237,7 +237,7 @@ function imageContent(value) {
     ? `Generated a ${value.size} image.`
     : 'Generated an image.'
   return [
-    { type: 'text', text: value.localPath === undefined ? label : `${label}\nOriginal PNG saved on the DSH host at: ${JSON.stringify(value.localPath)}. Read this file or copy it to the workspace with a .png extension; this host path is not a browser URL.` },
+    { type: 'text', text: value.localPath === undefined ? label : `${label}\nOriginal PNG saved on the DSH host at: ${JSON.stringify(value.localPath)}. Read this file or copy it to the workspace with a .png extension; this host path is not a browser URL. The image is already shown to the user, so do not embed it again; copy it rather than move it, and leave the original in place unless the user asks you to delete it.` },
     { type: 'image', attachment: imageReference(value.image) },
   ]
 }
@@ -291,6 +291,42 @@ function imageOutputSchema() {
       size: { type: 'string' },
     },
   }
+}
+
+const SUPPORT_ID = /^[A-Za-z0-9._-]{1,80}$/u
+
+/** The request id Codex returns for an image call, kept on failures so a report can be traced. */
+function supportId(response) {
+  const id = response.headers?.get?.('x-codex-imagegen-request-id')
+  return typeof id === 'string' && SUPPORT_ID.test(id) ? ` (request ${id})` : ''
+}
+
+/** What a 429 from the image endpoint says: when the limit resets, when the response tells us. */
+async function limitMessage(response, now = Date.now()) {
+  const fallback = 'Codex image generation quota is unavailable'
+  let error
+  try { error = JSON.parse(await readTextWithin(response, 16 * 1024))?.error } catch { return fallback }
+  if (!record(error)) return fallback
+  const at = Number.isSafeInteger(error.resets_at) && error.resets_at > 0 ? error.resets_at * 1000
+    : Number.isSafeInteger(error.resets_in_seconds) && error.resets_in_seconds > 0 ? now + error.resets_in_seconds * 1000 : undefined
+  if (at === undefined) return fallback
+  const minutes = Math.max(1, Math.ceil((at - now) / 60_000))
+  return `Codex image generation limit reached; it resets in about ${minutes >= 120 ? `${Math.round(minutes / 60)} hours` : `${minutes} minutes`}`
+}
+
+async function readTextWithin(response, maximumBytes) {
+  if (response.body === null || response.body === undefined) return ''
+  const reader = response.body.getReader()
+  const chunks = []
+  let bytes = 0
+  while (bytes < maximumBytes) {
+    const { done, value } = await reader.read()
+    if (done) break
+    bytes += value.byteLength
+    chunks.push(value)
+  }
+  await reader.cancel().catch(() => {})
+  return Buffer.concat(chunks.map(chunk => Buffer.from(chunk))).toString('utf8').slice(0, maximumBytes)
 }
 
 function responseMetadata(value) {
@@ -444,8 +480,9 @@ export function createCodexImageTool(options) {
         if (response.status === 401 || response.status === 403) {
           throw new Error('ChatGPT sign-in needs to be renewed')
         }
-        if (response.status === 429) throw new Error('Codex image generation quota is unavailable')
-        throw new Error(`Codex image ${editing ? 'edit' : 'generation'} failed (HTTP ${response.status})`)
+        const requestId = supportId(response)
+        if (response.status === 429) throw new Error(`${await limitMessage(response)}${requestId}`)
+        throw new Error(`Codex image ${editing ? 'edit' : 'generation'} failed (HTTP ${response.status})${requestId}`)
       }
       const value = await readJsonWithin(
         response,

@@ -498,3 +498,22 @@ test('session image edits accept only attachmentId and resolve canonical metadat
   assert.equal(requests.length,1)
   assert.equal(requests[0].url,CODEX_IMAGE_EDIT_URL)
 })
+
+test('an image limit says when it resets, and a failure carries the request id for support', async () => {
+  const limited = (error, headers = {}) => fixture({ async fetch() { return new Response(JSON.stringify({ error }), { status: 429, headers }) } }).tool
+  const soon = Math.floor(Date.now() / 1000) + 90 * 60
+  await assert.rejects(limited({ type: 'usage_limit_reached', resets_at: soon }).execute({ prompt: 'x' }, execContext('c1')), /limit reached; it resets in about (89|90|91) minutes$/u)
+  await assert.rejects(limited({ type: 'usage_limit_reached', resets_in_seconds: 3 * 3600 }).execute({ prompt: 'x' }, execContext('c2')), /resets in about 3 hours$/u)
+  await assert.rejects(limited({ message: 'no details' }).execute({ prompt: 'x' }, execContext('c3')), { message: 'Codex image generation quota is unavailable' })
+  await assert.rejects(limited({ message: 'x' }, { 'x-codex-imagegen-request-id': 'req_abc-123' }).execute({ prompt: 'x' }, execContext('c4')), { message: 'Codex image generation quota is unavailable (request req_abc-123)' })
+  const broken = fixture({ async fetch() { return new Response('not json', { status: 429, headers: { 'x-codex-imagegen-request-id': 'bad id with spaces' } }) } }).tool
+  await assert.rejects(broken.execute({ prompt: 'x' }, execContext('c5')), { message: 'Codex image generation quota is unavailable' })
+})
+
+test('the model is told the generated image is already shown and to copy, not move, the original', async () => {
+  const { tool } = fixture()
+  const value = await tool.execute({ prompt: 'a dot' }, execContext('c6'))
+  const text = tool.output.render({}, value)[0].text
+  assert.match(text, /already shown to the user/u)
+  assert.match(text, /copy it rather than move it/u)
+})
