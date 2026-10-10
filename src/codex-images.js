@@ -201,7 +201,7 @@ export async function readSessionImage(attachmentId, attachments, signal, messag
 
 async function editImages(values, attachments, signal, messages) {
   if (!Array.isArray(values) || values.length === 0 || values.length > MAX_REFERENCE_IMAGES) {
-    throw new Error(`referenceImages must contain between 1 and ${MAX_REFERENCE_IMAGES} images`)
+    throw new Error(`referenceImages must contain between 1 and ${MAX_REFERENCE_IMAGES} images; omit it to generate a new image`)
   }
   const available = messages === undefined ? undefined : sessionImageReferences(messages)
   const references = values.map(value => {
@@ -382,6 +382,10 @@ export function createCodexImageTool(options) {
     timeoutMs: 5 * 60 * 1000,
     isConcurrencySafe: () => false,
     async execute(args, exec) {
+      if (Array.isArray(args.referenceImages) && args.referenceImages.length === 0) {
+        const { referenceImages: _empty, ...rest } = args
+        args = rest
+      }
       assertImageOperation(options.getFeatures?.(), args.referenceImages !== undefined)
       const defaults = readImageDefaults(options.getFeatures?.())
       args = { ...args, model: args.model ?? defaults.imageModel, quality: args.quality ?? defaults.imageQuality }
