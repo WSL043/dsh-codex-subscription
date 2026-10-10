@@ -141,14 +141,20 @@ test('actual original dimensions win over requested or missing response dimensio
   }
 })
 
+test('an empty referenceImages array generates a new image like omitting it', async () => {
+  const { tool } = fixture()
+  const value = await tool.execute({ prompt: 'capybara', referenceImages: [] }, execContext('empty-references'))
+  assert.ok(value)
+})
+
 test('generated and edited images expose a readable host path in model-visible content', async () => {
   const root = await mkdtemp(join(tmpdir(), 'codex image path '))
   try {
     const store = new OriginalImageStore(root)
     const { tool } = fixture({ originalImages: store })
-    for (const referenceImages of [undefined, [IMAGE_REF]]) {
+    for (const referenceImages of [undefined, [], [IMAGE_REF]]) {
       const deferred = []
-      const args = { prompt: 'path regression', ...(referenceImages ? { referenceImages } : {}) }
+      const args = { prompt: 'path regression', ...(referenceImages?.length ? { referenceImages } : {}) }
       const value = await tool.execute(args, {
         ...execContext('path-test'), parent: 'parent-call', deferContext: message => deferred.push(message),
       })
