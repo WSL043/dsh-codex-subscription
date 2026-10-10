@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRemoteControlHost, RpcError } from '../src/remote-control-host.js'
 import { createDshRemoteControl, localFolder, modelKey, parseModelKey, projectTurns, visibleText } from '../src/remote-control-dsh.js'
-import { createRemoteControlRelay, remoteControlEndpoints } from '../src/remote-control-relay.js'
+import { createRemoteControlRelay, remoteControlEndpoints, retryAfterMs } from '../src/remote-control-relay.js'
 
 const wait = (ms = 5) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -459,4 +459,70 @@ test('the phone folder picker sees real local folders and nothing for made-up on
     assert.deepEqual((await bridge.methods['fs/readDirectory']({ path: '/Documents/Codex/made-up' }, {})).entries, [])
     assert.equal((await bridge.methods['fs/getMetadata']({ path: '/Documents/Codex/made-up' }, {})).isDirectory, true)
   } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+const enrollOk = () => ({ ok: true, json: async () => ({ environment_id: 'env', server_id: 'srv', remote_control_token: 'tok', expires_at: new Date(Date.now() + 3_600_000).toISOString() }) })
+
+test('a connection that stops answering pings is dropped and reconnected', async () => {
+  const sockets = []
+  class Silent {
+    constructor() { this.handlers = {}; this.pings = 0; this.terminated = false; sockets.push(this); queueMicrotask(() => this.handlers.open?.()) }
+    on(name, handler) { this.handlers[name] = handler }
+    ping() { this.pings += 1 }
+    terminate() { this.terminated = true; this.handlers.close?.() }
+    close() { this.handlers.close?.() }
+  }
+  const relay = createRemoteControlRelay({
+    credentials: async () => ({ access: 'a', accountId: 'b' }), fetch: async () => enrollOk(), WebSocket: Silent, installationId: 'i', hostName: 'h', userAgent: 'x/1',
+    serve: () => ({ receive() {}, close() {} }), wait: () => new Promise(resolve => setTimeout(resolve, 2)), pingMs: 5, pongTimeoutMs: 30,
+  })
+  void relay.start()
+  await wait(120)
+  await relay.stop()
+  assert.ok(sockets[0].pings >= 2, 'it pings')
+  assert.equal(sockets[0].terminated, true, 'a silent socket is terminated')
+  assert.ok(sockets.length >= 2, 'and a new one is opened')
+})
+
+test('a socket that keeps answering pings stays connected', async () => {
+  const sockets = []
+  class Alive {
+    constructor() { this.handlers = {}; sockets.push(this); queueMicrotask(() => this.handlers.open?.()) }
+    on(name, handler) { this.handlers[name] = handler }
+    ping() { queueMicrotask(() => this.handlers.pong?.()) }
+    terminate() { this.handlers.close?.() }
+    close() { this.handlers.close?.() }
+  }
+  const relay = createRemoteControlRelay({
+    credentials: async () => ({ access: 'a', accountId: 'b' }), fetch: async () => enrollOk(), WebSocket: Alive, installationId: 'i', hostName: 'h', userAgent: 'x/1',
+    serve: () => ({ receive() {}, close() {} }), wait: (_ms, signal) => new Promise(resolve => signal.addEventListener('abort', resolve, { once: true })), pingMs: 5, pongTimeoutMs: 30,
+  })
+  void relay.start()
+  await wait(120)
+  await relay.stop()
+  assert.equal(sockets.length, 1)
+})
+
+test('a server Retry-After is a floor for the next attempt and a flapping connection keeps backing off', async () => {
+  assert.equal(retryAfterMs('7'), 7000)
+  assert.equal(retryAfterMs('Wed, 21 Oct 2026 07:28:10 GMT', Date.parse('Wed, 21 Oct 2026 07:28:00 GMT')), 10_000)
+  assert.equal(retryAfterMs('soon'), undefined)
+  const waits = []
+  let tries = 0
+  const fetch = async () => {
+    tries += 1
+    if (tries === 1) return { ok: false, status: 429, headers: { get: () => '90' }, json: async () => ({}) }
+    return enrollOk()
+  }
+  class Flap { constructor() { this.handlers = {}; queueMicrotask(() => { this.handlers.open?.(); this.handlers.close?.() }) } on(name, handler) { this.handlers[name] = handler } close() {} }
+  const relay = createRemoteControlRelay({
+    credentials: async () => ({ access: 'a', accountId: 'b' }), fetch, WebSocket: Flap, installationId: 'i', hostName: 'h', userAgent: 'x/1',
+    serve: () => ({ receive() {}, close() {} }), random: () => 1,
+    wait: (ms, signal) => { waits.push(ms); return new Promise(resolve => { const timer = setTimeout(resolve, waits.length >= 5 ? 1_000_000 : 1); signal.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true }) }) },
+  })
+  void relay.start()
+  await wait(50)
+  await relay.stop()
+  assert.ok(waits[0] >= 90_000, 'Retry-After is honoured')
+  assert.deepEqual(waits.slice(1, 5), [2000, 4000, 8000, 16000], 'quick drops do not reset the backoff')
 })
