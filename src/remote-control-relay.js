@@ -21,6 +21,9 @@ const REFRESH_MARGIN_MS = 5 * 60_000
 const PING_MS = 10_000
 const PONG_TIMEOUT_MS = 60_000
 const STABLE_MS = 60_000
+const MAX_BUFFERED_ITEMS = 2_000
+const MAX_BUFFERED_BYTES = 32 * 1024 * 1024
+const BUFFER_IDLE_MS = 30 * 60_000
 const RETRY_AFTER_JITTER_MS = 30_000
 
 /** Milliseconds a server asked us to wait (Retry-After as seconds or a date), when it did. */
@@ -103,6 +106,8 @@ export function createRemoteControlRelay(options) {
   const clients = new Map()
   const assemblies = new Map()
   const sequences = new Map()
+  const outbound = new Map() // client+stream -> server messages the phone has not acknowledged
+  const lastInbound = new Map() // client+stream -> newest client sequence delivered
   const state = { status: 'stopped', connectedAt: undefined, lastError: undefined, reconnects: 0 }
 
   const request = async (url, init, signal) => {
@@ -187,27 +192,64 @@ export function createRemoteControlRelay(options) {
     await new Promise((resolve, reject) => socket.send(JSON.stringify(envelope), error => error ? reject(error) : resolve()))
   }
 
+  // What was sent to a phone stays here until the phone acknowledges it, and is sent again after a
+  // reconnect (the same rule the Codex app server follows), so a short drop loses nothing.
+  const remember = (key, sequence, segment, encoded) => {
+    const stream = outbound.get(key) ?? { items: [], bytes: 0, touched: now() }
+    outbound.set(key, stream)
+    stream.items.push({ sequence, segment, encoded })
+    stream.bytes += encoded.length
+    stream.touched = now()
+    // Bounded: a phone that never comes back must not grow this without limit; it re-reads the thread when it returns.
+    while (stream.items.length > MAX_BUFFERED_ITEMS || stream.bytes > MAX_BUFFERED_BYTES) stream.bytes -= stream.items.shift().encoded.length
+  }
+  const acknowledge = (key, sequence, segment) => {
+    const stream = outbound.get(key)
+    if (!stream) return
+    stream.items = stream.items.filter(item => !(item.sequence < sequence || (item.sequence === sequence && (segment === undefined || (item.segment ?? 0) <= segment))))
+    stream.bytes = stream.items.reduce((total, item) => total + item.encoded.length, 0)
+    if (stream.items.length === 0) outbound.delete(key)
+  }
+  const replay = ws => {
+    for (const [key, stream] of outbound) {
+      if (now() - stream.touched > BUFFER_IDLE_MS) { outbound.delete(key); continue }
+      for (const item of stream.items) ws.send(item.encoded, () => {})
+    }
+  }
+
   const sendServerMessage = async (clientId, streamId, message) => {
     const key = `${clientId}\u0000${streamId}`
+    // A request to the phone (an approval, a question) is only meaningful while it is connected; its caller handles a drop.
+    const isRequest = message?.method !== undefined && message?.id !== undefined
+    if (isRequest && socket?.readyState !== 1) throw new RemoteControlError('not-connected', 'Remote Control is not connected')
     const sequence = sequences.get(key) ?? 1
     sequences.set(key, sequence + 1)
     const envelope = { client_id: clientId, message, seq_id: sequence, stream_id: streamId, type: 'server_message' }
     const encoded = JSON.stringify(envelope)
-    if (Buffer.byteLength(encoded) <= MAX_SEGMENT_BYTES) return sendEnvelope(envelope)
+    const put = async text => {
+      if (isRequest) return new Promise((resolve, reject) => socket.send(text, error => error ? reject(error) : resolve()))
+      remember(key, sequence, undefined, text)
+      if (socket?.readyState === 1) await new Promise(resolve => socket.send(text, () => resolve()))
+    }
+    if (Buffer.byteLength(encoded) <= MAX_SEGMENT_BYTES) return put(encoded)
     const bytes = Buffer.from(JSON.stringify(message))
     if (bytes.byteLength > MAX_MESSAGE_BYTES) throw new RemoteControlError('too-large', 'Remote Control message is too large')
     const chunks = []
     for (let offset = 0; offset < bytes.byteLength; offset += TARGET_SEGMENT_BYTES) chunks.push(bytes.subarray(offset, offset + TARGET_SEGMENT_BYTES).toString('base64'))
-    await Promise.all(chunks.map((chunk, segmentId) => sendEnvelope({
-      client_id: clientId,
-      message_chunk_base64: chunk,
-      message_size_bytes: bytes.byteLength,
-      segment_count: chunks.length,
-      segment_id: segmentId,
-      seq_id: sequence,
-      stream_id: streamId,
-      type: 'server_message_chunk',
-    })))
+    for (const [segmentId, chunk] of chunks.entries()) {
+      const text = JSON.stringify({
+        client_id: clientId,
+        message_chunk_base64: chunk,
+        message_size_bytes: bytes.byteLength,
+        segment_count: chunks.length,
+        segment_id: segmentId,
+        seq_id: sequence,
+        stream_id: streamId,
+        type: 'server_message_chunk',
+      })
+      if (isRequest) await put(text)
+      else { remember(key, sequence, segmentId, text); if (socket?.readyState === 1) await new Promise(resolve => socket.send(text, () => resolve())) }
+    }
   }
 
   const closeClient = (clientId, streamId) => {
@@ -215,9 +257,15 @@ export function createRemoteControlRelay(options) {
       if (key.startsWith(`${clientId}\u0000`) && (streamId === undefined || key === `${clientId}\u0000${streamId}`)) {
         clients.delete(key)
         sequences.delete(key)
+        outbound.delete(key)
+        lastInbound.delete(key)
         client.close()
       }
     }
+  }
+  const resetStreams = () => {
+    for (const [, client] of clients) client.close()
+    clients.clear(); sequences.clear(); outbound.clear(); lastInbound.clear(); assemblies.clear()
   }
 
   const deliver = async envelope => {
@@ -234,7 +282,12 @@ export function createRemoteControlRelay(options) {
       client = { receive: connection.receive, close: () => { closed = true; connection.close() } }
       clients.set(key, client)
     }
-    client.receive(envelope.message)
+    // After a reconnect the relay may send what we already handled again: acknowledge it, deliver it once.
+    const duplicate = Number.isInteger(envelope.seq_id) && (lastInbound.get(key) ?? -1) >= envelope.seq_id
+    if (!duplicate) {
+      if (Number.isInteger(envelope.seq_id)) lastInbound.set(key, envelope.seq_id)
+      client.receive(envelope.message)
+    }
     if (Number.isInteger(envelope.seq_id)) {
       await sendEnvelope({ client_id: envelope.client_id, seq_id: envelope.seq_id, stream_id: streamId, type: 'ack' })
     }
@@ -268,6 +321,8 @@ export function createRemoteControlRelay(options) {
     else if (envelope.type === 'client_message_chunk') {
       const message = receiveChunk(envelope)
       if (message) await deliver(message)
+    } else if (envelope.type === 'ack') {
+      if (typeof envelope.stream_id === 'string' && Number.isInteger(envelope.seq_id)) acknowledge(`${envelope.client_id}\u0000${envelope.stream_id}`, envelope.seq_id, Number.isInteger(envelope.segment_id) ? envelope.segment_id : undefined)
     } else if (envelope.type === 'client_closed') closeClient(envelope.client_id, envelope.stream_id)
     else if (envelope.type === 'ping') {
       await sendEnvelope({ client_id: envelope.client_id, seq_id: envelope.seq_id ?? 0, status: 'active', stream_id: envelope.stream_id ?? randomUUID(), type: 'pong' })
@@ -300,6 +355,7 @@ export function createRemoteControlRelay(options) {
       const stopBeat = () => { clearInterval(ping); clearTimeout(silent) }
       ws.on('open', () => {
         state.status = 'connected'; state.connectedAt = now(); state.lastError = undefined
+        replay(ws)
         // A connection that goes quiet (sleep, network switch) never closes by itself; ping it and drop it when it stops answering.
         if (typeof ws.ping === 'function') {
           hearFrom()
@@ -313,9 +369,7 @@ export function createRemoteControlRelay(options) {
       ws.on('error', error => { stopBeat(); reject(new RemoteControlError('socket', error?.message ?? 'socket error')) })
       ws.on('close', () => { stopBeat(); signal.removeEventListener('abort', onAbort); resolve() })
     })
-    for (const [, client] of clients) client.close()
-    clients.clear()
-    sequences.clear()
+    // The phones' streams outlive the socket: they continue on the next connection, with what they missed sent again.
     assemblies.clear()
     socket = undefined
   }
@@ -346,6 +400,7 @@ export function createRemoteControlRelay(options) {
         // only a host stuck far longer gets a new id (its phones then need to pair again).
         if (conflicts >= 3 && now() - conflictSince >= (options.conflictRenewMs ?? CONFLICT_RENEW_MS) && options.renewInstallation) {
           installation = await options.renewInstallation(); enrolled = undefined; conflicts = 0
+          resetStreams()
         }
         if (error?.code === 'not-signed-in') { state.status = 'stopped'; return }
       }
@@ -375,6 +430,7 @@ export function createRemoteControlRelay(options) {
       stop?.abort()
       socket?.close()
       await running
+      resetStreams()
       state.status = 'stopped'
     },
   })
