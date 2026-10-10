@@ -111,8 +111,8 @@ test('a phone turn applies the chosen model and permission, then reports complet
   assert.deepEqual(calls.find(call => call[0] === 'prompt')[1].content, [{ type: 'text', text: 'go' }])
   await assert.rejects(() => bridge.methods['turn/start'](hello('again'), { notify }), /already running/u)
   finish(); await wait()
-  assert.equal(notes.at(-1)[0], 'turn/completed')
-  assert.equal(notes.at(-1)[1].turn.status, 'completed')
+  const done = notes.findLast(([method]) => method === 'turn/completed')
+  assert.equal(done[1].turn.status, 'completed')
 })
 
 test('a model failure reaches the phone as an error and a failed turn', async () => {
@@ -123,7 +123,7 @@ test('a model failure reaches the phone as an error and a failed turn', async ()
   bridge.onSessionEvent(session, { type: 'turn/end', data: { reason: { kind: 'error', error: { message: 'missing DeepSeek API key' } } } })
   finish(); await wait()
   assert.equal(notes.find(([method]) => method === 'error')[1].error.message, 'missing DeepSeek API key')
-  assert.equal(notes.at(-1)[1].turn.status, 'failed')
+  assert.equal(notes.findLast(([method]) => method === 'turn/completed')[1].turn.status, 'failed')
 })
 
 test('a rejected prompt is reported and frees the thread', async () => {
@@ -641,4 +641,40 @@ test('the DSH task list becomes the phone plan', async () => {
   bridge.onSessionEvent(session, { type: 'assistant/message' })
   assert.deepEqual(notes.find(([method]) => method === 'turn/plan/updated')[1].plan, [{ step: 'Read code', status: 'completed' }, { step: 'Fix bug', status: 'inProgress' }, { step: 'Test', status: 'pending' }])
   finish(); await wait()
+})
+
+test('the phone sees when a thread is running and when it waits for an answer', async () => {
+  const { bridge, session, finish } = fakeControl()
+  const notes = []
+  const notify = async (method, params) => { notes.push([method, params]) }
+  notify.ask = async () => { notes.push(['asked']); return { decision: 'accept' } }
+  await bridge.methods['turn/start'](hello('go'), { notify })
+  await bridge.onApproval({ agent: { session }, toolName: 'bash', callId: 'c1' }, async () => 'rejected')
+  finish(); await wait()
+  const statuses = notes.filter(([method]) => method === 'thread/status/changed').map(([, params]) => JSON.stringify(params.status))
+  assert.deepEqual(statuses, ['{"type":"active","activeFlags":[]}', '{"type":"active","activeFlags":["waitingOnApproval"]}', '{"type":"active","activeFlags":[]}', '{"type":"idle"}'])
+})
+
+test('the paired phones are listed and one can be removed', async () => {
+  const requests = []
+  const fetch = async (url, init = {}) => {
+    const href = String(url)
+    requests.push([init.method ?? 'GET', href, init.headers])
+    if (href.endsWith('/server/enroll')) return enrollOk()
+    if (init.method === 'DELETE') return { ok: true, json: async () => ({}) }
+    return { ok: true, json: async () => ({ items: [{ client_id: 'c1', display_name: 'iPhone', platform: 'ios', os_version: '19', app_version: '2', last_seen_at: '2026-10-10T10:00:00Z' }, { nope: true }] }) }
+  }
+  const relay = createRemoteControlRelay({
+    credentials: async () => ({ access: 'a', accountId: 'b' }), fetch, WebSocket: class {}, installationId: 'i', hostName: 'h', userAgent: 'x/1',
+    serve: () => ({ receive() {}, close() {} }),
+  })
+  const clients = await relay.listClients()
+  assert.deepEqual(clients, [{ clientId: 'c1', name: 'iPhone', platform: 'ios', osVersion: '19', appVersion: '2', lastSeenAt: Date.parse('2026-10-10T10:00:00Z') }])
+  const list = requests.find(([method, href]) => method === 'GET' && href.includes('/environments/'))
+  assert.match(list[1], /\/environments\/env\/clients$/u)
+  assert.equal(list[2].authorization, 'Bearer a')
+  assert.equal(list[2]['chatgpt-account-id'], 'b')
+  await relay.revokeClient('c1')
+  assert.ok(requests.some(([method, href]) => method === 'DELETE' && href.endsWith('/environments/env/clients/c1')))
+  await assert.rejects(() => relay.revokeClient(''), /client id/u)
 })
