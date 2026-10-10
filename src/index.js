@@ -376,6 +376,8 @@ export function apply(ctx, config = {}) {
     permissions: () => ctx.get?.('permissionPresets'),
     workspaces: () => ctx.get?.('workspaceRegistry'),
     attachments: () => ctx.attachments,
+    usage: () => usageReader,
+    projections: () => ctx.get?.('sessionProjections'),
     trace: entry => { try { remoteControl.host.note(entry) } catch { /* diagnostics only */ } },
     userAgent: USER_AGENT,
   })

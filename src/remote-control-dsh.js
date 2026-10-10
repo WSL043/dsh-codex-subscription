@@ -44,6 +44,30 @@ export function readFolder(value) {
   } catch { return [] }
 }
 
+/** Offset paging over a full list, the way the phone asks for it (cursor is the next offset). */
+function page(list, params) {
+  const start = Number.isInteger(Number(params?.cursor)) ? Math.max(0, Number(params.cursor)) : 0
+  const limit = Number.isInteger(params?.limit) && params.limit > 0 ? params.limit : list.length
+  const data = list.slice(start, start + limit)
+  return { data, nextCursor: start + limit < list.length ? String(start + limit) : null, backwardsCursor: null }
+}
+
+/** Codex usage as the phone's rate-limit snapshot (primary and secondary windows of the main limit). */
+function rateLimits(read) {
+  const toWindow = entry => entry && ({ usedPercent: Math.round(entry.usedPercent), windowDurationMins: Math.round(entry.windowSeconds / 60), resetsAt: entry.resetsAt ?? null })
+  const snapshot = limit => ({
+    limitId: limit?.id ?? 'codex', limitName: limit?.name ?? null, normalModelSlug: null,
+    primary: toWindow(limit?.windows?.[0]) ?? null, secondary: toWindow(limit?.windows?.[1]) ?? null,
+    credits: null, individualLimit: null, spendControlReached: read?.spendControlReached ?? null, planType: null, rateLimitReachedType: null,
+  })
+  const main = read?.rateLimits?.find(limit => limit.id === 'codex') ?? read?.rateLimits?.[0]
+  return {
+    ordinaryUsageAllowed: null, rateLimits: snapshot(main),
+    rateLimitsByLimitId: read ? Object.fromEntries((read.rateLimits ?? []).map(limit => [limit.id, snapshot(limit)])) : null,
+    rateLimitResetCredits: null, accountId: null, rateLimitUpsell: null,
+  }
+}
+
 const seconds = value => Math.floor((Number.isFinite(value) ? value : Date.now()) / 1000)
 const emptyTurn = () => ({ id: randomUUID(), items: [], itemsView: 'full', status: 'inProgress', error: null, startedAt: seconds(Date.now()), completedAt: null, durationMs: null })
 const textOf = content => (content ?? []).map(block => block?.type === 'text' ? block.text : '').filter(Boolean).join('\n')
@@ -68,6 +92,44 @@ export const visibleText = content => textOf(content).replace(/<system-reminder>
 /** Text of a user-role message the person wrote; DSH's own injected ones (runtime context, notices) carry another source kind. */
 export const typedText = message => message.role === 'user' && (message.source === undefined || message.source?.kind === 'user') ? visibleText(message.content) : ''
 
+const lines = text => String(text ?? '').split('\n')
+const added = text => lines(text).map(line => `+${line}`).join('\n')
+const removed = text => lines(text).map(line => `-${line}`).join('\n')
+
+/**
+ * How a DSH tool call looks on the phone: shell commands and file edits use the phone's own
+ * command and diff views; everything else stays a generic tool call.
+ */
+export function toolItem(block, cwd) {
+  const args = parseArguments(block.arguments)
+  const base = { id: block.id, status: 'inProgress' }
+  if (/^(bash|pwsh)(_persistent)?$/u.test(block.name) && typeof args?.command === 'string') {
+    return { type: 'commandExecution', ...base, command: args.command, cwd: typeof args.workdir === 'string' ? args.workdir : cwd ?? '', processId: null, source: 'agent', commandActions: [], aggregatedOutput: null, exitCode: null, durationMs: null }
+  }
+  if (block.name === 'edit' && typeof args?.file_path === 'string') {
+    return { type: 'fileChange', ...base, changes: [{ path: args.file_path, kind: { type: 'update', move_path: null }, diff: `@@\n${removed(args.old_string)}\n${added(args.new_string)}` }] }
+  }
+  if (block.name === 'write' && typeof args?.file_path === 'string') {
+    return { type: 'fileChange', ...base, changes: [{ path: args.file_path, kind: { type: 'add' }, diff: added(args.content) }] }
+  }
+  if (block.name === 'codex_image_generate') {
+    return { type: 'imageGeneration', ...base, revisedPrompt: typeof args?.prompt === 'string' ? args.prompt : null, result: '' }
+  }
+  return { type: 'dynamicToolCall', ...base, namespace: null, tool: block.name, arguments: args, contentItems: null, success: null, durationMs: null }
+}
+/** Record a tool's result on the item that showed the call. */
+export function finishTool(item, message, imageUrls) {
+  const failed = Boolean(message.isError)
+  item.status = failed ? 'failed' : 'completed'
+  if (item.type === 'commandExecution') { item.aggregatedOutput = textOf(message.content); item.exitCode = failed ? 1 : 0 }
+  else if (item.type === 'imageGeneration') {
+    // The phone's own image view takes the picture as base64; a failed or unreadable one keeps the text.
+    const url = imageBlocks(message).map(block => imageUrls.get(block.attachment.attachmentId)).find(Boolean)
+    item.result = url ? url.slice(url.indexOf(',') + 1) : ''
+    if (!url) item.status = 'failed'
+  } else if (item.type === 'dynamicToolCall') { item.contentItems = toolOutput(message, imageUrls); item.success = !failed }
+}
+
 const imageBlocks = message => (message.content ?? []).filter(block => block?.type === 'image' && block.attachment)
 const toolOutput = (message, imageUrls) => [
   { type: 'inputText', text: textOf(message.content) },
@@ -82,7 +144,7 @@ export const typedImages = message => message.role === 'user' && (message.source
   : []
 
 /** `imageUrls` maps an attachment id to a data URL the phone can show; images without one are left out. */
-export function projectTurns(messages, at = Date.now(), imageUrls = new Map()) {
+export function projectTurns(messages, at = Date.now(), imageUrls = new Map(), cwd = undefined) {
   const turns = []
   let turn
   const calls = new Map()
@@ -102,32 +164,28 @@ export function projectTurns(messages, at = Date.now(), imageUrls = new Map()) {
         if (block.type === 'text') turn.items.push({ type: 'agentMessage', id, text: block.text, phase: null, memoryCitation: null, delivery: null })
         else if (block.type === 'reasoning') turn.items.push({ type: 'reasoning', id, summary: [], content: [block.text] })
         else if (block.type === 'tool-call') {
-          const item = { type: 'dynamicToolCall', id: block.id, namespace: null, tool: block.name, arguments: parseArguments(block.arguments), status: 'inProgress', contentItems: null, success: null, durationMs: null }
+          const item = toolItem(block, cwd)
           calls.set(block.id, item)
           turn.items.push(item)
         }
       }
     } else if (message.role === 'tool') {
       const item = calls.get(message.toolCallId)
-      if (item) {
-        item.contentItems = toolOutput(message, imageUrls)
-        item.status = message.isError ? 'failed' : 'completed'
-        item.success = !message.isError
-      }
+      if (item) finishTool(item, message, imageUrls)
     }
   }
   close()
   return turns
 }
 
-function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns = [] }) {
+function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns = [], projectId = null }) {
   return {
     id, sessionId: id, forkedFromId: null, parentThreadId: null, preview: preview ?? title ?? '', ephemeral: false,
     modelProvider: 'dsh', createdAt: seconds(createdAt), updatedAt: seconds(updatedAt ?? createdAt), recencyAt: seconds(updatedAt ?? createdAt),
     status: running ? { type: 'active', activeFlags: [] } : { type: 'idle' }, path: null, cwd: cwd ?? '',
     cliVersion: 'dsh', source: { custom: 'dsh' }, threadSource: 'dsh', agentNickname: null, agentRole: null,
     gitInfo: null, name: title ?? null, turns, historyMode: 'legacy', section: null, sectionEnteredAt: null,
-    projectId: null, canAcceptDirectInput: true, extra: null,
+    projectId, canAcceptDirectInput: true, extra: null,
   }
 }
 
@@ -137,7 +195,7 @@ function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns 
 // How long a question or approval waits for a phone that dropped while it was open.
 const PHONE_RETURN_MS = 120_000
 
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, projections = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
@@ -192,6 +250,31 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       sandbox: sandboxFor(preset, cwd), serviceTier: null, turnsBackwardsCursor: null,
     }
   }
+  /** DSH's token and context-window projections as the phone's token-usage ring. */
+  const tokenUsage = session => {
+    try {
+      const values = projections()?.snapshot?.(session, ['tokenUsage', 'contextPressure'])?.values
+      const used = values?.tokenUsage
+      if (!used) return undefined
+      const breakdown = (total, input, cached, output) => ({ totalTokens: total, inputTokens: input, cachedInputTokens: cached, cacheWriteInputTokens: 0, outputTokens: output, reasoningOutputTokens: 0 })
+      const input = (used.uncachedInputTokens ?? 0) + (used.cacheReadTokens ?? 0) + (used.cacheWriteTokens ?? 0)
+      const pressure = values.contextPressure?.pressureTokens ?? 0
+      return {
+        total: breakdown(input + (used.outputTokens ?? 0), input, used.cacheReadTokens ?? 0, used.outputTokens ?? 0),
+        last: breakdown(pressure, pressure, 0, 0), modelContextWindow: values.contextPressure?.contextWindow ?? null,
+      }
+    } catch { return undefined }
+  }
+
+  // DSH workspaces are the phone's projects: a named folder with its conversations.
+  const workspaceList = () => { try { return workspaces()?.list?.() ?? [] } catch { return [] } }
+  const projectIdOf = sessionId => workspaceList().find(entry => entry.sessionIds?.includes(sessionId))?.id ?? null
+  const projectOf = (entry, position) => ({
+    id: String(entry.id), name: entry.title || String(entry.path).split(/[\/]/u).filter(Boolean).at(-1) || 'Workspace',
+    roots: [{ path: entry.path }], metadata: {}, position, createdAt: seconds(entry.createdAt), updatedAt: seconds(entry.updatedAt),
+    recencyAt: entry.sessionIds?.length ? seconds(entry.updatedAt) : null,
+  })
+
   /** Data URLs for the images in a conversation (newest first, bounded), so the phone can show them. */
   const imageUrlsOf = async messages => {
     const urls = new Map()
@@ -217,8 +300,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     return {
       agent,
       thread: thread({
-        id, cwd: session.meta?.cwd, createdAt: session.meta?.createdAt, running: active.has(id),
-        preview: first ? visibleText(first.content).slice(0, 200) : '', turns: projectTurns(messages, session.meta?.createdAt, imageUrls),
+        id, cwd: session.meta?.cwd, createdAt: session.meta?.createdAt, running: active.has(id), projectId: projectIdOf(id),
+        preview: first ? visibleText(first.content).slice(0, 200) : '', turns: projectTurns(messages, session.meta?.createdAt, imageUrls, session.meta?.cwd),
       }),
     }
   }
@@ -318,6 +401,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       }
       turn.completedAt = seconds(Date.now())
       active.delete(id)
+      const usageNow = tokenUsage(agent.session)
+      if (usageNow) emit(id, 'thread/tokenUsage/updated', { threadId: id, turnId: turn.id, tokenUsage: usageNow })
       emit(id, 'turn/completed', { threadId: id, turn })
       const [next, ...rest] = queues.get(id) ?? []
       if (next) {
@@ -383,15 +468,42 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       const value = await service().list({}, signal)
       const archived = new Set(workspaces()?.archivedSessionIds ?? [])
       const wantArchived = params?.archived === true
-      const data = (value.items ?? [])
-        .filter(item => item.origin !== 'subagent' && !item.blank && archived.has(item.sessionId) === wantArchived)
+      const excluded = new Set(Array.isArray(params?.excludedThreadIds) ? params.excludedThreadIds : [])
+      const folders = [params?.cwd].flat().filter(entry => typeof entry === 'string')
+      const members = typeof params?.projectId === 'string' ? new Set(workspaceList().find(entry => String(entry.id) === params.projectId)?.sessionIds ?? []) : undefined
+      const needle = params?.searchTerm ? String(params.searchTerm).toLocaleLowerCase() : ''
+      const all = (value.items ?? [])
+        .filter(item => item.origin !== 'subagent' && !item.blank && archived.has(item.sessionId) === wantArchived && !excluded.has(item.sessionId)
+          && (folders.length === 0 || folders.includes(item.cwd)) && (members === undefined || members.has(item.sessionId)))
         .map(item => thread({
-          id: item.sessionId, cwd: item.cwd, createdAt: item.updatedAt, updatedAt: item.updatedAt,
+          id: item.sessionId, cwd: item.cwd, createdAt: item.updatedAt, updatedAt: item.updatedAt, projectId: projectIdOf(item.sessionId),
           running: item.running, title: item.projections?.values?.title ?? null,
         }))
-        .filter(entry => !params?.searchTerm || `${entry.name ?? ''} ${entry.preview}`.toLocaleLowerCase().includes(String(params.searchTerm).toLocaleLowerCase()))
-      return { data, nextCursor: null, backwardsCursor: null }
+        .filter(entry => !needle || `${entry.name ?? ''} ${entry.preview}`.toLocaleLowerCase().includes(needle))
+      return page(all, params)
     },
+    'project/list': (params) => page(workspaceList().map(projectOf), params),
+    'project/read': async params => {
+      const list = workspaceList()
+      const index = list.findIndex(entry => String(entry.id) === params?.projectId)
+      if (index < 0) throw new RpcError(-32602, `Project not found: ${String(params?.projectId).slice(0, 80)}`)
+      return { project: projectOf(list[index], index) }
+    },
+    'account/rateLimits/read': async () => rateLimits(await usage()?.read?.().catch(() => undefined)),
+    'thread/turns/list': async params => {
+      const { thread: value } = await openThread(params?.threadId)
+      const ordered = params?.sortDirection === 'asc' ? value.turns : value.turns.toReversed()
+      return { ...page(ordered, params), backwardsCursor: ordered.length ? String(0) : null }
+    },
+    'thread/fork': async (params, { notify }) => {
+      const forked = await service().fork({ sessionId: params?.threadId })
+      const agent = await agentFor(forked.sessionId)
+      await applySelection(agent, forked.sessionId, params)
+      const { thread: value } = await openThread(forked.sessionId, notify)
+      emit(forked.sessionId, 'thread/started', { thread: value })
+      return { ...settings(agent, value.cwd), thread: value }
+    },
+    'thread/readState/update': () => ({}),
     // Archiving is DSH's registry-wide archive set, the same one the desktop sidebar uses.
     'thread/archive': async params => {
       const registry = workspaces()
@@ -416,7 +528,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       if (params?.ephemeral === true) return titleThread(params)
       // The app sends a folder it made up under its own home ("/Documents/Codex/<date>/new-chat"); only a real local folder is used.
       const cwd = localFolder(params?.cwd)
-      const created = await service().create(cwd ? { cwd } : {})
+      const project = typeof params?.projectId === 'string' ? workspaceList().find(entry => String(entry.id) === params.projectId) : undefined
+      const created = await service().create(project ? { workspaceId: project.id } : cwd ? { cwd } : {})
       const agent = await agentFor(created.sessionId)
       await applySelection(agent, created.sessionId, params)
       const { thread: value } = await openThread(created.sessionId, notify)
@@ -548,11 +661,17 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     trace({ method: 'hook:approval', phone: Boolean(found), session: request.agent?.session?.id ?? null })
     if (!found) return next()
     const { session, running } = found
-    return askPhone(request, 'item/commandExecution/requestApproval', {
-      threadId: session.id, turnId: running.turn.id, itemId: request.callId ?? randomUUID(), startedAtMs: Date.now(),
-      command: commandText(session, request), cwd: session.meta?.cwd ?? null, reason: request.displayReason?.en ?? request.reason ?? null,
-      commandActions: [], availableDecisions: ['accept', 'decline', 'cancel'],
-    }).then(
+    const call = request.callId ? callOf(session, request.callId) : undefined
+    const reason = request.displayReason?.en ?? request.reason ?? null
+    const common = { threadId: session.id, turnId: running.turn.id, itemId: request.callId ?? randomUUID(), startedAtMs: Date.now() }
+    // A file edit is shown with the phone's diff view (the item the call already created); anything else as a command.
+    const asked = call && (call.name === 'edit' || call.name === 'write')
+      ? askPhone(request, 'item/fileChange/requestApproval', { ...common, reason, grantRoot: null })
+      : askPhone(request, 'item/commandExecution/requestApproval', {
+        ...common, command: commandText(session, request), cwd: session.meta?.cwd ?? null, reason,
+        commandActions: [], availableDecisions: ['accept', 'decline', 'cancel'],
+      })
+    return asked.then(
       answer => {
         const decision = typeof answer?.decision === 'string' ? answer.decision : ''
         return decision === 'accept' || decision === 'acceptForSession' ? 'allowed-once' : decision === 'cancel' ? 'cancelled' : 'rejected'
@@ -593,18 +712,20 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
 
   /** Forward committed assistant and tool events of a phone-started turn as items. */
   const onSessionEvent = (session, event) => {
+    // A new or renamed title (DSH writes one after the first reply) reaches every phone that has the thread open.
+    if (event.type === 'session/title' && typeof event.data?.title === 'string' && subscribers.has(session.id)) {
+      emit(session.id, 'thread/name/updated', { threadId: session.id, threadName: event.data.title })
+    }
     const running = active.get(session.id)
     if (!running || !subscribers.has(session.id)) return
     if (event.type === 'turn/end') { running.ended = event.data?.reason; return }
     if (event.type !== 'assistant/message' && event.type !== 'tool/result') return
     const message = session.deriveMessages().at(-1)
     if (message?.role === 'tool') {
-      const item = running.turn.items.find(entry => entry.type === 'dynamicToolCall' && entry.id === message.toolCallId)
+      const item = running.turn.items.find(entry => entry.id === message.toolCallId && entry.type !== 'agentMessage')
       if (item) {
         const finish = imageUrls => {
-          item.contentItems = toolOutput(message, imageUrls)
-          item.status = message.isError ? 'failed' : 'completed'
-          item.success = !message.isError
+          finishTool(item, message, imageUrls)
           emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item, completedAtMs: Date.now() })
         }
         // Pictures a tool returned (a generated image) are read first so the phone can show them.
@@ -614,10 +735,18 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return
     }
     if (!message || message.role !== 'assistant') return
-    const items = projectTurns([{ role: 'user', id: 'x', content: [{ type: 'text', text: 'x' }] }, message]).flatMap(turn => turn.items.slice(1))
+    const items = projectTurns([{ role: 'user', id: 'x', content: [{ type: 'text', text: 'x' }] }, message], undefined, undefined, session.meta?.cwd).flatMap(turn => turn.items.slice(1))
     const stream = streams.get(session.id)
     streams.delete(session.id)
     let reuse = stream?.item
+    // DSH's task list is the phone's plan view.
+    for (const block of message.content) {
+      if (block.type !== 'tool-call' || block.name !== 'todo_write') continue
+      const todos = parseArguments(block.arguments)?.todos
+      if (!Array.isArray(todos)) continue
+      const status = { pending: 'pending', in_progress: 'inProgress', completed: 'completed' }
+      emit(session.id, 'turn/plan/updated', { threadId: session.id, turnId: running.turn.id, explanation: null, plan: todos.filter(todo => typeof todo?.content === 'string').map(todo => ({ step: todo.content, status: status[todo.status] ?? 'pending' })) })
+    }
     for (const item of items) {
       if (reuse && item.type === 'agentMessage') {
         // The text already on the phone: finish that item instead of showing the reply twice.
