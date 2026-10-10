@@ -43,3 +43,16 @@ test('the usage projection carries expiry, message estimates and ChatPass withou
   assert.equal(odd.credits.approxLocalMessages, undefined)
   assert.equal(odd.chatPass, undefined)
 })
+
+test('a usage window with only the time left gets an absolute reset, and the reason a limit was reached is kept', () => {
+  const now = Date.parse('2026-10-10T10:00:00Z')
+  const usage = parseCodexUsage({
+    rate_limit: { primary_window: { used_percent: 100, limit_window_seconds: 18000, reset_after_seconds: 600 }, secondary_window: { used_percent: 10, limit_window_seconds: 604800, reset_at: 1_900_000_000, reset_after_seconds: 5 } },
+    rate_limit_reached_type: { type: 'workspace_member_usage_limit_reached' },
+  }, now)
+  assert.equal(usage.rateLimits[0].windows[0].resetsAt, now / 1000 + 600)
+  assert.equal(usage.rateLimits[0].windows[1].resetsAt, 1_900_000_000, 'an absolute reset wins')
+  assert.equal(usage.rateLimitReachedType, 'workspace_member_usage_limit_reached')
+  assert.equal(parseCodexUsage({ rate_limit_reached_type: 'Bad Value!' }).rateLimitReachedType, undefined)
+  assert.equal(parseCodexUsage({ plan_type: 'pro' }).planType, 'pro')
+})
