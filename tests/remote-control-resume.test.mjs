@@ -5,7 +5,7 @@ import { createRemoteControlRelay } from '../src/remote-control-relay.js'
 const wait = (ms = 5) => new Promise(resolve => setTimeout(resolve, ms))
 const enrollOk = () => ({ ok: true, json: async () => ({ environment_id: 'env', server_id: 'srv', remote_control_token: 'tok', expires_at: new Date(Date.now() + 3_600_000).toISOString() }) })
 
-function setup() {
+function setup(extra = {}) {
   const sockets = []
   const connections = []
   class Socket {
@@ -18,7 +18,7 @@ function setup() {
   const relay = createRemoteControlRelay({
     credentials: async () => ({ access: 'a', accountId: 'b' }), fetch: async () => enrollOk(), WebSocket: Socket, installationId: 'i', hostName: 'h', userAgent: 'x/1',
     serve: client => { connections.push(client); return { receive: message => received.push(message), close() {} } },
-    wait: () => new Promise(resolve => setTimeout(resolve, 1)),
+    wait: () => new Promise(resolve => setTimeout(resolve, 1)), ...extra,
   })
   return { relay, sockets, connections, received }
 }
@@ -93,4 +93,23 @@ test('a refused upgrade with Retry-After delays the next attempt', async () => {
   await relay.stop()
   assert.equal(tries, 1)
   assert.ok(waits[0] >= 120_000, `waited ${waits[0]}`)
+})
+
+test('what waited longer than the buffer idle limit is dropped on reconnect, and the stream carries on', async () => {
+  let clock = 1_000_000
+  const { relay, sockets, connections } = setup({ now: () => clock })
+  void relay.start()
+  await wait(20)
+  fromPhone(sockets[0], { id: 1, method: 'a' }, 1)
+  await wait(5)
+  sockets[0].readyState = 3
+  await connections[0].send({ method: 'old' })
+  clock += 31 * 60_000
+  sockets[0].handlers.close()
+  await wait(40)
+  assert.equal(sockets[1].sent.some(envelope => envelope.message?.method === 'old'), false, 'stale messages are not replayed')
+  await connections[0].send({ method: 'fresh' })
+  const fresh = sockets[1].sent.find(envelope => envelope.message?.method === 'fresh')
+  assert.equal(fresh.seq_id, 2, 'the sequence continues, so the phone does not see a gap')
+  await relay.stop()
 })
