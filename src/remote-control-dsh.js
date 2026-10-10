@@ -4,7 +4,7 @@
 // the DSH web client uses: listing, creating, prompting, model selection.
 
 import { randomUUID } from 'node:crypto'
-import { statSync } from 'node:fs'
+import { readdirSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { RpcError, invalidParams } from './remote-control-host.js'
 
@@ -13,6 +13,35 @@ export function localFolder(value) {
   if (typeof value !== 'string' || value === '' || !isAbsolute(value)) return undefined
   if (process.platform === 'win32' && !/^[A-Za-z]:[\\/]/u.test(value)) return undefined
   try { return statSync(value).isDirectory() ? value : undefined } catch { return undefined }
+}
+
+/** One image the phone attached, sent inline as a data URL (its own file paths mean nothing on this machine). */
+export function dataImage(url) {
+  const match = typeof url === 'string' ? /^data:(image\/[A-Za-z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/u.exec(url) : null
+  return match ? { mediaType: match[1].toLowerCase(), data: new Uint8Array(Buffer.from(match[2], 'base64')) } : undefined
+}
+const inputImages = input => (Array.isArray(input) ? input : []).filter(part => part?.type === 'image' && typeof part.url === 'string')
+const MAX_PHONE_IMAGES = 8
+
+/** Facts about a real local file or folder the phone asks about, so its folder picker shows what is on this machine. */
+function realMetadata(value) {
+  if (typeof value !== 'string' || !isAbsolute(value)) return undefined
+  try {
+    const stat = statSync(value)
+    return { isDirectory: stat.isDirectory(), isFile: stat.isFile(), isSymlink: false, createdAtMs: Math.floor(stat.birthtimeMs), modifiedAtMs: Math.floor(stat.mtimeMs) }
+  } catch { return undefined }
+}
+/** Names inside a real local folder (folders first, hidden ones left out, bounded); nothing for anything else. */
+export function readFolder(value) {
+  const folder = localFolder(value)
+  if (!folder) return []
+  try {
+    return readdirSync(folder, { withFileTypes: true })
+      .filter(entry => !entry.name.startsWith('.') && (entry.isDirectory() || entry.isFile()))
+      .map(entry => ({ fileName: entry.name, isDirectory: entry.isDirectory(), isFile: entry.isFile() }))
+      .sort((a, b) => Number(b.isDirectory) - Number(a.isDirectory) || a.fileName.localeCompare(b.fileName))
+      .slice(0, 500)
+  } catch { return [] }
 }
 
 const seconds = value => Math.floor((Number.isFinite(value) ? value : Date.now()) / 1000)
@@ -39,9 +68,21 @@ export const visibleText = content => textOf(content).replace(/<system-reminder>
 /** Text of a user-role message the person wrote; DSH's own injected ones (runtime context, notices) carry another source kind. */
 export const typedText = message => message.role === 'user' && (message.source === undefined || message.source?.kind === 'user') ? visibleText(message.content) : ''
 
+const imageBlocks = message => (message.content ?? []).filter(block => block?.type === 'image' && block.attachment)
+const toolOutput = (message, imageUrls) => [
+  { type: 'inputText', text: textOf(message.content) },
+  ...imageBlocks(message).map(block => imageUrls.get(block.attachment.attachmentId)).filter(Boolean).map(imageUrl => ({ type: 'inputImage', imageUrl })),
+]
+
 /** One user message starts a turn; assistant blocks and tool results fill it. */
 
-export function projectTurns(messages, at = Date.now()) {
+/** Images the person attached to a message of their own. */
+export const typedImages = message => message.role === 'user' && (message.source === undefined || message.source?.kind === 'user')
+  ? (message.content ?? []).filter(block => block?.type === 'image' && block.attachment)
+  : []
+
+/** `imageUrls` maps an attachment id to a data URL the phone can show; images without one are left out. */
+export function projectTurns(messages, at = Date.now(), imageUrls = new Map()) {
   const turns = []
   let turn
   const calls = new Map()
@@ -49,10 +90,11 @@ export function projectTurns(messages, at = Date.now()) {
   for (const message of messages) {
     if (message.role === 'user') {
       const text = typedText(message)
-      if (text === '') continue
+      const pictures = typedImages(message).map(block => imageUrls.get(block.attachment.attachmentId)).filter(Boolean)
+      if (text === '' && pictures.length === 0) continue
       close()
       turn = { ...emptyTurn(), id: message.id, startedAt: seconds(at) }
-      turn.items.push({ type: 'userMessage', id: message.id, clientId: null, content: [{ type: 'text', text, text_elements: [] }] })
+      turn.items.push({ type: 'userMessage', id: message.id, clientId: null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(url => ({ type: 'image', url }))] })
     } else if (message.role === 'assistant') {
       turn ??= { ...emptyTurn(), startedAt: seconds(at) }
       for (const [index, block] of message.content.entries()) {
@@ -68,7 +110,7 @@ export function projectTurns(messages, at = Date.now()) {
     } else if (message.role === 'tool') {
       const item = calls.get(message.toolCallId)
       if (item) {
-        item.contentItems = [{ type: 'inputText', text: textOf(message.content) }]
+        item.contentItems = toolOutput(message, imageUrls)
         item.status = message.isError ? 'failed' : 'completed'
         item.success = !message.isError
       }
@@ -95,7 +137,7 @@ function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns 
 // How long a question or approval waits for a phone that dropped while it was open.
 const PHONE_RETURN_MS = 120_000
 
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
@@ -150,6 +192,20 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       sandbox: sandboxFor(preset, cwd), serviceTier: null, turnsBackwardsCursor: null,
     }
   }
+  /** Data URLs for the images in a conversation (newest first, bounded), so the phone can show them. */
+  const imageUrlsOf = async messages => {
+    const urls = new Map()
+    const store = attachments()
+    if (!store) return urls
+    const wanted = messages.flatMap(message => message.role === 'tool' || typedImages(message).length > 0 ? imageBlocks(message) : []).toReversed().slice(0, 12)
+    await Promise.all(wanted.map(async block => {
+      try {
+        const stored = await store.readImage(block.attachment, AbortSignal.timeout(10_000))
+        urls.set(block.attachment.attachmentId, `data:${stored.ref.mediaType};base64,${Buffer.from(stored.data).toString('base64')}`)
+      } catch { /* an image DSH can no longer read is simply not shown */ }
+    }))
+    return urls
+  }
   const openThread = async (id, notify) => {
     const agent = await agentFor(id)
     if (notify) subscribe(id, notify)
@@ -157,11 +213,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const session = agent.session
     const messages = session.deriveMessages()
     const first = messages.find(message => typedText(message) !== '')
+    const imageUrls = await imageUrlsOf(messages)
     return {
       agent,
       thread: thread({
         id, cwd: session.meta?.cwd, createdAt: session.meta?.createdAt, running: active.has(id),
-        preview: first ? visibleText(first.content).slice(0, 200) : '', turns: projectTurns(messages, session.meta?.createdAt),
+        preview: first ? visibleText(first.content).slice(0, 200) : '', turns: projectTurns(messages, session.meta?.createdAt, imageUrls),
       }),
     }
   }
@@ -215,9 +272,22 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     return { turn: { ...turn, items: [], status: 'inProgress', completedAt: null } }
   }
 
+  /** Message content for DSH from what the phone sent: its text plus any inline images (DSH admits and stores them itself). */
+  const contentOf = input => {
+    const text = inputText(input)
+    const pictures = inputImages(input)
+    if (text === '' && pictures.length === 0) throw invalidParams('Send some text or an image')
+    if (pictures.length > MAX_PHONE_IMAGES) throw invalidParams(`At most ${MAX_PHONE_IMAGES} images per message`)
+    const images = pictures.map(picture => {
+      const image = dataImage(picture.url)
+      if (!image) throw invalidParams('Only images sent inline are supported')
+      return { type: 'image', data: Buffer.from(image.data).toString('base64'), mediaType: image.mediaType, name: 'phone-image' }
+    })
+    return { text, pictures, content: [...(text === '' ? [] : [{ type: 'text', text }]), ...images] }
+  }
+
   async function startTurn(params, notify) {
-    const text = inputText(params?.input)
-    if (text === '') throw invalidParams('Only text input is supported')
+    const { text, pictures, content } = contentOf(params?.input)
     lastPrompt.text = text
     const id = params?.threadId
     const agent = await agentFor(id)
@@ -227,12 +297,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     applyPermissions(agent, params)
     const turn = emptyTurn()
     active.set(id, { turn, ended: undefined })
-    const userItem = { type: 'userMessage', id: randomUUID(), clientId: params.clientUserMessageId ?? null, content: [{ type: 'text', text, text_elements: [] }] }
+    const userItem = { type: 'userMessage', id: randomUUID(), clientId: params.clientUserMessageId ?? null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(picture => ({ type: 'image', url: picture.url }))] }
     emit(id, 'turn/started', { threadId: id, turn })
     emit(id, 'item/started', { threadId: id, turnId: turn.id, item: userItem, startedAtMs: Date.now() })
     emit(id, 'item/completed', { threadId: id, turnId: turn.id, item: userItem, completedAtMs: Date.now() })
     try {
-      await service().prompt({ requestId: randomUUID(), sessionId: id, mode: 'queue', content: [{ type: 'text', text }] }, AbortSignal.timeout(30_000))
+      await service().prompt({ requestId: randomUUID(), sessionId: id, mode: 'queue', content }, AbortSignal.timeout(30_000))
     } catch (error) {
       active.delete(id)
       throw new RpcError(-32603, error?.message ? `DSH did not accept the message: ${String(error.message).slice(0, 200)}` : 'DSH did not accept the message')
@@ -298,8 +368,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'plugin/installed': () => ({ marketplaceLoadErrors: [], marketplaces: [] }),
     // The app prepares a working folder before a new chat; sessions here use DSH's own folders, so nothing is created.
     'fs/createDirectory': () => ({}),
-    'fs/getMetadata': () => ({ isDirectory: true, isFile: false, isSymlink: false, createdAtMs: Date.now(), modifiedAtMs: Date.now() }),
-    'fs/readDirectory': () => ({ entries: [] }),
+    'fs/getMetadata': params => realMetadata(params?.path) ?? ({ isDirectory: true, isFile: false, isSymlink: false, createdAtMs: Date.now(), modifiedAtMs: Date.now() }),
+    'fs/readDirectory': params => ({ entries: readFolder(params?.path) }),
     'collaborationMode/list': () => ({ data: [] }),
     'permissionProfile/list': () => ({ data: [], nextCursor: null }),
     'threadSection/list': () => ({ data: [], nextCursor: null }),
@@ -356,9 +426,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'turn/start': (params, { notify }) => titles.has(params?.threadId) ? titleTurn(params, notify) : startTurn(params, notify),
     'turn/interrupt': params => { service().cancel({ sessionId: params?.threadId }); return {} },
     'turn/steer': async params => {
-      const text = inputText(params?.input)
-      if (text === '') throw invalidParams('Only text input is supported')
-      await service().prompt({ requestId: randomUUID(), sessionId: params?.threadId, mode: 'steer', content: [{ type: 'text', text }] }, AbortSignal.timeout(30_000))
+      const { content } = contentOf(params?.input)
+      await service().prompt({ requestId: randomUUID(), sessionId: params?.threadId, mode: 'steer', content }, AbortSignal.timeout(30_000))
       return { turnId: params?.expectedTurnId ?? active.get(params?.threadId)?.turn.id ?? '' }
     },
     'thread/name/set': async params => {
@@ -532,10 +601,15 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     if (message?.role === 'tool') {
       const item = running.turn.items.find(entry => entry.type === 'dynamicToolCall' && entry.id === message.toolCallId)
       if (item) {
-        item.contentItems = [{ type: 'inputText', text: textOf(message.content) }]
-        item.status = message.isError ? 'failed' : 'completed'
-        item.success = !message.isError
-        emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item, completedAtMs: Date.now() })
+        const finish = imageUrls => {
+          item.contentItems = toolOutput(message, imageUrls)
+          item.status = message.isError ? 'failed' : 'completed'
+          item.success = !message.isError
+          emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item, completedAtMs: Date.now() })
+        }
+        // Pictures a tool returned (a generated image) are read first so the phone can show them.
+        if (imageBlocks(message).length > 0) void imageUrlsOf([message]).then(finish, () => finish(new Map()))
+        else finish(new Map())
       }
       return
     }

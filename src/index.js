@@ -375,6 +375,7 @@ export function apply(ctx, config = {}) {
     agents: () => ctx.get?.('agents'),
     permissions: () => ctx.get?.('permissionPresets'),
     workspaces: () => ctx.get?.('workspaceRegistry'),
+    attachments: () => ctx.attachments,
     trace: entry => { try { remoteControl.host.note(entry) } catch { /* diagnostics only */ } },
     userAgent: USER_AGENT,
   })
