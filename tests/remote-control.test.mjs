@@ -678,3 +678,17 @@ test('the paired phones are listed and one can be removed', async () => {
   assert.ok(requests.some(([method, href]) => method === 'DELETE' && href.endsWith('/environments/env/clients/c1')))
   await assert.rejects(() => relay.revokeClient(''), /client id/u)
 })
+
+test('DSH skills are offered to the phone and a picked skill is sent as a /name gesture', async () => {
+  const made = fakeControl()
+  const calls = []
+  const bridge = createDshRemoteControl({
+    controller: () => ({ resolveAgent: async () => ({ agent: { session: made.session, options: {}, whenIdle: () => new Promise(() => {}) } }), modelCatalog: async () => ({ groups: [] }), selectModel: async () => {}, prompt: async request => { calls.push(request); return {} } }),
+    skills: () => ({ list: async ({ cwd }) => [{ name: 'review-pr', description: 'Review a PR', invocation: { userInvocable: true }, path: '/s/review-pr' }, { name: 'internal', description: 'x', invocation: { userInvocable: false } }].map(skill => ({ ...skill, cwd })) }), userAgent: 'x/1',
+  })
+  const listed = await bridge.methods['skills/list']({ cwds: ['C:/w'] }, {})
+  assert.deepEqual(listed.data[0].skills.map(skill => skill.name), ['review-pr'])
+  assert.equal(listed.data[0].cwd, 'C:/w')
+  await bridge.methods['turn/start']({ threadId: 's1', input: [{ type: 'skill', name: 'review-pr', path: '/s/review-pr' }, { type: 'text', text: 'check #4', text_elements: [] }, { type: 'skill', name: '../evil' }] }, { notify: async () => {} })
+  assert.equal(calls[0].content[0].text, '/review-pr check #4')
+})
