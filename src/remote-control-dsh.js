@@ -8,6 +8,7 @@ import { readdirSync, statSync } from 'node:fs'
 import { isAbsolute } from 'node:path'
 import { RpcError, invalidParams } from './remote-control-host.js'
 import { runGit } from './remote-control-git.js'
+import { searchFiles } from './remote-control-files.js'
 
 /** A folder the phone named, only when it is an existing absolute folder on this machine. */
 export function localFolder(value) {
@@ -73,6 +74,8 @@ const seconds = value => Math.floor((Number.isFinite(value) ? value : Date.now()
 const emptyTurn = () => ({ id: randomUUID(), items: [], itemsView: 'full', status: 'inProgress', error: null, startedAt: seconds(Date.now()), completedAt: null, durationMs: null })
 const textOf = content => (content ?? []).map(block => block?.type === 'text' ? block.text : '').filter(Boolean).join('\n')
 const inputText = input => (Array.isArray(input) ? input : []).map(part => part?.type === 'text' ? part.text : '').filter(Boolean).join('\n')
+/** Skills the phone picked, written the way DSH invokes a skill: a /name gesture ahead of the text. */
+const skillGestures = input => (Array.isArray(input) ? input : []).filter(part => part?.type === 'skill' && /^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(String(part.name))).map(part => `/${part.name}`)
 const notFound = id => new RpcError(-32602, `Thread not found: ${String(id).slice(0, 80)}`)
 
 // Model ids travel as "provider/model" so one picker can hold every DSH provider.
@@ -196,7 +199,7 @@ function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns 
 // How long a question or approval waits for a phone that dropped while it was open.
 const PHONE_RETURN_MS = 120_000
 
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, projections = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, projections = () => undefined, skills = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
@@ -251,6 +254,13 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       sandbox: sandboxFor(preset, cwd), serviceTier: null, turnsBackwardsCursor: null,
     }
   }
+  const searches = new Map() // fuzzy-search session id -> { roots, notify }
+  /** Folders of DSH workspaces and conversations: the only places the phone may search or run git. */
+  const conversationFolders = async () => {
+    const items = (await service().list({}).catch(() => ({ items: [] }))).items ?? []
+    return [...workspaceList().map(entry => entry.path), ...items.map(item => item.cwd)].filter(folder => typeof folder === 'string' && folder !== '')
+  }
+
   /** DSH's token and context-window projections as the phone's token-usage ring. */
   const tokenUsage = session => {
     try {
@@ -358,7 +368,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
 
   /** Message content for DSH from what the phone sent: its text plus any inline images (DSH admits and stores them itself). */
   const contentOf = input => {
-    const text = inputText(input)
+    const text = [...skillGestures(input), inputText(input)].filter(Boolean).join(' ')
     const pictures = inputImages(input)
     if (text === '' && pictures.length === 0) throw invalidParams('Send some text or an image')
     if (pictures.length > MAX_PHONE_IMAGES) throw invalidParams(`At most ${MAX_PHONE_IMAGES} images per message`)
@@ -454,8 +464,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     // Arbitrary host commands bypass DSH's sandbox and approvals, so they stay off.
     // Only read-only git inside a conversation folder, for the phone's changes view; nothing else runs.
     'command/exec': async params => {
-      const items = (await service().list({}).catch(() => ({ items: [] }))).items ?? []
-      const folders = [...workspaceList().map(entry => entry.path), ...items.map(item => item.cwd)].filter(folder => typeof folder === 'string' && folder !== '')
+      const folders = await conversationFolders()
       try { return await runGit(params, { folders }) } catch (error) {
         trace({ method: 'command/exec:refused', reason: String(error?.message).slice(0, 80), command: Array.isArray(params?.command) ? params.command.slice(0, 3).map(part => String(part).slice(0, 40)) : null })
         throw new RpcError(-32600, error?.code === 'not-allowed' ? `Not available on a DSH host: ${error.message}` : 'Could not run the command')
@@ -471,7 +480,6 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'threadSection/list': () => ({ data: [], nextCursor: null }),
     'thread/goal/get': () => ({ goal: null }),
     'experimentalFeature/list': () => ({ data: [], nextCursor: null }),
-    'skills/list': () => ({ data: [] }),
     'config/read': () => ({ config: {}, origins: {}, layers: null }),
     'thread/loaded/list': () => ({ data: [...subscribers.keys()], nextCursor: null }),
     'thread/unsubscribe': () => ({ status: 'notSubscribed' }),
@@ -515,6 +523,31 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return { ...settings(agent, value.cwd), thread: value }
     },
     'thread/readState/update': () => ({}),
+    // @-mentions: files under a conversation folder, once or as a typing session the phone updates.
+    fuzzyFileSearch: async params => ({ files: await searchFiles({ roots: params?.roots ?? [], query: String(params?.query ?? ''), folders: await conversationFolders() }) }),
+    'fuzzyFileSearch/sessionStart': (params, { notify }) => { searches.set(params?.sessionId, { roots: params?.roots ?? [], notify }); return {} },
+    'fuzzyFileSearch/sessionUpdate': async params => {
+      const search = searches.get(params?.sessionId)
+      if (search) {
+        const query = String(params?.query ?? '')
+        const files = await searchFiles({ roots: search.roots, query, folders: await conversationFolders() })
+        void search.notify('fuzzyFileSearch/sessionUpdated', { sessionId: params.sessionId, query, files }).catch(() => {})
+        void search.notify('fuzzyFileSearch/sessionCompleted', { sessionId: params.sessionId }).catch(() => {})
+      }
+      return {}
+    },
+    'fuzzyFileSearch/sessionStop': params => { searches.delete(params?.sessionId); return {} },
+    // DSH skills the person may invoke (a /name gesture), listed per folder the way the phone asks.
+    'skills/list': async (params, { signal }) => {
+      const registry = skills()
+      const folders = Array.isArray(params?.cwds) && params.cwds.length > 0 ? params.cwds : [workspaceList()[0]?.path ?? '']
+      return { data: await Promise.all(folders.map(async cwd => {
+        try {
+          const found = (await registry?.list?.({ cwd: cwd || undefined, signal }) ?? []).filter(skill => skill?.invocation?.userInvocable !== false)
+          return { cwd, errors: [], skills: found.map(skill => ({ name: skill.name, description: skill.description ?? '', shortDescription: null, interface: null, dependencies: null, path: skill.path ?? skill.name, scope: 'user', enabled: true, pluginId: null })) }
+        } catch { return { cwd, skills: [], errors: [] } }
+      })) }
+    },
     // Archiving is DSH's registry-wide archive set, the same one the desktop sidebar uses.
     'thread/archive': async params => {
       const registry = workspaces()
