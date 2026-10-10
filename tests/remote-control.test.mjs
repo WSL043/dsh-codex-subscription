@@ -709,3 +709,54 @@ test('the phone shows the ChatGPT plan from the usage read', async () => {
   const none = createDshRemoteControl({ controller: () => ({}), userAgent: 'x/1' })
   assert.equal((await none.methods['account/read']({}, {})).account.planType, 'unknown')
 })
+
+test('a conversation shows the model its log recorded, and a pick not yet recorded until DSH records one', async () => {
+  const { bridge, session } = fakeControl()
+  const key = (provider, model) => modelKey({ provider, model })
+  // a freshly loaded agent reports DSH's newest default; the conversation's own choice is in its log
+  session.eventsSnapshot = [{ type: 'model/selection', data: { provider: 'deepseek', model: 'chat', reasoningEffort: 'high' } }]
+  const resumed = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })
+  assert.equal(resumed.model, key('deepseek', 'chat'))
+  assert.equal(resumed.reasoningEffort, 'high')
+  // the phone picks another model: DSH applies it at the next turn, but the phone must see it at once
+  await bridge.methods['thread/settings/update']({ threadId: 's1', model: key('openai-codex', 'gpt-6') }, {})
+  assert.equal((await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })).model, key('openai-codex', 'gpt-6'))
+  // once the log says something else (a change made on the desktop), the log wins
+  session.eventsSnapshot = [...session.eventsSnapshot, { type: 'model/selection', data: { provider: 'deepseek', model: 'chat' } }]
+  assert.equal((await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })).model, key('deepseek', 'chat'))
+})
+
+test('reopening a thread while DSH is mid-turn returns the running turn with the reply written so far', async () => {
+  const { bridge, session, finish } = fakeControl()
+  const notes = []
+  const { turn } = await bridge.methods['turn/start'](hello('go'), { notify: async (method, params) => { notes.push([method, params]) } })
+  session.deriveMessages = () => [{ role: 'user', id: 'u', content: [{ type: 'text', text: 'go' }] }, { role: 'assistant', id: 'a1', content: [{ type: 'tool-call', id: 'c1', name: 'bash', arguments: '{"command":"ls"}' }] }]
+  bridge.onStream(session, { type: 'start' })
+  bridge.onStream(session, { type: 'chunk', chunk: { type: 'text-delta', text: 'Half a sen' } })
+  const { thread } = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })
+  assert.equal(thread.status.type, 'active')
+  const live = thread.turns.at(-1)
+  assert.equal(live.id, turn.id, 'the same turn id the live notifications use')
+  assert.equal(live.status, 'inProgress')
+  assert.deepEqual(live.items.map(item => item.type), ['userMessage', 'commandExecution', 'agentMessage'])
+  assert.equal(live.items.at(-1).text, 'Half a sen')
+  assert.equal(thread.turns.length, 1, 'the running turn is not shown twice')
+  finish(); await wait()
+})
+
+test('a phone that comes back on a new stream carries on with the threads its old stream had open', async () => {
+  const { bridge, finish } = fakeControl()
+  const oldNotes = []
+  const oldStream = Object.assign(async (method, params) => { oldNotes.push(method) }, { clientId: 'phone' })
+  await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: oldStream })
+  bridge.forget(oldStream)
+  const newNotes = []
+  const newStream = Object.assign(async (method, params) => { newNotes.push(method) }, { clientId: 'phone' })
+  bridge.adopt(newStream)
+  const other = Object.assign(async () => { throw new Error('another phone must not be adopted') }, { clientId: 'someone-else' })
+  bridge.adopt(other)
+  await bridge.methods['turn/start'](hello('go'), { notify: newStream })
+  finish(); await wait()
+  assert.ok(newNotes.includes('turn/completed'))
+  assert.equal(oldNotes.includes('turn/completed'), false)
+})

@@ -57,6 +57,7 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
       })
       // Bridges keep only the notify function per connection, so it also carries the ask.
       notify.ask = ask
+      notify.clientId = client.clientId
       const context = { client, notify, ask }
       onConnection?.(client)
       const reply = async (id, result) => { await client.send({ id, result }) }
@@ -84,7 +85,7 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
           }
           note('request', method)
           // The relay probes every host with `initialize`; a real client asks for more.
-          if (!active && method !== 'initialize') { active = true; onActive?.(client) }
+          if (!active && method !== 'initialize') { active = true; onActive?.(client, notify) }
           if (debug && !QUIET.has(method)) record({ method: `request:${method}`, params: JSON.stringify(params ?? null).slice(0, 700) })
           const handler = methods[method]
           if (!handler) {

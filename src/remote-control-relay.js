@@ -275,7 +275,7 @@ export function createRemoteControlRelay(options) {
     if (!client) {
       let closed = false
       const connection = options.serve({
-        id: `${envelope.client_id}/${streamId}`,
+        id: `${envelope.client_id}/${streamId}`, clientId: envelope.client_id, streamId,
         send: async message => { if (!closed) await sendServerMessage(envelope.client_id, streamId, message) },
         close: () => { closed = true },
       })

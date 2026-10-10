@@ -393,6 +393,7 @@ export function apply(ctx, config = {}) {
     // Only for acceptance runs against a local stand-in relay; anything but chatgpt.com or a loopback address is refused.
     base: process.env.DSH_CODEX_REMOTE_BASE || undefined,
     methods: remoteBridge.methods,
+    onActive: (_client, notify) => remoteBridge.adopt(notify),
     onClose: (_client, notify) => remoteBridge.forget(notify),
   })
   ctx.on('agent/assistant-stream', ({ agent, frame }) => { try { remoteBridge.onStream(agent?.session, frame) } catch { /* the phone view must never disturb the session */ } })
