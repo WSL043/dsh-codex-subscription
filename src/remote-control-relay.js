@@ -16,6 +16,21 @@ const CONFLICT_RENEW_MS = 15 * 60_000
 const MAX_RECONNECT_MS = 30_000
 const REQUEST_TIMEOUT_MS = 30_000
 const REFRESH_MARGIN_MS = 5 * 60_000
+// Same liveness rules as the Codex app server: ping every 10 s, drop a socket silent for 60 s,
+// and only treat a connection as healthy (reset the backoff) once it has lasted a minute.
+const PING_MS = 10_000
+const PONG_TIMEOUT_MS = 60_000
+const STABLE_MS = 60_000
+const RETRY_AFTER_JITTER_MS = 30_000
+
+/** Milliseconds a server asked us to wait (Retry-After as seconds or a date), when it did. */
+export function retryAfterMs(value, at = Date.now()) {
+  if (typeof value !== 'string' || value.trim() === '') return undefined
+  const seconds = Number(value)
+  if (Number.isFinite(seconds)) return Math.max(0, Math.round(seconds * 1000))
+  const date = Date.parse(value)
+  return Number.isNaN(date) ? undefined : Math.max(0, date - at)
+}
 
 export class RemoteControlError extends Error {
   constructor(code, message) {
@@ -96,8 +111,10 @@ export function createRemoteControlRelay(options) {
       signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]) : AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     })
     if (!response.ok) {
-      throw new RemoteControlError(response.status === 401 || response.status === 403 ? 'unauthorized' : 'http-error',
+      const error = new RemoteControlError(response.status === 401 || response.status === 403 ? 'unauthorized' : 'http-error',
         `Remote Control request failed (HTTP ${response.status})`)
+      if (response.status === 429 || response.status >= 500) error.retryAfterMs = retryAfterMs(response.headers?.get?.('retry-after'), now())
+      throw error
     }
     return response.json()
   }
@@ -248,12 +265,27 @@ export function createRemoteControlRelay(options) {
       let queue = Promise.resolve()
       const onAbort = () => ws.close()
       signal.addEventListener('abort', onAbort, { once: true })
-      ws.on('open', () => { state.status = 'connected'; state.connectedAt = now(); state.lastError = undefined })
+      let ping
+      let silent
+      const hearFrom = () => {
+        clearTimeout(silent)
+        silent = setTimeout(() => { state.lastError = 'timeout'; try { (ws.terminate ?? ws.close).call(ws) } catch { /* already gone */ } }, options.pongTimeoutMs ?? PONG_TIMEOUT_MS)
+      }
+      const stopBeat = () => { clearInterval(ping); clearTimeout(silent) }
+      ws.on('open', () => {
+        state.status = 'connected'; state.connectedAt = now(); state.lastError = undefined
+        // A connection that goes quiet (sleep, network switch) never closes by itself; ping it and drop it when it stops answering.
+        if (typeof ws.ping === 'function') {
+          hearFrom()
+          ping = setInterval(() => { try { ws.ping() } catch { /* the close handler follows */ } }, options.pingMs ?? PING_MS)
+        }
+      })
+      ws.on('pong', hearFrom)
       ws.on('message', data => {
         queue = queue.then(() => receive(String(data))).catch(error => { state.lastError = error?.code ?? 'protocol' })
       })
-      ws.on('error', error => reject(new RemoteControlError('socket', error?.message ?? 'socket error')))
-      ws.on('close', () => { signal.removeEventListener('abort', onAbort); resolve() })
+      ws.on('error', error => { stopBeat(); reject(new RemoteControlError('socket', error?.message ?? 'socket error')) })
+      ws.on('close', () => { stopBeat(); signal.removeEventListener('abort', onAbort); resolve() })
     })
     for (const [, client] of clients) client.close()
     clients.clear()
@@ -266,12 +298,16 @@ export function createRemoteControlRelay(options) {
     let delay = INITIAL_RECONNECT_MS
     let conflicts = 0
     let conflictSince = 0
+    let asked
     while (!signal.aborted) {
       state.status = 'connecting'
       try {
+        state.connectedAt = undefined
         await connectOnce(signal)
-        delay = INITIAL_RECONNECT_MS
+        // Only a connection that lasted counts as healthy; a flapping one keeps backing off.
+        if (state.connectedAt !== undefined && now() - state.connectedAt >= STABLE_MS) delay = INITIAL_RECONNECT_MS
       } catch (error) {
+        asked = error?.retryAfterMs
         state.lastError = error?.code ?? 'network'
         if (options.debug) state.detail = String(error?.message ?? error).slice(0, 160)
         state.status = 'error'
@@ -289,7 +325,10 @@ export function createRemoteControlRelay(options) {
       }
       if (signal.aborted) break
       state.reconnects += 1
-      await wait(delay, signal)
+      // Jittered so many hosts do not return together; a server's Retry-After is a floor, with its own spread.
+      const spread = Math.round(delay * (0.5 + (options.random ?? Math.random)() / 2))
+      await wait(asked === undefined ? spread : Math.max(spread, asked + Math.round((options.random ?? Math.random)() * RETRY_AFTER_JITTER_MS)), signal)
+      asked = undefined
       delay = Math.min(delay * 2, MAX_RECONNECT_MS)
     }
   }
