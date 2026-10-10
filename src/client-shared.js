@@ -3,7 +3,6 @@ import { useSyncExternalStore } from 'react'
 export const NS = 'settings.codexSubscription'
 export const SUPPORT_ISSUE_URL = 'https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml'
 export const QUICK_QUOTA_REFRESH_EVENT = 'dsh-codex-subscription:refresh-quick-quota'
-export const QUICK_QUOTA_REFRESH_MS = 60_000
 
 export const accountStatusErrorText = (error, t) => {
   const key = {

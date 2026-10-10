@@ -56,6 +56,8 @@ function createWakeSignal() {
 }
 
 function shortResetDelay(usage, nowMs, maxWaitMs, resetMarginMs) {
+  // A workspace owner's cap or depleted credits do not end when a usage window resets, so waiting for one would not help.
+  if (typeof usage?.rateLimitReachedType === 'string' && /^(?:workspace_|.*credits_depleted)/u.test(usage.rateLimitReachedType)) return undefined
   let latestDelayMs
   for (const limit of usage?.rateLimits ?? []) {
     // The usage response also contains feature-specific and code-review limits.

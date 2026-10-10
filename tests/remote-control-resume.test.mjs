@@ -74,3 +74,23 @@ test('a request to the phone is not held back for a dropped phone, so its caller
   assert.equal(sockets[1].sent.some(envelope => envelope.message?.method === 'item/tool/requestUserInput'), false)
   await relay.stop()
 })
+
+test('a refused upgrade with Retry-After delays the next attempt', async () => {
+  const waits = []
+  let tries = 0
+  class Refused {
+    constructor() { tries += 1; this.handlers = {}; queueMicrotask(() => this.handlers['unexpected-response']?.({ destroy() {} }, { statusCode: 429, headers: { 'retry-after': '120' } })) }
+    on(name, handler) { this.handlers[name] = handler }
+    close() {}
+  }
+  const relay = createRemoteControlRelay({
+    credentials: async () => ({ access: 'a', accountId: 'b' }), fetch: async () => enrollOk(), WebSocket: Refused, installationId: 'i', hostName: 'h', userAgent: 'x/1',
+    serve: () => ({ receive() {}, close() {} }), random: () => 0,
+    wait: (ms, signal) => { waits.push(ms); return new Promise(resolve => { signal.addEventListener('abort', resolve, { once: true }) }) },
+  })
+  void relay.start()
+  await wait(30)
+  await relay.stop()
+  assert.equal(tries, 1)
+  assert.ok(waits[0] >= 120_000, `waited ${waits[0]}`)
+})
