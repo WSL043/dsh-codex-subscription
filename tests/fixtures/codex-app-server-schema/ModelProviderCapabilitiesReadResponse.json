@@ -1,0 +1,1 @@
+{"$schema":"http://json-schema.org/draft-07/schema#","properties":{"imageGeneration":{"type":"boolean"},"webSearch":{"type":"boolean"}},"required":["imageGeneration","webSearch"],"type":"object"}

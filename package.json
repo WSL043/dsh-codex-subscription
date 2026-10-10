@@ -130,6 +130,7 @@
     "@deepseek-ai/schemastery": "3.18.4",
     "@earendil-works/pi-ai": "0.85.1",
     "@heroicons/react": "2.2.0",
+    "ajv": "8.20.0",
     "fake-indexeddb": "6.2.5",
     "qrcode": "1.5.4",
     "react": "18.3.1",

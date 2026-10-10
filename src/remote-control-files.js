@@ -56,7 +56,7 @@ export async function searchFiles({ roots, query, folders, now = Date.now }) {
         seen += 1
         const path = relative(root, join(folder, entry.name)).split(sep).join('/')
         const match = query === '' ? { score: 0, indices: [] } : fuzzyScore(query, path)
-        if (match) found.push({ root, path, matchType: directory ? 'directory' : 'file', fileName: entry.name, score: match.score, indices: match.indices })
+        if (match) found.push({ root, path, match_type: directory ? 'directory' : 'file', file_name: entry.name, score: match.score, indices: match.indices })
         if (directory && !SKIP.has(entry.name) && depth < MAX_DEPTH) queue.push([join(folder, entry.name), depth + 1])
       }
     }

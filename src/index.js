@@ -390,6 +390,8 @@ export function apply(ctx, config = {}) {
     stateFile: dshHomePath('state', 'codex-subscription', 'remote-control.json'),
     hostName: `DSH (${hostname()})`,
     userAgent: USER_AGENT,
+    // Only for acceptance runs against a local stand-in relay; anything but chatgpt.com or a loopback address is refused.
+    base: process.env.DSH_CODEX_REMOTE_BASE || undefined,
     methods: remoteBridge.methods,
     onClose: (_client, notify) => remoteBridge.forget(notify),
   })
