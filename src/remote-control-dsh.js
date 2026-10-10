@@ -268,7 +268,9 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const saved = recorded(agent)
     const remembered = pickedBy.get(agent?.session?.id)
     if (remembered && sameSelection(saved, remembered.was)) return remembered.selection
-    return saved ?? catalog?.default
+    // A model DSH no longer offers (a retired one) would leave the phone's picker on nothing: show the default instead.
+    const offered = !saved || !catalog?.groups || catalog.groups.some(group => group.id === saved.provider && (group.models ?? []).some(model => model.id === saved.model))
+    return offered ? saved ?? catalog?.default : catalog?.default
   }
   const settings = (agent, cwd) => {
     const current = selection(agent)
