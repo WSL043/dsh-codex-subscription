@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createRemoteControlHost, RpcError } from '../src/remote-control-host.js'
 import { createDshRemoteControl, localFolder, modelKey, parseModelKey, projectTurns, visibleText } from '../src/remote-control-dsh.js'
 import { createRemoteControlRelay, remoteControlEndpoints } from '../src/remote-control-relay.js'
@@ -383,4 +386,77 @@ test('a reply without any reasoning block is not lost on its way to the phone', 
   const texts = notes.filter(([method]) => method === 'item/completed').map(([, params]) => params.item).filter(item => item.type === 'agentMessage').map(item => item.text)
   assert.deepEqual(texts, ['Hi there'])
   finish(); await wait()
+})
+
+const PNG_URL = `data:image/png;base64,${Buffer.from('fake-png').toString('base64')}`
+
+function fakeAttachments() {
+  const saved = []
+  return {
+    saved,
+    saveImage: async input => { saved.push(input); return { attachmentId: `sha256:${'a'.repeat(64)}`, mediaType: input.mediaType, bytes: input.data.length, width: 1, height: 1 } },
+    readImage: async ref => ({ ref, data: new Uint8Array(Buffer.from('fake-png')) }),
+  }
+}
+
+test("a photo from the phone goes to DSH with the text, in the form DSH's own prompt endpoint admits", async () => {
+  const store = fakeAttachments()
+  const calls = []
+  const control = fakeControl()
+  const bridge = createDshRemoteControl({ controller: () => ({
+    resolveAgent: async () => ({ agent: { session: control.session, options: {}, whenIdle: () => new Promise(() => {}) } }),
+    modelCatalog: async () => ({ groups: [] }), selectModel: async () => {},
+    prompt: async request => { calls.push(request); return {} },
+  }), attachments: () => store, userAgent: 'x/1' })
+  const notes = []
+  await bridge.methods['turn/start']({ threadId: 's1', input: [{ type: 'text', text: 'what is this?', text_elements: [] }, { type: 'image', url: PNG_URL }] }, { notify: async (method, params) => { notes.push([method, params]) } })
+  assert.deepEqual(calls[0].content.map(block => block.type), ['text', 'image'])
+  assert.deepEqual([calls[0].content[1].mediaType, calls[0].content[1].data], ['image/png', Buffer.from('fake-png').toString('base64')])
+  const shown = notes.find(([method, params]) => method === 'item/completed' && params.item.type === 'userMessage')[1].item
+  assert.deepEqual(shown.content.map(part => part.type), ['text', 'image'])
+})
+
+test('an image alone is a message; non-inline images and empty input are refused', async () => {
+  const store = fakeAttachments()
+  const control = fakeControl()
+  const calls = []
+  const bridge = createDshRemoteControl({ controller: () => ({
+    resolveAgent: async () => ({ agent: { session: control.session, options: {}, whenIdle: () => new Promise(() => {}) } }),
+    modelCatalog: async () => ({ groups: [] }), selectModel: async () => {},
+    prompt: async request => { calls.push(request); return {} },
+  }), attachments: () => store, userAgent: 'x/1' })
+  const notify = async () => {}
+  await bridge.methods['turn/start']({ threadId: 's1', input: [{ type: 'image', url: PNG_URL }] }, { notify })
+  assert.deepEqual(calls[0].content.map(block => block.type), ['image'])
+  await assert.rejects(() => bridge.methods['turn/start']({ threadId: 's2', input: [{ type: 'image', url: 'file:///x.png' }] }, { notify }), /inline/u)
+  await assert.rejects(() => bridge.methods['turn/start']({ threadId: 's3', input: [] }, { notify }), /text or an image/u)
+})
+
+test('images in a conversation, the person\'s and the ones tools return, reach the phone as data URLs', () => {
+  const id = `sha256:${'b'.repeat(64)}`
+  const urls = new Map([[id, PNG_URL]])
+  const turns = projectTurns([
+    { role: 'user', id: 'u', content: [{ type: 'text', text: 'draw' }, { type: 'image', attachment: { attachmentId: id } }] },
+    { role: 'assistant', id: 'a', content: [{ type: 'tool-call', id: 'c1', name: 'codex_image_generate', arguments: '{}' }] },
+    { role: 'tool', toolCallId: 'c1', content: [{ type: 'text', text: 'Generated an image.' }, { type: 'image', attachment: { attachmentId: id } }] },
+  ], 1_000_000, urls)
+  assert.deepEqual(turns[0].items[0].content.map(part => part.type), ['text', 'image'])
+  assert.deepEqual(turns[0].items[1].contentItems.map(item => item.type), ['inputText', 'inputImage'])
+  assert.equal(turns[0].items[1].contentItems[1].imageUrl, PNG_URL)
+})
+
+test('the phone folder picker sees real local folders and nothing for made-up ones', async () => {
+  const { bridge } = fakeControl()
+  const root = await mkdtemp(join(tmpdir(), 'rc-folder-'))
+  try {
+    await mkdir(join(root, 'sub'))
+    await writeFile(join(root, 'a.txt'), 'x')
+    await writeFile(join(root, '.hidden'), 'x')
+    const listed = await bridge.methods['fs/readDirectory']({ path: root }, {})
+    assert.deepEqual(listed.entries.map(entry => [entry.fileName, entry.isDirectory]), [['sub', true], ['a.txt', false]])
+    assert.equal((await bridge.methods['fs/getMetadata']({ path: root }, {})).isDirectory, true)
+    assert.equal((await bridge.methods['fs/getMetadata']({ path: join(root, 'a.txt') }, {})).isFile, true)
+    assert.deepEqual((await bridge.methods['fs/readDirectory']({ path: '/Documents/Codex/made-up' }, {})).entries, [])
+    assert.equal((await bridge.methods['fs/getMetadata']({ path: '/Documents/Codex/made-up' }, {})).isDirectory, true)
+  } finally { await rm(root, { recursive: true, force: true }) }
 })
