@@ -760,3 +760,10 @@ test('a phone that comes back on a new stream carries on with the threads its ol
   assert.ok(newNotes.includes('turn/completed'))
   assert.equal(oldNotes.includes('turn/completed'), false)
 })
+
+test('a conversation whose model DSH no longer offers shows the default model', async () => {
+  const { bridge, session } = fakeControl()
+  session.eventsSnapshot = [{ type: 'model/selection', data: { provider: 'openai-codex', model: 'gpt-5.5' } }]
+  const resumed = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })
+  assert.equal(resumed.model, modelKey({ provider: 'openai-codex', model: 'gpt-6' }))
+})
