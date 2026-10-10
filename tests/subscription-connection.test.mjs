@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
-import { createSubscriptionConnection } from '../src/subscription-connection.js'
+import { createSubscriptionConnection, tokenScope } from '../src/subscription-connection.js'
 import { openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
 import { createCodexNetworkTransport, withCodexNetwork } from '../src/oauth-network.js'
 
@@ -104,4 +104,18 @@ test('a disconnect after response acceptance is surfaced without replaying the r
     assert.equal(sends,1)
     assert.equal(fetches,0)
   } finally { connection.dispose();globalThis.WebSocket=originalSocket;globalThis.fetch=originalFetch }
+})
+
+test('a refreshed token for the same account keeps the same socket and cache key', async () => {
+  const jwt = account => `h.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: account }, iat: Math.random() })).toString('base64url')}.s`
+  assert.equal(tokenScope(jwt('acct-1')), tokenScope(jwt('acct-1')))
+  assert.notEqual(tokenScope(jwt('acct-1')), tokenScope(jwt('acct-2')))
+  assert.equal(tokenScope('opaque-token'), 'token:opaque-token')
+  const connection = createSubscriptionConnection({ resolveMode: () => 'websocket', resolveProxy: async () => undefined })
+  const first = await connection.prepare({ sessionId: 's', apiKey: jwt('acct-1') })
+  const second = await connection.prepare({ sessionId: 's', apiKey: jwt('acct-1') })
+  const other = await connection.prepare({ sessionId: 's', apiKey: jwt('acct-2') })
+  assert.equal(first.options.sessionId, second.options.sessionId)
+  assert.notEqual(first.options.sessionId, other.options.sessionId)
+  connection.dispose()
 })

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { selectModelQuotaWindows } from './sidebar-quota.js'
 import { recoveryCall } from './client-recovery.js'
-import { CHANNEL, QUICK_QUOTA_REFRESH_EVENT, QUICK_QUOTA_REFRESH_MS, unwrap } from './client-shared.js'
+import { CHANNEL, QUICK_QUOTA_REFRESH_EVENT, unwrap } from './client-shared.js'
+import { highestUsed, quotaRefreshMs } from './quota-cadence.js'
 export function useQuickQuota(rpc, enabled, model) {
   const [quota, setQuota] = useState()
   useEffect(() => {
@@ -13,6 +14,8 @@ export function useQuickQuota(rpc, enabled, model) {
     setQuota(undefined)
     let live = true
     let loading = false
+    let timer
+    let latest
     const load = async () => {
       if (loading) return
       loading = true
@@ -24,20 +27,24 @@ export function useQuickQuota(rpc, enabled, model) {
           return
         }
         const usage = await recoveryCall(rpc, 'usage', { force: false })
-        if (live) setQuota(selectModelQuotaWindows(usage, model)?.map(window => ({ ...window, fetchedAt: usage.fetchedAt })))
+        const windows = selectModelQuotaWindows(usage, model)?.map(window => ({ ...window, fetchedAt: usage.fetchedAt }))
+        latest = windows
+        if (live) setQuota(windows)
       } catch {
+        latest = undefined
         if (live) setQuota(undefined)
       } finally {
         loading = false
+        // Look again sooner as the quota runs low.
+        if (live) { window.clearTimeout(timer); timer = window.setTimeout(refresh, quotaRefreshMs(highestUsed(latest))) }
       }
     }
     const refresh = () => { void load() }
     void load()
-    const timer = window.setInterval(refresh, QUICK_QUOTA_REFRESH_MS)
     window.addEventListener(QUICK_QUOTA_REFRESH_EVENT, refresh)
     return () => {
       live = false
-      window.clearInterval(timer)
+      window.clearTimeout(timer)
       window.removeEventListener(QUICK_QUOTA_REFRESH_EVENT, refresh)
     }
   }, [rpc, enabled, model])

@@ -1,6 +1,7 @@
 import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { USER_AGENT } from './version.js'
 import { creditExpiry } from './credit-expiry.js'
+import { highestUsed, quotaRefreshMs } from './quota-cadence.js'
 
 export const CODEX_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
 const DEFAULT_TTL_MS = 60_000
@@ -10,14 +11,16 @@ const DEFAULT_MAX_RETRY_AFTER_MS = 5 * 60_000
 
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 
-function windowOf(value) {
+function windowOf(value, nowSeconds) {
   if (value === undefined || value === null) return undefined
   if (!record(value)) throw new Error('Codex returned a malformed rate-limit window')
   const used = value.used_percent
   const seconds = value.limit_window_seconds
   if (!Number.isFinite(used) || used < 0 || used > 100) throw new Error('Codex returned an invalid used percentage')
   if (!Number.isInteger(seconds) || seconds <= 0) throw new Error('Codex returned an invalid window duration')
+  // Some payloads give only the time left; turn it into the same absolute time.
   const resetsAt = epochSeconds(value.reset_at, 'rate-limit reset time')
+    ?? (Number.isInteger(value.reset_after_seconds) && value.reset_after_seconds > 0 && Number.isFinite(nowSeconds) ? nowSeconds + value.reset_after_seconds : undefined)
   return {
     usedPercent: used,
     remainingPercent: 100 - used,
@@ -26,10 +29,10 @@ function windowOf(value) {
   }
 }
 
-function limitOf(id, name, value) {
+function limitOf(id, name, value, nowSeconds) {
   if (value === undefined || value === null) return undefined
   if (!record(value)) throw new Error('Codex returned malformed rate-limit details')
-  const windows = [windowOf(value.primary_window), windowOf(value.secondary_window)].filter(Boolean)
+  const windows = [windowOf(value.primary_window, nowSeconds), windowOf(value.secondary_window, nowSeconds)].filter(Boolean)
   return windows.length === 0 ? undefined : { id, ...(name ? { name } : {}), windows }
 }
 
@@ -144,7 +147,8 @@ function resetCreditsOf(value) {
 }
 
 /** Reduce the provider payload to a browser-safe quota projection. */
-export function parseCodexUsage(value) {
+export function parseCodexUsage(value, nowMs = Date.now()) {
+  const nowSeconds = Math.floor(nowMs / 1000)
   if (!record(value)) throw new Error('Codex returned a malformed usage response')
   const rateLimits = []
   const seenLimitIds = new Set()
@@ -153,7 +157,7 @@ export function parseCodexUsage(value) {
     seenLimitIds.add(limit.id)
     rateLimits.push(limit)
   }
-  const primary = limitOf('codex', 'Codex', value.rate_limit)
+  const primary = limitOf('codex', 'Codex', value.rate_limit, nowSeconds)
   addLimit(primary)
   if (value.additional_rate_limits !== undefined && value.additional_rate_limits !== null
     && !Array.isArray(value.additional_rate_limits)) {
@@ -166,16 +170,23 @@ export function parseCodexUsage(value) {
     if (entry.limit_name !== undefined && entry.limit_name !== null && typeof entry.limit_name !== 'string') {
       throw new Error('Codex returned an invalid additional rate-limit name')
     }
-    addLimit(limitOf(entry.metered_feature, entry.limit_name || undefined, entry.rate_limit))
+    addLimit(limitOf(entry.metered_feature, entry.limit_name || undefined, entry.rate_limit, nowSeconds))
   }
-  addLimit(limitOf('code_review', 'Code review', value.code_review_rate_limit))
+  addLimit(limitOf('code_review', 'Code review', value.code_review_rate_limit, nowSeconds))
   const chatPass = chatPassOf(value.chatpass)
   const credits = creditsOf(value.credits, typeof value.plan_type === 'string' ? value.plan_type : undefined)
   const individualLimit = individualOf(value.spend_control)
   const spendControlReached = spendControlReachedOf(value.spend_control)
   const resetCredits = resetCreditsOf(value.rate_limit_reset_credits)
+  const planType = typeof value.plan_type === 'string' && /^[a-z][a-z_]{0,31}$/u.test(value.plan_type) ? value.plan_type : undefined
+  // Why the account is blocked, when the backend says: a workspace owner's cap or depleted credits do not end with a window reset.
+  const reached = value.rate_limit_reached_type
+  const reachedRaw = typeof reached === 'string' ? reached : record(reached) ? reached.type : undefined
+  const rateLimitReachedType = typeof reachedRaw === 'string' && /^[a-z][a-z_]{0,63}$/u.test(reachedRaw) ? reachedRaw : undefined
   return {
     rateLimits,
+    ...(rateLimitReachedType === undefined ? {} : { rateLimitReachedType }),
+    ...(planType === undefined ? {} : { planType }),
     ...(chatPass === undefined ? {} : { chatPass }),
     ...(credits === undefined ? {} : { credits }),
     ...(individualLimit === undefined ? {} : { individualLimit }),
@@ -211,7 +222,8 @@ export function createCodexUsageReader(options) {
   const readCredential = options.readCredential
   const fetchUsage = options.fetch ?? fetch
   const now = options.now ?? Date.now
-  const ttlMs = options.ttlMs ?? DEFAULT_TTL_MS
+  // A cached reading ages faster as the quota runs low, unless the caller fixed a lifetime.
+  const ttlFor = value => options.ttlMs ?? quotaRefreshMs(highestUsed(value?.rateLimits?.find(limit => limit.id === 'codex')?.windows))
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS
   const failureTtlMs = options.failureTtlMs ?? DEFAULT_FAILURE_TTL_MS
   const maxRetryAfterMs = options.maxRetryAfterMs ?? DEFAULT_MAX_RETRY_AFTER_MS
@@ -253,7 +265,7 @@ export function createCodexUsageReader(options) {
     } catch {
       throw new Error('ChatGPT returned an unreadable usage response')
     }
-    return { ...parseCodexUsage(value), fetchedAt: now() }
+    return { ...parseCodexUsage(value, now()), fetchedAt: now() }
   }
 
   return Object.freeze({
@@ -261,7 +273,7 @@ export function createCodexUsageReader(options) {
       if (failed !== undefined && now() < failed.retryAt) {
         return Promise.reject(new Error(failed.message))
       }
-      if (!force && cached !== undefined && now() - cached.fetchedAt < ttlMs) {
+      if (!force && cached !== undefined && now() - cached.fetchedAt < ttlFor(cached)) {
         return Promise.resolve(structuredClone(cached))
       }
       if (inFlight !== undefined) return inFlight.then(structuredClone)

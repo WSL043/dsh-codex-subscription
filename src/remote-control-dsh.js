@@ -60,7 +60,7 @@ function rateLimits(read) {
   const snapshot = limit => ({
     limitId: limit?.id ?? 'codex', limitName: limit?.name ?? null, normalModelSlug: null,
     primary: toWindow(limit?.windows?.[0]) ?? null, secondary: toWindow(limit?.windows?.[1]) ?? null,
-    credits: null, individualLimit: null, spendControlReached: read?.spendControlReached ?? null, planType: null, rateLimitReachedType: null,
+    credits: null, individualLimit: null, spendControlReached: read?.spendControlReached ?? null, planType: read?.planType ?? null, rateLimitReachedType: read?.rateLimitReachedType ?? null,
   })
   const main = read?.rateLimits?.find(limit => limit.id === 'codex') ?? read?.rateLimits?.[0]
   return {
@@ -432,7 +432,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       codexHome: '', platformFamily: process.platform === 'win32' ? 'windows' : 'unix',
       platformOs: ({ darwin: 'macos', win32: 'windows' })[process.platform] ?? process.platform, userAgent,
     }),
-    'account/read': () => ({ account: { type: 'chatgpt', email: null, planType: 'unknown' }, requiresOpenaiAuth: false }),
+    'account/read': async () => ({ account: { type: 'chatgpt', email: null, planType: (await usage()?.read?.().catch(() => undefined))?.planType ?? 'unknown' }, requiresOpenaiAuth: false }),
     'modelProvider/capabilities/read': () => ({ imageGeneration: false, namespaceTools: false, webSearch: false }),
     'model/list': async () => {
       const value = await loadCatalog()

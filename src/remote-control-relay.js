@@ -363,6 +363,14 @@ export function createRemoteControlRelay(options) {
         }
       })
       ws.on('pong', hearFrom)
+      // A refused upgrade carries the relay's Retry-After, which the next attempt honours.
+      ws.on('unexpected-response', (request, response) => {
+        stopBeat()
+        const error = new RemoteControlError('socket', `Unexpected server response: ${response?.statusCode}`)
+        if (response?.statusCode === 429 || response?.statusCode >= 500) error.retryAfterMs = retryAfterMs(String(response.headers?.['retry-after'] ?? ''), now())
+        try { request?.destroy?.() } catch { /* the socket is already closing */ }
+        reject(error)
+      })
       ws.on('message', data => {
         queue = queue.then(() => receive(String(data))).catch(error => { state.lastError = error?.code ?? 'protocol' })
       })

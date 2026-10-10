@@ -701,3 +701,11 @@ test('the phone is told which models read images', async () => {
   const models = (await bridge.methods['model/list']({}, {})).data
   assert.deepEqual(models.map(model => model.inputModalities), [['text', 'image'], ['text']])
 })
+
+test('the phone shows the ChatGPT plan from the usage read', async () => {
+  const bridge = createDshRemoteControl({ controller: () => ({}), usage: () => ({ read: async () => ({ planType: 'pro', rateLimits: [] }) }), userAgent: 'x/1' })
+  assert.equal((await bridge.methods['account/read']({}, {})).account.planType, 'pro')
+  assert.equal((await bridge.methods['account/rateLimits/read']({}, {})).rateLimits.planType, 'pro')
+  const none = createDshRemoteControl({ controller: () => ({}), userAgent: 'x/1' })
+  assert.equal((await none.methods['account/read']({}, {})).account.planType, 'unknown')
+})
