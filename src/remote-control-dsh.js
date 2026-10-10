@@ -199,7 +199,7 @@ function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns 
 // How long a question or approval waits for a phone that dropped while it was open.
 const PHONE_RETURN_MS = 120_000
 
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, projections = () => undefined, skills = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, projections = () => undefined, skills = () => undefined, llm = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
@@ -439,6 +439,11 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       const defaultKey = value.default ? modelKey(value.default) : undefined
       const data = []
       for (const group of value.groups ?? []) {
+        const modalities = new Map(await Promise.all((group.models ?? []).map(async model => {
+          // The phone only offers photo attachments for a model that says it reads images.
+          const info = await Promise.resolve(llm()?.resolveModelInfo?.(group.id, model.id)).catch(() => undefined)
+          return [model.id, (Array.isArray(info?.inputModalities) ? info.inputModalities : ['text']).filter(kind => kind === 'text' || kind === 'image')]
+        })))
         for (const model of group.models ?? []) {
           const key = modelKey({ provider: group.id, model: model.id })
           const efforts = (model.reasoning?.efforts ?? []).map(effort => ({ reasoningEffort: effort.id, description: effort.name ?? effort.id }))
@@ -446,7 +451,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
           data.push({
             id: key, model: key, displayName: model.name ?? model.id, description: group.name ?? '', hidden: false, isDefault: key === defaultKey,
             supportedReasoningEfforts: supported, defaultReasoningEffort: model.reasoning?.defaultEffort ?? supported[0].reasoningEffort,
-            inputModalities: ['text'], supportsPersonality: false, additionalSpeedTiers: [], upgrade: null, upgradeInfo: null, availabilityNux: null, serviceTiers: [],
+            inputModalities: modalities.get(model.id)?.length ? modalities.get(model.id) : ['text'], supportsPersonality: false, additionalSpeedTiers: [], upgrade: null, upgradeInfo: null, availabilityNux: null, serviceTiers: [],
           })
         }
       }
