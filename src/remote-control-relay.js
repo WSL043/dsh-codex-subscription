@@ -55,6 +55,7 @@ export function remoteControlEndpoints(base = REMOTE_CONTROL_BASE_URL) {
     enroll: at('wham/remote/control/server/enroll'),
     refresh: at('wham/remote/control/server/refresh'),
     pair: at('wham/remote/control/server/pair'),
+    clients: environment => at(`wham/remote/control/environments/${encodeURIComponent(environment)}/clients`),
     websocket,
   })
 }
@@ -119,6 +120,8 @@ export function createRemoteControlRelay(options) {
     return response.json()
   }
 
+  const accountHeaders = (access, accountId) => ({ authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, accept: 'application/json', 'user-agent': options.userAgent })
+
   const ensureEnrollment = async signal => {
     if (enrolled && enrolled.expiresAt > now() + REFRESH_MARGIN_MS) return enrolled
     const { access, accountId } = await options.credentials(signal)
@@ -154,6 +157,29 @@ export function createRemoteControlRelay(options) {
       throw new RemoteControlError('bad-response', 'Remote Control returned an unexpected pairing')
     }
     return { pairingCode, manualCode: text(value?.manual_pairing_code) ?? null, expiresAt }
+  }
+
+  /** The phones paired with this host, from the same account endpoint Codex uses. */
+  const listClients = async signal => {
+    const current = await ensureEnrollment(signal)
+    const { access, accountId } = await options.credentials(signal)
+    if (!access || !accountId) throw new RemoteControlError('not-signed-in', 'ChatGPT subscription is not signed in')
+    const value = await request(endpoints.clients(current.environmentId), { method: 'GET', headers: accountHeaders(access, accountId) }, signal)
+    return (Array.isArray(value?.items) ? value.items : []).filter(item => text(item?.client_id)).map(item => ({
+      clientId: item.client_id, name: text(item.display_name) ?? text(item.device_model) ?? null, platform: text(item.platform) ?? null,
+      osVersion: text(item.os_version) ?? null, appVersion: text(item.app_version) ?? null, lastSeenAt: Number.isFinite(Date.parse(item.last_seen_at)) ? Date.parse(item.last_seen_at) : null,
+    }))
+  }
+  /** Remove one paired phone; it has to be paired again to come back. */
+  const revokeClient = async (clientId, signal) => {
+    if (typeof clientId !== 'string' || clientId === '' || clientId.length > 200) throw new RemoteControlError('bad-request', 'A client id is required')
+    const current = await ensureEnrollment(signal)
+    const { access, accountId } = await options.credentials(signal)
+    if (!access || !accountId) throw new RemoteControlError('not-signed-in', 'ChatGPT subscription is not signed in')
+    const target = new URL(`${endpoints.clients(current.environmentId).href}/${encodeURIComponent(clientId)}`)
+    const response = await doFetch(target, { method: 'DELETE', headers: accountHeaders(access, accountId), redirect: 'error', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]) : AbortSignal.timeout(REQUEST_TIMEOUT_MS) })
+    if (!response.ok) throw new RemoteControlError(response.status === 401 || response.status === 403 ? 'unauthorized' : 'http-error', `Remote Control request failed (HTTP ${response.status})`)
+    closeClient(clientId)
   }
 
   const sendEnvelope = async envelope => {
@@ -335,6 +361,8 @@ export function createRemoteControlRelay(options) {
 
   return Object.freeze({
     pair,
+    listClients,
+    revokeClient,
     status: () => ({ ...state, enrolled: enrolled !== undefined, server: enrolled?.serverId.slice(-6), clients: clients.size }),
     start() {
       if (running) return running

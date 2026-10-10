@@ -162,6 +162,9 @@ Turn on **Settings → Codex → Models & runtime → Phone remote control** and
 - switch model, reasoning level and permissions (workspace write / full access) from the phone;
 - when DSH needs a tool approval or asks you a question, it pops up on the phone; if the phone dropped, it is asked again when you return, otherwise the computer handles it;
 - replies appear on the phone as they are written;
+- commands, file edits (with diffs), the task list and generated images use the phone's native views, and file-edit approvals show the diff;
+- DSH workspaces appear as projects on the phone: start chats in them, fork a conversation, see usage limits and context usage;
+- Settings lists the paired phones and lets you remove any of them;
 - send photos from the phone (with or without text), and images DSH produces show up on the phone;
 - the phone folder picker browses real folders on this computer, and a new chat can start in one of them;
 - model errors are shown on the phone.

@@ -30,7 +30,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
           : 'Could not save the default model')
       }
     }
-    if (['remote/status', 'remote/enable', 'remote/disable', 'remote/pair'].includes(endpoint)) {
+    if (['remote/status', 'remote/enable', 'remote/disable', 'remote/pair', 'remote/clients', 'remote/revoke'].includes(endpoint)) {
       try {
         signal.throwIfAborted()
         if (!remoteControl) return publicError('unavailable', 'Remote Control is unavailable')
@@ -38,7 +38,9 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
         const value = action === 'status' ? remoteControl.status()
           : action === 'enable' ? await remoteControl.enable()
             : action === 'disable' ? await remoteControl.disable()
-              : await remoteControl.pair(signal)
+              : action === 'clients' ? await remoteControl.clients(signal)
+                : action === 'revoke' ? await remoteControl.revoke(payload?.clientId, signal)
+                  : await remoteControl.pair(signal)
         return { ok: true, value }
       } catch (error) {
         if (signal.aborted) throw error

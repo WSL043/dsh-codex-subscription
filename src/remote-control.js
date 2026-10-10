@@ -69,6 +69,13 @@ export function createRemoteControl(options) {
     async pair(signal) {
       return (await ensureRelay()).pair(signal)
     },
+    async clients(signal) {
+      return (await ensureRelay()).listClients(signal)
+    },
+    async revoke(clientId, signal) {
+      await (await ensureRelay()).revokeClient(clientId, signal)
+      return this.clients(signal)
+    },
     status() {
       const value = relay?.status() ?? { status: 'stopped', enrolled: false, clients: 0, reconnects: 0 }
       return { ...value, phones: phones.size, methods: host.seen(), trace: host.trace() }
