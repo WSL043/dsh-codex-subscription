@@ -693,7 +693,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const { session, running } = found
     const labels = new Map(request.questions.map(question => [question.id, new Set((question.options ?? []).map(option => option.label))]))
     return askPhone(request, 'item/tool/requestUserInput', {
-      threadId: session.id, turnId: running.turn.id, itemId: request.wait?.callId ?? randomUUID(),
+      threadId: session.id, turnId: running.turn.id, itemId: request.wait?.callId ?? randomUUID(), isBlocking: true,
       questions: request.questions.map(question => ({
         id: question.id, header: question.header ?? '', question: question.detail ? `${question.question}\n\n${question.detail}` : question.question,
         isOther: true, isSecret: false,

@@ -93,11 +93,18 @@ see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-
 
 Turn it on under **Settings → Codex → Models & runtime → Phone remote control** and this computer's DSH appears in the ChatGPT mobile app's Codex host list. Press Generate pairing code, then scan the QR code or type the manual code in the app; the code lasts about 10 minutes.
 
-- From the phone you can browse history, start and continue conversations, interrupt, queue, archive and unarchive conversations, and switch model (including DeepSeek and other third-party models), reasoning level and permissions (workspace write / full access).
+- From the phone you can browse history, start and continue conversations, interrupt, queue, fork, archive and unarchive conversations, and switch model (including DeepSeek and other third-party models), reasoning level and permissions (workspace write / full access).
+- DSH workspaces appear as projects on the phone, and a new chat can start in one; usage limits, plan and context usage are shown too.
+- Replies appear as they are written; commands, file edits (with diffs), the task list and generated images use the phone's native views.
+- You can send photos from the phone (with or without text) when the selected model reads images, and the folder picker browses real folders on the computer.
+- On the phone, `@` searches files in the conversation's folder and `/` picks a DSH skill.
+- The changes view works: the phone's requests run only inside the conversation's folder, and only a short list of read-only git commands (status, diff, log, ...) is allowed; everything else is refused.
+- After a dropped connection, what the phone has not acknowledged is sent again on reconnect; a half-dead connection (sleep, network switch) is noticed within about a minute and reconnected.
+- Settings lists the paired phones and lets you remove any of them.
 - When DSH needs a tool approval or asks you a question, the phone shows the choices; if the phone dropped, reopening the conversation within two minutes asks again, otherwise the computer handles it.
 - Model errors (missing key, exhausted quota, ...) are shown on the phone.
 - Only a host identifier is stored locally; pairing credentials are never written to disk, and turning the switch off disconnects.
-- This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. For safety the phone cannot run commands on the computer directly (so command-backed views such as the change viewer are unavailable); conversations started from the phone use DSH's default workspace, and sending images is not supported yet.
+- This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. For safety the phone cannot run arbitrary commands on the computer, only the read-only git described above.
 
 ### Advanced experiments
 
