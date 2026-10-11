@@ -28,6 +28,8 @@ test('normal installation does not pull the optional Codex executable runtime', 
   assert.equal(manifest.dependencies?.[runtime], undefined)
   assert.equal(manifest.optionalDependencies?.[runtime], undefined)
   assert.equal(manifest.peerDependenciesMeta?.[runtime]?.optional, true)
+  // The host provides react to client bundles; a dependency audit that cannot find it (DSHA) must not disable the plugin.
+  for (const name of ['react', 'react-dom']) assert.equal(manifest.peerDependenciesMeta?.[name]?.optional, true, name)
   // The compatibility autopilot widens this range and the runtime list together.
   assert.equal(manifest.peerDependencies[runtime], [...SUPPORTED_RUNTIME_VERSIONS].sort(compareVersions).join(' || '))
   assert.equal(manifest.devDependencies[runtime], '0.2.0-rc.2')

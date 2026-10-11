@@ -143,6 +143,12 @@
     "ws": "8.21.3"
   },
   "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    },
     "@deepseek-ai/dsh-subagent-codex": {
       "optional": true
     }
