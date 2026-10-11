@@ -4,7 +4,7 @@ import { RuntimeManagement } from './client-runtime-management.jsx'
 import { RemoteControlCard } from './client-remote-control.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { Button, IconChevronDownOutline14, Input, Menu, Switch } from './client-primitives.js'
-import { AUTO_QUOTA_RETRY_FIELD, REASONING_SUMMARY_FIELD, REASONING_SUMMARIES, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, DISABLED_MODELS_FIELD, clampModelContext, INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
+import { AUTO_QUOTA_RETRY_FIELD, REASONING_SUMMARY_FIELD, REASONING_SUMMARIES, RETRY_POLICY_FIELD, RETRY_POLICIES, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, DISABLED_MODELS_FIELD, clampModelContext, INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
 import { reconcileContextDrafts } from './context-draft-state.js'
 import { draftStep, toggleModelId } from './picker-draft.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
@@ -68,6 +68,17 @@ export function ReasoningSummaryPreference({ preference, t }) {
     <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('reasoningSummary')}</span><span className="codexSubscriptionPreferenceHint">{t('reasoningSummaryHint')}</span></div>
     <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('reasoningSummary')}>
       {REASONING_SUMMARIES.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-reasoning-summary" checked={snapshot.reasoningSummary === value} disabled={!writable} onChange={() => { void preference.set({ [REASONING_SUMMARY_FIELD]: value }) }} /><span>{t(`reasoningSummary_${value}`)}</span></label>)}
+    </div>
+  </div>
+}
+
+export function RetryPolicyPreference({ preference, t }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  const writable = snapshot.status === 'ready' && snapshot.writable === true
+  return <div className="codexSubscriptionPreference">
+    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('retryPolicy')}</span><span className="codexSubscriptionPreferenceHint">{t('retryPolicyHint')}</span></div>
+    <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('retryPolicy')}>
+      {RETRY_POLICIES.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-retry-policy" checked={snapshot.retryPolicy === value} disabled={!writable} onChange={() => { void preference.set({ [RETRY_POLICY_FIELD]: value }) }} /><span>{t(`retryPolicy_${value}`)}</span></label>)}
     </div>
   </div>
 }
@@ -205,6 +216,8 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
         <InputImageDetailPreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <ReasoningSummaryPreference preference={preference} t={t} />
+        <div className="codexSubscriptionDivider" />
+        <RetryPolicyPreference preference={preference} t={t} />
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('searchSectionTitle')}>
         <h3>{t('searchSectionTitle')}</h3>
