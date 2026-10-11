@@ -588,3 +588,31 @@ test('the Ultrafast tier reaches the wire only for a model the account catalog l
     globalThis.fetch = previousFetch
   }
 })
+
+test('the reasoning summary level goes on the request, and off sends none', async () => {
+  const previousFetch = globalThis.fetch
+  const wires = []
+  globalThis.fetch = async (_input, init) => {
+    wires.push(JSON.parse(zstdDecompressSync(Buffer.from(init.body)).toString('utf8')))
+    return new Response(sse([
+      { type: 'response.created', response: { id: `resp_r${wires.length}` } },
+      { type: 'response.done', response: { id: `resp_r${wires.length}`, status: 'completed', output: [], usage: { input_tokens: 2, output_tokens: 1, total_tokens: 3 } } },
+    ]), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+  }
+  try {
+    let level = 'auto'
+    const provider = openaiCodexSubscriptionProvider({ resolveReasoningSummary: () => level })
+    const model = provider.getModels().find(value => value.id === 'gpt-5.6-sol')
+    assert.ok(model)
+    for (const value of ['auto', 'concise', 'detailed', 'none']) {
+      level = value
+      for await (const event of provider.streamSimple(model, { systemPrompt: 'x', messages: [{ role: 'user', content: 'hi', timestamp: 1 }] }, { apiKey: jwt('account-summary'), sessionId: `summary-${value}`, transport: 'sse', reasoning: 'medium' })) {
+        if (event.type === 'error') throw event.error
+      }
+    }
+    assert.deepEqual(wires.map(wire => wire.reasoning?.summary), ['auto', 'concise', 'detailed', undefined])
+    assert.ok(wires.every(wire => typeof wire.reasoning?.effort === 'string'), 'the effort is untouched')
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
