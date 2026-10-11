@@ -8,6 +8,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
   const preferenceSnapshot = usePreferenceSnapshot(preference)
   const [open, setOpen] = useState(false)
   const [pane, setPane] = useState('root')
+  const [query, setQuery] = useState('')
   const rootRef = useRef(null)
   const triggerRef = useRef(null)
   const id = useId()
@@ -45,6 +46,13 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     })),
   ], [reasoning, t])
   const modelLabel = currentChoice?.model.name ?? t('selectModel')
+  // Like DSH's own picker, a search field appears once there are more than four models; it covers every provider.
+  const searchable = visibleGroups.reduce((total, group) => total + group.models.length, 0) > 4
+  const needle = searchable ? query.trim().toLocaleLowerCase() : ''
+  const shownGroups = needle === '' ? visibleGroups : visibleGroups.map(group => ({
+    ...group,
+    models: group.models.filter(model => [model.name, model.id, model.description, group.name].some(text => typeof text === 'string' && text.toLocaleLowerCase().includes(needle))),
+  })).filter(group => group.models.length > 0)
   const speedSupported = state.current?.provider === 'openai-codex' && (preferenceSnapshot.fastModels?.includes(state.current?.model) ?? supportsCodexFastMode(state.current?.model))
   const speedWritable = preferenceSnapshot.status === 'ready' && preferenceSnapshot.writable === true
   const ultrafastSupported = state.current?.provider === 'openai-codex' && (preferenceSnapshot.ultrafastModels ?? []).includes(state.current?.model)
@@ -71,11 +79,15 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
       if (!rootRef.current?.contains(event.target)) {
         setOpen(false)
         setPane('root')
+        setQuery('')
       }
     }
     document.addEventListener('mousedown', closeOutside)
     return () => document.removeEventListener('mousedown', closeOutside)
   }, [open])
+  useEffect(() => {
+    if (pane !== 'model') setQuery('')
+  }, [pane])
   useEffect(() => {
     if (!speedSupported && pane === 'speed') setPane('root')
     if (!verbositySupported && pane === 'verbosity') setPane('root')
@@ -85,6 +97,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
   const close = (restoreFocus = false) => {
     setOpen(false)
     setPane('root')
+    setQuery('')
     if (restoreFocus) queueMicrotask(() => triggerRef.current?.focus())
   }
   const settleSelection = accepted => {
@@ -149,7 +162,8 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
       {state.status === 'loading' ? <div className="codexModelSelectStatus">{t('modelsLoading')}</div> : null}
       {state.error === null ? null : <div className="codexModelSelectError"><span>{fill(t('modelFailed'), { value: state.error })}</span><button className="codexModelSelectRetry" type="button" onClick={load}>{t('modelRetry')}</button></div>}
       {state.failures.map(failure => <div className="codexModelSelectWarning" key={failure.id}>{fill(t('groupFailed'), { name: failure.name, value: failure.message })}</div>)}
-      <div className="codexModelSelectGroups scrollable">{visibleGroups.map(group => <section className="codexModelSelectGroup" role="group" aria-labelledby={`${id}-${group.id}`} key={group.id}>
+      {searchable ? <input className="codexModelSelectSearch" type="search" value={query} autoFocus placeholder={t('modelSearch')} aria-label={t('modelSearch')} onChange={event => setQuery(event.target.value)} /> : null}
+      <div className="codexModelSelectGroups scrollable">{shownGroups.map(group => <section className="codexModelSelectGroup" role="group" aria-labelledby={`${id}-${group.id}`} key={group.id}>
         <div className="codexModelSelectGroupTitle" id={`${id}-${group.id}`}>{group.name}</div>
         {group.allHidden === true ? <div className="codexModelSelectEmpty">{t('modelsHidden')}</div> : null}
         {group.models.map(model => option({
@@ -162,6 +176,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
         }))}
       </section>)}</div>
       {state.status === 'ready' && visibleGroups.length === 0 ? <div className="codexModelSelectEmpty">{t(choices.length === 0 ? 'modelsEmpty' : 'modelsHidden')}</div> : null}
+      {state.status === 'ready' && visibleGroups.length > 0 && shownGroups.length === 0 ? <div className="codexModelSelectEmpty">{t('modelNoMatch')}</div> : null}
     </div>
   } else if (pane === 'effort') {
     submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('effortLabel')}>

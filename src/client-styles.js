@@ -207,6 +207,8 @@ export const STYLE = `
 .codexModelSelectCellLabel{flex:none;white-space:nowrap}
 .codexModelSelectCellValue{flex:auto;min-width:0;overflow:hidden;color:var(--dsw-alias-label-tertiary);text-align:right;text-overflow:ellipsis;white-space:nowrap}
 .codexModelSelectCellChevron{flex:none;color:var(--dsw-alias-label-tertiary)}
+.codexModelSelectSearch{display:block;width:100%;box-sizing:border-box;height:32px;margin:0 0 4px;padding:0 10px;border:1px solid var(--dsw-alias-border-l3);border-radius:8px;outline:0;background:transparent;color:inherit;font:inherit;font-size:13px}
+.codexModelSelectSearch:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}
 .codexModelSelectGroups{min-height:0;max-height:352px;overflow-y:auto}
 .codexModelSelectGroup+.codexModelSelectGroup{margin-top:4px}
 .codexModelSelectGroupTitle{position:sticky;top:0;z-index:1;padding:5px 8px 3px;background:var(--dsw-alias-bg-layer-2,#2c2c2e);color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:500;line-height:18px}
