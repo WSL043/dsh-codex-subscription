@@ -8,6 +8,7 @@ import {
   CONTEXT_MODE_EXTENDED,
   customContextModelKey,
   normalizeInputImageDetail,
+  normalizeReasoningSummary,
   OUTPUT_VERBOSITY_DEFAULT,
   SPEED_MODE_FAST,
   SPEED_MODE_ULTRAFAST,
@@ -27,6 +28,13 @@ export { createOpenAICodexProvider as openaiCodexProvider }
 export const withoutUserAgent = headers => headers && typeof headers === 'object'
   ? Object.fromEntries(Object.entries(headers).filter(([name]) => name.toLowerCase() !== 'user-agent'))
   : headers
+
+// The summary level the person chose goes on the request's reasoning block; "none" asks for no summary at all.
+function withReasoningSummary(payload, summary) {
+  if (summary === 'auto' || payload?.reasoning === undefined || payload.reasoning === null) return payload
+  const { summary: _previous, ...rest } = payload.reasoning
+  return { ...payload, reasoning: summary === 'none' ? rest : { ...rest, summary } }
+}
 
 function withInputImageDetail(payload, detail) {
   if (!Array.isArray(payload.input)) return payload
@@ -89,6 +97,7 @@ export function openaiCodexSubscriptionProvider({
   resolveSpeedMode = () => undefined,
   resolveOutputVerbosity = () => OUTPUT_VERBOSITY_DEFAULT,
   resolveInputImageDetail = () => undefined,
+  resolveReasoningSummary = () => undefined,
   resolveContextMode = () => undefined,
   resolveCustomContextWindow = () => undefined,
   resolveReviewModel = () => REVIEW_MODEL_SESSION,
@@ -125,6 +134,7 @@ export function openaiCodexSubscriptionProvider({
         ? FAST_SERVICE_TIER
         : undefined
     const inputImageDetail = normalizeInputImageDetail(resolveInputImageDetail())
+    const reasoningSummary = normalizeReasoningSummary(resolveReasoningSummary())
     // The ChatGPT Codex backend rejects `temperature` (DSH's auto-review sets it).
     const { temperature: _temperature, onPayload, ...rest } = options
     return {
@@ -143,7 +153,7 @@ export function openaiCodexSubscriptionProvider({
         const detailed = inputImageDetail === 'auto'
           ? next ?? managed
           : withInputImageDetail(next ?? managed, inputImageDetail)
-        const { temperature: _dropped, ...accepted } = detailed
+        const { temperature: _dropped, ...accepted } = withReasoningSummary(detailed, reasoningSummary)
         return {
           ...accepted,
           ...(textVerbosity === undefined ? {} : { text: { ...(detailed.text ?? {}), verbosity: textVerbosity } }),
