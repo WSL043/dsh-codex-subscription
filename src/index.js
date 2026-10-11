@@ -17,7 +17,8 @@ import { USER_AGENT } from './version.js'
 import { createRemoteControl } from './remote-control.js'
 import { createDshRemoteControl } from './remote-control-dsh.js'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
-import { LlmError } from '@deepseek-ai/dsh-llm'
+import * as dshLlm from '@deepseek-ai/dsh-llm'
+import { retryPolicyFor } from './retry-policy.js'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import z from '@deepseek-ai/schemastery'
 
@@ -38,7 +39,7 @@ import { OriginalImageStore } from './image-original-store.js'
 import { inheritedOriginalImageRef } from './image-original-contract.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
 import { createDiagnosticOperations } from './diagnostic-operations.js'
-import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, REASONING_SUMMARY_FIELD, normalizeReasoningSummary, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
+import { AUTO_QUOTA_RETRY_FIELD, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, REASONING_SUMMARY_FIELD, normalizeReasoningSummary, RETRY_POLICY_FIELD, normalizeRetryPolicy, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 import { createCodexQuotaRetryHandler } from './quota-retry.js'
 import { createQuotaForecastReader } from './quota-forecast.js'
@@ -203,6 +204,7 @@ export function apply(ctx, config = {}) {
         [OUTPUT_VERBOSITY_FIELD]: normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
         [INPUT_IMAGE_DETAIL_FIELD]: normalizeInputImageDetail(settings.get()[INPUT_IMAGE_DETAIL_FIELD]),
         [REASONING_SUMMARY_FIELD]: normalizeReasoningSummary(settings.get()[REASONING_SUMMARY_FIELD]),
+        [RETRY_POLICY_FIELD]: normalizeRetryPolicy(settings.get()[RETRY_POLICY_FIELD]),
         [STREAM_IDLE_TIMEOUT_MINUTES_FIELD]: normalizeStreamIdleTimeoutMinutes(settings.get()[STREAM_IDLE_TIMEOUT_MINUTES_FIELD]),
         [CONTEXT_MODE_FIELD]: normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]),
         [CUSTOM_CONTEXT_WINDOW_FIELD]: normalizeCustomContextWindow(settings.get()[CUSTOM_CONTEXT_WINDOW_FIELD]),
@@ -248,15 +250,21 @@ export function apply(ctx, config = {}) {
     // The request-local connection policy upgrades this only when opted in.
     transport: 'sse',
   })
+  // Retries are DSH's own: this only hands its retry layer the policy the person chose.
+  const retryProfile = choice => {
+    const retryPolicy = retryPolicyFor(choice, dshLlm.resolveRetryPolicy)
+    return retryPolicy === undefined ? {} : { retryPolicy }
+  }
   let profileKey
   let profileSnapshot
   const profiles = () => {
     const preferences = settings.get()
     const streamIdleTimeoutMinutes = normalizeStreamIdleTimeoutMinutes(preferences[STREAM_IDLE_TIMEOUT_MINUTES_FIELD])
-    const key = JSON.stringify([modelCatalog.revision(), streamIdleTimeoutMinutes, normalizeContextMode(preferences[CONTEXT_MODE_FIELD]), preferences[CUSTOM_CONTEXT_OVERRIDES_FIELD], ...Object.values(CUSTOM_CONTEXT_MODEL_FIELDS).map(field => preferences[field])])
+    const retryChoice = normalizeRetryPolicy(preferences[RETRY_POLICY_FIELD])
+    const key = JSON.stringify([modelCatalog.revision(), streamIdleTimeoutMinutes, retryChoice, normalizeContextMode(preferences[CONTEXT_MODE_FIELD]), preferences[CUSTOM_CONTEXT_OVERRIDES_FIELD], ...Object.values(CUSTOM_CONTEXT_MODEL_FIELDS).map(field => preferences[field])])
     if (key !== profileKey) {
       profileKey = key
-      profileSnapshot = new Map([[PROVIDER, Object.freeze({ ...profile, streamIdleTimeoutMs: streamIdleTimeoutMinutes * 60 * 1000 })]])
+      profileSnapshot = new Map([[PROVIDER, Object.freeze({ ...profile, streamIdleTimeoutMs: streamIdleTimeoutMinutes * 60 * 1000, ...retryProfile(retryChoice) })]])
     }
     return profileSnapshot
   }
@@ -321,10 +329,10 @@ export function apply(ctx, config = {}) {
       try {
         resolved = await resolveAuth()
       } catch {
-        throw new LlmError('ChatGPT subscription authorization failed', 'AUTH_FAILED')
+        throw new dshLlm.LlmError('ChatGPT subscription authorization failed', 'AUTH_FAILED')
       }
       if (typeof resolved?.auth.apiKey !== 'string' || resolved.auth.apiKey.length === 0) {
-        throw new LlmError('ChatGPT subscription is not signed in', 'MISSING_CREDENTIAL')
+        throw new dshLlm.LlmError('ChatGPT subscription is not signed in', 'MISSING_CREDENTIAL')
       }
       return resolved.auth.apiKey
     },
