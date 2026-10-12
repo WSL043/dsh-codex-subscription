@@ -268,6 +268,68 @@ test('weekly quota is never parked even when its reset happens within six hours'
   assert.equal(delegated, 1)
 })
 
+const exhaustedShortWindowWithReason = (nowMs, rateLimitReachedType) => ({
+  rateLimitReachedType,
+  rateLimits: [{
+    id: 'codex',
+    windows: [
+      { usedPercent: 100, windowSeconds: 18_000, resetsAt: (nowMs + 60_000) / 1_000 },
+      { usedPercent: 37, windowSeconds: 604_800, resetsAt: (nowMs + 86_400_000) / 1_000 },
+    ],
+  }],
+})
+
+test('depleted workspace credits still wait for an exhausted short window to reset', async () => {
+  const nowMs = 1_000_000
+  for (const reason of ['workspace_member_credits_depleted', 'workspace_owner_credits_depleted']) {
+    let delegated = 0
+    const handler = createHandler({
+      now: () => nowMs,
+      usageReader: { async read() { return exhaustedShortWindowWithReason(nowMs, reason) }, clearCache() {} },
+      wait: async () => true,
+    })
+
+    assert.deepEqual(await handler(payload(), async () => { delegated += 1 }), { kind: 'retry' }, reason)
+    assert.equal(delegated, 0, reason)
+  }
+})
+
+test('workspace spend caps never park a turn even with an exhausted short window', async () => {
+  const nowMs = 1_000_000
+  for (const reason of ['workspace_member_usage_limit_reached', 'workspace_owner_usage_limit_reached']) {
+    let waited = 0
+    const sentinel = { kind: 'downstream' }
+    const handler = createHandler({
+      now: () => nowMs,
+      usageReader: { async read() { return exhaustedShortWindowWithReason(nowMs, reason) }, clearCache() {} },
+      wait: async () => { waited += 1; return true },
+    })
+
+    assert.equal(await handler(payload(), async () => sentinel), sentinel, reason)
+    assert.equal(waited, 0, reason)
+  }
+})
+
+test('depleted workspace credits without an exhausted short window do not park a turn', async () => {
+  const nowMs = 1_000_000
+  const sentinel = { kind: 'downstream' }
+  const handler = createHandler({
+    now: () => nowMs,
+    usageReader: {
+      async read() {
+        return {
+          rateLimitReachedType: 'workspace_member_credits_depleted',
+          rateLimits: [{ id: 'codex', windows: [{ usedPercent: 40, windowSeconds: 18_000, resetsAt: (nowMs + 60_000) / 1_000 }] }],
+        }
+      },
+      clearCache() {},
+    },
+    wait: async () => { throw new Error('must not wait') },
+  })
+
+  assert.equal(await handler(payload(), async () => sentinel), sentinel)
+})
+
 test('mixed exhausted short and weekly windows delegate instead of retrying too early', async () => {
   const nowMs = 1_000_000
   let waited = false
