@@ -767,3 +767,12 @@ test('a conversation whose model DSH no longer offers shows the default model', 
   const resumed = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })
   assert.equal(resumed.model, modelKey({ provider: 'openai-codex', model: 'gpt-6' }))
 })
+
+test('the model of a running session is read from its events even without a cached snapshot', async () => {
+  const { bridge, session } = fakeControl()
+  const events = [{ type: 'model/selection', data: { provider: 'deepseek', model: 'chat' } }]
+  session.eventsSnapshot = undefined
+  session.snapshotEvents = () => events
+  const resumed = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })
+  assert.equal(resumed.model, modelKey({ provider: 'deepseek', model: 'chat' }))
+})
