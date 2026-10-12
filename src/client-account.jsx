@@ -3,6 +3,7 @@ import { Button, Input } from './client-primitives.js'
 import { readLoginProgress } from './login-progress.js'
 import { CHANNEL, unwrap, accountStatusErrorText, maskEmail, notifyQuickQuota } from './client-shared.js'
 import { recoveryCall } from './client-recovery.js'
+const LOGIN_FAILURES = ['account-claim', 'network', 'token-exchange', 'callback']
 export function AccountEmail({ candidate, fallback, t, emailVisible, onClick }) {
   if (typeof candidate?.email !== 'string' || candidate.email.length === 0) {
     return <span title={t('emailUnavailable')}>{fallback ?? candidate?.label ?? t('emailUnavailable')}</span>
@@ -142,7 +143,7 @@ export function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
     {flow?.phase === 'waiting_device' ? <div className="codexSubscriptionFlow"><p>{t('deviceHint')}</p><code className="codexSubscriptionCode">{flow.deviceCode?.userCode}</code><a href={flow.deviceCode?.verificationUri} target="_blank" rel="noreferrer">{t('openLogin')}</a><p>{t('waiting')}</p><Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div> : null}
     {flow?.phase === 'waiting_input' ? <form className="codexSubscriptionFlow" onSubmit={submit}><p>{t('manualCode')}</p><Input className="codexSubscriptionInput" value={manualCode} onChange={event => setManualCode(event.currentTarget.value)} autoComplete="off" spellCheck={false} /><div className="codexSubscriptionActions"><Button type="submit" variant="primary" disabled={busy || manualCode.trim() === ''}>{t('submit')}</Button><Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div></form> : null}
     {flow !== undefined && ['starting', 'waiting_browser'].includes(flow.phase) ? <div className="codexSubscriptionFlow"><p>{t('waiting')}</p>{flow.authUrl === undefined ? null : <a href={flow.authUrl} target="_blank" rel="noreferrer">{t('openLogin')}</a>}<Button type="button" variant="outline" disabled={busy} onClick={cancel}>{t('cancel')}</Button></div> : null}
-    {flow?.phase === 'failed' || error !== undefined ? <p className="codexSubscriptionError" role="alert">{error ?? t('failed')}</p> : null}
+    {flow?.phase === 'failed' || error !== undefined ? <p className="codexSubscriptionError" role="alert">{error ?? (LOGIN_FAILURES.includes(flow?.failure) ? t(`failed_${flow.failure.replace('-', '_')}`) : t('failed'))}</p> : null}
   </div>
 }
 

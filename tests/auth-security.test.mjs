@@ -390,3 +390,20 @@ test('failed add-account login cannot be mistaken for the already active account
   await new Promise(resolve => setImmediate(resolve))
   assert.equal(coordinator.read('add-account').phase, 'failed')
 })
+
+test('the sign-in page gets a fixed failure kind it can explain, never provider details', async () => {
+  for (const [message, kind] of [['Failed to extract accountId from token', 'account-claim'], ['OpenAI Codex token exchange failed (400): refresh-secret', 'token-exchange'], ['fetch failed', 'network'], ['State mismatch', 'callback'], ['something else with access-secret', undefined]]) {
+    const auth = {
+      async status() { return { authenticated: false, provider: 'openai-codex' } },
+      async login() { throw new Error(message) },
+      async logout() {},
+    }
+    const coordinator = new CodexLoginCoordinator(auth, { createId: () => 'login-kind' })
+    const view = await coordinator.start({ method: 'browser' })
+    await new Promise(resolve => setTimeout(resolve, 0))
+    const read = coordinator.read('login-kind')
+    assert.equal(read.phase, 'failed')
+    assert.equal(read.failure, kind)
+    assert.doesNotMatch(JSON.stringify([view, read]), /secret|400/u)
+  }
+})
