@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createCodexQuotaRetryHandler as createHandler } from '../src/quota-retry.js'
+import { createOfficialModelCatalog } from '../src/model-catalog.js'
+import { catalogModelsReady, createCodexQuotaRetryHandler as createHandler } from '../src/quota-retry.js'
+import { createSubscriptionRpcHandler } from '../src/subscription-rpc.js'
 
 const payload = ({
   provider = 'openai-codex',
@@ -590,6 +592,179 @@ test('switching accounts wakes a parked recovery and retries immediately', async
   assert.deepEqual(await result, { kind: 'retry' })
   assert.equal(clears, 1)
   assert.equal(delegated, 0)
+})
+
+const parkedAccountSwitch = ({ modelsReady, signal = new AbortController().signal }) => {
+  const nowMs = 1_000_000
+  let waitStartedResolve
+  const waitStarted = new Promise(resolve => { waitStartedResolve = resolve })
+  const appended = []
+  const delegated = []
+  const handler = createHandler({
+    now: () => nowMs,
+    modelsReady,
+    usageReader: {
+      async read() {
+        return {
+          rateLimits: [{
+            id: 'codex',
+            windows: [{ usedPercent: 100, windowSeconds: 18_000, resetsAt: (nowMs + 60_000) / 1_000 }],
+          }],
+        }
+      },
+      clearCache() {},
+    },
+    wait: async (_delayMs, waitSignal) => {
+      waitStartedResolve()
+      return await new Promise(resolve => waitSignal.addEventListener('abort', () => resolve(false), { once: true }))
+    },
+  })
+  const sentinel = { kind: 'downstream' }
+  const agent = { session: { append: type => appended.push(type) } }
+  const result = handler(payload({ agent, signal }), async () => {
+    delegated.push(sentinel)
+    return sentinel
+  })
+  return { handler, result, waitStarted, appended, delegated, sentinel }
+}
+
+test('switching accounts retries only after the new account model catalog is ready', async () => {
+  let readyResolve
+  let readyCalls = 0
+  const { handler, result, waitStarted, appended } = parkedAccountSwitch({
+    modelsReady: () => {
+      readyCalls += 1
+      return new Promise(resolve => { readyResolve = resolve })
+    },
+  })
+  await waitStarted
+  handler.notifyAccountChanged()
+  await new Promise(resolve => setImmediate(resolve))
+
+  let settled = false
+  void result.then(() => { settled = true })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(readyCalls, 1)
+  assert.equal(settled, false)
+  assert.deepEqual(appended, ['llm/retry'])
+
+  readyResolve(true)
+  assert.deepEqual(await result, { kind: 'retry' })
+  assert.deepEqual(appended, ['llm/retry', 'llm/retry-started'])
+})
+
+test('switching accounts preserves the original failure when the new model catalog is unavailable', async () => {
+  for (const modelsReady of [async () => false, async () => { throw new Error('catalog offline') }]) {
+    const { handler, result, waitStarted, appended, delegated, sentinel } = parkedAccountSwitch({ modelsReady })
+    await waitStarted
+    handler.notifyAccountChanged()
+
+    assert.equal(await result, sentinel)
+    assert.deepEqual(delegated, [sentinel])
+    assert.deepEqual(appended, ['llm/retry'])
+  }
+})
+
+test('cancellation while the new account model catalog loads suppresses the retry', async () => {
+  const controller = new AbortController()
+  let readyStartedResolve
+  const readyStarted = new Promise(resolve => { readyStartedResolve = resolve })
+  const { handler, result, waitStarted, appended, delegated } = parkedAccountSwitch({
+    signal: controller.signal,
+    modelsReady: () => {
+      readyStartedResolve()
+      return new Promise(() => {})
+    },
+  })
+  await waitStarted
+  handler.notifyAccountChanged()
+  await readyStarted
+  controller.abort(new Error('user cancelled turn'))
+
+  assert.equal(await result, undefined)
+  assert.deepEqual(delegated, [])
+  assert.deepEqual(appended, ['llm/retry'])
+})
+
+test('a quota reset retry does not wait for the model catalog', async () => {
+  const nowMs = 1_000_000
+  let readyCalls = 0
+  const handler = createHandler({
+    now: () => nowMs,
+    modelsReady: async () => { readyCalls += 1; return false },
+    usageReader: {
+      async read() {
+        return {
+          rateLimits: [{
+            id: 'codex',
+            windows: [{ usedPercent: 100, windowSeconds: 18_000, resetsAt: (nowMs + 60_000) / 1_000 }],
+          }],
+        }
+      },
+      clearCache() {},
+    },
+    wait: async () => true,
+  })
+
+  assert.deepEqual(await handler(payload(), async () => ({ kind: 'downstream' })), { kind: 'retry' })
+  assert.equal(readyCalls, 0)
+})
+
+test('account switch retry sees the new account catalog instead of the cleared one', async () => {
+  const nowMs = 1_000_000
+  let catalogGate = Promise.resolve()
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => [{ id: 'gpt-5.6-sol', name: 'GPT-5.6 Sol' }],
+    getAuth: async () => ({ auth: { apiKey: 'test-token' } }),
+    readCredential: async () => ({ type: 'oauth', access: 'test-token', accountId: 'test-account' }),
+    fetch: async () => {
+      await catalogGate
+      return Response.json({ models: [{ slug: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', visibility: 'list' }] })
+    },
+  })
+  await catalog.refresh()
+
+  const usageReader = {
+    async read() {
+      return {
+        rateLimits: [{
+          id: 'codex',
+          windows: [{ usedPercent: 100, windowSeconds: 18_000, resetsAt: (nowMs + 60_000) / 1_000 }],
+        }],
+      }
+    },
+    clearCache() {},
+    clear() {},
+  }
+  let waitStartedResolve
+  const waitStarted = new Promise(resolve => { waitStartedResolve = resolve })
+  const handler = createHandler({
+    now: () => nowMs,
+    usageReader,
+    modelsReady: catalogModelsReady(catalog),
+    wait: async (_delayMs, waitSignal) => {
+      waitStartedResolve()
+      return await new Promise(resolve => waitSignal.addEventListener('abort', () => resolve(false), { once: true }))
+    },
+  })
+  const rpc = createSubscriptionRpcHandler({
+    authHandler: async () => ({ ok: true, value: {} }),
+    usageReader,
+    resetCreditService: { clear() {} },
+    modelCatalog: catalog,
+    onAccountChanged: handler.notifyAccountChanged,
+  })
+
+  const modelsAtRetry = handler(payload(), async () => ({ kind: 'downstream' }))
+    .then(result => ({ result, models: catalog.getModels().map(model => model.id) }))
+  await waitStarted
+  let releaseCatalog
+  catalogGate = new Promise(resolve => { releaseCatalog = resolve })
+  await rpc('account/select', { id: 'second-account' }, new AbortController().signal)
+  assert.deepEqual(catalog.getModels(), [])
+  releaseCatalog()
+
+  assert.deepEqual(await modelsAtRetry, { result: { kind: 'retry' }, models: ['gpt-5.6-sol'] })
 })
 
 test('turning automatic recovery off wakes parked turns and preserves the terminal path', async () => {

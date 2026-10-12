@@ -134,6 +134,31 @@ async function waitForResetOrWake(delayMs, signal, wait, wakeSignal, revision) {
   return result
 }
 
+async function modelsReadyOrCancelled(modelsReady, signal) {
+  if (signal?.aborted) return 'cancelled'
+  let onAbort
+  const cancelled = new Promise(resolve => {
+    onAbort = () => resolve('cancelled')
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
+  const ready = Promise.resolve().then(modelsReady).then(value => value === true, () => false)
+  try {
+    return await Promise.race([ready, cancelled])
+  } finally {
+    signal?.removeEventListener('abort', onAbort)
+  }
+}
+
+/**
+ * Model readiness for a retry after an account switch. The refresh joins the
+ * switch's own catalog reload and is not tied to the turn, so cancelling one
+ * turn never aborts the reload other consumers share.
+ */
+export const catalogModelsReady = modelCatalog => async () => {
+  await modelCatalog.refresh()
+  return modelCatalog.getModels().length > 0
+}
+
 /**
  * Recover a Codex subscription RATE_LIMIT only when the backend confirms an
  * exhausted short quota window whose reset is close enough to wait out.
@@ -148,14 +173,16 @@ export function createCodexQuotaRetryHandler({
   enabled = () => true,
   now = Date.now,
   wait = cancellableDelay,
+  modelsReady = () => true,
   maxWaitMs = DEFAULT_MAX_WAIT_MS,
   resetMarginMs = DEFAULT_RESET_MARGIN_MS,
 } = {}) {
   if (usageReader === undefined || typeof usageReader.read !== 'function') {
     throw new TypeError('quota retry requires a usage reader')
   }
-  if (typeof enabled !== 'function' || typeof now !== 'function' || typeof wait !== 'function') {
-    throw new TypeError('quota retry requires enablement, clock, and wait functions')
+  if (typeof enabled !== 'function' || typeof now !== 'function' || typeof wait !== 'function'
+    || typeof modelsReady !== 'function') {
+    throw new TypeError('quota retry requires enablement, clock, wait, and model readiness functions')
   }
   if (!Number.isFinite(maxWaitMs) || maxWaitMs <= 0
     || !Number.isFinite(resetMarginMs) || resetMarginMs < 0) {
@@ -205,6 +232,14 @@ export function createCodexQuotaRetryHandler({
       )
       if (reason === 'cancelled' || signal?.aborted) return undefined
       if (!enabled()) return next()
+      if (reason === 'account') {
+        // Switching accounts empties the model catalog until the new account's
+        // catalog loads; retrying before then fails as an unknown model.
+        const ready = await modelsReadyOrCancelled(modelsReady, signal)
+        if (ready === 'cancelled' || signal?.aborted) return undefined
+        if (!ready) return next()
+        break
+      }
       if (reason !== 'configuration') break
       wakeRevision = wakeSignal.revision()
       resetDelayMs = shortResetDelay(usage, now(), maxWaitMs, resetMarginMs)
