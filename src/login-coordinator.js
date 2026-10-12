@@ -50,6 +50,9 @@ const publicPrompt = prompt => ({
   ...(typeof prompt.placeholder === 'string' ? { placeholder: prompt.placeholder } : {}),
 })
 
+const PUBLIC_FAILURES = new Set(['account-claim', 'network', 'token-exchange', 'callback'])
+const publicFailure = kind => PUBLIC_FAILURES.has(kind) ? kind : undefined
+
 function classifyLoginFailure(error) {
   const message = error instanceof Error ? error.message : ''
   if (/token exchange failed/iu.test(message)) return 'token-exchange'
@@ -224,6 +227,8 @@ export class CodexLoginCoordinator {
           phase: 'failed',
           authenticated: false,
           error: 'Codex login failed',
+          // Only a fixed kind reaches the browser, so the sign-in page can say what to do next.
+          failure: publicFailure(classifyLoginFailure(error)),
         }
         // Provider errors may contain credentials. Keep the diagnostic host-only.
         session.hostError = error
