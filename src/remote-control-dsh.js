@@ -253,7 +253,9 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   const pickedBy = new Map() // threadId -> { selection, was } (was: what the log said when it was picked)
   const recorded = agent => {
     try {
-      const events = agent?.session?.eventsSnapshot
+      const session = agent?.session
+      // A running session has no cached snapshot; it reads its events through snapshotEvents().
+      const events = typeof session?.snapshotEvents === 'function' ? session.snapshotEvents() : session?.eventsSnapshot
       for (let index = (events?.length ?? 0) - 1; index >= 0; index -= 1) {
         const data = events[index]?.type === 'model/selection' ? events[index].data : undefined
         if (data?.provider && data?.model) return { provider: data.provider, model: data.model, reasoningEffort: data.reasoningEffort }
