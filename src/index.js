@@ -20,7 +20,10 @@ import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import * as dshLlm from '@deepseek-ai/dsh-llm'
 import { retryPolicyFor } from './retry-policy.js'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
-import z from '@deepseek-ai/schemastery'
+import { createRequire } from 'node:module'
+
+// Match the settings host's volatile protocol, not a stale profile-local peer.
+const z = createRequire(import.meta.resolve('@deepseek-ai/dsh-settings'))('@deepseek-ai/schemastery')
 
 import { createCodexAuthService, DshOAuthCredentialStore } from './credential-store.js'
 import { DshOAuthAccountVault } from './account-vault.js'
@@ -112,9 +115,8 @@ const settingsFields = {
   [CUSTOM_CONTEXT_WINDOW_FIELD]: z.number().step(1).min(128_000).max(1_000_000).default(DEFAULT_CUSTOM_CONTEXT_WINDOW),
   ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [field, z.number().step(1).min(128_000).max(CUSTOM_CONTEXT_MODEL_CAPS[modelKey]).default(CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey])])),
 }
-// Schemastery before 3.18.4 has no .volatile() helper. The Host still reads
-// the same volatile metadata, so use the older public .extra() API for every
-// supported DSH cohort instead of silently exposing read-only settings.
+// Keep the metadata API usable by older hosts; the host-matched Schemastery
+// above also creates the runtime references required by newer volatile loaders.
 export const Config = z.object(Object.fromEntries(Object.entries(settingsFields).map(([key, field]) => [key, field.extra('volatile', true)])))
 
 export function apply(ctx, config = {}) {
