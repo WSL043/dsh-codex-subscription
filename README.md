@@ -61,8 +61,6 @@
 | **使用重置卡** | 在确认后主动使用服务端提供的重置卡 | 二次确认与等待保护，由服务端判定结果 |
 | **重置后重试** | 等待已确认的短时额度重置，再继续请求 | 默认关闭；等待期间可停止 |
 
-<p align="center"><img src="docs/assets/usage-overview.png" width="460" alt="额度卡片里的使用概览与额度去向：累计 token、连续使用天数、最近半年每日用量热力图，以及每周额度按模型、入口、来源的拆分"></p>
-
 ### 图片与草图
 
 | 功能 | 你可以做什么 | 使用方式 / 条件 |
@@ -151,6 +149,18 @@ dsh --profile headless "只回复：ok"
 <summary><b>界面演示（动图，点击展开）</b>：选模型、提问、出图、标注、草图、额度与重置</summary>
 <br>
 <p align="center"><img src="docs/assets/readme-demo.webp" width="1100" alt="演示：登录 ChatGPT 选订阅模型、提问、用订阅出图、查看与标注、进入草图、查看额度与重置"></p>
+</details>
+
+<details>
+<summary><b>使用概览与额度去向（点击展开）</b>：累计用量、连续天数、每日热力图，以及每周额度的去向</summary>
+<br>
+<p align="center"><img src="docs/assets/usage-overview.png" width="460" alt="额度卡片里的使用概览与额度去向：累计 token、连续使用天数、最近半年每日用量热力图，以及每周额度按模型、入口、来源的拆分"></p>
+</details>
+
+<details>
+<summary><b>更多界面（点击展开）</b>：图片标注与草图画板</summary>
+<br>
+<table><tr><td><img src="docs/assets/image-preview-annotations.png" alt="图片预览：在图上圈出区域并写备注，再带着备注继续编辑" width="480"></td><td><img src="docs/assets/sketch-canvas.png" alt="草图画板：钢笔、铅笔、荧光笔、形状、图层与颜色" width="480"></td></tr></table>
 </details>
 
 ### 日常操作，留在输入框

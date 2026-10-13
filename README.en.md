@@ -61,8 +61,6 @@ Subscription access, model controls, quota management, and image creation in one
 | **Redeem reset cards** | Use an available reset card after confirmation | Confirmation and waiting safeguards; server decides the result |
 | **Retry after reset** | Wait for a confirmed short-window reset before continuing | Off by default; waiting can be stopped |
 
-<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="Usage overview and where the allowance went in the quota card: lifetime tokens, streaks, a half-year daily heatmap and the weekly allowance split by model, surface and source"></p>
-
 ### Images and sketching
 
 | Feature | What you can do | Availability / setup |
@@ -151,6 +149,18 @@ dsh --profile headless "Reply with only the word: ok"
 <summary><b>Interface demo (animation, click to expand)</b>: models, prompts, images, annotation, sketch board, quota and resets</summary>
 <br>
 <p align="center"><img src="docs/assets/readme-demo-en.webp" width="1100" alt="Demo: sign in with ChatGPT, pick a subscription model, ask, generate an image, view and annotate it, continue on the sketch board, and check quota and resets"></p>
+</details>
+
+<details>
+<summary><b>Usage overview and where the allowance went (click to expand)</b>: lifetime usage, streaks, a daily heatmap and the weekly allowance breakdown</summary>
+<br>
+<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="Usage overview and where the allowance went in the quota card: lifetime tokens, streaks, a half-year daily heatmap and the weekly allowance split by model, surface and source"></p>
+</details>
+
+<details>
+<summary><b>More screens (click to expand)</b>: image annotation and the sketch board</summary>
+<br>
+<table><tr><td><img src="docs/assets/image-preview-annotations-en.png" alt="Image preview: mark a region, write a note, then keep editing with the notes" width="480"></td><td><img src="docs/assets/store-sketch-board-en.png" alt="Sketch board: pen, pencil, highlighter, shapes, layers and colors" width="480"></td></tr></table>
 </details>
 
 ### Everyday controls, right in the composer
