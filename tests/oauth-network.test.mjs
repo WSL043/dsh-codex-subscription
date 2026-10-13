@@ -64,7 +64,7 @@ test('a fetch captured by another plugin remains usable after the Codex scope en
     let capturedFetch
     await withCodexNetwork(async () => {
       capturedFetch = globalThis.fetch
-    }, { env: {} })
+    }, { env: {}, platform: 'linux' })
 
     assert.equal(globalThis.fetch === capturedFetch, false)
     const response = await capturedFetch('https://ilinkai.weixin.qq.com/ilink/bot/msg/notifystart')
@@ -83,7 +83,7 @@ test('a third-party fetch wrapper installed during the scope survives its teardo
       const capturedFetch = globalThis.fetch
       thirdPartyFetch = (...args) => capturedFetch(...args)
       globalThis.fetch = thirdPartyFetch
-    }, { env: {} })
+    }, { env: {}, platform: 'linux' })
 
     assert.equal(globalThis.fetch, thirdPartyFetch)
     const response = await globalThis.fetch('https://example.test/from-other-plugin')
@@ -112,7 +112,7 @@ test('concurrent OAuth attempts never inherit another attempt proxy', async () =
     await new Promise(resolve => setImmediate(resolve))
     const second = withCodexOAuthNetwork(
       async () => (await fetch('https://auth.openai.com/oauth/token')).text(),
-      { env: {} },
+      { env: {}, platform: 'linux' },
     )
     releaseFirst()
     assert.deepEqual(await Promise.all([first, second]), ['first', 'direct:https://auth.openai.com/oauth/token'])
@@ -131,12 +131,12 @@ test('concurrent Codex request scopes do not serialize a streaming model behind 
     const model = withCodexNetwork(async () => {
       await new Promise(resolve => { releaseModel = resolve })
       return (await fetch('https://chatgpt.com/backend-api/codex/responses')).text()
-    }, { env: {} })
+    }, { env: {}, platform: 'linux' })
     await new Promise(resolve => setImmediate(resolve))
     const quota = withCodexNetwork(async () => {
       quotaStarted = true
       return (await fetch('https://chatgpt.com/backend-api/wham/usage')).text()
-    }, { env: {} })
+    }, { env: {}, platform: 'linux' })
     await new Promise(resolve => setImmediate(resolve))
     const overlapped = quotaStarted
     releaseModel()

@@ -18,7 +18,9 @@ const userPathTest = process.platform === 'win32' && process.env.DSH_CODEX_TEST_
   : test.skip
 
 function runWindowsPowerShell(source) {
-  const encoded = Buffer.from(source, 'utf16le').toString('base64')
+  // Console output follows the machine's code page (936 on Chinese Windows); read it as UTF-8 everywhere.
+  const encoded = Buffer.from(`[Console]::OutputEncoding = [Text.Encoding]::UTF8
+${source}`, 'utf16le').toString('base64')
   return spawnSync('powershell.exe', [
     '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encoded,
   ], { encoding: 'utf8' })
