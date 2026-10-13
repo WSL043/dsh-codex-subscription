@@ -195,6 +195,26 @@ await section('generated image', async () => {
   console.log('  imageGeneration item:', item ? JSON.stringify({ status: item.status, resultBytes: item.result.length, prompt: item.revisedPrompt }) : 'none; items=' + finished.items.map(entry => entry.type).join(','))
 })
 
+await section('search and usage', async () => {
+  const listed = (await phone.call('thread/list', { limit: 50 })).data
+  const word = listed.map(entry => entry.name).filter(Boolean).flatMap(name => name.match(/[\p{L}\p{N}]{4,}/gu) ?? [])[0]
+  const found = await phone.call('thread/search', { searchTerm: word ?? 'pong' })
+  console.log('  search for', JSON.stringify(word), '->', found?.data?.length, 'conversations')
+  const inside = await phone.call('thread/searchOccurrences', { threadId, searchTerm: 'pong' })
+  console.log('  occurrences of pong in the new chat:', inside?.data?.length)
+  const usage = await phone.call('account/usage/read', null)
+  console.log('  lifetime tokens known:', usage?.summary?.lifetimeTokens != null, 'heatmap days:', usage?.dailyUsageBuckets?.length ?? 0)
+  await phone.call('currentTime/read', { threadId })
+})
+
+await section('web search becomes a native item', async () => {
+  const since = phone.since()
+  const { started } = await send('Use the web_search tool once with the query "Node.js release schedule" and then answer in one short sentence.')
+  const finished = await finishTurn(started.turn.id, 240_000)
+  const searches = phone.notifications.slice(since).filter(message => message.method === 'item/completed' && message.params.item.type === 'webSearch')
+  console.log('  webSearch items:', searches.length, searches[0] ? JSON.stringify(searches[0].params.item.action) : 'items=' + finished.items.map(entry => entry.type).join(','))
+})
+
 await section('fork, rename, archive', async () => {
   const forked = await phone.call('thread/fork', { threadId })
   console.log('  forked thread', forked?.thread?.id)

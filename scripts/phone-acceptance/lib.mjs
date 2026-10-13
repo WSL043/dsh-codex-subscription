@@ -23,7 +23,7 @@ export function schema(name) {
 }
 
 const RESPONSE_NAMES = {
-  initialize: 'InitializeResponse', 'account/read': 'GetAccountResponse', 'account/rateLimits/read': 'GetAccountRateLimitsResponse',
+  initialize: 'InitializeResponse', 'account/read': 'GetAccountResponse', 'account/rateLimits/read': 'GetAccountRateLimitsResponse', 'account/usage/read': 'GetAccountTokenUsageResponse',
   fuzzyFileSearch: 'FuzzyFileSearchResponse', 'thread/name/set': 'ThreadSetNameResponse', 'thread/turns/list': 'ThreadTurnsListResponse',
   'thread/settings/update': 'ThreadSettingsUpdateResponse', 'project/list': 'ProjectListResponse', 'project/read': 'ProjectReadResponse',
 }

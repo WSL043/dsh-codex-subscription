@@ -31,13 +31,17 @@ const history = [
     { type: 'reasoning', text: 'thinking' }, { type: 'text', text: 'On it.' },
     call('c1', 'bash', { command: 'git status' }), call('c2', 'edit', { file_path: 'a.js', old_string: 'x', new_string: 'y\nz' }),
     call('c3', 'write', { file_path: 'b.txt', content: 'hi' }), call('c4', 'codex_image_generate', { prompt: 'a dot' }),
-    call('c5', 'todo_write', { todos: [{ content: 'Read', status: 'completed' }] }), call('c6', 'web_search', { query: 'x' }),
+    call('c5', 'todo_write', { todos: [{ content: 'Read', status: 'completed' }] }), call('c6', 'web_search', { queries: ['x', 'y'] }), call('c7', 'web_fetch', { url: 'https://example.com' }),
+    call('c8', 'chatgpt_connectors_call', { name: 'github.list_prs', arguments: { repo: 'a/b' } }), call('c9', 'chatgpt_connectors_call', { name: 'gmail.send', arguments: {} }),
   ] },
   { role: 'tool', toolCallId: 'c1', content: [{ type: 'text', text: 'clean' }] },
   { role: 'tool', toolCallId: 'c2', isError: true, content: [{ type: 'text', text: 'no match' }] },
   { role: 'tool', toolCallId: 'c3', content: [{ type: 'text', text: 'ok' }] },
   { role: 'tool', toolCallId: 'c4', content: [{ type: 'text', text: 'Generated an image.' }, { type: 'image', attachment: { attachmentId: IMAGE_ID, mediaType: 'image/png', bytes: 3, width: 1, height: 1 } }] },
   { role: 'tool', toolCallId: 'c6', content: [{ type: 'text', text: 'results' }] },
+  { role: 'tool', toolCallId: 'c7', content: [{ type: 'text', text: 'page' }] },
+  { role: 'tool', toolCallId: 'c8', content: [{ type: 'text', text: '3 open' }] },
+  { role: 'tool', toolCallId: 'c9', isError: true, content: [{ type: 'text', text: 'not approved' }] },
 ]
 
 async function fixture() {
@@ -126,6 +130,8 @@ test('every notification and request the host sends during a turn has the shape 
       bridge.onSessionEvent(session, { type: history[upto - 1].role === 'tool' ? 'tool/result' : 'assistant/message' })
       if (history[upto - 1].role === 'tool') await new Promise(resolve => setTimeout(resolve, 5))
     }
+    bridge.onSessionEvent(session, { type: 'compaction/start' })
+    bridge.onSessionEvent(session, { type: 'compaction/end' })
     bridge.onStream(session, { type: 'end', outcome: { kind: 'committed', eventType: 'assistant/message' } })
     bridge.onSessionEvent(session, { type: 'session/title', data: { title: 'Fix build' } })
     session.deriveMessages = () => history.slice(0, 2)
@@ -136,6 +142,9 @@ test('every notification and request the host sends during a turn has the shape 
     finish(); await new Promise(resolve => setTimeout(resolve, 20))
     assert.ok(notes.some(entry => entry.method === 'turn/plan/updated') && notes.some(entry => entry.method === 'thread/tokenUsage/updated') && notes.some(entry => entry.method === 'thread/name/updated'), 'the notifications under test were produced')
     assert.ok(notes.some(entry => entry.method === 'item/completed' && entry.params.item.type === 'imageGeneration'), 'a generated image item was produced')
+    for (const type of ['webSearch', 'mcpToolCall', 'contextCompaction']) assert.ok(notes.some(entry => entry.method === 'item/completed' && entry.params.item.type === type), `a ${type} item was produced`)
+    const connector = [...new Map(notes.filter(entry => entry.method === 'item/completed' && entry.params.item.type === 'mcpToolCall').map(entry => [entry.params.item.id, entry.params.item])).values()]
+    assert.deepEqual(connector.map(item => [item.tool, item.status, item.result?.content[0].text ?? item.error.message]), [['github.list_prs', 'completed', '3 open'], ['gmail.send', 'failed', 'not approved']])
     for (const entry of notes) conforms(`notification ${entry.method}`, 'ServerNotification', entry)
     assert.deepEqual(asked.map(entry => entry.method), ['item/commandExecution/requestApproval', 'item/fileChange/requestApproval', 'item/tool/requestUserInput'])
     for (const entry of asked) conforms(`request ${entry.method}`, 'ServerRequest', entry)

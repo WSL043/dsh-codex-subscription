@@ -130,6 +130,17 @@ export function toolItem(block, cwd) {
   if (block.name === 'codex_image_generate') {
     return { type: 'imageGeneration', ...base, revisedPrompt: typeof args?.prompt === 'string' ? args.prompt : null, result: '' }
   }
+  // The phone has its own views for a web search, a page opened and a connector (MCP-style) tool call.
+  if (block.name === 'web_search' && Array.isArray(args?.queries)) {
+    const queries = args.queries.filter(entry => typeof entry === 'string' && entry !== '')
+    if (queries.length > 0) return { type: 'webSearch', id: block.id, query: queries.join(' · '), action: { type: 'search', query: queries[0], queries }, results: null }
+  }
+  if (block.name === 'web_fetch' && typeof args?.url === 'string') {
+    return { type: 'webSearch', id: block.id, query: args.url, action: { type: 'openPage', url: args.url }, results: null }
+  }
+  if (block.name === 'chatgpt_connectors_call' && typeof args?.name === 'string') {
+    return { type: 'mcpToolCall', ...base, server: 'chatgpt', tool: args.name, arguments: args.arguments ?? {}, result: null, error: null, durationMs: null }
+  }
   return { type: 'dynamicToolCall', ...base, namespace: null, tool: block.name, arguments: args, contentItems: null, success: null, durationMs: null }
 }
 /** Record a tool's result on the item that showed the call. */
@@ -143,6 +154,11 @@ export function finishTool(item, message, imageUrls) {
     item.result = url ? url.slice(url.indexOf(',') + 1) : ''
     if (!url) item.status = 'failed'
   } else if (item.type === 'dynamicToolCall') { item.contentItems = toolOutput(message, imageUrls); item.success = !failed }
+  else if (item.type === 'mcpToolCall') {
+    const text = textOf(message.content)
+    if (failed) item.error = { message: text.slice(0, 500) || 'The connector tool failed' }
+    else item.result = { content: [{ type: 'text', text }], structuredContent: null }
+  }
 }
 
 const imageBlocks = message => (message.content ?? []).filter(block => block?.type === 'image' && block.attachment)
@@ -468,6 +484,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       }
       turn.completedAt = seconds(Date.now())
       active.delete(id)
+      compactions.delete(id)
       const usageNow = tokenUsage(agent.session)
       if (usageNow) emit(id, 'thread/tokenUsage/updated', { threadId: id, turnId: turn.id, tokenUsage: usageNow })
       emit(id, 'turn/completed', { threadId: id, turn })
@@ -845,6 +862,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
 
   // Text the model is still writing, shown on the phone as it arrives; the committed message then completes the same item.
   const streams = new Map() // threadId -> { item, text }
+  const compactions = new Map() // threadId -> the contextCompaction item DSH is writing
   const onStream = (session, frame) => {
     const running = session ? active.get(session.id) : undefined
     if (!running || !subscribers.has(session.id)) return
@@ -882,6 +900,20 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const running = active.get(session.id)
     if (!running || !subscribers.has(session.id)) return
     if (event.type === 'turn/end') { running.ended = event.data?.reason; return }
+    // DSH shrinking a long conversation shows as the phone's "context compacted" row.
+    if (event.type === 'compaction/start' || event.type === 'compaction/end') {
+      const item = event.type === 'compaction/start' ? { type: 'contextCompaction', id: randomUUID() } : compactions.get(session.id)
+      if (!item) return
+      if (event.type === 'compaction/start') {
+        compactions.set(session.id, item)
+        running.turn.items.push(item)
+        emit(session.id, 'item/started', { threadId: session.id, turnId: running.turn.id, item, startedAtMs: Date.now() })
+      } else {
+        compactions.delete(session.id)
+        emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item, completedAtMs: Date.now() })
+      }
+      return
+    }
     if (event.type !== 'assistant/message' && event.type !== 'tool/result') return
     const message = session.deriveMessages().at(-1)
     if (message?.role === 'tool') {
