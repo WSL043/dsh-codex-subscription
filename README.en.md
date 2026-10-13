@@ -84,7 +84,7 @@ Subscription access, model controls, quota management, and image creation in one
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta (3.0.0-beta.4); off by default; Settings → Codex → Models & runtime → Phone remote control, pair by QR or manual code |
+| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta (3.0.0-beta.5); off by default; Settings → Codex → Models & runtime → Phone remote control, pair by QR or manual code |
 | **Codex independent subtasks** | Reuse subscription sign-in and workspace permissions; select allowed models and reasoning levels | Beta; DSH by default, Codex requires the optional component and model-selection setup |
 | **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
 | **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
@@ -175,7 +175,7 @@ Turn on **Settings → Codex → Models & runtime → Phone remote control** and
 - the phone folder picker browses real folders on this computer, and a new chat can start in one of them;
 - model errors are shown on the phone.
 
-Off by default. The computer must stay on, online and running DSH. This uses a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. Currently available in the pre-release `dsh-codex-subscription@3.0.0-beta.4`.
+Off by default. The computer must stay on, online and running DSH. This uses a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. Currently available in the pre-release `dsh-codex-subscription@3.0.0-beta.5`.
 
 <p align="center"><img src="docs/assets/remote-control-en.png" width="560" alt="Official desktop app settings: phone remote control connected, showing a pairing QR code and manual code"></p>
 
