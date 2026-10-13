@@ -37,6 +37,15 @@ Choose Off, Percent, Progress bar, or Beta Runway under Account. When a five-hou
 Runway uses official observations from the recent two hours, including unchanged readings. Repeated boundary crossings can refine the rate interval when the assumptions hold; insufficient evidence or changing intensity falls back to a conservative estimate. It remains Beta and is not a guarantee of working time. History is bounded and stored locally; resets, long gaps or disabling the feature restart calibration.
 Spark keeps its independent quota. The plugin does not invent five-hour limits, Credits, or spending caps that the service did not return.
 
+### ChatGPT connectors (Beta)
+
+Set **ChatGPT connectors** under Models & runtime to Read-only or Allow writes, and every DSH model (DeepSeek included) gains three tools: `chatgpt_connectors_search` finds tools in the apps you connected in ChatGPT, `chatgpt_connectors_describe` shows their arguments, and `chatgpt_connectors_call` runs one. Apps such as GitHub, Gmail, Google Drive and Google Calendar work as far as your account has them connected.
+
+- **Read-only** runs only tools the app marks read-only (search mail, read files, look up pull requests).
+- **Allow writes** asks for your approval on every call that changes data (send mail, edit files, comment), showing the tool, arguments and description; with phone remote control on, the approval also appears on the phone. A refused call sends nothing.
+- What an app returns is third-party content and models are told not to follow instructions inside it. Account, safety and plugin-management tools of ChatGPT are not exposed.
+- Connect the apps in ChatGPT first. Off by default; the tool list is cached for 10 minutes.
+
 ### Where the allowance went
 
 Under the quota card, "Where the allowance went (weekly)" shows how each week's allowance was spent: by model, by surface (desktop app and so on), by source (your chats, subtasks, memory upkeep) and by trigger, as a percentage of that period's allowance. It comes from the official usage report, so only periods that have been counted show a split, usually a day or two late; accounts without the report do not show the section. It is read only when you expand it and does not affect normal quota refreshes.

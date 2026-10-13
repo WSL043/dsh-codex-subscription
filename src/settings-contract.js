@@ -32,6 +32,9 @@ export const DEFAULT_REASONING_SUMMARY = 'auto'
 export const RETRY_POLICY_FIELD = 'retryPolicy'
 export const RETRY_POLICIES = Object.freeze(['default', 'off', '10', '20', 'unlimited'])
 export const DEFAULT_RETRY_POLICY = 'default'
+export const CONNECTORS_FIELD = 'connectors'
+export const CONNECTOR_MODES = Object.freeze(['off', 'read', 'ask'])
+export const DEFAULT_CONNECTOR_MODE = 'off'
 export const INPUT_IMAGE_DETAIL_FIELD = 'inputImageDetail'
 export const INPUT_IMAGE_DETAILS = Object.freeze(['low', 'high', 'original', 'auto'])
 export const DEFAULT_INPUT_IMAGE_DETAIL = 'auto'
@@ -91,6 +94,8 @@ export const normalizeOutputVerbosity = value => [
 export const normalizeReasoningSummary = value => REASONING_SUMMARIES.includes(value) ? value : DEFAULT_REASONING_SUMMARY
 
 export const normalizeRetryPolicy = value => RETRY_POLICIES.includes(value) ? value : DEFAULT_RETRY_POLICY
+
+export const normalizeConnectorMode = value => CONNECTOR_MODES.includes(value) ? value : DEFAULT_CONNECTOR_MODE
 
 export const normalizeInputImageDetail = value => INPUT_IMAGE_DETAILS.includes(value)
   ? value
