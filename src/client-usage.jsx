@@ -4,6 +4,7 @@ import { Button } from './client-primitives.js'
 import { CHANNEL, unwrap, fill, percent, windowLabel, validDate, notifyQuickQuota, formatQuotaForecast } from './client-shared.js'
 import { creditExpiryStatus } from './credit-expiry.js'
 import { UsageHistory } from './client-usage-history.jsx'
+import { UsageOverview } from './client-usage-overview.jsx'
 
 const count = value => Number(value).toLocaleString()
 // The API reports credits as a long decimal string; two decimals are enough to read.
@@ -189,6 +190,7 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
         <progress max="100" value={window.remainingPercent} aria-label={`${limit.name ?? limit.id} ${fill(t('remaining'), { value: percent(window.remainingPercent) })}`} />
         <div className="codexSubscriptionLimitMeta"><span className="codexSubscriptionLimitPeriod"><span>{windowLabel(window.windowSeconds, t)}</span><span>{formatQuotaForecast(window.forecast, t)}</span></span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
       </div>))}</div>}
+    {limits.length === 0 ? null : <UsageOverview rpc={rpc} t={t} signedIn={signedIn} resetKey={resetKey} />}
     {limits.length === 0 ? null : <UsageHistory rpc={rpc} t={t} signedIn={signedIn} resetKey={resetKey} />}
     {visibleUsage?.chatPass === undefined ? null : <div className="codexSubscriptionLimits">{visibleUsage.chatPass.windows.map((window, index) => <div className="codexSubscriptionLimit" key={`chatpass-${window.windowSeconds}-${index}`}>
         <div className="codexSubscriptionLimitTop"><span className="codexSubscriptionLimitLabel">{t('chatPass')}</span><strong>{percent(window.remainingPercent)}%</strong></div>

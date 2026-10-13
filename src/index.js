@@ -42,6 +42,7 @@ import { createDiagnosticOperations } from './diagnostic-operations.js'
 import { AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, normalizeConnectorMode, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, REASONING_SUMMARY_FIELD, normalizeReasoningSummary, RETRY_POLICY_FIELD, normalizeRetryPolicy, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 import { createPlanHistoryReader } from './plan-history.js'
+import { createUsageProfileReader } from './usage-profile.js'
 import { createConnectorsClient, createConnectorTools } from './connectors.js'
 import { catalogModelsReady, createCodexQuotaRetryHandler } from './quota-retry.js'
 import { createQuotaForecastReader } from './quota-forecast.js'
@@ -462,6 +463,11 @@ export function apply(ctx, config = {}) {
     readCredential: options => store.read(PROVIDER, options),
     fetch: (input, init) => network.fetch('quota', input, init),
   })
+  const usageProfileReader = createUsageProfileReader({
+    getAuth: resolveAuth,
+    readCredential: options => store.read(PROVIDER, options),
+    fetch: (input, init) => network.fetch('quota', input, init),
+  })
   const usageReader = createQuotaForecastReader({
     reader: baseUsageReader,
     enabled: () => normalizeQuickQuotaMode(settings.get()[QUICK_QUOTA_MODE_FIELD], settings.get()[LEGACY_QUICK_QUOTA_FIELD]) === QUICK_QUOTA_MODE_FORECAST,
@@ -538,12 +544,13 @@ export function apply(ctx, config = {}) {
     authHandler: createCodexRpcHandler(coordinator, { openExternal: openCodexAuthUrl }),
     usageReader,
     planHistoryReader,
+    usageProfileReader,
     resetCreditService,
     preferences,
     defaultModel,
     runtimeManagement,
     remoteControl,
-    onAccountChanged: () => { connectorsClient.clear(); quotaRetryHandler.notifyAccountChanged() },
+    onAccountChanged: () => { connectorsClient.clear(); usageProfileReader.clear(); quotaRetryHandler.notifyAccountChanged() },
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, review: provider, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
     onCleanupFailure: () => diagnosticOperations.record('account/cleanup', 'failed'),
     modelCatalog,

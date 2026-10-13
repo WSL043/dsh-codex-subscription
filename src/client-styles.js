@@ -108,6 +108,16 @@ export const STYLE = `
 .codexSubscriptionHistorySummary{margin:4px 0 8px;font-size:13px}
 .codexSubscriptionHistoryGroup{margin:8px 0}
 .codexSubscriptionHistoryGroup h4{margin:0 0 4px;font-size:12px;font-weight:500;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionOverviewStats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin:10px 0}
+.codexSubscriptionOverviewStats div{padding:8px 10px;border-radius:10px;background:var(--dsw-alias-bg-layer-3,rgba(127,127,127,.08))}
+.codexSubscriptionOverviewStats dt{margin:0;font-size:11px;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionOverviewStats dd{margin:2px 0 0;font-size:15px;font-weight:600}
+.codexSubscriptionHeatmap{display:block;width:100%;max-width:520px;margin:6px 0 4px}
+.codexSubscriptionHeatmap rect{fill:var(--dsw-alias-border-l3,rgba(127,127,127,.25))}
+.codexSubscriptionHeatmap rect[data-level="1"]{fill:#0a84ff;fill-opacity:.3}
+.codexSubscriptionHeatmap rect[data-level="2"]{fill:#0a84ff;fill-opacity:.5}
+.codexSubscriptionHeatmap rect[data-level="3"]{fill:#0a84ff;fill-opacity:.75}
+.codexSubscriptionHeatmap rect[data-level="4"]{fill:#0a84ff}
 .codexSubscriptionHistoryRow{display:grid;grid-template-columns:minmax(80px,32%) 1fr 52px;align-items:center;gap:8px;font-size:12px;line-height:20px}
 .codexSubscriptionHistoryKey{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .codexSubscriptionHistoryRow progress{width:100%;height:6px}

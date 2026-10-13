@@ -46,6 +46,10 @@ Set **ChatGPT connectors** under Models & runtime to Read-only or Allow writes, 
 - What an app returns is third-party content and models are told not to follow instructions inside it. Account, safety and plugin-management tools of ChatGPT are not exposed.
 - Connect the apps in ChatGPT first. Off by default; the tool list is cached for 10 minutes.
 
+### Usage overview
+
+Under the quota card, "Usage overview" shows the official usage statistics: lifetime tokens, busiest day, current and longest streak, conversations, most used reasoning level, fast mode share, longest turn, and a half-year heatmap of daily token use (darker is busier, hover for the day's number). Only the numbers are read, never the profile picture or user name; it loads when expanded and is cached for 30 minutes.
+
 ### Where the allowance went
 
 Under the quota card, "Where the allowance went (weekly)" shows how each week's allowance was spent: by model, by surface (desktop app and so on), by source (your chats, subtasks, memory upkeep) and by trigger, as a percentage of that period's allowance. It comes from the official usage report, so only periods that have been counted show a split, usually a day or two late; accounts without the report do not show the section. It is read only when you expand it and does not affect normal quota refreshes.

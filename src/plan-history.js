@@ -55,8 +55,8 @@ export function parsePlanHistory(value) {
   }
 }
 
-/** Reads the history through the same credentials as the quota reader. A route the account does not have reads as `undefined`. */
-export function createPlanHistoryReader({ getAuth, readCredential, fetch: fetchHistory = fetch, now = Date.now, ttlMs = TTL_MS }) {
+/** Reads one authenticated report through the same credentials as the quota reader; a 404 means the account has no such report. */
+export function createReportReader({ url, parse, label, getAuth, readCredential, fetch: fetchReport = fetch, now = Date.now, ttlMs = TTL_MS }) {
   let cached, failed, inFlight, generation = 0
   const load = async signal => {
     const { access, accountId } = await readSubscriptionCredentials(getAuth, readCredential, signal)
@@ -64,18 +64,18 @@ export function createPlanHistoryReader({ getAuth, readCredential, fetch: fetchH
       throw new Error('ChatGPT subscription is not signed in')
     }
     const timeout = AbortSignal.timeout(TIMEOUT_MS)
-    const response = await fetchHistory(CODEX_PLAN_HISTORY_URL, {
+    const response = await fetchReport(url, {
       method: 'GET', redirect: 'error',
       headers: { authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, accept: 'application/json', 'cache-control': 'no-store', 'user-agent': USER_AGENT },
       signal: signal === undefined ? timeout : AbortSignal.any([signal, timeout]),
     })
     if (response.status === 404) return { available: false, fetchedAt: now() }
     if (!response.ok) {
-      throw new Error(response.status === 401 || response.status === 403 ? 'ChatGPT sign-in needs to be renewed' : `ChatGPT usage history request failed (HTTP ${response.status})`)
+      throw new Error(response.status === 401 || response.status === 403 ? 'ChatGPT sign-in needs to be renewed' : `ChatGPT ${label} request failed (HTTP ${response.status})`)
     }
     let body
-    try { body = await response.json() } catch { throw new Error('ChatGPT returned an unreadable usage history') }
-    return { available: true, ...parsePlanHistory(body), fetchedAt: now() }
+    try { body = await response.json() } catch { throw new Error(`ChatGPT returned an unreadable ${label}`) }
+    return { available: true, ...parse(body), fetchedAt: now() }
   }
   return Object.freeze({
     read({ force = false, signal } = {}) {
@@ -86,7 +86,7 @@ export function createPlanHistoryReader({ getAuth, readCredential, fetch: fetchH
       const run = load(signal)
         .then(value => { if (generation === current) { cached = structuredClone(value); failed = undefined } return structuredClone(value) })
         .catch(error => {
-          if (generation === current && error?.name !== 'AbortError') failed = { message: error instanceof Error ? error.message : 'ChatGPT usage history request failed', retryAt: now() + FAILURE_TTL_MS }
+          if (generation === current && error?.name !== 'AbortError') failed = { message: error instanceof Error ? error.message : `ChatGPT ${label} request failed`, retryAt: now() + FAILURE_TTL_MS }
           throw error
         })
         .finally(() => { if (inFlight === run) inFlight = undefined })
@@ -96,3 +96,5 @@ export function createPlanHistoryReader({ getAuth, readCredential, fetch: fetchH
     clear() { generation += 1; cached = undefined; failed = undefined; inFlight = undefined },
   })
 }
+
+export const createPlanHistoryReader = options => createReportReader({ ...options, url: CODEX_PLAN_HISTORY_URL, parse: parsePlanHistory, label: 'usage history' })

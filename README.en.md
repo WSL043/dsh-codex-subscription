@@ -53,6 +53,7 @@ Subscription access, model controls, quota management, and image creation in one
 | **Multiple accounts** | Add, switch, remove, or sign out of all accounts | Settings → Account |
 | **Quota details** | View short / weekly windows, reset times, and separate quota groups | Only backend-provided windows and groups are shown |
 | **Where the allowance went** | In the quota card, see each week's allowance split by model, surface, source and trigger | From the official usage report: approximate, may lag a day or two; hidden when the account has no report |
+| **Usage overview** | In the quota card, see lifetime tokens, busiest day, streaks, most used reasoning level and a half-year daily heatmap | From the official usage statistics; hidden when the account has none |
 | **Credits and reset cards** | View extra Credits, spending caps, and available reset cards | Shown when returned for your account |
 | **Composer quota** | See remaining quota as a percentage or progress bar while chatting | Off by default; choose your display mode |
 | **Runway estimate** | Estimate remaining time from recent usage | Beta; optional estimate, not a guarantee |

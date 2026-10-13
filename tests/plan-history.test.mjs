@@ -64,3 +64,22 @@ test('usage/history is a public endpoint that only surfaces safe messages', asyn
   assert.equal(result.ok, false)
   assert.doesNotMatch(JSON.stringify(result), /secret|token/)
 })
+
+test('the usage profile keeps only statistics, never the name, picture or username', async () => {
+  const { parseUsageProfile } = await import('../src/usage-profile.js')
+  const parsed = parseUsageProfile({
+    profile: { username: 'secret-name', display_name: 'Secret', profile_picture_url: 'https://x/y' },
+    stats: {
+      lifetime_tokens: 93_427_552_692, peak_daily_tokens: 2_530_870_522, current_streak_days: 115, longest_streak_days: 115, total_threads: 7013,
+      longest_running_turn_sec: 115_668, fast_mode_usage_percentage: 4.4497, most_used_reasoning_effort: 'xhigh', most_used_reasoning_effort_percentage: 38.64,
+      daily_usage_buckets: [{ start_date: '2026-03-10', tokens: 939_622 }, { start_date: 'bad', tokens: 5 }, { start_date: '2026-03-11', tokens: -1 }, null],
+    },
+  })
+  assert.equal(parsed.lifetimeTokens, 93_427_552_692)
+  assert.equal(parsed.fastModePercent, 4.4)
+  assert.equal(parsed.mostUsedReasoningEffort, 'xhigh')
+  assert.deepEqual(parsed.days, [{ date: '2026-03-10', tokens: 939_622 }])
+  assert.doesNotMatch(JSON.stringify(parsed), /secret|Secret|https/)
+  assert.throws(() => parseUsageProfile({}), /malformed/)
+  assert.deepEqual(parseUsageProfile({ stats: {} }), { days: [] })
+})

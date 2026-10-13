@@ -7,7 +7,7 @@ const publicError = (code, message) => ({
   error: { code, message, details: { issues: [] } },
 })
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, planHistoryReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
   return async (endpoint, payload, signal) => {
     if (endpoint === 'default-model/status' || endpoint === 'default-model/select') {
       try {
@@ -188,6 +188,16 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, planHis
         return publicError('internal', message)
       }
     }
+    if (endpoint === 'usage/profile') {
+      try {
+        signal.throwIfAborted()
+        return { ok: true, value: await usageProfileReader.read({ force: payload?.force === true, signal }) }
+      } catch (error) {
+        if (signal.aborted) throw error
+        const known = new Set(['ChatGPT subscription is not signed in', 'ChatGPT sign-in needs to be renewed'])
+        return publicError('internal', error instanceof Error && known.has(error.message) ? error.message : 'Could not read ChatGPT usage profile')
+      }
+    }
     if (endpoint === 'usage/history') {
       try {
         signal.throwIfAborted()
@@ -239,7 +249,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, planHis
       || (endpoint === 'login/status' && result.value?.authenticated === true))) {
       // The account transaction has committed. Auxiliary cache failures must not
       // misreport that transaction or prevent the remaining invalidations.
-      const tasks = [() => closeConnections?.(), () => usageReader.clearCache(), () => planHistoryReader?.clear(),
+      const tasks = [() => closeConnections?.(), () => usageReader.clearCache(), () => planHistoryReader?.clear(), () => usageProfileReader?.clear(),
         () => resetCreditService.clear(), () => modelCatalog?.clear(), () => onAccountChanged?.()]
       if (endpoint === 'logout') tasks.push(() => usageReader.clear())
       if (endpoint === 'account/remove' && typeof payload?.id === 'string') tasks.push(() => usageReader.clearScope(payload.id))
