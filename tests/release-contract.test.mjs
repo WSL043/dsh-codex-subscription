@@ -171,7 +171,8 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   assert.doesNotMatch(`${readme}\n${readmeZh}`, /\birm\b|dsh-codex-setup\.ps1/iu)
   assert.doesNotMatch(readmeZh, /安装提示词|更新提示词|卸载提示词/u)
   assert.match(readme, /cropped screenshots from the actual DSH interface/u)
-  assert.match(readmeZh, /docs\/assets\/composer-astra-fast\.png/u)
+  assert.match(readmeZh, /docs\/assets\/ui-composer-zh-light\.png/u)
+  assert.match(readmeZh, /docs\/assets\/ui-composer-zh-dark\.png/u)
   assert.doesNotMatch(readmeZh, /docs\/assets\/composer-quota-en\.png/u)
   for (const doc of [readme, readmeZh]) {
     for (const match of doc.matchAll(/docs\/assets\/([^\s)]+\.png)/gu)) {
@@ -183,7 +184,7 @@ test('GitHub defaults to Chinese and links a complete English README', () => {
   assert.doesNotMatch(readme, /docs\/assets\/sidebar\.png/u)
   assert.doesNotMatch(readme, /docs\/assets\/sidebar-en\.png/u)
   {
-    const { width, height } = pngDimensions('docs/assets/composer-quota.png')
+    const { width, height } = pngDimensions('docs/assets/ui-composer-zh-light.png')
     assert.ok(width >= 700, 'Chinese composer quota screenshot must retain its native width')
     assert.ok(height >= 100, 'Chinese composer quota screenshot must include the complete compact composer')
   }

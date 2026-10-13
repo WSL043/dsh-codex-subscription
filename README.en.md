@@ -18,81 +18,11 @@ Sign in with ChatGPT Plus / Pro to use GPT-6 and other Codex models, quota, web 
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Features](#feature-overview) · [Install](#install) · [Daily use](#inside-the-plugin) · [Examples](#from-sketch-to-image) · [User guide](docs/GUIDE.en.md) · [Update and uninstall](#update-and-uninstall)
+[Install](#install) · [Highlights](#highlights) · [Phone remote control](#phone-remote-control-beta) · [Examples](#from-sketch-to-image) · [All features](#all-features) · [User guide](docs/GUIDE.en.md) · [Troubleshooting](#troubleshooting)
 
 </div>
 
 <p align="center"><img src="docs/assets/product-account-demo-en.png" width="1100" alt="Codex subscription account and quota interface with model choices, quota windows and alerts; demonstration data"></p>
-
-## Feature overview
-
-Subscription access, model controls, quota management, and image creation in one DSH workflow. Each capability is listed below; model access and quota depend on your account.
-
-### Models and search
-
-| Feature | What you can do | Availability / setup |
-| --- | --- | --- |
-| **Subscription sign-in** | Sign in to ChatGPT and use Codex subscription models without an API key | Normal chat needs no Codex CLI |
-| **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh; models marked for retirement show their retirement date next to the model name, without automatically switching your selection | New models appear when your account offers them; the account catalog is the only source, so signed out or when it cannot be read no models are shown and no bundled list stands in |
-| **Model list** | Show or hide individual models in the composer picker under Models & runtime | Display only; selected models and requests still work |
-| **Default model** | Choose the model a new conversation opens with under Models & runtime → Models | Writes the DSH default model setting, the same one a model switch inside a chat writes; unset it to follow the DSH default |
-| **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
-| **Speed tiers** | Switch supported models between Standard and Fast; Ultrafast (Beta) too when the account catalog offers it, with a lightning indicator | Standard by default; Fast and Ultrafast increase usage, and Ultrafast is Pro 500 only today |
-| **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
-| **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
-| **Subscription web search** | Use Codex search or choose DSH search | Auto, DSH, and Codex routing options |
-| **Search scope** | Choose live / cached search, disable search, or restrict domains | Configure under Models & runtime |
-| **Stream inactivity timeout** | Set how long a request can receive no streamed data before it is aborted | 10 minutes by default; not an overall response deadline |
-| **Context budget** | Use standard, extended, or custom budgets per model | Limited by the model catalog |
-| **GPT-Reserve** | Select the reserve model when your account offers it | Experimental; no promise of a separate reserve quota |
-
-### Accounts and quota
-
-| Feature | What you can do | Availability / setup |
-| --- | --- | --- |
-| **Multiple accounts** | Add, switch, remove, or sign out of all accounts | Settings → Account |
-| **Quota details** | View short / weekly windows, reset times, and separate quota groups | Only backend-provided windows and groups are shown |
-| **Where the allowance went** | In the quota card, see each week's allowance split by model, surface, source and trigger | From the official usage report: approximate, may lag a day or two; hidden when the account has no report |
-| **Usage overview** | In the quota card, see lifetime tokens, busiest day, streaks, most used reasoning level and a half-year daily heatmap | From the official usage statistics; hidden when the account has none |
-| **Credits and reset cards** | View extra Credits, spending caps, and available reset cards | Shown when returned for your account |
-| **Composer quota** | See remaining quota as a percentage or progress bar while chatting | Off by default; choose your display mode |
-| **Runway estimate** | Estimate remaining time from recent usage | Beta; optional estimate, not a guarantee |
-| **Quota alerts** | Use fixed, early, or custom short / long-window thresholds | 20% remaining by default; can be disabled |
-| **Redeem reset cards** | Use an available reset card after confirmation | Confirmation and waiting safeguards; server decides the result |
-| **Retry after reset** | Wait for a confirmed short-window reset before continuing | Off by default; waiting can be stopped |
-
-### Images and sketching
-
-| Feature | What you can do | Availability / setup |
-| --- | --- | --- |
-| **Image generation** | Generate through your subscription and adjust available request model / quality options; ask for a transparent-background PNG when needed | Beta; on by default, can be disabled |
-| **Reference image editing** | Continue refining an image with references | Beta; on by default, can be disabled |
-| **Image viewing and download** | Completed images appear after the answer without expanding tool activity; zoom, pan, fit to window, and download verified originals | Built-in viewer; older images may only have previews |
-| **Region-based editing** | Mark regions, add notes, and continue editing with location references | Fills the composer for you to review and send |
-| **Manual canvas** | Choose an aspect ratio and draw with pen, pencil, marker, and erasers | Beta; canvas off by default |
-| **Shapes and text** | Draw lines, arrows, shapes, native curves, and editable text / objects | Available in the sketch canvas |
-| **Layers and image import** | Work in layers and bring images into the canvas | Images are managed as layers |
-| **Smoothing and navigation** | Smooth complete strokes after release; pan, zoom, undo, and redo | Shortcuts can be customized or disabled |
-| **Multiple drafts** | Save and reopen up to 20 local drafts | Stored in the current browser |
-| **Import and export** | Export PNG, or native drafts that preserve editable strokes | Drafts can be imported again to keep editing |
-| **Agent drawing** | Ask the agent to draw with `@sketch`, follow progress, and stop it; the agent can draw whole stages in SVG, imported as editable native strokes | Beta; off by default, requires the canvas |
-| **Result preview for the model** | Return a canvas image after drawing for subsequent review | Beta; off by default, adds image input usage |
-
-### Advanced capabilities and maintenance
-
-| Feature | What you can do | Availability / setup |
-| --- | --- | --- |
-| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta (3.0.0-beta.5); off by default; Settings → Codex → Models & runtime → Phone remote control, pair by QR or manual code |
-| **Codex independent subtasks** | Reuse subscription sign-in and workspace permissions; select allowed models and reasoning levels | Beta; DSH by default, Codex requires the optional component and model-selection setup |
-| **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
-| **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
-| **WebSocket transport** | Experimentally reuse connections and context transfers, with SSE fallback on connection failure | Beta / experimental; SSE by default, no speed guarantee |
-| **Codex reviewer for Auto review** | DSH Auto review judges tool calls with Codex's own review model; DSH keeps its review policy and allow/deny flow | Beta; off by default, applies when your account catalog offers the model |
-| **ChatGPT connectors** | Let DeepSeek or any DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more; models search first, then call, and every change asks for your approval | Beta; off by default, Settings → Codex → Models & runtime → ChatGPT connectors; connect the apps in ChatGPT first |
-| **Support diagnostics** | Inspect prerequisites and recent operation results, and copy a short report (about 1 KB; the full one can be copied separately) without credentials or conversation text | Settings → Maintenance; unverified does not mean broken |
-| **Forecast cache cleanup** | Inspect and clear local quota forecast history | Keeps sign-in, drafts, originals, and shared dependencies |
-
-[Usage details, limitations, and optional components →](docs/GUIDE.en.md)
 
 ## Prepare DSH
 
@@ -112,7 +42,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@2.5.9
+   dsh-codex-subscription@2.6.8
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -124,7 +54,7 @@ Why the version is included: DSH's plugin page only installs versions that are a
 <summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@2.5.9
+dsh plugin --profile web add dsh-codex-subscription@2.6.8
 ```
 
 Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
@@ -137,57 +67,157 @@ Follow the restart instructions, then sign in under **Settings → Codex**. Both
 After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@2.5.9
+dsh plugin --profile headless add dsh-codex-subscription@2.6.8
 dsh --profile headless "Reply with only the word: ok"
 ```
 
 </details>
 
-## Inside the plugin
+## Highlights
+
+### Sign in with your subscription and use Codex models
+
+Sign in to ChatGPT under **Settings → Codex** in DSH, then pick GPT-6 and the other models in your account catalog from any conversation, set the reasoning and speed levels, and use subscription web search. No API key. Models and quota depend on your account.
+
+### Quota at a glance
+
+Short-window and weekly quota, reset times, extra Credits and reset cards live in settings; the composer can keep the remaining quota in view and warn you below a threshold.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-en-dark.png"><img src="docs/assets/ui-quota-en-light.png" width="560" alt="Quota card: weekly quota and reset time, with usage overview and where the allowance went below"></picture></p>
+
+<details>
+<summary>Usage overview and where the allowance went: lifetime usage, streaks, a daily heatmap and the weekly breakdown</summary>
+<br>
+<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="Usage overview and where the allowance went in the quota card: lifetime tokens, streaks, a half-year daily heatmap and the weekly allowance split by model, surface and source"></p>
+</details>
+
+### Everyday controls, right in the composer
+
+Pick the model, the reasoning level and the speed tier while the remaining quota stays in view, without opening settings for every request.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="Composer: permission, sketch, remaining quota, the lightning mark for Fast mode and the model picker"></picture></p>
+
+### Phone remote control (Beta)
+
+Pair the ChatGPT mobile app's Codex section with a QR code and the DSH on your computer shows up as a host on your phone. DeepSeek and any other DSH model work from the phone:
+
+- follow, start, continue, interrupt and archive conversations; search conversations and keywords inside one;
+- switch model, reasoning level and permission (workspace write / full access);
+- approvals and questions pop up on the phone; if it drops, they pop up again when you reopen it, otherwise they go back to the computer;
+- replies appear as they are written; commands, file edits with diffs, the task list, web searches, connector calls and generated images use the phone's native views;
+- send photos, @ search files on the computer, / pick DSH skills, view changes with read-only git, and start chats in a real folder picker;
+- DSH workspaces appear as projects; fork a conversation, see usage limits, lifetime usage and context usage;
+- model errors show on the phone; paired phones are listed in settings and can be removed.
+
+Off by default: **Settings → Codex → Models & runtime → Phone remote control**. The computer must stay on, online and running DSH. This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. Currently in the pre-release: `dsh-codex-subscription@3.0.0-beta.5`.
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Phone remote control in settings: the switch, pairing QR code and manual code, paired phones"></picture></p>
+
+### Images and sketching (Beta)
+
+Generate images with your subscription, circle a region and write a note to keep editing, or open the sketch board to draw yourself or let the agent draw, then use the sketch as the reference for the finished image.
+
+<p align="center"><img src="docs/assets/annotate-en.webp" width="900" alt="Image preview: a region above the chimney is marked with a note, then editing continues with the note"></p>
+
+Examples are in [From sketch to image](#from-sketch-to-image); the switches are under **Settings → Codex → Images & sketch**.
+
+### ChatGPT connectors (Beta)
+
+Let DeepSeek or any other DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more. Models search first, then call, and every change asks for your approval. Off by default; turn it on under Models & runtime.
+
+[Usage details, limitations and optional components →](docs/GUIDE.en.md)
+
+## All features
+
+Model access and quota depend on your account.
+
+<details>
+<summary><b>Models and search</b> (13)</summary>
+<br>
+
+| Feature | What you can do | Availability / setup |
+| --- | --- | --- |
+| **Subscription sign-in** | Sign in to ChatGPT and use Codex subscription models without an API key | Normal chat needs no Codex CLI |
+| **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh; models marked for retirement show their retirement date next to the model name, without automatically switching your selection | New models appear when your account offers them; the account catalog is the only source, so signed out or when it cannot be read no models are shown and no bundled list stands in |
+| **Model list** | Show or hide individual models in the composer picker under Models & runtime | Display only; selected models and requests still work |
+| **Default model** | Choose the model a new conversation opens with under Models & runtime → Models | Writes the DSH default model setting, the same one a model switch inside a chat writes; unset it to follow the DSH default |
+| **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
+| **Speed tiers** | Switch supported models between Standard and Fast; Ultrafast (Beta) too when the account catalog offers it, with a lightning indicator | Standard by default; Fast and Ultrafast increase usage, and Ultrafast is Pro 500 only today |
+| **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
+| **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
+| **Subscription web search** | Use Codex search or choose DSH search | Auto, DSH, and Codex routing options |
+| **Search scope** | Choose live / cached search, disable search, or restrict domains | Configure under Models & runtime |
+| **Stream inactivity timeout** | Set how long a request can receive no streamed data before it is aborted | 10 minutes by default; not an overall response deadline |
+| **Context budget** | Use standard, extended, or custom budgets per model | Limited by the model catalog |
+| **GPT-Reserve** | Select the reserve model when your account offers it | Experimental; no promise of a separate reserve quota |
+
+</details>
+
+<details>
+<summary><b>Accounts and quota</b> (10)</summary>
+<br>
+
+| Feature | What you can do | Availability / setup |
+| --- | --- | --- |
+| **Multiple accounts** | Add, switch, remove, or sign out of all accounts | Settings → Account |
+| **Quota details** | View short / weekly windows, reset times, and separate quota groups | Only backend-provided windows and groups are shown |
+| **Where the allowance went** | In the quota card, see each week's allowance split by model, surface, source and trigger | From the official usage report: approximate, may lag a day or two; hidden when the account has no report |
+| **Usage overview** | In the quota card, see lifetime tokens, busiest day, streaks, most used reasoning level and a half-year daily heatmap | From the official usage statistics; hidden when the account has none |
+| **Credits and reset cards** | View extra Credits, spending caps, and available reset cards | Shown when returned for your account |
+| **Composer quota** | See remaining quota as a percentage or progress bar while chatting | Off by default; choose your display mode |
+| **Runway estimate** | Estimate remaining time from recent usage | Beta; optional estimate, not a guarantee |
+| **Quota alerts** | Use fixed, early, or custom short / long-window thresholds | 20% remaining by default; can be disabled |
+| **Redeem reset cards** | Use an available reset card after confirmation | Confirmation and waiting safeguards; server decides the result |
+| **Retry after reset** | Wait for a confirmed short-window reset before continuing | Off by default; waiting can be stopped |
+
+</details>
+
+<details>
+<summary><b>Images and sketching</b> (12)</summary>
+<br>
+
+| Feature | What you can do | Availability / setup |
+| --- | --- | --- |
+| **Image generation** | Generate through your subscription and adjust available request model / quality options; ask for a transparent-background PNG when needed | Beta; on by default, can be disabled |
+| **Reference image editing** | Continue refining an image with references | Beta; on by default, can be disabled |
+| **Image viewing and download** | Completed images appear after the answer without expanding tool activity; zoom, pan, fit to window, and download verified originals | Built-in viewer; older images may only have previews |
+| **Region-based editing** | Mark regions, add notes, and continue editing with location references | Fills the composer for you to review and send |
+| **Manual canvas** | Choose an aspect ratio and draw with pen, pencil, marker, and erasers | Beta; canvas off by default |
+| **Shapes and text** | Draw lines, arrows, shapes, native curves, and editable text / objects | Available in the sketch canvas |
+| **Layers and image import** | Work in layers and bring images into the canvas | Images are managed as layers |
+| **Smoothing and navigation** | Smooth complete strokes after release; pan, zoom, undo, and redo | Shortcuts can be customized or disabled |
+| **Multiple drafts** | Save and reopen up to 20 local drafts | Stored in the current browser |
+| **Import and export** | Export PNG, or native drafts that preserve editable strokes | Drafts can be imported again to keep editing |
+| **Agent drawing** | Ask the agent to draw with `@sketch`, follow progress, and stop it; the agent can draw whole stages in SVG, imported as editable native strokes | Beta; off by default, requires the canvas |
+| **Result preview for the model** | Return a canvas image after drawing for subsequent review | Beta; off by default, adds image input usage |
+
+</details>
+
+<details>
+<summary><b>Advanced capabilities and maintenance</b> (9)</summary>
+<br>
+
+| Feature | What you can do | Availability / setup |
+| --- | --- | --- |
+| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta (3.0.0-beta.5); off by default; Settings → Codex → Models & runtime → Phone remote control, pair by QR or manual code |
+| **Codex independent subtasks** | Reuse subscription sign-in and workspace permissions; select allowed models and reasoning levels | Beta; DSH by default, Codex requires the optional component and model-selection setup |
+| **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
+| **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
+| **WebSocket transport** | Experimentally reuse connections and context transfers, with SSE fallback on connection failure | Beta / experimental; SSE by default, no speed guarantee |
+| **Codex reviewer for Auto review** | DSH Auto review judges tool calls with Codex's own review model; DSH keeps its review policy and allow/deny flow | Beta; off by default, applies when your account catalog offers the model |
+| **ChatGPT connectors** | Let DeepSeek or any DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more; models search first, then call, and every change asks for your approval | Beta; off by default, Settings → Codex → Models & runtime → ChatGPT connectors; connect the apps in ChatGPT first |
+| **Support diagnostics** | Inspect prerequisites and recent operation results, and copy a short report (about 1 KB; the full one can be copied separately) without credentials or conversation text | Settings → Maintenance; unverified does not mean broken |
+| **Forecast cache cleanup** | Inspect and clear local quota forecast history | Keeps sign-in, drafts, originals, and shared dependencies |
+
+</details>
+
+## Interface demo
 
 <details>
 <summary><b>Interface demo (animation, click to expand)</b>: models, prompts, images, annotation, sketch board, quota and resets</summary>
 <br>
 <p align="center"><img src="docs/assets/readme-demo-en.webp" width="1100" alt="Demo: sign in with ChatGPT, pick a subscription model, ask, generate an image, view and annotate it, continue on the sketch board, and check quota and resets"></p>
 </details>
-
-<details>
-<summary><b>Usage overview and where the allowance went (click to expand)</b>: lifetime usage, streaks, a daily heatmap and the weekly allowance breakdown</summary>
-<br>
-<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="Usage overview and where the allowance went in the quota card: lifetime tokens, streaks, a half-year daily heatmap and the weekly allowance split by model, surface and source"></p>
-</details>
-
-<details>
-<summary><b>More screens (click to expand)</b>: image annotation and the sketch board</summary>
-<br>
-<table><tr><td><img src="docs/assets/image-preview-annotations-en.png" alt="Image preview: mark a region, write a note, then keep editing with the notes" width="480"></td><td><img src="docs/assets/store-sketch-board-en.png" alt="Sketch board: pen, pencil, highlighter, shapes, layers and colors" width="480"></td></tr></table>
-</details>
-
-### Everyday controls, right in the composer
-
-Choose a model, adjust reasoning, switch speed tiers, and check remaining quota without opening settings for every request.
-
-<p align="center"><img src="docs/assets/composer-quota-en.png" width="800" alt="DSH composer with GPT-6-Luna, reasoning controls and remaining quota"></p>
-
-### Control DSH from your phone (Beta)
-
-Turn on **Settings → Codex → Models & runtime → Phone remote control** and pair by scanning the QR code in the Codex section of the ChatGPT mobile app. This computer's DSH then appears in the phone's host list:
-
-- browse, start, continue, interrupt and archive DSH conversations from the phone, with DeepSeek, Codex or any other DSH model;
-- switch model, reasoning level and permissions (workspace write / full access) from the phone;
-- when DSH needs a tool approval or asks you a question, it pops up on the phone; if the phone dropped, it is asked again when you return, otherwise the computer handles it;
-- replies appear on the phone as they are written;
-- commands, file edits (with diffs), the task list and generated images use the phone's native views, and file-edit approvals show the diff;
-- DSH workspaces appear as projects on the phone: start chats in them, fork a conversation, see usage limits and context usage;
-- on the phone, @ searches files on the computer, skills can be picked, and the changes view works (read-only git); conversations can be searched, keywords found inside a conversation, and your lifetime usage viewed;
-- Settings lists the paired phones and lets you remove any of them;
-- send photos from the phone (with or without text), and images DSH produces show up on the phone;
-- the phone folder picker browses real folders on this computer, and a new chat can start in one of them;
-- model errors are shown on the phone.
-
-Off by default. The computer must stay on, online and running DSH. This uses a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. Currently available in the pre-release `dsh-codex-subscription@3.0.0-beta.5`.
-
-<p align="center"><img src="docs/assets/remote-control-en.png" width="560" alt="Official desktop app settings: phone remote control connected, showing a pairing QR code and manual code"></p>
 
 ### Accounts and preferences, in one place
 
@@ -278,23 +308,15 @@ The face shape, hair flow, lace, hand and speech-bubble lettering are all closer
 <details>
 <summary>View Images & sketch settings</summary>
 
-<p align="center"><img src="docs/assets/real-creative-en.png" width="564" alt="Images and sketch settings: generation, editing, model choice, and separate canvas and agent controls"></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-creative-en-dark.png"><img src="docs/assets/ui-creative-en-light.png" width="564" alt="Images and sketch settings: generation and editing, creative shortcuts, requested model and quality"></picture></p>
 
-Settings shown directly as cropped screenshots from the actual DSH interface.
+Settings shown directly as cropped screenshots from the actual DSH interface, following the light or dark theme.
 
 </details>
 
 Layers, native curves, brushes, undo/redo, and shortcuts are supported. Save multiple drafts, export PNG or editable drafts, and annotate generated images before continuing an edit.
 
 [Image editing and draft storage →](docs/GUIDE.en.md#image-generation-and-editing-beta)
-
-<a id="codex-subtask-runtime"></a>
-
-## Optional capabilities
-
-Normal subscription chat needs no Codex CLI. For **Codex independent subtasks**, use Install component under Models & runtime; disabling and uninstalling are available in the same place. Other experimental options remain opt-in.
-
-[Optional components, storage cleanup, and the full user guide →](docs/GUIDE.en.md)
 
 ## Update and uninstall
 
@@ -304,7 +326,7 @@ Find this plugin on the DSH **Plugins** page and use its update or uninstall act
 <summary>Terminal commands</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@2.5.9
+dsh plugin --profile web update dsh-codex-subscription@2.6.8
 ```
 
 Run only when you want to uninstall:
@@ -316,13 +338,6 @@ dsh plugin --profile web remove dsh-codex-subscription
 </details>
 
 ## Troubleshooting
-
-<details>
-<summary>DSH 0.2.0-rc.2 reports the plugin as incompatible?</summary>
-
-DSH 0.2.0-rc.2 did not exist when any release before 2.2.10 was published, and a published package's compatibility declaration cannot be changed. Install 2.2.10 or later (a bare package name can resolve to an older release during the first 24 hours, so enter `dsh-codex-subscription@2.2.10`) from the **Plugins** page, or run `dsh plugin --profile web update dsh-codex-subscription@2.5.9`, then restart DSH.
-
-</details>
 
 <details>
 <summary>How does this relate to the official Codex bundle (dsh-hooks-codex) in the plugin list?</summary>
@@ -354,15 +369,12 @@ Diagnostics exclude credentials, account identifiers, raw responses, and full lo
 
 </details>
 
-## Current icon
+<details>
+<summary>Do I need the Codex command line?</summary>
 
-The current plugin icon and its appearance in DSH’s Installed list.
+Not for ordinary subscription chat. Only if you want **Codex independent subtasks**: use "Install component" under Settings → Codex → Models & runtime; disabling and uninstalling are in the same place. Other experimental options are opt-in. [Optional components, storage cleanup and the full guide →](docs/GUIDE.en.md)
 
-<p align="center"><img src="icon-subscription.webp" width="200" height="200" alt="Current Codex Subscription plugin icon"></p>
-
-<p align="center"><img src="docs/assets/plugin-installed-en.png" width="800" alt="Codex Subscription plugin card in the DSH Installed list"></p>
-
-<sub>Captured in DSH 0.1.7-alpha.2.</sub>
+</details>
 
 ## Positioning and boundaries
 

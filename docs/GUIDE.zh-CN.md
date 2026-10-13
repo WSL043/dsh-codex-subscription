@@ -71,7 +71,7 @@ ChatGPT 返回可用重置卡时，设置页会把每张卡分别显示为紧凑
 新的图片请求不会静默带入历史图片。GPT Image 2 可能比文本回复耗时更长，复杂文字、精确构图和连续角色一致性也可能需要再次调整。
 
 <p align="center">
-  <img src="assets/image-preview-annotations.png" width="800" alt="DSH 图片查看器中的生成图、区域备注和继续编辑">
+  <img src="assets/annotate-zh.webp" width="800" alt="DSH 图片查看器中的生成图、区域备注和继续编辑">
 </p>
 
 上图展示图片查看与图上备注的基本交互；具体按钮会随图片和所安装的查看器版本变化。

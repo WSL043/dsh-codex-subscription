@@ -73,7 +73,7 @@ New and edited images return the exact original path on the current DSH host in 
 A new image request does not silently include earlier images. GPT Image 2 can take longer than a normal text turn, and detailed text, exact composition, or repeated-character consistency may still need another pass.
 
 <p align="center">
-  <img src="assets/image-preview-annotations-en.png" width="800" alt="Generated image, region note, and continue editing inside the DSH Image Viewer">
+  <img src="assets/annotate-en.webp" width="800" alt="Generated image, region note, and continue editing inside the DSH Image Viewer">
 </p>
 
 The screenshot above illustrates image viewing and on-image notes; available buttons can vary with the image and installed viewer version.
