@@ -17,7 +17,7 @@ async function endpoint(t, handler) {
 
 function response(url, signal) {
   return new Promise((resolve, reject) => {
-    http.get(url, { signal }, incoming => resolve(new Response(transportResponseBody(incoming, signal))))
+    http.get(url, { signal }, incoming => resolve(new Response(transportResponseBody(incoming, signal), { status: incoming.statusCode })))
       .on('error', reject)
   })
 }
@@ -77,13 +77,17 @@ test('only transient WebSocket failures receive transport context', () => {
   }
 })
 
-test('actual DSH adapter classifies a real mid-stream reset as TRANSPORT without plugin replay', { timeout: 5000 }, async t => {
-  let requests = 0
-  const url = await endpoint(t, (_request, reply) => {
-    requests++
-    reply.write('data: {"type":"response.created","response":{"id":"cut"}}\n\n')
-    setTimeout(() => reply.socket?.destroy(), 30)
-  })
+test('a gateway that cannot replay a request after an upstream failure receives transport context', () => {
+  const event = { type: 'error', reason: 'error', error: { errorMessage: 'exceeded request buffer limit while retrying upstream' } }
+  assert.match(normalizeTransportEvent(event).error.errorMessage, /^Network transport failure: exceeded request buffer limit/)
+  assert.equal(normalizeTransportEvent(event, AbortSignal.abort()), event)
+  for (const message of ['Payload Too Large', 'failed to buffer the request body: length limit exceeded']) {
+    const rejected = { type: 'error', reason: 'error', error: { errorMessage: message } }
+    assert.equal(normalizeTransportEvent(rejected), rejected)
+  }
+})
+
+async function adapterChunks(t, url) {
   const originalFetch = globalThis.fetch
   globalThis.fetch = (_url, init) => response(url, init.signal)
   t.after(() => { globalThis.fetch = originalFetch })
@@ -96,6 +100,30 @@ test('actual DSH adapter classifies a real mid-stream reset as TRANSPORT without
   const adapter = new PiAiAdapter({ profiles: () => profiles, resolveApiKey: async () => token })
   const chunks = []
   for await (const chunk of adapter.stream({ provider: 'openai-codex', model: 'gpt-5.6-luna', messages: [{ role: 'user', content: [{ type: 'text', text: 'fixture' }] }] })) chunks.push(chunk)
+  return chunks
+}
+
+test('actual DSH adapter classifies a real mid-stream reset as TRANSPORT without plugin replay', { timeout: 5000 }, async t => {
+  let requests = 0
+  const url = await endpoint(t, (_request, reply) => {
+    requests++
+    reply.write('data: {"type":"response.created","response":{"id":"cut"}}\n\n')
+    setTimeout(() => reply.socket?.destroy(), 30)
+  })
+  const chunks = await adapterChunks(t, url)
   assert.ok(chunks.some(chunk => chunk.reason?.failure?.code === 'TRANSPORT'), JSON.stringify(chunks))
+  assert.equal(requests, 1)
+})
+
+test('actual DSH adapter classifies a gateway replay-buffer 507 as retryable TRANSPORT', { timeout: 5000 }, async t => {
+  let requests = 0
+  const url = await endpoint(t, (_request, reply) => {
+    requests++
+    // Envoy's local reply when an upstream retry needs a request body larger than its buffer.
+    reply.writeHead(507, { 'content-type': 'text/plain' }).end('exceeded request buffer limit while retrying upstream')
+  })
+  const failure = (await adapterChunks(t, url)).find(chunk => chunk.reason?.failure)?.reason.failure
+  assert.equal(failure?.code, 'TRANSPORT', JSON.stringify(failure))
+  assert.match(failure.message, /exceeded request buffer limit while retrying upstream/)
   assert.equal(requests, 1)
 })
