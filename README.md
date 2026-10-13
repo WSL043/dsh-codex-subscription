@@ -22,7 +22,7 @@
 
 </div>
 
-<p align="center"><img src="docs/assets/product-account-demo.png" width="1100" alt="Codex 订阅账号与额度界面：模型选择、双周期额度与提醒；使用演示数据"></p>
+<p align="center"><img src="docs/assets/hero-zh.webp" width="1100" alt="已有的订阅，在 DSH 接着用：鲸鱼少女吉祥物与 Codex 订阅账号额度界面"></p>
 
 ## 准备 DSH
 
