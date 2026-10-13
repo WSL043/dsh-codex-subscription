@@ -62,6 +62,7 @@ async function fixture() {
   const bridge = createDshRemoteControl({
     controller: () => controller, agents: () => ({}), workspaces: () => workspaces, permissions: () => ({ current: () => 'workspace-write', set() {} }),
     attachments: () => ({ readImage: async ref => ({ ref: { ...ref, mediaType: 'image/png' }, data: new Uint8Array(Buffer.from('png')) }) }),
+    usageProfile: () => ({ read: async () => ({ available: true, lifetimeTokens: 9_000_000, peakDailyTokens: 500_000, currentStreakDays: 3, longestStreakDays: 9, longestRunningTurnSeconds: 1200, days: [{ date: '2026-10-13', tokens: 1000 }] }) }),
     usage: () => ({ read: async () => ({ planType: 'pro', rateLimits: [{ id: 'codex', name: 'Codex', windows: [{ usedPercent: 40, remainingPercent: 60, windowSeconds: 18_000, resetsAt: 1_900_000_000 }, { usedPercent: 10, remainingPercent: 90, windowSeconds: 604_800 }] }] }) }),
     projections: () => ({ snapshot: () => ({ values: { tokenUsage: { uncachedInputTokens: 10, outputTokens: 5, cacheReadTokens: 2, cacheWriteTokens: 0 }, contextPressure: { pressureTokens: 100, contextWindow: 272_000 } } }) }),
     skills: () => ({ list: async () => [{ name: 'review-pr', description: 'Review', invocation: { userInvocable: true }, path: '/s' }] }),
@@ -82,6 +83,8 @@ test('every response the phone can ask for has the shape the Codex app decodes',
     await response('thread/list', { limit: 10 }, 'ThreadListResponse')
     await response('thread/list', { archived: true }, 'ThreadListResponse')
     await response('thread/loaded/list', {}, 'ThreadLoadedListResponse')
+    await response('account/usage/read', {}, 'GetAccountTokenUsageResponse')
+    await response('account/usage/read', null, 'GetAccountTokenUsageResponse')
     await response('thread/read', { threadId: 's1', includeTurns: true }, 'ThreadReadResponse')
     await response('thread/resume', { threadId: 's1' }, 'ThreadResumeResponse')
     await response('thread/start', { projectId: 'w1', model: 'x' }, 'ThreadStartResponse')

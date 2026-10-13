@@ -115,6 +115,7 @@ Turn it on under **Settings → Codex → Models & runtime → Phone remote cont
 - Replies appear as they are written; commands, file edits (with diffs), the task list and generated images use the phone's native views.
 - You can send photos from the phone (with or without text) when the selected model reads images, and the folder picker browses real folders on the computer.
 - On the phone, `@` searches files in the conversation's folder and `/` picks a DSH skill.
+- Conversations can be searched by title (and by message text when DSH has its message index on), keywords can be found inside an opened conversation and jumped to, and the phone's usage page shows your Codex lifetime usage and daily heatmap.
 - The changes view works: the phone's requests run only inside the conversation's folder, and only a short list of read-only git commands (status, diff, log, ...) is allowed; everything else is refused.
 - After a dropped connection, what the phone has not acknowledged is sent again on reconnect; a half-dead connection (sleep, network switch) is noticed within about a minute and reconnected.
 - Settings lists the paired phones and lets you remove any of them.

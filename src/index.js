@@ -418,6 +418,7 @@ export function apply(ctx, config = {}) {
     workspaces: () => ctx.get?.('workspaceRegistry'),
     attachments: () => ctx.attachments,
     usage: () => usageReader,
+    usageProfile: () => usageProfileReader,
     projections: () => ctx.get?.('sessionProjections'),
     skills: () => ctx.get?.('skills'),
     llm: () => ctx.llm,

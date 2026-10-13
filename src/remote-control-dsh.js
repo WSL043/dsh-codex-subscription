@@ -70,6 +70,17 @@ function rateLimits(read) {
   }
 }
 
+/** First place `term` appears in `text`: a short passage around it and the match's UTF-16 range inside that passage. */
+export function occurrence(text, term, radius = 60) {
+  const at = String(text).toLocaleLowerCase().indexOf(String(term).toLocaleLowerCase())
+  if (at < 0) return undefined
+  const start = Math.max(0, at - radius)
+  const end = Math.min(text.length, at + term.length + radius)
+  const snippet = `${start > 0 ? '…' : ''}${text.slice(start, end).replace(/\s+/gu, ' ')}${end < text.length ? '…' : ''}`
+  const from = (start > 0 ? 1 : 0) + text.slice(start, at).replace(/\s+/gu, ' ').length
+  return { snippet, snippetMatchRange: { start: from, end: from + text.slice(at, at + term.length).replace(/\s+/gu, ' ').length } }
+}
+
 const seconds = value => Math.floor((Number.isFinite(value) ? value : Date.now()) / 1000)
 const emptyTurn = () => ({ id: randomUUID(), items: [], itemsView: 'full', status: 'inProgress', error: null, startedAt: seconds(Date.now()), completedAt: null, durationMs: null })
 const textOf = content => (content ?? []).map(block => block?.type === 'text' ? block.text : '').filter(Boolean).join('\n')
@@ -201,7 +212,7 @@ const PHONE_RETURN_MS = 120_000
 // How long after it last had a thread open a reconnecting phone is assumed to still want it.
 const ADOPT_WITHIN_MS = 600_000
 
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, projections = () => undefined, skills = () => undefined, llm = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, usageProfile = () => undefined, projections = () => undefined, skills = () => undefined, llm = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
@@ -471,6 +482,34 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     return { turn }
   }
 
+  /** Conversations the phone may see, filtered the way it asks, plus the passages DSH found for a search term. */
+  const listed = async (params, signal) => {
+    const value = await service().list({}, signal)
+    const archived = new Set(workspaces()?.archivedSessionIds ?? [])
+    const wantArchived = params?.archived === true
+    const excluded = new Set(Array.isArray(params?.excludedThreadIds) ? params.excludedThreadIds : [])
+    const folders = [params?.cwd].flat().filter(entry => typeof entry === 'string')
+    const members = typeof params?.projectId === 'string' ? new Set(workspaceList().find(entry => String(entry.id) === params.projectId)?.sessionIds ?? []) : undefined
+    const term = typeof params?.searchTerm === 'string' ? params.searchTerm.trim() : ''
+    // DSH searches the messages themselves; a deployment without the search service still matches titles.
+    const snippets = new Map()
+    if (term !== '') {
+      try { for (const hit of (await service().search({ query: term }, signal)).items ?? []) snippets.set(hit.sessionId, hit.snippet) } catch (error) { trace({ method: 'thread/search:unavailable', reason: String(error?.message ?? error).slice(0, 160) }) /* title matching below still works */ }
+    }
+    const threads = (value.items ?? [])
+      .filter(item => item.origin !== 'subagent' && !item.blank && archived.has(item.sessionId) === wantArchived && !excluded.has(item.sessionId)
+        && (folders.length === 0 || folders.includes(item.cwd)) && (members === undefined || members.has(item.sessionId)))
+      .map(item => thread({
+        id: item.sessionId, cwd: item.cwd, createdAt: item.updatedAt, updatedAt: item.updatedAt, projectId: projectIdOf(item.sessionId),
+        running: item.running, title: item.projections?.values?.title ?? null,
+      }))
+    return { threads, snippets }
+  }
+  const matches = (entry, term, snippets) => {
+    const needle = typeof term === 'string' ? term.trim().toLocaleLowerCase() : ''
+    return needle === '' || snippets.has(entry.id) || `${entry.name ?? ''} ${entry.preview}`.toLocaleLowerCase().includes(needle)
+  }
+
   const methods = {
     initialize: () => ({
       codexHome: '', platformFamily: process.platform === 'win32' ? 'windows' : 'unix',
@@ -533,22 +572,32 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'thread/loaded/list': () => ({ data: [...subscribers.keys()], nextCursor: null }),
     'thread/unsubscribe': () => ({ status: 'notSubscribed' }),
     'thread/list': async (params, { signal }) => {
-      const value = await service().list({}, signal)
-      const archived = new Set(workspaces()?.archivedSessionIds ?? [])
-      const wantArchived = params?.archived === true
-      const excluded = new Set(Array.isArray(params?.excludedThreadIds) ? params.excludedThreadIds : [])
-      const folders = [params?.cwd].flat().filter(entry => typeof entry === 'string')
-      const members = typeof params?.projectId === 'string' ? new Set(workspaceList().find(entry => String(entry.id) === params.projectId)?.sessionIds ?? []) : undefined
-      const needle = params?.searchTerm ? String(params.searchTerm).toLocaleLowerCase() : ''
-      const all = (value.items ?? [])
-        .filter(item => item.origin !== 'subagent' && !item.blank && archived.has(item.sessionId) === wantArchived && !excluded.has(item.sessionId)
-          && (folders.length === 0 || folders.includes(item.cwd)) && (members === undefined || members.has(item.sessionId)))
-        .map(item => thread({
-          id: item.sessionId, cwd: item.cwd, createdAt: item.updatedAt, updatedAt: item.updatedAt, projectId: projectIdOf(item.sessionId),
-          running: item.running, title: item.projections?.values?.title ?? null,
-        }))
-        .filter(entry => !needle || `${entry.name ?? ''} ${entry.preview}`.toLocaleLowerCase().includes(needle))
-      return page(all, params)
+      const { threads, snippets } = await listed(params, signal)
+      return page(threads.filter(entry => matches(entry, params?.searchTerm, snippets)), params)
+    },
+    // Full-text search: conversations whose title or messages contain the term, each with the passage that matched.
+    'thread/search': async (params, { signal }) => {
+      const term = String(params?.searchTerm ?? '').trim()
+      if (term === '') throw invalidParams('searchTerm is required')
+      const { threads, snippets } = await listed(params, signal)
+      const hits = threads.filter(entry => matches(entry, term, snippets)).map(entry => ({ thread: entry, snippet: snippets.get(entry.id) ?? entry.name ?? entry.preview }))
+      return page(hits, params)
+    },
+    // Matches inside one conversation, so the phone can jump to the message.
+    'thread/searchOccurrences': async params => {
+      const term = String(params?.searchTerm ?? '').trim()
+      if (term === '') throw invalidParams('searchTerm is required')
+      const { thread: value } = await openThread(params?.threadId)
+      const found = []
+      for (const [position, turn] of value.turns.entries()) {
+        for (const item of turn.items) {
+          const text = item.type === 'userMessage' ? item.content.map(part => part.text ?? '').join('\n') : item.type === 'agentMessage' ? item.text : ''
+          const hit = occurrence(text, term)
+          if (hit) found.push({ turnId: turn.id, itemId: item.id, ...hit, turnCursor: String(value.turns.length - 1 - position) })
+        }
+      }
+      const { data, nextCursor } = page(found, params)
+      return { data, nextCursor }
     },
     'project/list': (params) => page(workspaceList().map(projectOf), params),
     'project/read': async params => {
@@ -557,6 +606,19 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       if (index < 0) throw new RpcError(-32602, `Project not found: ${String(params?.projectId).slice(0, 80)}`)
       return { project: projectOf(list[index], index) }
     },
+    // The same personal usage figures the official /usage dashboard shows, from the account's usage profile.
+    'account/usage/read': async () => {
+      const profile = await usageProfile()?.read?.().catch(() => undefined)
+      const known = profile && profile.available !== false ? profile : undefined
+      return {
+        summary: {
+          lifetimeTokens: known?.lifetimeTokens ?? null, peakDailyTokens: known?.peakDailyTokens ?? null, longestRunningTurnSec: known?.longestRunningTurnSeconds ?? null,
+          currentStreakDays: known?.currentStreakDays ?? null, longestStreakDays: known?.longestStreakDays ?? null,
+        },
+        dailyUsageBuckets: known ? known.days.map(day => ({ startDate: day.date, tokens: day.tokens })) : null,
+      }
+    },
+    'currentTime/read': () => ({ currentTimeAt: seconds(Date.now()) }),
     'account/rateLimits/read': async () => rateLimits(await usage()?.read?.().catch(() => undefined)),
     'thread/turns/list': async params => {
       const { thread: value } = await openThread(params?.threadId)
