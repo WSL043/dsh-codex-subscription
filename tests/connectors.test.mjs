@@ -65,6 +65,8 @@ test('the connector client signs requests as the account, follows pages, reads e
 test('the connector client reports sign-in and server errors without leaking bodies', async () => {
   const expired = fixture([new Response('secret', { status: 401 })])
   await assert.rejects(expired.client.listTools(), /sign-in needs to be renewed/)
+  const denied = fixture([new Response('secret', { status: 403 })])
+  await assert.rejects(denied.client.listTools(), /does not offer connectors to this account/)
   const broken = fixture([json({ jsonrpc: '2.0', id: 1, error: { code: -32000, message: 'boom' } })])
   await assert.rejects(broken.client.listTools(), /Connector error: boom/)
   const down = fixture([new Response('<html>secret</html>', { status: 502 })])

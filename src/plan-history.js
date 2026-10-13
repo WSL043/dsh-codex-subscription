@@ -71,7 +71,9 @@ export function createReportReader({ url, parse, label, getAuth, readCredential,
     })
     if (response.status === 404) return { available: false, fetchedAt: now() }
     if (!response.ok) {
-      throw new Error(response.status === 401 || response.status === 403 ? 'ChatGPT sign-in needs to be renewed' : `ChatGPT ${label} request failed (HTTP ${response.status})`)
+      throw new Error(response.status === 401 ? 'ChatGPT sign-in needs to be renewed'
+        : response.status === 403 ? `ChatGPT does not offer the ${label} to this account`
+        : `ChatGPT ${label} request failed (HTTP ${response.status})`)
     }
     let body
     try { body = await response.json() } catch { throw new Error(`ChatGPT returned an unreadable ${label}`) }

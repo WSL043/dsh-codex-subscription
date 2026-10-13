@@ -54,6 +54,11 @@ test('the usage history reader sends the account headers once per cache lifetime
   assert.equal((await instance.read()).available, false)
 })
 
+test('a 403 says the account is not offered the report, only a 401 asks for a new sign-in', async () => {
+  await assert.rejects(reader([new Response('x', { status: 403 })]).instance.read(), /does not offer the usage history to this account/)
+  await assert.rejects(reader([new Response('x', { status: 401 })]).instance.read(), /sign-in needs to be renewed/)
+})
+
 test('usage/history is a public endpoint that only surfaces safe messages', async () => {
   assert.ok(RPC_ENDPOINTS.includes('usage/history'))
   const signal = new AbortController().signal

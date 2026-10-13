@@ -75,7 +75,8 @@ export function createConnectorsClient({ getAuth, readCredential, fetch: fetchRp
       body: JSON.stringify({ jsonrpc: '2.0', id: ++nextId, method, params }),
       signal: signal === undefined ? timeout : AbortSignal.any([signal, timeout]),
     })
-    if (response.status === 401 || response.status === 403) throw new Error('ChatGPT sign-in needs to be renewed')
+    if (response.status === 401) throw new Error('ChatGPT sign-in needs to be renewed')
+    if (response.status === 403) throw new Error('ChatGPT does not offer connectors to this account')
     if (!response.ok) throw new Error(`ChatGPT connectors request failed (HTTP ${response.status})`)
     const message = await readRpc(response)
     if (record(message.error)) throw new Error(`Connector error: ${clip(oneLine(String(message.error.message ?? message.error.code ?? 'failed')), 200)}`)
