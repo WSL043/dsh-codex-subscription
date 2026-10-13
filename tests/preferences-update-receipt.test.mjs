@@ -58,3 +58,20 @@ test('the settings adapter prefers the fiber live config over the apply-time sna
   ctx.fiber.config = undefined
   assert.equal(adapter.get()[SPEED_MODE_FIELD], SPEED_MODE_STANDARD, 'hosts without a live config fall back to the snapshot')
 })
+
+test('a write the running settings never pick up is reported instead of looking applied', async () => {
+  const { settlesLive } = await import('../src/subscription-rpc.js')
+  const patch = { [DISABLED_MODELS_FIELD]: ['b', 'a'] }
+  let live = { [DISABLED_MODELS_FIELD]: [] }
+  const slow = { status: () => live }
+  setTimeout(() => { live = { [DISABLED_MODELS_FIELD]: ['a', 'b'] } }, 120)
+  assert.equal(await settlesLive(slow, patch, undefined, { attempts: 8, delayMs: 40 }), true, 'a late host swap still counts, and list order does not matter')
+  const stuck = { status: () => ({ [DISABLED_MODELS_FIELD]: [] }) }
+  assert.equal(await settlesLive(stuck, patch, undefined, { attempts: 3, delayMs: 5 }), false)
+
+  const handler = createSubscriptionRpcHandler({ preferences: { status: () => ({ [DISABLED_MODELS_FIELD]: [], writable: true }), update: async () => {} } })
+  const response = await handler('preferences/update', { [DISABLED_MODELS_FIELD]: ['a'] }, new AbortController().signal)
+  assert.equal(response.ok, true)
+  assert.deepEqual(response.value[DISABLED_MODELS_FIELD], ['a'], 'the receipt still carries what was written')
+  assert.equal(response.value.liveSynced, false, 'and says the running settings did not take it')
+})

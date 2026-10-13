@@ -7,6 +7,22 @@ const publicError = (code, message) => ({
   error: { code, message, details: { issues: [] } },
 })
 
+const sortedIfList = value => JSON.stringify(Array.isArray(value) ? [...value].sort() : value)
+
+/** True once the running settings report every written value; the host swaps its config shortly after a write. */
+export async function settlesLive(preferences, patch, signal, { attempts = 8, delayMs = 75 } = {}) {
+  const live = () => {
+    const current = preferences.status()
+    return Object.entries(patch).every(([field, value]) => sortedIfList(current[field]) === sortedIfList(value))
+  }
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (live()) return true
+    await new Promise(resolve => setTimeout(resolve, delayMs))
+    signal?.throwIfAborted()
+  }
+  return live()
+}
+
 export function createSubscriptionRpcHandler({ authHandler, usageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
   return async (endpoint, payload, signal) => {
     if (endpoint === 'default-model/status' || endpoint === 'default-model/select') {
@@ -124,6 +140,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, planHis
       try {
         signal.throwIfAborted()
         let patch
+        let liveSynced = true
         if (endpoint === 'preferences/update') {
           patch = capabilityPatch(payload)
           if (Object.hasOwn(payload ?? {}, DISABLED_MODELS_FIELD)) {
@@ -161,12 +178,15 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, planHis
             return publicError('internal', 'Invalid preference update')
           }
           await preferences.update(patch)
+          liveSynced = await settlesLive(preferences, patch, signal)
         }
         const status = preferences.status()
         // A volatile write swaps the fiber's config asynchronously, so the in-flight
         // fiber can still report the pre-write snapshot. Overlay the accepted patch
         // so the receipt always describes the persisted state (issue #160).
-        return { ok: true, value: patch === undefined ? status : { ...status, ...patch } }
+        // A write that reached the profile but never reached the running settings (a host that cannot hot-update them)
+        // is reported as such instead of looking applied, so the UI can say a restart is needed (issue #164).
+        return { ok: true, value: patch === undefined ? status : { ...status, ...patch, ...(liveSynced ? {} : { liveSynced: false }) } }
       } catch (error) {
         if (signal.aborted) throw error
         return publicError('internal', 'Could not update preferences')

@@ -211,6 +211,7 @@ export function ModelCatalogStatus({ preference, t }) {
 export function PreferencesCard({ preference, rpc, t, defaultModel, section = "display" }) {
   const snapshot = usePreferenceSnapshot(preference)
   return <div className={section === 'advanced' ? 'codexSubscriptionAdvancedPreferences' : 'codexSubscriptionCard codexSubscriptionPreferencesCard'}>
+    {snapshot.restartRequired ? <p className="codexSubscriptionError" role="status">{t('settingsRestartRequired')}</p> : null}
     {section === 'advanced' ? <>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('modelsSectionTitle')}>
         <h3>{t('modelsSectionTitle')}</h3>

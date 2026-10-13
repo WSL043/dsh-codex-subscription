@@ -56,6 +56,7 @@ export function createPreferenceController(rpc) {
   let disposed = false
   let subagentBackendAvailable = false
   let subagentRuntimeInstalled = false
+  let restartRequired = false
 
   const sameModels = (left, right) => left.length === right.length
     && left.every((model, index) => JSON.stringify(model) === JSON.stringify(right[index]))
@@ -104,6 +105,7 @@ export function createPreferenceController(rpc) {
       modelError,
       writable: !updating && current.status === 'ready' && current.writable === true,
       saving: updating,
+      restartRequired,
       error,
     })
   }
@@ -114,6 +116,8 @@ export function createPreferenceController(rpc) {
     for (const listener of listeners) listener()
   }
   const acceptFallback = value => {
+    // Sticky until the page reloads: the host kept the written value on disk but not in the running settings.
+    if (value?.liveSynced === false) restartRequired = true
     subagentBackendAvailable = value?.subagentBackendAvailable === true
     subagentRuntimeInstalled = value?.subagentRuntimeInstalled === true
     if (!modelRefreshStarted) {
