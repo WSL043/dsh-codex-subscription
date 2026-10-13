@@ -158,7 +158,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
 
   let submenu = null
   if (pane === 'model') {
-    submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('modelLabel')}>
+    submenu = <div className="codexModelSelectSubmenu codexModelSelectModelMenu" role="menu" aria-label={t('modelLabel')}>
       {state.status === 'loading' ? <div className="codexModelSelectStatus">{t('modelsLoading')}</div> : null}
       {state.error === null ? null : <div className="codexModelSelectError"><span>{fill(t('modelFailed'), { value: state.error })}</span><button className="codexModelSelectRetry" type="button" onClick={load}>{t('modelRetry')}</button></div>}
       {state.failures.map(failure => <div className="codexModelSelectWarning" key={failure.id}>{fill(t('groupFailed'), { name: failure.name, value: failure.message })}</div>)}

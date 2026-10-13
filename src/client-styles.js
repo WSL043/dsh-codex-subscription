@@ -201,15 +201,17 @@ export const STYLE = `
 .codexModelSelectMenu,.codexModelSelectSubmenu{position:absolute;z-index:30;box-sizing:border-box;width:max-content;min-width:min(240px,calc(100vw - 32px));max-width:min(420px,calc(100vw - 32px));max-height:min(360px,calc(100vh - 96px));padding:4px;border:1px solid var(--dsw-alias-border-inverted);border-radius:12px;background:var(--dsw-alias-bg-layer-2,#2c2c2e);box-shadow:var(--dsw-shadow-lv3);color:var(--dsw-alias-label-primary);overflow:hidden}
 .codexModelSelectMenu{right:0;bottom:calc(100% + 8px)}
 .codexModelSelectSubmenu{right:calc(100% + 8px);bottom:0;min-width:min(230px,calc(100vw - 32px))}
+/* Keep search outside the scroll viewport; let the model list fit the bounded menu. */
+.codexModelSelectModelMenu{display:flex;flex-direction:column}
 .codexModelSelectCell{display:flex;align-items:center;gap:8px;width:100%;min-width:100%;height:40px;box-sizing:border-box;padding:0 10px;border:0;border-radius:10px;background:transparent;color:inherit;font-size:14px;line-height:22px;text-align:left;cursor:pointer}
 .codexModelSelectCell:hover,.codexModelSelectCell:focus-visible,.codexModelSelectCell[data-open=true]{background:var(--dsw-alias-interactive-bg-hover);outline:0}
 .codexModelSelectCell:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
 .codexModelSelectCellLabel{flex:none;white-space:nowrap}
 .codexModelSelectCellValue{flex:auto;min-width:0;overflow:hidden;color:var(--dsw-alias-label-tertiary);text-align:right;text-overflow:ellipsis;white-space:nowrap}
 .codexModelSelectCellChevron{flex:none;color:var(--dsw-alias-label-tertiary)}
-.codexModelSelectSearch{display:block;width:100%;box-sizing:border-box;height:32px;margin:0 0 4px;padding:0 10px;border:1px solid var(--dsw-alias-border-l3);border-radius:8px;outline:0;background:transparent;color:inherit;font:inherit;font-size:13px}
+.codexModelSelectSearch{display:block;flex-shrink:0;width:100%;box-sizing:border-box;height:32px;margin:0 0 4px;padding:0 10px;border:1px solid var(--dsw-alias-border-l3);border-radius:8px;outline:0;background:transparent;color:inherit;font:inherit;font-size:13px}
 .codexModelSelectSearch:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}
-.codexModelSelectGroups{min-height:0;max-height:352px;overflow-y:auto}
+.codexModelSelectGroups{flex:1 1 auto;min-height:0;overflow-y:auto}
 .codexModelSelectGroup+.codexModelSelectGroup{margin-top:4px}
 .codexModelSelectGroupTitle{position:sticky;top:0;z-index:1;padding:5px 8px 3px;background:var(--dsw-alias-bg-layer-2,#2c2c2e);color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:500;line-height:18px}
 .codexModelSelectOption{display:flex;align-items:center;gap:8px;width:100%;min-width:100%;min-height:38px;box-sizing:border-box;padding:6px 8px;border:0;border-radius:10px;outline:0;background:transparent;color:inherit;text-align:left;cursor:pointer}
