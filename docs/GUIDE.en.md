@@ -37,6 +37,10 @@ Choose Off, Percent, Progress bar, or Beta Runway under Account. When a five-hou
 Runway uses official observations from the recent two hours, including unchanged readings. Repeated boundary crossings can refine the rate interval when the assumptions hold; insufficient evidence or changing intensity falls back to a conservative estimate. It remains Beta and is not a guarantee of working time. History is bounded and stored locally; resets, long gaps or disabling the feature restart calibration.
 Spark keeps its independent quota. The plugin does not invent five-hour limits, Credits, or spending caps that the service did not return.
 
+### Where the allowance went
+
+Under the quota card, "Where the allowance went (weekly)" shows how each week's allowance was spent: by model, by surface (desktop app and so on), by source (your chats, subtasks, memory upkeep) and by trigger, as a percentage of that period's allowance. It comes from the official usage report, so only periods that have been counted show a split, usually a day or two late; accounts without the report do not show the section. It is read only when you expand it and does not affect normal quota refreshes.
+
 ### Safe quota reset
 
 If ChatGPT reports available quota resets, Settings shows each one in its own compact row with its disclosed name and expiry.

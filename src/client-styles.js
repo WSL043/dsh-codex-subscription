@@ -100,6 +100,18 @@ export const STYLE = `
 .codexSubscriptionRefresh{flex:0 0 auto;min-width:72px;width:max-content;white-space:nowrap!important;word-break:keep-all!important;overflow-wrap:normal!important;writing-mode:horizontal-tb!important}
 .codexSubscriptionRefresh *{white-space:nowrap!important;word-break:keep-all!important;writing-mode:horizontal-tb!important}
 .codexSubscriptionEmpty{padding:18px;border:1px dashed var(--dsw-alias-border-l3);border-radius:10px;text-align:center;font-size:13px;line-height:20px;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionHistory{margin-top:10px;border-top:1px solid var(--dsw-alias-border-l3);padding-top:8px}
+.codexSubscriptionHistory>summary{cursor:pointer;font-size:13px;font-weight:500;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionHistoryPeriods{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.codexSubscriptionHistoryPeriods button{height:26px;padding:0 10px;border:1px solid var(--dsw-alias-border-l3);border-radius:13px;background:transparent;color:inherit;font-size:12px;cursor:pointer}
+.codexSubscriptionHistoryPeriods button[aria-pressed=true]{background:var(--dsw-alias-interactive-bg-hover);border-color:var(--dsw-alias-border-inverted)}
+.codexSubscriptionHistorySummary{margin:4px 0 8px;font-size:13px}
+.codexSubscriptionHistoryGroup{margin:8px 0}
+.codexSubscriptionHistoryGroup h4{margin:0 0 4px;font-size:12px;font-weight:500;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionHistoryRow{display:grid;grid-template-columns:minmax(80px,32%) 1fr 52px;align-items:center;gap:8px;font-size:12px;line-height:20px}
+.codexSubscriptionHistoryKey{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.codexSubscriptionHistoryRow progress{width:100%;height:6px}
+.codexSubscriptionHistoryRow strong{text-align:right;font-weight:500}
 .codexSubscriptionLimits{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:6px}
 .codexSubscriptionLimit{min-width:0;border-radius:10px;padding:9px 12px;background:var(--dsw-alias-bg-module-platform);display:flex;flex-direction:column;gap:6px}
 .codexSubscriptionLimitTop{display:flex;align-items:baseline;justify-content:space-between;gap:12px}
