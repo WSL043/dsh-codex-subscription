@@ -5,7 +5,18 @@ export function createSettingsAdapter(ctx, config) {
   const entry = ctx.fiber.entry
   const id = entry?.options?.id ?? entry?.id
   if (!id) throw new Error('DSH settings entry is unavailable')
-  const get = () => Object.fromEntries(Object.entries(config).map(([key, value]) => [key, typeof value?.get === 'function' ? value.get() : value]))
+  // A volatile write swaps the fiber's config and reloads the plugin; reads from
+  // the apply-time `config` snapshot go stale in between. Prefer the fiber's
+  // live config when it is readable and shaped like a config object.
+  const liveConfig = () => {
+    try {
+      const current = ctx.fiber?.config ?? ctx.config
+      return current !== null && typeof current === 'object' ? current : config
+    } catch {
+      return config
+    }
+  }
+  const get = () => Object.fromEntries(Object.entries(liveConfig()).map(([key, value]) => [key, typeof value?.get === 'function' ? value.get() : value]))
   return {
     get,
     update: patch => ctx.settings.update(id, patch),

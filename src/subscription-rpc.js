@@ -123,8 +123,9 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
     if (endpoint === 'preferences/status' || endpoint === 'preferences/update') {
       try {
         signal.throwIfAborted()
+        let patch
         if (endpoint === 'preferences/update') {
-          const patch = capabilityPatch(payload)
+          patch = capabilityPatch(payload)
           if (Object.hasOwn(payload ?? {}, DISABLED_MODELS_FIELD)) {
             const disabled = payload[DISABLED_MODELS_FIELD]
             if (!Array.isArray(disabled) || disabled.length > 100 || disabled.length !== normalizeDisabledModels(disabled).length) {
@@ -161,7 +162,11 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, resetCr
           }
           await preferences.update(patch)
         }
-        return { ok: true, value: preferences.status() }
+        const status = preferences.status()
+        // A volatile write swaps the fiber's config asynchronously, so the in-flight
+        // fiber can still report the pre-write snapshot. Overlay the accepted patch
+        // so the receipt always describes the persisted state (issue #160).
+        return { ok: true, value: patch === undefined ? status : { ...status, ...patch } }
       } catch (error) {
         if (signal.aborted) throw error
         return publicError('internal', 'Could not update preferences')
