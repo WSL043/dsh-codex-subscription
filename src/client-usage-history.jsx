@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { recoveryCall } from './client-recovery.js'
 import { fill } from './client-shared.js'
+import { uiLocale } from './client-usage-overview.jsx'
 
 const DIMENSIONS = ['model', 'surface', 'thread_source', 'turn_trigger']
 const LABELS = new Map([
@@ -8,8 +9,8 @@ const LABELS = new Map([
   ['user', 'historyUser'], ['subagent', 'historySubagent'], ['memory_consolidation', 'historyMemory'], ['review', 'historyReview'],
   ['composer', 'historyComposer'], ['automation', 'historyAutomation'],
 ])
-const day = value => new Date(value).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' })
-const amount = value => (value > 0 && value < 0.1 ? '<0.1' : (value >= 10 ? Math.round(value) : Math.round(value * 10) / 10).toLocaleString())
+const day = value => new Date(value).toLocaleDateString(uiLocale(), { month: 'numeric', day: 'numeric' })
+const amount = value => (value > 0 && value < 0.1 ? '<0.1' : (value >= 10 ? Math.round(value) : Math.round(value * 10) / 10).toLocaleString(uiLocale()))
 const labelOf = (dimension, key, t) => (dimension === 'model' ? key : LABELS.has(key) ? t(LABELS.get(key)) : key.replaceAll('_', ' '))
 
 function Rows({ dimension, rows, total, t }) {

@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { recoveryCall } from './client-recovery.js'
 import { fill } from './client-shared.js'
 
+// Numbers and dates follow the language DSH shows, not the browser's.
+export const uiLocale = () => (typeof document === 'undefined' ? undefined : document.documentElement.lang || undefined)
 const WEEKS = 26
-const compact = value => new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(value)
+const compact = value => new Intl.NumberFormat(uiLocale(), { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 const hours = seconds => (seconds >= 3600 ? `${Math.round(seconds / 360) / 10} h` : `${Math.max(1, Math.round(seconds / 60))} min`)
 const key = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
@@ -51,7 +53,7 @@ export function UsageOverview({ rpc, t, signedIn, resetKey }) {
     [t('overviewPeak'), value.peakDailyTokens === undefined ? undefined : compact(value.peakDailyTokens)],
     [t('overviewStreak'), value.currentStreakDays === undefined ? undefined : fill(t('overviewDays'), { value: value.currentStreakDays })],
     [t('overviewLongestStreak'), value.longestStreakDays === undefined ? undefined : fill(t('overviewDays'), { value: value.longestStreakDays })],
-    [t('overviewThreads'), value.totalThreads === undefined ? undefined : value.totalThreads.toLocaleString()],
+    [t('overviewThreads'), value.totalThreads === undefined ? undefined : value.totalThreads.toLocaleString(uiLocale())],
     [t('overviewEffort'), value.mostUsedReasoningEffort === undefined ? undefined : `${value.mostUsedReasoningEffort}${value.mostUsedReasoningEffortPercent === undefined ? '' : ` · ${value.mostUsedReasoningEffortPercent}%`}`],
     [t('overviewFast'), value.fastModePercent === undefined ? undefined : `${value.fastModePercent}%`],
     [t('overviewLongestTurn'), value.longestRunningTurnSeconds === undefined ? undefined : hours(value.longestRunningTurnSeconds)],

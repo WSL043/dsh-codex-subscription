@@ -61,6 +61,8 @@ Subscription access, model controls, quota management, and image creation in one
 | **Redeem reset cards** | Use an available reset card after confirmation | Confirmation and waiting safeguards; server decides the result |
 | **Retry after reset** | Wait for a confirmed short-window reset before continuing | Off by default; waiting can be stopped |
 
+<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="Usage overview and where the allowance went in the quota card: lifetime tokens, streaks, a half-year daily heatmap and the weekly allowance split by model, surface and source"></p>
+
 ### Images and sketching
 
 | Feature | What you can do | Availability / setup |
