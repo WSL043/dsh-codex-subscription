@@ -2,6 +2,7 @@
 // The exact peer version makes a DSH update fail visibly until this seam is
 // re-audited instead of silently changing authentication or cache semantics.
 import { redactRequest } from './failure-capture.js'
+import { hoistLeadingSystem, understandsSystemMessages } from './pi-ai-compat.js'
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 import { normalizeTransportEvent } from './transport-failure.js'
 import {
@@ -282,7 +283,9 @@ export function openaiCodexSubscriptionProvider({
       throw: error => iterator ? step('throw', error) : Promise.reject(error),
     }
   }
-  const routed = (method, model, context, options) => {
+  const routed = (method, model, transcript, options) => {
+    // A pi-ai that predates system messages in the transcript gets them as systemPrompt and tools.
+    const context = understandsSystemMessages() ? transcript : hoistLeadingSystem(transcript)
     const route = reviewRoute(model, context)
     const source = { method, model, context, options }
     const create = () => route === undefined

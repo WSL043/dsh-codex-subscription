@@ -226,6 +226,8 @@ await section('compact on demand', async () => {
   const done = await phone.waitFor(message => message.method === 'turn/completed' && message.params.threadId === threadId && phone.notifications.indexOf(message) >= since, 240_000)
   const events = phone.notifications.slice(since)
   console.log('  compaction turn:', done.params.turn.status, 'rows:', events.filter(message => message.method === 'item/completed' && message.params.item.type === 'contextCompaction').length, 'error:', events.some(message => message.method === 'error'))
+  const failure = events.find(message => message.method === 'error')
+  if (failure) console.log('  DSH said:', failure.params.error.message)
 })
 
 await section('fork, rename, archive', async () => {

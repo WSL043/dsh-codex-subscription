@@ -710,7 +710,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     },
     'turn/start': (params, { notify }) => titles.has(params?.threadId) ? titleTurn(params, notify) : startTurn(params, notify),
     'turn/interrupt': params => { service().cancel({ sessionId: params?.threadId }); active.get(params?.threadId)?.abort?.abort(); return {} },
-    // DSH's /compact (0.2.1-alpha.3 and later): condense the older history now. It is a turn of its own, like the app's.
+    // DSH's /compact (0.2.0-rc.2 and later): condense the older history now. It is a turn of its own, like the app's.
     'thread/compact/start': async (params, { notify }) => {
       const id = params?.threadId
       const registry = commands()

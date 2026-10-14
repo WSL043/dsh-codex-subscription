@@ -1,4 +1,5 @@
 import { hostDshVersion } from './subagent-runtime.js'
+import { runtimeVersions } from './pi-ai-compat.js'
 import { PACKAGE_VERSION } from './version.js'
 import { collectChecks } from './diagnostic-checks.js'
 import { capabilityCoverage } from './diagnostic-capabilities.js'
@@ -42,6 +43,13 @@ function safeRequests(network) {
     }
   }
   return result
+}
+
+/** pi-ai and DSH's adapter come from the host; a profile can pair an adapter with an older library, so the report names both. */
+function libraryVersions() {
+  const { piAi, adapter } = runtimeVersions()
+  const valid = value => typeof value === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]{1,32})?$/u.test(value)
+  return { ...(valid(piAi) ? { piAi } : {}), ...(valid(adapter) ? { adapter } : {}) }
 }
 
 /** Build a support report that deliberately excludes OAuth and account metadata. */
@@ -110,7 +118,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     },
     package: 'dsh-codex-subscription',
     version: PACKAGE_VERSION,
-    runtime: { node: process.version, platform: process.platform, arch: process.arch, ...(hostDshVersion() ? { dsh: hostDshVersion() } : {}) },
+    runtime: { node: process.version, platform: process.platform, arch: process.arch, ...(hostDshVersion() ? { dsh: hostDshVersion() } : {}), ...libraryVersions() },
     account,
     login,
     requests: collected.requests ?? {},
