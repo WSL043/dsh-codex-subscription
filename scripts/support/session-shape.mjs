@@ -67,6 +67,9 @@ for (const event of events) {
   } else if (event.type === 'request/header') {
     const tools = Array.isArray(data.header?.tools) ? data.header.tools : []
     console.log(`#${event.seq} request header: ${tools.length} tools`)
+    const config = data.header?.config ?? {}
+    console.log(`    config: ${config.provider}/${config.model} effort=${config.reasoningEffort}`)
+    console.log(`    tools: ${tools.map(tool => String(tool?.name).slice(0, 60)).join(', ')}`)
     const shapes = new Map()
     for (const tool of tools) {
       const line = `tool name=${kind(tool?.name)} description=${kind(tool?.description)} parameters=${kind(tool?.parameters)}${tool?.parameters && typeof tool.parameters === 'object' ? ` type=${kind(tool.parameters.type)} properties=${kind(tool.parameters.properties)}` : ''}`
@@ -75,6 +78,8 @@ for (const event of events) {
     for (const [line, count] of shapes) console.log(`    ${count} x ${line}`)
   } else if (event.type === 'turn/end') {
     const reason = data.reason ?? {}
-    console.log(`#${event.seq} turn end: ${reason.kind}${reason.failure ? ` code=${reason.failure.code} message=${JSON.stringify(String(reason.failure.message).slice(0, 160))}` : ''}`)
+    console.log(`#${event.seq} turn end: ${reason.kind} keys=[${Object.keys(reason)}]${reason.failure ? ` code=${reason.failure.code} message=${JSON.stringify(String(reason.failure.message).slice(0, 160))}` : ''}`)
+  } else {
+    console.log(`#${event.seq} ${event.type} keys=[${Object.keys(data).join(',')}]`)
   }
 }
