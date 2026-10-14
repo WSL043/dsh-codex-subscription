@@ -246,10 +246,12 @@ test('plugin activates without the web connection service in Headless mode', () 
   assert.equal(host.handled.length, 0)
 })
 
-test('signed out, the account advertises no models and model metadata never reads credentials', async () => {
+test('signed out, the account advertises no models and model metadata needs no credentials', async () => {
   const host = fakeContext()
   applyPlugin(host.ctx, host.config)
-  host.ctx.credentials.resolve = async () => assert.fail('model metadata must not read credentials')
+  // DSH 0.2.1-alpha.3 and later resolve the route's key while listing models, so signed out must answer
+  // "no credential" (an empty list) rather than an authorization failure.
+  host.ctx.credentials.resolve = async () => undefined
   const adapter = host.registered[0].adapter
   assert.deepEqual(await adapter.listModels('openai-codex'), [], 'no bundled list stands in for the account catalog')
   await assert.rejects(adapter.resolveModel('openai-codex', 'gpt-5.5'))

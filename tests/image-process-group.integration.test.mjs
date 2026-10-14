@@ -34,6 +34,8 @@ function loadChatAlgorithms() {
     'react-dom': {},
     '@deepseek-ai/dsh-client-ui-primitives': {},
     '@deepseek-ai/dsh-client-store': {},
+    // Virtualised message list (DSH 0.2.1-alpha.3 and later); only used while rendering.
+    '@tanstack/react-virtual': {},
   }
   const exports = descriptor.factory(id => {
     assert.ok(Object.hasOwn(modules, id), `unexpected browser dependency: ${id}`)

@@ -360,7 +360,9 @@ export function apply(ctx, config = {}) {
       let resolved
       try {
         resolved = await resolveAuth()
-      } catch {
+      } catch (error) {
+        // DSH lists models by resolving the route's key; signed out has to read as "no credential".
+        if (error?.code === 'MISSING_CREDENTIAL') throw new dshLlm.LlmError('ChatGPT subscription is not signed in', 'MISSING_CREDENTIAL')
         throw new dshLlm.LlmError('ChatGPT subscription authorization failed', 'AUTH_FAILED')
       }
       if (typeof resolved?.auth.apiKey !== 'string' || resolved.auth.apiKey.length === 0) {
