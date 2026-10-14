@@ -65,15 +65,29 @@ test('user cancellation is not relabelled as a retryable network failure', { tim
   }
 })
 
-test('only transient WebSocket failures receive transport context', () => {
-  for (const code of [1006, 1011, 1012, 1013]) {
+test('only recoverable WebSocket failures receive transport context', () => {
+  for (const code of [1000, 1006, 1011, 1012, 1013]) {
     const event = { type: 'error', reason: 'error', error: { errorMessage: `WebSocket closed ${code} fixture` } }
     assert.match(normalizeTransportEvent(event).error.errorMessage, /^Network transport failure:/)
     assert.equal(normalizeTransportEvent(event, AbortSignal.abort()), event)
   }
-  for (const message of ['WebSocket closed 1008 policy', 'WebSocket closed 1009 size', 'aborted', '401 unauthorized']) {
+  for (const message of ['WebSocket closed 1008 policy', 'WebSocket closed 1009 size', 'WebSocket closed 10000', 'aborted', '401 unauthorized']) {
     const event = { type: 'error', reason: 'error', error: { errorMessage: message } }
     assert.equal(normalizeTransportEvent(event), event)
+  }
+})
+
+test('close 1000 errors are normalized without changing completed or cancelled events', () => {
+  for (const message of ['WebSocket closed 1000', 'WebSocket closed 1000 debug_close']) {
+    const event = { type: 'error', reason: 'error', error: { errorMessage: message } }
+    const original = structuredClone(event)
+    assert.equal(normalizeTransportEvent(event).error.errorMessage, `Network transport failure: ${message}`)
+    assert.deepEqual(event, original)
+    const done = { type: 'done', reason: 'stop', message: event.error }
+    const aborted = { ...event, reason: 'aborted' }
+    assert.equal(normalizeTransportEvent(done), done)
+    assert.equal(normalizeTransportEvent(aborted), aborted)
+    assert.equal(normalizeTransportEvent(event, AbortSignal.abort()), event)
   }
 })
 

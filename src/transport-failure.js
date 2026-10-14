@@ -1,6 +1,6 @@
-// pi-ai emits a message-only error event for WebSocket closes. Limit this
-// compatibility mapping to transient close codes, never policy/size rejection.
-const TRANSIENT_WEBSOCKET_CLOSE = /^WebSocket closed (?:1006|1011|1012|1013)(?:\s|$)/
+// A close error means the response did not finish, even for normal code 1000
+// during account-switch cleanup. Never map policy/size rejection to transport.
+const TRANSIENT_WEBSOCKET_CLOSE = /^WebSocket closed (?:1000|1006|1011|1012|1013)(?:\s|$)/
 // The Codex gateway (Envoy) answers 507 with this text when an upstream attempt
 // fails and the request body is too large for it to replay. The request was
 // accepted and forwarded, so a fresh send can succeed; pi-ai keeps only the body

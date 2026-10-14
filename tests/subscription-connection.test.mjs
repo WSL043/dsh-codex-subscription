@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
+import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { createSubscriptionConnection, tokenScope } from '../src/subscription-connection.js'
 import { openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
 import { createCodexNetworkTransport, withCodexNetwork } from '../src/oauth-network.js'
@@ -74,7 +75,7 @@ test('a rejected WebSocket proxy CONNECT falls back through the existing SSE rou
   } finally { connection.dispose(); await new Promise(resolve => server.close(resolve)) }
 })
 
-test('a disconnect after response acceptance is surfaced without replaying the request over SSE', async () => {
+for (const closeCode of [1006, 1000]) test(`close ${closeCode} after response acceptance reaches DSH as TRANSPORT without SSE replay`, async () => {
   const originalSocket = globalThis.WebSocket, originalFetch = globalThis.fetch
   let fetches = 0, sends = 0
   class InterruptedSocket extends EventTarget {
@@ -84,10 +85,15 @@ test('a disconnect after response acceptance is surfaced without replaying the r
       sends++
       queueMicrotask(() => {
         this.dispatchEvent(new MessageEvent('message', { data: JSON.stringify({ type: 'response.created', response: { id: 'accepted' } }) }))
-        setImmediate(() => this.close())
+        // Account selection invokes this same connection cleanup, which closes with 1000.
+        setImmediate(() => closeCode === 1000 ? connection.dispose() : this.close())
       })
     }
-    close() { if(this.readyState===3)return; this.readyState=3; const event=new Event('close'); Object.assign(event,{code:1006,reason:'fixture disconnect',wasClean:false}); this.dispatchEvent(event) }
+    close(code = 1006, reason = 'fixture disconnect') {
+      if (this.readyState === 3) return
+      this.readyState = 3
+      this.dispatchEvent(Object.assign(new Event('close'), { code, reason, wasClean: code === 1000 }))
+    }
   }
   globalThis.WebSocket = InterruptedSocket
   globalThis.fetch = async () => { fetches++; throw Error('must not replay') }
@@ -95,14 +101,20 @@ test('a disconnect after response acceptance is surfaced without replaying the r
   const provider = openaiCodexSubscriptionProvider({ connection })
   const apiKey = `e30.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture' } })).toString('base64url')}.fake`
   try {
-    const model = provider.getModels().find(model => model.id === 'gpt-5.6-luna')
-    const events=[]
-    for await(const event of provider.streamSimple(model,{messages:[{role:'user',content:'fixture',timestamp:Date.now()}]},{apiKey,sessionId:'interrupted',signal:AbortSignal.timeout(3000)})) events.push(event)
-    assert.ok(events.some(event => event.type === 'start'))
-    const failure = events.find(event => event.type === 'error')
-    assert.match(failure?.error.errorMessage, /^Network transport failure: WebSocket closed 1006/)
-    assert.equal(sends,1)
-    assert.equal(fetches,0)
+    const profiles = new Map([['openai-codex', {
+      provider: 'openai-codex', piProvider: provider, configuredMaxTokens: new Map(), modelErrors: new Map(), streamIdleTimeoutMs: 3000,
+    }]])
+    const adapter = new PiAiAdapter({ profiles: () => profiles, resolveApiKey: async () => apiKey })
+    const chunks = []
+    for await (const chunk of adapter.stream({
+      provider: 'openai-codex', model: 'gpt-5.6-luna', sessionId: `interrupted-${closeCode}`,
+      messages: [{ role: 'user', content: [{ type: 'text', text: 'fixture' }] }], signal: AbortSignal.timeout(3000),
+    })) chunks.push(chunk)
+    const failure = chunks.find(chunk => chunk.reason?.failure)?.reason.failure
+    assert.equal(failure?.code, 'TRANSPORT', JSON.stringify(failure))
+    assert.ok(failure.message.startsWith(`Network transport failure: WebSocket closed ${closeCode}`))
+    assert.equal(sends, 1)
+    assert.equal(fetches, 0)
   } finally { connection.dispose();globalThis.WebSocket=originalSocket;globalThis.fetch=originalFetch }
 })
 
