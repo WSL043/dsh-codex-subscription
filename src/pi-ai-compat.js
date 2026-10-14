@@ -33,7 +33,7 @@ const atLeast087 = version => {
 }
 
 /** Whether the installed pi-ai understands system messages inside the transcript. */
-export const understandsSystemMessages = (version = runtimeVersions().piAi) => atLeast087(version)
+export const understandsSystemMessages = version => atLeast087(version)
 
 const textOf = content => typeof content === 'string'
   ? content
