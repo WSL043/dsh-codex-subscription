@@ -1,6 +1,7 @@
 // Keep every dependency on pi-ai's Codex-specific public surface in one place.
 // The exact peer version makes a DSH update fail visibly until this seam is
 // re-audited instead of silently changing authentication or cache semantics.
+import { redactRequest } from './failure-capture.js'
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 import { normalizeTransportEvent } from './transport-failure.js'
 import {
@@ -178,10 +179,22 @@ export function openaiCodexSubscriptionProvider({
   // pi-ai turns an exception raised while it builds or sends a request into an
   // error event that carries only the message. Keep how many requests failed and
   // how far the last one got, so a support report can say where the failure sits.
-  const streamFailure = { count: 0, stage: undefined, frame: undefined }
-  const noteStreamFailure = (stage, error) => {
+  const streamFailure = { count: 0, stage: undefined, frame: undefined, request: undefined, adapter: undefined }
+  const noteAdapterFailure = (kind, adapterOptions, failure) => {
+    try {
+      streamFailure.adapter = {
+        kind,
+        ...(typeof failure?.code === 'string' ? { code: failure.code.slice(0, 40) } : {}),
+        message: String(failure?.message ?? '').slice(0, 160),
+        request: redactRequest(adapterOptions),
+      }
+    } catch { streamFailure.adapter = undefined }
+  }
+  const noteStreamFailure = (stage, error, source) => {
     streamFailure.count += 1
     streamFailure.stage = stage
+    // The request is deterministic input to pi-ai: keep a text-free copy so the failure can be replayed.
+    try { streamFailure.request = source === undefined ? undefined : redactRequest(source) } catch { streamFailure.request = undefined }
     const frame = typeof error?.stack === 'string' ? /([\w.@-]+[\\/][\w.-]+\.[cm]?[jt]sx?):(\d+):(\d+)/u.exec(error.stack.split('\n').slice(1).join('\n')) : null
     streamFailure.frame = frame ? `${frame[1].replaceAll('\\', '/')}:${frame[2]}:${frame[3]}` : undefined
   }
@@ -243,7 +256,7 @@ export function openaiCodexSubscriptionProvider({
     }
     return { [Symbol.asyncIterator]: () => (replay ??= run()) }
   }
-  const networkIterable = (factory, options, direct = false) => {
+  const networkIterable = (factory, options, direct = false, source) => {
     let iterator
     let prepared
     let stage = 'prepare'
@@ -257,11 +270,11 @@ export function openaiCodexSubscriptionProvider({
         return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
       }, direct ? request.network : compaction?.networkOptions(request.network) ?? request.network)
       if (!result.done) {
-        if (result.value?.type === 'error' && !request.options?.signal?.aborted) noteStreamFailure(stage)
+        if (result.value?.type === 'error' && !request.options?.signal?.aborted) noteStreamFailure(stage, undefined, source)
         else if (stage === 'payload') stage = 'stream'
       }
       return result.done ? result : { ...result, value: normalizeTransportEvent(result.value, request.options?.signal) }
-    } catch (error) { noteStreamFailure(stage, error); throw error } }
+    } catch (error) { noteStreamFailure(stage, error, source); throw error } }
     return {
       [Symbol.asyncIterator]() { return this },
       next: value => step('next', value),
@@ -271,9 +284,10 @@ export function openaiCodexSubscriptionProvider({
   }
   const routed = (method, model, context, options) => {
     const route = reviewRoute(model, context)
+    const source = { method, model, context, options }
     const create = () => route === undefined
-      ? networkIterable(prepared => provider[method](model, context, prepared), withPreferences(model, options))
-      : networkIterable(prepared => provider[method](model, context, prepared), withReview(route, options), true)
+      ? networkIterable(prepared => provider[method](model, context, prepared), withPreferences(model, options), false, source)
+      : networkIterable(prepared => provider[method](model, context, prepared), withReview(route, options), true, source)
     return isDshAutoReview(context) ? reviewIterable(create) : create()
   }
   return Object.freeze({
@@ -284,6 +298,7 @@ export function openaiCodexSubscriptionProvider({
     streamSimple: (model, context, options) => routed('streamSimple', model, context, options),
     reviewCounters: () => ({ ...review }),
     streamFailure: () => ({ ...streamFailure }),
+    noteAdapterFailure,
   })
 }
 

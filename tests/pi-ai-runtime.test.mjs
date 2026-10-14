@@ -26,7 +26,7 @@ test('an exception while a request is prepared leaves only a count and a source 
   const { openaiCodexSubscriptionProvider } = await import('../src/pi-ai-runtime.js')
   const connection = { prepare() { return undefined.length } }
   const provider = openaiCodexSubscriptionProvider({ connection })
-  assert.deepEqual(provider.streamFailure(), { count: 0, stage: undefined, frame: undefined })
+  assert.deepEqual(provider.streamFailure(), { count: 0, stage: undefined, frame: undefined, request: undefined, adapter: undefined })
   const model = provider.getModels()[0]
   await assert.rejects(async () => { for await (const _ of provider.streamSimple(model, { messages: [] }, { apiKey: 'x' })) break }, TypeError)
   const { count, stage, frame } = provider.streamFailure()
@@ -44,8 +44,11 @@ test('an error event from the service is recorded as a failure after the payload
     const provider = openaiCodexSubscriptionProvider()
     const apiKey = `e30.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture' } })).toString('base64url')}.fake`
     const events = []
-    for await (const event of provider.streamSimple(provider.getModels()[0], { messages: [{ role: 'user', content: 'hi', timestamp: 1 }] }, { apiKey, transport: 'sse' })) events.push(event)
+    for await (const event of provider.streamSimple(provider.getModels()[0], { messages: [{ role: 'user', content: 'SECRET-PROMPT-TEXT', timestamp: 1 }] }, { apiKey, transport: 'sse' })) events.push(event)
     assert.ok(events.some(event => event.type === 'error'))
-    assert.deepEqual(provider.streamFailure(), { count: 1, stage: 'payload', frame: undefined })
+    const failure = provider.streamFailure()
+    assert.deepEqual({ count: failure.count, stage: failure.stage, frame: failure.frame }, { count: 1, stage: 'payload', frame: undefined })
+    assert.equal(failure.request.method, 'streamSimple')
+    assert.equal(JSON.stringify(failure.request).includes('SECRET'), false, 'no message text in the copy')
   } finally { globalThis.fetch = previous }
 })

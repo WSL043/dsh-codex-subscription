@@ -1,4 +1,5 @@
 import { createSettingsAdapter } from './settings-adapter.js'
+import { observeAdapter } from './request-observer.js'
 import { createDefaultModelController } from './default-model.js'
 import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { createSubscriptionConnection } from './subscription-connection.js'
@@ -370,7 +371,7 @@ export function apply(ctx, config = {}) {
     auth: adapterAuth,
     resolveAttachments: () => ctx.get?.('attachments'),
   })
-  ctx.llm.registerAdapter([PROVIDER], compaction.wrapAdapter(adapter))
+  ctx.llm.registerAdapter([PROVIDER], observeAdapter(compaction.wrapAdapter(adapter), provider))
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
   const codexSearch = createCodexSearchProvider({
     resolvePreferences: () => readCapabilitySettings(settings.get()),
