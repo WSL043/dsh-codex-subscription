@@ -424,6 +424,7 @@ export function apply(ctx, config = {}) {
     usageProfile: () => usageProfileReader,
     projections: () => ctx.get?.('sessionProjections'),
     skills: () => ctx.get?.('skills'),
+    commands: () => ctx.get?.('commands'),
     llm: () => ctx.llm,
     trace: entry => { try { remoteControl.host.note(entry) } catch { /* diagnostics only */ } },
     userAgent: USER_AGENT,

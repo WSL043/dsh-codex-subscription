@@ -228,7 +228,7 @@ const PHONE_RETURN_MS = 120_000
 // How long after it last had a thread open a reconnecting phone is assumed to still want it.
 const ADOPT_WITHIN_MS = 600_000
 
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, usageProfile = () => undefined, projections = () => undefined, skills = () => undefined, llm = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, usageProfile = () => undefined, projections = () => undefined, skills = () => undefined, commands = () => undefined, llm = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
@@ -709,7 +709,51 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return { ...settings(agent, value.cwd), thread: value }
     },
     'turn/start': (params, { notify }) => titles.has(params?.threadId) ? titleTurn(params, notify) : startTurn(params, notify),
-    'turn/interrupt': params => { service().cancel({ sessionId: params?.threadId }); return {} },
+    'turn/interrupt': params => { service().cancel({ sessionId: params?.threadId }); active.get(params?.threadId)?.abort?.abort(); return {} },
+    // DSH's /compact (0.2.1-alpha.3 and later): condense the older history now. It is a turn of its own, like the app's.
+    'thread/compact/start': async (params, { notify }) => {
+      const id = params?.threadId
+      const registry = commands()
+      const agent = await agentFor(id)
+      // The same /compact the Web app runs, so it answers with DSH's own wording and keeps the session log in step.
+      if (typeof registry?.execute !== 'function' || registry.find?.(agent, 'compact') === undefined) throw new RpcError(-32601, 'This DSH version cannot compact a conversation on request')
+      if (active.has(id)) throw new RpcError(-32602, 'A turn is already running in this conversation')
+      subscribe(id, notify)
+      const turn = emptyTurn()
+      const abort = new AbortController()
+      active.set(id, { turn, ended: undefined, abort })
+      emit(id, 'turn/started', { threadId: id, turn })
+      emit(id, 'thread/status/changed', { threadId: id, status: { type: 'active', activeFlags: [] } })
+      void (async () => {
+        try {
+          const execution = await registry.execute(agent, '/compact', [], abort.signal)
+          const result = execution?.result
+          if (result?.kind === 'error') throw new Error(result.text || 'Compaction failed')
+          // DSH reports real work with the summary's position; a DSH that skips the start/end events still shows the app its "context compacted" row.
+          if (result?.sourceEventSeq !== undefined && turn.items.length === 0) {
+            const item = { type: 'contextCompaction', id: randomUUID() }
+            turn.items.push(item)
+            emit(id, 'item/started', { threadId: id, turnId: turn.id, item, startedAtMs: Date.now() })
+            emit(id, 'item/completed', { threadId: id, turnId: turn.id, item, completedAtMs: Date.now() })
+          }
+          turn.status = 'completed'
+        } catch (error) {
+          turn.status = abort.signal.aborted ? 'interrupted' : 'failed'
+          if (turn.status === 'failed') {
+            turn.error = { message: String(error?.message ?? 'Compaction failed').slice(0, 500), codexErrorInfo: null, additionalDetails: null }
+            emit(id, 'error', { threadId: id, turnId: turn.id, willRetry: false, error: turn.error })
+          }
+        }
+        turn.completedAt = seconds(Date.now())
+        active.delete(id)
+        compactions.delete(id)
+        const usageNow = tokenUsage(agent.session)
+        if (usageNow) emit(id, 'thread/tokenUsage/updated', { threadId: id, turnId: turn.id, tokenUsage: usageNow })
+        emit(id, 'turn/completed', { threadId: id, turn })
+        emit(id, 'thread/status/changed', { threadId: id, status: { type: 'idle' } })
+      })()
+      return {}
+    },
     'turn/steer': async params => {
       const { content } = contentOf(params?.input)
       await service().prompt({ requestId: randomUUID(), sessionId: params?.threadId, mode: 'steer', content }, AbortSignal.timeout(30_000))

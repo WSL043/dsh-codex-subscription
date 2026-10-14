@@ -215,6 +215,19 @@ await section('web search becomes a native item', async () => {
   console.log('  webSearch items:', searches.length, searches[0] ? JSON.stringify(searches[0].params.item.action) : 'items=' + finished.items.map(entry => entry.type).join(','))
 })
 
+await section('compact on demand', async () => {
+  const since = phone.since()
+  const started = await phone.call('thread/compact/start', { threadId })
+  if (started?.error) {
+    // A DSH before 0.2.1-alpha.3 has no /compact; the phone gets a clear refusal, which is the expected answer there.
+    if (started.error.code === -32601) { results.pop(); console.log('  this DSH has no on-demand compaction; the phone is told so:', started.error.message) }
+    return
+  }
+  const done = await phone.waitFor(message => message.method === 'turn/completed' && message.params.threadId === threadId && phone.notifications.indexOf(message) >= since, 240_000)
+  const events = phone.notifications.slice(since)
+  console.log('  compaction turn:', done.params.turn.status, 'rows:', events.filter(message => message.method === 'item/completed' && message.params.item.type === 'contextCompaction').length, 'error:', events.some(message => message.method === 'error'))
+})
+
 await section('fork, rename, archive', async () => {
   const forked = await phone.call('thread/fork', { threadId })
   console.log('  forked thread', forked?.thread?.id)

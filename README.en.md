@@ -106,7 +106,7 @@ Pair the ChatGPT mobile app's Codex section with a QR code and the DSH on your c
 - approvals and questions pop up on the phone; if it drops, they pop up again when you reopen it, otherwise they go back to the computer;
 - replies appear as they are written; commands, file edits with diffs, the task list, web searches, connector calls and generated images use the phone's native views;
 - send photos, @ search files on the computer, / pick DSH skills, view changes with read-only git, and start chats in a real folder picker;
-- DSH workspaces appear as projects; fork a conversation, see usage limits, lifetime usage and context usage;
+- DSH workspaces appear as projects; fork a conversation, see usage limits, lifetime usage and context usage; with DSH 0.2.1-alpha.3 or later, compact the context from the phone (the same as `/compact`);
 - model errors show on the phone; paired phones are listed in settings and can be removed.
 
 Off by default: **Settings → Codex → Models & runtime → Phone remote control**. The computer must stay on, online and running DSH. This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. Currently in the pre-release: `dsh-codex-subscription@3.0.0-beta.6`.

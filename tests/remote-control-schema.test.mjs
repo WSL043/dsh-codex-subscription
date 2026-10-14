@@ -69,6 +69,7 @@ async function fixture() {
     usageProfile: () => ({ read: async () => ({ available: true, lifetimeTokens: 9_000_000, peakDailyTokens: 500_000, currentStreakDays: 3, longestStreakDays: 9, longestRunningTurnSeconds: 1200, days: [{ date: '2026-10-13', tokens: 1000 }] }) }),
     usage: () => ({ read: async () => ({ planType: 'pro', rateLimits: [{ id: 'codex', name: 'Codex', windows: [{ usedPercent: 40, remainingPercent: 60, windowSeconds: 18_000, resetsAt: 1_900_000_000 }, { usedPercent: 10, remainingPercent: 90, windowSeconds: 604_800 }] }] }) }),
     projections: () => ({ snapshot: () => ({ values: { tokenUsage: { uncachedInputTokens: 10, outputTokens: 5, cacheReadTokens: 2, cacheWriteTokens: 0 }, contextPressure: { pressureTokens: 100, contextWindow: 272_000 } } }) }),
+    commands: () => ({ find: () => ({}), execute: async () => ({ commandId: 'c', result: { kind: 'success', text: 'No compactable history yet.' } }) }),
     skills: () => ({ list: async () => [{ name: 'review-pr', description: 'Review', invocation: { userInvocable: true }, path: '/s' }] }),
     llm: () => ({ resolveModelInfo: async () => ({ inputModalities: ['text', 'image'] }) }), userAgent: 'x/1',
   })
@@ -93,6 +94,7 @@ test('every response the phone can ask for has the shape the Codex app decodes',
     await response('thread/resume', { threadId: 's1' }, 'ThreadResumeResponse')
     await response('thread/start', { projectId: 'w1', model: 'x' }, 'ThreadStartResponse')
     await response('thread/fork', { threadId: 's1' }, 'ThreadForkResponse')
+    await response('thread/compact/start', { threadId: 's1' }, 'ThreadCompactStartResponse')
     await response('thread/turns/list', { threadId: 's1', limit: 5 }, 'ThreadTurnsListResponse')
     await response('thread/archive', { threadId: 's1' }, 'ThreadArchiveResponse')
     await response('thread/unarchive', { threadId: 's1' }, 'ThreadUnarchiveResponse')
