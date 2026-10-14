@@ -103,7 +103,8 @@ function createHarness(algorithms, nodes, timeline) {
 
 function assertIndependentImage(snapshot, grouping, image) {
   assert.deepEqual(plain(grouping.entries.filter(entry => entry.key === image.key)), [{ kind: 'node', key: image.key }])
-  assert.deepEqual(plain(grouping.groups.snapshots.flatMap(group => group.members.map(member => member.key))), ['tool:0', 'tool:1'])
+  // DSH 0.2.1-alpha.3 also lists the Turn's control row among the members; the image must still stay out.
+  assert.deepEqual(plain(grouping.groups.snapshots.flatMap(group => group.members.map(member => member.key))).filter(key => key !== 'control'), ['tool:0', 'tool:1'])
   assert.ok(grouping.groups.snapshots.every(group => group.data.closed))
   assert.equal(snapshot.nodes.process(image.key), undefined)
   const toolProcess = snapshot.nodes.process('tool:1')
