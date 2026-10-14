@@ -60,7 +60,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     ['streamFailure', 'transport', () => {
       const value = review?.streamFailure?.()
       if (!Number.isSafeInteger(value?.count)) return undefined
-      return { count: value.count, ...(typeof value.frame === 'string' && /^[\w.@/-]{1,120}:\d+:\d+$/u.test(value.frame) ? { frame: value.frame } : {}) }
+      return { count: value.count, ...(['prepare', 'request', 'payload', 'stream'].includes(value.stage) ? { stage: value.stage } : {}), ...(typeof value.frame === 'string' && /^[\w.@/-]{1,120}:\d+:\d+$/u.test(value.frame) ? { frame: value.frame } : {}) }
     }],
     ['operations', 'transport', () => safeOperations(operations?.snapshot?.())],
     ['runtime', 'subagents', async () => {

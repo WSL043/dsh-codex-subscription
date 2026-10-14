@@ -26,11 +26,26 @@ test('an exception while a request is prepared leaves only a count and a source 
   const { openaiCodexSubscriptionProvider } = await import('../src/pi-ai-runtime.js')
   const connection = { prepare() { return undefined.length } }
   const provider = openaiCodexSubscriptionProvider({ connection })
-  assert.deepEqual(provider.streamFailure(), { count: 0, frame: undefined })
+  assert.deepEqual(provider.streamFailure(), { count: 0, stage: undefined, frame: undefined })
   const model = provider.getModels()[0]
   await assert.rejects(async () => { for await (const _ of provider.streamSimple(model, { messages: [] }, { apiKey: 'x' })) break }, TypeError)
-  const { count, frame } = provider.streamFailure()
+  const { count, stage, frame } = provider.streamFailure()
+  assert.equal(stage, 'prepare')
   assert.equal(count, 1)
   assert.match(frame, /pi-ai-runtime\.test\.mjs:\d+:\d+$/u)
   assert.doesNotMatch(frame, /[A-Za-z]:\\|\\/u, 'no drive letter or backslash path')
+})
+
+test('an error event from the service is recorded as a failure after the payload was built', async () => {
+  const { openaiCodexSubscriptionProvider } = await import('../src/pi-ai-runtime.js')
+  const previous = globalThis.fetch
+  globalThis.fetch = async () => new Response('{"error":{"message":"boom"}}', { status: 500, headers: { 'content-type': 'application/json' } })
+  try {
+    const provider = openaiCodexSubscriptionProvider()
+    const apiKey = `e30.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture' } })).toString('base64url')}.fake`
+    const events = []
+    for await (const event of provider.streamSimple(provider.getModels()[0], { messages: [{ role: 'user', content: 'hi', timestamp: 1 }] }, { apiKey, transport: 'sse' })) events.push(event)
+    assert.ok(events.some(event => event.type === 'error'))
+    assert.deepEqual(provider.streamFailure(), { count: 1, stage: 'payload', frame: undefined })
+  } finally { globalThis.fetch = previous }
 })

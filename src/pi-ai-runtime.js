@@ -175,12 +175,13 @@ export function openaiCodexSubscriptionProvider({
     return { ...model, contextWindow: requested }
   })
   const review = { requests: 0, routed: 0, sessionModel: 0, retries: 0 }
-  // An exception thrown while a request is being prepared or streamed reaches DSH
-  // as a bare message. Keep only the count and the first source location so a
-  // support report can tell whether it came from this plugin, pi-ai or DSH itself.
-  const streamFailure = { count: 0, frame: undefined }
-  const noteStreamFailure = error => {
+  // pi-ai turns an exception raised while it builds or sends a request into an
+  // error event that carries only the message. Keep how many requests failed and
+  // how far the last one got, so a support report can say where the failure sits.
+  const streamFailure = { count: 0, stage: undefined, frame: undefined }
+  const noteStreamFailure = (stage, error) => {
     streamFailure.count += 1
+    streamFailure.stage = stage
     const frame = typeof error?.stack === 'string' ? /([\w.@-]+[\\/][\w.-]+\.[cm]?[jt]sx?):(\d+):(\d+)/u.exec(error.stack.split('\n').slice(1).join('\n')) : null
     streamFailure.frame = frame ? `${frame[1].replaceAll('\\', '/')}:${frame[2]}:${frame[3]}` : undefined
   }
@@ -245,15 +246,22 @@ export function openaiCodexSubscriptionProvider({
   const networkIterable = (factory, options, direct = false) => {
     let iterator
     let prepared
+    let stage = 'prepare'
     const step = async (method, value) => { try {
       // Review calls are one-shot: no WebSocket continuation or cloud compaction.
       const request = await (prepared ??= (direct ? undefined : connection?.prepare(options)) ?? Promise.resolve({ options }))
+      if (stage === 'prepare') stage = 'request'
       const result = await runNetwork('model', () => {
-        iterator ??= factory(direct ? request.options : compaction?.requestOptions(request.options) ?? request.options)[Symbol.asyncIterator]()
+        const next = direct ? request.options : compaction?.requestOptions(request.options) ?? request.options
+        iterator ??= factory({ ...next, async onPayload(payload, requestModel) { stage = 'payload'; return next.onPayload?.(payload, requestModel) } })[Symbol.asyncIterator]()
         return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
       }, direct ? request.network : compaction?.networkOptions(request.network) ?? request.network)
+      if (!result.done) {
+        if (result.value?.type === 'error' && !request.options?.signal?.aborted) noteStreamFailure(stage)
+        else if (stage === 'payload') stage = 'stream'
+      }
       return result.done ? result : { ...result, value: normalizeTransportEvent(result.value, request.options?.signal) }
-    } catch (error) { noteStreamFailure(error); throw error } }
+    } catch (error) { noteStreamFailure(stage, error); throw error } }
     return {
       [Symbol.asyncIterator]() { return this },
       next: value => step('next', value),
