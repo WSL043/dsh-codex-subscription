@@ -21,3 +21,16 @@ test('Codex requests keep their own user-agent when the host sends one', async (
   assert.deepEqual(withoutUserAgent({ 'User-Agent': 'DSH/1', 'x-other': 'kept' }), { 'x-other': 'kept' })
   assert.equal(withoutUserAgent(undefined), undefined)
 })
+
+test('an exception while a request is prepared leaves only a count and a source location', async () => {
+  const { openaiCodexSubscriptionProvider } = await import('../src/pi-ai-runtime.js')
+  const connection = { prepare() { return undefined.length } }
+  const provider = openaiCodexSubscriptionProvider({ connection })
+  assert.deepEqual(provider.streamFailure(), { count: 0, frame: undefined })
+  const model = provider.getModels()[0]
+  await assert.rejects(async () => { for await (const _ of provider.streamSimple(model, { messages: [] }, { apiKey: 'x' })) break }, TypeError)
+  const { count, frame } = provider.streamFailure()
+  assert.equal(count, 1)
+  assert.match(frame, /pi-ai-runtime\.test\.mjs:\d+:\d+$/u)
+  assert.doesNotMatch(frame, /[A-Za-z]:\\|\\/u, 'no drive letter or backslash path')
+})

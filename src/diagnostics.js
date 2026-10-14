@@ -57,6 +57,11 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     ['websocket', 'transport', () => connection ? safeCounters(connection, ['requests', 'connectionsCreated', 'connectionsReused', 'deltaRequests', 'websocketFailures', 'sseFallbacks']) : undefined],
     ['compaction', 'compaction', () => compaction ? safeCounters(compaction, ['requests', 'checkpointsSaved', 'checkpointsReused']) : undefined],
     ['review', 'transport', () => typeof review?.reviewCounters === 'function' ? safeCounters({ snapshot: () => review.reviewCounters() }, ['requests', 'routed', 'sessionModel', 'retries']) : undefined],
+    ['streamFailure', 'transport', () => {
+      const value = review?.streamFailure?.()
+      if (!Number.isSafeInteger(value?.count)) return undefined
+      return { count: value.count, ...(typeof value.frame === 'string' && /^[\w.@/-]{1,120}:\d+:\d+$/u.test(value.frame) ? { frame: value.frame } : {}) }
+    }],
     ['operations', 'transport', () => safeOperations(operations?.snapshot?.())],
     ['runtime', 'subagents', async () => {
       const value = await runtimeManagement?.status?.()
@@ -114,6 +119,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     ...(collected.websocket ? { websocket: collected.websocket } : {}),
     ...(collected.compaction ? { compaction: collected.compaction } : {}),
     ...(collected.review ? { review: collected.review } : {}),
+    ...(collected.streamFailure ? { streamFailure: collected.streamFailure } : {}),
     ...(catalog && ['unavailable', 'online'].includes(catalog.source)
       && ['idle', 'refreshing', 'ok', 'failed'].includes(catalog.refresh)
       ? { catalog: { source: catalog.source, refresh: catalog.refresh, ...(gaps.length ? { unsupported: gaps } : {}) } } : {}),

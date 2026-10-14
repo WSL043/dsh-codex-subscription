@@ -331,6 +331,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
       websocket: { requests: 0, connectionsCreated: 0, connectionsReused: 0, deltaRequests: 0, websocketFailures: 0, sseFallbacks: 0 },
       compaction: { requests: 0, checkpointsSaved: 0, checkpointsReused: 0 },
       review: { requests: 0, routed: 0, sessionModel: 0, retries: 0 },
+      streamFailure: { count: 0 },
       catalog: diagnostics.value.catalog,
       configuration: {
         autoQuotaRetry: false,

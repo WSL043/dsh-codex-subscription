@@ -175,6 +175,15 @@ export function openaiCodexSubscriptionProvider({
     return { ...model, contextWindow: requested }
   })
   const review = { requests: 0, routed: 0, sessionModel: 0, retries: 0 }
+  // An exception thrown while a request is being prepared or streamed reaches DSH
+  // as a bare message. Keep only the count and the first source location so a
+  // support report can tell whether it came from this plugin, pi-ai or DSH itself.
+  const streamFailure = { count: 0, frame: undefined }
+  const noteStreamFailure = error => {
+    streamFailure.count += 1
+    const frame = typeof error?.stack === 'string' ? /([\w.@-]+[\\/][\w.-]+\.[cm]?[jt]sx?):(\d+):(\d+)/u.exec(error.stack.split('\n').slice(1).join('\n')) : null
+    streamFailure.frame = frame ? `${frame[1].replaceAll('\\', '/')}:${frame[2]}:${frame[3]}` : undefined
+  }
   // With the official reviewer chosen, a DSH Auto review call uses the model
   // Codex itself reviews approvals with, when this account's catalog lists it.
   const reviewRoute = (model, context) => {
@@ -236,7 +245,7 @@ export function openaiCodexSubscriptionProvider({
   const networkIterable = (factory, options, direct = false) => {
     let iterator
     let prepared
-    const step = async (method, value) => {
+    const step = async (method, value) => { try {
       // Review calls are one-shot: no WebSocket continuation or cloud compaction.
       const request = await (prepared ??= (direct ? undefined : connection?.prepare(options)) ?? Promise.resolve({ options }))
       const result = await runNetwork('model', () => {
@@ -244,7 +253,7 @@ export function openaiCodexSubscriptionProvider({
         return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
       }, direct ? request.network : compaction?.networkOptions(request.network) ?? request.network)
       return result.done ? result : { ...result, value: normalizeTransportEvent(result.value, request.options?.signal) }
-    }
+    } catch (error) { noteStreamFailure(error); throw error } }
     return {
       [Symbol.asyncIterator]() { return this },
       next: value => step('next', value),
@@ -266,6 +275,7 @@ export function openaiCodexSubscriptionProvider({
     stream: (model, context, options) => routed('stream', model, context, options),
     streamSimple: (model, context, options) => routed('streamSimple', model, context, options),
     reviewCounters: () => ({ ...review }),
+    streamFailure: () => ({ ...streamFailure }),
   })
 }
 
