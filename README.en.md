@@ -113,7 +113,7 @@ Off by default: **Settings → Codex → Models & runtime → Phone remote contr
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Phone remote control in settings: the switch, pairing QR code and manual code, paired phones"></picture></p>
 
-### Images and sketching (Beta)
+### Images and sketching
 
 Generate images with your subscription, circle a region and write a note to keep editing, or open the sketch board to draw yourself or let the agent draw, then use the sketch as the reference for the finished image.
 
@@ -121,7 +121,7 @@ Generate images with your subscription, circle a region and write a note to keep
 
 Examples are in [From sketch to image](#from-sketch-to-image); the switches are under **Settings → Codex → Images & sketch**.
 
-### ChatGPT connectors (Beta)
+### ChatGPT connectors
 
 Let DeepSeek or any other DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more. Models search first, then call, and every change asks for your approval. Off by default; turn it on under Models & runtime.
 
@@ -178,8 +178,8 @@ Model access and quota depend on your account.
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **Image generation** | Generate through your subscription and adjust available request model / quality options; ask for a transparent-background PNG when needed | Beta; on by default, can be disabled |
-| **Reference image editing** | Continue refining an image with references | Beta; on by default, can be disabled |
+| **Image generation** | Generate through your subscription and adjust available request model / quality options; ask for a transparent-background PNG when needed | On by default, can be disabled |
+| **Reference image editing** | Continue refining an image with references | On by default, can be disabled |
 | **Image viewing and download** | Completed images appear after the answer without expanding tool activity; zoom, pan, fit to window, and download verified originals | Built-in viewer; older images may only have previews |
 | **Region-based editing** | Mark regions, add notes, and continue editing with location references | Fills the composer for you to review and send |
 | **Manual canvas** | Choose an aspect ratio and draw with pen, pencil, marker, and erasers | Beta; canvas off by default |
@@ -205,7 +205,7 @@ Model access and quota depend on your account.
 | **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
 | **WebSocket transport** | Experimentally reuse connections and context transfers, with SSE fallback on connection failure | Beta / experimental; SSE by default, no speed guarantee |
 | **Codex reviewer for Auto review** | DSH Auto review judges tool calls with Codex's own review model; DSH keeps its review policy and allow/deny flow | Beta; off by default, applies when your account catalog offers the model |
-| **ChatGPT connectors** | Let DeepSeek or any DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more; models search first, then call, and every change asks for your approval | Beta; off by default, Settings → Codex → Models & runtime → ChatGPT connectors; connect the apps in ChatGPT first |
+| **ChatGPT connectors** | Let DeepSeek or any DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more; models search first, then call, and every change asks for your approval | Off by default, Settings → Codex → Models & runtime → ChatGPT connectors; connect the apps in ChatGPT first |
 | **Support diagnostics** | Inspect prerequisites and recent operation results, and copy a short report (about 1 KB; the full one can be copied separately) without credentials or conversation text | Settings → Maintenance; unverified does not mean broken |
 | **Forecast cache cleanup** | Inspect and clear local quota forecast history | Keeps sign-in, drafts, originals, and shared dependencies |
 
@@ -243,7 +243,7 @@ Subscription failures remain visible: no silent fallback to another paid route.
 
 ## From sketch to image
 
-Image generation, editing, and the sketch canvas are **Beta**. The canvas and agent drawing are off by default; enable them under Images & sketch when needed.
+The sketch canvas and agent drawing are **Beta**. The canvas and agent drawing are off by default; enable them under Images & sketch when needed.
 
 **Sketch → Attach to the composer → Describe the result → Generate.**
 

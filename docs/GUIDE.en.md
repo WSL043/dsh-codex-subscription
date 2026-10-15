@@ -37,7 +37,7 @@ Choose Off, Percent, Progress bar, or Beta Runway under Account. When a five-hou
 Runway uses official observations from the recent two hours, including unchanged readings. Repeated boundary crossings can refine the rate interval when the assumptions hold; insufficient evidence or changing intensity falls back to a conservative estimate. It remains Beta and is not a guarantee of working time. History is bounded and stored locally; resets, long gaps or disabling the feature restart calibration.
 Spark keeps its independent quota. The plugin does not invent five-hour limits, Credits, or spending caps that the service did not return.
 
-### ChatGPT connectors (Beta)
+### ChatGPT connectors
 
 Set **ChatGPT connectors** under Models & runtime to Read-only or Allow writes, and every DSH model (DeepSeek included) gains three tools: `chatgpt_connectors_search` finds tools in the apps you connected in ChatGPT, `chatgpt_connectors_describe` shows their arguments, and `chatgpt_connectors_call` runs one. Apps such as GitHub, Gmail, Google Drive and Google Calendar work as far as your account has them connected.
 
@@ -62,7 +62,7 @@ decides whether a window needs resetting and may return **nothing to reset** wit
 action requires an acknowledgement checkbox and five-second cooldown. Cancel never consumes a reset, rapid repeated
 clicks are single-flight, and an uncertain network result is never retried automatically.
 
-### Image generation and editing (Beta)
+### Image generation and editing
 
 A basic viewer derived from `dsh-image-viewer` is now built in, with no extra installation required. Plugin-generated image cards use the built-in viewer to keep annotation and continue-editing actions available. You can zoom, pan, fit, add region notes, and download the image. The standard **Download** action retrieves the permission- and integrity-checked exact original by default; only legacy sessions without an exact original fall back to the conversation preview.
 

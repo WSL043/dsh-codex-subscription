@@ -378,7 +378,6 @@ test('generated image preview uses a native full-screen canvas and explicit edit
   ])
   assert.match(source, /imageDownload/u)
   assert.match(viewer, /download=\{downloadName\(item\.name\)\}/u)
-  assert.match(source, /imageBeta/u)
   assert.match(viewer, /IconDownloadOutline16/u)
   assert.match(viewer, /imageAnnotation/u)
   assert.match(source, /attachForEdit/u)
