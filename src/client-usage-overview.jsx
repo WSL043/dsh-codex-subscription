@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { recoveryCall } from './client-recovery.js'
-import { fill } from './client-shared.js'
+import { fill, uiLocale } from './client-shared.js'
 
 // Numbers and dates follow the language DSH shows, not the browser's.
-export const uiLocale = () => (typeof document === 'undefined' ? undefined : document.documentElement.lang || undefined)
+export { uiLocale }
 const WEEKS = 26
 const compact = value => new Intl.NumberFormat(uiLocale(), { notation: 'compact', maximumFractionDigits: 1 }).format(value)
 const hours = seconds => (seconds >= 3600 ? `${Math.round(seconds / 360) / 10} h` : `${Math.max(1, Math.round(seconds / 60))} min`)

@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition, useDismissOnOutsidePointer } from './client-primitives.js'
 import { QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
-import { fill, percent, windowLabel, usePreferenceSnapshot, formatRunway, formatQuotaForecast } from './client-shared.js'
+import { fill, percent, uiLocale, windowLabel, usePreferenceSnapshot, formatRunway, formatQuotaForecast } from './client-shared.js'
 import { useQuickQuota } from './client-quota.jsx'
 import { quotaWarning } from './capability-settings.js'
 
@@ -72,7 +72,7 @@ function shortWindow(seconds, t) {
 }
 function shortReset(quota, t) {
   if (!Number.isSafeInteger(quota.resetsAt)) return t('resetUnknown')
-  const value = new Date(quota.resetsAt * 1000).toLocaleString(undefined, { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const value = new Date(quota.resetsAt * 1000).toLocaleString(uiLocale(), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   return fill(t('resets'), { value })
 }
 function forecastText(quota, t) {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { create as createQr } from 'qrcode/lib/core/qrcode.js'
 import { Button } from './client-primitives.js'
 import { CHANNEL } from './rpc-contract.js'
+import { uiLocale } from './client-shared.js'
 
 const PAIR_URL = 'https://chatgpt.com/codex/pair?pairing_code='
 const STATUS_KEYS = { connected: 'remoteConnected', connecting: 'remoteConnecting', error: 'remoteError', stopped: 'remoteStopped' }
@@ -111,7 +112,7 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
       {clients ? <div className="codexSubscriptionRemoteClients" role="list" aria-label={t('remotePaired')}>
         <span className="codexSubscriptionPreferenceLabel">{t('remotePaired')}</span>
         {clients.length === 0 ? <p className="codexSubscriptionHelp">{t('remoteNoPhones')}</p> : clients.map(client => <div key={client.clientId} role="listitem" className="codexSubscriptionPreference">
-          <span>{[client.name ?? t('remotePhoneUnknown'), client.platform, client.lastSeenAt ? t('remoteLastSeen').replace('{date}', new Date(client.lastSeenAt).toLocaleString()) : null].filter(Boolean).join(' · ')}</span>
+          <span>{[client.name ?? t('remotePhoneUnknown'), client.platform, client.lastSeenAt ? t('remoteLastSeen').replace('{date}', new Date(client.lastSeenAt).toLocaleString(uiLocale())) : null].filter(Boolean).join(' · ')}</span>
           <Button type="button" variant="outline" disabled={Boolean(removing)} onClick={() => { void remove(client) }}>{t('remoteRevoke')}</Button>
         </div>)}
       </div> : null}

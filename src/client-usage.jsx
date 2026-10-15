@@ -1,14 +1,14 @@
 import { recoveryCall } from './client-recovery.js'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from './client-primitives.js'
-import { CHANNEL, unwrap, fill, percent, windowLabel, validDate, notifyQuickQuota, formatQuotaForecast } from './client-shared.js'
+import { CHANNEL, unwrap, fill, uiLocale, percent, windowLabel, validDate, notifyQuickQuota, formatQuotaForecast } from './client-shared.js'
 import { creditExpiryStatus } from './credit-expiry.js'
 import { UsageHistory } from './client-usage-history.jsx'
 import { UsageOverview } from './client-usage-overview.jsx'
 
-const count = value => Number(value).toLocaleString()
+const count = value => Number(value).toLocaleString(uiLocale())
 // The API reports credits as a long decimal string; two decimals are enough to read.
-const creditAmount = value => Number.isFinite(Number(value)) && String(value).trim() !== '' ? Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 }) : value
+const creditAmount = value => Number.isFinite(Number(value)) && String(value).trim() !== '' ? Number(value).toLocaleString(uiLocale(), { maximumFractionDigits: 2 }) : value
 
 export function CreditExpiry({ credits, t }) {
   const date = validDate(credits.expiresAt)
@@ -16,21 +16,21 @@ export function CreditExpiry({ credits, t }) {
   const status = creditExpiryStatus({ expiresAt: credits.expiresAt })
   const estimate = credits.expirySource === 'estimate'
   return <div className="codexSubscriptionCreditExpiry" data-soon={status.soon} role="status">
-    <p>{fill(t(status.daysLeft === 0 ? 'creditsExpiredToday' : 'creditsExpires'), { date: date.toLocaleDateString(), days: status.daysLeft })}{estimate ? ` ${t('creditsExpiryEstimate')}` : ''}</p>
+    <p>{fill(t(status.daysLeft === 0 ? 'creditsExpiredToday' : 'creditsExpires'), { date: date.toLocaleDateString(uiLocale()), days: status.daysLeft })}{estimate ? ` ${t('creditsExpiryEstimate')}` : ''}</p>
   </div>
 }
 export function ResetTime({ resetsAt, t }) {
   const date = Number.isSafeInteger(resetsAt) ? validDate(resetsAt * 1_000) : undefined
   if (date === undefined) return <span>{t('resetUnknown')}</span>
-  const value = date.toLocaleString(undefined, {
+  const value = date.toLocaleString(uiLocale(), {
     month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit',
   })
-  return <time dateTime={date.toISOString()} title={date.toLocaleString()}>{fill(t('resets'), { value })}</time>
+  return <time dateTime={date.toISOString()} title={date.toLocaleString(uiLocale())}>{fill(t('resets'), { value })}</time>
 }
 
 export function ResetCreditExpiry({ expiresAt, t }) {
   const date = validDate(expiresAt)
-  return <span className="codexSubscriptionResetExpiry">{date === undefined ? t('resetCreditExpiryUnknown') : <time dateTime={date.toISOString()} title={date.toLocaleString()}>{fill(t('resetCreditExpires'), { value: date.toLocaleDateString(undefined, { month: 'long', day: 'numeric' }) })}</time>}</span>
+  return <span className="codexSubscriptionResetExpiry">{date === undefined ? t('resetCreditExpiryUnknown') : <time dateTime={date.toISOString()} title={date.toLocaleString(uiLocale())}>{fill(t('resetCreditExpires'), { value: date.toLocaleDateString(uiLocale(), { month: 'long', day: 'numeric' }) })}</time>}</span>
 }
 
 export function ResetCreditList({ rpc, t, count, nextExpiresAt, initialCredits, refreshKey, hasExhaustedQuota, onConsumed }) {
@@ -175,7 +175,7 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
   const fetchedAt = typeof visibleUsage?.fetchedAt === 'number' ? validDate(visibleUsage.fetchedAt) : undefined
   return <div className="codexSubscriptionCard codexSubscriptionUsageCard">
     <div className="codexSubscriptionSectionHead">
-      <div className="codexSubscriptionSectionTitle"><h3>{t('usage')}</h3>{fetchedAt === undefined ? null : <time className="codexSubscriptionFreshness" dateTime={fetchedAt.toISOString()}>{fill(t('usageUpdated'), { value: fetchedAt.toLocaleString() })}</time>}</div>
+      <div className="codexSubscriptionSectionTitle"><h3>{t('usage')}</h3>{fetchedAt === undefined ? null : <time className="codexSubscriptionFreshness" dateTime={fetchedAt.toISOString()}>{fill(t('usageUpdated'), { value: fetchedAt.toLocaleString(uiLocale()) })}</time>}</div>
       <Button className="codexSubscriptionRefresh" type="button" variant="outline" disabled={!signedIn || busy} aria-busy={busy} onClick={() => load(true)}>{busy ? t('refreshing') : t('refresh')}</Button>
     </div>
     <div aria-live="polite">

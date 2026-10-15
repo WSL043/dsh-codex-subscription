@@ -22,7 +22,9 @@ export const maskEmail = value => {
   return `${local[0]}•••${local.at(-1)}@${domain}`
 }
 export const hours = seconds => Math.round((seconds / 3600) * 10) / 10
-export const percent = value => Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 })
+/** The language DSH shows its interface in, so dates and numbers match the text around them rather than the OS. */
+export const uiLocale = () => (typeof document === 'undefined' ? undefined : document.documentElement.lang || undefined)
+export const percent = value => Number(value).toLocaleString(uiLocale(), { maximumFractionDigits: 1 })
 export const isApproximateWindow = (seconds, expected) => seconds >= expected * 0.95 && seconds <= expected * 1.05
 export const windowLabel = (seconds, t) => {
   if (isApproximateWindow(seconds, 18_000)) return t('windowFiveHours')
