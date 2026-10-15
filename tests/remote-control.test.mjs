@@ -726,6 +726,17 @@ test('a conversation shows the model its log recorded, and a pick not yet record
   assert.equal((await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })).model, key('deepseek', 'chat'))
 })
 
+test('a conversation whose working directory was changed shows the new directory (DSH 0.2.1-alpha.3 and later)', async () => {
+  const { bridge, session } = fakeControl()
+  session.meta = { ...session.meta, cwd: '/project' }
+  const cwdOf = async () => (await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })).cwd
+  assert.equal(await cwdOf(), '/project')
+  session.eventsSnapshot = [{ type: 'working-directory/change', data: { cwd: '/project/sub' } }, { type: 'model/selection', data: { provider: 'deepseek', model: 'chat' } }]
+  assert.equal(await cwdOf(), '/project/sub', 'the last change wins over the original project')
+  session.eventsSnapshot = [...session.eventsSnapshot, { type: 'working-directory/change', data: { cwd: '/elsewhere' } }]
+  assert.equal(await cwdOf(), '/elsewhere')
+})
+
 test('reopening a thread while DSH is mid-turn returns the running turn with the reply written so far', async () => {
   const { bridge, session, finish } = fakeControl()
   const notes = []

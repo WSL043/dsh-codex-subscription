@@ -292,6 +292,18 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       ? { provider: agent.options.provider, model: agent.options.model, reasoningEffort: agent.options.reasoningEffort }
       : undefined
   }
+  // DSH 0.2.1-alpha.3 and later can change a conversation's working directory; the last
+  // working-directory/change event wins over the project the conversation started in.
+  const directoryOf = session => {
+    try {
+      const events = typeof session?.snapshotEvents === 'function' ? session.snapshotEvents() : session?.eventsSnapshot
+      for (let index = (events?.length ?? 0) - 1; index >= 0; index -= 1) {
+        const cwd = events[index]?.type === 'working-directory/change' ? events[index].data?.cwd : undefined
+        if (typeof cwd === 'string' && cwd !== '') return cwd
+      }
+    } catch { /* keep the project directory */ }
+    return session?.meta?.cwd
+  }
   const sameSelection = (a, b) => a?.provider === b?.provider && a?.model === b?.model && a?.reasoningEffort === b?.reasoningEffort
   const selection = agent => {
     const saved = recorded(agent)
@@ -378,11 +390,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const messages = session.deriveMessages()
     const first = messages.find(message => typedText(message) !== '')
     const imageUrls = await imageUrlsOf(messages)
+    const cwd = directoryOf(session)
     return {
       agent,
       thread: thread({
-        id, cwd: session.meta?.cwd, createdAt: session.meta?.createdAt, running: active.has(id), projectId: projectIdOf(id),
-        preview: first ? visibleText(first.content).slice(0, 200) : '', turns: withLiveTurn(id, projectTurns(messages, session.meta?.createdAt, imageUrls, session.meta?.cwd)),
+        id, cwd, createdAt: session.meta?.createdAt, running: active.has(id), projectId: projectIdOf(id),
+        preview: first ? visibleText(first.content).slice(0, 200) : '', turns: withLiveTurn(id, projectTurns(messages, session.meta?.createdAt, imageUrls, cwd)),
       }),
     }
   }
@@ -892,7 +905,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const asked = call && (call.name === 'edit' || call.name === 'write')
       ? askPhone(request, 'item/fileChange/requestApproval', { ...common, reason, grantRoot: null })
       : askPhone(request, 'item/commandExecution/requestApproval', {
-        ...common, command: commandText(session, request), cwd: session.meta?.cwd ?? null, reason,
+        ...common, command: commandText(session, request), cwd: directoryOf(session) ?? null, reason,
         commandActions: [], availableDecisions: ['accept', 'decline', 'cancel'],
       })
     return asked.then(
@@ -974,7 +987,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return
     }
     if (!message || message.role !== 'assistant') return
-    const items = projectTurns([{ role: 'user', id: 'x', content: [{ type: 'text', text: 'x' }] }, message], undefined, undefined, session.meta?.cwd).flatMap(turn => turn.items.slice(1))
+    const items = projectTurns([{ role: 'user', id: 'x', content: [{ type: 'text', text: 'x' }] }, message], undefined, undefined, directoryOf(session)).flatMap(turn => turn.items.slice(1))
     const stream = streams.get(session.id)
     streams.delete(session.id)
     let reuse = stream?.item
