@@ -234,6 +234,38 @@ export class DshOAuthAccountVault {
     })
   }
 
+  /** One account's credential, whether or not it is the active one. */
+  readAccount(id) {
+    return this.#enqueue(async () => {
+      const payload = await this.#ensurePayload()
+      return clone(payload?.accounts.find(account => account.id === id)?.credential)
+    })
+  }
+
+  /** Update one account's credential (a token refresh) without changing which account is active. */
+  modifyAccount(id, update) {
+    return this.#enqueue(async () => {
+      let result
+      await this.#modifyPayload(async current => {
+        const index = current.accounts.findIndex(account => account.id === id)
+        if (index < 0) throw new Error('Unknown Codex account')
+        const previous = clone(current.accounts[index].credential)
+        const next = await update(previous)
+        if (next === undefined) {
+          result = previous
+          return current
+        }
+        const credential = sanitizeOAuthCredential(next)
+        if (credential.email === undefined && previous.email !== undefined) credential.email = previous.email
+        const accounts = [...current.accounts]
+        accounts[index] = { ...accounts[index], credential }
+        result = clone(credential)
+        return { ...current, accounts }
+      })
+      return result
+    })
+  }
+
   activeId() {
     return this.#enqueue(async () => (await this.#ensurePayload())?.activeId)
   }

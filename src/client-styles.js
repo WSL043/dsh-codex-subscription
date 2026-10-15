@@ -69,6 +69,9 @@ export const STYLE = `
 .codexSubscriptionAccounts{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}
 .codexSubscriptionAccount{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:42px;border-bottom:1px solid var(--dsw-alias-border-l2);font-size:13px}
 .codexSubscriptionAccount:last-child{border-bottom:0}
+.codexSubscriptionAccountMain{display:flex;flex-direction:column;gap:2px;padding:6px 0;min-width:0}
+.codexSubscriptionAccountQuota{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--dsw-alias-text-l2)}
+.codexSubscriptionAccountQuota[data-state=error]{color:var(--dsw-alias-text-danger,#c0392b)}
 .codexSubscriptionAccount[data-active=true] .codexSubscriptionEmail,.codexSubscriptionAccount[data-active=true]>span{font-weight:600}
 .codexSubscriptionEmail{max-width:100%;overflow:hidden;padding:2px 4px;border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;text-align:left;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
 .codexSubscriptionEmail:hover{background:var(--dsw-alias-interactive-bg-hover)}

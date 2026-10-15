@@ -24,7 +24,7 @@ export async function settlesLive(preferences, patch, signal, { attempts = 8, de
   return live()
 }
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, accountUsageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
   return async (endpoint, payload, signal) => {
     if (endpoint === 'default-model/status' || endpoint === 'default-model/select') {
       try {
@@ -220,6 +220,15 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, planHis
         return publicError('internal', error instanceof Error && known.has(error.message) ? error.message : 'Could not read ChatGPT usage profile')
       }
     }
+    if (endpoint === 'usage/accounts') {
+      try {
+        signal.throwIfAborted()
+        return { ok: true, value: { accounts: await accountUsageReader.readAll({ force: payload?.force === true, signal }) } }
+      } catch (error) {
+        if (signal.aborted) throw error
+        return publicError('internal', 'Could not read the usage of the signed-in accounts')
+      }
+    }
     if (endpoint === 'usage/history') {
       try {
         signal.throwIfAborted()
@@ -274,7 +283,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, planHis
       // misreport that transaction or prevent the remaining invalidations.
       const tasks = [() => closeConnections?.(), () => usageReader.clearCache(), () => planHistoryReader?.clear(), () => usageProfileReader?.clear(),
         () => resetCreditService.clear(), () => modelCatalog?.clear(), () => onAccountChanged?.()]
-      if (endpoint === 'logout') tasks.push(() => usageReader.clear())
+      if (endpoint === 'logout') tasks.push(() => usageReader.clear(), () => accountUsageReader?.clear())
       if (endpoint === 'account/remove' && typeof payload?.id === 'string') tasks.push(() => usageReader.clearScope(payload.id))
       const outcomes = await Promise.allSettled(tasks.map(task => Promise.resolve().then(task)))
       if (outcomes.some(value => value.status === 'rejected')) {

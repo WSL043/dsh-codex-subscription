@@ -45,6 +45,7 @@ import { createSubscriptionDiagnostics } from './diagnostics.js'
 import { createDiagnosticOperations } from './diagnostic-operations.js'
 import { AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, normalizeConnectorMode, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, REASONING_SUMMARY_FIELD, normalizeReasoningSummary, RETRY_POLICY_FIELD, normalizeRetryPolicy, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
+import { createAccountUsageReader } from './account-usage.js'
 import { createPlanHistoryReader } from './plan-history.js'
 import { createUsageProfileReader } from './usage-profile.js'
 import { createConnectorsClient, createConnectorTools } from './connectors.js'
@@ -547,9 +548,21 @@ export function apply(ctx, config = {}) {
     sync();const unwatch=settings.watch(sync)
     return ()=>{unwatch();dispose?.();sketchBridge.dispose()}
   },'codex-subscription: native sketch tool')
+  const accountUsageReader = createAccountUsageReader({
+    vault: accountVault,
+    createModels: credentials => {
+      const accountModels = createModels({ credentials })
+      accountModels.setProvider(provider)
+      return accountModels
+    },
+    fetch: (input, init) => network.fetch('quota', input, init),
+    expirySkewMs: OAUTH_EXPIRY_SKEW_MS,
+    activeReader: baseUsageReader,
+  })
   const subscriptionHandler = createSubscriptionRpcHandler({
     authHandler: createCodexRpcHandler(coordinator, { openExternal: openCodexAuthUrl }),
     usageReader,
+    accountUsageReader,
     planHistoryReader,
     usageProfileReader,
     resetCreditService,
