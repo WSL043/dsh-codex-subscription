@@ -1,3 +1,4 @@
+import { isChallengePage, REQUEST_BLOCKED } from './http-failure.js'
 // A close error means the response did not finish, even for normal code 1000
 // during account-switch cleanup. Never map policy/size rejection to transport.
 const TRANSIENT_WEBSOCKET_CLOSE = /^WebSocket closed (?:1000|1006|1011|1012|1013)(?:\s|$)/
@@ -11,6 +12,8 @@ export function normalizeTransportEvent(event, signal) {
   if (signal?.aborted || event?.type !== 'error' || event.reason !== 'error') return event
   const message = event.error?.errorMessage
   if (typeof message !== 'string') return event
+  // A Cloudflare check page arrives as the raw HTML body; say what it is instead of pasting the page.
+  if (isChallengePage(message)) return { ...event, error: { ...event.error, errorMessage: REQUEST_BLOCKED } }
   if (!TRANSIENT_WEBSOCKET_CLOSE.test(message) && !GATEWAY_REPLAY_BUFFER_EXCEEDED.test(message)) return event
   return { ...event, error: { ...event.error, errorMessage: `Network transport failure: ${message}` } }
 }

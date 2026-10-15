@@ -2,6 +2,7 @@ import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { randomUUID as nodeRandomUUID } from 'node:crypto'
 
 import { USER_AGENT } from './version.js'
+import { authFailureMessage } from './http-failure.js'
 
 export const CODEX_RESET_CREDITS_URL = 'https://chatgpt.com/backend-api/wham/rate-limit-reset-credits'
 export const CODEX_RESET_CONSUME_URL = `${CODEX_RESET_CREDITS_URL}/consume`
@@ -139,9 +140,7 @@ export function createCodexResetCreditService(options) {
       signal: requestSignal(signal, timeoutMs),
     })
     if (!response.ok) {
-      throw new Error(response.status === 401 || response.status === 403
-        ? 'ChatGPT sign-in needs to be renewed'
-        : `ChatGPT quota reset request failed (HTTP ${response.status})`)
+      throw new Error(await authFailureMessage(response) ?? `ChatGPT quota reset request failed (HTTP ${response.status})`)
     }
     let raw
     try { raw = await response.json() } catch { throw new Error('ChatGPT returned unreadable quota reset details') }
@@ -285,9 +284,7 @@ export function createCodexResetCreditService(options) {
             throw new Error(UNCERTAIN_RESET_RESULT)
           }
           if (response.status !== 401 && response.status !== 403) retryable = false
-          throw new Error(response.status === 401 || response.status === 403
-            ? 'ChatGPT sign-in needs to be renewed'
-            : `ChatGPT quota reset request failed (HTTP ${response.status})`)
+          throw new Error(await authFailureMessage(response) ?? `ChatGPT quota reset request failed (HTTP ${response.status})`)
         }
         let raw
         try { raw = await response.json() } catch {

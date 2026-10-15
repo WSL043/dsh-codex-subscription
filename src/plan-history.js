@@ -1,5 +1,6 @@
 import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { USER_AGENT } from './version.js'
+import { isBlockedByNetwork, REQUEST_BLOCKED, SIGN_IN_RENEW } from './http-failure.js'
 
 // The seven-day allowance history the official Codex /usage dashboard reads: one row per allowance period
 // with how much of that period's allowance was used and what the use was spent on.
@@ -71,8 +72,8 @@ export function createReportReader({ url, parse, label, getAuth, readCredential,
     })
     if (response.status === 404) return { available: false, fetchedAt: now() }
     if (!response.ok) {
-      throw new Error(response.status === 401 ? 'ChatGPT sign-in needs to be renewed'
-        : response.status === 403 ? `ChatGPT does not offer the ${label} to this account`
+      throw new Error(response.status === 401 ? SIGN_IN_RENEW
+        : response.status === 403 ? (await isBlockedByNetwork(response) ? REQUEST_BLOCKED : `ChatGPT does not offer the ${label} to this account`)
         : `ChatGPT ${label} request failed (HTTP ${response.status})`)
     }
     let body

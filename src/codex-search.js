@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { WebError } from '@deepseek-ai/dsh-web'
 import { USER_AGENT } from './version.js'
 import { readCapabilitySettings } from './capability-settings.js'
+import { authFailureMessage, SIGN_IN_RENEW } from './http-failure.js'
 
 export const CODEX_SEARCH_PROVIDER_ID = 'codex-subscription'
 export const CODEX_AUTO_SEARCH_PROVIDER_ID = 'codex-subscription-auto'
@@ -120,8 +121,10 @@ export function createCodexSearchProvider(options) {
         throw new WebError('Codex search request failed', 'WEB_PROVIDER_ERROR', { cause: error })
       }
       if (!response.ok) {
-        throw response.status === 401 || response.status === 403
-          ? new WebError('ChatGPT sign-in needs to be renewed', 'WEB_PROVIDER_CREDENTIAL_MISSING')
+        const authFailure = await authFailureMessage(response)
+        throw authFailure === SIGN_IN_RENEW
+          ? new WebError(authFailure, 'WEB_PROVIDER_CREDENTIAL_MISSING')
+          : authFailure !== undefined ? new WebError(authFailure, 'WEB_PROVIDER_ERROR')
           : new WebError(`Codex search request failed (HTTP ${response.status})`, 'WEB_PROVIDER_ERROR')
       }
       let value

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from './client-primitives.js'
 import { CHANNEL, unwrap, fill, uiLocale, percent, windowLabel, validDate, notifyQuickQuota, formatQuotaForecast } from './client-shared.js'
 import { creditExpiryStatus } from './credit-expiry.js'
+import { REQUEST_BLOCKED } from './http-failure.js'
 import { UsageHistory } from './client-usage-history.jsx'
 import { UsageOverview } from './client-usage-overview.jsx'
 
@@ -126,6 +127,7 @@ export function resetCreditErrorText(error, t) {
   const key = new Map([
     ['ChatGPT subscription is not signed in', 'resetRenewLogin'],
     ['ChatGPT sign-in needs to be renewed', 'resetRenewLogin'],
+    [REQUEST_BLOCKED, 'resetBlocked'],
     ['No quota reset is available', 'resetNoCredit'],
     ['No usable quota reset is available', 'resetNoCredit'],
     ['The available quota reset expires too soon', 'resetExpired'],

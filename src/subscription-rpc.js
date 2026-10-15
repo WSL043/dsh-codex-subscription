@@ -1,3 +1,4 @@
+import { REQUEST_BLOCKED } from './http-failure.js'
 import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { capabilityPatch } from './capability-settings.js'
 import { ORIGINAL_IMAGE_CHUNK_BYTES, ORIGINAL_IMAGE_ID_PATTERN } from './image-original-contract.js'
@@ -201,6 +202,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, planHis
         const known = new Set([
           'ChatGPT subscription is not signed in',
           'ChatGPT sign-in needs to be renewed',
+          REQUEST_BLOCKED,
         ])
         const message = error instanceof Error && known.has(error.message)
           ? error.message
@@ -214,7 +216,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, planHis
         return { ok: true, value: await usageProfileReader.read({ force: payload?.force === true, signal }) }
       } catch (error) {
         if (signal.aborted) throw error
-        const known = new Set(['ChatGPT subscription is not signed in', 'ChatGPT sign-in needs to be renewed'])
+        const known = new Set(['ChatGPT subscription is not signed in', 'ChatGPT sign-in needs to be renewed', REQUEST_BLOCKED])
         return publicError('internal', error instanceof Error && known.has(error.message) ? error.message : 'Could not read ChatGPT usage profile')
       }
     }
@@ -224,7 +226,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, planHis
         return { ok: true, value: await planHistoryReader.read({ force: payload?.force === true, signal }) }
       } catch (error) {
         if (signal.aborted) throw error
-        const known = new Set(['ChatGPT subscription is not signed in', 'ChatGPT sign-in needs to be renewed'])
+        const known = new Set(['ChatGPT subscription is not signed in', 'ChatGPT sign-in needs to be renewed', REQUEST_BLOCKED])
         return publicError('internal', error instanceof Error && known.has(error.message) ? error.message : 'Could not read ChatGPT usage history')
       }
     }
@@ -246,6 +248,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, planHis
         const known = new Set([
           'ChatGPT subscription is not signed in',
           'ChatGPT sign-in needs to be renewed',
+          REQUEST_BLOCKED,
           'No quota reset is available',
           'No usable quota reset is available',
           'The available quota reset expires too soon',

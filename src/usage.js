@@ -2,6 +2,7 @@ import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { USER_AGENT } from './version.js'
 import { creditExpiry } from './credit-expiry.js'
 import { highestUsed, quotaRefreshMs } from './quota-cadence.js'
+import { authFailureMessage } from './http-failure.js'
 
 export const CODEX_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
 const DEFAULT_TTL_MS = 60_000
@@ -251,9 +252,7 @@ export function createCodexUsageReader(options) {
       signal: requestSignal(signal, timeoutMs),
     })
     if (!response.ok) {
-      const error = new Error(response.status === 401 || response.status === 403
-        ? 'ChatGPT sign-in needs to be renewed'
-        : `ChatGPT usage request failed (HTTP ${response.status})`)
+      const error = new Error(await authFailureMessage(response) ?? `ChatGPT usage request failed (HTTP ${response.status})`)
       Object.defineProperty(error, 'retryAfterMs', {
         value: retryAfterMs(response, now, maxRetryAfterMs),
       })

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
+import { REQUEST_BLOCKED } from '../src/http-failure.js'
 
 import {
   CODEX_SEARCH_PROVIDER_ID,
@@ -191,6 +192,7 @@ test('Codex search reports subscription, provider, and cancellation failures wit
   for (const [response, code, message] of [
     [new Response('', { status: 401 }), 'WEB_PROVIDER_CREDENTIAL_MISSING', 'ChatGPT sign-in needs to be renewed'],
     [new Response('', { status: 503 }), 'WEB_PROVIDER_ERROR', 'Codex search request failed (HTTP 503)'],
+    [new Response('<title>Just a moment...</title>', { status: 403, headers: { 'content-type': 'text/html' } }), 'WEB_PROVIDER_ERROR', REQUEST_BLOCKED],
   ]) {
     let calls = 0
     const provider = authed(async (url) => {

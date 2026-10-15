@@ -5,6 +5,7 @@ import { ORIGINAL_IMAGE_SCHEMA_VERSION } from './image-original-contract.js'
 import { USER_AGENT } from './version.js'
 import { IMAGE_MODELS, resolveImageModel, validateImageQuality } from './image-models.js'
 import { assertImageOperation, readImageDefaults } from './image-features.js'
+import { authFailureMessage } from './http-failure.js'
 
 export const CODEX_IMAGE_TOOL_NAME = 'codex_image_generate'
 export const CODEX_IMAGE_GENERATION_URL = 'https://chatgpt.com/backend-api/codex/images/generations'
@@ -477,9 +478,8 @@ export function createCodexImageTool(options) {
         throw new Error(`Codex image ${editing ? 'edit' : 'generation'} request failed${requestFailureReason(error)}`, { cause: error })
       }
       if (!response.ok) {
-        if (response.status === 401 || response.status === 403) {
-          throw new Error('ChatGPT sign-in needs to be renewed')
-        }
+        const authFailure = await authFailureMessage(response)
+        if (authFailure !== undefined) throw new Error(authFailure)
         const requestId = supportId(response)
         if (response.status === 429) throw new Error(`${await limitMessage(response)}${requestId}`)
         throw new Error(`Codex image ${editing ? 'edit' : 'generation'} failed (HTTP ${response.status})${requestId}`)
