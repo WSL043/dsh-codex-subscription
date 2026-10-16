@@ -42,7 +42,7 @@
 2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
 
    ```text
-   dsh-codex-subscription@2.7.0
+   dsh-codex-subscription@2.7.1
    ```
 
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
@@ -54,7 +54,7 @@
 <summary>终端安装（已能运行 dsh 命令）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@2.7.0
+dsh plugin --profile web add dsh-codex-subscription@2.7.1
 ```
 
 安装完成后按提示重启 DSH，再到 **设置 → Codex 订阅** 登录。插件页面和终端均由 DSH 管理安装。
@@ -67,7 +67,7 @@ dsh plugin --profile web add dsh-codex-subscription@2.7.0
 先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@2.7.0
+dsh plugin --profile headless add dsh-codex-subscription@2.7.1
 dsh --profile headless "只回复：ok"
 ```
 
@@ -355,7 +355,7 @@ DSH 实机设置截图，随浅色 / 深色主题切换。
 <summary>终端方式</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@2.7.0
+dsh plugin --profile web update dsh-codex-subscription@2.7.1
 ```
 
 仅在需要卸载时运行：
