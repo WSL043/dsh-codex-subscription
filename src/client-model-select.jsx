@@ -1,8 +1,10 @@
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 import { BoltIcon } from '@heroicons/react/16/solid'
-import { IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14 } from './client-primitives.js'
+import { IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, Input, MenuGroup, MenuSurface } from './client-primitives.js'
 import { OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, SPEED_MODE_FAST, SPEED_MODE_FIELD, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST, supportsCodexFastMode } from './settings-contract.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
+const MEASURE_STYLE = { visibility: 'hidden', left: 0, top: 0 }
 export function CodexModelSelect({ locked, available, directory, load, select, preference, t }) {
   const state = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
   const preferenceSnapshot = usePreferenceSnapshot(preference)
@@ -10,6 +12,8 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
   const [pane, setPane] = useState('root')
   const [query, setQuery] = useState('')
   const rootRef = useRef(null)
+  const menuRef = useRef(null)
+  const [menuPos, setMenuPos] = useState(null)
   const triggerRef = useRef(null)
   const id = useId()
   const choices = useMemo(() => state.groups.flatMap(group => group.models.map(model => ({
@@ -76,7 +80,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
   useEffect(() => {
     if (!open) return undefined
     const closeOutside = event => {
-      if (!rootRef.current?.contains(event.target)) {
+      if (!rootRef.current?.contains(event.target) && !menuRef.current?.contains(event.target)) {
         setOpen(false)
         setPane('root')
         setQuery('')
@@ -85,6 +89,26 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     document.addEventListener('mousedown', closeOutside)
     return () => document.removeEventListener('mousedown', closeOutside)
   }, [open])
+  // Like DSH's own picker: the menu floats above the trigger, right-aligned, and stays inside the window.
+  useLayoutEffect(() => {
+    if (!open) { setMenuPos(null); return undefined }
+    const place = () => {
+      const rect = triggerRef.current?.getBoundingClientRect()
+      if (rect === undefined) return
+      const margin = 12
+      const width = menuRef.current?.offsetWidth ?? 0
+      const height = menuRef.current?.offsetHeight ?? 0
+      let left = rect.right - width
+      let top = rect.top - 8 - height
+      if (width > 0) left = Math.min(Math.max(left, margin), window.innerWidth - width - margin)
+      if (height > 0) top = Math.min(Math.max(top, margin), window.innerHeight - height - margin)
+      setMenuPos({ left, top })
+    }
+    place()
+    window.addEventListener('scroll', place, true)
+    window.addEventListener('resize', place)
+    return () => { window.removeEventListener('scroll', place, true); window.removeEventListener('resize', place) }
+  }, [open, pane, state, query])
   useEffect(() => {
     if (pane !== 'model') setQuery('')
   }, [pane])
@@ -142,64 +166,84 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     <span className="codexModelSelectOptionCopy"><span className="codexModelSelectOptionName">{label}</span>{description === undefined ? null : <span className="codexModelSelectOptionDescription">{description}</span>}</span>
     <span className="codexModelSelectCheck">{selected ? <IconCheckOutline16 /> : null}</span>
   </button>
+  // Like DSH's own picker, a row opens its choices in the same menu; Escape goes back.
   const cell = (target, label, value) => <button
     type="button"
     role="menuitem"
     className="codexModelSelectCell"
-    data-open={pane === target}
-    aria-haspopup="menu"
-    aria-expanded={pane === target}
-    onClick={() => setPane(current => current === target ? 'root' : target)}
+    onClick={() => { setQuery(''); setPane(target) }}
   >
     <span className="codexModelSelectCellLabel">{label}</span>
     <span className="codexModelSelectCellValue">{value}</span>
     <IconChevronRightOutline14 className="codexModelSelectCellChevron" />
   </button>
+  const group = (key, label, children) => MenuGroup === undefined
+    ? <section key={key} role="group" aria-label={label}><div className="codexModelSelectGroupTitle">{label}</div>{children}</section>
+    : <MenuGroup key={key} label={label}>{children}</MenuGroup>
 
-  let submenu = null
-  if (pane === 'model') {
-    submenu = <div className="codexModelSelectSubmenu codexModelSelectModelMenu" role="menu" aria-label={t('modelLabel')}>
+  let content = null
+  if (pane === 'root') {
+    content = <>
+      {cell('model', t('modelLabel'), modelLabel)}
+      {reasoning === undefined ? null : cell('effort', t('effortLabel'), effortLabel)}
+      {(speedSupported || ultrafastSupported) && cell('speed', t('speedTitle'), t(speedKey))}
+      {verbositySupported && cell('verbosity', t('verbosityTitle'), verbosityLabel)}
+    </>
+  } else if (pane === 'model') {
+    content = <>
+      {searchable ? <div className="codexModelSelectSearchRow"><Input className="codexModelSelectSearch" type="text" role="searchbox" value={query} autoFocus placeholder={t('modelSearch')} aria-label={t('modelSearch')} onChange={event => setQuery(event.target.value)} /></div> : null}
       {state.status === 'loading' ? <div className="codexModelSelectStatus">{t('modelsLoading')}</div> : null}
       {state.error === null ? null : <div className="codexModelSelectError"><span>{fill(t('modelFailed'), { value: state.error })}</span><button className="codexModelSelectRetry" type="button" onClick={load}>{t('modelRetry')}</button></div>}
       {state.failures.map(failure => <div className="codexModelSelectWarning" key={failure.id}>{fill(t('groupFailed'), { name: failure.name, value: failure.message })}</div>)}
-      {searchable ? <input className="codexModelSelectSearch" type="search" value={query} autoFocus placeholder={t('modelSearch')} aria-label={t('modelSearch')} onChange={event => setQuery(event.target.value)} /> : null}
-      <div className="codexModelSelectGroups scrollable">{shownGroups.map(group => <section className="codexModelSelectGroup" role="group" aria-labelledby={`${id}-${group.id}`} key={group.id}>
-        <div className="codexModelSelectGroupTitle" id={`${id}-${group.id}`}>{group.name}</div>
-        {group.allHidden === true ? <div className="codexModelSelectEmpty">{t('modelsHidden')}</div> : null}
-        {group.models.map(model => option({
+      <div className="codexModelSelectGroups scrollable" role="menu" aria-label={t('modelLabel')}>{shownGroups.map(entry => group(entry.id, entry.name, <>
+        {entry.allHidden === true ? <div className="codexModelSelectEmpty">{t('modelsHidden')}</div> : null}
+        {entry.models.map(model => option({
           key: model.id,
           label: model.name,
-          description: model.description,
-          selected: state.current?.provider === group.id && state.current.model === model.id,
+          selected: state.current?.provider === entry.id && state.current.model === model.id,
           disabled: busy,
-          onClick: () => chooseModel({ provider: group.id, model: model.id }),
+          onClick: () => chooseModel({ provider: entry.id, model: model.id }),
         }))}
-      </section>)}</div>
+      </>))}</div>
       {state.status === 'ready' && visibleGroups.length === 0 ? <div className="codexModelSelectEmpty">{t(choices.length === 0 ? 'modelsEmpty' : 'modelsHidden')}</div> : null}
       {state.status === 'ready' && visibleGroups.length > 0 && shownGroups.length === 0 ? <div className="codexModelSelectEmpty">{t('modelNoMatch')}</div> : null}
-    </div>
+    </>
   } else if (pane === 'effort') {
-    submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('effortLabel')}>
-      {effortChoices.length === 0 ? <div className="codexModelSelectEmpty">{t('effortsEmpty')}</div> : effortChoices.map(level => option({
-        key: level.key,
-        label: level.label,
-        description: level.description,
-        selected: effectiveEffort === level.effort,
-        disabled: busy,
-        onClick: () => chooseEffort(level.effort),
-      }))}
-    </div>
+    content = effortChoices.length === 0 ? <div className="codexModelSelectEmpty">{t('effortsEmpty')}</div> : effortChoices.map(level => option({
+      key: level.key,
+      label: level.label,
+      description: level.description,
+      selected: effectiveEffort === level.effort,
+      disabled: busy,
+      onClick: () => chooseEffort(level.effort),
+    }))
   } else if (pane === 'speed') {
-    submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('speedTitle')}>
+    content = <>
       {option({ key: SPEED_MODE_STANDARD, label: t('speedStandard'), description: t('speedStandardHint'), selected: !fast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_STANDARD) })}
       {speedSupported && option({ key: SPEED_MODE_FAST, label: t('speedFast'), description: t(state.current?.model === 'gpt-6-astra' ? 'speedFastAstraHint' : 'speedFastHint'), selected: fast && !ultrafast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_FAST) })}
       {ultrafastSupported && option({ key: SPEED_MODE_ULTRAFAST, label: t('speedUltrafast'), description: t('speedUltrafastHint'), selected: ultrafast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_ULTRAFAST) })}
-    </div>
+    </>
   } else if (pane === 'verbosity') {
-    submenu = <div className="codexModelSelectSubmenu" role="menu" aria-label={t('verbosityTitle')}>
-      {verbosityItems.map(item => option({ key: item.id, label: item.label, description: item.description, selected: preferenceSnapshot.outputVerbosity === item.id, disabled: !verbosityWritable, onClick: () => chooseVerbosity(item.id) }))}
-    </div>
+    content = verbosityItems.map(item => option({ key: item.id, label: item.label, description: item.description, selected: preferenceSnapshot.outputVerbosity === item.id, disabled: !verbosityWritable, onClick: () => chooseVerbosity(item.id) }))
   }
+
+  const Surface = MenuSurface ?? 'div'
+  const menu = open ? createPortal(<Surface
+    ref={menuRef}
+    id={`${id}-menu`}
+    className="codexModelSelectMenu"
+    style={menuPos ?? MEASURE_STYLE}
+    role={pane === 'model' ? 'group' : 'menu'}
+    aria-label={t('modelMenuAria')}
+    aria-busy={state.status === 'loading' || busy}
+    onKeyDown={event => {
+      if (event.key !== 'Escape') return
+      event.preventDefault()
+      event.stopPropagation()
+      if (pane === 'root') close(true)
+      else setPane('root')
+    }}
+  >{content}</Surface>, document.body) : null
 
   return <div className="codexModelSelect" ref={rootRef} onKeyDown={event => {
     if (event.key !== 'Escape' || !open) return
@@ -224,12 +268,6 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
       {effortLabel === undefined ? null : <span className="codexModelSelectEffort">{effortLabel}</span>}
       <IconChevronDownOutline14 className="codexModelSelectChevron" />
     </button>
-    {open ? <div className="codexModelSelectMenu" id={`${id}-menu`} role="menu" aria-label={t('modelMenuAria')} aria-busy={state.status === 'loading' || busy}>
-      {cell('model', t('modelLabel'), modelLabel)}
-      {reasoning === undefined ? null : cell('effort', t('effortLabel'), effortLabel)}
-      {(speedSupported || ultrafastSupported) && cell('speed', t('speedTitle'), t(speedKey))}
-      {verbositySupported && cell('verbosity', t('verbosityTitle'), verbosityLabel)}
-      {submenu}
-    </div> : null}
+    {menu}
   </div>
 }

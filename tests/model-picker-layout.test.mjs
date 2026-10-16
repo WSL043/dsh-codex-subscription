@@ -12,11 +12,12 @@ const rule = className => {
 
 // Source contracts complement installed-browser geometry and hit-testing:
 // Node does not implement CSS layout, so these are not browser assertions.
-test('the model list uses the space remaining below search in the bounded submenu', () => {
-  const menu = rule('codexModelSelectModelMenu')
+test('the model list uses the space remaining below search in the bounded menu', () => {
+  const menu = rule('codexModelSelectMenu')
   assert.match(menu, /(?:^|;)display:flex(?:;|$)/u)
   assert.match(menu, /(?:^|;)flex-direction:column(?:;|$)/u)
-  assert.match(rule('codexModelSelectSearch'), /(?:^|;)flex-shrink:0(?:;|$)/u)
+  assert.match(menu, /(?:^|;)position:fixed(?:;|$)/u, 'the menu is placed like the DSH picker, above the trigger')
+  assert.match(rule('codexModelSelectSearchRow'), /(?:^|;)flex-shrink:0(?:;|$)/u)
 
   const groups = rule('codexModelSelectGroups')
   assert.match(groups, /(?:^|;)flex:1 1 auto(?:;|$)/u)
@@ -26,14 +27,13 @@ test('the model list uses the space remaining below search in the bounded submen
     'a second height budget ignores search, loading, warnings, padding, and borders')
 })
 
-test('only the model pane opts into the shrinking list layout', async () => {
+test('rows drill into the same menu surface, as in the DSH picker', async () => {
   const source = await readFile(new URL('../src/client-model-select.jsx', import.meta.url), 'utf8')
-  const modelPane = source.slice(source.indexOf("if (pane === 'model')"), source.indexOf("} else if (pane === 'effort')"))
-  assert.match(modelPane, /className="codexModelSelectSubmenu codexModelSelectModelMenu"/u)
+  const modelPane = source.slice(source.indexOf("} else if (pane === 'model')"), source.indexOf("} else if (pane === 'effort')"))
+  assert.match(modelPane, /className="codexModelSelectSearchRow"/u)
   assert.match(modelPane, /className="codexModelSelectSearch"/u)
   assert.match(modelPane, /className="codexModelSelectGroups scrollable"/u)
-  assert.equal(source.match(/codexModelSelectModelMenu/gu)?.length, 1,
-    'effort, speed, and verbosity panes must keep their existing layout')
-  assert.match(STYLE, /\.codexModelSelectMenu\{overflow:visible\}/u,
-    'the root menu must not clip its nested submenu')
+  assert.doesNotMatch(source, /codexModelSelectSubmenu/u, 'no flyout beside the root menu')
+  assert.match(source, /createPortal\(/u, 'the menu is portalled out of the composer like the DSH picker')
+  assert.match(source, /MenuSurface \?\? 'div'/u, 'older hosts without MenuSurface keep working')
 })

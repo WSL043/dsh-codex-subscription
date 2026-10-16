@@ -8,6 +8,9 @@ export const IconCheckOutline16 = primitives.IconCheckOutlineRegular
 export const IconChevronDownOutline14 = primitives.IconChevronDownOutlineRegular
 export const IconChevronRightOutline14 = primitives.IconChevronRightOutlineRegular
 export const Menu = primitives.Menu
+// Present from DSH 0.2.0; older hosts fall back to plain elements.
+export const MenuSurface = primitives.MenuSurface
+export const MenuGroup = primitives.MenuGroup
 export const Tooltip = primitives.Tooltip
 export const IconChevronLeftOutline14 = primitives.IconChevronLeftOutlineRegular
 export const IconCloseOutline16 = primitives.IconCloseOutlineRegular
