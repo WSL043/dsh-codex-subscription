@@ -109,7 +109,7 @@ Pair the ChatGPT mobile app's Codex section with a QR code and the DSH on your c
 - DSH workspaces appear as projects; fork a conversation, see usage limits, lifetime usage and context usage; where DSH has `/compact` (0.2.0-rc.2 onwards), compact the context from the phone;
 - model errors show on the phone; paired phones are listed in settings and can be removed.
 
-Off by default: **Settings → Codex → Models & runtime → Phone remote control**. The computer must stay on, online and running DSH. This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. Currently in the pre-release: `dsh-codex-subscription@3.0.0-beta.7`.
+Off by default: **Settings → Codex → Models & runtime → Phone remote control**. The computer must stay on, online and running DSH. This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. Currently in the pre-release: `dsh-codex-subscription@3.0.0-beta.8`.
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Phone remote control in settings: the switch, pairing QR code and manual code, paired phones"></picture></p>
 
@@ -199,7 +199,7 @@ Model access and quota depend on your account.
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta (3.0.0-beta.7); off by default; Settings → Codex → Models & runtime → Phone remote control, pair by QR or manual code |
+| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta (3.0.0-beta.8); off by default; Settings → Codex → Models & runtime → Phone remote control, pair by QR or manual code |
 | **Codex independent subtasks** | Reuse subscription sign-in and workspace permissions; select allowed models and reasoning levels | Beta; DSH by default, Codex requires the optional component and model-selection setup |
 | **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
 | **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
