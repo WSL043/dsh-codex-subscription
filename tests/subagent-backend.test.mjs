@@ -109,3 +109,25 @@ test('preset rows mounted by the DSH 0.2 registry are found, and a host without 
   assert.deepEqual(presetEntries({ get: () => { throw new Error('boom') } }), [])
   assert.deepEqual(presetEntries({}), [])
 })
+
+test('a failed Codex start reports why instead of a bare stream error', async () => {
+  const { startFailureReason, authenticatedSubagentChild } = await import('../src/subagent-auth.js')
+  assert.equal(startFailureReason('WARNING: helper binaries\nError: failed to initialize sqlite state runtime under X\n'), 'failed to initialize sqlite state runtime under X')
+  assert.equal(startFailureReason(''), undefined)
+  assert.equal(startFailureReason('plain last line\n'), 'plain last line')
+  assert.equal(startFailureReason(`Error: ${'x'.repeat(500)}`).length, 300)
+  const { PassThrough } = await import('node:stream')
+  const stderr = new PassThrough(), stdout = new PassThrough(), stdin = new PassThrough()
+  const failure = new Error('stream closed')
+  class Transport {
+    constructor() { this.handlers = {} }
+    onRequest(handler) { this.handler = handler } onNotification() {} start() {} close() {}
+    async request() { throw failure }
+  }
+  const handlers = []
+  const Recording = class extends Transport { constructor(...args) { super(...args); handlers.push(this) } }
+  const child = { stdout, stdin, stderr, done: new Promise(() => {}) }
+  authenticatedSubagentChild(child, { Transport: Recording, getTokens: async () => ({}), thread: {}, signal: new AbortController().signal })
+  stderr.write('Error: failed to initialize sqlite state runtime\n')
+  await assert.rejects(handlers[0].handler('initialize', { capabilities: {} }), /Codex subtask could not start: failed to initialize sqlite state runtime/)
+})

@@ -1,6 +1,14 @@
 import { PassThrough } from 'node:stream'
 
 const AUTH_ERROR = 'Codex subscription authorization failed; check the selected account'
+const STDERR_TAIL = 4000
+
+/** The last "Error:" line Codex printed while starting, so a failed start says why. */
+export function startFailureReason(stderr) {
+  const lines = String(stderr).split(/\r?\n/u).map(line => line.trim()).filter(Boolean)
+  const line = [...lines].reverse().find(entry => /^error\b/iu.test(entry)) ?? lines.at(-1)
+  return line === undefined ? undefined : line.replace(/^error:\s*/iu, '').slice(0, 300)
+}
 
 /** Keep refresh rotation in the plugin's existing serialized credential store. */
 export async function createSubagentTokens({ resolveAuth, store, refresh, signal }) {
@@ -44,6 +52,8 @@ export function authenticatedSubagentChild(child, { Transport, getTokens, thread
   const server = new Transport(child.stdout, child.stdin)
   let initialized = false
   let authenticated
+  let stderr = ''
+  child.stderr?.on?.('data', chunk => { stderr = (stderr + chunk).slice(-STDERR_TAIL) })
   let closed = false
   const close = () => {
     if (closed) return
@@ -66,9 +76,17 @@ export function authenticatedSubagentChild(child, { Transport, getTokens, thread
   })()
   host.onRequest(async (method, params) => {
     if (method === 'initialize') {
-      const result = await server.request(method, {
-        ...params, capabilities: { ...params.capabilities, experimentalApi: true },
-      }, signal)
+      let result
+      try {
+        result = await server.request(method, {
+          ...params, capabilities: { ...params.capabilities, experimentalApi: true },
+        }, signal)
+      } catch (error) {
+        if (signal.aborted) throw error
+        await new Promise(resolve => setTimeout(resolve, 50))
+        const reason = startFailureReason(stderr)
+        throw reason === undefined ? error : new Error(`Codex subtask could not start: ${reason}`, { cause: error })
+      }
       initialized = true
       return result
     }
