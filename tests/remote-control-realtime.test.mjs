@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import test from 'node:test'
-import { appendChunks, channelOf, createRealtimeVoice, delegationText, parseEvent } from '../src/remote-control-realtime.js'
+import { appendChunks, callRecord, channelOf, createRealtimeVoice, delegationText, parseEvent } from '../src/remote-control-realtime.js'
 
 // A stand-in for the voice service's side channel: what the phone's call would give the host.
 class FakeSocket extends EventEmitter {
@@ -51,14 +51,14 @@ test('transcripts reach the phone, a spoken request runs as a turn and its answe
   await settle()
   assert.deepEqual(notes.slice(1).map(note => [note.method, note.params.role]), [['thread/realtime/transcript/delta', 'user'], ['thread/realtime/transcript/done', 'assistant']])
   assert.equal(delegated.length, 1)
-  assert.equal(delegated[0].text, '🎙 list files\n\n> 🔊 Sure.')
+  assert.equal(delegated[0].text, 'list files')
   assert.deepEqual(socket.sent.map(message => [message.type, message.delegation_item_id, message.channel, message.content[0].text]), [
     ['delegation.context.append', 'd1', 'commentary', '[STATUS] Looking.'],
     ['delegation.context.append', 'd1', 'speakable', '[COMPLETE] It is done.'],
   ])
   socket.hear({ type: 'delegation.created', item: { id: 'd2', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: 'again' }] } })
   await settle()
-  assert.equal(delegated[1].text, '🎙 again')
+  assert.equal(delegated[1].text, 'again')
 })
 
 test('stopping closes the call and tells the phone; a closed call is reported once', async () => {
@@ -102,8 +102,8 @@ test('helpers: channel prefixes, chunking, delegation wrapper, event parsing', (
   assert.equal(channelOf('[ANALYSIS] hidden'), undefined)
   const chunks = appendChunks('字'.repeat(400))
   assert.ok(chunks.length > 1 && chunks.every(chunk => Buffer.byteLength(chunk) <= 500) && chunks.join('') === '字'.repeat(400))
-  assert.equal(delegationText('a <b> & c'), '🎙 a <b> & c')
-  assert.equal(delegationText('go', { transcript: [{ role: 'user', text: 'hi' }, { role: 'assistant', text: 'hello' }] }), '🎙 go\n\n> 🗣 hi\n> 🔊 hello')
+  assert.equal(delegationText('  a <b> & c '), 'a <b> & c')
+  assert.match(callRecord([{ role: 'user', text: 'hi' }, { role: 'assistant', text: 'hello' }]), /^You: hi\nVoice: hello\n\nThe voice call has ended\./u)
   assert.equal(parseEvent('not json'), undefined)
   assert.deepEqual(parseEvent('{"type":"error","error":{"message":"boom"}}'), { kind: 'error', message: 'boom' })
   assert.equal(parseEvent('{"type":"delegation.created","item":{"id":"x","type":"delegation","target":"server"}}'), undefined)
@@ -118,19 +118,19 @@ test('what was said and not handed to the agent is saved to the conversation whe
   voice.stop('t1')
   await settle()
   assert.equal(delegated.length, 1)
-  assert.match(delegated[0].text, /^🎙 Voice call ended\./u)
-  assert.match(delegated[0].text, /> 🗣 Hello there\n> 🔊 Hi!$/u)
+  assert.match(delegated[0].text, /^You: Hello there\nVoice: Hi!\n\nThe voice call has ended\./u)
 })
 
-test('a spoken request carries what was said before it, once', async () => {
+test('a spoken request is just its text, and the whole dialogue is saved once when the call ends', async () => {
   const { voice, notify, delegated } = setup()
   await voice.start(start, notify)
   const [socket] = FakeSocket.instances
   socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'Check the repo' } })
   socket.hear({ type: 'delegation.created', item: { id: 'd1', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: 'list files' }] } })
   await settle()
-  assert.equal(delegated[0].text, '🎙 list files\n\n> 🗣 Check the repo')
+  assert.equal(delegated[0].text, 'list files')
   voice.stop('t1')
   await settle()
-  assert.equal(delegated.length, 1, 'nothing left to save at the end')
+  assert.equal(delegated.length, 2)
+  assert.match(delegated[1].text, /^You: Check the repo\n/u)
 })

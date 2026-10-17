@@ -15,16 +15,14 @@ const DELEGATION_FIELD_MAX = 4 * 1024
 
 const bounded = text => (text.length > DELEGATION_FIELD_MAX ? `${text.slice(0, DELEGATION_FIELD_MAX - 1)}…` : text)
 
-/**
- * The text a delegated request reaches the agent as, and so what the conversation shows: the spoken request on one line,
- * and what was said just before it as quiet quoted lines (🗣 the person, 🔊 the voice).
- */
-export function delegationText(input, { transcript = [] } = {}) {
-  const context = transcript.length === 0 ? '' : `\n\n${transcript.map(entry => `> ${entry.role === 'user' ? '🗣' : '🔊'} ${entry.text.replace(/\s+/gu, ' ').trim()}`).join('\n')}`
-  return `🎙 ${bounded(input).trim()}${context}`
-}
+/** A spoken request reaches the agent, and so the conversation, as the plain message it is. */
+export const delegationText = input => bounded(input).trim()
 
-const SESSION_ENDED = 'Voice call ended. Summarise it in a sentence or two, and carry on with anything that was left unfinished.'
+/** What the conversation keeps of a finished call: the dialogue, and a plain request to wrap it up. */
+export function callRecord(transcript) {
+  const lines = transcript.map(entry => `${entry.role === 'user' ? 'You' : 'Voice'}: ${entry.text.replace(/\s+/gu, ' ').trim()}`).join('\n')
+  return `${lines}\n\nThe voice call has ended. Summarise it in a sentence or two, and carry on with anything that was left unfinished.`
+}
 
 /** Which side channel an agent message belongs on: progress is commentary, an answer is spoken. */
 export function channelOf(text, prefixes = CHANNEL_PREFIXES) {
@@ -167,7 +165,7 @@ export function createRealtimeVoice(options) {
   const flushTail = (threadId, session) => {
     if (!session.flushTail || session.tail.length === 0) return
     const transcript = session.tail.splice(0)
-    session.chain = session.chain.then(() => options.delegate(threadId, delegationText(SESSION_ENDED, { transcript }), () => {}))
+    session.chain = session.chain.then(() => options.delegate(threadId, callRecord(transcript), () => {}))
       .catch(error => log.warn('voice', 'could not save the voice transcript to the conversation', String(error?.message ?? error)))
   }
 
@@ -231,9 +229,8 @@ export function createRealtimeVoice(options) {
         session.chain = session.chain.then(async () => {
           if (session.ended) return
           try {
-            const transcript = session.tail.splice(0)
             session.working += 1
-            try { await options.delegate(threadId, delegationText(input, { transcript }), text => { if (!session.ended) speak(event.id, text) }) } finally { session.working -= 1 }
+            try { await options.delegate(threadId, delegationText(input), text => { if (!session.ended) speak(event.id, text) }) } finally { session.working -= 1 }
           } catch (error) {
             log.warn('voice', 'the agent could not take the voice request', String(error?.message ?? error))
             if (!session.ended) speak(event.id, `[COMPLETE] I could not do that: ${String(error?.message ?? 'the task could not start').slice(0, 160)}`)
