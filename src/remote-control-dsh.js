@@ -280,6 +280,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   const openedBy = new Map() // clientId -> Map<threadId, last time one of its connections had the thread open>
   const subscribe = (threadId, notify) => {
     const set = subscribers.get(threadId) ?? new Set()
+    // One phone has one live stream per thread: an older stream of the same phone no longer gets (and doubles) the updates.
+    if (notify.clientId) for (const other of [...set]) if (other !== notify && other.clientId === notify.clientId) set.delete(other)
     set.add(notify)
     subscribers.set(threadId, set)
     if (notify.clientId) {

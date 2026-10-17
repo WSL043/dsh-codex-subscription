@@ -109,3 +109,30 @@ test('helpers: channel prefixes, chunking, delegation wrapper, event parsing', (
   assert.deepEqual(parseEvent('{"type":"error","error":{"message":"boom"}}'), { kind: 'error', message: 'boom' })
   assert.equal(parseEvent('{"type":"delegation.created","item":{"id":"x","type":"delegation","target":"server"}}'), undefined)
 })
+
+test('what was said and not handed to the agent is saved to the conversation when the call ends', async () => {
+  const { voice, notify, delegated } = setup()
+  await voice.start({ ...start, realtimeEndInstructions: 'Voice has ended.' }, notify)
+  const [socket] = FakeSocket.instances
+  socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'Hello there' } })
+  socket.hear({ type: 'turn.done', turn: { role: 'assistant', transcript: 'Hi!' } })
+  voice.stop('t1')
+  await settle()
+  assert.equal(delegated.length, 1)
+  assert.match(delegated[0].text, /<realtime_instructions>Voice has ended\.<\/realtime_instructions>/u)
+  assert.match(delegated[0].text, /<source>transcript_tail_flush<\/source>/u)
+  assert.match(delegated[0].text, /<transcript_delta>user: Hello there\nassistant: Hi!<\/transcript_delta>/u)
+})
+
+test('a spoken request carries what was said before it, once', async () => {
+  const { voice, notify, delegated } = setup()
+  await voice.start(start, notify)
+  const [socket] = FakeSocket.instances
+  socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'Check the repo' } })
+  socket.hear({ type: 'delegation.created', item: { id: 'd1', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: 'list files' }] } })
+  await settle()
+  assert.match(delegated[0].text, /<transcript_delta>user: Check the repo<\/transcript_delta>/u)
+  voice.stop('t1')
+  await settle()
+  assert.equal(delegated.length, 1, 'nothing left to save at the end')
+})

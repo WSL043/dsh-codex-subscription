@@ -17,10 +17,15 @@ const escapeXml = text => String(text).replaceAll('&', '&amp;').replaceAll('<', 
 const bounded = text => (text.length > DELEGATION_FIELD_MAX ? `${text.slice(0, DELEGATION_FIELD_MAX - 1)}…` : text)
 
 /** The text a delegated request reaches the agent as. */
-export function delegationText(input, instructions) {
+export function delegationText(input, instructions, { transcript = '', source = '' } = {}) {
   const head = instructions ? `<realtime_instructions>${escapeXml(bounded(instructions))}</realtime_instructions>\n` : ''
-  return `${head}<realtime_delegation>\n  <input>${escapeXml(bounded(input))}</input>\n</realtime_delegation>`
+  const origin = source === '' ? '' : `  <source>${source}</source>\n`
+  // The tail keeps its end: what was said last matters most.
+  const spoken = transcript === '' ? '' : `  <transcript_delta>${escapeXml(transcript.length > DELEGATION_FIELD_MAX ? `…${transcript.slice(-(DELEGATION_FIELD_MAX - 1))}` : transcript)}</transcript_delta>\n`
+  return `${head}<realtime_delegation>\n${origin}  <input>${escapeXml(bounded(input))}</input>\n${spoken}</realtime_delegation>`
 }
+
+const SESSION_ENDED = 'The user just ended their realtime session. Here is the remaining handoff/transcript tail. You probably do not have to do anything; acknowledge the handoff unless the transcript itself asks for something.'
 
 /** Which side channel an agent message belongs on: progress is commentary, an answer is spoken. */
 export function channelOf(text, prefixes = CHANNEL_PREFIXES) {
@@ -145,11 +150,20 @@ export function createRealtimeVoice(options) {
     throw last ?? new Error('no voice endpoint answered')
   }
 
+  // What was said and not yet handed to the agent becomes part of the conversation, so the voice call leaves a record in DSH.
+  const flushTail = (threadId, session) => {
+    if (!session.flushTail || session.tail.length === 0) return
+    const transcript = session.tail.splice(0).map(entry => `${entry.role}: ${entry.text}`).join('\n')
+    session.chain = session.chain.then(() => options.delegate(threadId, delegationText(SESSION_ENDED, session.endInstructions, { transcript, source: 'transcript_tail_flush' }), () => {}))
+      .catch(error => log.warn('voice', 'could not save the voice transcript to the conversation', String(error?.message ?? error)))
+  }
+
   const stop = (threadId, reason = 'requested') => {
     const session = sessions.get(threadId)
     if (!session) return false
     sessions.delete(threadId)
     session.ended = true
+    flushTail(threadId, session)
     try { session.ws.send(JSON.stringify(outbound.close())) } catch { /* already closed */ }
     try { session.ws.close() } catch { /* already closed */ }
     void session.notify('thread/realtime/closed', { threadId, reason }).catch(() => {})
@@ -172,7 +186,7 @@ export function createRealtimeVoice(options) {
       ...(typeof params.voiceSessionId === 'string' ? { 'voice-session-id': params.voiceSessionId } : {}),
     }
     const ws = await join(callId, headers)
-    const session = { ws, notify, ended: false, introduced: false, chain: Promise.resolve(), instructions: typeof params.realtimeStartInstructions === 'string' ? params.realtimeStartInstructions : '' }
+    const session = { ws, notify, ended: false, introduced: false, chain: Promise.resolve(), tail: [], flushTail: params.flushTranscriptTailOnSessionEnd !== false, instructions: typeof params.realtimeStartInstructions === 'string' ? params.realtimeStartInstructions : '', endInstructions: typeof params.realtimeEndInstructions === 'string' ? params.realtimeEndInstructions : '' }
     sessions.set(threadId, session)
     const send = message => { try { ws.send(JSON.stringify(message)) } catch (error) { log.warn('voice', 'could not send to the voice call', String(error?.message ?? error)) } }
     const speak = (delegationId, text) => {
@@ -185,7 +199,10 @@ export function createRealtimeVoice(options) {
       const event = parseEvent(String(data))
       if (!event || session.ended) return
       if (event.kind === 'delta') void notify('thread/realtime/transcript/delta', { threadId, role: event.role, delta: event.text }).catch(() => {})
-      else if (event.kind === 'done') void notify('thread/realtime/transcript/done', { threadId, role: event.role, text: event.text }).catch(() => {})
+      else if (event.kind === 'done') {
+        if (event.text.trim() !== '') { session.tail.push({ role: event.role, text: event.text }); if (session.tail.length > 200) session.tail.shift() }
+        void notify('thread/realtime/transcript/done', { threadId, role: event.role, text: event.text }).catch(() => {})
+      }
       else if (event.kind === 'error') {
         log.error('voice', 'the voice service reported an error', event.message)
         void notify('thread/realtime/error', { threadId, message: event.message }).catch(() => {})
@@ -197,7 +214,8 @@ export function createRealtimeVoice(options) {
         session.chain = session.chain.then(async () => {
           if (session.ended) return
           try {
-            await options.delegate(threadId, delegationText(input, intro), text => { if (!session.ended) speak(event.id, text) })
+            const transcript = session.tail.splice(0).map(entry => `${entry.role}: ${entry.text}`).join('\n')
+            await options.delegate(threadId, delegationText(input, intro, { transcript }), text => { if (!session.ended) speak(event.id, text) })
           } catch (error) {
             log.warn('voice', 'the agent could not take the voice request', String(error?.message ?? error))
             if (!session.ended) speak(event.id, `[COMPLETE] I could not do that: ${String(error?.message ?? 'the task could not start').slice(0, 160)}`)
@@ -209,6 +227,7 @@ export function createRealtimeVoice(options) {
       if (session.ended || sessions.get(threadId) !== session) return
       sessions.delete(threadId)
       session.ended = true
+      flushTail(threadId, session)
       log.warn('voice', 'the voice call closed')
       void notify('thread/realtime/closed', { threadId, reason: 'transportClosed' }).catch(() => {})
     })
