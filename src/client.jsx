@@ -20,6 +20,7 @@ import { NS, CHANNEL, unwrap } from './client-shared.js'
 import { createSubscriptionRpcClient } from './rpc-contract.js'
 import { CodexComposerQuota } from './client-composer-quota.jsx'
 import { CodexModelSelect } from './client-model-select.jsx'
+import { VoiceCallButton } from './client-voice-call.jsx'
 import { CodexSection } from './client-section.jsx'
 import { createHostDiagnostics } from './diagnostic-host.js'
 
@@ -85,6 +86,10 @@ export function apply(ctx) {
         directory: modelDirectories.directoryFor(sessionId).store,
       }),
     }, CodexComposerQuota))
+    scope.slots.inject('conversation.input.activity', () => scope.slots.register({
+      name: 'conversation.input.activity', id: 'codex-subscription-voice', order: 100, locale: NS,
+      inject: sessionId => ({ sessionId, preference, rpc, t }),
+    }, VoiceCallButton))
     scope.slots.inject('conversation.input.model', () => scope.slots.register({
       name: 'conversation.input.model', priority: -10, locale: NS,
       inject: sessionId => {

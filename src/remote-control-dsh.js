@@ -9,7 +9,7 @@ import { dirname, isAbsolute } from 'node:path'
 import { RpcError, invalidParams } from './remote-control-host.js'
 import { runGit } from './remote-control-git.js'
 import { searchFiles } from './remote-control-files.js'
-import { createRealtimeVoice, probeVoiceCall } from './remote-control-realtime.js'
+import { createRealtimeVoice, createVoiceCall, desktopInstructions } from './remote-control-realtime.js'
 import { diagnosticLog } from './diagnostic-log.js'
 
 /** A folder the phone named, only when it is an existing absolute folder on this machine. */
@@ -629,8 +629,6 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       subscribers.get(threadId)?.delete(observer)
     }
   }
-  // Development only: probe the voice backend once after start, without needing a phone.
-  if (process.env.DSH_CODEX_VOICE_PROBE === '1' && voice?.fetch) setTimeout(() => { void probeVoiceCall({ ...voice, userAgent, log: diagnosticLog }).catch(error => diagnosticLog.error('voice', 'the voice probe failed', String(error?.message ?? error))) }, 25_000).unref?.()
   const realtimeVoice = voice ? createRealtimeVoice({ ...voice, userAgent, log: diagnosticLog, delegate: delegateToAgent }) : undefined
 
   const phoneConfig = createPhoneConfig(configFile)
@@ -698,7 +696,6 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     // leaving it on "connecting": list the voices, then end a start attempt with a clear error.
     'thread/realtime/listVoices': () => {
       // Development only: ask the backend for a call the way the phone's next step does, and log its answer.
-      if (process.env.DSH_CODEX_VOICE_PROBE === '1' && voice?.fetch) void probeVoiceCall({ ...voice, userAgent, log: diagnosticLog }).catch(error => diagnosticLog.error('voice', 'the voice probe failed', String(error?.message ?? error)))
       return { voices: REALTIME_VOICES }
     },
     'thread/realtime/start': async (params, { notify }) => {
@@ -1164,5 +1161,21 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       if (!set.has(notify)) subscribe(threadId, notify)
     }
   }
-  return { methods, onSessionEvent, onStream, onApproval, onQuestion, adopt, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
+  // The desktop's own voice call: the browser's offer becomes a call at ChatGPT, and this host joins that call the way it
+  // joins one the phone made, so spoken requests run as turns of the DSH session and the answers are spoken back.
+  const desktopVoice = realtimeVoice === undefined ? undefined : Object.freeze({
+    async start({ sessionId, sdp, voice: voiceName, language }) {
+      if (typeof sdp !== 'string' || !sdp.startsWith('v=0') || sdp.length > 64 * 1024) throw new RpcError(-32602, 'Invalid voice offer')
+      await agentFor(sessionId)
+      const session = {
+        audio: { output: { voice: typeof voiceName === 'string' && /^[a-z]{2,16}$/u.test(voiceName) ? voiceName : 'cove' } },
+        delegation: { type: 'client' }, instructions: desktopInstructions(language), model: 'gpt-live-1.1-codex',
+      }
+      const { callId, answer } = await createVoiceCall({ fetch: voice.fetch, credentials: voice.credentials, userAgent, sdp, session, threadId: sessionId })
+      await realtimeVoice.start({ threadId: sessionId, transport: { type: 'existingCall', callId }, flushTranscriptTailOnSessionEnd: true, version: 'v3' }, async () => {})
+      return { answer }
+    },
+    stop: sessionId => realtimeVoice.stop(sessionId),
+  })
+  return { methods, desktopVoice, onSessionEvent, onStream, onApproval, onQuestion, adopt, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
 }

@@ -86,38 +86,40 @@ export function parseEvent(payload) {
  * @param {{ WebSocket: Function, credentials: (signal?: AbortSignal) => Promise<{ access: string, accountId: string }>, userAgent: string, bases?: string[], log?: { info: Function, warn: Function, error: Function }, trace?: Function, delegate: (threadId: string, text: string, onMessage: (text: string) => void) => Promise<void> }} options
  */
 /**
- * What the phone's first voice step asks the ChatGPT backend for: a call (its id comes back before any audio is
- * negotiated). Used by the development probe to see how the backend answers this account, with the answer logged
- * (status and a cleaned body, never a token).
+ * Ask the ChatGPT backend for a voice call: the browser's WebRTC offer goes in with the session settings, the answer
+ * comes back as plain SDP and the call id in the Location header. The same request the phone makes for its own call.
  */
-export async function probeVoiceCall({ fetch, credentials, userAgent, log, base = 'https://chatgpt.com/backend-api', model = 'gpt-live-1.1-codex' }) {
+export async function createVoiceCall({ fetch, credentials, userAgent, sdp, session, base = 'https://chatgpt.com/backend-api', threadId }) {
   const { access, accountId } = await credentials()
-  const fingerprint = Array.from({ length: 32 }, (_, index) => (index * 7 + 11).toString(16).padStart(2, '0').toUpperCase()).join(':')
-  const sdp = [
-    'v=0', 'o=- 4611731400430051336 2 IN IP4 127.0.0.1', 's=-', 't=0 0', 'a=group:BUNDLE 0 1', 'a=msid-semantic: WMS',
-    'm=audio 9 UDP/TLS/RTP/SAVPF 111', 'c=IN IP4 0.0.0.0', 'a=rtcp:9 IN IP4 0.0.0.0', 'a=ice-ufrag:probe', 'a=ice-pwd:probeprobeprobeprobeprobe',
-    'a=fingerprint:sha-256 ' + fingerprint, 'a=setup:actpass', 'a=mid:0', 'a=sendrecv', 'a=rtcp-mux', 'a=rtpmap:111 opus/48000/2', 'a=fmtp:111 minptime=10;useinbandfec=1',
-    'm=application 9 UDP/DTLS/SCTP webrtc-datachannel', 'c=IN IP4 0.0.0.0', 'a=ice-ufrag:probe', 'a=ice-pwd:probeprobeprobeprobeprobe',
-    'a=fingerprint:sha-256 ' + fingerprint, 'a=setup:actpass', 'a=mid:1', 'a=sctp-port:5000', 'a=max-message-size:262144', '',
-  ].join('\r\n')
-  const session = { audio: { output: { voice: 'marin' } }, delegation: { type: 'client' }, instructions: 'Probe.', model }
-  const variants = { nested: { sdp, session }, flat: { sdp, ...session } }
-  for (const [name, body] of Object.entries(variants)) {
-    const response = await fetch(`${base}/wham/realtime/calls?intent=quicksilver&architecture=avas`, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, 'content-type': 'application/json', accept: 'application/json',
-        'openai-alpha': 'quicksilver=v2', 'session-id': crypto.randomUUID(), 'thread-id': crypto.randomUUID(), 'user-agent': userAgent,
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15_000),
-    })
-    const text = (await response.text().catch(() => '')).slice(0, 4000)
-    const fields = (() => { try { return Object.entries(JSON.parse(text)).map(([key, value]) => key + ':' + (typeof value === 'string' ? value.slice(0, 12) : typeof value)).join(' ') } catch { return '' } })()
-    const location = (response.headers?.get?.('location') ?? '').replace(/[?#].*$/u, '').slice(0, 80)
-    log.info('voice', `probe ${name}: HTTP ${response.status}`, response.ok ? `${response.headers?.get?.('content-type') ?? '?'} | location=${location} | body starts: ${JSON.stringify(text.slice(0, 40))} | ${fields}` : text.slice(0, 280))
-    if (response.ok) break
-  }
+  const response = await fetch(`${base}/wham/realtime/calls?intent=quicksilver&architecture=avas`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, 'content-type': 'application/json', accept: 'application/sdp, application/json',
+      'openai-alpha': 'quicksilver=v2', 'session-id': crypto.randomUUID(), 'thread-id': threadId ?? crypto.randomUUID(), 'user-agent': userAgent,
+    },
+    body: JSON.stringify({ sdp, session }),
+    signal: AbortSignal.timeout(20_000),
+  })
+  const answer = await response.text()
+  if (!response.ok) throw new Error(`the voice backend refused the call (HTTP ${response.status}): ${answer.slice(0, 200)}`)
+  const callId = String(response.headers?.get?.('location') ?? '').replace(/[?#].*$/u, '').split('/').filter(Boolean).at(-1)
+  if (!/^rtc_[A-Za-z0-9_-]{8,80}$/u.test(callId ?? '')) throw new Error('the voice backend returned no call id')
+  if (!answer.startsWith('v=0')) throw new Error('the voice backend returned no session description')
+  return { callId, answer }
+}
+
+const LANGUAGE_NAMES = { zh: 'Chinese (Mandarin)', en: 'English', ja: 'Japanese', ko: 'Korean', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ru: 'Russian' }
+
+/** What the voice model is told when the call starts from the computer. */
+export function desktopInstructions(language) {
+  const spoken = LANGUAGE_NAMES[language]
+  return [
+    'You are the voice of DeepSeek Harness (DSH), a coding agent that works on the user\'s computer.',
+    'Talk like a calm, brief colleague: short sentences, no lists, no markup.',
+    'You cannot read files, run commands, search or change anything yourself. Hand every request that needs the computer, files, code, the web or any tool to the agent by delegating it, and say in a few words what you are handing over.',
+    'When the agent reports back, tell the user the result in your own words. Messages that start with [STATUS] are progress; messages that start with [COMPLETE] are final answers.',
+    spoken ? `Speak and answer in ${spoken} unless the user clearly speaks another language.` : 'Answer in the language the user speaks.',
+  ].join(' ')
 }
 
 export function createRealtimeVoice(options) {
