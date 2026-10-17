@@ -32,7 +32,7 @@ test('normal installation does not pull the optional Codex executable runtime', 
   for (const name of ['react', 'react-dom']) assert.equal(manifest.peerDependenciesMeta?.[name]?.optional, true, name)
   // The compatibility autopilot widens this range and the runtime list together.
   assert.equal(manifest.peerDependencies[runtime], [...SUPPORTED_RUNTIME_VERSIONS].sort(compareVersions).join(' || '))
-  assert.equal(manifest.devDependencies[runtime], '0.2.0-rc.2')
+  assert.equal(manifest.devDependencies[runtime], '0.2.1-rc.1')
   assert.equal(SUBAGENT_RUNTIME_VERSION, manifest.devDependencies[runtime])
   assert.deepEqual(new Set(SUPPORTED_RUNTIME_VERSIONS), new Set(manifest.peerDependencies[runtime].split(' || ')))
 })
@@ -99,7 +99,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-llm-pi-ai'], compatibility.latestTested)
   assert.equal(pkg.dependencies['@deepseek-ai/dsh-home-paths'], compatibility.latestTested)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-api-remotes'], compatibility.latestTested)
-  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-invariants'], compatibility.latestTested)
+  assert.match(pkg.devDependencies['@deepseek-ai/dsh-invariants'], /^0\.2\.\d+-rc\.\d+$/u, 'dsh-invariants is not republished with every DSH release')
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-client-ui-attachment'], undefined)
   assert.equal(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-client-runtime'), false)
   assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-client-runtime'], undefined)

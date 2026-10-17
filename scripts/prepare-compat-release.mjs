@@ -136,7 +136,7 @@ export function planCompatibilityUpdate(state, candidate) {
   manifest.version = preview ? nextBetaVersion(previousPluginVersion) : nextStableVersion(previousPluginVersion)
   if (!preview) {
     for (const name of Object.keys(manifest.devDependencies ?? {})) {
-      if (name.startsWith('@deepseek-ai/dsh-') && !manifest.peerDependenciesMeta?.[name]?.optional) manifest.devDependencies[name] = candidate
+      if (name.startsWith('@deepseek-ai/dsh-') && !UNSYNCED_DEV_PACKAGES.has(name) && !manifest.peerDependenciesMeta?.[name]?.optional) manifest.devDependencies[name] = candidate
     }
     if (manifest.dependencies?.['@deepseek-ai/dsh-home-paths']) manifest.dependencies['@deepseek-ai/dsh-home-paths'] = candidate
   }
@@ -308,6 +308,9 @@ async function refreshReleaseAge(root) {
   await writeFile(resolve(root, 'pnpm-workspace.yaml'), rewriteReleaseAgeCohort(workspace, selectors))
   return { changed: true, selectors: selectors.length }
 }
+
+// Versioned independently: DSH does not republish it with every release (0.2.1-rc.1 shipped without it).
+const UNSYNCED_DEV_PACKAGES = new Set(['@deepseek-ai/dsh-invariants'])
 
 async function main() {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
