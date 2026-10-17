@@ -28,6 +28,10 @@ export const inject = [
   'slots', 'locale', 'connection', 'remote', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
 ]
 
+// The composer's right-hand slot holds one component: the quota readout and the voice button share it, so DSH's own voice input
+// (which owns the activity slot) and this one never compete.
+const ComposerRight = props => <><CodexComposerQuota {...props} /><VoiceCallButton {...props} /></>
+
 export function apply(ctx) {
   const diagnostics = createHostDiagnostics()
   ctx.effect(() => diagnostics.register(ctx.slots), 'codex-subscription: host inspection')
@@ -80,16 +84,13 @@ export function apply(ctx) {
       name: 'conversation.input.right', id: 'codex-subscription-quota', order: 15,
       locale: NS,
       inject: sessionId => ({
+        sessionId,
         preference,
         rpc: rpc,
         t,
         directory: modelDirectories.directoryFor(sessionId).store,
       }),
-    }, CodexComposerQuota))
-    scope.slots.inject('conversation.input.activity', () => scope.slots.register({
-      name: 'conversation.input.activity', id: 'codex-subscription-voice', order: 100, locale: NS,
-      inject: sessionId => ({ sessionId, preference, rpc, t }),
-    }, VoiceCallButton))
+    }, ComposerRight))
     scope.slots.inject('conversation.input.model', () => scope.slots.register({
       name: 'conversation.input.model', priority: -10, locale: NS,
       inject: sessionId => {

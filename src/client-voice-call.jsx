@@ -7,7 +7,7 @@ import { usePreferenceSnapshot } from './client-shared.js'
 import { VOICE_CALL_FIELD, VOICE_LANGUAGE_FIELD, VOICE_LANGUAGES, VOICE_VOICE_FIELD, VOICE_VOICES } from './settings-contract.js'
 import { openVoiceCall } from './voice-call.js'
 
-const Bars = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 7v4M6 4.5v9M9 2.5v13M12 5.5v7M15 7.5v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+const Bars = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 8.5v3M7 5.5v9M10 3v14M13 6v8M16 8.5v3" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
 const Hangup = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" /></svg>
 
 /**
@@ -29,17 +29,31 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
     if (!trailing) return undefined
     const wasStatic = getComputedStyle(trailing).position === 'static'
     if (wasStatic) trailing.style.position = 'relative'
+    const watcher = new MutationObserver(() => measure())
     const measure = () => {
       const send = [...trailing.children].filter(child => child.tagName === 'BUTTON' && !child.classList.contains('codexVoiceCall')).at(-1)
       if (!send) { setPlace(undefined); return }
-      const style = getComputedStyle(send)
+      // The send button looks different while it is disabled; the voice button should look like the send button in use,
+      // so take the colours from an enabled copy of it.
+      const probe = send.cloneNode(false)
+      probe.disabled = false
+      probe.removeAttribute('aria-label')
+      probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none'
+      trailing.appendChild(probe)
+      const style = getComputedStyle(probe)
+      const color = style.backgroundColor
+      const radius = style.borderRadius
+      trailing.removeChild(probe)
+      // The probe's own insertion and removal must not trigger another measurement.
+      watcher.takeRecords()
+      const host = trailing.getBoundingClientRect()
+      const box = send.getBoundingClientRect()
       setPlace({
-        host: trailing, left: send.offsetLeft, top: send.offsetTop, width: send.offsetWidth, height: send.offsetHeight,
-        idle: send.disabled, color: style.backgroundColor, radius: style.borderRadius,
+        host: trailing, left: box.left - host.left - trailing.clientLeft, top: box.top - host.top - trailing.clientTop, width: box.width, height: box.height,
+        idle: send.disabled, color, radius,
       })
     }
     measure()
-    const watcher = new MutationObserver(measure)
     watcher.observe(trailing, { subtree: true, childList: true, attributes: true, attributeFilter: ['disabled', 'aria-label', 'class'] })
     const resizer = new ResizeObserver(measure)
     resizer.observe(trailing)
