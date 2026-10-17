@@ -52,7 +52,10 @@ export function appendChunks(text, limit = CONTEXT_APPEND_MAX_BYTES) {
 
 const content = text => [{ type: 'input_text', text }]
 
+const LANGUAGE_NAMES = { zh: 'Chinese (Mandarin)', en: 'English', ja: 'Japanese', ko: 'Korean', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ru: 'Russian' }
+
 export const outbound = {
+  sessionUpdate: session => ({ type: 'session.update', session }),
   sessionAppend: (text, channel) => ({ type: 'session.context.append', ...(channel ? { channel } : {}), content: content(text) }),
   delegationAppend: (delegationItemId, text, channel) => ({ type: 'delegation.context.append', delegation_item_id: delegationItemId, ...(channel ? { channel } : {}), content: content(text) }),
   close: () => ({ type: 'session.close' }),
@@ -195,8 +198,11 @@ export function createRealtimeVoice(options) {
       for (const piece of appendChunks(text)) send(delegationId ? outbound.delegationAppend(delegationId, piece, channel) : outbound.sessionAppend(piece, channel))
     }
     session.speak = speak
+    const seenTypes = new Set()
     ws.on('message', data => {
       const event = parseEvent(String(data))
+      // The first time each kind of message the voice service sends is noted, so what it does with our requests is visible.
+      if (!event) { try { const type = JSON.parse(String(data))?.type; if (typeof type === 'string' && !seenTypes.has(type) && seenTypes.size < 40) { seenTypes.add(type); log.info('voice', `voice service message: ${type}`) } } catch { /* not JSON */ } }
       if (!event || session.ended) return
       if (event.kind === 'delta') void notify('thread/realtime/transcript/delta', { threadId, role: event.role, delta: event.text }).catch(() => {})
       else if (event.kind === 'done') {
@@ -232,6 +238,14 @@ export function createRealtimeVoice(options) {
       void notify('thread/realtime/closed', { threadId, reason: 'transportClosed' }).catch(() => {})
     })
     ws.on('error', error => log.warn('voice', 'the voice connection failed', String(error?.message ?? error)))
+    // The computer's own choices, applied to the call the phone set up. The voice service decides whether it accepts them
+    // this late; what it answers lands in the log.
+    const wanted = options.preferences?.() ?? {}
+    if (wanted.voice && wanted.voice !== 'auto') { send(outbound.sessionUpdate({ audio: { output: { voice: wanted.voice } } })); log.info('voice', `asked the voice service for the voice ${wanted.voice}`) }
+    if (wanted.language && wanted.language !== 'auto' && LANGUAGE_NAMES[wanted.language]) {
+      send(outbound.sessionAppend(`The user prefers ${LANGUAGE_NAMES[wanted.language]}. Speak and answer in ${LANGUAGE_NAMES[wanted.language]} unless the user clearly speaks another language.`, 'commentary'))
+      log.info('voice', `asked the voice service to answer in ${LANGUAGE_NAMES[wanted.language]}`)
+    }
     void notify('thread/realtime/started', { threadId, version: params.version ?? 'v3', realtimeSessionId: params.realtimeSessionId ?? null }).catch(() => {})
     return {}
   }

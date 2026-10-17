@@ -4,6 +4,7 @@ import { create as createQr } from 'qrcode/lib/core/qrcode.js'
 import { Button } from './client-primitives.js'
 import { CHANNEL } from './rpc-contract.js'
 import { uiLocale } from './client-shared.js'
+import { VOICE_LANGUAGE_FIELD, VOICE_LANGUAGES, VOICE_VOICE_FIELD, VOICE_VOICES } from './settings-contract.js'
 
 const PAIR_URL = 'https://chatgpt.com/codex/pair?pairing_code='
 const STATUS_KEYS = { connected: 'remoteConnected', connecting: 'remoteConnecting', waiting: 'remoteWaiting', error: 'remoteError', stopped: 'remoteStopped' }
@@ -118,6 +119,22 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
           <Button type="button" variant="outline" disabled={Boolean(removing)} onClick={() => { void remove(client) }}>{t('remoteRevoke')}</Button>
         </div>)}
       </div> : null}
+      <div className="codexSubscriptionDivider" />
+      <div className="codexSubscriptionPreference">
+        <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('voiceTitle')} <small>Beta</small></span><Hint t={t}>{t('voiceHint')}</Hint></div>
+      </div>
+      <div className="codexSubscriptionPreference">
+        <label htmlFor="codex-voice-voice">{t('voiceVoice')}</label>
+        <select id="codex-voice-voice" value={snapshot.voiceVoice} disabled={!snapshot.writable} onChange={event => { void preference.set({ [VOICE_VOICE_FIELD]: event.target.value }) }}>
+          {VOICE_VOICES.map(value => <option key={value} value={value}>{value === 'auto' ? t('voiceAuto') : value}</option>)}
+        </select>
+      </div>
+      <div className="codexSubscriptionPreference">
+        <label htmlFor="codex-voice-language">{t('voiceLanguage')}</label>
+        <select id="codex-voice-language" value={snapshot.voiceLanguage} disabled={!snapshot.writable} onChange={event => { void preference.set({ [VOICE_LANGUAGE_FIELD]: event.target.value }) }}>
+          {VOICE_LANGUAGES.map(value => <option key={value} value={value}>{value === 'auto' ? t('voiceAuto') : t(`voiceLang_${value}`)}</option>)}
+        </select>
+      </div>
       <p className="codexSubscriptionHelp">{t('remoteLimits')}</p>
     </> : null}
   </section>

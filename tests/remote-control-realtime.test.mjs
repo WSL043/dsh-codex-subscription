@@ -136,3 +136,16 @@ test('a spoken request carries what was said before it, once', async () => {
   await settle()
   assert.equal(delegated.length, 1, 'nothing left to save at the end')
 })
+
+test('the computer\'s voice and language choices are sent to the call; "follow phone" sends nothing', async () => {
+  const { voice, notify } = setup({ options: { preferences: () => ({ voice: 'hanul', language: 'ja' }) } })
+  await voice.start(start, notify)
+  const [socket] = FakeSocket.instances
+  assert.deepEqual(socket.sent[0], { type: 'session.update', session: { audio: { output: { voice: 'hanul' } } } })
+  assert.equal(socket.sent[1].type, 'session.context.append')
+  assert.equal(socket.sent[1].channel, 'commentary')
+  assert.match(socket.sent[1].content[0].text, /Japanese/u)
+  const quiet = setup({ options: { preferences: () => ({ voice: 'auto', language: 'auto' }) } })
+  await quiet.voice.start(start, quiet.notify)
+  assert.deepEqual(FakeSocket.instances[0].sent, [])
+})
