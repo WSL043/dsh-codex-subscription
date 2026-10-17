@@ -26,7 +26,7 @@ Sign in with ChatGPT Plus / Pro to use GPT-6 and other Codex models, quota, web 
 
 ## Prepare DSH
 
-Verified against DSH `0.2.1-rc.1` (`latest` and `next` channels); the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
+Verified against DSH `0.2.1-rc.2` (`latest` and `next` channels); the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
 
 This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 
@@ -106,7 +106,7 @@ Pair the ChatGPT mobile app's Codex section with a QR code and the DSH on your c
 - approvals and questions pop up on the phone; if it drops, they pop up again when you reopen it, otherwise they go back to the computer;
 - replies appear as they are written; commands, file edits with diffs, the task list, web searches, connector calls and generated images use the phone's native views;
 - send photos, @ search files on the computer, / pick DSH skills, view changes with read-only git, and start chats in a real folder picker;
-- DSH workspaces appear as projects; fork a conversation, see usage limits, lifetime usage and context usage; where DSH has `/compact` (0.2.1-rc.1 onwards), compact the context from the phone;
+- DSH workspaces appear as projects; fork a conversation, see usage limits, lifetime usage and context usage; where DSH has `/compact` (0.2.1-rc.2 onwards), compact the context from the phone;
 - model errors show on the phone; paired phones are listed in settings and can be removed.
 
 Off by default: **Settings → Codex → Models & runtime → Phone remote control**. The computer must stay on, online and running DSH. This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta.
