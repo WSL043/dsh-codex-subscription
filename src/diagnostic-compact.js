@@ -1,3 +1,4 @@
+import { formatLogLine } from './diagnostic-log-format.js'
 // The copied report is what a person pastes into an issue, so it carries the
 // conclusions and the facts needed to act on them, not every counter. The full
 // JSON stays available in the settings page's details section.
@@ -25,6 +26,7 @@ export function compactDiagnostic(report) {
         reason: item.reason,
         ...(item.latest ? { latest: `${item.latest.action} ${item.latest.status}` } : { latest: 'not-verified' }),
       })),
+    log: (report.log?.entries ?? []).slice(-150).map(formatLogLine),
     ...(report.client?.status === 'unknown' ? { hostCollected: false } : {}),
   }
 }

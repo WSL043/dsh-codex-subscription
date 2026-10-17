@@ -1,3 +1,4 @@
+import { diagnosticLog } from './diagnostic-log.js'
 import { assertCodexAuthUrl } from './external-url.js'
 
 const LOGIN_METHODS = new Set(['browser', 'device_code'])
@@ -220,6 +221,7 @@ export class CodexLoginCoordinator {
         } catch {
           // Preserve the provider failure when credential state cannot be read.
         }
+        diagnosticLog.error('login', `sign-in failed (${classifyLoginFailure(error)})`, error)
         session.view = {
           id,
           provider: 'openai-codex',

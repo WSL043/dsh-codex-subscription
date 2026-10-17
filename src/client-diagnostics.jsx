@@ -4,12 +4,16 @@ import { SUPPORT_ISSUE_URL, uiLocale } from './client-shared.js'
 import { recoveryCall, clientDiagnostic } from './client-recovery.js'
 import { diagnosticSummary } from './diagnostic-summary.js'
 import { compactDiagnostic } from './diagnostic-compact.js'
+import { formatLogLine } from './diagnostic-log-format.js'
+const LEVELS = { all: ['info', 'warn', 'error'], warn: ['warn', 'error'], error: ['error'] }
 export function DiagnosticsCard({ rpc, t, diagnostics }) {
   const [report, setReport] = useState()
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState(false)
   const [copyError, setCopyError] = useState(false)
+  const [level, setLevel] = useState('all')
+  const [logCopied, setLogCopied] = useState(false)
   const load = () => {
     setBusy(true); setError(false); setCopied(false); setCopyError(false)
     void Promise.allSettled([recoveryCall(rpc, 'diagnostics'), Promise.resolve().then(() => diagnostics?.collect())]).then(([server, client]) => {
@@ -24,29 +28,39 @@ export function DiagnosticsCard({ rpc, t, diagnostics }) {
     setCopyError(false)
     void Promise.resolve().then(() => navigator.clipboard.writeText(JSON.stringify(full ? report : compactDiagnostic(report), null, 2))).then(() => setCopied(true)).catch(() => setCopyError(true))
   }
+  const lines = (report?.log?.entries ?? []).filter(entry => LEVELS[level].includes(entry.level))
+  const copyLog = () => { void Promise.resolve().then(() => navigator.clipboard.writeText(lines.map(formatLogLine).join(String.fromCharCode(10)))).then(() => setLogCopied(true)).catch(() => setCopyError(true)) }
   return <div className="codexSubscriptionCard codexSubscriptionDiagnostics">
     <div className="codexSubscriptionSectionHead">
       <div className="codexSubscriptionSectionTitle"><h3>{t('diagnostics')}</h3><p className="codexSubscriptionHelp">{t('diagnosticsHint')}</p></div>
       <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{busy ? t('diagnosticsLoading') : t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={() => copy()}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}<a className="codexSubscriptionLink" href={SUPPORT_ISSUE_URL} target="_blank" rel="noreferrer">{t('feedbackOpen')}</a></div>
     </div>
     {report === undefined ? null : <>
-      <p className="codexSubscriptionHelp">{t('diagnosticsCoverageHint')}</p>
       {report.generatedAt ? <p className="codexSubscriptionHelp">{t('diagnosticsSnapshotTime')} {new Date(report.generatedAt).toLocaleString(uiLocale())}</p> : null}
       <div role="status">{report.summary?.findings.length ? <ul>{report.summary.findings.map(item => <li key={item.code}>
         <strong>{t(`diagnosticSeverity_${item.severity}`)}</strong> · {t(`diagnosticFinding_${item.code}`)}
         <p className="codexSubscriptionHelp">{t(`diagnosticNext_${item.next}`)}</p>
         {item.code === 'recent-failure' ? <ul>{item.evidence.map(event => <li key={`${event.source}:${event.action}`}>{event.action} · {t(`diagnosticSource_${event.source}`)} · {new Date(event.observedAt).toLocaleTimeString(uiLocale())}</li>)}</ul> : null}
       </li>)}</ul> : <p>{t('diagnosticsNoRecordedFailure')}</p>}</div>
-      <table style={{ width: '100%', fontSize: 12, textAlign: 'left', borderSpacing: '0 8px' }}>
-        <thead><tr><th>{t('diagnosticsCapability')}</th><th>{t('diagnosticsReadiness')}</th><th>{t('diagnosticsEvidence')}</th></tr></thead>
-        <tbody>{(report.inspection?.capabilities ?? []).map(item => <tr key={item.id}>
-          <td>{t(`diagnosticCapability_${item.id}`)}</td>
-          <td>{t(`diagnosticReason_${item.reason}`)}{item.blockedBy ? ` · ${t(`diagnosticCapability_${item.blockedBy}`)}` : ''}</td>
-          <td>{item.latest ? `${item.latest.action} · ${t(`diagnosticSource_${item.latest.source}`)} · ${t(`diagnosticOutcome_${item.latest.status}`)} · ${new Date(item.latest.observedAt).toLocaleTimeString(uiLocale())}` : t('diagnosticsUnverified')}{item.unresolved?.length ? <p>{t('diagnosticsUnresolved')}</p> : null}</td>
-        </tr>)}</tbody>
-      </table>
+      <div className="codexSubscriptionLogHead">
+        <h4>{t('diagnosticsLog')}</h4>
+        <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('diagnosticsLog')}>
+          {Object.keys(LEVELS).map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-log-level" checked={level === value} onChange={() => { setLevel(value); setLogCopied(false) }} /><span>{t(`logLevel_${value}`)}</span></label>)}
+        </div>
+        <Button type="button" variant="outline" disabled={lines.length === 0} onClick={copyLog}>{logCopied ? t('logCopied') : t('logCopy')}</Button>
+      </div>
+      <p className="codexSubscriptionHelp">{t('diagnosticsLogHint')}</p>
+      {lines.length === 0 ? <p className="codexSubscriptionHelp">{t('logEmpty')}</p> : <pre className="codexSubscriptionLog" tabIndex={0}>{lines.slice().reverse().map(entry => <span key={entry.sequence} className={`codexSubscriptionLogLine codexSubscriptionLog_${entry.level}`}>{formatLogLine(entry)}{entry.earlier ? ` (${t('logEarlier')})` : ''}{String.fromCharCode(10)}</span>)}</pre>}
+
       <p className="codexSubscriptionHelp">{report.client?.topology?.length ? t('diagnosticsHostCollected') : t('diagnosticsHostUnknown')}</p>
-      <details><summary>{t('diagnosticsDetails')}</summary><Button type="button" variant="outline" onClick={() => copy(true)}>{t('diagnosticsCopyFull')}</Button><pre>{JSON.stringify(report, null, 2)}</pre></details>
+      <details><summary>{t('diagnosticsDetails')}</summary><p className="codexSubscriptionHelp">{t('diagnosticsCoverageHint')}</p>      <table style={{ width: '100%', fontSize: 12, textAlign: 'left', borderSpacing: '0 8px' }}>
+          <thead><tr><th>{t('diagnosticsCapability')}</th><th>{t('diagnosticsReadiness')}</th><th>{t('diagnosticsEvidence')}</th></tr></thead>
+          <tbody>{(report.inspection?.capabilities ?? []).map(item => <tr key={item.id}>
+            <td>{t(`diagnosticCapability_${item.id}`)}</td>
+            <td>{t(`diagnosticReason_${item.reason}`)}{item.blockedBy ? ` · ${t(`diagnosticCapability_${item.blockedBy}`)}` : ''}</td>
+            <td>{item.latest ? `${item.latest.action} · ${t(`diagnosticSource_${item.latest.source}`)} · ${t(`diagnosticOutcome_${item.latest.status}`)} · ${new Date(item.latest.observedAt).toLocaleTimeString(uiLocale())}` : t('diagnosticsUnverified')}{item.unresolved?.length ? <p>{t('diagnosticsUnresolved')}</p> : null}</td>
+          </tr>)}</tbody>
+        </table><Button type="button" variant="outline" onClick={() => copy(true)}>{t('diagnosticsCopyFull')}</Button><pre>{JSON.stringify(report, null, 2)}</pre></details>
     </>}
     {error ? <p className="codexSubscriptionError" role="alert">{t('diagnosticsFailed')}</p> : null}
     {copyError ? <p className="codexSubscriptionError" role="alert">{t('diagnosticsCopyFailed')}</p> : null}

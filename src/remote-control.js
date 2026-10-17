@@ -36,6 +36,7 @@ export function createRemoteControl(options) {
     onActive: (client, notify) => { phones.add(client.id); options.onActive?.(client, notify) },
     onClose: (client, notify) => { phones.delete(client.id); options.onClose?.(client, notify) },
     debug: process.env.DSH_CODEX_REMOTE_DEBUG === '1',
+    debugFile: options.debugFile,
   })
   let relay
   let starting

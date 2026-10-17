@@ -1,6 +1,7 @@
 // Keep every dependency on pi-ai's Codex-specific public surface in one place.
 // The exact peer version makes a DSH update fail visibly until this seam is
 // re-audited instead of silently changing authentication or cache semantics.
+import { diagnosticLog } from './diagnostic-log.js'
 import { redactRequest } from './failure-capture.js'
 import { hoistLeadingSystem, runtimeVersions, understandsSystemMessages } from './pi-ai-compat.js'
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
@@ -193,6 +194,7 @@ export function openaiCodexSubscriptionProvider({
   }
   const noteStreamFailure = (stage, error, source) => {
     streamFailure.count += 1
+    diagnosticLog.error('model', `request failed while ${stage === 'prepare' ? 'preparing' : stage === 'request' ? 'sending' : stage === 'payload' ? 'building the payload' : 'streaming'}`, error)
     streamFailure.stage = stage
     // The request is deterministic input to pi-ai: keep a text-free copy so the failure can be replayed.
     try { streamFailure.request = source === undefined ? undefined : redactRequest(source) } catch { streamFailure.request = undefined }

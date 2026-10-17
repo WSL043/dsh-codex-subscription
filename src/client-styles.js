@@ -312,4 +312,4 @@ export const STYLE = `
 @container (max-width:480px){.codexSubscriptionPreference,.codexSubscriptionContextHead{flex-wrap:wrap}.codexSubscriptionPreferenceHint{max-width:none}.codexSubscriptionPreference>.codexSubscriptionPreferenceCopy{flex:1 1 220px}.codexSubscriptionQuotaModes{max-width:100%;flex-wrap:wrap}.codexSubscriptionQuotaMode{min-height:30px}.codexSubscriptionActions{flex-wrap:wrap}}
 @container (max-width:340px){.codexSettingsTabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){.codexSubscription *{transition:none!important}}
-`
+.codexSubscriptionLogHead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:12px}.codexSubscriptionLogHead h4{margin:0;font-size:13px}.codexSubscriptionLog{max-height:320px;overflow:auto;margin:6px 0 0;padding:8px 10px;border:1px solid var(--border,#0002);border-radius:8px;font:11.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.codexSubscriptionLog_error{color:#c0392b}.codexSubscriptionLog_warn{color:#b9770e}.codexSubscriptionLog_info{opacity:.8}`

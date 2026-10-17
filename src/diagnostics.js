@@ -4,6 +4,7 @@ import { PACKAGE_VERSION } from './version.js'
 import { collectChecks } from './diagnostic-checks.js'
 import { capabilityCoverage } from './diagnostic-capabilities.js'
 import { safeOperations } from './diagnostic-operations.js'
+import { diagnosticLog } from './diagnostic-log.js'
 
 const requestAreas = new Set(['login', 'model', 'catalog', 'quota', 'quota-reset', 'search', 'image'])
 const statuses = new Set(['ok', 'failed'])
@@ -122,6 +123,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     account,
     login,
     requests: collected.requests ?? {},
+    log: diagnosticLog.snapshot(300),
     ...(collected.history ? { requestHistory: collected.history } : {}),
     ...(collected.operations ? { operations: collected.operations } : {}),
     ...(collected.websocket ? { websocket: collected.websocket } : {}),

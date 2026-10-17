@@ -4,6 +4,7 @@
 // one the ChatGPT desktop app speaks; OpenAI does not document third-party hosts.
 
 import { randomUUID } from 'node:crypto'
+import { diagnosticLog } from './diagnostic-log.js'
 
 export const REMOTE_CONTROL_BASE_URL = 'https://chatgpt.com/backend-api/'
 const PROTOCOL_VERSION = '3'
@@ -355,6 +356,7 @@ export function createRemoteControlRelay(options) {
       const stopBeat = () => { clearInterval(ping); clearTimeout(silent) }
       ws.on('open', () => {
         state.status = 'connected'; state.connectedAt = now(); state.lastError = undefined
+        diagnosticLog.info('phone', 'connected to the Codex relay')
         replay(ws)
         // A connection that goes quiet (sleep, network switch) never closes by itself; ping it and drop it when it stops answering.
         if (typeof ws.ping === 'function') {
@@ -404,6 +406,7 @@ export function createRemoteControlRelay(options) {
         if (conflicts === 1) conflictSince = now()
         // Expected right after a restart; shown as waiting rather than as a failure.
         if (conflicts > 0) { state.status = 'waiting'; state.lastError = 'conflict' }
+        diagnosticLog.log(conflicts > 0 ? 'warn' : 'error', 'phone', conflicts > 0 ? 'relay refused the connection: another host with the same identity is connected (409)' : `connection to the relay failed (${state.lastError})`, conflicts > 0 ? undefined : error?.message)
         if (error?.code === 'unauthorized' || conflicts >= 3) enrolled = undefined
         // Still refused after fresh enrollments: this host id is stuck on the relay, so take a new one.
         // A restarted host is refused for a few minutes until the relay drops the old connection;

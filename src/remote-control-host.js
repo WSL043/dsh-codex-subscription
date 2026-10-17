@@ -1,3 +1,4 @@
+import { appendFileSync } from 'node:fs'
 // Codex app-server JSON-RPC host for ChatGPT Remote Control clients.
 // Messages carry no "jsonrpc" field: {id,method,params}, {method,params}, {id,result}, {id,error}.
 
@@ -22,10 +23,17 @@ export const invalidParams = message => new RpcError(INVALID_PARAMS, message)
  * One host per relay; each remote client gets its own connection.
  * @param {{ methods: Record<string, (params: any, context: { client: object, signal: AbortSignal, notify: (method: string, params?: object) => Promise<void> }) => any>, notifications?: Record<string, Function>, onConnection?: (client: object) => void, onClose?: (client: object) => void }} options
  */
-export function createRemoteControlHost({ methods, notifications = {}, onConnection, onActive, onClose, debug = false }) {
+export function createRemoteControlHost({ methods, notifications = {}, onConnection, onActive, onClose, debug = false, debugFile }) {
   const seen = new Map()
   const trace = []
-  const record = entry => { if (!debug) return; trace.push({ at: Date.now(), ...entry }); if (trace.length > 60) trace.shift() }
+  const record = entry => {
+    if (!debug) return
+    const value = { at: Date.now(), ...entry }
+    trace.push(value); if (trace.length > 60) trace.shift()
+    // A copy on disk, so a development run can be read afterwards without the web page.
+    if (debugFile !== undefined) try { appendFileSync(debugFile, `${JSON.stringify(value)}
+`) } catch { /* debug only */ }
+  }
   const note = (kind, method) => {
     const key = `${kind}:${method}`
     if (!seen.has(key) && seen.size >= MAX_SEEN) return
@@ -86,10 +94,10 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
           note('request', method)
           // The relay probes every host with `initialize`; a real client asks for more.
           if (!active && method !== 'initialize') { active = true; onActive?.(client, notify) }
-          if (debug && !QUIET.has(method)) record({ method: `request:${method}`, params: JSON.stringify(params ?? null).slice(0, 700) })
+          if (debug && !QUIET.has(method)) record({ method: `request:${method}`, params: JSON.stringify(params ?? null).slice(0, /realtime/u.test(method) ? 8000 : 700) })
           const handler = methods[method]
           if (!handler) {
-            record({ method, missing: true, params: JSON.stringify(params ?? null).slice(0, 600) })
+            record({ method, missing: true, params: JSON.stringify(params ?? null).slice(0, /realtime/u.test(method) ? 8000 : 600) })
             void fail(id, new RpcError(METHOD_NOT_FOUND, `Method not found: ${method}`)).catch(() => {})
             return
           }

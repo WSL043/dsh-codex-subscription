@@ -7,6 +7,8 @@ const actions = Object.freeze({
   'runtime/install': 'subagents', 'runtime/remove': 'subagents', 'runtime/cancel': 'subagents',
   codex_image_generate: 'images', codex_sketch: 'sketch',
 })
+import { diagnosticLog } from './diagnostic-log.js'
+const QUIET = new Set(['usage', 'storage/status', 'preferences/models'])
 export function safeOperations(raw) {
   if (!Array.isArray(raw?.events)) return undefined
   return { scope: 'plugin-process', capacity: 32,
@@ -24,6 +26,8 @@ export function createDiagnosticOperations({ now = Date.now } = {}) {
   const record = (action, status, source = 'rpc') => {
     if (!Object.hasOwn(actions, action) || !['completed', 'failed', 'cancelled'].includes(status) || !['rpc', 'tool'].includes(source)) return
     events.push({ sequence: ++sequence, capability: actions[action], action, source, status, observedAt: now() })
+    if (status === 'failed') diagnosticLog.error(actions[action], `${action} failed`)
+    else if (status === 'completed' && !QUIET.has(action)) diagnosticLog.info(actions[action], `${action} completed`)
     if (events.length > 32) { events.shift(); dropped++ }
   }
   return {
@@ -33,11 +37,15 @@ export function createDiagnosticOperations({ now = Date.now } = {}) {
         const result = await handler(endpoint, payload, signal)
         record(endpoint, result?.ok === true ? 'completed' : 'failed')
         return result
-      } catch (error) { record(endpoint, signal?.aborted ? 'cancelled' : 'failed'); throw error }
+      } catch (error) { record(endpoint, signal?.aborted ? 'cancelled' : 'failed'); if (!signal?.aborted) diagnosticLog.error(actions[endpoint] ?? 'rpc', `${endpoint} threw`, error); throw error }
     },
     tool: (exec, result) => {
       if (!['codex_image_generate', 'codex_sketch'].includes(exec?.name)) return
       record(exec.name, exec.signal?.aborted ? 'cancelled' : result?.isError === true ? 'failed' : result?.isError === false ? 'completed' : 'failed', 'tool')
+      if (result?.isError === true && !exec.signal?.aborted) {
+        const text = [result.content, result.output, result.error].flat().map(part => typeof part === 'string' ? part : part?.text).find(part => typeof part === 'string' && part !== '')
+        if (text !== undefined) diagnosticLog.error(actions[exec.name], `${exec.name} said`, text)
+      }
     },
     snapshot: () => ({ scope: 'plugin-process', capacity: 32, dropped, events: events.map(value => ({ ...value })) }),
   }

@@ -42,6 +42,10 @@ import { IMAGE_MODELS, DEFAULT_IMAGE_MODEL } from './image-models.js'
 import { OriginalImageStore } from './image-original-store.js'
 import { inheritedOriginalImageRef } from './image-original-contract.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
+import { diagnosticLog } from './diagnostic-log.js'
+import { setAuthFailureLogger } from './http-failure.js'
+import { PACKAGE_VERSION } from './version.js'
+import { hostDshVersion } from './subagent-runtime.js'
 import { createDiagnosticOperations } from './diagnostic-operations.js'
 import { AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, normalizeConnectorMode, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, REASONING_SUMMARY_FIELD, normalizeReasoningSummary, RETRY_POLICY_FIELD, normalizeRetryPolicy, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
@@ -124,6 +128,9 @@ export const Config = z.object(Object.fromEntries(Object.entries(settingsFields)
 export function apply(ctx, config = {}) {
   const settings = createSettingsAdapter(ctx, config)
   const searchProvider = createSearchProviderSwitcher(ctx.loader)
+  if (!process.env.NODE_TEST_CONTEXT) diagnosticLog.attach(dshHomePath('state', 'codex-subscription', 'diagnostic-log.jsonl'))
+  diagnosticLog.info('plugin', `loaded ${PACKAGE_VERSION}`, `DSH ${hostDshVersion() ?? 'unknown'}, node ${process.version}, ${process.platform}`)
+  setAuthFailureLogger((message, detail) => diagnosticLog.error('auth', message, detail))
   const network = createCodexNetworkTransport()
   const diagnosticOperations = createDiagnosticOperations()
   ctx.effect(() => ctx.on?.('tools/result', (exec, result) => diagnosticOperations.tool(exec, result)), 'codex-subscription: operation evidence')
@@ -440,6 +447,7 @@ export function apply(ctx, config = {}) {
     WebSocket,
     fetch: (input, init) => network.fetch('remote', input, init),
     stateFile: dshHomePath('state', 'codex-subscription', 'remote-control.json'),
+    debugFile: dshHomePath('state', 'codex-subscription', 'remote-debug.jsonl'),
     hostName: `DSH (${hostname()})`,
     userAgent: USER_AGENT,
     // Only for acceptance runs against a local stand-in relay; anything but chatgpt.com or a loopback address is refused.

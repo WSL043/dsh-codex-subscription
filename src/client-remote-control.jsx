@@ -98,7 +98,7 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
     {on ? <>
       <div className="codexSubscriptionDivider" />
       <div className="codexSubscriptionPreference">
-        <span role="status">{t(STATUS_KEYS[status] ?? 'remoteConnecting')}{status === 'error' && state?.lastError ? ` · ${state.lastError}` : ''}{state?.phones > 0 ? ` · ${t('remotePhones').replace('{count}', String(state.phones))}` : ''}</span>
+        <span role="status">{status === 'connected' && state?.phones > 0 ? t('remotePhones').replace('{count}', String(state.phones)) : t(STATUS_KEYS[status] ?? 'remoteConnecting')}{status === 'error' && state?.lastError ? ` · ${state.lastError}` : ''}{status !== 'connected' && state?.phones > 0 ? ` · ${t('remotePhones').replace('{count}', String(state.phones))}` : ''}</span>
         <Button type="button" variant="outline" disabled={busy || status === 'stopped'} onClick={() => { void pair() }}>{t(pairing ? 'remotePairAgain' : 'remotePair')}</Button>
       </div>
       {status === 'waiting' && state?.lastError === 'conflict' && state?.reconnects >= 6 ? <p role="status" className="codexSubscriptionHelp">{t('remoteConflictLong')}</p> : null}

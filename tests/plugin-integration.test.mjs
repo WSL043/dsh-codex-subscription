@@ -323,6 +323,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
       schemaVersion: 3,
       generatedAt: diagnostics.value.generatedAt,
       inspection: diagnostics.value.inspection,
+      log: diagnostics.value.log,
       requestHistory: { scope: 'plugin-process', capacity: 32, dropped: 0, events: [] },
       operations: { scope: 'plugin-process', capacity: 32, dropped: 0, events: [] },
       package: 'dsh-codex-subscription',

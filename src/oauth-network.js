@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
 import { createDiagnosticEvents } from './diagnostic-events.js'
+import { diagnosticLog } from './diagnostic-log.js'
 import { request as httpsRequest } from 'node:https'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { PassThrough, Readable } from 'node:stream'
@@ -250,7 +251,14 @@ export function createCodexNetworkTransport(options = {}) {
   const attempts = new Map()
   const now = options.now ?? Date.now
   const evidence = createDiagnosticEvents({ now })
-  const remember = (area, value) => { attempts.set(area, value); evidence.record(area, value) }
+  const remember = (area, value) => {
+    const before = attempts.get(area)
+    attempts.set(area, value); evidence.record(area, value)
+    if (value.status === 'failed') {
+      const what = value.stage === 'http' ? `HTTP ${value.httpStatus}` : `network ${value.code}`
+      diagnosticLog.log(value.stage === 'http' && value.httpStatus < 500 && value.httpStatus !== 401 && value.httpStatus !== 403 ? 'warn' : 'error', area, `request failed: ${what} (${value.route}, ${value.elapsed})`)
+    } else if (before?.status === 'failed') diagnosticLog.info(area, 'request works again')
+  }
   const run = async (area, operation, connection = {}) => {
     const startedAt = now()
     let route = attempts.get(area)?.route ?? 'direct'
