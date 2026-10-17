@@ -125,3 +125,10 @@ test('stable release notes pin the released version in every install and update 
   assert.match(stable, /sed -i "s\/__PLUGIN_VERSION__\/\$RELEASE_VERSION\/g" \.release\/install\.md/u)
   assert.doesNotMatch(stable.replace(/dsh-codex-subscription@__PLUGIN_VERSION__/gu, ''), /(?:add|update) dsh-codex-subscription\s*$/mu)
 })
+
+test('the release page lists Chinese first and English second', () => {
+  for (const part of ['The release page lists Chinese first, then English.', 'body.search(', 'chinese + "', '## English']) {
+    assert.ok(releaseWorkflow.includes(part), part)
+  }
+  assert.ok(releaseWorkflow.indexOf('chinese + "') > releaseWorkflow.indexOf('const chinese = body.slice(at).trim();'))
+})

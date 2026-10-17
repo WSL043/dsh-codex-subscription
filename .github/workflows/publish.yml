@@ -488,6 +488,16 @@ jobs:
           dsh plugin --profile web remove dsh-codex-subscription
           ```
           NOTES
+          # The release page lists Chinese first, then English.
+          node --input-type=module -e '
+            import { readFileSync, writeFileSync } from "node:fs";
+            const body = readFileSync(".release/install.md", "utf8");
+            const at = body.search(/^## 中文$/mu);
+            if (at < 0) process.exit(1);
+            const english = body.slice(0, at).trim();
+            const chinese = body.slice(at).trim();
+            writeFileSync(".release/install.md", chinese + "\n\n## English\n\n" + english + "\n");
+          '
           sed -i "s/__DSH_VERSION__/$current_dsh/g" .release/install.md
           sed -i "s/__PLUGIN_VERSION__/$RELEASE_VERSION/g" .release/install.md
 
