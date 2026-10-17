@@ -278,7 +278,6 @@ export const STYLE = `
 .codexGeneratedImageFrame img{display:block;width:100%;height:100%;object-fit:cover}
 .codexGeneratedImageRetry{min-height:36px;padding:0 12px;border:1px solid var(--dsw-alias-border-l2);border-radius:8px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-secondary);cursor:pointer}
 @keyframes codexImageSpin{to{transform:rotate(360deg)}}
-.codexImageBeta{padding:0 5px;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;color:var(--dsw-alias-label-tertiary);font-size:10px;line-height:16px}
 .codexImageToolGallery{display:flex;align-items:flex-start;flex-direction:column;gap:8px}
 @container (max-width:560px){.codexSubscriptionCreditRows{grid-template-columns:1fr}}
 @container (max-width:480px){.codexSubscriptionAccountRow,.codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column}

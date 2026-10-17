@@ -26,7 +26,7 @@
 
 ## 准备 DSH
 
-已验证兼容 DSH `0.2.1-rc.1`（`latest` 与 `next` 通道），最低支持 `0.1.7-rc.2`；更早的 DSH 请先升级。
+已验证兼容 DSH `0.2.1-rc.2`（`latest` 与 `next` 通道），最低支持 `0.1.7-rc.2`；更早的 DSH 请先升级。
 
 本插件支持软件包元数据中记录的最新版 DeepSeek Harness，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
 
@@ -42,7 +42,7 @@
 2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
 
    ```text
-   dsh-codex-subscription@2.7.1
+   dsh-codex-subscription@3.0.0
    ```
 
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
@@ -54,7 +54,7 @@
 <summary>终端安装（已能运行 dsh 命令）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@2.7.1
+dsh plugin --profile web add dsh-codex-subscription@3.0.0
 ```
 
 安装完成后按提示重启 DSH，再到 **设置 → Codex 订阅** 登录。插件页面和终端均由 DSH 管理安装。
@@ -67,7 +67,7 @@ dsh plugin --profile web add dsh-codex-subscription@2.7.1
 先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@2.7.1
+dsh plugin --profile headless add dsh-codex-subscription@3.0.0
 dsh --profile headless "只回复：ok"
 ```
 
@@ -109,11 +109,11 @@ dsh --profile headless "只回复：ok"
 - DSH 工作区对应手机上的项目；可以从手机分叉对话，看用量额度、累计用量和上下文用量；DSH 带有 `/compact` 时（0.2.0-rc.2 起）还能从手机压缩上下文；
 - 模型报错会显示在手机上；设置里能看到已配对的手机，随时移除。
 
-默认关闭：**设置 → Codex 订阅 → 模型与运行 → 手机远程控制**。电脑需要保持开机、联网并打开 DSH。这是 OpenAI 尚未向第三方开放的 ChatGPT 能力，随时可能变化，所以标为 Beta，目前在预发布版中提供：`dsh-codex-subscription@3.0.0-beta.8`。
+默认关闭：**设置 → Codex 订阅 → 模型与运行 → 手机远程控制**。电脑需要保持开机、联网并打开 DSH。这是 OpenAI 尚未向第三方开放的 ChatGPT 能力，随时可能变化，所以标为 Beta。
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-zh-dark.png"><img src="docs/assets/ui-remote-zh-light.png" width="560" alt="设置里的手机远程控制：开关、配对二维码和手动码、已配对的手机"></picture></p>
 
-### 图片与草图（Beta）
+### 图片与草图
 
 用订阅生成图片，在图上圈出区域写备注继续修改，或者打开草图画板自己画、让 Agent 画，再以草图为参考生成成品。
 
@@ -121,7 +121,7 @@ dsh --profile headless "只回复：ok"
 
 案例见 [从草图到作品](#从草图到作品)，开关在 **设置 → Codex 订阅 → 图片与草图**。
 
-### ChatGPT 连接器（Beta）
+### ChatGPT 连接器
 
 让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等。模型先搜索再调用，写操作默认每次都要你批准，也可以在设置里改成不再询问。默认关闭，在“模型与运行”里开启。
 
@@ -178,8 +178,8 @@ dsh --profile headless "只回复：ok"
 
 | 功能 | 你可以做什么 | 使用方式 / 条件 |
 | --- | --- | --- |
-| **图片生成** | 通过订阅生成图片，调整可用的请求型号与质量；需要时可生成透明背景 PNG | Beta；默认开启，可关闭 |
-| **参考图编辑** | 带上参考图继续修改作品 | Beta；默认开启，可关闭 |
+| **图片生成** | 通过订阅生成图片，调整可用的请求型号与质量；需要时可生成透明背景 PNG | 默认开启，可关闭 |
+| **参考图编辑** | 带上参考图继续修改作品 | 默认开启，可关闭 |
 | **图片查看与下载** | 完成的出图结果直接显示在回答后，无需展开工具过程；可缩放、拖动、适合窗口、下载校验后的原图 | 内置查看器，无需另装；旧图可能只有预览 |
 | **区域标注编辑** | 在图上圈定区域、填写备注，带定位参考继续编辑 | 回填输入框后由你确认发送 |
 | **手绘画板** | 选择画布比例，使用钢笔、铅笔、荧光笔及橡皮 | Beta；画板默认关闭 |
@@ -199,13 +199,13 @@ dsh --profile headless "只回复：ok"
 
 | 功能 | 你可以做什么 | 使用方式 / 条件 |
 | --- | --- | --- |
-| **手机远程控制** | 在 ChatGPT 手机 App 的 Codex 里直接指挥电脑上的 DSH：新建、续聊、归档对话，切换模型和权限，回答审批和提问，DeepSeek 等任意 DSH 模型都能用 | Beta（3.0.0-beta.8）；默认关闭，设置 → Codex 订阅 → 模型与运行 → 手机远程控制，扫码或输入手动码配对 |
+| **手机远程控制** | 在 ChatGPT 手机 App 的 Codex 里直接指挥电脑上的 DSH：新建、续聊、归档对话，切换模型和权限，回答审批和提问，DeepSeek 等任意 DSH 模型都能用 | Beta；默认关闭，设置 → Codex 订阅 → 模型与运行 → 手机远程控制，扫码或输入手动码配对 |
 | **Codex 独立子任务** | 复用订阅登录和工作区权限执行独立任务，可指定允许的模型与推理档位 | Beta，可选，多数人用不到：默认用 DSH 自己的子智能体（同样能用订阅模型）；想让子任务由官方 Codex Agent 执行时，才安装可选组件（约 377 MB，Windows），并在“插件 → 子智能体”开启模型选择。用独立数据目录和订阅登录，不读你电脑上的 Codex 登录 |
 | **子任务组件管理** | 在设置里安装、停用或卸载官方 Codex 子任务组件 | 由支持的 DSH 宿主管理，无需额外登录 |
 | **云端上下文压缩** | 使用 Codex 云端压缩继续长对话，同时保留 DSH 历史与原生压缩 | Beta / 实验性；默认关闭，开启的请求使用 SSE |
 | **WebSocket 连接** | 实验性复用连接和上下文传输，连接失败可回退 SSE | Beta / 实验性；默认 SSE，不保证更快 |
 | **Auto review 官方审查模型** | DSH Auto review 改用 Codex 自带的审查模型判断工具调用，审查规则与放行流程仍由 DSH 负责 | Beta；默认关闭，账号目录提供该模型时生效 |
-| **ChatGPT 连接器** | 让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等；模型先搜索再调用，写操作默认每次都要你批准，可改成不再询问 | Beta；默认关闭，设置 → Codex 订阅 → 模型与运行 → ChatGPT 连接器；需先在 ChatGPT 里连接应用 |
+| **ChatGPT 连接器** | 让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等；模型先搜索再调用，写操作默认每次都要你批准，可改成不再询问 | 默认关闭，设置 → Codex 订阅 → 模型与运行 → ChatGPT 连接器；需先在 ChatGPT 里连接应用 |
 | **支持诊断** | 查看功能前置条件和近期操作结果，一键复制约 1 KB 的精简报告（完整报告可另行复制）；不含凭据和会话正文 | 设置 → 维护；未验证不代表故障 |
 | **预测缓存清理** | 查看并清理本地额度预测历史 | 保留登录、草稿、原图和共享依赖 |
 
@@ -243,7 +243,7 @@ dsh --profile headless "只回复：ok"
 
 ## 从草图到作品
 
-图片生成与编辑、草图画板均为 **Beta**。画板和 Agent 绘图默认关闭，在“图片与草图”中按需开启。
+草图画板和 Agent 绘图为 **Beta**。画板和 Agent 绘图默认关闭，在“图片与草图”中按需开启。
 
 **画草图 → 附加到输入框 → 描述效果 → 生成成图。**
 
@@ -355,7 +355,7 @@ DSH 实机设置截图，随浅色 / 深色主题切换。
 <summary>终端方式</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@2.7.1
+dsh plugin --profile web update dsh-codex-subscription@3.0.0
 ```
 
 仅在需要卸载时运行：

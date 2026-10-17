@@ -26,7 +26,7 @@ Sign in with ChatGPT Plus / Pro to use GPT-6 and other Codex models, quota, web 
 
 ## Prepare DSH
 
-Verified against DSH `0.2.1-rc.1` (`latest` and `next` channels); the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
+Verified against DSH `0.2.1-rc.2` (`latest` and `next` channels); the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
 
 This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 
@@ -42,7 +42,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@2.7.1
+   dsh-codex-subscription@3.0.0
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -54,7 +54,7 @@ Why the version is included: DSH's plugin page only installs versions that are a
 <summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@2.7.1
+dsh plugin --profile web add dsh-codex-subscription@3.0.0
 ```
 
 Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
@@ -67,7 +67,7 @@ Follow the restart instructions, then sign in under **Settings → Codex**. Both
 After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@2.7.1
+dsh plugin --profile headless add dsh-codex-subscription@3.0.0
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -106,14 +106,14 @@ Pair the ChatGPT mobile app's Codex section with a QR code and the DSH on your c
 - approvals and questions pop up on the phone; if it drops, they pop up again when you reopen it, otherwise they go back to the computer;
 - replies appear as they are written; commands, file edits with diffs, the task list, web searches, connector calls and generated images use the phone's native views;
 - send photos, @ search files on the computer, / pick DSH skills, view changes with read-only git, and start chats in a real folder picker;
-- DSH workspaces appear as projects; fork a conversation, see usage limits, lifetime usage and context usage; where DSH has `/compact` (0.2.1-rc.1 onwards), compact the context from the phone;
+- DSH workspaces appear as projects; fork a conversation, see usage limits, lifetime usage and context usage; where DSH has `/compact` (0.2.1-rc.2 onwards), compact the context from the phone;
 - model errors show on the phone; paired phones are listed in settings and can be removed.
 
-Off by default: **Settings → Codex → Models & runtime → Phone remote control**. The computer must stay on, online and running DSH. This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. Currently in the pre-release: `dsh-codex-subscription@3.0.0-beta.8`.
+Off by default: **Settings → Codex → Models & runtime → Phone remote control**. The computer must stay on, online and running DSH. This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta.
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Phone remote control in settings: the switch, pairing QR code and manual code, paired phones"></picture></p>
 
-### Images and sketching (Beta)
+### Images and sketching
 
 Generate images with your subscription, circle a region and write a note to keep editing, or open the sketch board to draw yourself or let the agent draw, then use the sketch as the reference for the finished image.
 
@@ -121,7 +121,7 @@ Generate images with your subscription, circle a region and write a note to keep
 
 Examples are in [From sketch to image](#from-sketch-to-image); the switches are under **Settings → Codex → Images & sketch**.
 
-### ChatGPT connectors (Beta)
+### ChatGPT connectors
 
 Let DeepSeek or any other DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more. Models search first, then call, and by default every change asks for your approval (you can switch that off in settings). Off by default; turn it on under Models & runtime.
 
@@ -178,8 +178,8 @@ Model access and quota depend on your account.
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **Image generation** | Generate through your subscription and adjust available request model / quality options; ask for a transparent-background PNG when needed | Beta; on by default, can be disabled |
-| **Reference image editing** | Continue refining an image with references | Beta; on by default, can be disabled |
+| **Image generation** | Generate through your subscription and adjust available request model / quality options; ask for a transparent-background PNG when needed | On by default, can be disabled |
+| **Reference image editing** | Continue refining an image with references | On by default, can be disabled |
 | **Image viewing and download** | Completed images appear after the answer without expanding tool activity; zoom, pan, fit to window, and download verified originals | Built-in viewer; older images may only have previews |
 | **Region-based editing** | Mark regions, add notes, and continue editing with location references | Fills the composer for you to review and send |
 | **Manual canvas** | Choose an aspect ratio and draw with pen, pencil, marker, and erasers | Beta; canvas off by default |
@@ -199,13 +199,13 @@ Model access and quota depend on your account.
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta (3.0.0-beta.8); off by default; Settings → Codex → Models & runtime → Phone remote control, pair by QR or manual code |
+| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta; off by default; Settings → Codex → Models & runtime → Phone remote control, pair by QR or manual code |
 | **Codex independent subtasks** | Reuse subscription sign-in and workspace permissions; select allowed models and reasoning levels | Beta, optional, most people do not need it: by default DSH runs its own subagents (they can use subscription models too); install the optional component (about 377 MB on Windows) and turn on model selection under Plugins → Subagents only if you want subtasks run by the official Codex agent. It uses its own data directory and your subscription sign-in, never the Codex login on this computer |
 | **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
 | **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
 | **WebSocket transport** | Experimentally reuse connections and context transfers, with SSE fallback on connection failure | Beta / experimental; SSE by default, no speed guarantee |
 | **Codex reviewer for Auto review** | DSH Auto review judges tool calls with Codex's own review model; DSH keeps its review policy and allow/deny flow | Beta; off by default, applies when your account catalog offers the model |
-| **ChatGPT connectors** | Let DeepSeek or any DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more; models search first, then call, and by default every change asks for your approval, switchable | Beta; off by default, Settings → Codex → Models & runtime → ChatGPT connectors; connect the apps in ChatGPT first |
+| **ChatGPT connectors** | Let DeepSeek or any DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more; models search first, then call, and by default every change asks for your approval, switchable | Off by default, Settings → Codex → Models & runtime → ChatGPT connectors; connect the apps in ChatGPT first |
 | **Support diagnostics** | Inspect prerequisites and recent operation results, and copy a short report (about 1 KB; the full one can be copied separately) without credentials or conversation text | Settings → Maintenance; unverified does not mean broken |
 | **Forecast cache cleanup** | Inspect and clear local quota forecast history | Keeps sign-in, drafts, originals, and shared dependencies |
 
@@ -243,7 +243,7 @@ Subscription failures remain visible: no silent fallback to another paid route.
 
 ## From sketch to image
 
-Image generation, editing, and the sketch canvas are **Beta**. The canvas and agent drawing are off by default; enable them under Images & sketch when needed.
+The sketch canvas and agent drawing are **Beta**. The canvas and agent drawing are off by default; enable them under Images & sketch when needed.
 
 **Sketch → Attach to the composer → Describe the result → Generate.**
 
@@ -326,7 +326,7 @@ Find this plugin on the DSH **Plugins** page and use its update or uninstall act
 <summary>Terminal commands</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@2.7.1
+dsh plugin --profile web update dsh-codex-subscription@3.0.0
 ```
 
 Run only when you want to uninstall:
