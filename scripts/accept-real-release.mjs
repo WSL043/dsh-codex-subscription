@@ -91,7 +91,7 @@ try {
   })
   const output = `${suite.stdout ?? ''}${suite.stderr ?? ''}`
   const interesting = output.split('\n').filter(line => !/^\s+ok /u.test(line) && !/delta/u.test(line))
-  console.log(interesting.slice(-60).join('\n'))
+  console.log(interesting.slice(0, 400).join('\n'))
   const summary = /checked (\d+) messages: (\d+) ok, (\d+) problems/u.exec(output)
   if (summary === null) throw new Error('the suite did not finish')
   // The only expected problems are the two refused command/exec probes ("Not available on a DSH host").

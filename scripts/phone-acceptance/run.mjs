@@ -48,8 +48,13 @@ await section('handshake and reads', async () => {
   await phone.call('account/read', { refreshToken: false })
   const limits = await phone.call('account/rateLimits/read')
   console.log('  rate limits:', JSON.stringify(limits?.rateLimits?.primary), 'plan', limits?.rateLimits?.planType)
-  const models = await phone.call('model/list', { includeHidden: false })
-  const picked = models.data.find(model => /GPT-6.1-Sol/u.test(model.displayName)) ?? models.data.find(model => /GPT/u.test(model.displayName))
+  // DSH may still be loading the account's models when the phone first asks; wait for a Codex model like a phone would.
+  let models, picked
+  for (let attempt = 0; attempt < 12 && picked === undefined; attempt++) {
+    if (attempt > 0) await sleep(2500)
+    models = await phone.call('model/list', { includeHidden: false })
+    picked = models.data.find(model => /GPT-6.1-Sol/u.test(model.displayName)) ?? models.data.find(model => /GPT/u.test(model.displayName))
+  }
   modelKey = picked?.model
   console.log('  models:', models.data.length, 'picked', picked?.displayName, 'modalities', JSON.stringify(picked?.inputModalities))
   const projects = await phone.call('project/list', {})
