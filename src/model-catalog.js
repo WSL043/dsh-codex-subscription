@@ -69,6 +69,19 @@ const speedTierIds = value => [
   ...(Array.isArray(value.service_tiers) ? value.service_tiers.map(tier => tier?.id) : []),
 ]
 
+// Speed tiers the plugin can honour, as the account's catalog words them; the phone shows them as its speed choice.
+const HONOURED_TIERS = new Set(['priority', 'fast', 'ultrafast'])
+function serviceTierEntries(value) {
+  const entries = Array.isArray(value.service_tiers) ? value.service_tiers : []
+  const found = entries.flatMap(tier => record(tier) && typeof tier.id === 'string' && HONOURED_TIERS.has(tier.id)
+    ? [{ id: tier.id, name: nonEmpty(tier.name) ?? tier.id, description: nonEmpty(tier.description) ?? '' }]
+    : [])
+  for (const id of Array.isArray(value.additional_speed_tiers) ? value.additional_speed_tiers : []) {
+    if (typeof id === 'string' && HONOURED_TIERS.has(id) && !found.some(tier => tier.id === id)) found.push({ id, name: id === 'ultrafast' ? 'Ultrafast' : 'Fast', description: '' })
+  }
+  return found
+}
+
 function unsupportedCapabilities(value) {
   const reasoning = capabilityNames((value.supported_reasoning_levels ?? []).map(item => item?.effort))
     .filter(level => !['none', ...LEVELS.slice(1)].includes(level))
@@ -117,6 +130,7 @@ function visibleModel(value, displayNames, now) {
     thinkingLevelMap: reasoningMap(supported),
     supportVerbosity: value.support_verbosity === true,
     defaultVerbosity: ['low', 'medium', 'high'].includes(value.default_verbosity) ? value.default_verbosity : undefined,
+    serviceTiers: serviceTierEntries(value),
     supportsFast: speedTierIds(value).some(tier => tier === 'fast' || tier === 'priority'),
     // Only offered when this account's catalog lists it for the model (Pro 500 today).
     supportsUltrafast: speedTierIds(value).includes('ultrafast'),

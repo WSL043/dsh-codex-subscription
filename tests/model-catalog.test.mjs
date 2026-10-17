@@ -202,7 +202,7 @@ test('official model catalog filters hidden entries and preserves advertised cap
     id: 'gpt-next', name: 'GPT Next', description: 'Current account model', priority: 10,
     input: ['text', 'image'], contextWindow: 400_000, reasoning: true,
     thinkingLevelMap: { off: null, minimal: null, low: 'low', medium: null, high: null, xhigh: null, max: 'max' },
-    supportVerbosity: true, defaultVerbosity: 'medium', supportsFast: true, supportsUltrafast: false,
+    supportVerbosity: true, defaultVerbosity: 'medium', serviceTiers: [{ id: 'priority', name: 'Fast', description: 'Priority' }], supportsFast: true, supportsUltrafast: false,
   })
 })
 

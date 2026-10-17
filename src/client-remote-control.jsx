@@ -101,6 +101,7 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
         <span role="status">{t(STATUS_KEYS[status] ?? 'remoteConnecting')}{status === 'error' && state?.lastError ? ` · ${state.lastError}` : ''}{state?.phones > 0 ? ` · ${t('remotePhones').replace('{count}', String(state.phones))}` : ''}</span>
         <Button type="button" variant="outline" disabled={busy || status === 'stopped'} onClick={() => { void pair() }}>{t(pairing ? 'remotePairAgain' : 'remotePair')}</Button>
       </div>
+      {status === 'waiting' && state?.lastError === 'conflict' && state?.reconnects >= 6 ? <p role="status" className="codexSubscriptionHelp">{t('remoteConflictLong')}</p> : null}
       {failed ? <p role="alert" className="codexSubscriptionHelp">{t('remotePairFailed')}</p> : null}
       {pairing && !expired ? <div className="codexSubscriptionRemotePair">
         <Qr value={`${PAIR_URL}${pairing.pairingCode}`} label={t('remoteQrLabel')} />

@@ -228,7 +228,7 @@ const PHONE_RETURN_MS = 120_000
 // How long after it last had a thread open a reconnecting phone is assumed to still want it.
 const ADOPT_WITHIN_MS = 600_000
 
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, usageProfile = () => undefined, projections = () => undefined, skills = () => undefined, commands = () => undefined, llm = () => undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, usageProfile = () => undefined, projections = () => undefined, skills = () => undefined, commands = () => undefined, llm = () => undefined, speed = undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
@@ -321,7 +321,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       initialTurnsPage: null, instructionSources: [], itemsBackwardsCursor: null,
       model: current ? modelKey(current) : 'dsh/default', modelProvider: current?.provider ?? 'dsh',
       multiAgentMode: 'explicitRequestOnly', reasoningEffort: current?.reasoningEffort ?? null, runtimeWorkspaceRoots: cwd ? [cwd] : [],
-      sandbox: sandboxFor(preset, cwd), serviceTier: null, turnsBackwardsCursor: null,
+      sandbox: sandboxFor(preset, cwd), serviceTier: shownTier(), turnsBackwardsCursor: null,
     }
   }
   const searches = new Map() // fuzzy-search session id -> { roots, notify }
@@ -410,6 +410,18 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     }
   }
   /** Apply a model or effort the phone picked; DSH validates it against its own catalog. */
+  // Speed: the plugin keeps one speed setting (standard, fast, ultrafast); the phone's service tier is that setting.
+  const TIER_OF = { fast: 'priority', ultrafast: 'ultrafast' }
+  const MODE_OF = { priority: 'fast', fast: 'fast', ultrafast: 'ultrafast', default: 'standard' }
+  const tiersOf = (provider, model) => { try { return speed?.tiers?.(provider, model) ?? [] } catch { return [] } }
+  const shownTier = () => { try { return TIER_OF[speed?.current?.()] ?? null } catch { return null } }
+  /** A tier the phone picked: a string id, "default" or null for standard speed; undefined leaves the setting alone. */
+  const applySpeed = async tier => {
+    if (tier === undefined || !speed?.set) return
+    const mode = tier === null ? 'standard' : MODE_OF[tier]
+    if (mode === undefined || mode === speed.current?.()) return
+    await speed.set(mode)
+  }
   const applySelection = async (agent, sessionId, params) => {
     const picked = parseModelKey(params?.model)
     const effort = typeof params?.effort === 'string' ? params.effort : undefined
@@ -483,6 +495,10 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     subscribe(id, notify)
     await applySelection(agent, id, params)
     applyPermissions(agent, params)
+    // serviceTier sticks like the model; serviceTierForTurn is for this turn only and is put back afterwards.
+    const speedBefore = speed?.current?.()
+    const speedForTurn = typeof params?.serviceTierForTurn === 'string' ? params.serviceTierForTurn : undefined
+    await applySpeed(speedForTurn ?? (Object.hasOwn(params ?? {}, 'serviceTier') ? params.serviceTier : undefined))
     const turn = emptyTurn()
     const userItem = { type: 'userMessage', id: randomUUID(), clientId: params.clientUserMessageId ?? null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(picture => ({ type: 'image', url: picture.url }))] }
     active.set(id, { turn, ended: undefined, userItem })
@@ -506,6 +522,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
         emit(id, 'error', { threadId: id, turnId: turn.id, willRetry: false, error: turn.error })
       }
       turn.completedAt = seconds(Date.now())
+      if (speedForTurn !== undefined && speedBefore !== undefined && speed?.current?.() !== speedBefore) void Promise.resolve(speed.set?.(speedBefore)).catch(() => {})
       // The phone was shown this message under its own id; keep that id once DSH has committed it.
       const sentText = visibleText(userItem.content.filter(part => part.type === 'text'))
       try {
@@ -580,7 +597,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
           data.push({
             id: key, model: key, displayName: model.name ?? model.id, description: group.name ?? '', hidden: false, isDefault: key === defaultKey,
             supportedReasoningEfforts: supported, defaultReasoningEffort: model.reasoning?.defaultEffort ?? supported[0].reasoningEffort,
-            inputModalities: modalities.get(model.id)?.length ? modalities.get(model.id) : ['text'], supportsPersonality: false, additionalSpeedTiers: [], upgrade: null, upgradeInfo: null, availabilityNux: null, serviceTiers: [],
+            inputModalities: modalities.get(model.id)?.length ? modalities.get(model.id) : ['text'], supportsPersonality: false, additionalSpeedTiers: tiersOf(group.id, model.id).map(tier => tier.id), upgrade: null, upgradeInfo: null, availabilityNux: null, serviceTiers: tiersOf(group.id, model.id), defaultServiceTier: null,
           })
         }
       }
@@ -591,6 +608,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       const agent = await agentFor(params?.threadId)
       await applySelection(agent, params.threadId, params)
       applyPermissions(agent, params)
+      if (Object.hasOwn(params ?? {}, 'serviceTier')) await applySpeed(params.serviceTier)
       return {}
     },
     'thread/attachment/list': () => ({ data: [], nextCursor: null }),

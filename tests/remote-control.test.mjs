@@ -67,7 +67,7 @@ test('DSH messages project into Codex turns and items', () => {
   assert.deepEqual([turns[0].items[3].command, turns[0].items[3].aggregatedOutput], ['ls', 'a.txt'])
 })
 
-function fakeControl({ error } = {}) {
+function fakeControl({ error, speed } = {}) {
   const calls = []
   let finish
   const session = { id: 's1', meta: { createdAt: 1_000_000, cwd: 'C:/w' }, deriveMessages: () => [{ role: 'user', id: 'u', content: [{ type: 'text', text: 'hello' }] }] }
@@ -83,7 +83,7 @@ function fakeControl({ error } = {}) {
     rename: async () => ({}),
   }
   const permissions = { current: () => 'workspace-write', set: (_session, name) => calls.push(['permission', name]) }
-  const bridge = createDshRemoteControl({ controller: () => controller, agents: () => ({}), permissions: () => permissions, userAgent: 'x/1' })
+  const bridge = createDshRemoteControl({ controller: () => controller, agents: () => ({}), permissions: () => permissions, speed, userAgent: 'x/1' })
   return { bridge, calls, session, finish: () => finish() }
 }
 
@@ -787,4 +787,41 @@ test('the model of a running session is read from its events even without a cach
   session.snapshotEvents = () => events
   const resumed = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })
   assert.equal(resumed.model, modelKey({ provider: 'deepseek', model: 'chat' }))
+})
+
+test('the phone sees the speed tiers a Codex model offers and its choice becomes the speed setting', async () => {
+  let mode = 'standard'
+  const writes = []
+  const speed = {
+    tiers: (provider, model) => provider === 'openai-codex' && model === 'gpt-6' ? [{ id: 'priority', name: 'Fast', description: 'Faster' }] : [],
+    current: () => mode,
+    set: async next => { writes.push(next); mode = next },
+  }
+  const { bridge, finish } = fakeControl({ speed })
+  const models = (await bridge.methods['model/list']({}, {})).data
+  assert.deepEqual(models[0].serviceTiers, [{ id: 'priority', name: 'Fast', description: 'Faster' }])
+  assert.deepEqual(models[0].additionalSpeedTiers, ['priority'])
+  assert.deepEqual(models[1].serviceTiers, [], 'a DeepSeek model has no speed tiers')
+  // A tier kept for later turns.
+  const notify = async () => {}
+  await bridge.methods['turn/start']({ ...hello('go'), serviceTier: 'priority' }, { notify })
+  assert.deepEqual(writes, ['fast'])
+  finish()
+  await new Promise(resolve => setImmediate(resolve))
+  // null means standard speed again.
+  await bridge.methods['turn/start']({ ...hello('again'), serviceTier: null }, { notify })
+  assert.deepEqual(writes, ['fast', 'standard'])
+})
+
+test('a speed picked for one turn is put back when the turn ends', async () => {
+  let mode = 'standard'
+  const writes = []
+  const speed = { tiers: () => [], current: () => mode, set: async next => { writes.push(next); mode = next } }
+  const { bridge, finish } = fakeControl({ speed })
+  await bridge.methods['turn/start']({ ...hello('go'), serviceTierForTurn: 'priority' }, { notify: async () => {} })
+  assert.equal(mode, 'fast')
+  finish()
+  await new Promise(resolve => setTimeout(resolve, 20))
+  assert.equal(mode, 'standard')
+  assert.deepEqual(writes, ['fast', 'standard'])
 })

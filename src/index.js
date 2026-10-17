@@ -427,6 +427,11 @@ export function apply(ctx, config = {}) {
     skills: () => ctx.get?.('skills'),
     commands: () => ctx.get?.('commands'),
     llm: () => ctx.llm,
+    speed: {
+      tiers: (provider, model) => provider === PROVIDER ? (modelCatalog.metadata(model)?.serviceTiers ?? []) : [],
+      current: () => settings.get()[SPEED_MODE_FIELD],
+      set: mode => settings.update({ [SPEED_MODE_FIELD]: mode }),
+    },
     trace: entry => { try { remoteControl.host.note(entry) } catch { /* diagnostics only */ } },
     userAgent: USER_AGENT,
   })
