@@ -6,21 +6,103 @@ import { CHANNEL } from './rpc-contract.js'
 import { usePreferenceSnapshot } from './client-shared.js'
 import { VOICE_CALL_FIELD, VOICE_LANGUAGE_FIELD, VOICE_LANGUAGES, VOICE_VOICE_FIELD, VOICE_VOICES } from './settings-contract.js'
 import { openVoiceCall } from './voice-call.js'
+import { createOrb } from './voice-orb.js'
 
 const Bars = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 8.5v3M7 5.5v9M10 3v14M13 6v8M16 8.5v3" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
-const Hangup = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" /></svg>
+const Cross = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M3 3l8 8M11 3l-8 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
+const Mic = ({ off }) => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><rect x="6.2" y="1.8" width="5.6" height="9" rx="2.8" stroke="currentColor" strokeWidth="1.5" /><path d="M3.5 8.4a5.5 5.5 0 0 0 11 0M9 13.9v2.3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />{off ? <path d="M2.8 15.2 15.2 2.8" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" /> : null}</svg>
+const Speaker = ({ off }) => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 7h2.6L9.5 3.8v10.4L5.6 11H3z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />{off ? <path d="M12.6 6.6l3.2 4.8M15.8 6.6l-3.2 4.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /> : <path d="M12.3 6.5a3.6 3.6 0 0 1 0 5M14.4 4.6a6.4 6.4 0 0 1 0 8.8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />}</svg>
+
+/**
+ * What a call looks like while it runs, drawn like Codex's own voice chat: above a composer that sits at the bottom of the
+ * conversation (below it on the empty start page) there is a small stage with the last spoken lines, what DSH is doing
+ * and the orb, which swells with the person's voice and with the model's. While the call connects, the orb is a pulsing dot.
+ */
+function VoiceStage({ call, connecting, rpc, sessionId, anchor, accent, t }) {
+  const orb = useRef(null)
+  const canvas = useRef(null)
+  const working = useRef(false)
+  const frame = useRef(null)
+  const [status, setStatus] = useState({ working: false, lines: [] })
+  working.current = status.working
+  const [mode, setMode] = useState('idle')
+  const [box, setBox] = useState()
+  // follow the composer
+  useEffect(() => {
+    let raf
+    const follow = () => {
+      const rect = anchor.getBoundingClientRect()
+      setBox(current => current && Math.abs(current.left - rect.left) < 0.5 && Math.abs(current.top - rect.top) < 0.5 && Math.abs(current.width - rect.width) < 0.5 ? current : { left: rect.left, top: rect.top, bottom: rect.bottom, width: rect.width, docked: rect.bottom > window.innerHeight - 180 })
+      raf = requestAnimationFrame(follow)
+    }
+    follow()
+    return () => cancelAnimationFrame(raf)
+  }, [anchor])
+  // the orb: eased levels written straight to the element, no re-render per frame
+  useEffect(() => {
+    if (!call) return undefined
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    const painter = canvas.current ? createOrb(canvas.current, accent) : undefined
+    const started = performance.now()
+    let level = 0
+    let last = ''
+    const tick = () => {
+      const { mic, assistant } = call.levels()
+      const target = Math.max(mic, assistant)
+      level += (target - level) * (target > level ? 0.35 : 0.12)
+      orb.current?.style.setProperty('--level', reduce ? '0' : level.toFixed(3))
+      painter?.draw(reduce ? 0 : (performance.now() - started) / 1000, reduce ? 0 : level, assistant > 0.05, working.current)
+      const next = assistant > 0.05 ? 'speaking' : mic > 0.05 ? 'listening' : 'idle'
+      if (next !== last) { last = next; setMode(next) }
+      frame.current = requestAnimationFrame(tick)
+    }
+    tick()
+    return () => { cancelAnimationFrame(frame.current); painter?.dispose() }
+  }, [call])
+  // the spoken lines and the agent's work come from the host
+  useEffect(() => {
+    if (!call) return undefined
+    let stopped = false
+    const poll = async () => {
+      try {
+        const result = await rpc.call(CHANNEL, 'voice/status', { sessionId })
+        if (!stopped && result.ok) setStatus(result.value)
+      } catch { /* the next poll retries */ }
+    }
+    void poll()
+    const timer = setInterval(poll, 900)
+    return () => { stopped = true; clearInterval(timer) }
+  }, [call, rpc, sessionId])
+  if (!box) return null
+  const label = connecting ? t('voiceConnecting') : status.working ? t('voiceWorking') : mode === 'speaking' ? t('voiceSpeaking') : t('voiceListening')
+  const lines = status.lines.slice(-2)
+  return createPortal(<div className="codexVoiceStage" role="status" aria-live="polite" data-side={box.docked ? 'above' : 'below'} style={{ left: box.left + box.width / 2, top: box.docked ? box.top : box.bottom, '--voice-accent': accent }}>
+    <div className="codexVoiceLines">{lines.map((line, index) => <p key={`${index}-${line.text.slice(0, 12)}`} data-role={line.role} data-old={index < lines.length - 1 || undefined}>{line.text}</p>)}</div>
+    <div className="codexVoiceStatus">{label}</div>
+    <div className="codexVoiceOrbBox">
+      <div className="codexVoiceDot" data-gone={!connecting || undefined} />
+      <div className="codexVoiceOrb" ref={orb} data-ready={!connecting} data-mode={status.working ? 'working' : mode}><canvas ref={canvas} width={240} height={240} aria-hidden="true" /></div>
+    </div>
+  </div>, document.body)
+}
 
 /**
  * The composer's voice button. It sits exactly on the send button while there is nothing to send (the send button is
- * disabled) and gives it back as soon as there is text, so the one place always does the likely thing.
+ * disabled) and gives it back as soon as there is text, so the one place always does the likely thing. During a call
+ * it becomes the end button and, where DSH's dictation button is, a speaker and a microphone switch appear.
  */
 export function VoiceCallButton({ sessionId, rpc, preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const marker = useRef(null)
   const call = useRef(null)
+  const [liveCall, setLiveCall] = useState(null)
+  const accent = useRef('')
+  const button = useRef(null)
   const [place, setPlace] = useState()
   const [state, setState] = useState('idle')
   const [problem, setProblem] = useState('')
+  const [micOff, setMicOff] = useState(false)
+  const [speakerOff, setSpeakerOff] = useState(false)
   const enabled = snapshot.status === 'ready' && snapshot.voiceCall === 'on'
 
   useLayoutEffect(() => {
@@ -39,7 +121,8 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
       const ratio = window.devicePixelRatio || 1
       const snap = value => Math.round(value * ratio) / ratio
       setPlace({
-        host: trailing, left: snap(box.left - host.left - trailing.clientLeft), top: snap(box.top - host.top - trailing.clientTop), width: snap(box.width), height: snap(box.width),
+        host: trailing, activity: trailing.querySelector('[data-slot="conversation.input.activity"]')?.parentElement ?? null,
+        left: snap(box.left - host.left - trailing.clientLeft), top: snap(box.top - host.top - trailing.clientTop), width: snap(box.width), height: snap(box.width),
         idle: send.disabled, className: send.className,
       })
     }
@@ -50,17 +133,31 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
     return () => { watcher.disconnect(); resizer.disconnect(); if (wasStatic) trailing.style.position = '' }
   }, [enabled])
 
+  // While a call runs the dictation button gives its place to the call's own switches.
+  const live = state === 'live'
+  useEffect(() => {
+    const activity = place?.activity
+    if (!activity || !live) return undefined
+    activity.setAttribute('data-voice-live', '')
+    return () => activity.removeAttribute('data-voice-live')
+  }, [place?.activity, live])
+
   useEffect(() => () => { void call.current?.stop() }, [])
   useEffect(() => { if (!problem) return undefined; const timer = setTimeout(() => setProblem(''), 6000); return () => clearTimeout(timer) }, [problem])
 
   const start = async () => {
     setProblem('')
+    accent.current = button.current ? getComputedStyle(button.current).backgroundColor : ''
+    setMicOff(false)
+    setSpeakerOff(false)
     setState('connecting')
     try {
-      call.current = await openVoiceCall({ rpc, sessionId, onEnd: () => { call.current = null; setState('idle') } })
+      call.current = await openVoiceCall({ rpc, sessionId, onEnd: () => { call.current = null; setLiveCall(null); setState('idle') } })
+      setLiveCall(call.current)
       setState('live')
     } catch (error) {
       call.current = null
+      setLiveCall(null)
       setState('idle')
       setProblem(error?.name === 'NotAllowedError' ? t('voiceMicBlocked') : t('voiceFailed'))
     }
@@ -79,12 +176,17 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
     {anchor}
     {visible ? createPortal(<>
       <button
-        type="button" className={`${place.className} codexVoiceCall`} data-state={state} onClick={click} disabled={state === 'connecting'}
-        aria-label={t(state === 'live' ? 'voiceEnd' : 'voiceStart')} title={t(state === 'live' ? 'voiceEnd' : 'voiceStart')}
+        ref={button} type="button" className={`${place.className} codexVoiceCall`} data-state={state} onClick={click} disabled={state === 'connecting'}
+        aria-label={t(live ? 'voiceEnd' : 'voiceStart')} title={t(live ? 'voiceEnd' : 'voiceStart')}
         style={{ left: place.left, top: place.top, width: place.width, height: place.height }}
-      >{state === 'live' ? <Hangup /> : <Bars />}</button>
+      >{live ? <Cross /> : <Bars />}</button>
       {problem ? <span className="codexVoiceCallNote" role="alert" style={{ right: 0 }}>{problem}</span> : null}
     </>, place.host) : null}
+    {live && place.activity && liveCall ? createPortal(<span className="codexVoiceTools">
+      <button type="button" className="codexVoiceTool" aria-pressed={speakerOff} aria-label={t(speakerOff ? 'voiceUnmuteSpeaker' : 'voiceMuteSpeaker')} title={t(speakerOff ? 'voiceUnmuteSpeaker' : 'voiceMuteSpeaker')} onClick={() => { liveCall.setOutputMuted(!speakerOff); setSpeakerOff(!speakerOff) }}><Speaker off={speakerOff} /></button>
+      <button type="button" className="codexVoiceTool" aria-pressed={micOff} aria-label={t(micOff ? 'voiceUnmute' : 'voiceMute')} title={t(micOff ? 'voiceUnmute' : 'voiceMute')} onClick={() => { liveCall.setMuted(!micOff); setMicOff(!micOff) }}><Mic off={micOff} /></button>
+    </span>, place.activity) : null}
+    {state !== 'idle' ? <VoiceStage call={liveCall} connecting={state === 'connecting'} rpc={rpc} sessionId={sessionId} anchor={place.host.parentElement?.parentElement ?? place.host} accent={accent.current} t={t} /> : null}
   </>
 }
 

@@ -47,6 +47,16 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
           : 'Could not save the default model')
       }
     }
+    if (endpoint === 'voice/status') {
+      try {
+        signal.throwIfAborted()
+        if (!desktopVoice || typeof payload?.sessionId !== 'string') return publicError('unavailable', 'Voice is unavailable')
+        return { ok: true, value: desktopVoice.status(payload.sessionId) }
+      } catch (error) {
+        if (signal.aborted) throw error
+        return publicError('operation-error', 'Could not read the voice status')
+      }
+    }
     if (endpoint === 'voice/start' || endpoint === 'voice/stop') {
       try {
         signal.throwIfAborted()

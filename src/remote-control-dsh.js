@@ -1176,6 +1176,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return { answer }
     },
     stop: sessionId => realtimeVoice.stop(sessionId),
+    status: sessionId => realtimeVoice.status(sessionId),
   })
   return { methods, desktopVoice, onSessionEvent, onStream, onApproval, onQuestion, adopt, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
 }
