@@ -2,7 +2,8 @@
 // OpenAI itself and carries the audio; this host only joins that call's side channel: it hears the
 // transcripts and the requests the voice model hands to the agent, runs them as DSH turns, and
 // sends the agent's answers back for the voice to speak.
-const SIDEBAND_BASES = ['wss://realtime.chatgpt.com/v1/live', 'wss://api.openai.com/v1/live']
+// api.openai.com is where the side channel of a ChatGPT-created call answers; realtime.chatgpt.com is kept as the fallback.
+const SIDEBAND_BASES = ['wss://api.openai.com/v1/live', 'wss://realtime.chatgpt.com/v1/live']
 const ACTIVATION_RETRY_MS = [100, 300, 800]
 const CONTEXT_APPEND_MAX_BYTES = 500
 const CHANNEL_PREFIXES = {
@@ -79,6 +80,29 @@ export function parseEvent(payload) {
 /**
  * @param {{ WebSocket: Function, credentials: (signal?: AbortSignal) => Promise<{ access: string, accountId: string }>, userAgent: string, bases?: string[], log?: { info: Function, warn: Function, error: Function }, trace?: Function, delegate: (threadId: string, text: string, onMessage: (text: string) => void) => Promise<void> }} options
  */
+/**
+ * What the phone's first voice step asks the ChatGPT backend for: a call (its id comes back before any audio is
+ * negotiated). Used by the development probe to see how the backend answers this account, with the answer logged
+ * (status and a cleaned body, never a token).
+ */
+export async function probeVoiceCall({ fetch, credentials, userAgent, log, base = 'https://chatgpt.com/backend-api', model = 'gpt-live-1.1-codex' }) {
+  const { access, accountId } = await credentials()
+  const response = await fetch(`${base}/wham/realtime/calls?intent=quicksilver&architecture=avas`, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, 'content-type': 'application/json', accept: 'application/json',
+      'openai-alpha': 'quicksilver=v2', 'session-id': crypto.randomUUID(), 'thread-id': crypto.randomUUID(), 'user-agent': userAgent,
+    },
+    body: JSON.stringify({ audio: { output: { voice: 'marin' } }, delegation: { type: 'client' }, instructions: 'Probe.', model }),
+    signal: AbortSignal.timeout(15_000),
+  })
+  const text = (await response.text().catch(() => '')).slice(0, 600)
+  const shape = (() => { try { const value = JSON.parse(text); return Object.keys(value).join(',') } catch { return '' } })()
+  const line = response.ok ? `the voice backend created a call (HTTP ${response.status}; fields: ${shape})` : `the voice backend refused to create a call (HTTP ${response.status})`
+  ;(response.ok ? log.info : log.error).call(log, 'voice', line, response.ok ? undefined : text)
+  return { status: response.status, ok: response.ok }
+}
+
 export function createRealtimeVoice(options) {
   const bases = options.bases ?? SIDEBAND_BASES
   const log = options.log ?? { info() {}, warn() {}, error() {} }

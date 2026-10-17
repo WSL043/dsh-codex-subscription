@@ -34,7 +34,7 @@ test('joining an existing call: the side channel opens on the call id and the ph
   const { voice, notes, notify } = setup()
   assert.deepEqual(await voice.start(start, notify), {})
   const [socket] = FakeSocket.instances
-  assert.equal(socket.url, 'wss://realtime.chatgpt.com/v1/live/rtc_abc')
+  assert.equal(socket.url, 'wss://api.openai.com/v1/live/rtc_abc')
   assert.equal(socket.options.headers.authorization, 'Bearer test-access')
   assert.equal(socket.options.headers['chatgpt-account-id'], 'acct')
   assert.deepEqual(notes.map(note => note.method), ['thread/realtime/started'])
@@ -85,11 +85,11 @@ test('the call dropping ends the voice session with a reason', async () => {
 test('when the first voice endpoint refuses, the next one is tried', async () => {
   FakeSocket.instances = []
   class Refusing extends FakeSocket {
-    arrive() { if (this.url.includes('realtime.chatgpt.com')) this.emit('unexpected-response', undefined, { statusCode: 403 }); else super.arrive() }
+    arrive() { if (this.url.includes('api.openai.com')) this.emit('unexpected-response', undefined, { statusCode: 403 }); else super.arrive() }
   }
   const voice = createRealtimeVoice({ WebSocket: Refusing, credentials: async () => ({ access: 'a', accountId: 'b' }), userAgent: 'x', delegate: async () => {} })
   await voice.start(start, async () => {})
-  assert.equal(FakeSocket.instances.at(-1).url, 'wss://api.openai.com/v1/live/rtc_abc')
+  assert.equal(FakeSocket.instances.at(-1).url, 'wss://realtime.chatgpt.com/v1/live/rtc_abc')
 })
 
 test('a start without an existing call is refused', async () => {

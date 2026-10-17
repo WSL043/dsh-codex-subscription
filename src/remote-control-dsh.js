@@ -9,7 +9,7 @@ import { dirname, isAbsolute } from 'node:path'
 import { RpcError, invalidParams } from './remote-control-host.js'
 import { runGit } from './remote-control-git.js'
 import { searchFiles } from './remote-control-files.js'
-import { createRealtimeVoice } from './remote-control-realtime.js'
+import { createRealtimeVoice, probeVoiceCall } from './remote-control-realtime.js'
 import { diagnosticLog } from './diagnostic-log.js'
 
 /** A folder the phone named, only when it is an existing absolute folder on this machine. */
@@ -230,8 +230,15 @@ const PHONE_RETURN_MS = 120_000
 // How long after it last had a thread open a reconnecting phone is assumed to still want it.
 const ADOPT_WITHIN_MS = 600_000
 
-const REALTIME_VOICE_NAMES = ['alloy', 'arbor', 'ash', 'ballad', 'breeze', 'cedar', 'coral', 'cove', 'echo', 'ember', 'juniper', 'maple', 'marin', 'sage', 'shimmer', 'sol', 'spruce', 'vale', 'verse']
-const REALTIME_VOICES = { v1: REALTIME_VOICE_NAMES.filter(name => !['arbor', 'breeze', 'cedar', 'juniper', 'maple', 'sol', 'spruce', 'vale'].includes(name)), v2: REALTIME_VOICE_NAMES, defaultV1: 'cove', defaultV2: 'marin' }
+// The voices Codex itself offers per realtime version (codex-rs/protocol RealtimeVoicesList::builtin). The phone shows the
+// list for the version it starts (v3 for the live voice), so every list has to be present.
+const V1_VOICES = ['juniper', 'maple', 'spruce', 'ember', 'vale', 'breeze', 'arbor', 'sol', 'cove']
+const REALTIME_VOICES = {
+  v1: V1_VOICES,
+  v2: ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse', 'marin', 'cedar'],
+  v3: [...V1_VOICES, 'aube', 'bubbie', 'haetsal', 'hanul', 'himari', 'leher', 'miko', 'neer', 'porto', 'rindo', 'rio', 'rivage', 'selva', 'sonna', 'tinta', 'viola'],
+  defaultV1: 'cove', defaultV2: 'marin',
+}
 
 /** The phone's saved defaults, nested like a config file and kept across restarts. */
 export function createPhoneConfig(file) {
@@ -685,7 +692,11 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'collaborationMode/list': () => ({ data: [] }),
     // Live voice is not available through a DSH host yet. Answer the phone's voice calls instead of
     // leaving it on "connecting": list the voices, then end a start attempt with a clear error.
-    'thread/realtime/listVoices': () => ({ voices: REALTIME_VOICES }),
+    'thread/realtime/listVoices': () => {
+      // Development only: ask the backend for a call the way the phone's next step does, and log its answer.
+      if (process.env.DSH_CODEX_VOICE_PROBE === '1' && voice?.fetch) void probeVoiceCall({ ...voice, userAgent, log: diagnosticLog }).catch(error => diagnosticLog.error('voice', 'the voice probe failed', String(error?.message ?? error)))
+      return { voices: REALTIME_VOICES }
+    },
     'thread/realtime/start': async (params, { notify }) => {
       const threadId = typeof params?.threadId === 'string' ? params.threadId : ''
       const fail = message => {

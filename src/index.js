@@ -442,7 +442,7 @@ export function apply(ctx, config = {}) {
     trace: entry => { try { remoteControl.host.note(entry) } catch { /* diagnostics only */ } },
     userAgent: USER_AGENT,
     configFile: dshHomePath('state', 'codex-subscription', 'remote-config.json'),
-    voice: { WebSocket, credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal) },
+    voice: { WebSocket, fetch: (input, init) => network.fetch('remote', input, init), credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal) },
   })
   const remoteControl = createRemoteControl({
     credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal),
