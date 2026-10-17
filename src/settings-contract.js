@@ -33,7 +33,7 @@ export const VOICE_VOICE_FIELD = 'voiceVoice'
 export const VOICE_VOICES = Object.freeze(['cove', 'juniper', 'maple', 'spruce', 'ember', 'vale', 'breeze', 'arbor', 'sol', 'aube', 'bubbie', 'haetsal', 'hanul', 'himari', 'leher', 'miko', 'neer', 'porto', 'rindo', 'rio', 'rivage', 'selva', 'sonna', 'tinta', 'viola'])
 export const VOICE_LANGUAGE_FIELD = 'voiceLanguage'
 export const VOICE_LANGUAGES = Object.freeze(['auto', 'zh', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'pt', 'ru'])
-export const normalizeVoiceCall = value => value === 'on' ? 'on' : 'off'
+export const normalizeVoiceCall = value => value === 'off' ? 'off' : 'on'
 export const normalizeVoiceVoice = value => VOICE_VOICES.includes(value) ? value : 'cove'
 export const normalizeVoiceLanguage = value => VOICE_LANGUAGES.includes(value) ? value : 'auto'
 export const REASONING_SUMMARY_FIELD = 'reasoningSummary'

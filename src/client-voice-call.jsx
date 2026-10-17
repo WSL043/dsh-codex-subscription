@@ -7,7 +7,7 @@ import { usePreferenceSnapshot } from './client-shared.js'
 import { VOICE_CALL_FIELD, VOICE_LANGUAGE_FIELD, VOICE_LANGUAGES, VOICE_VOICE_FIELD, VOICE_VOICES } from './settings-contract.js'
 import { openVoiceCall } from './voice-call.js'
 
-const Mic = () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="5.5" y="1.5" width="5" height="8" rx="2.5" stroke="currentColor" strokeWidth="1.5" /><path d="M3 7.5a5 5 0 0 0 10 0M8 12.5V14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+const Bars = () => <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M3 7v4M6 4.5v9M9 2.5v13M12 5.5v7M15 7.5v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
 const Hangup = () => <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="2" /></svg>
 
 /**
@@ -78,7 +78,7 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
         type="button" className="codexVoiceCall" data-state={state} onClick={click} disabled={state === 'connecting'}
         aria-label={t(state === 'live' ? 'voiceEnd' : 'voiceStart')} title={t(state === 'live' ? 'voiceEnd' : 'voiceStart')}
         style={{ left: place.left, top: place.top, width: place.width, height: place.height, '--codex-voice-color': place.color, borderRadius: place.radius }}
-      >{state === 'live' ? <Hangup /> : <Mic />}</button>
+      >{state === 'live' ? <Hangup /> : <Bars />}</button>
       {problem ? <span className="codexVoiceCallNote" role="alert" style={{ right: 0 }}>{problem}</span> : null}
     </>, place.host) : null}
   </>

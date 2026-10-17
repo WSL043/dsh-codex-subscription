@@ -313,6 +313,11 @@ export const STYLE = `
 @container (max-width:340px){.codexSettingsTabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){.codexSubscription *{transition:none!important}}
 .codexSubscriptionLogHead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:12px}.codexSubscriptionLogHead h4{margin:0;font-size:13px}.codexSubscriptionLog{max-height:320px;overflow:auto;margin:6px 0 0;padding:8px 10px;border:1px solid var(--border,#0002);border-radius:8px;font:11.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.codexSubscriptionLog_error{color:#c0392b}.codexSubscriptionLog_warn{color:#b9770e}.codexSubscriptionLog_info{opacity:.8}
+.codexSubscriptionConnectors>.codexSubscriptionQuotaModes{flex:0 0 auto;display:flex;flex-wrap:nowrap;margin-left:auto}
+.codexSubscriptionConnectors .codexSubscriptionQuotaMode{min-height:28px;padding:0 10px;white-space:nowrap}
+.codexSubscriptionConnectors>.codexSubscriptionModeNote{padding:0;background:none;font-size:12px;line-height:18px}
+.codexSubscriptionConnectors>.codexSubscriptionModeNote[data-danger=true]{background:none}
+@container (max-width:520px){.codexSubscriptionConnectors>.codexSubscriptionQuotaModes{flex:1 1 100%;margin-left:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}.codexSubscriptionConnectors .codexSubscriptionQuotaMode{padding:0 4px;white-space:normal;text-align:center}}
 .codexVoiceChoice{display:flex;align-items:center;gap:8px}
 .codexVoiceChoice .codexSubscriptionContextTrigger{min-width:150px;justify-content:space-between}
 .codexVoiceChoice .codexSubscriptionContextTrigger:first-child:not(:last-child){min-width:0;justify-content:center}

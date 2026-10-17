@@ -88,7 +88,7 @@ export function RetryPolicyPreference({ preference, t }) {
 export function ConnectorsPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = snapshot.status === 'ready' && snapshot.writable === true
-  return <div className="codexSubscriptionPreference codexSubscriptionPreferenceStack">
+  return <div className="codexSubscriptionPreference codexSubscriptionConnectors">
     <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('connectors')}</span><Hint t={t}>{t('connectorsHint')}</Hint></div>
     <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('connectors')}>
       {CONNECTOR_MODES.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-connectors" checked={snapshot.connectors === value} disabled={!writable} onChange={() => { void preference.set({ [CONNECTORS_FIELD]: value }) }} /><span>{t(`connectors_${value}`)}</span></label>)}

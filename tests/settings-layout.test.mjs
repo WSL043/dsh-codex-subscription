@@ -24,9 +24,9 @@ test('long setting explanations fold to two lines and unfold on demand', async (
   assert.doesNotMatch(STYLE, /\.codexSubscriptionPreferenceHint\{[^}]*max-width:300px/u, 'a hint uses the width of its row')
 })
 
-test('the connectors row stacks its choices under the explanation and shows the chosen mode', async () => {
+test('the connectors row keeps its choices on one line beside the label and shows the chosen mode', async () => {
   const source = await readFile(new URL('../src/client-preferences.jsx', import.meta.url), 'utf8')
-  assert.match(source, /codexSubscriptionPreferenceStack/u)
+  assert.match(source, /codexSubscriptionConnectors/u)
   assert.match(source, /connectorsMode_\$\{snapshot\.connectors\}/u)
   assert.match(source, /data-danger=\{snapshot\.connectors === 'write'/u, 'writing without asking is shown as a warning')
   assert.match(STYLE, /\.codexSubscriptionPreferenceStack>\.codexSubscriptionQuotaModes\{[^}]*grid-auto-columns:minmax\(0,1fr\)/u)
