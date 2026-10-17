@@ -31,11 +31,26 @@ export const STYLE = `
 .codexSubscriptionCard{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-1);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
 .codexSubscriptionUsageCard{padding:12px 14px;gap:9px}
 .codexSubscriptionPreferencesCard{padding:12px 14px;gap:10px}
-.codexSubscriptionPreference{min-height:32px;box-sizing:border-box;display:flex;align-items:center;justify-content:space-between;gap:12px;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
+.codexSubscriptionPreference{min-height:32px;box-sizing:border-box;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
 .codexSubscriptionPreferenceCopy{display:flex;min-width:0;flex-direction:column;gap:2px}
 .codexSubscriptionPreferenceLabel{display:flex;align-items:center;gap:6px}
-.codexSubscriptionPreferenceHint{max-width:300px;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
-.codexSubscriptionQuotaModes{display:flex;align-items:center;gap:3px;padding:2px;border-radius:9px;background:var(--dsw-alias-bg-module-platform)}
+.codexSubscriptionPreference>.codexSubscriptionPreferenceCopy{flex:1 1 240px}
+.codexSubscriptionPreferenceHint{max-width:none;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
+.codexSubscriptionHintText{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.codexSubscriptionHintFold[data-open=true] .codexSubscriptionHintText{display:block;-webkit-line-clamp:unset}
+.codexSubscriptionHintToggle{display:inline-flex;align-items:center;gap:3px;margin-top:2px;padding:0;border:0;background:none;font:inherit;font-size:11px;line-height:17px;color:var(--dsw-alias-label-secondary);cursor:pointer}
+.codexSubscriptionHintToggle::after{content:"";width:5px;height:5px;margin-top:-2px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);transition:transform .15s}
+.codexSubscriptionHintFold[data-open=true] .codexSubscriptionHintToggle::after{margin-top:2px;transform:rotate(-135deg)}
+.codexSubscriptionHintToggle:hover{color:var(--dsw-alias-label-primary)}
+.codexSubscriptionHintToggle:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px;border-radius:3px}
+.codexSubscriptionPreferenceStack{margin-top:6px;padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2)}
+.codexSubscriptionPreferenceStack>.codexSubscriptionQuotaModes{flex:1 1 100%;margin-left:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}
+.codexSubscriptionPreferenceStack .codexSubscriptionQuotaMode{min-height:30px;padding:4px 8px;text-align:center;white-space:normal;line-height:16px}
+.codexSubscriptionPreferenceLabel small{padding:0 6px;border-radius:999px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-tertiary);font-size:10px;font-weight:500;line-height:16px}
+@container (max-width:560px){.codexSubscriptionPreferenceStack>.codexSubscriptionQuotaModes{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}}
+.codexSubscriptionModeNote{flex:1 1 100%;padding:7px 10px;border-radius:8px;background:var(--dsw-alias-bg-module-platform);font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionModeNote[data-danger=true]{background:color-mix(in srgb,var(--dsw-alias-label-danger,#d92d20) 12%,transparent);color:var(--dsw-alias-label-danger,#d92d20)}
+.codexSubscriptionQuotaModes{display:flex;flex-wrap:wrap;max-width:100%;align-items:center;gap:3px;padding:2px;border-radius:9px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionQuotaMode{position:relative;display:flex;align-items:center;justify-content:center;min-height:26px;padding:0 9px;border-radius:7px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px;cursor:pointer;white-space:nowrap}
 .codexSubscriptionQuotaMode small{margin-left:3px;font-size:9px;line-height:1;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionQuotaMode:has(input:checked){background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);box-shadow:0 0 0 1px var(--dsw-alias-border-l3)}

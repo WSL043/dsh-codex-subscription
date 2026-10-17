@@ -1,3 +1,4 @@
+import { Hint } from './client-hint.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { Button, Input } from './client-primitives.js'
 import { readLoginProgress } from './login-progress.js'
@@ -167,7 +168,7 @@ export function AccountFailureCard({ accountStatus, snapshot, t, rpc, onRecovere
     <p className="codexSubscriptionError">{retrying ? t('accountRetrying') : accountStatusErrorText(snapshot.error, t)}</p>
     <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={retrying || busy} aria-busy={retrying} onClick={() => { void accountStatus.retry() }}>{retrying ? t('accountRetrying') : t('accountRetry')}</Button>
     <Button type="button" variant="outline" disabled={busy || retrying} onClick={() => void clear()}>{busy ? t('accountRetrying') : t(confirm ? 'recoveryClearConfirm' : 'recoveryClear')}</Button>{confirm ? <Button type="button" variant="outline" disabled={busy} onClick={() => setConfirm(false)}>{t('cancel')}</Button> : null}</div>
-    <p className="codexSubscriptionPreferenceHint">{t(confirm ? 'recoveryClearHint' : 'recoveryHint')}</p>
+    <Hint t={t} as="p">{t(confirm ? 'recoveryClearHint' : 'recoveryHint')}</Hint>
     {failed ? <p className="codexSubscriptionError">{t('recoveryFailed')}</p> : null}
   </div>
 }

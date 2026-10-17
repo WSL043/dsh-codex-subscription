@@ -1,3 +1,4 @@
+import { Hint } from './client-hint.jsx'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { IconChevronDownOutline14, Menu } from './client-primitives.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
@@ -31,7 +32,7 @@ export function DefaultModelPreference({ preference, defaultModel, t }) {
   return <div className="codexSubscriptionPreference">
     <div className="codexSubscriptionPreferenceCopy">
       <span className="codexSubscriptionPreferenceLabel">{t('defaultModelTitle')}</span>
-      <span className="codexSubscriptionPreferenceHint">{hint}</span>
+      <Hint t={t}>{hint}</Hint>
       {snapshot.error ? <span className="codexSubscriptionError" role="alert">{t('defaultModelFailed')}</span> : null}
     </div>
     <Menu

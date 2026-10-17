@@ -1,9 +1,10 @@
+import { Hint } from './client-hint.jsx'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { Button, Menu, IconChevronDownOutline14 } from './client-primitives.js'
 import { IMAGE_MODELS } from './image-models.js'
 import { IMAGE_SETTING_GROUPS, imageGroupValue, imageGroupPatch } from './image-setting-groups.js'
 
-export function ImageChoice({ label, hint, value, text, items, disabled, onSelect }) {
+export function ImageChoice({ t, label, hint, value, text, items, disabled, onSelect }) {
   const [open, setOpen] = useState(false)
   const anchor = useRef(null)
   useEffect(() => {
@@ -22,7 +23,7 @@ export function ImageChoice({ label, hint, value, text, items, disabled, onSelec
   return <div className="codexSubscriptionPreference codexImagePreference">
     <div className="codexSubscriptionPreferenceCopy">
       <span>{label}</span>
-      {hint ? <span className="codexSubscriptionPreferenceHint">{hint}</span> : null}
+      {hint ? <Hint t={t}>{hint}</Hint> : null}
     </div>
     <Menu open={open && !disabled} items={items} selectedId={value}
       onSelect={id => { setOpen(false); onSelect(id) }} onClose={() => setOpen(false)}
@@ -47,22 +48,22 @@ export function ImagePreferences({ preference, t, section = 'image' }) {
     <div className="codexSubscriptionSettingRows">
     {Object.keys(IMAGE_SETTING_GROUPS).filter(group => group.startsWith('sketch') === sketch).map(group => {
       const value = imageGroupValue(snapshot, group)
-      return <ImageChoice key={group} label={t(sketch ? `${group}Setting` : group)} hint={t(`${group}Hint`)}
+      return <ImageChoice t={t} key={group} label={t(sketch ? `${group}Setting` : group)} hint={t(`${group}Hint`)}
         value={value} text={t(value === 'mixed' ? 'imageGroupMixed' : `${group}_${value}`)}
         disabled={disabled} items={['on', 'off'].map(id => ({ id, label: t(`${group}_${id}`) }))}
         onSelect={id => { void preference.set(imageGroupPatch(group, id === 'on')) }} />
     })}
     {!sketch ? <div className="codexImageDefaultsGroup">
-      <ImageChoice label={t('imageModel')} value={snapshot.imageModel} text={modelLabel(snapshot.imageModel)}
+      <ImageChoice t={t} label={t('imageModel')} value={snapshot.imageModel} text={modelLabel(snapshot.imageModel)}
         disabled={disabled || !active}
         items={Object.keys(IMAGE_MODELS).map(id => ({ id, label: `${modelLabel(id)}${id.includes('2.5') ? ` · ${t('imageExperimental')}` : ''}` }))}
         onSelect={imageModel => { void preference.set({ imageModel, imageQuality: 'auto' }) }} />
-      <ImageChoice label={t('imageQuality')} value={snapshot.imageQuality} text={t(`imageQuality_${snapshot.imageQuality}`)}
+      <ImageChoice t={t} label={t('imageQuality')} value={snapshot.imageQuality} text={t(`imageQuality_${snapshot.imageQuality}`)}
         disabled={disabled || !active}
         items={IMAGE_MODELS[snapshot.imageModel].map(id => ({ id, label: t(`imageQuality_${id}`) }))}
         onSelect={imageQuality => { void preference.set({ imageQuality }) }} />
     </div> : null}
-    {!sketch && snapshot.imageModel.includes('2.5') ? <p className="codexSubscriptionPreferenceHint">{t('imageModelHint')}</p> : null}
+    {!sketch && snapshot.imageModel.includes('2.5') ? <Hint t={t} as="p">{t('imageModelHint')}</Hint> : null}
     </div>
     {snapshot.error ? <div className="codexSubscriptionRecover" role="alert"><p className="codexSubscriptionError">{t('preferenceFailed')}</p><Button type="button" variant="outline" onClick={() => { void preference.retry() }}>{t('preferenceRetry')}</Button></div> : null}
   </section>
