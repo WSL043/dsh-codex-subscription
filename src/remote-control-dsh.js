@@ -371,7 +371,17 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     return urls
   }
   /** The turn DSH is running, as the phone should see it now: what is committed, plus the reply still being written. */
-  const withLiveTurn = (id, turns) => {
+  // The phone merges items by id. A message it watched arrive keeps the id it was shown with when DSH's committed
+  // history is read back, otherwise the same message appears twice (or the live copy stays empty).
+  const aliases = new Map() // `${threadId}\0${committed id}` -> the id the phone was shown
+  const keepShownId = (threadId, committed, shown) => {
+    if (committed === shown) return
+    aliases.set(`${threadId}\0${committed}`, shown)
+    if (aliases.size > 2000) aliases.delete(aliases.keys().next().value)
+  }
+  const withShownIds = (id, turns) => aliases.size === 0 ? turns : turns.map(turn => ({ ...turn, items: turn.items.map(item => aliases.has(`${id}\0${item.id}`) ? { ...item, id: aliases.get(`${id}\0${item.id}`) } : item) }))
+  const withLiveTurn = (id, shownTurns) => {
+    const turns = withShownIds(id, shownTurns)
     const live = active.get(id)
     if (!live) return turns
     const typed = item => (item?.content ?? []).filter(part => part.type === 'text').map(part => part.text).join('')
@@ -379,7 +389,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const tail = writing ? [{ ...writing.item, text: writing.text }] : []
     const last = turns.at(-1)
     const ours = last?.items[0]?.type === 'userMessage' && typed(last.items[0]) === typed(live.userItem)
-    const items = ours ? [...last.items, ...tail] : [live.userItem, ...tail]
+    const items = ours ? [live.userItem, ...last.items.slice(1), ...tail] : [live.userItem, ...tail]
     return [...(ours ? turns.slice(0, -1) : turns), { ...live.turn, items, status: 'inProgress', error: null, completedAt: null, durationMs: null }]
   }
   const openThread = async (id, notify) => {
@@ -496,6 +506,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
         emit(id, 'error', { threadId: id, turnId: turn.id, willRetry: false, error: turn.error })
       }
       turn.completedAt = seconds(Date.now())
+      // The phone was shown this message under its own id; keep that id once DSH has committed it.
+      const sentText = visibleText(userItem.content.filter(part => part.type === 'text'))
+      try {
+        const committedUser = agent.session.deriveMessages().findLast(message => typedText(message) !== '' && typedText(message) === sentText)
+        if (committedUser) keepShownId(id, committedUser.id, userItem.id)
+      } catch { /* the phone then simply reads DSH's own id */ }
       active.delete(id)
       compactions.delete(id)
       const usageNow = tokenUsage(agent.session)
@@ -1004,6 +1020,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
         // The text already on the phone: finish that item instead of showing the reply twice.
         const shown = reuse
         reuse = undefined
+        keepShownId(session.id, item.id, shown.id)
         shown.text = item.text
         emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item: shown, completedAtMs: Date.now() })
         continue

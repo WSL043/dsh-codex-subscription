@@ -118,6 +118,33 @@ await section('new chat and streaming', async () => {
   console.log('  thread/read turns', read?.thread?.turns?.length)
   await phone.call('thread/turns/list', { threadId, limit: 5 })
   await phone.call('thread/resume', { threadId })
+  // What the phone showed live must be the same items it gets when it reads the conversation again
+  // (the phone merges by item id: a different id shows the same message twice or an empty reply).
+  const liveUser = [...new Set(slice.filter(message => message.method.startsWith('item/') && message.params.item?.type === 'userMessage').map(message => message.params.item.id))]
+  const liveAgent = slice.filter(message => message.method === 'item/completed' && message.params.item?.type === 'agentMessage').map(message => message.params.item)
+  const readItems = read?.thread?.turns?.at(-1)?.items ?? []
+  const readUser = readItems.filter(item => item.type === 'userMessage').map(item => item.id)
+  const readAgent = readItems.filter(item => item.type === 'agentMessage')
+  const problems = []
+  if (liveUser.length !== 1 || readUser.length !== 1 || liveUser[0] !== readUser[0]) problems.push(`user message ids differ: live ${JSON.stringify(liveUser)} vs read ${JSON.stringify(readUser)}`)
+  if (liveAgent.length === 0 || liveAgent.some(item => (item.text ?? '') === '')) problems.push('a completed reply item arrived with empty text')
+  if (liveAgent.length > 0 && readAgent.length > 0 && liveAgent.at(-1).id !== readAgent.at(-1).id) problems.push(`reply ids differ: live ${liveAgent.at(-1).id} vs read ${readAgent.at(-1).id}`)
+  if (liveAgent.length > 0 && readAgent.length > 0 && liveAgent.at(-1).text !== readAgent.at(-1).text) problems.push('reply text differs between the live item and the read item')
+  results.push({ label: 'live items match the re-read conversation', status: problems.length === 0 ? 'ok' : 'MISMATCH', errors: problems })
+})
+
+await section('emoji reply survives streaming', async () => {
+  const before = phone.since()
+  const { started: turn } = await send('Reply with exactly this text and nothing else: 你好哇！😊 😀👍 done', { sandboxPolicy: { type: 'workspaceWrite' } })
+  const finished = await finishTurn(turn.turn.id)
+  const slice = phone.notifications.slice(before)
+  const deltas = slice.filter(message => message.method === 'item/agentMessage/delta').map(message => message.params.delta ?? '')
+  const lone = text => /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/u.test(text)
+  const problems = []
+  if (deltas.some(lone)) problems.push('a streamed delta split an emoji (lone surrogate)')
+  if (lone(textOf(finished))) problems.push('the finished reply holds a lone surrogate')
+  if (!/😊/u.test(textOf(finished))) problems.push(`the reply lost its emoji: ${JSON.stringify(textOf(finished))}`)
+  results.push({ label: 'emoji reply survives streaming', status: problems.length === 0 ? 'ok' : 'MISMATCH', errors: problems })
 })
 
 await section('photo from the phone', async () => {
