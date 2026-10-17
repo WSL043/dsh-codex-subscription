@@ -123,7 +123,7 @@ Turn it on under **Settings → Codex → Models & runtime → Phone remote cont
 - When DSH needs a tool approval or asks you a question, the phone shows the choices; if the phone dropped, reopening the conversation within two minutes asks again, otherwise the computer handles it.
 - Model errors (missing key, exhausted quota, ...) are shown on the phone.
 - Only a host identifier is stored locally; pairing credentials are never written to disk, and turning the switch off disconnects.
-- This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta. For safety the phone cannot run arbitrary commands on the computer, only the read-only git described above.
+- This feature is a third-party host compatibility layer built on the Codex Remote Control protocol and uses OpenAI's remote connection service. Connecting DSH as a third-party host is not something OpenAI has explicitly committed to support and may be affected by later service updates, hence Beta. It does not mean OpenAI has certified or endorsed it. For safety the phone cannot run arbitrary commands on the computer, only the read-only git described above.
 
 ### Advanced experiments
 

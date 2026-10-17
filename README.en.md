@@ -109,7 +109,7 @@ Pair the ChatGPT mobile app's Codex section with a QR code and the DSH on your c
 - DSH workspaces appear as projects; fork a conversation, see usage limits, lifetime usage and context usage; where DSH has `/compact` (0.2.1-rc.2 onwards), compact the context from the phone;
 - model errors show on the phone; paired phones are listed in settings and can be removed.
 
-Off by default: **Settings → Codex → Models & runtime → Phone remote control**. The computer must stay on, online and running DSH. This is a ChatGPT capability OpenAI has not opened to third parties and may change at any time, hence Beta.
+Off by default: **Settings → Codex → Models & runtime → Phone remote control**. The computer must stay on, online and running DSH. This feature is a third-party host compatibility layer built on the Codex Remote Control protocol and uses OpenAI's remote connection service. Codex has an official remote control implementation, but connecting DSH as a third-party host is not something OpenAI has explicitly committed to support, and later service updates may affect compatibility, hence Beta. It is off by default; you can turn it on, manage paired devices or turn it off at any time. It does not mean OpenAI has certified or endorsed it.
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Phone remote control in settings: the switch, pairing QR code and manual code, paired phones"></picture></p>
 

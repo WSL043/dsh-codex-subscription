@@ -109,7 +109,7 @@ dsh --profile headless "只回复：ok"
 - DSH 工作区对应手机上的项目；可以从手机分叉对话，看用量额度、累计用量和上下文用量；DSH 带有 `/compact` 时（0.2.0-rc.2 起）还能从手机压缩上下文；
 - 模型报错会显示在手机上；设置里能看到已配对的手机，随时移除。
 
-默认关闭：**设置 → Codex 订阅 → 模型与运行 → 手机远程控制**。电脑需要保持开机、联网并打开 DSH。这是 OpenAI 尚未向第三方开放的 ChatGPT 能力，随时可能变化，所以标为 Beta。
+默认关闭：**设置 → Codex 订阅 → 模型与运行 → 手机远程控制**。电脑需要保持开机、联网并打开 DSH。本功能基于 Codex Remote Control 协议实现第三方主机兼容，使用 OpenAI 的远程连接服务。Codex 的远程控制能力已有官方实现，但 DSH 作为第三方主机的接入方式尚不属于官方明确承诺支持的范围，后续服务更新可能影响兼容性，所以标为 Beta。功能默认关闭，你可以自行开启、管理已配对设备或随时停用。该功能不代表获得 OpenAI 官方认证或背书。
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-zh-dark.png"><img src="docs/assets/ui-remote-zh-light.png" width="560" alt="设置里的手机远程控制：开关、配对二维码和手动码、已配对的手机"></picture></p>
 
