@@ -39,10 +39,11 @@ Spark 使用独立额度。只返回每周额度的账号仍只显示每周，�
 
 ### ChatGPT 连接器
 
-在“模型与运行”里把 **ChatGPT 连接器** 设为“只读”或“允许写入”后，所有 DSH 模型（包括 DeepSeek）都多出三个工具：`chatgpt_connectors_search` 搜索你在 ChatGPT 里已连接应用的工具，`chatgpt_connectors_describe` 查看参数，`chatgpt_connectors_call` 执行。支持 GitHub、Gmail、Google 云端硬盘、Google 日历等 ChatGPT 里能连接的应用，具体以你的账号为准。
+在“模型与运行”里把 **ChatGPT 连接器** 设为“只读”“允许写入（每次审批）”或“允许写入（不再询问）”后，所有 DSH 模型（包括 DeepSeek）都多出三个工具：`chatgpt_connectors_search` 搜索你在 ChatGPT 里已连接应用的工具，`chatgpt_connectors_describe` 查看参数，`chatgpt_connectors_call` 执行。支持 GitHub、Gmail、Google 云端硬盘、Google 日历等 ChatGPT 里能连接的应用，具体以你的账号为准。
 
 - **只读**：只运行应用标记为只读的工具（搜邮件、读文件、查 PR 等）。
-- **允许写入**：发邮件、改文件、评论等会改动数据的操作，每次调用都会弹出审批，显示工具、参数和说明；手机远程控制开着时，审批也会出现在手机上。拒绝后不会发出任何请求。
+- **允许写入（每次审批）**：发邮件、改文件、评论等会改动数据的操作，每次调用都会弹出审批，显示工具、参数和说明；手机远程控制开着时，审批也会出现在手机上。拒绝后不会发出任何请求。
+- **允许写入（不再询问）**：同样的写操作直接执行，不再弹出审批，做错了无法撤回。只在你信任当前模型和任务时使用。
 - 应用返回的内容来自第三方，模型被告知不要执行其中的指令。账号安全、插件管理等 ChatGPT 内部工具不开放。
 - 需要先在 ChatGPT 网页里连接应用。默认关闭；工具列表缓存 10 分钟。
 
