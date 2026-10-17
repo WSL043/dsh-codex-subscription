@@ -9,6 +9,8 @@ import { isAbsolute } from 'node:path'
 import { RpcError, invalidParams } from './remote-control-host.js'
 import { runGit } from './remote-control-git.js'
 import { searchFiles } from './remote-control-files.js'
+import { createRealtimeVoice } from './remote-control-realtime.js'
+import { diagnosticLog } from './diagnostic-log.js'
 
 /** A folder the phone named, only when it is an existing absolute folder on this machine. */
 export function localFolder(value) {
@@ -228,7 +230,10 @@ const PHONE_RETURN_MS = 120_000
 // How long after it last had a thread open a reconnecting phone is assumed to still want it.
 const ADOPT_WITHIN_MS = 600_000
 
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, usageProfile = () => undefined, projections = () => undefined, skills = () => undefined, commands = () => undefined, llm = () => undefined, speed = undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent }) {
+const REALTIME_VOICE_NAMES = ['alloy', 'arbor', 'ash', 'ballad', 'breeze', 'cedar', 'coral', 'cove', 'echo', 'ember', 'juniper', 'maple', 'marin', 'sage', 'shimmer', 'sol', 'spruce', 'vale', 'verse']
+const REALTIME_VOICES = { v1: REALTIME_VOICE_NAMES.filter(name => !['arbor', 'breeze', 'cedar', 'juniper', 'maple', 'sol', 'spruce', 'vale'].includes(name)), v2: REALTIME_VOICE_NAMES, defaultV1: 'cove', defaultV2: 'marin' }
+
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, usageProfile = () => undefined, projections = () => undefined, skills = () => undefined, commands = () => undefined, llm = () => undefined, speed = undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent, voice = undefined }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
@@ -573,6 +578,25 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     return needle === '' || snippets.has(entry.id) || `${entry.name ?? ''} ${entry.preview}`.toLocaleLowerCase().includes(needle)
   }
 
+  /** Run a request the voice model handed over as a turn, and pass each message the agent finishes back to it. */
+  const delegateToAgent = async (threadId, text, onMessage) => {
+    for (let waited = 0; active.has(threadId) && waited < 600_000; waited += 500) await new Promise(resolve => setTimeout(resolve, 500))
+    let finish
+    const finished = new Promise(resolve => { finish = resolve })
+    const observer = async (method, params) => {
+      if (params?.threadId !== threadId) return
+      if (method === 'item/completed' && params.item?.type === 'agentMessage' && typeof params.item.text === 'string' && params.item.text.trim() !== '') onMessage(params.item.text)
+      else if (method === 'turn/completed') finish()
+    }
+    try {
+      await startTurn({ threadId, input: [{ type: 'text', text, text_elements: [] }] }, observer)
+      await finished
+    } finally {
+      subscribers.get(threadId)?.delete(observer)
+    }
+  }
+  const realtimeVoice = voice ? createRealtimeVoice({ ...voice, userAgent, log: diagnosticLog, delegate: delegateToAgent }) : undefined
+
   const methods = {
     initialize: () => ({
       codexHome: '', platformFamily: process.platform === 'win32' ? 'windows' : 'unix',
@@ -628,6 +652,31 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'fs/getMetadata': params => realMetadata(params?.path) ?? ({ isDirectory: true, isFile: false, isSymlink: false, createdAtMs: Date.now(), modifiedAtMs: Date.now() }),
     'fs/readDirectory': params => ({ entries: readFolder(params?.path) }),
     'collaborationMode/list': () => ({ data: [] }),
+    // Live voice is not available through a DSH host yet. Answer the phone's voice calls instead of
+    // leaving it on "connecting": list the voices, then end a start attempt with a clear error.
+    'thread/realtime/listVoices': () => ({ voices: REALTIME_VOICES }),
+    'thread/realtime/start': async (params, { notify }) => {
+      const threadId = typeof params?.threadId === 'string' ? params.threadId : ''
+      const fail = message => {
+        setTimeout(() => {
+          void notify('thread/realtime/error', { threadId, message }).catch(() => {})
+          void notify('thread/realtime/closed', { threadId, reason: 'error' }).catch(() => {})
+        }, 50)
+        return {}
+      }
+      if (!realtimeVoice) return fail('Live voice is not available on this DSH')
+      subscribe(threadId, notify)
+      // Joining the call takes a moment; the phone is told when it is joined, or why it was not.
+      void realtimeVoice.start(params, notify).catch(error => {
+        diagnosticLog.error('voice', 'live voice could not start', String(error?.message ?? error))
+        void notify('thread/realtime/error', { threadId, message: 'Live voice could not connect to the voice service' }).catch(() => {})
+        void notify('thread/realtime/closed', { threadId, reason: 'error' }).catch(() => {})
+      })
+      return {}
+    },
+    'thread/realtime/stop': params => { realtimeVoice?.stop(params?.threadId); return {} },
+    'thread/realtime/appendText': params => { realtimeVoice?.appendText(params?.threadId, params?.text); return {} },
+    'thread/realtime/appendSpeech': params => { realtimeVoice?.appendSpeech(params?.threadId, params?.text); return {} },
     'permissionProfile/list': () => ({ data: [], nextCursor: null }),
     'threadSection/list': () => ({ data: [], nextCursor: null }),
     'thread/goal/get': () => ({ goal: null }),

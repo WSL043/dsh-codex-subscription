@@ -1,0 +1,111 @@
+import assert from 'node:assert/strict'
+import { EventEmitter } from 'node:events'
+import test from 'node:test'
+import { appendChunks, channelOf, createRealtimeVoice, delegationText, parseEvent } from '../src/remote-control-realtime.js'
+
+// A stand-in for the voice service's side channel: what the phone's call would give the host.
+class FakeSocket extends EventEmitter {
+  static instances = []
+  constructor(url, options) { super(); this.url = url; this.options = options; this.sent = []; FakeSocket.instances.push(this); queueMicrotask(() => this.arrive()) }
+  arrive() { this.emit('open') }
+  send(text) { this.sent.push(JSON.parse(text)) }
+  close() { this.closed = true; this.emit('close') }
+  hear(message) { this.emit('message', Buffer.from(JSON.stringify(message))) }
+}
+
+const setup = (overrides = {}) => {
+  FakeSocket.instances = []
+  const notes = []
+  const notify = async (method, params) => { notes.push({ method, params }) }
+  const delegated = []
+  const voice = createRealtimeVoice({
+    WebSocket: FakeSocket,
+    credentials: async () => ({ access: 'test-access', accountId: 'acct' }),
+    userAgent: 'test/1',
+    delegate: async (threadId, text, onMessage) => { delegated.push({ threadId, text }); await overrides.work?.(onMessage) },
+    ...overrides.options,
+  })
+  return { voice, notes, notify, delegated }
+}
+const start = { threadId: 't1', transport: { type: 'existingCall', callId: 'rtc_abc' }, realtimeSessionId: 'S1', version: 'v3', realtimeStartInstructions: 'Use prefixes.' }
+const settle = () => new Promise(resolve => setTimeout(resolve, 20))
+
+test('joining an existing call: the side channel opens on the call id and the phone is told', async () => {
+  const { voice, notes, notify } = setup()
+  assert.deepEqual(await voice.start(start, notify), {})
+  const [socket] = FakeSocket.instances
+  assert.equal(socket.url, 'wss://realtime.chatgpt.com/v1/live/rtc_abc')
+  assert.equal(socket.options.headers.authorization, 'Bearer test-access')
+  assert.equal(socket.options.headers['chatgpt-account-id'], 'acct')
+  assert.deepEqual(notes.map(note => note.method), ['thread/realtime/started'])
+  assert.deepEqual(notes[0].params, { threadId: 't1', version: 'v3', realtimeSessionId: 'S1' })
+})
+
+test('transcripts reach the phone, a spoken request runs as a turn and its answer is spoken back', async () => {
+  const { voice, notes, notify, delegated } = setup({ work: async onMessage => { onMessage('[STATUS] Looking.'); onMessage('[COMPLETE] It is done.') } })
+  await voice.start(start, notify)
+  const [socket] = FakeSocket.instances
+  socket.hear({ type: 'input_transcript.added', item: { text: 'hel' } })
+  socket.hear({ type: 'turn.done', turn: { role: 'assistant', transcript: 'Sure.' } })
+  socket.hear({ type: 'delegation.created', item: { id: 'd1', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: 'list files' }] } })
+  await settle()
+  assert.deepEqual(notes.slice(1).map(note => [note.method, note.params.role]), [['thread/realtime/transcript/delta', 'user'], ['thread/realtime/transcript/done', 'assistant']])
+  assert.equal(delegated.length, 1)
+  assert.match(delegated[0].text, /<realtime_instructions>Use prefixes\.<\/realtime_instructions>/u)
+  assert.match(delegated[0].text, /<input>list files<\/input>/u)
+  assert.deepEqual(socket.sent.map(message => [message.type, message.delegation_item_id, message.channel, message.content[0].text]), [
+    ['delegation.context.append', 'd1', 'commentary', '[STATUS] Looking.'],
+    ['delegation.context.append', 'd1', 'speakable', '[COMPLETE] It is done.'],
+  ])
+  // The instructions go with the first request only.
+  socket.hear({ type: 'delegation.created', item: { id: 'd2', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: 'again' }] } })
+  await settle()
+  assert.doesNotMatch(delegated[1].text, /realtime_instructions/u)
+})
+
+test('stopping closes the call and tells the phone; a closed call is reported once', async () => {
+  const { voice, notes, notify } = setup()
+  await voice.start(start, notify)
+  const [socket] = FakeSocket.instances
+  assert.equal(voice.stop('t1'), true)
+  assert.equal(socket.closed, true)
+  assert.deepEqual(socket.sent.at(-1), { type: 'session.close' })
+  assert.equal(notes.filter(note => note.method === 'thread/realtime/closed').length, 1)
+  assert.equal(voice.stop('t1'), false)
+})
+
+test('the call dropping ends the voice session with a reason', async () => {
+  const { voice, notes, notify } = setup()
+  await voice.start(start, notify)
+  FakeSocket.instances[0].emit('close')
+  assert.deepEqual(notes.at(-1), { method: 'thread/realtime/closed', params: { threadId: 't1', reason: 'transportClosed' } })
+  assert.equal(voice.active('t1'), false)
+})
+
+test('when the first voice endpoint refuses, the next one is tried', async () => {
+  FakeSocket.instances = []
+  class Refusing extends FakeSocket {
+    arrive() { if (this.url.includes('realtime.chatgpt.com')) this.emit('unexpected-response', undefined, { statusCode: 403 }); else super.arrive() }
+  }
+  const voice = createRealtimeVoice({ WebSocket: Refusing, credentials: async () => ({ access: 'a', accountId: 'b' }), userAgent: 'x', delegate: async () => {} })
+  await voice.start(start, async () => {})
+  assert.equal(FakeSocket.instances.at(-1).url, 'wss://api.openai.com/v1/live/rtc_abc')
+})
+
+test('a start without an existing call is refused', async () => {
+  const { voice, notify } = setup()
+  await assert.rejects(voice.start({ threadId: 't1', transport: { type: 'websocket' } }, notify), /already set up/u)
+})
+
+test('helpers: channel prefixes, chunking, delegation wrapper, event parsing', () => {
+  assert.equal(channelOf('[STATUS] x'), 'commentary')
+  assert.equal(channelOf('[COMPLETE] x'), 'speakable')
+  assert.equal(channelOf('plain answer'), 'speakable')
+  assert.equal(channelOf('[ANALYSIS] hidden'), undefined)
+  const chunks = appendChunks('字'.repeat(400))
+  assert.ok(chunks.length > 1 && chunks.every(chunk => Buffer.byteLength(chunk) <= 500) && chunks.join('') === '字'.repeat(400))
+  assert.match(delegationText('a <b> & c'), /<input>a &lt;b&gt; &amp; c<\/input>/u)
+  assert.equal(parseEvent('not json'), undefined)
+  assert.deepEqual(parseEvent('{"type":"error","error":{"message":"boom"}}'), { kind: 'error', message: 'boom' })
+  assert.equal(parseEvent('{"type":"delegation.created","item":{"id":"x","type":"delegation","target":"server"}}'), undefined)
+})
