@@ -33,24 +33,14 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
     const measure = () => {
       const send = [...trailing.children].filter(child => child.tagName === 'BUTTON' && !child.classList.contains('codexVoiceCall')).at(-1)
       if (!send) { setPlace(undefined); return }
-      // The send button looks different while it is disabled; the voice button should look like the send button in use,
-      // so take the colours from an enabled copy of it.
-      const probe = send.cloneNode(false)
-      probe.disabled = false
-      probe.removeAttribute('aria-label')
-      probe.style.cssText = 'position:absolute;visibility:hidden;pointer-events:none'
-      trailing.appendChild(probe)
-      const style = getComputedStyle(probe)
-      const color = style.backgroundColor
-      const radius = style.borderRadius
-      trailing.removeChild(probe)
-      // The probe's own insertion and removal must not trigger another measurement.
-      watcher.takeRecords()
       const host = trailing.getBoundingClientRect()
       const box = send.getBoundingClientRect()
+      // Whole device pixels, so a scaled display (125%, 150%) cannot draw the circle slightly off.
+      const ratio = window.devicePixelRatio || 1
+      const snap = value => Math.round(value * ratio) / ratio
       setPlace({
-        host: trailing, left: box.left - host.left - trailing.clientLeft, top: box.top - host.top - trailing.clientTop, width: box.width, height: box.height,
-        idle: send.disabled, color, radius,
+        host: trailing, left: snap(box.left - host.left - trailing.clientLeft), top: snap(box.top - host.top - trailing.clientTop), width: snap(box.width), height: snap(box.width),
+        idle: send.disabled, className: send.className,
       })
     }
     measure()
@@ -89,9 +79,9 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
     {anchor}
     {visible ? createPortal(<>
       <button
-        type="button" className="codexVoiceCall" data-state={state} onClick={click} disabled={state === 'connecting'}
+        type="button" className={`${place.className} codexVoiceCall`} data-state={state} onClick={click} disabled={state === 'connecting'}
         aria-label={t(state === 'live' ? 'voiceEnd' : 'voiceStart')} title={t(state === 'live' ? 'voiceEnd' : 'voiceStart')}
-        style={{ left: place.left, top: place.top, width: place.width, height: place.height, '--codex-voice-color': place.color, borderRadius: place.radius }}
+        style={{ left: place.left, top: place.top, width: place.width, height: place.height }}
       >{state === 'live' ? <Hangup /> : <Bars />}</button>
       {problem ? <span className="codexVoiceCallNote" role="alert" style={{ right: 0 }}>{problem}</span> : null}
     </>, place.host) : null}

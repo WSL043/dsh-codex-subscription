@@ -321,11 +321,11 @@ export const STYLE = `
 .codexVoiceChoice{display:flex;align-items:center;gap:8px}
 .codexVoiceChoice .codexSubscriptionContextTrigger{min-width:150px;justify-content:space-between}
 .codexVoiceChoice .codexSubscriptionContextTrigger:first-child:not(:last-child){min-width:0;justify-content:center}
-.codexVoiceCall{position:absolute;z-index:2;display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;color:#fff;background:var(--codex-voice-color,#7aaaff);cursor:pointer;box-sizing:border-box}
-.codexVoiceCall:hover:not(:disabled){filter:brightness(1.08)}
-.codexVoiceCall:disabled{cursor:progress;opacity:.7}
+/* The voice button wears the send button's own classes, so its colours, shape and theme are always the send button's. */
+.codexVoiceCall{position:absolute;z-index:2;margin:0}
+.codexVoiceCall:disabled{cursor:progress}
 .codexVoiceCall[data-state=connecting]{animation:codexVoicePulse 1.1s ease-in-out infinite}
-.codexVoiceCall[data-state=live]{background:#e5484d;animation:codexVoiceLive 1.6s ease-out infinite}
+.codexVoiceCall[data-state=live]{background:#e5484d!important;animation:codexVoiceLive 1.6s ease-out infinite}
 .codexVoiceCallNote{position:absolute;bottom:calc(100% + 8px);z-index:3;width:max-content;max-width:320px;padding:6px 10px;border-radius:8px;background:var(--dsw-alias-surface-elevated,#2a2a2e);color:var(--dsw-alias-label-primary,#fff);font-size:12px;line-height:16px;box-shadow:0 4px 16px rgba(0,0,0,.3);white-space:normal}
 @keyframes codexVoicePulse{50%{opacity:.55}}
 @keyframes codexVoiceLive{0%{box-shadow:0 0 0 0 rgba(229,72,77,.5)}100%{box-shadow:0 0 0 10px rgba(229,72,77,0)}}
