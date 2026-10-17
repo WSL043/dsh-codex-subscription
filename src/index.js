@@ -14,7 +14,7 @@ import * as dshCredentials from '@deepseek-ai/dsh-credentials'
 import WebSocket from 'ws'
 import { hostname } from 'node:os'
 import { readSubscriptionCredentials } from './subscription-credentials.js'
-import { APP_SERVER_USER_AGENT, CODEX_PROTOCOL_VERSION, USER_AGENT } from './version.js'
+import { USER_AGENT } from './version.js'
 import { createRemoteControl } from './remote-control.js'
 import { createDshRemoteControl } from './remote-control-dsh.js'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
@@ -441,7 +441,6 @@ export function apply(ctx, config = {}) {
     },
     trace: entry => { try { remoteControl.host.note(entry) } catch { /* diagnostics only */ } },
     userAgent: USER_AGENT,
-    appServerUserAgent: APP_SERVER_USER_AGENT,
     configFile: dshHomePath('state', 'codex-subscription', 'remote-config.json'),
     voice: { WebSocket, credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal) },
   })
@@ -453,7 +452,6 @@ export function apply(ctx, config = {}) {
     debugFile: dshHomePath('state', 'codex-subscription', 'remote-debug.jsonl'),
     hostName: `DSH (${hostname()})`,
     userAgent: USER_AGENT,
-    appServerVersion: CODEX_PROTOCOL_VERSION,
     // Only for acceptance runs against a local stand-in relay; anything but chatgpt.com or a loopback address is refused.
     base: process.env.DSH_CODEX_REMOTE_BASE || undefined,
     methods: remoteBridge.methods,

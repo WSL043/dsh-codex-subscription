@@ -211,12 +211,12 @@ export function projectTurns(messages, at = Date.now(), imageUrls = new Map(), c
   return turns
 }
 
-function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns = [], projectId = null }) {
+function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns = [], projectId = null, threadSource = 'dsh' }) {
   return {
     id, sessionId: id, forkedFromId: null, parentThreadId: null, preview: preview ?? title ?? '', ephemeral: false,
     modelProvider: 'dsh', createdAt: seconds(createdAt), updatedAt: seconds(updatedAt ?? createdAt), recencyAt: seconds(updatedAt ?? createdAt),
     status: running ? { type: 'active', activeFlags: [] } : { type: 'idle' }, path: null, cwd: cwd ?? '',
-    cliVersion: 'dsh', source: { custom: 'dsh' }, threadSource: 'dsh', agentNickname: null, agentRole: null,
+    cliVersion: 'dsh', source: { custom: 'dsh' }, threadSource, agentNickname: null, agentRole: null,
     gitInfo: null, name: title ?? null, turns, historyMode: 'legacy', section: null, sectionEnteredAt: null,
     projectId, canAcceptDirectInput: true, extra: null,
   }
@@ -259,6 +259,7 @@ export function createPhoneConfig(file) {
 
 export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, usageProfile = () => undefined, projections = () => undefined, skills = () => undefined, commands = () => undefined, llm = () => undefined, speed = undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent, appServerUserAgent = userAgent, configFile = undefined, voice = undefined }) {
   const subscribers = new Map() // threadId -> Set<notify>
+  const threadSources = new Map() // threadId -> the source the phone named when it created the thread ("user", "realtime_voice", ...)
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
   let catalog
@@ -433,7 +434,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     return {
       agent,
       thread: thread({
-        id, cwd, createdAt: session.meta?.createdAt, running: active.has(id), projectId: projectIdOf(id),
+        id, cwd, createdAt: session.meta?.createdAt, running: active.has(id), projectId: projectIdOf(id), threadSource: threadSources.get(id),
         preview: first ? visibleText(first.content).slice(0, 200) : '', turns: withLiveTurn(id, projectTurns(messages, session.meta?.createdAt, imageUrls, cwd)),
       }),
     }
@@ -828,6 +829,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       const cwd = localFolder(params?.cwd)
       const project = typeof params?.projectId === 'string' ? workspaceList().find(entry => String(entry.id) === params.projectId) : undefined
       const created = await service().create(project ? { workspaceId: project.id } : cwd ? { cwd } : {})
+      if (typeof params?.threadSource === 'string' && params.threadSource !== '') threadSources.set(created.sessionId, params.threadSource.slice(0, 64))
       const agent = await agentFor(created.sessionId)
       // A new chat that names no model starts with the model and effort the phone last saved.
       const saved = phoneConfig.read()
