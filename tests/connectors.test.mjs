@@ -117,6 +117,15 @@ test('write mode asks the user for every changing call and sends nothing when re
   assert.equal(calls.length, 2)
 })
 
+test('the do-not-ask write mode runs a changing call without an approval request', async () => {
+  const approvals = []
+  const { by, calls } = tools('write', [listing(), json({ jsonrpc: '2.0', id: 2, result: { content: [{ type: 'text', text: 'sent' }] } })], approvals)
+  const sent = await by.chatgpt_connectors_call.execute({ name: 'gmail.send_email', arguments: { to: 'a@b.c' } }, exec)
+  assert.equal(sent.text, 'sent')
+  assert.equal(approvals.length, 0)
+  assert.equal(calls.length, 2)
+})
+
 test('connector tools do nothing while the setting is off or the tool name is unknown', async () => {
   const off = tools('off', [])
   await assert.rejects(off.by.chatgpt_connectors_call.execute({ name: 'gmail.search_emails' }, exec), /turned off/)
@@ -138,5 +147,6 @@ test('search and describe answer from the cached list', async () => {
 test('the connectors setting only accepts known modes and defaults to off', () => {
   assert.equal(normalizeConnectorMode(undefined), 'off')
   assert.equal(normalizeConnectorMode('ask'), 'ask')
+  assert.equal(normalizeConnectorMode('write'), 'write')
   assert.equal(normalizeConnectorMode('all'), 'off')
 })

@@ -39,10 +39,11 @@ Spark keeps its independent quota. The plugin does not invent five-hour limits, 
 
 ### ChatGPT connectors (Beta)
 
-Set **ChatGPT connectors** under Models & runtime to Read-only or Allow writes, and every DSH model (DeepSeek included) gains three tools: `chatgpt_connectors_search` finds tools in the apps you connected in ChatGPT, `chatgpt_connectors_describe` shows their arguments, and `chatgpt_connectors_call` runs one. Apps such as GitHub, Gmail, Google Drive and Google Calendar work as far as your account has them connected.
+Set **ChatGPT connectors** under Models & runtime to Read-only, Allow writes (ask each time) or Allow writes (do not ask), and every DSH model (DeepSeek included) gains three tools: `chatgpt_connectors_search` finds tools in the apps you connected in ChatGPT, `chatgpt_connectors_describe` shows their arguments, and `chatgpt_connectors_call` runs one. Apps such as GitHub, Gmail, Google Drive and Google Calendar work as far as your account has them connected.
 
 - **Read-only** runs only tools the app marks read-only (search mail, read files, look up pull requests).
-- **Allow writes** asks for your approval on every call that changes data (send mail, edit files, comment), showing the tool, arguments and description; with phone remote control on, the approval also appears on the phone. A refused call sends nothing.
+- **Allow writes (ask each time)** asks for your approval on every call that changes data (send mail, edit files, comment), showing the tool, arguments and description; with phone remote control on, the approval also appears on the phone. A refused call sends nothing.
+- **Allow writes (do not ask)** runs the same changing calls immediately with no approval; a mistake cannot be undone. Use it only when you trust the model and the task.
 - What an app returns is third-party content and models are told not to follow instructions inside it. Account, safety and plugin-management tools of ChatGPT are not exposed.
 - Connect the apps in ChatGPT first. Off by default; the tool list is cached for 10 minutes.
 
