@@ -55,7 +55,6 @@ const content = text => [{ type: 'input_text', text }]
 const LANGUAGE_NAMES = { zh: 'Chinese (Mandarin)', en: 'English', ja: 'Japanese', ko: 'Korean', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ru: 'Russian' }
 
 export const outbound = {
-  sessionUpdate: session => ({ type: 'session.update', session }),
   sessionAppend: (text, channel) => ({ type: 'session.context.append', ...(channel ? { channel } : {}), content: content(text) }),
   delegationAppend: (delegationItemId, text, channel) => ({ type: 'delegation.context.append', delegation_item_id: delegationItemId, ...(channel ? { channel } : {}), content: content(text) }),
   close: () => ({ type: 'session.close' }),
@@ -108,11 +107,6 @@ export async function probeVoiceCall({ fetch, credentials, userAgent, log, base 
   const shape = (() => { try { const value = JSON.parse(text); return Object.keys(value).join(',') } catch { return '' } })()
   const line = response.ok ? `the voice backend created a call (HTTP ${response.status}; fields: ${shape})` : `the voice backend refused to create a call (HTTP ${response.status})`
   ;(response.ok ? log.info : log.error).call(log, 'voice', line, response.ok ? undefined : text)
-  // The catalog the phone's own voice picker reads, for the settings page's voice preview.
-  const catalog = await fetch(`${base}/settings/voices`, { headers: { authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, accept: 'application/json', 'user-agent': userAgent }, signal: AbortSignal.timeout(15_000) })
-  const text2 = await catalog.text().catch(() => '')
-  const names = (() => { try { return JSON.parse(text2).voices.map(entry => `${entry.voice}=${entry.name}`).join(' ') } catch { return text2.slice(0, 300) } })()
-  log.info('voice', `voice catalog: HTTP ${catalog.status}`, names)
   return { status: response.status, ok: response.ok }
 }
 
@@ -216,7 +210,8 @@ export function createRealtimeVoice(options) {
       }
       else if (event.kind === 'error') {
         log.error('voice', 'the voice service reported an error', event.message)
-        void notify('thread/realtime/error', { threadId, message: event.message }).catch(() => {})
+        // Right after one of our own optional requests an error belongs to that request: the phone must not end the call over it.
+        if (Date.now() > (session.quietUntil ?? 0)) void notify('thread/realtime/error', { threadId, message: event.message }).catch(() => {})
       } else if (event.kind === 'delegation') {
         const input = event.text
         if (input === '') return
@@ -243,11 +238,11 @@ export function createRealtimeVoice(options) {
       void notify('thread/realtime/closed', { threadId, reason: 'transportClosed' }).catch(() => {})
     })
     ws.on('error', error => log.warn('voice', 'the voice connection failed', String(error?.message ?? error)))
-    // The computer's own choices, applied to the call the phone set up. The voice service decides whether it accepts them
-    // this late; what it answers lands in the log.
+    // The computer's own choice of answer language, given to the call the phone set up. The voice itself is fixed by the
+    // phone when the call starts (the voice service answers "Voice cannot be updated after initialization"), so it is not touched.
     const wanted = options.preferences?.() ?? {}
-    if (wanted.voice && wanted.voice !== 'auto') { send(outbound.sessionUpdate({ audio: { output: { voice: wanted.voice } } })); log.info('voice', `asked the voice service for the voice ${wanted.voice}`) }
     if (wanted.language && wanted.language !== 'auto' && LANGUAGE_NAMES[wanted.language]) {
+      session.quietUntil = Date.now() + 5_000
       send(outbound.sessionAppend(`The user prefers ${LANGUAGE_NAMES[wanted.language]}. Speak and answer in ${LANGUAGE_NAMES[wanted.language]} unless the user clearly speaks another language.`, 'commentary'))
       log.info('voice', `asked the voice service to answer in ${LANGUAGE_NAMES[wanted.language]}`)
     }
