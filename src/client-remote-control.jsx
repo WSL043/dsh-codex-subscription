@@ -45,6 +45,8 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
   const [removing, setRemoving] = useState()
   const alive = useRef(false)
   const audio = useRef()
+  // Which voices ChatGPT offers right now; the others are shown as unavailable until its catalog lists them.
+  const [offered, setOffered] = useState()
   const [sample, setSample] = useState({ voice: '', state: 'idle', note: '' })
   const on = snapshot.remoteControl === 'on'
   /** Play a short clip of a voice; picking a voice plays it too, so the choice can be heard before it is used. */
@@ -76,6 +78,15 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
     } catch { /* the next refresh retries */ }
   }
   useEffect(() => { alive.current = true; return () => { alive.current = false; audio.current?.pause() } }, [])
+  useEffect(() => {
+    if (!on) return
+    void (async () => {
+      try {
+        const result = await rpc.call(CHANNEL, 'voice/catalog', {})
+        if (alive.current && result.ok) setOffered(result.value.voices)
+      } catch { /* every voice then stays selectable */ }
+    })()
+  }, [on])
   useEffect(() => {
     if (!on) { setClients(undefined); return undefined }
     let stopped = false, timer
@@ -152,7 +163,7 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
       <div className="codexSubscriptionPreference">
         <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('voiceTitle')} <small>Beta</small></span><Hint t={t}>{t('voiceHint')}</Hint></div>
       </div>
-      <VoiceChoice label={t('voiceVoice')} disabled={!snapshot.writable} selectedId={snapshot.voiceVoice} items={VOICE_VOICES.map(value => ({ id: value, label: value === 'auto' ? t('voiceAuto') : value }))} onSelect={value => { void preference.set({ [VOICE_VOICE_FIELD]: value }); void playVoice(value) }} trailing={<Button type="button" variant="outline" disabled={snapshot.voiceVoice === 'auto' || sample.state === 'loading'} aria-label={t('voicePlay')} onClick={() => { void playVoice(snapshot.voiceVoice) }}>{sample.state === 'loading' ? t('voiceLoading') : t('voicePlay')}</Button>} />
+      <VoiceChoice label={t('voiceVoice')} disabled={!snapshot.writable} selectedId={snapshot.voiceVoice} items={VOICE_VOICES.map(value => value === 'auto' ? { id: value, label: t('voiceAuto') } : offered && !offered.includes(value) ? { id: value, label: `${value} · ${t('voiceUnavailable')}` } : { id: value, label: value })} onSelect={value => { void preference.set({ [VOICE_VOICE_FIELD]: value }); void playVoice(value) }} trailing={<Button type="button" variant="outline" disabled={snapshot.voiceVoice === 'auto' || sample.state === 'loading'} aria-label={t('voicePlay')} onClick={() => { void playVoice(snapshot.voiceVoice) }}>{sample.state === 'loading' ? t('voiceLoading') : t('voicePlay')}</Button>} />
       {sample.state === 'playing' && sample.note ? <p className="codexSubscriptionHelp" role="status">{sample.note}</p> : null}
       {sample.state === 'missing' ? <p className="codexSubscriptionHelp" role="status">{t('voiceNoSample')}</p> : null}
       <VoiceChoice label={t('voiceLanguage')} disabled={!snapshot.writable} selectedId={snapshot.voiceLanguage} items={VOICE_LANGUAGES.map(value => ({ id: value, label: value === 'auto' ? t('voiceAuto') : t(`voiceLang_${value}`) }))} onSelect={value => { void preference.set({ [VOICE_LANGUAGE_FIELD]: value }) }} />

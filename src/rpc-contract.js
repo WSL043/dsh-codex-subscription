@@ -6,7 +6,7 @@ export const RPC_ENDPOINTS = Object.freeze([
   'default-model/status', 'default-model/select',
   'runtime/status', 'runtime/install', 'runtime/remove', 'runtime/cancel',
   'storage/status', 'storage/clear-forecast',
-  'voice/preview',
+  'voice/preview', 'voice/catalog',
   'remote/status', 'remote/enable', 'remote/disable', 'remote/pair', 'remote/clients', 'remote/revoke',
   'reset-credit/inspect', 'reset-credit/prepare', 'reset-credit/consume',
   'image/original/chunk',

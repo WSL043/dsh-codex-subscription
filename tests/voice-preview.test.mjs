@@ -33,3 +33,11 @@ test('only clips from OpenAI\'s static host and well-formed voice names are used
   assert.equal(await preview.preview('nobody'), undefined)
   assert.equal(await preview.preview(undefined), undefined)
 })
+
+test('the catalog says which voices are offered, and a clip is downloaded once', async () => {
+  const { preview, calls } = make()
+  assert.deepEqual(await preview.available(), ['spruce'])
+  await preview.preview('spruce')
+  await preview.preview('spruce')
+  assert.equal(calls.filter(url => url.endsWith('.m4a')).length, 1)
+})

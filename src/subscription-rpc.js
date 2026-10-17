@@ -47,6 +47,16 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
           : 'Could not save the default model')
       }
     }
+    if (endpoint === 'voice/catalog') {
+      try {
+        signal.throwIfAborted()
+        if (!voicePreview) return publicError('unavailable', 'Voice catalog is unavailable')
+        return { ok: true, value: { voices: await voicePreview.available() } }
+      } catch (error) {
+        if (signal.aborted) throw error
+        return publicError('operation-error', 'Could not load the voice catalog')
+      }
+    }
     if (endpoint === 'voice/preview') {
       try {
         signal.throwIfAborted()
