@@ -14,12 +14,12 @@ const manifest = JSON.parse(text('package.json'))
 test('plugin card translations are exported and included in the published package', () => {
   assert.equal(manifest.exports['./locale/*.json'], './locale/*.json')
   assert.ok(manifest.files.includes('locale/*.json'))
-  for (const language of ['en', 'zh-CN']) {
+  for (const language of ['en', 'zh']) {
     const { meta } = JSON.parse(text(`locale/${language}.json`))
     assert.ok(meta.title.trim())
     assert.ok(meta.description.trim())
   }
-  assert.match(JSON.parse(text('locale/zh-CN.json')).meta.description, /订阅/)
+  assert.match(JSON.parse(text('locale/zh.json')).meta.description, /订阅/)
 })
 const compatibility = JSON.parse(text('compatibility.json'))
 
