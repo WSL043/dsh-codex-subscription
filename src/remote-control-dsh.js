@@ -629,6 +629,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       subscribers.get(threadId)?.delete(observer)
     }
   }
+  // Development only: probe the voice backend once after start, without needing a phone.
+  if (process.env.DSH_CODEX_VOICE_PROBE === '1' && voice?.fetch) setTimeout(() => { void probeVoiceCall({ ...voice, userAgent, log: diagnosticLog }).catch(error => diagnosticLog.error('voice', 'the voice probe failed', String(error?.message ?? error))) }, 25_000).unref?.()
   const realtimeVoice = voice ? createRealtimeVoice({ ...voice, userAgent, log: diagnosticLog, delegate: delegateToAgent }) : undefined
 
   const phoneConfig = createPhoneConfig(configFile)

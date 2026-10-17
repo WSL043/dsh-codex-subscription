@@ -108,6 +108,11 @@ export async function probeVoiceCall({ fetch, credentials, userAgent, log, base 
   const shape = (() => { try { const value = JSON.parse(text); return Object.keys(value).join(',') } catch { return '' } })()
   const line = response.ok ? `the voice backend created a call (HTTP ${response.status}; fields: ${shape})` : `the voice backend refused to create a call (HTTP ${response.status})`
   ;(response.ok ? log.info : log.error).call(log, 'voice', line, response.ok ? undefined : text)
+  // The catalog the phone's own voice picker reads, for the settings page's voice preview.
+  const catalog = await fetch(`${base}/settings/voices`, { headers: { authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, accept: 'application/json', 'user-agent': userAgent }, signal: AbortSignal.timeout(15_000) })
+  const text2 = await catalog.text().catch(() => '')
+  const names = (() => { try { return JSON.parse(text2).voices.map(entry => `${entry.voice}=${entry.name}`).join(' ') } catch { return text2.slice(0, 300) } })()
+  log.info('voice', `voice catalog: HTTP ${catalog.status}`, names)
   return { status: response.status, ok: response.ok }
 }
 

@@ -1,7 +1,7 @@
 import { Hint } from './client-hint.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { create as createQr } from 'qrcode/lib/core/qrcode.js'
-import { Button } from './client-primitives.js'
+import { Button, IconChevronDownOutline14, Menu } from './client-primitives.js'
 import { CHANNEL } from './rpc-contract.js'
 import { uiLocale } from './client-shared.js'
 import { VOICE_LANGUAGE_FIELD, VOICE_LANGUAGES, VOICE_VOICE_FIELD, VOICE_VOICES } from './settings-contract.js'
@@ -24,6 +24,17 @@ function Qr({ value, label }) {
 }
 
 /** Beta: show this DSH in the ChatGPT mobile app's Codex list (Remote Control). */
+/** One row of the live voice settings: the label on the left, a menu in the same style as the context selector on the right. */
+function VoiceChoice({ label, items, selectedId, disabled, onSelect, trailing = null }) {
+  const [open, setOpen] = useState(false)
+  const selected = items.find(item => item.id === selectedId)?.label ?? items[0].label
+  return <div className="codexSubscriptionPreference">
+    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{label}</span></div>
+    {trailing}
+    <Menu open={open} items={items} selectedId={selectedId} onSelect={value => { setOpen(false); onSelect(value) }} onClose={() => setOpen(false)} align="end" side="bottom" portal compact anchor={<button className="codexSubscriptionContextTrigger" type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={() => setOpen(value => !value)}><span>{selected}</span><IconChevronDownOutline14 /></button>} />
+  </div>
+}
+
 export function RemoteControlCard({ rpc, preference, snapshot, t }) {
   const [state, setState] = useState()
   const [pairing, setPairing] = useState()
@@ -33,7 +44,25 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
   const [clients, setClients] = useState()
   const [removing, setRemoving] = useState()
   const alive = useRef(false)
+  const audio = useRef()
+  const [sample, setSample] = useState({ voice: '', state: 'idle', note: '' })
   const on = snapshot.remoteControl === 'on'
+  /** Play a short clip of a voice; picking a voice plays it too, so the choice can be heard before it is used. */
+  const playVoice = async voice => {
+    audio.current?.pause()
+    if (voice === 'auto') { setSample({ voice, state: 'idle', note: '' }); return }
+    setSample({ voice, state: 'loading', note: '' })
+    try {
+      const result = await rpc.call(CHANNEL, 'voice/preview', { voice })
+      if (!alive.current) return
+      if (!result.ok) { setSample({ voice, state: 'missing', note: '' }); return }
+      const clip = new Audio(result.value.audio)
+      audio.current = clip
+      clip.onended = () => { if (alive.current) setSample(current => ({ ...current, state: 'idle' })) }
+      setSample({ voice, state: 'playing', note: [result.value.description, result.value.accent].filter(Boolean).join(' · ') })
+      await clip.play()
+    } catch { if (alive.current) setSample({ voice, state: 'missing', note: '' }) }
+  }
   const read = async () => {
     try {
       const result = await rpc.call(CHANNEL, 'remote/status', {})
@@ -46,7 +75,7 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
       if (alive.current && result.ok) setClients(result.value)
     } catch { /* the next refresh retries */ }
   }
-  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+  useEffect(() => { alive.current = true; return () => { alive.current = false; audio.current?.pause() } }, [])
   useEffect(() => {
     if (!on) { setClients(undefined); return undefined }
     let stopped = false, timer
@@ -123,18 +152,10 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
       <div className="codexSubscriptionPreference">
         <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('voiceTitle')} <small>Beta</small></span><Hint t={t}>{t('voiceHint')}</Hint></div>
       </div>
-      <div className="codexSubscriptionPreference">
-        <label htmlFor="codex-voice-voice">{t('voiceVoice')}</label>
-        <select id="codex-voice-voice" value={snapshot.voiceVoice} disabled={!snapshot.writable} onChange={event => { void preference.set({ [VOICE_VOICE_FIELD]: event.target.value }) }}>
-          {VOICE_VOICES.map(value => <option key={value} value={value}>{value === 'auto' ? t('voiceAuto') : value}</option>)}
-        </select>
-      </div>
-      <div className="codexSubscriptionPreference">
-        <label htmlFor="codex-voice-language">{t('voiceLanguage')}</label>
-        <select id="codex-voice-language" value={snapshot.voiceLanguage} disabled={!snapshot.writable} onChange={event => { void preference.set({ [VOICE_LANGUAGE_FIELD]: event.target.value }) }}>
-          {VOICE_LANGUAGES.map(value => <option key={value} value={value}>{value === 'auto' ? t('voiceAuto') : t(`voiceLang_${value}`)}</option>)}
-        </select>
-      </div>
+      <VoiceChoice label={t('voiceVoice')} disabled={!snapshot.writable} selectedId={snapshot.voiceVoice} items={VOICE_VOICES.map(value => ({ id: value, label: value === 'auto' ? t('voiceAuto') : value }))} onSelect={value => { void preference.set({ [VOICE_VOICE_FIELD]: value }); void playVoice(value) }} trailing={<Button type="button" variant="outline" disabled={snapshot.voiceVoice === 'auto' || sample.state === 'loading'} aria-label={t('voicePlay')} onClick={() => { void playVoice(snapshot.voiceVoice) }}>{sample.state === 'loading' ? t('voiceLoading') : t('voicePlay')}</Button>} />
+      {sample.state === 'playing' && sample.note ? <p className="codexSubscriptionHelp" role="status">{sample.note}</p> : null}
+      {sample.state === 'missing' ? <p className="codexSubscriptionHelp" role="status">{t('voiceNoSample')}</p> : null}
+      <VoiceChoice label={t('voiceLanguage')} disabled={!snapshot.writable} selectedId={snapshot.voiceLanguage} items={VOICE_LANGUAGES.map(value => ({ id: value, label: value === 'auto' ? t('voiceAuto') : t(`voiceLang_${value}`) }))} onSelect={value => { void preference.set({ [VOICE_LANGUAGE_FIELD]: value }) }} />
       <p className="codexSubscriptionHelp">{t('remoteLimits')}</p>
     </> : null}
   </section>

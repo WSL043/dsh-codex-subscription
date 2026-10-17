@@ -24,7 +24,7 @@ export async function settlesLive(preferences, patch, signal, { attempts = 8, de
   return live()
 }
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, accountUsageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, accountUsageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, voicePreview, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
   return async (endpoint, payload, signal) => {
     if (endpoint === 'default-model/status' || endpoint === 'default-model/select') {
       try {
@@ -45,6 +45,17 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
         return publicError('internal', endpoint === 'default-model/status'
           ? 'Could not read the default model'
           : 'Could not save the default model')
+      }
+    }
+    if (endpoint === 'voice/preview') {
+      try {
+        signal.throwIfAborted()
+        if (!voicePreview) return publicError('unavailable', 'Voice preview is unavailable')
+        const value = await voicePreview.preview(payload?.voice)
+        return value === undefined ? publicError('not-found', 'No sample for this voice') : { ok: true, value }
+      } catch (error) {
+        if (signal.aborted) throw error
+        return publicError('operation-error', 'Could not load the voice sample')
       }
     }
     if (['remote/status', 'remote/enable', 'remote/disable', 'remote/pair', 'remote/clients', 'remote/revoke'].includes(endpoint)) {
