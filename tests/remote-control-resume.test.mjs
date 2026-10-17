@@ -9,7 +9,7 @@ function setup(extra = {}) {
   const sockets = []
   const connections = []
   class Socket {
-    constructor() { this.handlers = {}; this.readyState = 1; this.sent = []; sockets.push(this); queueMicrotask(() => this.handlers.open?.()) }
+    constructor(url, options) { this.options = options; this.handlers = {}; this.readyState = 1; this.sent = []; sockets.push(this); queueMicrotask(() => this.handlers.open?.()) }
     on(name, handler) { this.handlers[name] = handler }
     send(data, callback) { this.sent.push(JSON.parse(data)); callback?.() }
     close() { this.readyState = 3; this.handlers.close?.() }
@@ -28,7 +28,7 @@ test('what the phone has not acknowledged is sent again after a reconnect, and a
   const { relay, sockets, connections } = setup()
   void relay.start()
   await wait(20)
-  fromPhone(sockets[0], { id: 1, method: 'ping' }, 1)
+  fromPhone(sockets[0], { id: 1, method: 'initialize' }, 1)
   await wait(5)
   const phone = connections[0]
   await phone.send({ method: 'one' })
@@ -48,16 +48,15 @@ test('the phone stream survives a reconnect and a repeated client message is del
   const { relay, sockets, connections, received } = setup()
   void relay.start()
   await wait(20)
-  fromPhone(sockets[0], { id: 1, method: 'a' }, 1)
+  fromPhone(sockets[0], { id: 1, method: 'initialize' }, 1)
   sockets[0].handlers.close()
   await wait(40)
   fromPhone(sockets[1], { id: 2, method: 'b' }, 2)
   fromPhone(sockets[1], { id: 2, method: 'b' }, 2)
-  fromPhone(sockets[1], { id: 1, method: 'a' }, 1)
   await wait(10)
   assert.equal(connections.length, 1, 'the same phone connection continues')
-  assert.deepEqual(received.map(message => message.method), ['a', 'b'])
-  assert.equal(sockets[1].sent.filter(envelope => envelope.type === 'ack').length, 3, 'repeats are still acknowledged')
+  assert.deepEqual(received.map(message => message.method), ['initialize', 'b'])
+  assert.equal(sockets[1].sent.filter(envelope => envelope.type === 'ack').length, 0, 'a host does not acknowledge client messages')
   await relay.stop()
 })
 
@@ -65,7 +64,7 @@ test('a request to the phone is not held back for a dropped phone, so its caller
   const { relay, sockets, connections } = setup()
   void relay.start()
   await wait(20)
-  fromPhone(sockets[0], { id: 1, method: 'a' }, 1)
+  fromPhone(sockets[0], { id: 1, method: 'initialize' }, 1)
   await wait(5)
   sockets[0].readyState = 3
   await assert.rejects(() => connections[0].send({ id: 's1', method: 'item/tool/requestUserInput', params: {} }), /not connected/u)
@@ -100,7 +99,7 @@ test('what waited longer than the buffer idle limit is dropped on reconnect, and
   const { relay, sockets, connections } = setup({ now: () => clock })
   void relay.start()
   await wait(20)
-  fromPhone(sockets[0], { id: 1, method: 'a' }, 1)
+  fromPhone(sockets[0], { id: 1, method: 'initialize' }, 1)
   await wait(5)
   sockets[0].readyState = 3
   await connections[0].send({ method: 'old' })
@@ -111,5 +110,33 @@ test('what waited longer than the buffer idle limit is dropped on reconnect, and
   await connections[0].send({ method: 'fresh' })
   const fresh = sockets[1].sent.find(envelope => envelope.message?.method === 'fresh')
   assert.equal(fresh.seq_id, 2, 'the sequence continues, so the phone does not see a gap')
+  await relay.stop()
+})
+
+test('a message on a stream the host does not know is dropped and the phone is told its stream is gone', async () => {
+  const { relay, sockets, received } = setup()
+  void relay.start()
+  await wait(20)
+  fromPhone(sockets[0], { id: 5, method: 'turn/start' }, 1)
+  sockets[0].handlers.message(JSON.stringify({ type: 'ping', client_id: 'phone', stream_id: 'st' }))
+  await wait(10)
+  assert.deepEqual(received, [], 'nothing runs on a stream that never said initialize')
+  assert.equal(sockets[0].sent.find(envelope => envelope.type === 'pong').status, 'unknown')
+  fromPhone(sockets[0], { id: 1, method: 'initialize' }, 1)
+  sockets[0].handlers.message(JSON.stringify({ type: 'ping', client_id: 'phone', stream_id: 'st' }))
+  await wait(10)
+  assert.equal(sockets[0].sent.filter(envelope => envelope.type === 'pong').at(-1).status, 'active')
+  await relay.stop()
+})
+
+test('the relay\'s cursor is given back on the next connection', async () => {
+  const { relay, sockets } = setup()
+  void relay.start()
+  await wait(20)
+  sockets[0].handlers.message(JSON.stringify({ type: 'client_message', client_id: 'phone', stream_id: 'st', seq_id: 1, cursor: 'cur-7', message: { id: 1, method: 'initialize' } }))
+  await wait(5)
+  sockets[0].handlers.close()
+  await wait(40)
+  assert.equal(sockets[1].options.headers['x-codex-subscribe-cursor'], 'cur-7')
   await relay.stop()
 })

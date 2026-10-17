@@ -4,8 +4,8 @@
 // the DSH web client uses: listing, creating, prompting, model selection.
 
 import { randomUUID } from 'node:crypto'
-import { readdirSync, statSync } from 'node:fs'
-import { isAbsolute } from 'node:path'
+import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, isAbsolute } from 'node:path'
 import { RpcError, invalidParams } from './remote-control-host.js'
 import { runGit } from './remote-control-git.js'
 import { searchFiles } from './remote-control-files.js'
@@ -233,7 +233,31 @@ const ADOPT_WITHIN_MS = 600_000
 const REALTIME_VOICE_NAMES = ['alloy', 'arbor', 'ash', 'ballad', 'breeze', 'cedar', 'coral', 'cove', 'echo', 'ember', 'juniper', 'maple', 'marin', 'sage', 'shimmer', 'sol', 'spruce', 'vale', 'verse']
 const REALTIME_VOICES = { v1: REALTIME_VOICE_NAMES.filter(name => !['arbor', 'breeze', 'cedar', 'juniper', 'maple', 'sol', 'spruce', 'vale'].includes(name)), v2: REALTIME_VOICE_NAMES, defaultV1: 'cove', defaultV2: 'marin' }
 
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, usageProfile = () => undefined, projections = () => undefined, skills = () => undefined, commands = () => undefined, llm = () => undefined, speed = undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent, voice = undefined }) {
+/** The phone's saved defaults, nested like a config file and kept across restarts. */
+export function createPhoneConfig(file) {
+  let value = {}
+  try { if (file) value = JSON.parse(readFileSync(file, 'utf8')) } catch { /* a first run has none */ }
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) value = {}
+  const save = () => { if (!file) return; try { mkdirSync(dirname(file), { recursive: true }); writeFileSync(file, JSON.stringify(value)) } catch { /* the defaults then last for this run */ } }
+  const FORBIDDEN = new Set(['__proto__', 'constructor', 'prototype'])
+  return {
+    read: () => structuredClone(value),
+    write(edits) {
+      if (!Array.isArray(edits)) return
+      for (const edit of edits.slice(0, 50)) {
+        const path = typeof edit?.keyPath === 'string' ? edit.keyPath.split('.').filter(Boolean) : []
+        if (path.length === 0 || path.length > 6 || path.some(part => FORBIDDEN.has(part))) continue
+        let node = value
+        for (const part of path.slice(0, -1)) { if (node[part] === null || typeof node[part] !== 'object') node[part] = {}; node = node[part] }
+        if (edit.value === null || edit.value === undefined) delete node[path.at(-1)]
+        else node[path.at(-1)] = edit.value
+      }
+      save()
+    },
+  }
+}
+
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, usage = () => undefined, usageProfile = () => undefined, projections = () => undefined, skills = () => undefined, commands = () => undefined, llm = () => undefined, speed = undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent, appServerUserAgent = userAgent, configFile = undefined, voice = undefined }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
@@ -597,10 +621,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   }
   const realtimeVoice = voice ? createRealtimeVoice({ ...voice, userAgent, log: diagnosticLog, delegate: delegateToAgent }) : undefined
 
+  const phoneConfig = createPhoneConfig(configFile)
+
   const methods = {
     initialize: () => ({
       codexHome: '', platformFamily: process.platform === 'win32' ? 'windows' : 'unix',
-      platformOs: ({ darwin: 'macos', win32: 'windows' })[process.platform] ?? process.platform, userAgent,
+      platformOs: ({ darwin: 'macos', win32: 'windows' })[process.platform] ?? process.platform, userAgent: appServerUserAgent,
     }),
     'account/read': async () => ({ account: { type: 'chatgpt', email: null, planType: (await usage()?.read?.().catch(() => undefined))?.planType ?? 'unknown' }, requiresOpenaiAuth: false }),
     'modelProvider/capabilities/read': () => ({ imageGeneration: false, namespaceTools: false, webSearch: false }),
@@ -636,7 +662,11 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return {}
     },
     'thread/attachment/list': () => ({ data: [], nextCursor: null }),
-    'config/batchWrite': () => ({ status: 'ok', version: '1', filePath: process.platform === 'win32' ? 'C:\dsh\config.toml' : '/dsh/config.toml', overriddenMetadata: null }),
+    // The phone keeps its defaults (model, effort, speed, permissions) in the host's config and reads them back with config/read.
+    'config/batchWrite': params => {
+      phoneConfig.write(params?.edits)
+      return { status: 'ok', version: '1', filePath: process.platform === 'win32' ? 'C:\dsh\config.toml' : '/dsh/config.toml', overriddenMetadata: null }
+    },
     // Arbitrary host commands bypass DSH's sandbox and approvals, so they stay off.
     // Only read-only git inside a conversation folder, for the phone's changes view; nothing else runs.
     'command/exec': async params => {
@@ -681,7 +711,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'threadSection/list': () => ({ data: [], nextCursor: null }),
     'thread/goal/get': () => ({ goal: null }),
     'experimentalFeature/list': () => ({ data: [], nextCursor: null }),
-    'config/read': () => ({ config: {}, origins: {}, layers: null }),
+    'config/read': () => ({ config: phoneConfig.read(), origins: {}, layers: null }),
     'thread/loaded/list': () => ({ data: [...subscribers.keys()], nextCursor: null }),
     'thread/unsubscribe': () => ({ status: 'notSubscribed' }),
     'thread/list': async (params, { signal }) => {
@@ -799,7 +829,9 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       const project = typeof params?.projectId === 'string' ? workspaceList().find(entry => String(entry.id) === params.projectId) : undefined
       const created = await service().create(project ? { workspaceId: project.id } : cwd ? { cwd } : {})
       const agent = await agentFor(created.sessionId)
-      await applySelection(agent, created.sessionId, params)
+      // A new chat that names no model starts with the model and effort the phone last saved.
+      const saved = phoneConfig.read()
+      await applySelection(agent, created.sessionId, { ...params, model: params?.model ?? saved.model, effort: params?.effort ?? saved.model_reasoning_effort })
       const { thread: value } = await openThread(created.sessionId, notify)
       emit(created.sessionId, 'thread/started', { thread: value })
       return { ...settings(agent, value.cwd), thread: value }
@@ -857,6 +889,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     },
     'thread/name/set': async params => {
       await service().rename({ sessionId: params?.threadId, title: String(params?.name ?? '') })
+      emit(params?.threadId, 'thread/name/updated', { threadId: params?.threadId, threadName: String(params?.name ?? '') })
       return {}
     },
     'thread/queue/list': params => ({ data: queues.get(params?.threadId) ?? [], nextCursor: null }),

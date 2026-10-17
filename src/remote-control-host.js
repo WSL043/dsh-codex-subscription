@@ -9,6 +9,8 @@ const INVALID_PARAMS = -32602
 const INTERNAL_ERROR = -32603
 const MAX_SEEN = 128
 // Called constantly by the phone and never interesting when debugging.
+// What the host sends the phone is traced by name only, and the streaming kinds not at all.
+const STREAMING = /delta$|outputDelta|tokenUsage|summaryPartAdded/u
 const QUIET = new Set(['command/exec', 'thread/attachment/list', 'thread/list', 'thread/queue/list', 'threadSection/list', 'config/read', 'configRequirements/read'])
 
 export class RpcError extends Error {
@@ -51,7 +53,10 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
       const pending = new Map() // server -> client requests awaiting an answer
       let initialized = false
       let active = false
-      const notify = async (method, params) => { await client.send(params === undefined ? { method } : { method, params }) }
+      const notify = async (method, params) => {
+        if (debug && !STREAMING.test(method)) record({ method: `notify:${method}`, params: JSON.stringify({ threadId: params?.threadId, status: params?.status?.type, message: params?.message }) })
+        await client.send(params === undefined ? { method } : { method, params })
+      }
       /** Ask the phone something (approvals); settles with its result or rejects. */
       const ask = (method, params, signal) => new Promise((resolve, reject) => {
         const id = `s${randomUUID()}`

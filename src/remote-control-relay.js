@@ -19,6 +19,7 @@ const REQUEST_TIMEOUT_MS = 30_000
 const REFRESH_MARGIN_MS = 5 * 60_000
 // Same liveness rules as the Codex app server: ping every 10 s, drop a socket silent for 60 s,
 // and only treat a connection as healthy (reset the backoff) once it has lasted a minute.
+const CLIENT_IDLE_MS = 10 * 60_000
 const PING_MS = 10_000
 const PONG_TIMEOUT_MS = 60_000
 const STABLE_MS = 60_000
@@ -104,6 +105,7 @@ export function createRemoteControlRelay(options) {
   let stop
   let running
   let socket
+  let subscribeCursor
   const clients = new Map()
   const assemblies = new Map()
   const sequences = new Map()
@@ -142,7 +144,7 @@ export function createRemoteControlRelay(options) {
     const refresh = enrolled !== undefined
     const body = refresh
       ? { installation_id: installation, server_id: enrolled.serverId }
-      : { app_server_version: options.userAgent.split('/').at(-1), arch: process.arch, installation_id: installation, name: options.hostName, os: process.platform }
+      : { app_server_version: options.appServerVersion ?? options.userAgent.split('/').at(-1), arch: process.arch, installation_id: installation, name: options.hostName, os: process.platform }
     const next = enrollment(await request(refresh ? endpoints.refresh : endpoints.enroll, { method: 'POST', headers, body: JSON.stringify(body) }, signal))
     if (refresh && next.serverId !== enrolled.serverId) throw new RemoteControlError('bad-response', 'Remote Control returned a mismatched enrollment')
     enrolled = next
@@ -272,7 +274,12 @@ export function createRemoteControlRelay(options) {
   const deliver = async envelope => {
     const streamId = envelope.stream_id ?? randomUUID()
     const key = `${envelope.client_id}\u0000${streamId}`
+    // Only the initialize request opens a stream. A message on a stream this host does not know (it restarted, or let the stream
+    // idle out) is dropped, and the phone's next ping is answered "unknown" so it starts a new stream.
+    const starts = envelope.message?.method === 'initialize' && envelope.message?.id !== undefined
     let client = clients.get(key)
+    if (client && starts) { clients.delete(key); lastInbound.delete(key); sequences.delete(key); outbound.delete(key); client.close(); client = undefined }
+    if (!client && !starts) return
     if (!client) {
       let closed = false
       const connection = options.serve({
@@ -280,18 +287,17 @@ export function createRemoteControlRelay(options) {
         send: async message => { if (!closed) await sendServerMessage(envelope.client_id, streamId, message) },
         close: () => { closed = true },
       })
-      client = { receive: connection.receive, close: () => { closed = true; connection.close() } }
+      client = { receive: connection.receive, lastActivity: now(), close: () => { closed = true; connection.close() } }
       clients.set(key, client)
     }
-    // After a reconnect the relay may send what we already handled again: acknowledge it, deliver it once.
-    const duplicate = Number.isInteger(envelope.seq_id) && (lastInbound.get(key) ?? -1) >= envelope.seq_id
+    // After a reconnect the relay may send what we already handled again: deliver it once. A host does not
+    // acknowledge client messages (the Codex app server does not either); the delivery cursor below does that job.
+    const duplicate = !starts && Number.isInteger(envelope.seq_id) && (lastInbound.get(key) ?? -1) >= envelope.seq_id
     if (!duplicate) {
       if (Number.isInteger(envelope.seq_id)) lastInbound.set(key, envelope.seq_id)
       client.receive(envelope.message)
     }
-    if (Number.isInteger(envelope.seq_id)) {
-      await sendEnvelope({ client_id: envelope.client_id, seq_id: envelope.seq_id, stream_id: streamId, type: 'ack' })
-    }
+    client.lastActivity = now()
   }
 
   const receiveChunk = envelope => {
@@ -315,6 +321,12 @@ export function createRemoteControlRelay(options) {
     return { client_id: envelope.client_id, message: JSON.parse(bytes.toString('utf8')), seq_id: envelope.seq_id, stream_id: streamId, type: 'client_message' }
   }
 
+  // A client that has said nothing for ten minutes is closed (the phone pings far more often than that).
+  const sweepIdle = () => {
+    for (const [key, client] of clients) {
+      if (now() - client.lastActivity >= CLIENT_IDLE_MS) { clients.delete(key); sequences.delete(key); outbound.delete(key); lastInbound.delete(key); client.close() }
+    }
+  }
   const receive = async raw => {
     const envelope = JSON.parse(raw)
     if (typeof envelope?.client_id !== 'string' || envelope.client_id.length === 0) return
@@ -326,8 +338,13 @@ export function createRemoteControlRelay(options) {
       if (typeof envelope.stream_id === 'string' && Number.isInteger(envelope.seq_id)) acknowledge(`${envelope.client_id}\u0000${envelope.stream_id}`, envelope.seq_id, Number.isInteger(envelope.segment_id) ? envelope.segment_id : undefined)
     } else if (envelope.type === 'client_closed') closeClient(envelope.client_id, envelope.stream_id)
     else if (envelope.type === 'ping') {
-      await sendEnvelope({ client_id: envelope.client_id, seq_id: envelope.seq_id ?? 0, status: 'active', stream_id: envelope.stream_id ?? randomUUID(), type: 'pong' })
+      const known = typeof envelope.stream_id === 'string' ? clients.get(`${envelope.client_id}\u0000${envelope.stream_id}`) : undefined
+      if (known) known.lastActivity = now()
+      // "unknown" is how a phone learns its stream is gone and that it has to introduce itself again.
+      await sendEnvelope({ client_id: envelope.client_id, seq_id: envelope.seq_id ?? 0, status: known ? 'active' : 'unknown', stream_id: envelope.stream_id ?? randomUUID(), type: 'pong' })
     }
+    // The relay's position in this phone's messages, given back on the next connection so it resumes from there.
+    if (typeof envelope.cursor === 'string' && envelope.cursor !== '') subscribeCursor = envelope.cursor
   }
 
   const connectOnce = async signal => {
@@ -341,6 +358,7 @@ export function createRemoteControlRelay(options) {
           'x-codex-name': Buffer.from(options.hostName).toString('base64'),
           'x-codex-protocol-version': PROTOCOL_VERSION,
           'x-codex-server-id': current.serverId,
+          ...(subscribeCursor === undefined ? {} : { 'x-codex-subscribe-cursor': subscribeCursor }),
         },
       })
       socket = ws
@@ -361,14 +379,16 @@ export function createRemoteControlRelay(options) {
         // A connection that goes quiet (sleep, network switch) never closes by itself; ping it and drop it when it stops answering.
         if (typeof ws.ping === 'function') {
           hearFrom()
-          ping = setInterval(() => { try { ws.ping() } catch { /* the close handler follows */ } }, options.pingMs ?? PING_MS)
+          ping = setInterval(() => { sweepIdle(); try { ws.ping() } catch { /* the close handler follows */ } }, options.pingMs ?? PING_MS)
         }
       })
       ws.on('pong', hearFrom)
       // A refused upgrade carries the relay's Retry-After, which the next attempt honours.
       ws.on('unexpected-response', (request, response) => {
         stopBeat()
-        const error = new RemoteControlError('socket', `Unexpected server response: ${response?.statusCode}`)
+        const error = new RemoteControlError(response?.statusCode === 401 || response?.statusCode === 403 ? 'unauthorized' : 'socket', `Unexpected server response: ${response?.statusCode}`)
+        // The relay no longer knows this host id (404): the old enrollment is stale, take a new one.
+        if (response?.statusCode === 404) enrolled = undefined
         if (response?.statusCode === 429 || response?.statusCode >= 500) error.retryAfterMs = retryAfterMs(String(response.headers?.['retry-after'] ?? ''), now())
         try { request?.destroy?.() } catch { /* the socket is already closing */ }
         reject(error)

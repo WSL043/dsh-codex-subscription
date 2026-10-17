@@ -51,6 +51,7 @@ export function createRemoteControl(options) {
       renewInstallation: () => installationId(options.stateFile, true),
       hostName: options.hostName,
       userAgent: options.userAgent,
+      appServerVersion: options.appServerVersion,
       base: options.base,
       serve: client => host.serve(client),
     })

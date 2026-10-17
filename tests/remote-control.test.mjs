@@ -196,10 +196,10 @@ test('the relay enrolls, pairs, frames messages and re-chunks large replies', as
   const socket = sockets[0]
   assert.equal(socket.options.headers['x-codex-server-id'], 'srv')
   assert.equal(socket.options.headers['x-codex-name'], Buffer.from('DSH (test)').toString('base64'))
-  socket.handlers.message(JSON.stringify({ type: 'client_message', client_id: 'phone', stream_id: 'st', seq_id: 1, message: { id: 9, method: 'ping' } }))
+  socket.handlers.message(JSON.stringify({ type: 'client_message', client_id: 'phone', stream_id: 'st', seq_id: 1, message: { id: 9, method: 'initialize' } }))
   await wait(30)
-  assert.deepEqual(received, [{ id: 9, method: 'ping' }])
-  assert.ok(socket.sent.some(frame => frame.type === 'ack' && frame.seq_id === 1))
+  assert.deepEqual(received, [{ id: 9, method: 'initialize' }])
+  assert.equal(socket.sent.some(frame => frame.type === 'ack'), false)
   const chunks = socket.sent.filter(frame => frame.type === 'server_message_chunk')
   assert.ok(chunks.length > 1, 'a large reply is split into chunks')
   const joined = Buffer.concat(chunks.sort((a, b) => a.segment_id - b.segment_id).map(frame => Buffer.from(frame.message_chunk_base64, 'base64')))
