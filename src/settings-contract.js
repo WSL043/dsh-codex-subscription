@@ -26,10 +26,6 @@ export const OUTPUT_VERBOSITY_LOW = 'low'
 export const OUTPUT_VERBOSITY_MEDIUM = 'medium'
 export const OUTPUT_VERBOSITY_HIGH = 'high'
 export const DEFAULT_OUTPUT_VERBOSITY = OUTPUT_VERBOSITY_DEFAULT
-// Live voice answer language, set on the computer: 'auto' leaves the phone's own choice alone.
-export const VOICE_LANGUAGE_FIELD = 'voiceLanguage'
-export const VOICE_LANGUAGES = Object.freeze(['auto', 'zh', 'en', 'ja', 'ko', 'es', 'fr', 'de', 'pt', 'ru'])
-export const normalizeVoiceLanguage = value => VOICE_LANGUAGES.includes(value) ? value : 'auto'
 export const REASONING_SUMMARY_FIELD = 'reasoningSummary'
 export const REASONING_SUMMARIES = Object.freeze(['auto', 'concise', 'detailed', 'none'])
 export const DEFAULT_REASONING_SUMMARY = 'auto'

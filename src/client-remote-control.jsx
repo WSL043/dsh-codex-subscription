@@ -1,10 +1,9 @@
 import { Hint } from './client-hint.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { create as createQr } from 'qrcode/lib/core/qrcode.js'
-import { Button, IconChevronDownOutline14, Menu } from './client-primitives.js'
+import { Button } from './client-primitives.js'
 import { CHANNEL } from './rpc-contract.js'
 import { uiLocale } from './client-shared.js'
-import { VOICE_LANGUAGE_FIELD, VOICE_LANGUAGES } from './settings-contract.js'
 
 const PAIR_URL = 'https://chatgpt.com/codex/pair?pairing_code='
 const STATUS_KEYS = { connected: 'remoteConnected', connecting: 'remoteConnecting', waiting: 'remoteWaiting', error: 'remoteError', stopped: 'remoteStopped' }
@@ -24,16 +23,6 @@ function Qr({ value, label }) {
 }
 
 /** Beta: show this DSH in the ChatGPT mobile app's Codex list (Remote Control). */
-/** One row of the live voice settings: the label on the left, a menu in the same style as the context selector on the right. */
-function VoiceChoice({ label, items, selectedId, disabled, onSelect }) {
-  const [open, setOpen] = useState(false)
-  const selected = items.find(item => item.id === selectedId)?.label ?? items[0].label
-  return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{label}</span></div>
-    <Menu open={open} items={items} selectedId={selectedId} onSelect={value => { setOpen(false); onSelect(value) }} onClose={() => setOpen(false)} align="end" side="bottom" portal compact anchor={<button className="codexSubscriptionContextTrigger" type="button" aria-label={label} aria-haspopup="menu" aria-expanded={open} disabled={disabled} onClick={() => setOpen(value => !value)}><span>{selected}</span><IconChevronDownOutline14 /></button>} />
-  </div>
-}
-
 export function RemoteControlCard({ rpc, preference, snapshot, t }) {
   const [state, setState] = useState()
   const [pairing, setPairing] = useState()
@@ -129,11 +118,6 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
           <Button type="button" variant="outline" disabled={Boolean(removing)} onClick={() => { void remove(client) }}>{t('remoteRevoke')}</Button>
         </div>)}
       </div> : null}
-      <div className="codexSubscriptionDivider" />
-      <div className="codexSubscriptionPreference">
-        <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('voiceTitle')} <small>Beta</small></span><Hint t={t}>{t('voiceHint')}</Hint></div>
-      </div>
-      <VoiceChoice label={t('voiceLanguage')} disabled={!snapshot.writable} selectedId={snapshot.voiceLanguage} items={VOICE_LANGUAGES.map(value => ({ id: value, label: value === 'auto' ? t('voiceAuto') : t(`voiceLang_${value}`) }))} onSelect={value => { void preference.set({ [VOICE_LANGUAGE_FIELD]: value }) }} />
       <p className="codexSubscriptionHelp">{t('remoteLimits')}</p>
     </> : null}
   </section>

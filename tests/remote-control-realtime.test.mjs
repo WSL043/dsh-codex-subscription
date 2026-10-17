@@ -136,20 +136,3 @@ test('a spoken request carries what was said before it, once', async () => {
   await settle()
   assert.equal(delegated.length, 1, 'nothing left to save at the end')
 })
-
-test('the computer\'s answer language is sent to the call, "follow phone" sends nothing, and an error right after it does not reach the phone', async () => {
-  const { voice, notes, notify } = setup({ options: { preferences: () => ({ language: 'ja' }) } })
-  await voice.start(start, notify)
-  const [socket] = FakeSocket.instances
-  assert.equal(socket.sent.length, 1)
-  assert.equal(socket.sent[0].type, 'session.context.append')
-  assert.equal(socket.sent[0].channel, 'commentary')
-  assert.match(socket.sent[0].content[0].text, /Japanese/u)
-  socket.hear({ type: 'error', error: { message: 'Voice cannot be updated after initialization.' } })
-  assert.equal(notes.some(note => note.method === 'thread/realtime/error'), false)
-  const quiet = setup({ options: { preferences: () => ({ language: 'auto' }) } })
-  await quiet.voice.start(start, quiet.notify)
-  assert.deepEqual(FakeSocket.instances[0].sent, [])
-  FakeSocket.instances[0].hear({ type: 'error', error: { message: 'boom' } })
-  assert.equal(quiet.notes.some(note => note.method === 'thread/realtime/error'), true, 'an unrelated error still reaches the phone')
-})

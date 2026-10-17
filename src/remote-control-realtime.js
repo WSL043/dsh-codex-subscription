@@ -52,8 +52,6 @@ export function appendChunks(text, limit = CONTEXT_APPEND_MAX_BYTES) {
 
 const content = text => [{ type: 'input_text', text }]
 
-const LANGUAGE_NAMES = { zh: 'Chinese (Mandarin)', en: 'English', ja: 'Japanese', ko: 'Korean', es: 'Spanish', fr: 'French', de: 'German', pt: 'Portuguese', ru: 'Russian' }
-
 export const outbound = {
   sessionAppend: (text, channel) => ({ type: 'session.context.append', ...(channel ? { channel } : {}), content: content(text) }),
   delegationAppend: (delegationItemId, text, channel) => ({ type: 'delegation.context.append', delegation_item_id: delegationItemId, ...(channel ? { channel } : {}), content: content(text) }),
@@ -94,20 +92,32 @@ export function parseEvent(payload) {
  */
 export async function probeVoiceCall({ fetch, credentials, userAgent, log, base = 'https://chatgpt.com/backend-api', model = 'gpt-live-1.1-codex' }) {
   const { access, accountId } = await credentials()
-  const response = await fetch(`${base}/wham/realtime/calls?intent=quicksilver&architecture=avas`, {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, 'content-type': 'application/json', accept: 'application/json',
-      'openai-alpha': 'quicksilver=v2', 'session-id': crypto.randomUUID(), 'thread-id': crypto.randomUUID(), 'user-agent': userAgent,
-    },
-    body: JSON.stringify({ audio: { output: { voice: 'marin' } }, delegation: { type: 'client' }, instructions: 'Probe.', model }),
-    signal: AbortSignal.timeout(15_000),
-  })
-  const text = (await response.text().catch(() => '')).slice(0, 600)
-  const shape = (() => { try { const value = JSON.parse(text); return Object.keys(value).join(',') } catch { return '' } })()
-  const line = response.ok ? `the voice backend created a call (HTTP ${response.status}; fields: ${shape})` : `the voice backend refused to create a call (HTTP ${response.status})`
-  ;(response.ok ? log.info : log.error).call(log, 'voice', line, response.ok ? undefined : text)
-  return { status: response.status, ok: response.ok }
+  const fingerprint = Array.from({ length: 32 }, (_, index) => (index * 7 + 11).toString(16).padStart(2, '0').toUpperCase()).join(':')
+  const sdp = [
+    'v=0', 'o=- 4611731400430051336 2 IN IP4 127.0.0.1', 's=-', 't=0 0', 'a=group:BUNDLE 0 1', 'a=msid-semantic: WMS',
+    'm=audio 9 UDP/TLS/RTP/SAVPF 111', 'c=IN IP4 0.0.0.0', 'a=rtcp:9 IN IP4 0.0.0.0', 'a=ice-ufrag:probe', 'a=ice-pwd:probeprobeprobeprobeprobe',
+    'a=fingerprint:sha-256 ' + fingerprint, 'a=setup:actpass', 'a=mid:0', 'a=sendrecv', 'a=rtcp-mux', 'a=rtpmap:111 opus/48000/2', 'a=fmtp:111 minptime=10;useinbandfec=1',
+    'm=application 9 UDP/DTLS/SCTP webrtc-datachannel', 'c=IN IP4 0.0.0.0', 'a=ice-ufrag:probe', 'a=ice-pwd:probeprobeprobeprobeprobe',
+    'a=fingerprint:sha-256 ' + fingerprint, 'a=setup:actpass', 'a=mid:1', 'a=sctp-port:5000', 'a=max-message-size:262144', '',
+  ].join('\r\n')
+  const session = { audio: { output: { voice: 'marin' } }, delegation: { type: 'client' }, instructions: 'Probe.', model }
+  const variants = { nested: { sdp, session }, flat: { sdp, ...session } }
+  for (const [name, body] of Object.entries(variants)) {
+    const response = await fetch(`${base}/wham/realtime/calls?intent=quicksilver&architecture=avas`, {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, 'content-type': 'application/json', accept: 'application/json',
+        'openai-alpha': 'quicksilver=v2', 'session-id': crypto.randomUUID(), 'thread-id': crypto.randomUUID(), 'user-agent': userAgent,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(15_000),
+    })
+    const text = (await response.text().catch(() => '')).slice(0, 4000)
+    const fields = (() => { try { return Object.entries(JSON.parse(text)).map(([key, value]) => key + ':' + (typeof value === 'string' ? value.slice(0, 12) : typeof value)).join(' ') } catch { return '' } })()
+    const location = (response.headers?.get?.('location') ?? '').replace(/[?#].*$/u, '').slice(0, 80)
+    log.info('voice', `probe ${name}: HTTP ${response.status}`, response.ok ? `${response.headers?.get?.('content-type') ?? '?'} | location=${location} | body starts: ${JSON.stringify(text.slice(0, 40))} | ${fields}` : text.slice(0, 280))
+    if (response.ok) break
+  }
 }
 
 export function createRealtimeVoice(options) {
@@ -210,8 +220,7 @@ export function createRealtimeVoice(options) {
       }
       else if (event.kind === 'error') {
         log.error('voice', 'the voice service reported an error', event.message)
-        // Right after one of our own optional requests an error belongs to that request: the phone must not end the call over it.
-        if (Date.now() > (session.quietUntil ?? 0)) void notify('thread/realtime/error', { threadId, message: event.message }).catch(() => {})
+        void notify('thread/realtime/error', { threadId, message: event.message }).catch(() => {})
       } else if (event.kind === 'delegation') {
         const input = event.text
         if (input === '') return
@@ -238,14 +247,6 @@ export function createRealtimeVoice(options) {
       void notify('thread/realtime/closed', { threadId, reason: 'transportClosed' }).catch(() => {})
     })
     ws.on('error', error => log.warn('voice', 'the voice connection failed', String(error?.message ?? error)))
-    // The computer's own choice of answer language, given to the call the phone set up. The voice itself is fixed by the
-    // phone when the call starts (the voice service answers "Voice cannot be updated after initialization"), so it is not touched.
-    const wanted = options.preferences?.() ?? {}
-    if (wanted.language && wanted.language !== 'auto' && LANGUAGE_NAMES[wanted.language]) {
-      session.quietUntil = Date.now() + 5_000
-      send(outbound.sessionAppend(`The user prefers ${LANGUAGE_NAMES[wanted.language]}. Speak and answer in ${LANGUAGE_NAMES[wanted.language]} unless the user clearly speaks another language.`, 'commentary'))
-      log.info('voice', `asked the voice service to answer in ${LANGUAGE_NAMES[wanted.language]}`)
-    }
     void notify('thread/realtime/started', { threadId, version: params.version ?? 'v3', realtimeSessionId: params.realtimeSessionId ?? null }).catch(() => {})
     return {}
   }
