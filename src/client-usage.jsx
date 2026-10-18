@@ -4,6 +4,7 @@ import { Button } from './client-primitives.js'
 import { CHANNEL, unwrap, fill, uiLocale, percent, windowLabel, validDate, notifyQuickQuota, formatQuotaForecast } from './client-shared.js'
 import { creditExpiryStatus } from './credit-expiry.js'
 import { REQUEST_BLOCKED } from './http-failure.js'
+import { quotaPace, paceWords } from './quota-pace.js'
 import { UsageHistory } from './client-usage-history.jsx'
 import { UsageOverview } from './client-usage-overview.jsx'
 
@@ -20,6 +21,15 @@ export function CreditExpiry({ credits, t }) {
     <p>{fill(t(status.daysLeft === 0 ? 'creditsExpiredToday' : 'creditsExpires'), { date: date.toLocaleDateString(uiLocale()), days: status.daysLeft })}{estimate ? ` ${t('creditsExpiryEstimate')}` : ''}</p>
   </div>
 }
+/** A long window that will run out before it resets says so, in plain words with a day and part of the day. */
+export function PaceWarning({ window, t }) {
+  const now = Date.now()
+  const pace = quotaPace({ remainingPercent: window.remainingPercent, windowSeconds: window.windowSeconds, resetsAt: window.resetsAt, now })
+  if (pace === undefined) return null
+  const words = paceWords(pace, now, { t, locale: uiLocale() })
+  return <p className="codexSubscriptionPace" role="status">{fill(t('paceWarning'), words)}</p>
+}
+
 export function ResetTime({ resetsAt, t }) {
   const date = Number.isSafeInteger(resetsAt) ? validDate(resetsAt * 1_000) : undefined
   if (date === undefined) return <span>{t('resetUnknown')}</span>
@@ -187,10 +197,11 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
     </div>
     {error === undefined ? null : <p className="codexSubscriptionError" role="alert">{error}</p>}
     {visibleUsage?.spendControlReached === true ? <p className="codexSubscriptionError" role="alert">{t('spendReached')}</p> : null}
-    {limits.length === 0 ? null : <div className="codexSubscriptionLimits">{limits.flatMap(limit => limit.windows.map((window, index) => <div className="codexSubscriptionLimit" key={`${limit.id}-${window.windowSeconds}-${index}`}>
+    {limits.length === 0 ? null : <div className="codexSubscriptionLimits">{limits.flatMap(limit => limit.windows.map((window, index) => <div className="codexSubscriptionLimit" data-pace={quotaPace({ remainingPercent: window.remainingPercent, windowSeconds: window.windowSeconds, resetsAt: window.resetsAt }) ? 'true' : undefined} key={`${limit.id}-${window.windowSeconds}-${index}`}>
         <div className="codexSubscriptionLimitTop"><span className="codexSubscriptionLimitLabel">{limit.name ?? limit.id}</span><strong>{percent(window.remainingPercent)}%</strong></div>
         <progress max="100" value={window.remainingPercent} aria-label={`${limit.name ?? limit.id} ${fill(t('remaining'), { value: percent(window.remainingPercent) })}`} />
         <div className="codexSubscriptionLimitMeta"><span className="codexSubscriptionLimitPeriod"><span>{windowLabel(window.windowSeconds, t)}</span><span>{formatQuotaForecast(window.forecast, t)}</span></span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
+        <PaceWarning window={window} t={t} />
       </div>))}</div>}
     {limits.length === 0 ? null : <UsageOverview rpc={rpc} t={t} signedIn={signedIn} resetKey={resetKey} />}
     {limits.length === 0 ? null : <UsageHistory rpc={rpc} t={t} signedIn={signedIn} resetKey={resetKey} />}
