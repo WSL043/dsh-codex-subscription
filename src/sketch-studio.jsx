@@ -29,6 +29,8 @@ import { smoothStrokePoints } from './sketch-input.js'
 import { sketchDrafts } from './sketch-drafts.js'
 import { useSketchView } from './sketch-view.jsx'
 import { SketchFiles } from './sketch-files.jsx'
+import { SketchReplay } from './sketch-replay.jsx'
+import { recordReplayState } from './sketch-replay.js'
 import { useSketchDismiss, useSketchCursor } from './sketch-interactions.js'
 import { WorkspaceIcon } from './workspace-icons.jsx'
 import { SketchSizeControl } from './sketch-size-control.jsx'
@@ -46,6 +48,7 @@ import {
 import { createSketchAgentRun } from './sketch-agent-run.js'
 import { connectSketchAgent } from './sketch-agent-client.js'
 import { encodeSketchDocument } from './sketch-formats.js'
+import { colorRegions, dominantColors, measureDifference, sampleColors, scanLine } from './sketch-measure.js'
 export function SketchStudio({
   open,
   agentEnabled,
@@ -66,6 +69,7 @@ export function SketchStudio({
     undo,
     redo,
     images,
+    timeline,
     saved,
     dirty,
     documentId,
@@ -146,6 +150,7 @@ export function SketchStudio({
   const [hydrated, setHydrated] = useState(false),
     [recovered, setRecovered] = useState(false)
   const [restoreAttempt, retryRestore] = useState(0)
+  const [replayOpen, setReplayOpen] = useState(false)
   const [layersOpen, setLayersOpen] = useState(false),
     [busy, setBusy] = useState(true),
     [error, setError] = useState('')
@@ -206,6 +211,7 @@ export function SketchStudio({
   const checkpoint = () => {
     documentRevision.current++
     dirty.current = true
+    recordReplayState(timeline.current, doc.current)
     undo.current.push(doc.current)
     if (undo.current.length > 30) undo.current.shift()
     redo.current = []
@@ -496,6 +502,61 @@ export function SketchStudio({
           Object.assign(document.createElement('canvas'), { width, height })
       })
     },
+    // The reference picture as it sits on the board, as pixels (optionally one part of it), for tracing and measuring.
+    pixels: ({ source, box = { x: 0, y: 0, width: 1, height: 1 }, maxSide = 768 }) => {
+      const layer = doc.current.layers.find((item) => (source === undefined ? item.image : item.id === source))
+      const picture = layer?.image && images.current.get(layer.image.src)
+      if (!picture) throw Error('There is no reference picture on the board; add one with the reference action first')
+      const w = doc.current.width ?? SKETCH_SIZE,
+        h = doc.current.height ?? SKETCH_SIZE
+      const scale = Math.min(1, maxSide / Math.max(box.width * w, box.height * h))
+      const target = Object.assign(document.createElement('canvas'), {
+        width: Math.max(1, Math.round(box.width * w * scale)),
+        height: Math.max(1, Math.round(box.height * h * scale))
+      })
+      const context = target.getContext('2d', { willReadFrequently: true })
+      context.fillStyle = '#ffffff'
+      context.fillRect(0, 0, target.width, target.height)
+      const at = layer.image
+      context.drawImage(picture, (at.x - box.x) * w * scale, (at.y - box.y) * h * scale, at.width * w * scale, at.height * h * scale)
+      return context.getImageData(0, 0, target.width, target.height)
+    },
+    measure: async ({ columns, rows, points, palette = 0, regions = 0, scan, box = { x: 0, y: 0, width: 1, height: 1 } }) => {
+      const reference = agentAdapter.current.pixels({ box, maxSide: 480 })
+      // The drawing at the same scale: the whole canvas rendered at that scale, then the part in question cut out.
+      const w = doc.current.width ?? SKETCH_SIZE,
+        h = doc.current.height ?? SKETCH_SIZE
+      const scale = reference.width / (box.width * w)
+      const whole = Object.assign(document.createElement('canvas'), { width: Math.max(1, Math.round(w * scale)), height: Math.max(1, Math.round(h * scale)) })
+      const drawn = { ...doc.current, layers: doc.current.layers.map((layer) => (layer.image ? { ...layer, visible: false } : layer)) }
+      paintSketchLayers(whole.getContext('2d'), drawn, new Map(), whole.width, whole.height, undefined, images.current)
+      const target = Object.assign(document.createElement('canvas'), { width: reference.width, height: reference.height })
+      const context = target.getContext('2d', { willReadFrequently: true })
+      context.drawImage(whole, Math.round(box.x * whole.width), Math.round(box.y * whole.height), target.width, target.height, 0, 0, target.width, target.height)
+      const drawing = context.getImageData(0, 0, target.width, target.height)
+      return {
+        ...measureDifference(reference, drawing, { columns, rows }),
+        ...(points.length ? { points: sampleColors(reference, drawing, points) } : {}),
+        ...(palette ? { palette: dominantColors(reference, palette) } : {}),
+        ...(regions ? { regions: colorRegions(reference, regions) } : {}),
+        ...(scan ? { scan: { reference: scanLine(reference, scan), drawing: scanLine(drawing, scan) } } : {})
+      }
+    },
+    // Takes back the last `steps` batches (each apply was one undo step).
+    undo: (steps = 1) => {
+      let taken = 0
+      while (taken < steps && undo.current.length) {
+        redo.current.push(doc.current)
+        doc.current = undo.current.pop()
+        taken++
+      }
+      if (taken) {
+        documentRevision.current++
+        dirty.current = true
+        schedule()
+      }
+      return taken
+    },
     addReference: async (dataUrl, name) => {
       const blob = await (await fetch(dataUrl)).blob()
       await importImage(new File([blob], name, { type: blob.type }), { visible: false })
@@ -680,6 +741,11 @@ export function SketchStudio({
             disabled={agentLocked || busy}
             t={t}
             runOperation={runFile}
+            extra={
+              <button type="button" disabled={agentLocked || busy || !timeline.current.length} title={t('sketchReplayTitle')} onClick={() => setReplayOpen(true)}>
+                {t('sketchReplay')}
+              </button>
+            }
           />
           <div className="codexSketchHeading">
             <strong>{t('sketchTitle')}</strong>
@@ -1126,6 +1192,16 @@ export function SketchStudio({
               importImage={importImage}
               runFile={runFile}
               change={change}
+              t={t}
+            />
+          ) : null}
+          {replayOpen ? (
+            <SketchReplay
+              states={timeline.current}
+              current={doc.current}
+              images={images.current}
+              name={saved.current?.name}
+              onClose={() => setReplayOpen(false)}
               t={t}
             />
           ) : null}

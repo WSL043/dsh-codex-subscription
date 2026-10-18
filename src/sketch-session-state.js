@@ -5,7 +5,7 @@ export function createSketchSessionState() {
   const ref = current => ({current})
   return {
     doc:ref(createSketchLayers()), undo:ref([]), redo:ref([]), images:ref(new Map()),
-    saved:ref(null), dirty:ref(false), documentId:ref(crypto.randomUUID()), documentRevision:ref(0), restoreId:ref(null), mounts:0,
+    timeline:ref([]), saved:ref(null), dirty:ref(false), documentId:ref(crypto.randomUUID()), documentRevision:ref(0), restoreId:ref(null), mounts:0,
     agentAdapter:ref({}), agentSession:ref(null), agentRun:ref(null),
   }
 }

@@ -88,6 +88,7 @@ export function createSketchDocumentLifecycle(
     cache.current.clear()
     undo.current = []
     redo.current = []
+    if (state.timeline) state.timeline.current = []
     saved.current = identity
     dirty.current = false
     schedule()
