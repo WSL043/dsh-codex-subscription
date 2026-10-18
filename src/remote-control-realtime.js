@@ -116,7 +116,8 @@ export async function createVoiceCall({ fetch, credentials, userAgent, sdp, sess
     signal: AbortSignal.timeout(20_000),
   })
   const answer = await response.text()
-  if (!response.ok) throw new Error(`the voice backend refused the call (HTTP ${response.status}): ${answer.slice(0, 200)}`)
+  // A guess, not a documented signal: a refused account may just need two-step verification switched on.
+  if (!response.ok) throw new Error(`the voice backend refused the call (HTTP ${response.status}): ${answer.slice(0, 200)}${response.status === 403 ? ' (if your ChatGPT account has no two-step verification, turn it on in ChatGPT security settings and try again)' : ''}`)
   const callId = String(response.headers?.get?.('location') ?? '').replace(/[?#].*$/u, '').split('/').filter(Boolean).at(-1)
   if (!/^rtc_[A-Za-z0-9_-]{8,80}$/u.test(callId ?? '')) throw new Error('the voice backend returned no call id')
   if (!answer.startsWith('v=0')) throw new Error('the voice backend returned no session description')
