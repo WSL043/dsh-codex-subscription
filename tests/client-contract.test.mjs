@@ -473,3 +473,9 @@ test('generated Codex images use a DSH-tokenized native viewer across supported 
   assert.match(manifest, /@deepseek-ai\/dsh-client-ui-tool/u)
   assert.doesNotMatch(config, /@deepseek-ai\/dsh-client-ui-attachment/u)
 })
+
+test('the model selector shows DSH\'s 1017 badge on exactly the official Flash entry', async () => {
+  const source = await readFile(new URL('../src/client-model-select.jsx', import.meta.url), 'utf8')
+  assert.match(source, /providers: \['deepseek-account', 'deepseek-official'\], model: 'deepseek-flash', name: 'DeepSeek-V4\.1-Flash'/)
+  assert.equal((source.match(/withFlashBadge\(/g) ?? []).length, 3, 'the trigger, the current-model row and the option list')
+})

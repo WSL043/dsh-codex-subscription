@@ -1,10 +1,17 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { BoltIcon } from '@heroicons/react/16/solid'
-import { IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, Input, MenuGroup, MenuSurface } from './client-primitives.js'
+import { IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, Input, MenuGroup, MenuSurface, Tag } from './client-primitives.js'
 import { OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, SPEED_MODE_FAST, SPEED_MODE_FIELD, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST, supportsCodexFastMode } from './settings-contract.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
 const MEASURE_STYLE = { visibility: 'hidden', left: 0, top: 0 }
+// DSH's own selector marks the official Flash entry with a temporary 1017 badge (the V4.1-Flash-1017 update). This
+// selector replaces it, so it shows the same badge for exactly the entry that one recognizes.
+const FLASH_1017 = { providers: ['deepseek-account', 'deepseek-official'], model: 'deepseek-flash', name: 'DeepSeek-V4.1-Flash' }
+const withFlashBadge = (providerId, model, label) => Tag !== undefined && FLASH_1017.providers.includes(providerId) && model?.id === FLASH_1017.model && model.name === FLASH_1017.name
+  ? <span className="codexModelSelectNamed">{label} <Tag tone="info">1017</Tag></span>
+  : label
+
 export function CodexModelSelect({ locked, available, directory, load, select, preference, t }) {
   const state = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
   const preferenceSnapshot = usePreferenceSnapshot(preference)
@@ -184,7 +191,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
   let content = null
   if (pane === 'root') {
     content = <>
-      {cell('model', t('modelLabel'), modelLabel)}
+      {cell('model', t('modelLabel'), withFlashBadge(state.current?.provider, currentChoice?.model, modelLabel))}
       {reasoning === undefined ? null : cell('effort', t('effortLabel'), effortLabel)}
       {(speedSupported || ultrafastSupported) && cell('speed', t('speedTitle'), t(speedKey))}
       {verbositySupported && cell('verbosity', t('verbosityTitle'), verbosityLabel)}
@@ -199,7 +206,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
         {entry.allHidden === true ? <div className="codexModelSelectEmpty">{t('modelsHidden')}</div> : null}
         {entry.models.map(model => option({
           key: model.id,
-          label: model.name,
+          label: withFlashBadge(entry.id, model, model.name),
           selected: state.current?.provider === entry.id && state.current.model === model.id,
           disabled: busy,
           onClick: () => chooseModel({ provider: entry.id, model: model.id }),
@@ -264,7 +271,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
       onClick={() => open ? close() : (setPane('root'), setOpen(true), load())}
     >
       {fast && <BoltIcon className="codexModelSelectBolt" aria-hidden="true" />}
-      <span className="codexModelSelectLabel">{modelLabel}</span>
+      <span className="codexModelSelectLabel">{withFlashBadge(state.current?.provider, currentChoice?.model, modelLabel)}</span>
       {effortLabel === undefined ? null : <span className="codexModelSelectEffort">{effortLabel}</span>}
       <IconChevronDownOutline14 className="codexModelSelectChevron" />
     </button>

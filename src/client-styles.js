@@ -235,6 +235,7 @@ export const STYLE = `
 .codexModelSelectTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
 .codexModelSelectBolt{display:block;flex:none;width:14px;height:14px;color:var(--dsw-alias-label-primary)}
 .codexModelSelectLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.codexModelSelectNamed{display:inline-flex;align-items:center;gap:6px;min-width:0}
 .codexModelSelectEffort{flex:none;color:var(--dsw-alias-label-caption)}
 .codexModelSelectChevron{flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms}
 .codexModelSelectTrigger[aria-expanded=true] .codexModelSelectChevron{transform:rotate(180deg)}

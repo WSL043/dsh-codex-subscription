@@ -12,6 +12,8 @@ export const Menu = primitives.Menu
 export const MenuSurface = primitives.MenuSurface
 export const MenuGroup = primitives.MenuGroup
 export const Tooltip = primitives.Tooltip
+// The info badge DSH's own model label uses; absent on hosts that predate it.
+export const Tag = primitives.Tag
 export const IconChevronLeftOutline14 = primitives.IconChevronLeftOutlineRegular
 export const IconCloseOutline16 = primitives.IconCloseOutlineRegular
 export const IconCopyOutline16 = primitives.IconCopyOutlineRegular
