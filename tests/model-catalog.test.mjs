@@ -35,11 +35,11 @@ const CATALOG_NOW = Date.UTC(2026, 8, 29)
 test('snake_case retirement notices use directory display names without changing model identity or visibility', () => {
   const models = parseOfficialModelCatalog({ models: [
     remote({
-      slug: 'gpt-5.5', display_name: 'GPT-5.5', description: 'Current account model', priority: 20,
+      slug: 'gpt-5.5', display_name: 'GPT-5.5', description: 'Current account model', priority: 30,
       retirement_at: RETIREMENT_SECONDS, upgrade: { model: 'gpt-5.6-sol' },
       migration_markdown: '[Switch now](https://example.invalid/migrate)',
     }),
-    remote({ slug: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', priority: 30 }),
+    remote({ slug: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol', priority: 20 }),
     remote({ slug: 'hidden-retiring', visibility: 'hide', retirement_at: RETIREMENT_SECONDS }),
   ] }, CATALOG_NOW)
 
@@ -47,7 +47,7 @@ test('snake_case retirement notices use directory display names without changing
   const retiring = models[1]
   assert.equal(retiring.id, 'gpt-5.5')
   assert.equal(retiring.name, 'GPT-5.5 (retires 2026-10-14)')
-  assert.equal(retiring.priority, 20)
+  assert.equal(retiring.priority, 30)
   assert.equal(retiring.description, 'Current account model\nRetires on 2026-10-14 (UTC). Switch to GPT-5.6 Sol to keep working.')
   assert.deepEqual(retiring.retirement, { at: RETIREMENT_SECONDS * 1000, upgradeTo: 'gpt-5.6-sol' })
   assert.equal(retiring.description.includes('migration_markdown'), false)
@@ -300,9 +300,9 @@ test('new Codex models appear from the account catalog with supported reasoning 
   await catalog.refresh()
   const provider = openaiCodexSubscriptionProvider({ catalog, resolveContextMode: () => 'extended' })
   assert.deepEqual(provider.getModels().map(model => [model.id, model.contextWindow]), [
-    ['gpt-6-luna', 872_000], ['gpt-6-sol', 872_000],
+    ['gpt-6-sol', 872_000], ['gpt-6-luna', 872_000],
   ])
-  assert.deepEqual(contextModelGroups(catalog.getModels([])).map(row => row.key), ['gpt-6-luna', 'gpt-6-sol'])
+  assert.deepEqual(contextModelGroups(catalog.getModels([])).map(row => row.key), ['gpt-6-sol', 'gpt-6-luna'])
   assert.equal(catalog.metadata('gpt-6-luna').thinkingLevelMap.max, 'max')
   assert.equal(catalog.metadata('gpt-6-sol').thinkingLevelMap.ultra, undefined)
   assert.equal(catalog.metadata('gpt-6-sol').supportsFast, true)
