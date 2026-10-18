@@ -57,7 +57,7 @@ export function FeatureOverview({ preference, t, go }) {
       onChange={next => set({ connectors: next ? 'read' : 'off' })} onMore={() => go('tools')} />
     <FeatureRow t={t} title={t('featureSketchTitle')} summary={t('featureSketchSummary')} beta checked={snapshot.imageSketch} disabled={!writable}
       reason={!imagesOn && !snapshot.imageSketch ? t('featureSketchNeedsImages') : undefined}
-      onChange={next => set(next ? { imageSketch: true } : { imageSketch: false, imageSketchAgent: false })} onMore={() => go('create')} />
+      onChange={next => set({ imageSketch: next })} onMore={() => go('create')} />
     <FeatureRow t={t} title={t('featureVoiceTitle')} summary={t('featureVoiceSummary')} checked={snapshot.voiceCall === 'on'} disabled={!writable}
       onChange={next => set({ voiceCall: next ? 'on' : 'off' })} onMore={() => go('more')} />
     <FeatureRow t={t} title={t('featureRemoteTitle')} summary={t('featureRemoteSummary')} beta checked={snapshot.remoteControl === 'on'} disabled={!writable}
@@ -200,7 +200,7 @@ export function CreatePage({ preference, t }) {
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('creativeSketch')}>
       <SwitchRow t={t} title={t('featureSketchTitle')} beta hint={!imagesOn ? t('featureSketchNeedsImages') : undefined} state={imagesOn ? 'sketchBoard' : undefined} checked={snapshot.imageSketch} disabled={disabled}
         reason={!imagesOn && !snapshot.imageSketch ? t('featureSketchNeedsImages') : undefined}
-        onChange={next => set(next ? { imageSketch: true } : { imageSketch: false, imageSketchAgent: false })} />
+        onChange={next => set({ imageSketch: next })} />
       <SwitchRow t={t} title={t('sketchAgentRow')} state="sketchAgent" checked={snapshot.imageSketchAgent} disabled={disabled}
         reason={!snapshot.imageSketch ? t('sketchAgentNeedsBoard') : undefined} onChange={next => set({ imageSketchAgent: next })} />
     </section>

@@ -465,4 +465,8 @@ export const STYLE = `
 .codexFlat .codexAdvancedFold>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0;box-sizing:border-box}
 .codexFlat .codexAdvancedInline>summary{min-height:44px}
 .codexFlat details.codexAdvancedFold{display:block}
+.codexModelSelectGroups [class*=_heading_]{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-module-platform))}
+.codexFlat :is(button,summary,a):focus-visible,.codexFlat label:has(:focus-visible){outline-color:var(--dsw-alias-brand-primary,#3964fe)}
+.codexSubscriptionPace{color:var(--dsw-alias-state-warn-label,#b45309)}
+.codexSubscriptionAccountQuota{color:var(--dsw-alias-label-secondary)}
 `
