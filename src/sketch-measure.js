@@ -26,7 +26,7 @@ export function measureDifference(reference, drawing, { columns = 6, rows = 8, w
     const error = n ? sum / n / 3 / 255 * 100 : 0
     total += error
     const ref = average(reference, x0, y0, x1, y1), art = average(drawing, x0, y0, x1, y1)
-    cells.push({ column, row, x: x0 / width, y: y0 / height, w: (x1 - x0) / width, h: (y1 - y0) / height, error: Math.round(error * 10) / 10, reference: hex(...ref), drawing: hex(...art) })
+    cells.push({ column, row, x: x0 / width, y: y0 / height, w: (x1 - x0) / width, h: (y1 - y0) / height, error: Math.round(error * 10) / 10, reference: hex(...ref), drawing: hex(...art), tone: Math.round((art[0] + art[1] + art[2] - ref[0] - ref[1] - ref[2]) / 3) })
   }
   cells.sort((a, b) => b.error - a.error)
   return { error: Math.round(total / cells.length * 10) / 10, worst: cells.slice(0, worst) }

@@ -25,6 +25,7 @@ export function createSketchAgentTool(bridge, attachments, getSessionMessages = 
       regions:{type:'integer',description:'measure only: where each of this many (1–12) main colours of the reference sits: share, centre and box.'},
       scan:{type:'object',additionalProperties:false,properties:{x1:{type:'number',required:true},y1:{type:'number',required:true},x2:{type:'number',required:true},y2:{type:'number',required:true}},description:'measure only: a line (0..1 coordinates); returns the colour runs of the reference and of your drawing along it, with exact positions.'},
       palette:{type:'integer',description:'measure only: also return this many (1–12) main colours of the reference with their share of the area.'},
+      cells:{type:'boolean',description:'measure only: return every cell of the columns x rows grid (error, reference and drawing colour, tone = lighter or darker than the reference) instead of the worst ten.'},
       look:{type:'boolean',description:'apply only: also return the reference and your drawing side by side after this batch.'},
       steps:{type:'integer',description:'undo only: how many applied batches to take back, 1–20, default 1.'},
       columns:{type:'integer',description:'measure only: grid columns, 1–16, default 6.'},

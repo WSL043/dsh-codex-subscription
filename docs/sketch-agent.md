@@ -101,7 +101,7 @@ Document, history, run state and deduplication receipts belong to the plugin's
 session registry, not the input component. Switching away and back in the same
 page preserves them. Closing the board does not stop drawing. Explicit stop is
 preserved across remounts; only the user can resume it. An abandoned run unlocks
-after three minutes without a tool operation.
+after fifteen minutes without a tool operation (long script work between drawing calls is normal).
 
 The browser bridge is active while that session is viewed. A different session
 has its own document and single authenticated browser lease. Connection failures

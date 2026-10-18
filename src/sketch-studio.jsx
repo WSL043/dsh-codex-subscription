@@ -523,7 +523,7 @@ export function SketchStudio({
       context.drawImage(picture, (at.x - box.x) * w * scale, (at.y - box.y) * h * scale, at.width * w * scale, at.height * h * scale)
       return context.getImageData(0, 0, target.width, target.height)
     },
-    measure: async ({ columns, rows, points, palette = 0, regions = 0, scan, box = { x: 0, y: 0, width: 1, height: 1 } }) => {
+    measure: async ({ columns, rows, cells = false, points, palette = 0, regions = 0, scan, box = { x: 0, y: 0, width: 1, height: 1 } }) => {
       const reference = agentAdapter.current.pixels({ box, maxSide: 480 })
       // The drawing at the same scale: the whole canvas rendered at that scale, then the part in question cut out.
       const w = doc.current.width ?? SKETCH_SIZE,
@@ -537,7 +537,7 @@ export function SketchStudio({
       context.drawImage(whole, Math.round(box.x * whole.width), Math.round(box.y * whole.height), target.width, target.height, 0, 0, target.width, target.height)
       const drawing = context.getImageData(0, 0, target.width, target.height)
       return {
-        ...measureDifference(reference, drawing, { columns, rows }),
+        ...measureDifference(reference, drawing, { columns, rows, ...(cells ? { worst: columns * rows } : {}) }),
         ...(points.length ? { points: sampleColors(reference, drawing, points) } : {}),
         ...(palette ? { palette: dominantColors(reference, palette) } : {}),
         ...(regions ? { regions: colorRegions(reference, regions) } : {}),

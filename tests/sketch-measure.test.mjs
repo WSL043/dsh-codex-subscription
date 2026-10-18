@@ -37,7 +37,7 @@ test('the measure action goes through the board and validates its arguments', as
   const run = createSketchCommandSession(adapter)
   const result = await run({ action: 'measure', documentId: 'd', rows: 4, points: [{ x: .5, y: .5 }] })
   assert.equal(result.measure.error, 1.5)
-  assert.deepEqual(asked, { columns: 6, rows: 4, points: [{ x: .5, y: .5 }], palette: 0, regions: 0, box: undefined })
+  assert.deepEqual(asked, { columns: 6, rows: 4, cells: false, points: [{ x: .5, y: .5 }], palette: 0, regions: 0, box: undefined })
   await assert.rejects(run({ action: 'measure', documentId: 'd', rows: 99 }), /rows must be/)
   await assert.rejects(run({ action: 'measure', documentId: 'd', points: [{ x: 2, y: 0 }] }), /points must be/)
 })
@@ -77,4 +77,12 @@ test('preview validates mode and box', async () => {
   assert.deepEqual(seen[0], { compare: false, grid: false, mode: 'diff', box: { x: .1, y: .1, width: .3, height: .3 } })
   await assert.rejects(run({ action: 'preview', documentId: 'd', mode: 'weird' }), /mode must be/)
   await assert.rejects(run({ action: 'preview', documentId: 'd', box: { x: .9, y: 0, width: .5, height: .5 } }), /box must be/)
+})
+
+test('every cell can be returned with how much lighter or darker the drawing is', () => {
+  const pixel = (r, g, b) => [r, g, b, 255]
+  const picture = (width, height, color) => ({ width, height, data: Uint8ClampedArray.from(Array.from({ length: width * height }, () => pixel(...color)).flat()) })
+  const result = measureDifference(picture(8, 8, [100, 100, 100]), picture(8, 8, [130, 130, 130]), { columns: 2, rows: 2, worst: 4 })
+  assert.equal(result.worst.length, 4)
+  assert.ok(result.worst.every(cell => cell.tone === 30))
 })
