@@ -262,7 +262,6 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
         </div>
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('searchSectionTitle')}>
-        <h3>{t('searchSectionTitle')}</h3>
         <SearchProviderPreference preference={preference} t={t} />
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('connectors')}>

@@ -86,3 +86,14 @@ test('every cell can be returned with how much lighter or darker the drawing is'
   assert.equal(result.worst.length, 4)
   assert.ok(result.worst.every(cell => cell.tone === 30))
 })
+
+test('undo works without a revision but never against a stale one, and a missing revision on apply is named', async () => {
+  let taken = 0
+  const adapter = { available: () => true, busy: () => false, snapshot: () => ({ documentId: 'd', revision: 7 }), undo: steps => { taken += steps; return steps } }
+  const run = createSketchCommandSession(adapter)
+  assert.equal((await run({ action: 'undo', documentId: 'd' })).undone, 1)
+  assert.equal((await run({ action: 'undo', documentId: 'd', revision: 7, steps: 2 })).undone, 2)
+  await assert.rejects(run({ action: 'undo', documentId: 'd', revision: 6 }), /inspect again/)
+  assert.equal(taken, 3)
+  await assert.rejects(run({ action: 'apply', documentId: 'd', requestId: 'x', commands: [] }), /revision is required/)
+})

@@ -6,6 +6,9 @@ import { expandSvgCommands, MAX_SVG_CHARACTERS } from './sketch-svg.js'
 import { normalizeBlur, normalizeBlend, normalizeClip, normalizeGradient, gradientFits } from './sketch-effects.js'
 
 export const MAX_SKETCH_POINTS = 200_000
+// A stale or missing revision is the caller's to correct; it must not end the drawing run.
+const stale = message => Object.assign(Error(message), { code: 'SKETCH_STALE' })
+
 export const SKETCH_COMMAND_HELP = {
   coordinates: 'Assign short meaningful stroke id values for later edits. Text uses two opposite box corners and text content; width is font size in pixels, automatic fitting within the box. Arrow uses two endpoints. Normalized x/y in [0,1]; width is canvas pixels. Read documentId and revision before editing.',
   shapes: 'line: exactly two endpoints; rectangle/circle (ellipse alias accepted): exactly two opposite bounding-box corners (circle draws an ellipse within that box); polygon: three or more vertices, closed automatically; pen: ordered path points. bezier: start point, then groups of control1/control2/end; use 4 points for one cubic curve, max 64 segments. Prefer bezier for smooth designed curves instead of many pen samples. fill:true closes and fills the curve. fill:true fills rectangle/circle/polygon. Layers and strokes paint in list order, later ones on top. All commands needed for drawing are described here; no source-code search is required.',
@@ -20,7 +23,7 @@ export const SKETCH_COMMAND_HELP = {
     svg: '{op:"svg",svg:"<svg viewBox=\\"0 0 1024 768\\">...</svg>",layer:1}. Fastest way to draw: send a whole scene as SVG (path with M L H V C S Q T A Z, rect, circle, ellipse, line, polyline, polygon, g, use, transform, fill/stroke/opacity, style="..."); it becomes native editable strokes. The viewBox must match the canvas size (use the width and height from inspect; 4:3 is 1024x768). mix-blend-mode on an element becomes blend, and clip-path=\"url(#id)\" with a clipPath holding one path, rect, circle, ellipse or polygon becomes clip (use the same clipPath for all the shading of a form). Linear and radial gradients on filled shapes are kept as real gradients (fill=\"url(#id)\", objectBoundingBox or userSpaceOnUse, gradientTransform, stop-opacity); a gradient on a stroke line is flattened to its average color. A filter with feGaussianBlur becomes a soft edge on each shape it covers (glows, shadows, haze, depth of field); other filter effects are ignored with a warning. Text, image, mask, pattern and CSS classes are refused. Coordinates outside the canvas are clamped. One svg command may hold up to ' + MAX_SVG_CHARACTERS + ' characters.',
   },
   measure: 'Action measure (not a command): {action:"measure",runId,documentId,columns:6,rows:8,box:{x:0,y:0,width:1,height:1},points:[{x:0.5,y:0.3}],palette:8,regions:8,scan:{x1:0,y1:0.5,x2:1,y2:0.5}} compares the drawing with the reference picture and returns error (0 = identical, percent of the colour range), the worst cells (box in 0..1, error, reference and drawing colour as #rrggbb, tone = how much lighter (+) or darker (-) the drawing is than the reference, 0..255; cells:true returns every cell instead of the worst ten, a full colour-error map you can work through), for points the reference and drawing colour there, with palette the main colours of the reference (share of the area), with regions where each main colour sits (share, centre, box that holds most of it), and with scan a ruler laid along a line: the colour runs of the reference and of your drawing along it, with their start and end positions, so you can place edges exactly (scan a row across the hair, a column through the body). box limits it to one part. Every apply also returns progress (error now, error before, three worst cells), so you can see whether a stage helped. Fix the worst cell first, read exact colours from the reference instead of guessing.',
-    undo: 'Action undo: {action:"undo",runId,documentId,revision,steps:1} takes back the last batches you applied (one per apply) and returns the new revision. Use it when a stage made things worse instead of painting over it.',
+    undo: 'Action undo: {action:"undo",runId,documentId,revision (optional),steps:1} takes back the last batches you applied (one per apply) and returns the new revision. Use it when a stage made things worse instead of painting over it.',
     preview: 'Action preview: {action:"preview",mode:"side|diff",compare:true,grid:true,box:{x:0.3,y:0.1,width:0.4,height:0.3}}. mode side puts the reference and your drawing next to each other; mode diff adds a difference heat map (dark = matches, blue to red = increasingly different in brightness, colour or edges); compare blends both 50/50; grid labels canvas pixels; box zooms into one part (normalised x,y,width,height) so you can check eyes, hands, edges. Apply with look:true returns the side-by-side picture with the result.',
   limits: { strokes: MAX_SKETCH_STROKES, pointsPerStroke: MAX_STROKE_POINTS, pointsTotal: MAX_SKETCH_POINTS, commandsPerBatch: 256, svgCharacters: MAX_SVG_CHARACTERS },
 }
@@ -140,7 +143,7 @@ export function createSketchCommandSession(adapter) {
     if (request.action === 'undo') {
       const steps = request.steps ?? 1
       if (!Number.isInteger(steps) || steps < 1 || steps > 20) throw Error('steps must be an integer from 1 to 20')
-      if (request.revision !== current.revision) throw Error('Sketch changed or is being edited; inspect again')
+      if (request.revision !== undefined && request.revision !== current.revision) throw stale('Sketch changed or is being edited; inspect again')
       if (typeof adapter.undo !== 'function') throw Error('undo is not available')
       const taken = adapter.undo(steps)
       return {...adapter.snapshot(), undone: taken}
@@ -150,7 +153,8 @@ export function createSketchCommandSession(adapter) {
     const key = `${current.documentId}:${request.requestId}`, fingerprint = JSON.stringify({...request,runId:undefined})
     const cached = completed.get(key)
     if (cached) { if(cached.fingerprint!==fingerprint)throw Error('requestId reused with different content');return cached.result }
-    if (request.revision !== current.revision || adapter.busy()) throw Error('Sketch changed or is being edited; inspect again')
+    if (request.revision === undefined) throw stale('revision is required: copy it from the last result')
+    if (request.revision !== current.revision || adapter.busy()) throw stale('Sketch changed or is being edited; inspect again')
     let changedObjects, progress, previousError
     const report={}
     const measureNow = async () => { try { return typeof adapter.measure === 'function' ? await adapter.measure({ columns: 6, rows: 8, points: [] }) : undefined } catch { return undefined } }
