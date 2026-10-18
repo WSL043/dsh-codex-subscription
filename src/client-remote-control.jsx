@@ -109,9 +109,9 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
           <p className="codexSubscriptionHelp">{t('remoteExpires').replace('{minutes}', String(minutes))}</p>
         </div>
       </div> : pairing ? <p className="codexSubscriptionHelp">{t('remoteExpired')}</p> : null}
-      {clients ? <div className="codexSubscriptionRemoteClients" role="list" aria-label={t('remotePaired')}>
+      {clients && clients.length > 0 ? <div className="codexSubscriptionRemoteClients" role="list" aria-label={t('remotePaired')}>
         <span className="codexSubscriptionPreferenceLabel">{t('remotePaired')}</span>
-        {clients.length === 0 ? <p className="codexSubscriptionHelp">{t('remoteNoPhones')}</p> : clients.map(client => <div key={client.clientId} role="listitem" className="codexSubscriptionPreference">
+        {clients.map(client => <div key={client.clientId} role="listitem" className="codexSubscriptionPreference">
           <span>{[client.name ?? t('remotePhoneUnknown'), client.platform, client.lastSeenAt ? t('remoteLastSeen').replace('{date}', new Date(client.lastSeenAt).toLocaleString(uiLocale())) : null].filter(Boolean).join(' · ')}</span>
           <Button type="button" variant="outline" disabled={Boolean(removing)} onClick={() => { void remove(client) }}>{t('remoteRevoke')}</Button>
         </div>)}
