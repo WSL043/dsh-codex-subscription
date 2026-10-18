@@ -29,15 +29,15 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
           event.preventDefault(); setTab(tabs[next]); document.getElementById(`${id}-${tabs[next]}-tab`)?.focus()
         }}>{t(`settingsTab_${value}`)}</button>)}
     </div>
-    <div role="tabpanel" id={`${id}-start`} aria-labelledby={`${id}-start-tab`} hidden={tab !== 'start'}>
+    <div className="codexFlat" role="tabpanel" id={`${id}-start`} aria-labelledby={`${id}-start-tab`} hidden={tab !== 'start'}>
     {accountSnapshot.status === 'error' ? <AccountFailureCard accountStatus={accountStatus} snapshot={accountSnapshot} t={t} rpc={rpc} onRecovered={accountChanged} /> : <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} />}
-    {account === undefined ? null : <UsageCard key={resetKey} rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} preference={preference} />}
     <FeatureOverview preference={preference} t={t} go={setTab} />
+    {account === undefined ? null : <UsageCard key={resetKey} rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} preference={preference} />}
     <QuotaSettingsCard preference={preference} t={t} />
     </div>
-    <div role="tabpanel" id={`${id}-models`} aria-labelledby={`${id}-models-tab`} hidden={tab !== 'models'}><ModelsPage preference={preference} t={t} defaultModel={defaultModel} /></div>
-    <div role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}><ToolsPage preference={preference} rpc={rpc} t={t} go={setTab} /></div>
-    <div role="tabpanel" id={`${id}-create`} aria-labelledby={`${id}-create-tab`} hidden={tab !== 'create'}><CreatePage preference={preference} t={t} /></div>
-    <div role="tabpanel" id={`${id}-more`} aria-labelledby={`${id}-more-tab`} hidden={tab !== 'more'}><MorePage preference={preference} rpc={rpc} t={t} diagnostics={diagnostics} /></div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-models`} aria-labelledby={`${id}-models-tab`} hidden={tab !== 'models'}><ModelsPage preference={preference} t={t} defaultModel={defaultModel} /></div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}><ToolsPage preference={preference} rpc={rpc} t={t} go={setTab} /></div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-create`} aria-labelledby={`${id}-create-tab`} hidden={tab !== 'create'}><CreatePage preference={preference} t={t} /></div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-more`} aria-labelledby={`${id}-more-tab`} hidden={tab !== 'more'}><MorePage preference={preference} rpc={rpc} t={t} diagnostics={diagnostics} /></div>
   </section>
 }

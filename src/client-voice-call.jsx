@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Hint } from './client-hint.jsx'
-import { IconChevronDownOutline14, Menu } from './client-primitives.js'
+import { IconChevronDownOutline14, Menu, Switch } from './client-primitives.js'
 import { CHANNEL } from './rpc-contract.js'
 import { usePreferenceSnapshot } from './client-shared.js'
 import { VOICE_CALL_FIELD, VOICE_LANGUAGE_FIELD, VOICE_LANGUAGES, VOICE_VOICE_FIELD, VOICE_VOICES } from './settings-contract.js'
@@ -262,9 +262,7 @@ export function VoiceCallCard({ rpc, preference, snapshot, t }) {
   return <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('voiceTitle')}>
     <div className="codexSubscriptionPreference">
       <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('voiceTitle')} <small>Beta</small></span><Hint t={t}>{t('voiceHint')}</Hint></div>
-      <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('voiceTitle')} aria-busy={snapshot.saving || undefined}>
-        {['off', 'on'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-voice-call" checked={snapshot.voiceCall === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ [VOICE_CALL_FIELD]: value }) }} /><span>{t(`remote_${value}`)}</span></label>)}
-      </div>
+      <Switch checked={on} label={t('voiceTitle')} disabled={!snapshot.writable} onChange={next => { void preference.set({ [VOICE_CALL_FIELD]: next ? 'on' : 'off' }) }} />
     </div>
     {on ? <>
       <div className="codexSubscriptionDivider" />

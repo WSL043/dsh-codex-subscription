@@ -1,7 +1,7 @@
 import { Hint } from './client-hint.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { create as createQr } from 'qrcode/lib/core/qrcode.js'
-import { Button } from './client-primitives.js'
+import { Button, Switch } from './client-primitives.js'
 import { CHANNEL } from './rpc-contract.js'
 import { uiLocale } from './client-shared.js'
 
@@ -91,9 +91,7 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
   return <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('remoteTitle')}>
     <div className="codexSubscriptionPreference">
       <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('remoteTitle')} <small>Beta</small></span><Hint t={t}>{t('remoteHint')}</Hint></div>
-      <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('remoteTitle')} aria-busy={snapshot.saving || undefined}>
-        {['off', 'on'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-remote-control" checked={snapshot.remoteControl === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ remoteControl: value }) }} /><span>{t(`remote_${value}`)}</span></label>)}
-      </div>
+      <Switch checked={on} label={t('remoteTitle')} disabled={!snapshot.writable} onChange={next => { void preference.set({ remoteControl: next ? 'on' : 'off' }) }} />
     </div>
     {on ? <>
       <div className="codexSubscriptionDivider" />

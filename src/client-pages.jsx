@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { Hint } from './client-hint.jsx'
-import { Switch, IconChevronDownOutline14 } from './client-primitives.js'
+import { Switch, IconChevronDownOutline14, IconChevronRightOutline14 } from './client-primitives.js'
 import { usePreferenceSnapshot } from './client-shared.js'
 import { CapabilityPreferences } from './capability-preferences.jsx'
 import { DefaultModelPreference } from './default-model-preferences.jsx'
@@ -31,10 +31,10 @@ export function FeatureRow({ t, title, summary, beta, checked, onChange, disable
         <span className="codexFeatureTitle">{title}{beta ? <small>Beta</small> : null}</span>
         <span className="codexFeatureSummary">{reason ?? summary}</span>
       </div>
-      {status !== undefined ? <span className="codexFeatureStatus">{status}</span> : null}
+      {status !== undefined && !children ? <span className="codexFeatureStatus">{status}</span> : null}
       {checked !== undefined ? <Switch checked={checked} label={title} disabled={disabled || Boolean(reason)} onChange={onChange} /> : null}
-      {children ? <button type="button" className="codexFeatureMore" aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)}>{t('featureSettings')}<IconChevronDownOutline14 /></button>
-        : onMore ? <button type="button" className="codexFeatureMore" onClick={onMore}>{moreLabel ?? t('featureDetails')}</button> : <span className="codexFeatureMoreSpace" />}
+      {children ? <button type="button" className="codexFeatureMore" aria-label={`${title} · ${t('featureSettings')}`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(value => !value)}>{status !== undefined ? <span>{status}</span> : null}<IconChevronDownOutline14 /></button>
+        : onMore ? <button type="button" className="codexFeatureMore" aria-label={`${title} · ${moreLabel ?? t('featureDetails')}`} onClick={onMore}><IconChevronRightOutline14 /></button> : <span className="codexFeatureMoreSpace" />}
     </div>
     {children && open ? <div className="codexFeatureOptions" id={id}>{children}</div> : null}
   </div>
