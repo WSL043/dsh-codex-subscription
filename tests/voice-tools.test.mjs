@@ -4,10 +4,10 @@ import { createEndVoiceCallTool, withEndCallTool } from '../src/voice-tools.js'
 
 test('the end-call tool hangs up only the conversation that has a call', async () => {
   const stopped = []
-  const tool = createEndVoiceCallTool({ stop: id => stopped.push(id), isActive: id => id === 'a' })
+  const tool = createEndVoiceCallTool({ end: id => stopped.push(id), isActive: id => id === 'a' })
   assert.equal(tool.name, 'end_voice_call')
   assert.deepEqual(await tool.execute({}, { agent: { id: 'b' } }), { ended: false, message: 'There is no voice call running in this conversation.' })
-  assert.deepEqual(await tool.execute({}, { agent: { id: 'a' } }), { ended: true, message: 'The voice call was ended.' })
+  assert.deepEqual(await tool.execute({}, { agent: { id: 'a' } }), { ended: true, message: 'The voice call is ending; it closes once the voice has finished speaking. Say a short goodbye.' })
   assert.deepEqual(stopped, ['a'])
 })
 

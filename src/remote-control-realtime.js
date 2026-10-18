@@ -193,6 +193,7 @@ export function createRealtimeVoice(options) {
     sessions.delete(threadId)
     session.ended = true
     clearTimeout(session.goodbye)
+    clearTimeout(session.closeTimer)
     flushTail(threadId, session)
     try { session.ws.send(JSON.stringify(outbound.close())) } catch { /* already closed */ }
     try { session.ws.close() } catch { /* already closed */ }
@@ -296,10 +297,18 @@ export function createRealtimeVoice(options) {
     appendText: (threadId, text) => append(threadId, text, undefined),
     appendSpeech: (threadId, text) => append(threadId, text, 'speakable'),
     active: threadId => sessions.has(threadId),
-    /** What the voice stage shows: the last spoken lines and whether the agent is working on a request. */
+    /** Ask for the call to end once the voice has finished speaking (the window does it); closes by itself after a while if nobody does. */
+    requestClose(threadId) {
+      const session = sessions.get(threadId)
+      if (!session) return false
+      session.closing = true
+      session.closeTimer ??= setTimeout(() => stop(threadId, 'requested'), 20_000)
+      return true
+    },
+    /** What the voice stage shows: the last spoken lines, whether the agent is working on a request, whether the call is about to end. */
     status(threadId) {
       const session = sessions.get(threadId)
-      return session ? { active: true, working: session.working > 0, lines: session.lines.slice(-6) } : { active: false, working: false, lines: [] }
+      return session ? { active: true, working: session.working > 0, closing: session.closing === true, lines: session.lines.slice(-6) } : { active: false, working: false, closing: false, lines: [] }
     },
     closeAll: () => { for (const threadId of [...sessions.keys()]) stop(threadId, 'shutdown') },
   }

@@ -22,9 +22,11 @@ function VoiceStage({ call, connecting, rpc, sessionId, anchor, accent, t }) {
   const orb = useRef(null)
   const canvas = useRef(null)
   const working = useRef(false)
+  const closing = useRef(false)
   const frame = useRef(null)
   const [status, setStatus] = useState({ working: false, lines: [] })
   working.current = status.working
+  closing.current = status.closing === true
   const [mode, setMode] = useState('idle')
   const [box, setBox] = useState()
   // follow the composer
@@ -46,8 +48,18 @@ function VoiceStage({ call, connecting, rpc, sessionId, anchor, accent, t }) {
     const started = performance.now()
     let level = 0
     let last = ''
+    let closeSince = 0
+    let quietSince = 0
     const tick = () => {
       const { mic, assistant } = call.levels()
+      // the host asked to end the call (the agent did, on a goodbye): let the voice finish speaking first, then hang up
+      if (closing.current) {
+        const now = performance.now()
+        closeSince ||= now
+        if (assistant > 0.03) quietSince = 0
+        else quietSince ||= now
+        if (now - closeSince > 15_000 || (now - closeSince > 1_800 && now - quietSince > 1_300)) { closing.current = false; void call.stop(); return }
+      }
       const target = Math.max(mic, assistant)
       level += (target - level) * (target > level ? 0.35 : 0.12)
       orb.current?.style.setProperty('--level', reduce ? '0' : level.toFixed(3))

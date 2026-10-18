@@ -174,3 +174,14 @@ test('when the voice model hands the goodbye over itself (even just before the f
   await new Promise(resolve => setTimeout(resolve, 2_800))
   assert.equal(delegated.length, 1)
 })
+
+test('a close request marks the call as closing and leaves the hanging up to the window', async () => {
+  const { voice, notify } = setup()
+  await voice.start(start, notify)
+  assert.equal(voice.status('t1').closing, false)
+  assert.equal(voice.requestClose('t1'), true)
+  assert.equal(voice.status('t1').closing, true)
+  assert.equal(voice.status('t1').active, true)
+  voice.stop('t1')
+  assert.equal(voice.requestClose('t1'), false)
+})
