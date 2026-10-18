@@ -47,7 +47,7 @@ import { setAuthFailureLogger } from './http-failure.js'
 import { PACKAGE_VERSION } from './version.js'
 import { hostDshVersion } from './subagent-runtime.js'
 import { createDiagnosticOperations } from './diagnostic-operations.js'
-import { VOICE_CALL_FIELD, VOICE_VOICE_FIELD, VOICE_LANGUAGE_FIELD, normalizeVoiceCall, normalizeVoiceVoice, normalizeVoiceLanguage, AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, normalizeConnectorMode, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, REASONING_SUMMARY_FIELD, normalizeReasoningSummary, RETRY_POLICY_FIELD, normalizeRetryPolicy, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
+import { VOICE_CALL_FIELD, VOICE_VOICE_FIELD, VOICE_LANGUAGE_FIELD, normalizeVoiceCall, normalizeVoiceVoice, normalizeVoiceLanguage, AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, normalizeConnectorMode, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, REASONING_SUMMARY_FIELD, normalizeReasoningSummary, RETRY_POLICY_FIELD, normalizeRetryPolicy, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 import { createAccountUsageReader } from './account-usage.js'
 import { createPlanHistoryReader } from './plan-history.js'
@@ -78,30 +78,41 @@ export { createSubscriptionRpcHandler } from './subscription-rpc.js'
 
 export function createSearchProviderSwitcher(loader) {
   const webEntry = () => [...loader.entries()].find(entry => entry.options?.id === WEB_ENTRY_ID)
+  const ours = new Set([CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID])
+  // The entry's raw config is rewritten in place, so remember the DSH provider it held before we first touched it.
+  let remembered
   const dshProviderId = () => {
-    const baseConfig = webEntry()?.options?.config ?? {}
-    return typeof baseConfig.searchProvider === 'string' && baseConfig.searchProvider.length > 0
-      ? baseConfig.searchProvider
-      : DSH_SEARCH_PROVIDER_FALLBACK
+    const configured = webEntry()?.options?.config?.searchProvider
+    if (typeof configured === 'string' && configured.length > 0 && !ours.has(configured)) remembered = configured
+    return remembered ?? DSH_SEARCH_PROVIDER_FALLBACK
+  }
+  const select = async selection => {
+    const entry = webEntry()
+    if (entry === undefined || typeof entry.update !== 'function') {
+      throw new Error('DSH web runtime is unavailable')
+    }
+    const dshProvider = dshProviderId()
+    const provider = selection === SEARCH_PROVIDER_CODEX
+      ? CODEX_SEARCH_PROVIDER_ID
+      : selection === SEARCH_PROVIDER_AUTO
+        ? CODEX_AUTO_SEARCH_PROVIDER_ID
+        : dshProvider
+    const baseConfig = entry.options?.config ?? {}
+    if (baseConfig.searchProvider === provider) return
+    // Entry.update takes the raw config and commits a volatile-only change in place (no web restart).
+    // Fiber.config holds resolved volatile references and cannot be fed back as a raw config.
+    await entry.update({ config: { ...baseConfig, searchProvider: provider } })
   }
   return Object.freeze({
     dshProviderId,
-    async select(selection) {
-      const entry = webEntry()
-      const fiber = entry?.fiber
-      if (entry === undefined || fiber === undefined || typeof fiber.update !== 'function') {
-        throw new Error('DSH web runtime is unavailable')
+    select,
+    /** Put the DSH provider back so web search keeps working once this plugin is gone. */
+    async restore() {
+      try {
+        await select(SEARCH_PROVIDER_DSH)
+      } catch {
+        // The web runtime is already gone with the host.
       }
-      const baseConfig = entry.options?.config ?? {}
-      const currentConfig = fiber.config ?? baseConfig
-      const dshProvider = dshProviderId()
-      const provider = selection === SEARCH_PROVIDER_CODEX
-        ? CODEX_SEARCH_PROVIDER_ID
-        : selection === SEARCH_PROVIDER_AUTO
-          ? CODEX_AUTO_SEARCH_PROVIDER_ID
-          : dshProvider
-      if (currentConfig.searchProvider === provider) return
-      await fiber.update({ ...currentConfig, searchProvider: provider }, true)
     },
   })
 }
@@ -413,7 +424,11 @@ export function apply(ctx, config = {}) {
       }
     }
     void select(settings.get())
-    return settings.watch(select)
+    const stop = settings.watch(select)
+    return () => {
+      stop?.()
+      void searchProvider.restore()
+    }
   }, 'codex-subscription: search provider selection')
 
   const auth = createCodexAuthService(authModels, store, {
