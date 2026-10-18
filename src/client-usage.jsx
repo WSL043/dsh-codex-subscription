@@ -1,8 +1,8 @@
 import { recoveryCall } from './client-recovery.js'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from './client-primitives.js'
-import { CHANNEL, unwrap, fill, uiLocale, percent, windowLabel, validDate, notifyQuickQuota, formatQuotaForecast } from './client-shared.js'
-import { creditExpiryStatus } from './credit-expiry.js'
+import { CHANNEL, unwrap, fill, uiLocale, percent, windowLabel, validDate, notifyQuickQuota, formatQuotaForecast, creditAmount } from './client-shared.js'
+import { creditExpiryStatus, creditExpiryDateText } from './credit-expiry.js'
 import { REQUEST_BLOCKED } from './http-failure.js'
 import { quotaPace, paceWords } from './quota-pace.js'
 import { UsageHistory } from './client-usage-history.jsx'
@@ -10,7 +10,6 @@ import { UsageOverview } from './client-usage-overview.jsx'
 
 const count = value => Number(value).toLocaleString(uiLocale())
 // The API reports credits as a long decimal string; two decimals are enough to read.
-const creditAmount = value => Number.isFinite(Number(value)) && String(value).trim() !== '' ? Number(value).toLocaleString(uiLocale(), { maximumFractionDigits: 2 }) : value
 
 export function CreditExpiry({ credits, t }) {
   const date = validDate(credits.expiresAt)
@@ -18,7 +17,7 @@ export function CreditExpiry({ credits, t }) {
   const status = creditExpiryStatus({ expiresAt: credits.expiresAt })
   const estimate = credits.expirySource === 'estimate'
   return <div className="codexSubscriptionCreditExpiry" data-soon={status.soon} role="status">
-    <p>{fill(t(status.daysLeft === 0 ? 'creditsExpiredToday' : 'creditsExpires'), { date: date.toLocaleDateString(uiLocale()), days: status.daysLeft })}{estimate ? ` ${t('creditsExpiryEstimate')}` : ''}</p>
+    <p>{fill(t(status.daysLeft === 0 ? 'creditsExpiredToday' : 'creditsExpires'), { date: creditExpiryDateText(credits.expiresAt, credits.expirySource, uiLocale()), days: status.daysLeft })}{estimate ? ` ${t('creditsExpiryEstimate')}` : ''}</p>
   </div>
 }
 /** A long window that will run out before it resets says so, in plain words with a day and part of the day. */
@@ -224,7 +223,7 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
         {visibleUsage?.individualLimit ? <div className="codexSubscriptionSpendLimit">
           <div className="codexSubscriptionSpendTop"><span className="codexSubscriptionCreditLabel">{t('monthlyCreditLimit')}</span><strong>{fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}</strong></div>
           <progress max="100" value={visibleUsage.individualLimit.remainingPercent} aria-label={`${t('monthlyCreditLimit')} ${fill(t('remaining'), { value: percent(visibleUsage.individualLimit.remainingPercent) })}`} />
-          <div className="codexSubscriptionLimitMeta"><span>{fill(t('creditsUsed'), { used: visibleUsage.individualLimit.used, limit: visibleUsage.individualLimit.limit })}</span><ResetTime resetsAt={visibleUsage.individualLimit.resetsAt} t={t} /></div>
+          <div className="codexSubscriptionLimitMeta"><span>{fill(t('creditsUsed'), { used: creditAmount(visibleUsage.individualLimit.used), limit: creditAmount(visibleUsage.individualLimit.limit) })}</span><ResetTime resetsAt={visibleUsage.individualLimit.resetsAt} t={t} /></div>
         </div> : null}
       </div>
     </details>}

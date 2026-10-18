@@ -1,28 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { recoveryCall } from './client-recovery.js'
 import { fill, uiLocale } from './client-shared.js'
+import { heatmapCells, firstWeekday, formatDuration } from './usage-heatmap.js'
 
 // Numbers and dates follow the language DSH shows, not the browser's.
 export { uiLocale }
 const WEEKS = 26
 const compact = value => new Intl.NumberFormat(uiLocale(), { notation: 'compact', maximumFractionDigits: 1 }).format(value)
-const hours = seconds => (seconds >= 3600 ? `${Math.round(seconds / 360) / 10} h` : `${Math.max(1, Math.round(seconds / 60))} min`)
-const key = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
 // The last half year of daily token use as a calendar grid, one cell per day, darker means busier.
 export function UsageHeatmap({ days, t }) {
-  const byDate = new Map(days.map(day => [day.date, day.tokens]))
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const start = new Date(today)
-  start.setDate(start.getDate() - ((WEEKS - 1) * 7 + today.getDay()))
-  const cells = []
-  for (let index = 0; index < WEEKS * 7; index += 1) {
-    const date = new Date(start)
-    date.setDate(start.getDate() + index)
-    if (date > today) break
-    cells.push({ date: key(date), tokens: byDate.get(key(date)) ?? 0, column: Math.floor(index / 7), row: index % 7 })
-  }
+  const cells = heatmapCells(days, { weeks: WEEKS, firstDay: firstWeekday(uiLocale()) })
   const busy = cells.map(cell => cell.tokens).filter(tokens => tokens > 0).sort((a, b) => a - b)
   const level = tokens => (tokens === 0 ? 0 : 1 + [0.25, 0.5, 0.75].filter(point => tokens > busy[Math.floor((busy.length - 1) * point)]).length)
   return <svg className="codexSubscriptionHeatmap" viewBox={`0 0 ${WEEKS * 14} ${7 * 14}`} role="img" aria-label={t('overviewHeatmap')}>
@@ -56,7 +44,7 @@ export function UsageOverview({ rpc, t, signedIn, resetKey }) {
     [t('overviewThreads'), value.totalThreads === undefined ? undefined : value.totalThreads.toLocaleString(uiLocale())],
     [t('overviewEffort'), value.mostUsedReasoningEffort === undefined ? undefined : `${value.mostUsedReasoningEffort}${value.mostUsedReasoningEffortPercent === undefined ? '' : ` · ${value.mostUsedReasoningEffortPercent}%`}`],
     [t('overviewFast'), value.fastModePercent === undefined ? undefined : `${value.fastModePercent}%`],
-    [t('overviewLongestTurn'), value.longestRunningTurnSeconds === undefined ? undefined : hours(value.longestRunningTurnSeconds)],
+    [t('overviewLongestTurn'), value.longestRunningTurnSeconds === undefined ? undefined : formatDuration(value.longestRunningTurnSeconds, t)],
   ].filter(([, text]) => text !== undefined)
   return <details className="codexSubscriptionHistory" onToggle={event => setOpen(event.currentTarget.open)}>
     <summary>{t('overviewTitle')}</summary>
