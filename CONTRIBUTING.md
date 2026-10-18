@@ -32,6 +32,13 @@ channels, test against their actual dependencies, and exercise the candidate
 package lifecycle. Keep existing model capability assertions when allowing
 legitimate additions to the upstream model catalog.
 
+For a change that touches the DSH UI (slots, settings pages, the composer or the
+model picker), also run the live UI smoke test on the target DSH version:
+`node scripts/ui-smoke.mjs --dsh-version <version>`. It needs a signed-in
+copy of the acceptance home and never calls the model; see
+[docs/ui-smoke.md](docs/ui-smoke.md). When a new DSH version renames or adds
+slots, refresh the slot snapshot described there.
+
 Scheduled upstream checks do not publish automatically. Enable compatibility
 publication only for a reviewed update that needs adaptation; an upstream
 version change alone is not a reason to release.
