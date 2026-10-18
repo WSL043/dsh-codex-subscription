@@ -21,6 +21,8 @@ export const SKETCH_CSS = `
 .codexSketchDialog *{box-sizing:border-box}
 .codexSketchDialog button{font:inherit;color:inherit;border:0;background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0}
 .codexSketchDialog button:disabled{opacity:.35;cursor:default}
+.codexSketchDialog .codexSketchConfirm:disabled{background:color-mix(in srgb,var(--sketch-fg) 12%,transparent);color:var(--sketch-muted);opacity:1}
+.codexSketchDialog .codexSketchSwatch::before{box-shadow:0 0 0 1px color-mix(in srgb,var(--sketch-fg) 28%,transparent)}
 .codexSketchDialog button:focus-visible,.codexSketchCustom:focus-within,.codexSketchDialog input:focus-visible{outline:2px solid #0a84ff;outline-offset:3px}
 .codexSketchTop{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .codexSketchHeading{display:flex;align-items:center;gap:8px;flex:1}.codexSketchHeading strong{font-size:16px;font-weight:600}.codexSketchHeading>span{font-size:10px;color:var(--sketch-muted);border:1px solid var(--sketch-line);border-radius:6px;padding:1px 5px}

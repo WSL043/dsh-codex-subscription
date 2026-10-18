@@ -213,7 +213,7 @@ export function ModelCatalogStatus({ preference, t }) {
 
 export function PreferencesCard({ preference, rpc, t, defaultModel, section = "display" }) {
   const snapshot = usePreferenceSnapshot(preference)
-  return <div className={section === 'advanced' ? 'codexSubscriptionAdvancedPreferences' : 'codexSubscriptionCard codexSubscriptionPreferencesCard'}>
+  return <div className={section === 'advanced' || section === 'interop' ? 'codexSubscriptionAdvancedPreferences' : 'codexSubscriptionCard codexSubscriptionPreferencesCard'} data-others-off={section === 'interop' && snapshot.otherModels === 'off' ? 'true' : undefined}>
     {snapshot.restartRequired ? <p className="codexSubscriptionError" role="status">{t('settingsRestartRequired')}</p> : null}
     {section === 'advanced' ? <>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('modelsSectionTitle')}>
@@ -261,10 +261,10 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
           </div>
         </div>
       </section>
-      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('searchSectionTitle')}>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" data-governed="true" aria-label={t('searchSectionTitle')}>
         <SearchProviderPreference preference={preference} t={t} />
       </section>
-      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('connectors')}>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" data-governed="true" aria-label={t('connectors')}>
         <ConnectorsPreference preference={preference} t={t} />
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('reviewModelTitle')}>

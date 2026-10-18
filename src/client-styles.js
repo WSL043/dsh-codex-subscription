@@ -1,5 +1,6 @@
 export const STYLE = `
 .codexSubscriptionAdvancedPreferences{display:flex;flex-direction:column;gap:10px}
+.codexSubscriptionAdvancedPreferences[data-others-off=true]>[data-governed=true]{opacity:.55;transition:opacity .15s}
 .codexSubscriptionSearchChoices.codexSubscriptionQuotaModes{display:flex;flex:0 0 auto;gap:0;grid-template-columns:none}
 .codexSubscriptionSettingsDisclosure>summary{display:flex;align-items:center;gap:10px;min-height:28px;cursor:pointer;list-style:none;font-size:14px;font-weight:500}
 .codexSubscriptionSettingsDisclosure>summary::-webkit-details-marker{display:none}
@@ -151,7 +152,7 @@ export const STYLE = `
 .codexSubscriptionLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexSubscriptionLimitMeta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionLimitPeriod{display:flex;gap:8px;flex-wrap:wrap}
-.codexSubscriptionSearchOptions{margin-top:2px;padding-top:2px;border-top:1px solid var(--dsw-alias-border-l2);font-size:12px}
+.codexSubscriptionSearch>.codexSubscriptionSearchOptions{margin-top:0;padding-top:2px;border-top:1px solid var(--dsw-alias-border-l2);font-size:12px}
 .codexSubscriptionDivider+.codexSubscriptionDivider{display:none}
 .codexSubscriptionPickerModels{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}
 .codexSubscriptionPickerModel{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:36px;border-bottom:1px solid var(--dsw-alias-border-l2);font-size:13px}
@@ -310,8 +311,7 @@ export const STYLE = `
 .codexSubscriptionRuntime{padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2);margin-top:2px}
 .codexSubscriptionRuntime details{margin-top:8px}.codexSubscriptionRuntime details[open]>summary{margin-bottom:10px}
 @container (max-width:480px){.codexSubscriptionPreference,.codexSubscriptionContextHead{flex-wrap:wrap}.codexSubscriptionPreferenceHint{max-width:none}.codexSubscriptionPreference>.codexSubscriptionPreferenceCopy{flex:1 1 220px}.codexSubscriptionQuotaModes{max-width:100%;flex-wrap:wrap}.codexSubscriptionQuotaMode{min-height:30px}.codexSubscriptionActions{flex-wrap:wrap}}
-@container (max-width:420px){.codexSettingsTabs{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container (max-width:300px){.codexSettingsTabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:420px){.codexSettingsTabs{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(max-content,1fr);overflow-x:auto;scrollbar-width:none}.codexSettingsTabs button{padding:7px 10px;white-space:nowrap}}
 @media(prefers-reduced-motion:reduce){.codexSubscription *{transition:none!important}}
 .codexSubscriptionLogHead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:12px}.codexSubscriptionLogHead h4{margin:0;font-size:13px}.codexSubscriptionLog{max-height:320px;overflow:auto;margin:6px 0 0;padding:8px 10px;border:1px solid var(--border,#0002);border-radius:8px;font:11.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.codexSubscriptionLog_error{color:#c0392b}.codexSubscriptionLog_warn{color:#b9770e}.codexSubscriptionLog_info{opacity:.8}
 .codexSubscriptionConnectors>.codexSubscriptionQuotaModes{flex:0 0 auto;display:flex;flex-wrap:nowrap;margin-left:auto}
@@ -353,7 +353,7 @@ export const STYLE = `
 .codexVoiceTool[aria-pressed=true]{color:var(--dsw-alias-label-tertiary)}
 
 /* Every fold-out in the settings reads as pressable: a full-width row, a chevron on the right that turns when it opens, a hover state. */
-.codexSubscriptionHistory>summary,.codexSubscriptionSearchOptions>summary,.codexSubscriptionRuntime summary,.codexSubscriptionDiagnostics details>summary,.codexImageDetails summary{display:flex;align-items:center;gap:8px;width:auto;min-height:32px;margin:0 -10px;padding:4px 10px;border-radius:8px;list-style:none;cursor:pointer;user-select:none;font-size:13px;font-weight:500;color:var(--dsw-alias-label-primary);transition:background .12s}
+.codexSubscriptionHistory>summary,.codexSubscriptionSearchOptions>summary,.codexSubscriptionRuntime summary,.codexSubscriptionDiagnostics details>summary,.codexImageDetails summary{display:flex;align-items:center;gap:8px;width:auto;box-sizing:border-box;min-height:32px;margin:0 -10px;padding:4px 10px;border-radius:8px;list-style:none;cursor:pointer;user-select:none;font-size:13px;font-weight:500;color:var(--dsw-alias-label-primary);transition:background .12s}
 .codexSubscriptionHistory>summary::-webkit-details-marker,.codexSubscriptionSearchOptions>summary::-webkit-details-marker,.codexSubscriptionRuntime summary::-webkit-details-marker,.codexSubscriptionDiagnostics details>summary::-webkit-details-marker,.codexImageDetails summary::-webkit-details-marker{display:none}
 .codexSubscriptionHistory>summary::after,.codexSubscriptionSearchOptions>summary::after,.codexSubscriptionRuntime summary::after,.codexSubscriptionDiagnostics details>summary::after,.codexImageDetails summary::after{content:"";flex:none;margin-left:auto;width:7px;height:7px;border:solid var(--dsw-alias-label-tertiary);border-width:0 1.6px 1.6px 0;transform:translateY(-2px) rotate(45deg);transition:transform .15s,border-color .12s}
 .codexSubscriptionHistory[open]>summary::after,.codexSubscriptionSearchOptions[open]>summary::after,.codexSubscriptionRuntime details[open]>summary::after,.codexSubscriptionDiagnostics details[open]>summary::after,.codexImageDetails[open]>summary::after{transform:translateY(2px) rotate(-135deg)}
