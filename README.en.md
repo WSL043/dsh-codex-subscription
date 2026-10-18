@@ -145,7 +145,7 @@ Model access and quota depend on your account.
 | **Speed tiers** | Switch supported models between Standard and Fast; Ultrafast (Beta) too when the account catalog offers it, with a lightning indicator | Standard by default; Fast and Ultrafast increase usage, and Ultrafast is Pro 500 only today |
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
 | **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
-| **Subscription web search** | Use Codex search or choose DSH search | Auto, DSH, and Codex routing options |
+| **Subscription web search** | Use Codex search or choose DSH search | Auto, DSH, and Codex routing options; when one side is signed out or has no key the other is used, and DSH search in a GPT conversation can use the signed-in DeepSeek account |
 | **Search scope** | Choose live / cached search, disable search, or restrict domains | Configure under Models & runtime |
 | **Stream inactivity timeout** | Set how long a request can receive no streamed data before it is aborted | 10 minutes by default; not an overall response deadline |
 | **Context budget** | Use standard, extended, or custom budgets per model | Limited by the model catalog |

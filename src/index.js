@@ -34,6 +34,7 @@ import { createCodexNetworkTransport } from './oauth-network.js'
 import { createModels, openaiCodexProvider, openaiCodexSubscriptionProvider } from './pi-ai-runtime.js'
 import { createOfficialModelCatalog } from './model-catalog.js'
 import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET } from './capability-settings.js'
+import { DSH_ACCOUNT_SEARCH_PROVIDER_ID, createDshAccountSearchProvider } from './deepseek-account-search.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
 import { createCodexImageTool } from './codex-images.js'
 import { IMAGE_FEATURE_DEFAULTS } from './image-features.js'
@@ -79,7 +80,7 @@ export { createSubscriptionRpcHandler } from './subscription-rpc.js'
 
 export function createSearchProviderSwitcher(loader) {
   const webEntry = () => [...loader.entries()].find(entry => entry.options?.id === WEB_ENTRY_ID)
-  const ours = new Set([CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID])
+  const ours = new Set([CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID, DSH_ACCOUNT_SEARCH_PROVIDER_ID])
   // The entry's raw config is rewritten in place, so remember the DSH provider it held before we first touched it.
   let remembered
   const dshProviderId = () => {
@@ -87,22 +88,23 @@ export function createSearchProviderSwitcher(loader) {
     if (typeof configured === 'string' && configured.length > 0 && !ours.has(configured)) remembered = configured
     return remembered ?? DSH_SEARCH_PROVIDER_FALLBACK
   }
-  const select = async selection => {
+  const writeProvider = async provider => {
     const entry = webEntry()
     if (entry === undefined || typeof entry.update !== 'function') {
       throw new Error('DSH web runtime is unavailable')
     }
-    const dshProvider = dshProviderId()
-    const provider = selection === SEARCH_PROVIDER_CODEX
-      ? CODEX_SEARCH_PROVIDER_ID
-      : selection === SEARCH_PROVIDER_AUTO
-        ? CODEX_AUTO_SEARCH_PROVIDER_ID
-        : dshProvider
     const baseConfig = entry.options?.config ?? {}
     if (baseConfig.searchProvider === provider) return
     // Entry.update takes the raw config and commits a volatile-only change in place (no web restart).
     // Fiber.config holds resolved volatile references and cannot be fed back as a raw config.
     await entry.update({ config: { ...baseConfig, searchProvider: provider } })
+  }
+  // "dsh" keeps DSH's own provider first, through a wrapper that adds the DeepSeek account fallback.
+  const select = selection => {
+    dshProviderId()
+    return writeProvider(selection === SEARCH_PROVIDER_CODEX
+      ? CODEX_SEARCH_PROVIDER_ID
+      : selection === SEARCH_PROVIDER_AUTO ? CODEX_AUTO_SEARCH_PROVIDER_ID : DSH_ACCOUNT_SEARCH_PROVIDER_ID)
   }
   return Object.freeze({
     dshProviderId,
@@ -110,7 +112,7 @@ export function createSearchProviderSwitcher(loader) {
     /** Put the DSH provider back so web search keeps working once this plugin is gone. */
     async restore() {
       try {
-        await select(SEARCH_PROVIDER_DSH)
+        await writeProvider(dshProviderId())
       } catch {
         // The web runtime is already gone with the host.
       }
@@ -411,10 +413,24 @@ export function apply(ctx, config = {}) {
     fetch: (input, init) => network.fetch('search', input, init),
   })
   ctx.web.registerSearchProvider(codexSearch)
+  const dshSearch = createDshAccountSearchProvider({
+    resolveDshProvider: () => ctx.web.searchProviders?.get(searchProvider.dshProviderId()),
+    resolveAccount: () => ctx.get?.('deepseekAccount'),
+    resolveConfig: () => {
+      const config = [...ctx.loader.entries()].find(entry => entry.options?.id === 'web-deepseek-api')?.options?.config
+      return config !== null && typeof config === 'object' ? config : {}
+    },
+    resolveQuestion: () => {
+      const messages = currentAgent()?.session.deriveMessages?.() ?? []
+      const prompt = messages.findLast(message => message.role === 'user' && message.source?.kind === 'user')
+      return prompt?.content?.flatMap(block => block.type === 'text' ? [block.text] : []).join(' ')
+    },
+  })
+  ctx.web.registerSearchProvider(dshSearch)
   ctx.web.registerSearchProvider(createCodexAutoSearchProvider({
     codex: codexSearch,
     resolveModelProvider: () => currentAgent()?.session.requestContext?.()?.provider,
-    resolveDshProvider: () => ctx.web.searchProviders?.get(searchProvider.dshProviderId()),
+    resolveDshProvider: () => dshSearch,
   }))
   ctx.effect(() => {
     const select = async value => {

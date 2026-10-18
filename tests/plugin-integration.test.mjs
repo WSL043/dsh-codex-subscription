@@ -290,7 +290,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   })
   assert.ok(profile.modelErrors instanceof Map, 'the host adapter reads model diagnostics from the profile on resolution')
   assert.equal(profile.modelErrors.get('gpt-5.5'), undefined, 'a serviceable model records no diagnostic')
-  assert.deepEqual(host.searchProviders.map(provider => provider.id), ['codex-subscription', 'codex-subscription-auto'])
+  assert.deepEqual(host.searchProviders.map(provider => provider.id), ['codex-subscription', 'codex-subscription-dsh', 'codex-subscription-auto'])
   assert.deepEqual(host.tools.map(tool => tool.name), ['codex_image_generate'])
   assert.equal(host.listeners.filter(listener => listener.event === 'agent/request-error').length, 1)
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
@@ -400,7 +400,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
     signal,
   }, async () => downstream), downstream)
   assert.deepEqual(host.webUpdates.at(-1), {
-    config: { searchProvider: 'deepseek-official', fetchProvider: 'local' },
+    config: { searchProvider: 'codex-subscription-dsh', fetchProvider: 'local' },
   })
   const invalidQuotaMode = await host.request('preferences/update', {
     quickQuotaMode: 'card',
