@@ -18,7 +18,7 @@ Sign in with ChatGPT Plus / Pro to use GPT-6 and other Codex models, quota, web 
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Install](#install) · [Highlights](#highlights) · [Phone remote control](#phone-remote-control-beta) · [Sketch drawing](#sketch-drawing-measured) · [All features](#all-features) · [User guide](docs/GUIDE.en.md) · [Troubleshooting](#troubleshooting)
+[Install](#install) · [Highlights](#highlights) · [Phone remote control](#phone-remote-control-beta)  · [All features](#all-features) · [User guide](docs/GUIDE.en.md) · [Troubleshooting](#troubleshooting)
 
 </div>
 
@@ -83,7 +83,12 @@ Sign in to ChatGPT under **Settings → Codex** in DSH, then pick GPT-6 and the 
 
 Short-window and weekly quota, reset times, extra Credits and reset cards live in settings; the composer can keep the remaining quota in view and warn you below a threshold.
 
+<details>
+<summary>Show screenshot</summary>
+
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-en-dark.png"><img src="docs/assets/ui-quota-en-light.png" width="560" alt="Quota card: weekly quota and reset time, with usage overview and where the allowance went below"></picture></p>
+
+</details>
 
 <details>
 <summary>Usage overview and where the allowance went: lifetime usage, streaks, a daily heatmap and the weekly breakdown</summary>
@@ -95,7 +100,12 @@ Short-window and weekly quota, reset times, extra Credits and reset cards live i
 
 Pick the model, the reasoning level and the speed tier while the remaining quota stays in view, without opening settings for every request.
 
+<details>
+<summary>Show screenshot</summary>
+
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="Composer: permission, sketch, remaining quota, the lightning mark for Fast mode and the model picker"></picture></p>
+
+</details>
 
 ### Phone remote control (Beta)
 
@@ -111,15 +121,25 @@ Pair the ChatGPT mobile app's Codex section with a QR code and the DSH on your c
 
 Off by default: **Settings → Codex subscription → Phone & more → Phone remote control**. The computer must stay on, online and running DSH. This feature is a third-party host compatibility layer built on the Codex Remote Control protocol and uses OpenAI's remote connection service. Codex has an official remote control implementation, but connecting DSH as a third-party host is not something OpenAI has explicitly committed to support, and later service updates may affect compatibility, hence Beta. It is off by default; you can turn it on, manage paired devices or turn it off at any time. It does not mean OpenAI has certified or endorsed it.
 
+<details>
+<summary>Show screenshot</summary>
+
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Phone remote control in settings: the switch, pairing QR code and manual code, paired phones"></picture></p>
+
+</details>
 
 ### Images and sketching
 
 Generate images with your subscription, circle a region and write a note to keep editing, or open the sketch board to draw yourself or let the agent draw, then use the sketch as the reference for the finished image. The board supports gradients, blur, blend modes and shape clipping; when the agent draws from a reference it can compare side by side, read a difference heat map, measure colours and positions, and undo; a finished drawing can be replayed stroke by stroke and recorded as a video.
 
+<details>
+<summary>Show screenshot</summary>
+
 <p align="center"><img src="docs/assets/annotate-en.webp" width="900" alt="Image preview: a region above the chimney is marked with a note, then editing continues with the note"></p>
 
-Examples are in [Sketch drawing, measured](#sketch-drawing-measured); the switches are under **Settings → Codex → Images & sketch**.
+</details>
+
+Details are in [Sketch board](#sketch-board-beta); the switches are under **Settings → Codex → Images & sketch**.
 
 ### ChatGPT connectors
 
@@ -249,42 +269,9 @@ Subscription failures remain visible: no silent fallback to another paid route.
 
 [Read the complete user guide →](docs/GUIDE.en.md)
 
-## Sketch drawing, measured
+## Sketch board (Beta)
 
-The sketch board and agent drawing are **Beta** and off by default; turn them on under Images & sketch. Draw by hand with the sketch button in the composer, or send `@sketch` plus a request to let the agent draw. With a reference, the agent can compare side by side, read a difference heat map, zoom into a region, measure colours and edge positions, and undo; a finished drawing can be replayed stroke by stroke in the board's Replay and recorded as a video. The tools only measure and show; they never draw for the model.
-
-Both examples below were **drawn on the board only, with no image generation**, one run each, so they do not show consistent performance. "Error" is the mean per-pixel colour difference from the reference (smaller is closer, 0 is identical).
-
-**DeepSeek-chan, copied from a reference**
-
-<table>
-<tr><th width="33%">Reference</th><th width="33%">Before: best of the old tools</th><th width="33%">Now: new tools</th></tr>
-<tr><td><img src="docs/assets/sketch-niang-reference.webp" alt="DeepSeek-chan meme reference" width="240"></td><td><img src="docs/assets/sketch-niang-astra-compare.webp" alt="DeepSeek-chan drawn with the old tools" width="240"><br><sub>GPT-6-Astra Medium · 20 min 57 s · 686 strokes<br>error 8.8%</sub></td><td><img src="docs/assets/sketch-niang-astra-new.webp" alt="DeepSeek-chan drawn with the new tools" width="240"><br><sub>GPT-6-Astra Medium · 8 min 11 s · 481 strokes<br>error 9.3%</sub></td></tr>
-</table>
-
-By the numbers they are close and the new run took less than half the time; the hands-on-hips pose and the small whale on the apron are more accurate, while fine hair strands and lace are still less delicate than the original.
-
-**Hatsune Miku, portrait, copied from a reference**
-
-<table>
-<tr><th width="50%">Before: overlay compare and grid</th><th width="50%">Now: new tools</th></tr>
-<tr><td><img src="docs/assets/sketch-miku-sol-before.webp" alt="Miku drawn with the old tools" width="330"><br><sub>GPT-6.1-Sol Xhigh · error 6.7%</sub></td><td><img src="docs/assets/sketch-miku-sol-new.webp" alt="Miku drawn with the new tools" width="330"><br><sub>GPT-6.1-Sol Xhigh · 21 min · 685 strokes · error 5.2%</sub></td></tr>
-</table>
-
-The error fell by about a quarter, and the shoulder "01", the sleeve screen and the thigh lacing were added. Reading the model's full tool trace shows that what remains is mostly the tone and colour of large masses (hair, skin, legs) rather than edge placement: four whole-layer SVG stages in the first three minutes took the error from 18% to 6.5%, and the next 17 minutes of refinement only lowered it by 1.3 points. The experiment log, the problems found in the trace and the changes made are in [Drawing experiments](docs/sketch-drawing-experiments.md).
-
-<details>
-<summary>Show the full prompts</summary>
-
-```text
-@sketch Using a 1:1 square board, copy the attached reference as faithfully as possible (a chibi anime meme). Scene: white background; a chibi two-head-tall blue-haired whale girl kneels right of centre, blue gradient long hair (dark roots, light tips), one ahoge, a white lace maid headband and a blue bow, dark-blue whale fins with white lining on both sides of the head, big blue eyes with highlights, a cat-mouth pout "ω" expression, blushing cheeks, hands on hips; a dark-blue maid dress, a white lace apron with a small blue whale on it, a black bow tie, white lace frills on cuffs and hem; a dark-blue whale tail behind her. Top left a white speech bubble (black outline, pointer toward her) with the bold black text "你这吃白饭的蓝色大肥鱼。"; from the left edge a hand in a black sleeve points at her; lower left blue-outlined text "没吃饱喵！"; an empty white porcelain bowl on the floor by her feet, with a small blue whale printed inside. Draw in layers: white background, hair and fins and tail, body and clothes, face, bowl, arms and bubble text; keep native editable strokes; pay special attention to proportions, hair gradient and strand direction, lace frills and facial expression. Draw only on the sketch canvas this time, do not call any image generation or editing tool; when done, check the differences from the reference, fix them, then save and finish.
-```
-
-```text
-Use the sketch board (codex_sketch) to draw Hatsune Miku from this reference, portrait, as close to 100% as possible: composition, proportions, pose, colours and details all the same.
-```
-
-</details>
+The sketch board and Agent drawing are **Beta** and off by default; turn them on in the Create page. Draw by hand from the sketch button in the composer, or send `@sketch` with a request to have the Agent draw.
 
 <details>
 <summary>View Images & sketch settings</summary>
