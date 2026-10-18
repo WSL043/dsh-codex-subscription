@@ -5,7 +5,7 @@ import { IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14
 import { OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, SPEED_MODE_FAST, SPEED_MODE_FIELD, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST, supportsCodexFastMode } from './settings-contract.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
 const MEASURE_STYLE = { visibility: 'hidden', left: 0, top: 0 }
-export function CodexModelSelect({ locked, available, directory, load, select, preference, t }) {
+export function CodexModelSelect({ locked, available, directory, load, select, preference, t, renderSlot }) {
   const state = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
   const preferenceSnapshot = usePreferenceSnapshot(preference)
   const [open, setOpen] = useState(false)
@@ -50,6 +50,13 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     })),
   ], [reasoning, t])
   const modelLabel = currentChoice?.model.name ?? t('selectModel')
+  // Model names go through DSH's own label slot, so whatever DSH or another plugin puts on a model (such as a release badge) shows here too.
+  const labelOf = (group, model, placement, selected) => {
+    if (typeof renderSlot !== 'function') return model.name
+    try {
+      return <span data-provider-id={group.id} data-model-id={model.id}>{renderSlot('conversation.input.model.label', { provider: { id: group.id, name: group.name }, model, placement, selected }, { fallback: model.name })}</span>
+    } catch { return model.name }
+  }
   // Like DSH's own picker, a search field appears once there are more than four models; it covers every provider.
   const searchable = visibleGroups.reduce((total, group) => total + group.models.length, 0) > 4
   const needle = searchable ? query.trim().toLocaleLowerCase() : ''
@@ -184,7 +191,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
   let content = null
   if (pane === 'root') {
     content = <>
-      {cell('model', t('modelLabel'), modelLabel)}
+      {cell('model', t('modelLabel'), currentChoice === undefined ? modelLabel : labelOf(currentChoice.group, currentChoice.model, 'menu', true))}
       {reasoning === undefined ? null : cell('effort', t('effortLabel'), effortLabel)}
       {(speedSupported || ultrafastSupported) && cell('speed', t('speedTitle'), t(speedKey))}
       {verbositySupported && cell('verbosity', t('verbosityTitle'), verbosityLabel)}
@@ -199,7 +206,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
         {entry.allHidden === true ? <div className="codexModelSelectEmpty">{t('modelsHidden')}</div> : null}
         {entry.models.map(model => option({
           key: model.id,
-          label: model.name,
+          label: labelOf(entry, model, 'option', state.current?.provider === entry.id && state.current.model === model.id),
           selected: state.current?.provider === entry.id && state.current.model === model.id,
           disabled: busy,
           onClick: () => chooseModel({ provider: entry.id, model: model.id }),
@@ -264,7 +271,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
       onClick={() => open ? close() : (setPane('root'), setOpen(true), load())}
     >
       {fast && <BoltIcon className="codexModelSelectBolt" aria-hidden="true" />}
-      <span className="codexModelSelectLabel">{modelLabel}</span>
+      <span className="codexModelSelectLabel">{currentChoice === undefined ? modelLabel : labelOf(currentChoice.group, currentChoice.model, 'trigger', true)}</span>
       {effortLabel === undefined ? null : <span className="codexModelSelectEffort">{effortLabel}</span>}
       <IconChevronDownOutline14 className="codexModelSelectChevron" />
     </button>
