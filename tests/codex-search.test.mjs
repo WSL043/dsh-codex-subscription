@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { REQUEST_BLOCKED } from '../src/http-failure.js'
+import { WebError } from '@deepseek-ai/dsh-web'
 
 import {
   CODEX_SEARCH_PROVIDER_ID,
@@ -26,11 +27,28 @@ test('automatic search routes Codex sessions to subscription and other sessions 
 
 test('automatic search fails closed when the DSH route is unavailable', async () => {
   const auto = createCodexAutoSearchProvider({
-    codex: { async search() { throw new Error('not used') } },
+    codex: { async search() { throw new WebError('signed out', 'WEB_PROVIDER_CREDENTIAL_MISSING') } },
     resolveModelProvider: () => 'another-provider',
     resolveDshProvider: () => undefined,
   })
   await assert.rejects(auto.search({ query: 'test' }), error => error?.code === 'WEB_PROVIDER_UNAVAILABLE')
+})
+
+test('automatic search falls back to the other side when the preferred one has no sign-in or key', async () => {
+  const missing = () => new WebError('no key', 'WEB_PROVIDER_CREDENTIAL_MISSING')
+  const ok = title => ({ sources: [{ url: 'https://x.example', title }], truncated: false })
+  const make = (modelProvider, codex, dsh) => createCodexAutoSearchProvider({
+    codex: { search: codex },
+    resolveModelProvider: () => modelProvider,
+    resolveDshProvider: () => ({ id: 'deepseek-official', available: () => true, search: dsh }),
+  })
+  const codexDown = async () => { throw missing() }
+  const dshDown = async () => { throw missing() }
+  assert.equal((await make('openai-codex', codexDown, async () => ok('DSH')).search({ query: 'a' })).sources[0].title, 'DSH')
+  assert.equal((await make('deepseek-account', async () => ok('Codex'), dshDown).search({ query: 'a' })).sources[0].title, 'Codex')
+  await assert.rejects(make('openai-codex', codexDown, dshDown).search({ query: 'a' }), error => error?.code === 'WEB_PROVIDER_CREDENTIAL_MISSING')
+  const real = new WebError('boom', 'WEB_PROVIDER_ERROR')
+  await assert.rejects(make('openai-codex', async () => { throw real }, async () => ok('DSH')).search({ query: 'a' }), error => error === real, 'real failures are not masked by the other side')
 })
 
 test('Codex search uses refreshed subscription OAuth and returns structured citeable sources', async () => {

@@ -149,20 +149,43 @@ export function createCodexSearchProvider(options) {
   })
 }
 
-/** Route each request by its initiating model without changing the user's explicit overrides. */
+const UNAVAILABLE_CODES = new Set(['WEB_PROVIDER_CREDENTIAL_MISSING', 'WEB_PROVIDER_UNAVAILABLE', 'WEB_PROVIDER_CONFIGURED_MISSING', 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE'])
+const unavailable = error => error instanceof WebError && UNAVAILABLE_CODES.has(error.code)
+
+/** Route each request by its initiating model; when that side has no sign-in or key, use the other one. */
 export function createCodexAutoSearchProvider(options) {
+  const dsh = () => {
+    const provider = options.resolveDshProvider?.()
+    if (provider === undefined || provider.id === CODEX_AUTO_SEARCH_PROVIDER_ID || provider.id === CODEX_SEARCH_PROVIDER_ID || provider.available() !== true) {
+      throw new WebError('DSH default search is unavailable', 'WEB_PROVIDER_UNAVAILABLE')
+    }
+    return provider
+  }
+  const viaDsh = (request, signal) => {
+    try {
+      return Promise.resolve(dsh().search(request, signal))
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  }
+  const viaCodex = (request, signal) => options.codex.search(request, signal)
   return Object.freeze({
     id: CODEX_AUTO_SEARCH_PROVIDER_ID,
     available: () => true,
     async search(request, signal) {
-      if (options.resolveModelProvider?.() === 'openai-codex') {
-        return options.codex.search(request, signal)
+      const codexFirst = options.resolveModelProvider?.() === 'openai-codex'
+      const [first, second] = codexFirst ? [viaCodex, viaDsh] : [viaDsh, viaCodex]
+      try {
+        return await first(request, signal)
+      } catch (error) {
+        if (!unavailable(error) || signal?.aborted) throw error
+        try {
+          return await second(request, signal)
+        } catch (fallbackError) {
+          // Report the preferred side's reason: it is the one the conversation's model expects to work.
+          throw unavailable(fallbackError) ? error : fallbackError
+        }
       }
-      const provider = options.resolveDshProvider?.()
-      if (provider === undefined || provider.id === CODEX_AUTO_SEARCH_PROVIDER_ID || provider.id === CODEX_SEARCH_PROVIDER_ID || provider.available() !== true) {
-        throw new WebError('DSH default search is unavailable', 'WEB_PROVIDER_UNAVAILABLE')
-      }
-      return provider.search(request, signal)
     },
   })
 }
