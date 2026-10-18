@@ -72,7 +72,7 @@ test('a gradient on a stroke line is averaged with a warning; unsupported featur
   assert.equal(gradient.commands[0].color, '#808080')
   assert.match(gradient.warnings[0], /average color/)
   assert.throws(() => convert('<text x="1" y="1">hi</text>'), /Unsupported SVG element <text>/)
-  assert.throws(() => convert('<rect width="5" height="5" clip-path="url(#f)"/>'), /Unsupported SVG attribute clip-path/)
+  assert.throws(() => convert('<rect width="5" height="5" mask="url(#f)"/>'), /Unsupported SVG attribute mask/)
   assert.throws(() => convert('<style>.a{fill:red}</style>'), /<style>/)
   assert.throws(() => svgToSketchCommands('<svg viewBox="0 0 100 100"><rect width="5" height="5"/></svg>', { width: 1024, height: 768 }), /does not match the 1024x768/)
 })
@@ -168,4 +168,53 @@ test('the painter fills with the gradient and blurs the stroke', async () => {
   assert.deepEqual(calls[3], ['fill', 'blur(6px)', true])
   assert.deepEqual(calls[4], ['radial', 0, 0, 0, 0, 0, 1])
   assert.deepEqual(calls.at(-1), ['fill', 'none', true])
+})
+
+test('clip-path becomes a native clip and mix-blend-mode a blend, inherited through groups', () => {
+  const result = convert('<defs><clipPath id="c"><circle cx="200" cy="200" r="100"/></clipPath></defs><g clip-path="url(#c)" style="mix-blend-mode:multiply"><rect x="0" y="0" width="1000" height="700" fill="#336699"/></g><rect width="10" height="10" fill="#fff"/>')
+  const [shaded, plain] = result.commands
+  assert.equal(shaded.blend, 'multiply')
+  assert.equal(shaded.clip.shape, 'bezier')
+  assert.equal(shaded.clip.points.length, 13)
+  assert.ok(Math.abs(shaded.clip.points[0].x - 300 / 1024) < 1e-6)
+  assert.equal(plain.clip, undefined)
+  assert.equal(plain.blend, undefined)
+  const polygon = convert('<defs><clipPath id="p"><polygon points="10,10 300,10 150,200"/></clipPath></defs><rect width="400" height="400" fill="#000" clip-path="url(#p)"/>').commands[0]
+  assert.equal(polygon.clip.shape, 'polygon')
+  assert.equal(polygon.clip.points.length, 3)
+  const several = convert('<defs><clipPath id="s"><rect width="9" height="9"/><rect x="20" width="9" height="9"/></clipPath></defs><rect width="40" height="40" clip-path="url(#s)"/>')
+  assert.ok(several.warnings.some(item => /only the first/.test(item)))
+  const missing = convert('<rect width="40" height="40" clip-path="url(#nope)"/>')
+  assert.ok(missing.warnings.some(item => /was ignored/.test(item)))
+  assert.equal(missing.commands[0].clip, undefined)
+})
+
+test('native commands take blend and clip, layers blend, and clips follow their object', () => {
+  const square = [{ x: .2, y: .2 }, { x: .6, y: .6 }]
+  const next = applySketchCommands(doc, [
+    { op: 'stroke', shape: 'rectangle', color: '#000000', fill: true, points: square, blend: 'multiply', clip: { shape: 'circle', points: square } },
+    { op: 'layer', action: 'blend', value: 'screen' },
+  ])
+  const stroke = next.layers[0].strokes[0]
+  assert.equal(stroke.blend, 'multiply')
+  assert.equal(stroke.clip.shape, 'circle')
+  assert.equal(next.layers[0].blend, 'screen')
+  assert.equal(applySketchCommands(next, [{ op: 'layer', action: 'blend', value: 'normal' }]).layers[0].blend, undefined)
+  assert.throws(() => applySketchCommands(doc, [{ op: 'stroke', shape: 'rectangle', color: '#000000', points: square, blend: 'plaid' }]), /blend must be/)
+  assert.throws(() => applySketchCommands(doc, [{ op: 'stroke', shape: 'rectangle', color: '#000000', points: square, clip: { shape: 'polygon', points: square } }]), /3–2000/)
+  const moved = applySketchCommands(next, [{ op: 'object', id: stroke.id, action: 'update', transform: { dx: .1 } }]).layers[0].strokes[0]
+  assert.ok(Math.abs(moved.clip.points[0].x - .3) < 1e-9)
+  assert.equal(moved.blend, 'multiply')
+  const cleared = applySketchCommands(next, [{ op: 'object', id: stroke.id, action: 'update', patch: { clip: { shape: 'none' }, blend: 'normal' } }]).layers[0].strokes[0]
+  assert.equal(cleared.clip, undefined)
+  assert.equal(cleared.blend, undefined)
+})
+
+test('the painter clips to the clip shape and blends strokes and layers', async () => {
+  const { paintSketch } = await import('../src/sketch-document.js')
+  const calls = []
+  const context = new Proxy({ save: () => calls.push('save'), restore: () => calls.push('restore'), clip: () => calls.push('clip'), fill: () => calls.push('fill') }, { get: (target, key) => key in target ? target[key] : () => {}, set: (target, key, value) => { if (key === 'globalCompositeOperation') calls.push('op:' + value); target[key] = value; return true } })
+  paintSketch(context, [{ shape: 'rectangle', color: '#000000', width: 2, opacity: 1, fill: true, brush: 'pen', points: [{ x: .1, y: .1 }, { x: .5, y: .5 }], blend: 'multiply', clip: { shape: 'circle', points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] } }], 1000, true, 1000)
+  assert.ok(calls.includes('op:multiply'))
+  assert.deepEqual(calls.filter(call => ['save', 'clip', 'fill', 'restore'].includes(call)), ['save', 'clip', 'fill', 'restore'])
 })

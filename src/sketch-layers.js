@@ -1,5 +1,6 @@
 import { flattenSketchCurve } from './sketch-curves.js'
 import { MAX_SKETCH_STROKES, SKETCH_SIZE } from './sketch-document.js'
+import { normalizeBlend } from './sketch-effects.js'
 export const MAX_SKETCH_LAYERS = 8
 export const createSketchLayers = () => ({ active: 1, nextId: 2, layers: [{ id: 1, name: '', visible: true, strokes: [] }] })
 export const strokeCount = doc => doc.layers.reduce((n, layer) => n + layer.strokes.length, 0)
@@ -18,6 +19,7 @@ export function changeSketchLayer(doc, action, id = doc.active, value) {
   if (action === 'up' || action === 'down') { const target = index + (action === 'up' ? 1 : -1); if (!layers[target]) return doc; [layers[index], layers[target]] = [layers[target], layer] }
   else if (action === 'visible') layers[index] = { ...layer, visible: !layer.visible }
   else if (action === 'rename') layers[index] = { ...layer, name: String(value).trim().slice(0, 40) }
+  else if (action === 'blend') { const blend = normalizeBlend(value); const { blend: _old, ...rest } = layer; layers[index] = blend ? { ...rest, blend } : rest }
   else if (action === 'clear') layers[index] = { ...layer, strokes: [], image: undefined }
   else return doc
   return { ...doc, layers }

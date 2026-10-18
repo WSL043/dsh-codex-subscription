@@ -9,7 +9,9 @@ export function transformObject(stroke, {dx=0,dy=0,scaleX=1,scaleY=1}) {
   const box=objectBounds(stroke)
   const points=stroke.points.map(p=>({x:box.x+(p.x-box.x)*scaleX+dx,y:box.y+(p.y-box.y)*scaleY+dy}))
   if(points.some(p=>p.x<0||p.x>1||p.y<0||p.y>1))throw Error('Object would leave the canvas')
-  return {...stroke,points}
+  const clip=stroke.clip&&{...stroke.clip,points:stroke.clip.points.map(p=>({x:box.x+(p.x-box.x)*scaleX+dx,y:box.y+(p.y-box.y)*scaleY+dy}))}
+  if(clip&&clip.points.some(p=>p.x<0||p.x>1||p.y<0||p.y>1))throw Error('Object clip would leave the canvas')
+  return {...stroke,points,...(clip?{clip}:{})}
 }
 export function sketchObjectSummary(doc) {
   return doc.layers.flatMap(layer=>layer.strokes.map((stroke,i)=>({layer:layer.id,id:objectId(stroke,i),shape:stroke.shape,color:stroke.color,bounds:objectBounds(stroke),...(stroke.text?{text:stroke.text}:{})})))

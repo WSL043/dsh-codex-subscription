@@ -28,10 +28,12 @@ export function paintSketchLayers(context, doc, cache, size = doc.width ?? SKETC
       paintSketch(ctx,layer.strokes,size,true,height,append ? entry.count : 0,count)
       entry.count=count;entry.prefix=prefix;entry.image=layer.image;entry.strokes=layer.strokes
     }
+    context.globalCompositeOperation = layer.blend ?? 'source-over'
     if (moving) {
       const ctx=entry.surface.getContext('2d');ctx.clearRect(0,0,size,height);ctx.drawImage(entry.base,0,0)
       paintSketch(ctx,layer.strokes,size,true,height,layer.strokes.length-1)
       context.drawImage(entry.surface,0,0)
     } else context.drawImage(entry.base,0,0)
+    context.globalCompositeOperation = 'source-over'
   }
 }

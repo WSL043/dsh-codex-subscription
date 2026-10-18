@@ -469,6 +469,7 @@ export function SketchStudio({
         id: layer.id,
         name: layer.name,
         visible: layer.visible,
+        ...(layer.blend ? { blend: layer.blend } : {}),
         strokes: layer.strokes.length,
         image: Boolean(layer.image)
       })),

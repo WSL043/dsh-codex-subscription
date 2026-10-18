@@ -21,8 +21,8 @@ const NAMED_COLORS = {
   indigo: '#4b0082', violet: '#ee82ee', turquoise: '#40e0d0', skyblue: '#87ceeb', darkgray: '#a9a9a9', darkgrey: '#a9a9a9',
   lightgray: '#d3d3d3', lightgrey: '#d3d3d3', darkred: '#8b0000', darkgreen: '#006400', darkblue: '#00008b', transparent: 'none',
 }
-const UNSUPPORTED = new Set(['text', 'tspan', 'image', 'foreignObject', 'clipPath', 'mask', 'pattern', 'style', 'script', 'switch', 'marker', 'symbol'])
-const IGNORED = new Set(['title', 'desc', 'metadata', 'defs', 'linearGradient', 'radialGradient', 'stop', 'filter', 'feGaussianBlur', 'feDropShadow', 'feOffset', 'feColorMatrix', 'feFlood', 'feComposite', 'feMerge', 'feMergeNode', 'feBlend', 'feMorphology', 'feTurbulence', 'feComponentTransfer', 'namedview', 'sodipodi:namedview'])
+const UNSUPPORTED = new Set(['text', 'tspan', 'image', 'foreignObject', 'mask', 'pattern', 'style', 'script', 'switch', 'marker', 'symbol'])
+const IGNORED = new Set(['title', 'desc', 'metadata', 'defs', 'clipPath', 'linearGradient', 'radialGradient', 'stop', 'filter', 'feGaussianBlur', 'feDropShadow', 'feOffset', 'feColorMatrix', 'feFlood', 'feComposite', 'feMerge', 'feMergeNode', 'feBlend', 'feMorphology', 'feTurbulence', 'feComponentTransfer', 'namedview', 'sodipodi:namedview'])
 
 const decode = value => value.split('&quot;').join('"').split('&apos;').join("'").split('&lt;').join('<').split('&gt;').join('>').split('&amp;').join('&')
 
@@ -120,6 +120,8 @@ function styleOf(node, parent) {
     opacity: parent.opacity * number('opacity', 1),
     display: own.display === 'none' || own.visibility === 'hidden' ? 'none' : 'inline',
     blur: parent.blur ?? 0,
+    blend: own['mix-blend-mode'] === undefined ? parent.blend : own['mix-blend-mode'] === 'normal' ? undefined : own['mix-blend-mode'],
+    clip: parent.clip,
   }
 }
 
@@ -400,7 +402,7 @@ export function svgToSketchCommands(text, { width, height, layer, existingIds = 
     const fill = style.fill === 'none' ? 'none' : paint(style.fill)
     const stroke = style.stroke === 'none' ? 'none' : String(style.stroke).startsWith('url(') ? averageColor(style.stroke, true) : paint(style.stroke)
     const blur = Math.min(64, Math.round(style.blur * scale * Math.sqrt(determinant(matrix)) * 10) / 10)
-    const add = list => commands.push(...(blur >= 0.5 ? list.map(item => ({ ...item, blur })) : list))
+    const add = list => commands.push(...list.map(item => ({ ...item, ...(blur >= 0.5 ? { blur } : {}), ...(style.clip ? { clip: style.clip } : {}), ...(style.blend ? { blend: style.blend } : {}) })))
     const common = layer === undefined ? {} : { layer }
     const strokeWidth = Math.max(1, Math.min(256, (style.strokeWidth || 1) * scale * Math.hypot(matrix[0], matrix[1])))
     const segments = subpath.curves.length
@@ -469,18 +471,67 @@ export function svgToSketchCommands(text, { width, height, layer, existingIds = 
     if (blurs.length && group) warnings.add('A blur filter on a group softens each shape inside it separately.')
     return Math.max(0, ...blurs)
   }
+  // Shapes inside a clipPath, as subpaths in the clip's coordinate system.
+  const clipSubpaths = child => {
+    const m = name => Number.parseFloat(child.attrs[name] ?? 0)
+    switch (child.name) {
+      case 'path': return parsePathData(child.attrs.d)
+      case 'rect': {
+        const w = m('width'), h = m('height')
+        if (!(w > 0 && h > 0)) return []
+        const rx = child.attrs.rx !== undefined ? m('rx') : child.attrs.ry !== undefined ? m('ry') : 0, ry = child.attrs.ry !== undefined ? m('ry') : rx
+        return [rx > 0 || ry > 0 ? roundedRectPath(m('x'), m('y'), w, h, rx, ry) : polylinePath([[m('x'), m('y')], [m('x') + w, m('y')], [m('x') + w, m('y') + h], [m('x'), m('y') + h]], true)]
+      }
+      case 'circle': return m('r') > 0 ? [ellipsePath(m('cx'), m('cy'), m('r'), m('r'))] : []
+      case 'ellipse': return m('rx') > 0 && m('ry') > 0 ? [ellipsePath(m('cx'), m('cy'), m('rx'), m('ry'))] : []
+      case 'polygon': {
+        const values = numbers(child.attrs.points), pts = []
+        for (let at = 0; at + 1 < values.length; at += 2) pts.push([values[at], values[at + 1]])
+        return pts.length >= 3 ? [polylinePath(pts, true)] : []
+      }
+      default: return []
+    }
+  }
+  // clip-path="url(#id)": the first shape of the clipPath, placed with the referencing element's matrix, as a native clip.
+  const clipFor = (reference, matrix) => {
+    const target = byId.get(/^url\(\s*['"]?#([^)'"]+)['"]?\s*\)/.exec(reference)?.[1] ?? '')
+    if (!target || target.name !== 'clipPath') { warnings.add(`clip-path ${reference} was ignored (it must be a <clipPath> defined in the same SVG).`); return undefined }
+    const shapes = target.children.filter(child => ['path', 'rect', 'circle', 'ellipse', 'polygon'].includes(child.name))
+    if (!shapes.length) { warnings.add(`clipPath ${target.attrs.id ?? ''} has no path, rect, circle, ellipse or polygon and was ignored.`); return undefined }
+    if (shapes.length > 1) warnings.add(`clipPath ${target.attrs.id ?? ''} has several shapes; only the first is used (merge them into one path).`)
+    const placed = multiply(multiply(matrix, parseTransform(target.attrs.transform)), parseTransform(shapes[0].attrs.transform))
+    const subpath = clipSubpaths(shapes[0])[0]
+    if (!subpath) return undefined
+    const toPoint = ([px, py]) => norm(placed, px, py)
+    const straightPoints = [subpath.start, ...subpath.curves.map(curve => [curve[4], curve[5]])]
+    if (subpath.straight && straightPoints.length >= 3) {
+      const vertices = subpath.closed ? straightPoints.slice(0, -1) : straightPoints
+      return vertices.length >= 3 ? { shape: 'polygon', points: vertices.slice(0, 2000).map(toPoint) } : undefined
+    }
+    if (subpath.curves.length <= MAX_BEZIER_SEGMENTS) return { shape: 'bezier', points: [subpath.start, ...subpath.curves.flatMap(curve => [[curve[0], curve[1]], [curve[2], curve[3]], [curve[4], curve[5]]])].map(toPoint) }
+    const flat = [subpath.start]
+    let [cx, cy] = subpath.start
+    for (const [a, b, c1, d, e, g] of subpath.curves) {
+      for (let step = 1; step <= FLATTEN_STEPS; step++) {
+        const t = step / FLATTEN_STEPS, u = 1 - t
+        flat.push([u * u * u * cx + 3 * u * u * t * a + 3 * u * t * t * c1 + t * t * t * e, u * u * u * cy + 3 * u * u * t * b + 3 * u * t * t * d + t * t * t * g])
+      }
+      cx = e; cy = g
+    }
+    return flat.length >= 3 && flat.length <= 2000 ? { shape: 'polygon', points: flat.map(toPoint) } : undefined
+  }
   const walk = (node, matrix, parentStyle, depth) => {
     if (depth > 24) throw Error('SVG is nested too deeply')
     if (UNSUPPORTED.has(node.name)) throw Error(`Unsupported SVG element <${node.name}>. Draw with path, rect, circle, ellipse, line, polyline, polygon, g and use; add text with a native text command.`)
     if (IGNORED.has(node.name)) return
-    for (const name of ['clip-path', 'mask']) {
-      if (node.attrs[name] && node.attrs[name] !== 'none') throw Error(`Unsupported SVG attribute ${name}. Bake it into the shapes instead.`)
-    }
+    if (node.attrs.mask && node.attrs.mask !== 'none') throw Error('Unsupported SVG attribute mask. Bake it into the shapes instead.')
     const style = styleOf(node, parentStyle)
     if (style.display === 'none') return
     const filterValue = (node.attrs.filter ?? /(?:^|;)\s*filter\s*:\s*([^;]+)/.exec(node.attrs.style ?? '')?.[1] ?? 'none').trim()
     if (filterValue !== 'none') style.blur = Math.max(style.blur, filterBlur(filterValue, ['g', 'svg', 'a', 'use'].includes(node.name)))
     const local = multiply(matrix, parseTransform(node.attrs.transform))
+    const clipValue = (node.attrs['clip-path'] ?? /(?:^|;)\s*clip-path\s*:\s*([^;]+)/.exec(node.attrs.style ?? '')?.[1] ?? 'none').trim()
+    if (clipValue !== 'none') style.clip = clipFor(clipValue, local)
     const n = name => Number.parseFloat(node.attrs[name] ?? 0)
     const finish = subpaths => subpaths.forEach(subpath => emit(subpath, local, style, node.attrs.id))
     switch (node.name) {

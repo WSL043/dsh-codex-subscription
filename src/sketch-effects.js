@@ -70,3 +70,42 @@ export function fillSketchShape(context, stroke, size, height) {
   context.fill()
   context.restore()
 }
+
+// Blend modes a painter uses for shading and light: shadows multiply, glows screen or add.
+export const BLEND_MODES = ['multiply', 'screen', 'overlay', 'soft-light', 'hard-light', 'color-dodge', 'color-burn', 'darken', 'lighten', 'lighter']
+export function normalizeBlend(value) {
+  if (value === undefined || value === null || value === 'normal') return undefined
+  if (!BLEND_MODES.includes(value)) throw Error('blend must be one of normal, ' + BLEND_MODES.join(', '))
+  return value
+}
+
+// A clip keeps a stroke inside a shape (shading stays inside the form it shades): {shape, points} like a stroke's own geometry.
+export function normalizeClip(clip) {
+  if (clip === undefined || clip === null) return undefined
+  if (!clip || typeof clip !== 'object') throw Error('Invalid clip')
+  if (clip.shape === 'none') return undefined
+  const { shape, points } = clip
+  if (!['polygon', 'bezier', 'rectangle', 'circle'].includes(shape)) throw Error('clip.shape must be polygon, bezier, rectangle or circle')
+  if (!Array.isArray(points) || points.some(point => !point || !finite(point.x, 0, 1) || !finite(point.y, 0, 1))) throw Error('clip.points must be {x,y} pairs inside 0..1')
+  if ((shape === 'rectangle' || shape === 'circle') && points.length !== 2) throw Error('clip rectangle and circle need exactly two opposite corners')
+  if (shape === 'polygon' && (points.length < 3 || points.length > 2000)) throw Error('clip polygon needs 3–2000 points')
+  if (shape === 'bezier' && (points.length < 4 || points.length > 193 || (points.length - 1) % 3 !== 0)) throw Error('clip bezier needs 4, 7, ... 193 points (start + control1/control2/end per segment)')
+  return { shape, points: points.map(point => ({ x: Math.round(point.x * 100_000) / 100_000, y: Math.round(point.y * 100_000) / 100_000 })) }
+}
+
+// Adds the clip's outline to the current path and clips to it.
+export function applySketchClip(context, clip, size, height) {
+  const { shape, points } = clip
+  const first = points[0], last = points.at(-1)
+  context.beginPath()
+  if (shape === 'bezier') {
+    context.moveTo(first.x * size, first.y * height)
+    for (let i = 1; i < points.length; i += 3) context.bezierCurveTo(points[i].x * size, points[i].y * height, points[i + 1].x * size, points[i + 1].y * height, points[i + 2].x * size, points[i + 2].y * height)
+  } else if (shape === 'polygon') {
+    context.moveTo(first.x * size, first.y * height)
+    for (const point of points.slice(1)) context.lineTo(point.x * size, point.y * height)
+  } else if (shape === 'rectangle') context.rect(first.x * size, first.y * height, (last.x - first.x) * size, (last.y - first.y) * height)
+  else context.ellipse((first.x + last.x) * size / 2, (first.y + last.y) * height / 2, Math.abs(last.x - first.x) * size / 2, Math.abs(last.y - first.y) * height / 2, 0, 0, Math.PI * 2)
+  context.closePath()
+  context.clip()
+}

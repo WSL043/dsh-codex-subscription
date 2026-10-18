@@ -1,6 +1,6 @@
 import { configureSketchBrush } from './sketch-brushes.js'
 import { layoutSketchText } from './sketch-text.js'
-import { fillSketchShape } from './sketch-effects.js'
+import { applySketchClip, fillSketchShape } from './sketch-effects.js'
 export const SKETCH_SIZE = 1024
 export const MAX_SKETCH_STROKES = 2000
 export const MAX_STROKE_POINTS = 2000
@@ -20,9 +20,10 @@ export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = 
     const stroke = strokes[index]
     const first = stroke.points[0]
     if (!first) continue
-    context.globalCompositeOperation = stroke.shape === 'eraser' ? 'destination-out' : 'source-over'
+    context.globalCompositeOperation = stroke.shape === 'eraser' ? 'destination-out' : (stroke.blend ?? 'source-over')
     configureSketchBrush(context,stroke)
     if(stroke.blur>0)context.filter=`blur(${stroke.blur}px)`
+    if(stroke.clip){context.save();applySketchClip(context,stroke.clip,size,height)}
     context.beginPath()
     const last = stroke.points.at(-1)
     if (stroke.shape === 'text') {
@@ -64,6 +65,7 @@ export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = 
       context.lineTo(last.x * size, last.y * height)
       context.stroke()
     }
+    if(stroke.clip)context.restore()
     if(stroke.blur>0)context.filter='none'
   }
   context.globalCompositeOperation = 'source-over'
