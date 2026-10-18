@@ -115,7 +115,7 @@ Off by default: **Settings → Codex → Models & runtime → Phone remote contr
 
 ### Images and sketching
 
-Generate images with your subscription, circle a region and write a note to keep editing, or open the sketch board to draw yourself or let the agent draw, then use the sketch as the reference for the finished image.
+Generate images with your subscription, circle a region and write a note to keep editing, or open the sketch board to draw yourself or let the agent draw, then use the sketch as the reference for the finished image. The board supports gradients, blur, blend modes and shape clipping; when the agent draws from a reference it can compare side by side, read a difference heat map, measure colours and positions, and undo; a finished drawing can be replayed stroke by stroke and recorded as a video.
 
 <p align="center"><img src="docs/assets/annotate-en.webp" width="900" alt="Image preview: a region above the chimney is marked with a note, then editing continues with the note"></p>
 
@@ -139,13 +139,13 @@ Model access and quota depend on your account.
 | --- | --- | --- |
 | **Subscription sign-in** | Sign in to ChatGPT and use Codex subscription models without an API key | Normal chat needs no Codex CLI |
 | **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh; models marked for retirement show their retirement date next to the model name, without automatically switching your selection | New models appear when your account offers them; the account catalog is the only source, so signed out or when it cannot be read no models are shown and no bundled list stands in |
-| **Model list** | Show or hide individual models in the composer picker under Models & runtime | Display only; selected models and requests still work |
+| **Model list** | Show or hide individual models in the composer picker under Models & runtime; the picker keeps DSH's own model labels (such as the new-model badge) | Display only; selected models and requests still work |
 | **Default model** | Choose the model a new conversation opens with under Models & runtime → Models | Writes the DSH default model setting, the same one a model switch inside a chat writes; unset it to follow the DSH default |
 | **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
 | **Speed tiers** | Switch supported models between Standard and Fast; Ultrafast (Beta) too when the account catalog offers it, with a lightning indicator | Standard by default; Fast and Ultrafast increase usage, and Ultrafast is Pro 500 only today |
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
 | **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
-| **Subscription web search** | Use Codex search or choose DSH search | Auto, DSH, and Codex routing options; when one side is signed out or has no key the other is used, and DSH search in a GPT conversation can use the signed-in DeepSeek account |
+| **Subscription web search** | Use Codex search or choose DSH search | Auto, DSH, and Codex sources; routed at search time without rewriting DSH's own search settings, so the official settings page keeps showing what you set; both the DeepSeek account route and the API-key route (new Search API / legacy) work; when one side is signed out or has no key the other is used |
 | **Search scope** | Choose live / cached search, disable search, or restrict domains | Configure under Models & runtime |
 | **Stream inactivity timeout** | Set how long a request can receive no streamed data before it is aborted | 10 minutes by default; not an overall response deadline |
 | **Context budget** | Use standard, extended, or custom budgets per model | Limited by the model catalog |
@@ -173,7 +173,7 @@ Model access and quota depend on your account.
 </details>
 
 <details>
-<summary><b>Images and sketching</b> (12)</summary>
+<summary><b>Images and sketching</b> (14)</summary>
 <br>
 
 | Feature | What you can do | Availability / setup |
@@ -184,11 +184,13 @@ Model access and quota depend on your account.
 | **Region-based editing** | Mark regions, add notes, and continue editing with location references | Fills the composer for you to review and send |
 | **Manual canvas** | Choose an aspect ratio and draw with pen, pencil, marker, and erasers | Beta; canvas off by default |
 | **Shapes and text** | Draw lines, arrows, shapes, native curves, and editable text / objects | Available in the sketch canvas |
+| **Gradients, blur, blend and clip** | Fill with linear / radial gradients; add blur (glow, shadow, haze), blend modes (multiply, screen, overlay, …) and shape clipping to a stroke; layers can have a blend mode too | All stay editable properties and survive moving, scaling, drafts and export; the agent gets the same through SVG gradients, `feGaussianBlur`, `mix-blend-mode` and `clip-path` |
 | **Layers and image import** | Work in layers and bring images into the canvas | Images are managed as layers |
 | **Smoothing and navigation** | Smooth complete strokes after release; pan, zoom, undo, and redo | Shortcuts can be customized or disabled |
 | **Multiple drafts** | Save and reopen up to 20 local drafts | Stored in the current browser |
 | **Import and export** | Export PNG, or native drafts that preserve editable strokes | Drafts can be imported again to keep editing |
-| **Agent drawing** | Ask the agent to draw with `@sketch`, follow progress, and stop it; the agent can draw whole stages in SVG, imported as editable native strokes | Beta; off by default, requires the canvas |
+| **Agent drawing** | Ask the agent to draw with `@sketch`, follow progress, and stop it; the agent can draw whole stages in SVG, imported as editable native strokes; with a reference it can compare side by side, read a difference heat map, zoom into a region, measure colours and edge positions, and undo, and every batch reports how the error changed | Beta; off by default, requires the canvas. The tools only measure and show; they never draw for the model |
+| **Replay and video** | The Replay button redraws the process stroke by stroke (lines along their path, fills outlined first and then filled top to bottom), with speed presets and a scrubber, and records it as a WebM video | The video is previewed in the board and only saved when you click Save video; nothing downloads automatically |
 | **Result preview for the model** | Return a canvas image after drawing for subsequent review | Beta; off by default, adds image input usage |
 
 </details>
