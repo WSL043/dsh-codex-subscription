@@ -77,20 +77,23 @@ export function apply(ctx) {
     label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: rpc, accountStatus, t, diagnostics, defaultModel }),
   }, CodexSection))
   const sessions = ctx.get('sessions')
+  // The quota readout and the voice button sit in the composer's right slot. They register on the root context, like the
+  // composer's other entries, so DSH's composer always finds them (a session scope can be a different slot registry).
+  const rootDirectories = ctx.get('modelDirectories')
+  ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
+    name: 'conversation.input.right', id: 'codex-subscription-quota', order: 15,
+    locale: NS,
+    inject: sessionId => ({
+      sessionId,
+      preference,
+      rpc: rpc,
+      t,
+      directory: rootDirectories.directoryFor(sessionId).store,
+    }),
+  }, ComposerRight))
   const installDirectorySlots = scope => {
     scope.effect(() => diagnostics.register(scope.slots), 'codex-subscription: scoped host inspection')
     const modelDirectories = scope.get('modelDirectories')
-    scope.slots.inject('conversation.input.right', () => scope.slots.register({
-      name: 'conversation.input.right', id: 'codex-subscription-quota', order: 15,
-      locale: NS,
-      inject: sessionId => ({
-        sessionId,
-        preference,
-        rpc: rpc,
-        t,
-        directory: modelDirectories.directoryFor(sessionId).store,
-      }),
-    }, ComposerRight))
     scope.slots.inject('conversation.input.model', () => scope.slots.register({
       name: 'conversation.input.model', priority: -10, locale: NS,
       children: { 'conversation.input.model.label': { kind: 'single', scope: 'session', inline: true } },
