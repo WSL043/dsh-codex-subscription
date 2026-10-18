@@ -162,15 +162,15 @@ test('a goodbye the voice model did not hand over is handed to the agent, which 
   await new Promise(resolve => setTimeout(resolve, 2_800))
   assert.equal(voice.active('t1'), true)
   assert.equal(delegated.length, 1)
-  assert.match(delegated[0].text, /"ok, bye"\. If they clearly intend to end the voice call, call end_voice_call/u)
+  assert.equal(delegated[0].text, 'ok, bye')
 })
 
-test('when the voice model hands the goodbye over itself, the host does not ask twice', async () => {
+test('when the voice model hands the goodbye over itself (even just before the final transcript), the host does not ask twice', async () => {
   const { voice, notify, delegated } = setup()
   await voice.start({ ...start, hangUpOnGoodbye: true }, notify)
   const [socket] = FakeSocket.instances
+  socket.hear({ type: 'delegation.created', item: { id: 'd1', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: 'bye' }] } })
   socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'bye' } })
-  socket.hear({ type: 'delegation.created', item: { id: 'd1', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: 'The user may want to end the voice call: bye' }] } })
   await new Promise(resolve => setTimeout(resolve, 2_800))
   assert.equal(delegated.length, 1)
 })

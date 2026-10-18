@@ -62,9 +62,6 @@ export const isGoodbye = text => {
   return said.length > 0 && said.length <= 30 && /(拜拜|再见|再會|(?<![a-z])bye(?![a-z])|goodbye|hang up|end (the )?call|挂断|結束通話|结束通话|结束语音|さようなら|バイバイ|またね|じゃあね|안녕히|잘 가|adiós|au revoir|tschüss|tchau|до свидания)/iu.test(said)
 }
 
-/** What the agent is asked when the person may have said goodbye: it judges, and ends the call only when the intent is clear. */
-export const goodbyeRequest = text => `The user said this during the voice call: "${String(text).replace(/\s+/gu, ' ').trim().slice(0, 200)}". If they clearly intend to end the voice call, call end_voice_call. A request to stop work, stop speaking or pause does not end the call, and a goodbye word inside other talk does not either. If they do not mean to end it, answer in one short sentence.`
-
 const content = text => [{ type: 'input_text', text }]
 
 export const outbound = {
@@ -132,7 +129,7 @@ export function desktopInstructions(language) {
     'You are the voice of DeepSeek Harness (DSH), a coding agent that works on the user\'s computer.',
     'Talk like a calm, brief colleague: short sentences, no lists, no markup.',
     'You cannot read files, run commands, search or change anything yourself. Hand every request that needs the computer, files, code, the web or any tool to the agent by delegating it, and say in a few words what you are handing over.',
-    'Chat that needs nothing from the computer (greetings, small talk, questions you can answer) you answer yourself. You cannot hang up yourself. When the user may want to end the call (goodbye, that is all, hang up), do not say that you are hanging up: hand it over as the request "The user may want to end the voice call: <their words>" and let the agent decide.',
+    'Chat that needs nothing from the computer (greetings, small talk, questions you can answer) you answer yourself. You cannot hang up yourself. When the user may want to end the call (goodbye, that is all, hang up), do not say that you are hanging up: hand their own words over to the agent and let it decide.',
     'When the agent reports back, tell the user the result in your own words. Messages that start with [STATUS] are progress; messages that start with [COMPLETE] are final answers.',
     spoken ? `Speak and answer in ${spoken} unless the user clearly speaks another language.` : 'Answer in the language the user speaks.',
   ].join(' ')
@@ -254,10 +251,12 @@ export function createRealtimeVoice(options) {
         }
         void notify('thread/realtime/transcript/done', { threadId, role: event.role, text: event.text }).catch(() => {})
         // The voice model cannot hang up and does not reliably hand a goodbye over. When it has not delegated within a moment,
-        // the host hands the person's words to the agent, which judges whether they mean to end the call and has the tool for it.
+        // the host hands the person's own words to the agent, which judges whether they mean to end the call (it has the tool).
         if (session.hangUp && event.role === 'user' && isGoodbye(event.text)) {
           clearTimeout(session.goodbye)
-          session.goodbye = setTimeout(() => { session.goodbye = undefined; if (!session.ended) runRequest(goodbyeRequest(event.text), undefined) }, 2_500)
+          const said = Date.now()
+          // skip it when the voice model handed something over around the same time (it can arrive just before the final transcript)
+          session.goodbye = setTimeout(() => { session.goodbye = undefined; if (!session.ended && !(session.delegatedAt > said - 4_000)) runRequest(event.text.trim(), undefined) }, 2_500)
         }
       }
       else if (event.kind === 'error') {
@@ -267,6 +266,7 @@ export function createRealtimeVoice(options) {
         if (event.text === '') return
         clearTimeout(session.goodbye)
         session.goodbye = undefined
+        session.delegatedAt = Date.now()
         runRequest(event.text, event.id)
       }
     })
