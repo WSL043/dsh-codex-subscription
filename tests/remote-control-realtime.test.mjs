@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import test from 'node:test'
-import { appendChunks, callRecord, channelOf, createRealtimeVoice, delegationText, parseEvent } from '../src/remote-control-realtime.js'
+import { appendChunks, callRecord, callNote, channelOf, createRealtimeVoice, delegationText, parseEvent } from '../src/remote-control-realtime.js'
 
 // A stand-in for the voice service's side channel: what the phone's call would give the host.
 class FakeSocket extends EventEmitter {
@@ -133,4 +133,18 @@ test('a spoken request is just its text, and the whole dialogue is saved once wh
   await settle()
   assert.equal(delegated.length, 2)
   assert.match(delegated[1].text, /^You: Check the repo\n/u)
+})
+
+test('a desktop call leaves its tail as a note in the context, without a turn', async () => {
+  const recorded = []
+  const { voice, notify, delegated } = setup({ options: { record: async (threadId, text) => { recorded.push({ threadId, text }) } } })
+  await voice.start({ ...start, silentTailRecord: true }, notify)
+  const [socket] = FakeSocket.instances
+  socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'Hello there' } })
+  socket.hear({ type: 'turn.done', turn: { role: 'assistant', transcript: 'Hi.' } })
+  voice.stop('t1')
+  await settle()
+  assert.equal(delegated.length, 0)
+  assert.equal(recorded.length, 1)
+  assert.match(recorded[0].text, /You: Hello there\nVoice: Hi\.$/u)
 })

@@ -18,10 +18,16 @@ const bounded = text => (text.length > DELEGATION_FIELD_MAX ? `${text.slice(0, D
 /** A spoken request reaches the agent, and so the conversation, as the plain message it is. */
 export const delegationText = input => bounded(input).trim()
 
+const dialogue = transcript => transcript.map(entry => `${entry.role === 'user' ? 'You' : 'Voice'}: ${entry.text.replace(/\s+/gu, ' ').trim()}`).join('\n')
+
 /** What the conversation keeps of a finished call: the dialogue, and a plain request to wrap it up. */
 export function callRecord(transcript) {
-  const lines = transcript.map(entry => `${entry.role === 'user' ? 'You' : 'Voice'}: ${entry.text.replace(/\s+/gu, ' ').trim()}`).join('\n')
-  return `${lines}\n\nThe voice call has ended. Summarise it in a sentence or two, and carry on with anything that was left unfinished.`
+  return `${dialogue(transcript)}\n\nThe voice call has ended. Summarise it in a sentence or two, and carry on with anything that was left unfinished.`
+}
+
+/** The same dialogue as a note for the conversation's context: kept for the next message, with no turn of its own. */
+export function callNote(transcript) {
+  return `Part of the voice call that was not handed over as a request:\n${dialogue(transcript)}`
 }
 
 /** Which side channel an agent message belongs on: progress is commentary, an answer is spoken. */
@@ -165,7 +171,9 @@ export function createRealtimeVoice(options) {
   const flushTail = (threadId, session) => {
     if (!session.flushTail || session.tail.length === 0) return
     const transcript = session.tail.splice(0)
-    session.chain = session.chain.then(() => options.delegate(threadId, callRecord(transcript), () => {}))
+    // a desktop call only leaves a note in the context (no turn, like Codex); a phone call hands the tail over as a turn
+    const save = session.silent && options.record ? () => options.record(threadId, callNote(transcript)) : () => options.delegate(threadId, callRecord(transcript), () => {})
+    session.chain = session.chain.then(save)
       .catch(error => log.warn('voice', 'could not save the voice transcript to the conversation', String(error?.message ?? error)))
   }
 
@@ -197,7 +205,7 @@ export function createRealtimeVoice(options) {
       ...(typeof params.voiceSessionId === 'string' ? { 'voice-session-id': params.voiceSessionId } : {}),
     }
     const ws = await join(callId, headers)
-    const session = { ws, notify, ended: false, chain: Promise.resolve(), tail: [], lines: [], working: 0, flushTail: params.flushTranscriptTailOnSessionEnd !== false }
+    const session = { ws, notify, ended: false, chain: Promise.resolve(), tail: [], lines: [], working: 0, flushTail: params.flushTranscriptTailOnSessionEnd !== false, silent: params.silentTailRecord === true }
     sessions.set(threadId, session)
     const send = message => { try { ws.send(JSON.stringify(message)) } catch (error) { log.warn('voice', 'could not send to the voice call', String(error?.message ?? error)) } }
     const speak = (delegationId, text) => {

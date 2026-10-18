@@ -629,7 +629,13 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       subscribers.get(threadId)?.delete(observer)
     }
   }
-  const realtimeVoice = voice ? createRealtimeVoice({ ...voice, userAgent, log: diagnosticLog, delegate: delegateToAgent }) : undefined
+  /** Leave text in the conversation's context for its next message, without starting a turn. */
+  const recordToAgent = async (threadId, text) => {
+    const agent = await agentFor(threadId)
+    if (typeof agent.inject !== 'function') return
+    agent.inject({ id: randomUUID(), role: 'user', content: [{ type: 'text', text }], source: { kind: 'user' } })
+  }
+  const realtimeVoice = voice ? createRealtimeVoice({ ...voice, userAgent, log: diagnosticLog, delegate: delegateToAgent, record: recordToAgent }) : undefined
 
   const phoneConfig = createPhoneConfig(configFile)
 
@@ -1166,13 +1172,14 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   const desktopVoice = realtimeVoice === undefined ? undefined : Object.freeze({
     async start({ sessionId, sdp, voice: voiceName, language }) {
       if (typeof sdp !== 'string' || !sdp.startsWith('v=0') || sdp.length > 64 * 1024) throw new RpcError(-32602, 'Invalid voice offer')
-      await agentFor(sessionId)
+      const agent = await agentFor(sessionId)
+      diagnosticLog.info('voice', 'the conversation can take a context note', String(typeof agent.inject === 'function'))
       const session = {
         audio: { output: { voice: typeof voiceName === 'string' && /^[a-z]{2,16}$/u.test(voiceName) ? voiceName : 'cove' } },
         delegation: { type: 'client' }, instructions: desktopInstructions(language), model: 'gpt-live-1.1-codex',
       }
       const { callId, answer } = await createVoiceCall({ fetch: voice.fetch, credentials: voice.credentials, userAgent, sdp, session, threadId: sessionId })
-      await realtimeVoice.start({ threadId: sessionId, transport: { type: 'existingCall', callId }, flushTranscriptTailOnSessionEnd: false, version: 'v3' }, async () => {})
+      await realtimeVoice.start({ threadId: sessionId, transport: { type: 'existingCall', callId }, flushTranscriptTailOnSessionEnd: true, silentTailRecord: true, version: 'v3' }, async () => {})
       return { answer }
     },
     stop: sessionId => realtimeVoice.stop(sessionId),
