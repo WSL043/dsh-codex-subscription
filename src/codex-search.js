@@ -150,7 +150,7 @@ export function createCodexSearchProvider(options) {
 }
 
 const UNAVAILABLE_CODES = new Set(['WEB_PROVIDER_CREDENTIAL_MISSING', 'WEB_PROVIDER_UNAVAILABLE', 'WEB_PROVIDER_CONFIGURED_MISSING', 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE'])
-const unavailable = error => error instanceof WebError && UNAVAILABLE_CODES.has(error.code)
+const unavailable = error => typeof error?.code === 'string' && UNAVAILABLE_CODES.has(error.code)
 
 /** Route each request by its initiating model; when that side has no sign-in or key, use the other one. */
 export function createCodexAutoSearchProvider(options) {

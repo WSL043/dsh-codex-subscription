@@ -103,13 +103,18 @@ export function createDshAccountSearchProvider(options) {
         throw new WebError('DSH default search is unavailable', 'WEB_PROVIDER_UNAVAILABLE')
       }
       try {
-        return await provider.search(request, signal)
+        const result = await provider.search(request, signal)
+        options.report?.(`answered by DSH provider ${provider.id}`)
+        return result
       } catch (error) {
-        if (!(error instanceof WebError) || error.code !== 'WEB_PROVIDER_CREDENTIAL_MISSING' || signal?.aborted) throw error
+        if (error?.code !== 'WEB_PROVIDER_CREDENTIAL_MISSING' || signal?.aborted) throw error
         try {
-          return await searchWithDeepSeekAccount(options, request, signal)
+          const result = await searchWithDeepSeekAccount(options, request, signal)
+          options.report?.('answered by DeepSeek account fallback')
+          return result
         } catch (fallback) {
-          throw fallback instanceof WebError && fallback.code === 'WEB_PROVIDER_CREDENTIAL_MISSING' ? error : fallback
+          options.report?.(`DeepSeek account fallback failed: ${fallback?.message}`)
+          throw fallback?.code === 'WEB_PROVIDER_CREDENTIAL_MISSING' ? error : fallback
         }
       }
     },

@@ -75,3 +75,12 @@ test('the DSH wrapper tries DSH first and falls back to the account only for a m
   })
   await assert.rejects(signedOut.search({ query: 'q' }), error => error.code === 'WEB_PROVIDER_CREDENTIAL_MISSING' && error.message === 'no key')
 })
+
+test('a credential error from the host\'s own WebError class is recognised by code', async () => {
+  const hostError = Object.assign(new Error('no key'), { name: 'WebError', code: 'WEB_PROVIDER_CREDENTIAL_MISSING' })
+  const wrapper = createDshAccountSearchProvider({
+    ...harness().options,
+    resolveDshProvider: () => ({ id: 'deepseek-official', available: () => true, async search() { throw hostError } }),
+  })
+  assert.equal((await wrapper.search({ query: 'q' })).sources[0].title, 'A')
+})

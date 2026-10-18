@@ -2,48 +2,46 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSearchProviderSwitcher } from '../src/index.js'
 
-function loaderWith(config) {
+// Mirrors the real loader: the entry keeps the raw config, the running fiber holds resolved volatile
+// references and its update() takes a raw config.
+function loaderWith(raw) {
+  const updates = []
   const entry = {
-    options: { id: 'web', config },
-    updates: [],
-    async update(options) {
-      this.updates.push(options.config)
-      this.options = { ...this.options, ...options }
+    options: { id: 'web', config: raw },
+    fiber: {
+      config: Object.fromEntries(Object.entries(raw).map(([key, value]) => [key, { get: () => value }])),
+      async update(config, noSave) {
+        for (const value of Object.values(config)) assert.equal(typeof value, 'string', 'raw config only')
+        updates.push({ config, noSave })
+        this.config = Object.fromEntries(Object.entries(config).map(([key, value]) => [key, { get: () => value }]))
+      },
     },
   }
-  return { entry, loader: { entries: () => [entry] } }
+  return { entry, updates, loader: { entries: () => [entry] } }
 }
 
-test('selection rewrites the raw web config through the entry and keeps the DSH provider for later', async () => {
-  const { entry, loader } = loaderWith({ searchProvider: 'deepseek-official', fetchProvider: 'http' })
+test('selection restarts the web fiber with a raw config and leaves the saved settings alone', async () => {
+  const { entry, updates, loader } = loaderWith({ searchProvider: 'deepseek-official', fetchProvider: 'http' })
   const switcher = createSearchProviderSwitcher(loader)
   await switcher.select('auto')
-  assert.equal(entry.options.config.searchProvider, 'codex-subscription-auto')
-  assert.equal(entry.options.config.fetchProvider, 'http')
+  assert.deepEqual(updates, [{ config: { searchProvider: 'codex-subscription-auto', fetchProvider: 'http' }, noSave: true }])
+  assert.equal(switcher.current(), 'codex-subscription-auto')
+  assert.equal(entry.options.config.searchProvider, 'deepseek-official')
   assert.equal(switcher.dshProviderId(), 'deepseek-official')
   await switcher.select('auto')
-  assert.equal(entry.updates.length, 1, 'an unchanged selection writes nothing')
-  await switcher.select('dsh')
-  assert.equal(entry.options.config.searchProvider, 'codex-subscription-dsh')
-  await switcher.restore()
-  assert.equal(entry.options.config.searchProvider, 'deepseek-official')
-})
-
-test('restore puts the DSH provider back when the plugin goes away', async () => {
-  const { entry, loader } = loaderWith({ searchProvider: 'deepseek-official', fetchProvider: 'http' })
-  const switcher = createSearchProviderSwitcher(loader)
+  assert.equal(updates.length, 1, 'an unchanged selection writes nothing')
   await switcher.select('codex')
-  assert.equal(entry.options.config.searchProvider, 'codex-subscription')
-  await switcher.restore()
-  assert.equal(entry.options.config.searchProvider, 'deepseek-official')
+  assert.equal(switcher.current(), 'codex-subscription')
 })
 
-test('the DSH selection goes through the account wrapper and restores the real provider', async () => {
-  const { entry, loader } = loaderWith({ searchProvider: 'deepseek-official', fetchProvider: 'http' })
+test('the DSH selection goes through the account wrapper', async () => {
+  const { loader } = loaderWith({ searchProvider: 'deepseek-official', fetchProvider: 'http' })
   const switcher = createSearchProviderSwitcher(loader)
   await switcher.select('dsh')
-  assert.equal(entry.options.config.searchProvider, 'codex-subscription-dsh')
-  assert.equal(switcher.dshProviderId(), 'deepseek-official')
-  await switcher.restore()
-  assert.equal(entry.options.config.searchProvider, 'deepseek-official')
+  assert.equal(switcher.current(), 'codex-subscription-dsh')
+})
+
+test('a missing web runtime is reported', async () => {
+  const switcher = createSearchProviderSwitcher({ entries: () => [] })
+  await assert.rejects(switcher.select('auto'), /unavailable/)
 })

@@ -80,43 +80,35 @@ export { createSubscriptionRpcHandler } from './subscription-rpc.js'
 
 export function createSearchProviderSwitcher(loader) {
   const webEntry = () => [...loader.entries()].find(entry => entry.options?.id === WEB_ENTRY_ID)
-  const ours = new Set([CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID, DSH_ACCOUNT_SEARCH_PROVIDER_ID])
-  // The entry's raw config is rewritten in place, so remember the DSH provider it held before we first touched it.
-  let remembered
+  // The entry's own raw config keeps the DSH provider; only the running web fiber is pointed elsewhere.
   const dshProviderId = () => {
     const configured = webEntry()?.options?.config?.searchProvider
-    if (typeof configured === 'string' && configured.length > 0 && !ours.has(configured)) remembered = configured
-    return remembered ?? DSH_SEARCH_PROVIDER_FALLBACK
+    return typeof configured === 'string' && configured.length > 0 ? configured : DSH_SEARCH_PROVIDER_FALLBACK
+  }
+  // Fiber.config holds resolved volatile references (readable with get()), never raw strings.
+  const current = () => {
+    const value = webEntry()?.fiber?.config?.searchProvider
+    return typeof value === 'string' ? value : value?.get?.()
   }
   const writeProvider = async provider => {
     const entry = webEntry()
-    if (entry === undefined || typeof entry.update !== 'function') {
+    const fiber = entry?.fiber
+    if (entry === undefined || fiber === undefined || typeof fiber.update !== 'function') {
       throw new Error('DSH web runtime is unavailable')
     }
-    const baseConfig = entry.options?.config ?? {}
-    if (baseConfig.searchProvider === provider) return
-    // Entry.update takes the raw config and commits a volatile-only change in place (no web restart).
-    // Fiber.config holds resolved volatile references and cannot be fed back as a raw config.
-    await entry.update({ config: { ...baseConfig, searchProvider: provider } })
+    if (current() === provider) return
+    // Fiber.update takes the raw config and restarts web with it (noSave: the user's settings are untouched).
+    // The restart reloads this plugin, which then finds the provider already selected.
+    await fiber.update({ ...(entry.options?.config ?? {}), searchProvider: provider }, true)
   }
   // "dsh" keeps DSH's own provider first, through a wrapper that adds the DeepSeek account fallback.
-  const select = selection => {
-    dshProviderId()
-    return writeProvider(selection === SEARCH_PROVIDER_CODEX
-      ? CODEX_SEARCH_PROVIDER_ID
-      : selection === SEARCH_PROVIDER_AUTO ? CODEX_AUTO_SEARCH_PROVIDER_ID : DSH_ACCOUNT_SEARCH_PROVIDER_ID)
-  }
+  const select = selection => writeProvider(selection === SEARCH_PROVIDER_CODEX
+    ? CODEX_SEARCH_PROVIDER_ID
+    : selection === SEARCH_PROVIDER_AUTO ? CODEX_AUTO_SEARCH_PROVIDER_ID : DSH_ACCOUNT_SEARCH_PROVIDER_ID)
   return Object.freeze({
     dshProviderId,
+    current,
     select,
-    /** Put the DSH provider back so web search keeps working once this plugin is gone. */
-    async restore() {
-      try {
-        await writeProvider(dshProviderId())
-      } catch {
-        // The web runtime is already gone with the host.
-      }
-    },
   })
 }
 
@@ -412,8 +404,19 @@ export function apply(ctx, config = {}) {
     resolveSessionId: () => currentAgent()?.session.id,
     fetch: (input, init) => network.fetch('search', input, init),
   })
-  ctx.web.registerSearchProvider(codexSearch)
+  const searchTrace = route => diagnosticLog.info('search', `web search: ${route}`)
+  const tracedCodexSearch = Object.freeze({
+    id: codexSearch.id,
+    available: () => codexSearch.available(),
+    async search(request, signal) {
+      const result = await codexSearch.search(request, signal)
+      searchTrace('answered by Codex subscription')
+      return result
+    },
+  })
+  ctx.web.registerSearchProvider(tracedCodexSearch)
   const dshSearch = createDshAccountSearchProvider({
+    report: searchTrace,
     resolveDshProvider: () => ctx.web.searchProviders?.get(searchProvider.dshProviderId()),
     resolveAccount: () => ctx.get?.('deepseekAccount'),
     resolveConfig: () => {
@@ -428,7 +431,7 @@ export function apply(ctx, config = {}) {
   })
   ctx.web.registerSearchProvider(dshSearch)
   ctx.web.registerSearchProvider(createCodexAutoSearchProvider({
-    codex: codexSearch,
+    codex: tracedCodexSearch,
     resolveModelProvider: () => currentAgent()?.session.requestContext?.()?.provider,
     resolveDshProvider: () => dshSearch,
   }))
@@ -436,16 +439,14 @@ export function apply(ctx, config = {}) {
     const select = async value => {
       try {
         await searchProvider.select(value[SEARCH_PROVIDER_FIELD])
+        diagnosticLog.info('search', `web search source is ${searchProvider.current()}`)
       } catch (error) {
         ctx.logger?.warn?.('could not select the configured web search provider: %s', error.message)
+        diagnosticLog.warn('search', 'could not select the web search provider', error.message)
       }
     }
     void select(settings.get())
-    const stop = settings.watch(select)
-    return () => {
-      stop?.()
-      void searchProvider.restore()
-    }
+    return settings.watch(select)
   }, 'codex-subscription: search provider selection')
 
   const auth = createCodexAuthService(authModels, store, {

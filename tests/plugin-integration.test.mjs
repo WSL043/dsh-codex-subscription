@@ -124,14 +124,16 @@ function fakeContext({ connection = true, webServer = true } = {}) {
   const preference = { autoQuotaRetry: false, quickQuotaVisible: false, searchProvider: SEARCH_PROVIDER_AUTO, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, streamIdleTimeoutMinutes: 10, speedMode: SPEED_MODE_STANDARD, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 1_000_000, customContextGpt56: 1_000_000 }
   let credential
   const records = new Map()
-  // Mirrors the real loader Entry: update() takes the raw config; the fiber only holds resolved volatile
-  // references (objects), which cannot be fed back as a raw config.
+  // Mirrors the real loader: the entry keeps the raw config, the fiber holds resolved volatile references
+  // and its update() takes a raw config.
   const webEntry = {
     options: { id: 'web', config: { searchProvider: 'deepseek-official', fetchProvider: 'local' } },
-    fiber: { config: { searchProvider: { get: () => 'deepseek-official' }, fetchProvider: { get: () => 'local' } } },
-    async update(options) {
-      webUpdates.push({ config: options.config })
-      this.options = { ...this.options, ...options }
+    fiber: {
+      config: { searchProvider: { get: () => 'deepseek-official' }, fetchProvider: { get: () => 'local' } },
+      async update(config, noSave) {
+        webUpdates.push({ config, noSave })
+        this.config = Object.fromEntries(Object.entries(config).map(([key, value]) => [key, { get: () => value }]))
+      },
     },
   }
   const searchProviderMap = new Map([['deepseek-official', { id: 'deepseek-official', available: () => true, async search() { return { sources: [], truncated: false } } }]])
@@ -354,12 +356,15 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   await host.updateSettings({ quickQuotaVisible: true })
   assert.deepEqual(host.webUpdates, [{
     config: { searchProvider: 'codex-subscription-auto', fetchProvider: 'local' },
+    noSave: true,
   }], 'quota-only settings must not touch the web provider after automatic routing is selected')
   await host.updateSettings({ searchProvider: 'codex' })
   assert.deepEqual(host.webUpdates, [{
     config: { searchProvider: 'codex-subscription-auto', fetchProvider: 'local' },
+    noSave: true,
   }, {
     config: { searchProvider: 'codex-subscription', fetchProvider: 'local' },
+    noSave: true,
   }])
 
   const preferenceStatus = await host.request('preferences/status', {}, signal)
@@ -401,6 +406,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   }, async () => downstream), downstream)
   assert.deepEqual(host.webUpdates.at(-1), {
     config: { searchProvider: 'codex-subscription-dsh', fetchProvider: 'local' },
+    noSave: true,
   })
   const invalidQuotaMode = await host.request('preferences/update', {
     quickQuotaMode: 'card',
