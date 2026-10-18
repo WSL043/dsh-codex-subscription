@@ -63,10 +63,16 @@ function VoiceStage({ call, connecting, rpc, sessionId, anchor, accent, t }) {
   useEffect(() => {
     if (!call) return undefined
     let stopped = false
+    let seen = false
     const poll = async () => {
       try {
         const result = await rpc.call(CHANNEL, 'voice/status', { sessionId })
-        if (!stopped && result.ok) setStatus(result.value)
+        if (!stopped && result.ok) {
+          setStatus(result.value)
+          // the host hung up (the agent ended the call when the user said goodbye): close this side too
+          if (result.value.active) seen = true
+          else if (seen) { stopped = true; void call.stop() }
+        }
       } catch { /* the next poll retries */ }
     }
     void poll()

@@ -74,6 +74,7 @@ const REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 
 import { createSubscriptionRpcHandler } from './subscription-rpc.js'
 import { createVoicePreview } from './voice-preview.js'
+import { withEndCallTool } from './voice-tools.js'
 export { createSubscriptionRpcHandler } from './subscription-rpc.js'
 
 export function createSearchProviderSwitcher(loader) {
@@ -604,7 +605,7 @@ export function apply(ctx, config = {}) {
     defaultModel,
     runtimeManagement,
     remoteControl,
-    desktopVoice: remoteBridge.desktopVoice,
+    desktopVoice: withEndCallTool(remoteBridge.desktopVoice, tool => ctx.tools.register(tool)),
     voicePreview: createVoicePreview({ fetch: (input, init) => network.fetch('remote', input, init), credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal), userAgent: USER_AGENT }),
     onAccountChanged: () => { connectorsClient.clear(); usageProfileReader.clear(); quotaRetryHandler.notifyAccountChanged() },
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, review: provider, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
