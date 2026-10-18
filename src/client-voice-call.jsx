@@ -138,9 +138,12 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
       // Whole device pixels, so a scaled display (125%, 150%) cannot draw the circle slightly off.
       const ratio = window.devicePixelRatio || 1
       const snap = value => Math.round(value * ratio) / ratio
+      // The voice button wears the send button's classes, so it also carries the send button's own transform (DSH nudges the
+      // send button up by 2px). The measured box already includes that nudge, so take it out once, or the copy sits twice as far.
+      const moved = new DOMMatrixReadOnly(getComputedStyle(send).transform)
       setPlace({
-        host: trailing, activity: trailing.querySelector('[data-slot="conversation.input.activity"]')?.parentElement ?? null,
-        left: snap(box.left - host.left - trailing.clientLeft), top: snap(box.top - host.top - trailing.clientTop), width: snap(box.width), height: snap(box.width),
+        host: trailing, send, activity: trailing.querySelector('[data-slot="conversation.input.activity"]')?.parentElement ?? null,
+        left: box.left - host.left - trailing.clientLeft - moved.m41, top: box.top - host.top - trailing.clientTop - moved.m42, width: box.width, height: box.width,
         idle: send.disabled, className: send.className,
       })
     }
@@ -184,6 +187,16 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
     if (state === 'live') void call.current?.stop()
     else if (state === 'idle') void start()
   }
+
+  // While the voice button covers the (disabled) send button, the send button is not drawn at all, so none of its edges can show around the copy.
+  const covering = Boolean(place) && (state !== 'idle' || place.idle)
+  useLayoutEffect(() => {
+    const send = place?.send
+    if (!enabled || !covering || !send) return undefined
+    const before = send.style.visibility
+    send.style.visibility = 'hidden'
+    return () => { send.style.visibility = before }
+  }, [enabled, covering, place?.send])
 
   // Keep the marker in the slot so the host container can be found even while nothing is drawn.
   const anchor = <span ref={marker} hidden />

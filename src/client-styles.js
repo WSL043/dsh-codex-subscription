@@ -452,4 +452,7 @@ export const STYLE = `
 .codexDiagTable{width:100%;font-size:12px;text-align:left;border-spacing:0 6px}
 .codexFlat .codexSubscriptionDiagnostics details.codexAdvancedFold{margin:0;padding:0;border-top:1px solid var(--dsw-alias-border-l2)}.codexFlat .codexSubscriptionDiagnostics details>summary{margin:0}
 .codexDiagFindings>li{padding:0;margin:0}.codexDiagFindings{padding-left:0!important}
+/* The model search row stays put while the list scrolls under it: a hairline marks the edge so a partly scrolled group title reads as scrolled, not broken. */
+.codexModelSelectSearchRow{margin:2px 0 0;border-bottom:1px solid var(--dsw-alias-border-l2)}
+.codexModelSelectGroups{scroll-padding-block:30px;padding-top:2px}
 `
