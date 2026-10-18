@@ -80,6 +80,9 @@ export function apply(ctx) {
   // The quota readout and the voice button sit in the composer's right slot. They register on the root context, like the
   // composer's other entries, so DSH's composer always finds them (a session scope can be a different slot registry).
   const rootDirectories = ctx.get('modelDirectories')
+  // The host's directory service reads remote.session from the context that asked for it; the root context does not inject it,
+  // so once the session-scoped install below has run, its instance is the one to use.
+  let scopedDirectories
   ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
     name: 'conversation.input.right', id: 'codex-subscription-quota', order: 15,
     locale: NS,
@@ -88,12 +91,14 @@ export function apply(ctx) {
       preference,
       rpc: rpc,
       t,
-      directory: rootDirectories.directoryFor(sessionId).store,
+      directory: (scopedDirectories ?? rootDirectories).directoryFor(sessionId).store,
     }),
   }, ComposerRight))
   const installDirectorySlots = scope => {
     scope.effect(() => diagnostics.register(scope.slots), 'codex-subscription: scoped host inspection')
     const modelDirectories = scope.get('modelDirectories')
+    scopedDirectories = modelDirectories
+    scope.effect(() => () => { if (scopedDirectories === modelDirectories) scopedDirectories = undefined }, 'codex-subscription: scoped model directories')
     scope.slots.inject('conversation.input.model', () => scope.slots.register({
       name: 'conversation.input.model', priority: -10, locale: NS,
       // The label slot is declared by DSH's own picker entry; declaring it again makes DSH refuse this registration (and the picker disappears).
@@ -119,6 +124,7 @@ export function apply(ctx) {
   const lifetime = new AbortController()
   ctx.effect(() => () => { lifetime.abort(); imageViewer.close(); sketchOpeners.clear(); sketchSessions.dispose() }, 'codex-subscription: sketch sessions')
   ctx.inject(['inputTriggers'], triggerContext => triggerContext.effect(() => triggerContext.get('inputTriggers').registerSource(createSketchTrigger({
+    name: () => t('triggerSketchName'), description: () => t('triggerSketchHint'),
     enabled: () => { const value = preference.getSnapshot(); return value.imageSketchAgent && value.imageSketch && value.imageEditing },
     consume: (sessionId, span) => {
       const actx = sessions.scope(sessionId)
@@ -126,6 +132,7 @@ export function apply(ctx) {
     },
   })), 'codex-subscription: Sketch trigger'))
   ctx.inject(['inputTriggers'], triggerContext => triggerContext.effect(() => triggerContext.get('inputTriggers').registerSource(createImageTrigger({
+    name: () => t('triggerImageName'), description: () => t('triggerImageHint'),
     enabled: () => { const value = preference.getSnapshot(); return value.imageShortcut && (value.imageGeneration || value.imageEditing) },
     open: () => {},
     consume: (sessionId, span) => {
@@ -188,7 +195,9 @@ export function apply(ctx) {
   // enhancement is off. Intake, validation and draft ownership stay with DSH.
   for (const [name, component] of [
     ['conversation.input.attachments', ComposerImagePreviews],
-    ['conversation.message.images', MessageImagePreviews],
+    ['conversation.chat.message.images', MessageImagePreviews],
+    ['conversation.chat.user.images', MessageImagePreviews],
+    ['tool.call.images', MessageImagePreviews],
     ['conversation.trajectory.images', MessageImagePreviews],
   ]) ctx.slots.inject(name, () => {
     let dispose

@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { buildImageEditDraft } from './image-edit.js'
 import { officialImageTools } from './image-official-tools.js'
 
@@ -24,15 +24,26 @@ export function ComposerImagePreviews(props) {
     if (current?.source === 'codex-draft' && !attachments.some(item => item.id === current.items[0]?.id)) service.close()
   }, [attachments, service])
   useEffect(() => () => { if (service.getSnapshot()?.source === 'codex-draft') service.close() }, [service])
+  const latest = useRef(props)
+  latest.current = props
+  // A window capture listener runs before document-level capture listeners such as the image-viewer bundle's native-image
+  // bridge, which would otherwise take the click first. It only acts on this composer's own draft thumbnails.
+  useEffect(() => {
+    const onWindowClick = event => {
+      const target = event.target
+      if (!(target instanceof Element)) return
+      const button = target.closest('button'), image = button?.querySelector(':scope > img')
+      const item = image && latest.current.attachments.find(candidate => candidate.previewUrl === image.src)
+      if (!item || event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey) return
+      event.preventDefault(); event.stopPropagation(); event.stopImmediatePropagation()
+      openPreview(latest.current, { id: item.id, src: item.previewUrl, name: item.file.name, width: item.width, height: item.height, bytes: item.file.size }, button, true)
+    }
+    window.addEventListener('click', onWindowClick, true)
+    return () => window.removeEventListener('click', onWindowClick, true)
+  }, [])
   if (!entry) return null
   const NativeAttachments = entry.component
-  return <div style={{display:'contents'}} onClickCapture={event=>{
-    const button=event.target.closest('button'), image=button?.querySelector('img')
-    const item=image && attachments.find(item=>item.previewUrl===image.src)
-    if (!item || event.button!==0 || event.ctrlKey || event.metaKey || event.altKey) return
-    event.preventDefault();event.stopPropagation()
-    openPreview(props,{id:item.id,src:item.previewUrl,name:item.file.name,width:item.width,height:item.height,bytes:item.file.size},button,true)
-  }}><NativeAttachments {...props} t={nativeTranslate}/></div>
+  return <div style={{display:'contents'}}><NativeAttachments {...props} t={nativeTranslate}/></div>
 }
 
 function MessageImagePreview({ image, ...props }) {

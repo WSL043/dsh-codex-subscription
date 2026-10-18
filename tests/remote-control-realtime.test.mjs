@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import test from 'node:test'
-import { appendChunks, callRecord, callNote, isGoodbye, channelOf, createRealtimeVoice, delegationText, parseEvent } from '../src/remote-control-realtime.js'
+import { appendChunks, callRecord, callNote, isGoodbye, channelOf, createRealtimeVoice, delegationText, parseEvent, promisesAction } from '../src/remote-control-realtime.js'
 
 // A stand-in for the voice service's side channel: what the phone's call would give the host.
 class FakeSocket extends EventEmitter {
@@ -184,4 +184,31 @@ test('a close request marks the call as closing and leaves the hanging up to the
   assert.equal(voice.status('t1').active, true)
   voice.stop('t1')
   assert.equal(voice.requestClose('t1'), false)
+})
+
+test('a spoken answer to the agent\'s question that the voice model did not hand over is handed over by the host', async () => {
+  const { voice, delegated } = setup({ work: async onMessage => { if (delegated.length === 1) onMessage('[FINAL] Which city do you want?') } })
+  await voice.start({ ...start, unhandledHandoverMs: 40 }, async () => {})
+  const [socket] = FakeSocket.instances
+  socket.hear({ type: 'delegation.created', item: { id: 'd1', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: 'weather tomorrow' }] } })
+  await settle()
+  socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'Shenzhen' } })
+  socket.hear({ type: 'turn.done', turn: { role: 'assistant', transcript: 'Shenzhen, let me check.' } })
+  await new Promise(resolve => setTimeout(resolve, 120))
+  assert.deepEqual(delegated.map(item => item.text), ['weather tomorrow', 'Shenzhen'])
+})
+
+test('chit-chat the voice model answered itself is not handed over', async () => {
+  const { voice, delegated } = setup()
+  await voice.start({ ...start, unhandledHandoverMs: 40 }, async () => {})
+  const [socket] = FakeSocket.instances
+  socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'do you like music' } })
+  socket.hear({ type: 'turn.done', turn: { role: 'assistant', transcript: 'I do, quite a lot.' } })
+  await new Promise(resolve => setTimeout(resolve, 120))
+  assert.equal(delegated.length, 0)
+})
+
+test('a promise to go and do something is recognised in Chinese, Japanese and English', () => {
+  for (const text of ['深圳今天的天气，我看一下。', 'ちょっと調べますね', "Sure, let me check that", '好，我查一下']) assert.equal(promisesAction(text), true, text)
+  for (const text of ['嗯，是啊。', 'はい、聞こえてます。', 'I do, quite a lot.']) assert.equal(promisesAction(text), false, text)
 })
