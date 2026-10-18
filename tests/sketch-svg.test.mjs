@@ -67,12 +67,12 @@ test('fill and stroke on one shape become two strokes; long filled paths flatten
   assert.match(long.warnings[0], /flattened to a polygon/)
 })
 
-test('gradients are averaged with a warning; unsupported features are refused by name', () => {
-  const gradient = convert('<defs><linearGradient id="g"><stop offset="0" stop-color="#000000"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs><rect width="10" height="10" fill="url(#g)"/>')
+test('a gradient on a stroke line is averaged with a warning; unsupported features are refused by name', () => {
+  const gradient = convert('<defs><linearGradient id="g"><stop offset="0" stop-color="#000000"/><stop offset="1" stop-color="#ffffff"/></linearGradient></defs><path d="M0 0L100 100" fill="none" stroke="url(#g)" stroke-width="4"/>')
   assert.equal(gradient.commands[0].color, '#808080')
   assert.match(gradient.warnings[0], /average color/)
   assert.throws(() => convert('<text x="1" y="1">hi</text>'), /Unsupported SVG element <text>/)
-  assert.throws(() => convert('<rect width="5" height="5" filter="url(#f)"/>'), /Unsupported SVG attribute filter/)
+  assert.throws(() => convert('<rect width="5" height="5" clip-path="url(#f)"/>'), /Unsupported SVG attribute clip-path/)
   assert.throws(() => convert('<style>.a{fill:red}</style>'), /<style>/)
   assert.throws(() => svgToSketchCommands('<svg viewBox="0 0 100 100"><rect width="5" height="5"/></svg>', { width: 1024, height: 768 }), /does not match the 1024x768/)
 })
@@ -94,7 +94,7 @@ test('applySketchCommands expands svg into the document and keeps ids unique acr
 
 test('an svg batch reports gradient warnings back through the report object', () => {
   const report = {}
-  applySketchCommands(doc, [{ op: 'svg', svg: wrap('<defs><linearGradient id="g"><stop stop-color="#f00"/><stop stop-color="#00f"/></linearGradient></defs><rect width="200" height="200" fill="url(#g)"/>') }], report)
+  applySketchCommands(doc, [{ op: 'svg', svg: wrap('<defs><linearGradient id="g"><stop stop-color="#f00"/><stop stop-color="#00f"/></linearGradient></defs><path d="M0 0L200 200" fill="none" stroke="url(#g)" stroke-width="5"/>') }], report)
   assert.match(report.warnings[0], /average color/)
 })
 
@@ -102,4 +102,70 @@ test('an over-budget batch says which limit it hit and what to do', () => {
   let body = ''
   for (let i = 0; i < 1100; i++) body += `<rect x="${i % 900}" y="${i % 700}" width="9" height="9" fill="#123456" stroke="#000"/>`
   assert.throws(() => applySketchCommands(doc, [{ op: 'svg', svg: wrap(body) }]), /2200 strokes; the limit is 2000\. Merge shapes/)
+})
+
+test('gradient fills stay real gradients, relative to the shape box', () => {
+  const object = convert('<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffcc66"/><stop offset="1" stop-color="#ff6644" stop-opacity="0.5"/></linearGradient></defs><rect x="100" y="100" width="200" height="300" fill="url(#g)"/>')
+  const gradient = object.commands[0].gradient
+  assert.equal(object.warnings.length, 0)
+  assert.equal(gradient.type, 'linear')
+  assert.deepEqual([gradient.x1, gradient.y1, gradient.x2, gradient.y2], [0, 0, 0, 1])
+  assert.deepEqual(gradient.stops, [{ offset: 0, color: '#ffcc66' }, { offset: 1, color: '#ff6644', opacity: 0.5 }])
+  const user = convert('<defs><linearGradient id="g" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="768"><stop offset="0" stop-color="#000"/><stop offset="1" stop-color="#fff"/></linearGradient></defs><rect x="0" y="384" width="1024" height="384" fill="url(#g)"/>').commands[0].gradient
+  assert.deepEqual([user.y1, user.y2], [-1, 1])
+  const radial = convert('<defs><radialGradient id="r" cx="512" cy="384" r="256" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#000"/></radialGradient></defs><rect width="1024" height="768" fill="url(#r)"/>').commands[0].gradient
+  assert.equal(radial.type, 'radial')
+  assert.deepEqual([radial.cx, radial.cy, radial.r, radial.ry], [.5, .5, .25, .3333])
+  const shared = convert('<defs><linearGradient id="base"><stop offset="0" stop-color="#111"/><stop offset="1" stop-color="#eee"/></linearGradient><linearGradient id="g" href="#base" x2="1" y2="0"/></defs><rect width="10" height="10" fill="url(#g)"/>').commands[0].gradient
+  assert.equal(shared.stops.length, 2)
+  assert.deepEqual([shared.x2, shared.y2], [1, 0])
+})
+
+test('a blur filter becomes a soft edge on the shapes it covers', () => {
+  const result = convert('<defs><filter id="b"><feGaussianBlur stdDeviation="12"/></filter></defs><circle cx="200" cy="200" r="80" fill="#ffd27a" filter="url(#b)"/><circle cx="500" cy="200" r="30" fill="#fff"/>')
+  assert.equal(result.commands[0].blur, 12)
+  assert.equal(result.commands[1].blur, undefined)
+  const other = convert('<defs><filter id="d"><feGaussianBlur stdDeviation="4"/><feOffset dx="3"/></filter></defs><g filter="url(#d)"><rect width="50" height="50"/></g>')
+  assert.equal(other.commands[0].blur, 4)
+  assert.ok(other.warnings.some(item => /only feGaussianBlur/.test(item)))
+})
+
+test('native commands accept gradient and blur, reject them where they cannot apply', () => {
+  const stops = [{ offset: 0, color: '#112233' }, { offset: 1, color: '#ffffff' }]
+  const next = applySketchCommands(doc, [{ op: 'stroke', shape: 'rectangle', color: '#000000', fill: true, points: [{ x: .1, y: .1 }, { x: .5, y: .5 }], gradient: { type: 'linear', stops }, blur: 8 }])
+  const stroke = next.layers[0].strokes[0]
+  assert.equal(stroke.gradient.type, 'linear')
+  assert.equal(stroke.blur, 8)
+  assert.throws(() => applySketchCommands(doc, [{ op: 'stroke', shape: 'line', color: '#000000', points: [{ x: 0, y: 0 }, { x: 1, y: 1 }], gradient: { type: 'linear', stops } }]), /gradient needs fill/i)
+  assert.throws(() => applySketchCommands(doc, [{ op: 'stroke', shape: 'circle', color: '#000000', fill: true, points: [{ x: 0, y: 0 }, { x: 1, y: 1 }], gradient: { type: 'linear', stops: [stops[0]] } }]), /2–8 stops/)
+  const id = next.layers[0].strokes[0].id
+  const moved = applySketchCommands(next, [{ op: 'object', id, action: 'update', transform: { dx: .1 } }]).layers[0].strokes[0]
+  assert.equal(moved.gradient.type, 'linear')
+  assert.equal(moved.blur, 8)
+  const cleared = applySketchCommands(next, [{ op: 'object', id, action: 'update', patch: { gradient: { type: 'none' }, blur: 0 } }]).layers[0].strokes[0]
+  assert.equal(cleared.gradient, undefined)
+  assert.equal(cleared.blur, undefined)
+})
+
+test('the painter fills with the gradient and blurs the stroke', async () => {
+  const { paintSketch } = await import('../src/sketch-document.js')
+  const calls = []
+  const gradient = { addColorStop: (...args) => calls.push(['stop', ...args]) }
+  const context = new Proxy({
+    createLinearGradient: (...args) => { calls.push(['linear', ...args]); return gradient },
+    createRadialGradient: (...args) => { calls.push(['radial', ...args]); return gradient },
+    fill: () => calls.push(['fill', context.filter, context.fillStyle === gradient]),
+    save() {}, restore() {}, translate() {}, scale() {},
+  }, { get: (target, key) => key in target ? target[key] : () => {}, set: (target, key, value) => { target[key] = value; return true } })
+  const stops = [{ offset: 0, color: '#ff0000' }, { offset: 1, color: '#0000ff', opacity: .5 }]
+  paintSketch(context, [
+    { shape: 'rectangle', color: '#000000', width: 2, opacity: 1, fill: true, brush: 'pen', points: [{ x: .25, y: .25 }, { x: .75, y: .75 }], gradient: { type: 'linear', x1: 0, y1: 0, x2: 0, y2: 1, stops }, blur: 6 },
+    { shape: 'circle', color: '#000000', width: 2, opacity: 1, fill: true, brush: 'pen', points: [{ x: 0, y: 0 }, { x: 1, y: 1 }], gradient: { type: 'radial', cx: .5, cy: .5, r: .5, fx: .5, fy: .5, stops } },
+  ], 1000, true, 1000)
+  assert.deepEqual(calls[0], ['linear', 0 + 250, 250, 250, 750])
+  assert.deepEqual(calls[1], ['stop', 0, 'rgba(255,0,0,1)'])
+  assert.deepEqual(calls[2], ['stop', 1, 'rgba(0,0,255,0.5)'])
+  assert.deepEqual(calls[3], ['fill', 'blur(6px)', true])
+  assert.deepEqual(calls[4], ['radial', 0, 0, 0, 0, 0, 1])
+  assert.deepEqual(calls.at(-1), ['fill', 'none', true])
 })

@@ -2,7 +2,9 @@ const number={type:'number'},string={type:'string'}
 const object=properties=>({type:'object',additionalProperties:false,properties})
 const points={type:'array',items:object({x:{...number,required:true},y:{...number,required:true}})}
 const point=object({x:{...number,required:true},y:{...number,required:true}})
-const style={color:string,width:number,opacity:number,fill:{type:'boolean'},text:string,points}
+const stop=object({offset:{...number,required:true},color:{...string,required:true},opacity:number})
+const gradient=object({type:{type:'string',required:true,enum:['linear','radial','none']},x1:number,y1:number,x2:number,y2:number,cx:number,cy:number,r:number,ry:number,fx:number,fy:number,stops:{type:'array',items:stop}})
+const style={color:string,width:number,opacity:number,fill:{type:'boolean'},text:string,points,gradient,blur:number}
 // DSH compiles this schema for both native function calls and run_code SDKs.
 export const sketchCommandArray={type:'array',items:object({
   op:{type:'string',required:true,enum:['stroke','object','layer','resize','svg']},

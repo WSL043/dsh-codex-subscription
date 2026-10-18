@@ -1,5 +1,6 @@
 import { configureSketchBrush } from './sketch-brushes.js'
 import { layoutSketchText } from './sketch-text.js'
+import { fillSketchShape } from './sketch-effects.js'
 export const SKETCH_SIZE = 1024
 export const MAX_SKETCH_STROKES = 2000
 export const MAX_STROKE_POINTS = 2000
@@ -21,6 +22,7 @@ export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = 
     if (!first) continue
     context.globalCompositeOperation = stroke.shape === 'eraser' ? 'destination-out' : 'source-over'
     configureSketchBrush(context,stroke)
+    if(stroke.blur>0)context.filter=`blur(${stroke.blur}px)`
     context.beginPath()
     const last = stroke.points.at(-1)
     if (stroke.shape === 'text') {
@@ -34,20 +36,20 @@ export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = 
     } else if (stroke.shape === 'bezier') {
       context.moveTo(first.x*size,first.y*height)
       for(let i=1;i<stroke.points.length;i+=3){const [a,b,c]=stroke.points.slice(i,i+3);context.bezierCurveTo(a.x*size,a.y*height,b.x*size,b.y*height,c.x*size,c.y*height)}
-      if(stroke.fill){context.closePath();context.fill()}else context.stroke()
+      if(stroke.fill){context.closePath();fillSketchShape(context,stroke,size,height)}else context.stroke()
     } else if (stroke.shape === 'line') {
       context.moveTo(first.x * size, first.y * height); context.lineTo(last.x * size, last.y * height); context.stroke()
     } else if (stroke.shape === 'rectangle') {
       context.rect(first.x * size, first.y * height, (last.x-first.x)*size, (last.y-first.y)*height)
-      if(stroke.fill)context.fill();else context.stroke()
+      if(stroke.fill)fillSketchShape(context,stroke,size,height);else context.stroke()
     } else if (stroke.shape === 'circle') {
       context.ellipse((first.x+last.x)*size/2, (first.y+last.y)*height/2, Math.abs(last.x-first.x)*size/2, Math.abs(last.y-first.y)*height/2, 0, 0, Math.PI*2)
-      if(stroke.fill)context.fill();else context.stroke()
+      if(stroke.fill)fillSketchShape(context,stroke,size,height);else context.stroke()
     } else if (stroke.shape === 'polygon') {
       context.moveTo(first.x*size,first.y*height)
       for(const point of stroke.points.slice(1))context.lineTo(point.x*size,point.y*height)
       context.closePath()
-      if(stroke.fill)context.fill();else context.stroke()
+      if(stroke.fill)fillSketchShape(context,stroke,size,height);else context.stroke()
     } else if (stroke.points.length === 1) {
       if(stroke.brushVersion===2 && stroke.brush==='marker')context.rect(first.x*size-context.lineWidth/2,first.y*height-context.lineWidth/4,context.lineWidth,context.lineWidth/2)
       else context.arc(first.x * size, first.y * height, context.lineWidth / 2, 0, Math.PI * 2)
@@ -62,6 +64,7 @@ export function paintSketch(context, strokes, size = SKETCH_SIZE, transparent = 
       context.lineTo(last.x * size, last.y * height)
       context.stroke()
     }
+    if(stroke.blur>0)context.filter='none'
   }
   context.globalCompositeOperation = 'source-over'
   context.globalAlpha = 1

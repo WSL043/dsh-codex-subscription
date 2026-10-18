@@ -3,6 +3,7 @@ import { expandSketchPreset } from './sketch-presets.js'
 import { MAX_SKETCH_STROKES, MAX_STROKE_POINTS } from './sketch-document.js'
 import { changeSketchLayer, strokeCount, resizeSketch } from './sketch-layers.js'
 import { expandSvgCommands, MAX_SVG_CHARACTERS } from './sketch-svg.js'
+import { normalizeBlur, normalizeGradient, gradientFits } from './sketch-effects.js'
 
 export const MAX_SKETCH_POINTS = 200_000
 export const SKETCH_COMMAND_HELP = {
@@ -10,12 +11,12 @@ export const SKETCH_COMMAND_HELP = {
   shapes: 'line: exactly two endpoints; rectangle/circle (ellipse alias accepted): exactly two opposite bounding-box corners (circle draws an ellipse within that box); polygon: three or more vertices, closed automatically; pen: ordered path points. bezier: start point, then groups of control1/control2/end; use 4 points for one cubic curve, max 64 segments. Prefer bezier for smooth designed curves instead of many pen samples. fill:true closes and fills the curve. fill:true fills rectangle/circle/polygon. Layers and strokes paint in list order, later ones on top. All commands needed for drawing are described here; no source-code search is required.',
   commands: {
     preset: 'triangle/diamond/star: {op:"stroke",id:"badge",shape:"star",points:[{x:0.1,y:0.1},{x:0.3,y:0.3}],color:"#ffcc00",fill:true}. Two opposite box corners; stored as editable polygon. Inspect objectId for one object without repeating full help.',
-    stroke: '{op:"stroke",layer:1,shape:"pen|line|arrow|text|rectangle|circle|polygon|bezier",color:"#rrggbb",width:2,opacity:1,fill:false,points:[{x:0.1,y:0.1},...]}',
+    stroke: '{op:"stroke",layer:1,shape:"pen|line|arrow|text|rectangle|circle|polygon|bezier",color:"#rrggbb",width:2,opacity:1,fill:false,points:[{x:0.1,y:0.1},...]}. Optional on filled shapes: gradient:{type:"linear",x1:0,y1:0,x2:0,y2:1,stops:[{offset:0,color:"#ffcc66"},{offset:1,color:"#ff6644",opacity:0.8}]} or {type:"radial",cx:0.5,cy:0.5,r:0.5,stops:[...]} (coordinates relative to the shape\'s own box, so moving or scaling the object keeps it); blur:12 softens any stroke by that many canvas pixels (glow, shadow, haze). Patch gradient:{type:"none"} or blur:0 to remove.',
     layer: 'Add: {op:"layer",action:"add",value:"name"}; optional id is the NEW unique integer ID, otherwise allocated automatically. after is the existing insertion anchor, defaults to active layer. Other actions: {op:"layer",action:"select|rename|visible|duplicate|up|down|delete|clear",id:1,value:"name"}; id targets an existing layer.',
     curve: 'Prefer {op:"stroke",shape:"bezier",start:{x:0,y:0},segments:[{control1:{x:0.2,y:0},control2:{x:0.8,y:1},end:{x:1,y:1}}],color:"#123456"}. Each segment has exactly two controls and an endpoint; no point counting required. Legacy points arrays still accepted. Do not provide both forms.',
     object: '{op:"object",layer:1,id:"title",action:"update|duplicate|delete",patch:{color:"#0088ff",text:"Title"},transform:{dx:0.05,dy:0,scaleX:1,scaleY:1}}. All patch and transform fields optional. Inspect returns object IDs and bounds. Prefer targeted edits over redrawing layers.',
     resize: '{op:"resize",ratio:"1:1|4:3|3:4|16:9|9:16"}',
-    svg: '{op:"svg",svg:"<svg viewBox=\\"0 0 1024 768\\">...</svg>",layer:1}. Fastest way to draw: send a whole scene as SVG (path with M L H V C S Q T A Z, rect, circle, ellipse, line, polyline, polygon, g, use, transform, fill/stroke/opacity, style="..."); it becomes native editable strokes. The viewBox must match the canvas size (use the width and height from inspect; 4:3 is 1024x768). Gradients are flattened to their average color, so build glows and skies from stacked bands; text, image, filter, clipPath, mask, pattern and CSS classes are refused. Coordinates outside the canvas are clamped. One svg command may hold up to ' + MAX_SVG_CHARACTERS + ' characters.',
+    svg: '{op:"svg",svg:"<svg viewBox=\\"0 0 1024 768\\">...</svg>",layer:1}. Fastest way to draw: send a whole scene as SVG (path with M L H V C S Q T A Z, rect, circle, ellipse, line, polyline, polygon, g, use, transform, fill/stroke/opacity, style="..."); it becomes native editable strokes. The viewBox must match the canvas size (use the width and height from inspect; 4:3 is 1024x768). Linear and radial gradients on filled shapes are kept as real gradients (fill=\"url(#id)\", objectBoundingBox or userSpaceOnUse, gradientTransform, stop-opacity); a gradient on a stroke line is flattened to its average color. A filter with feGaussianBlur becomes a soft edge on each shape it covers (glows, shadows, haze, depth of field); other filter effects are ignored with a warning. Text, image, clipPath, mask, pattern and CSS classes are refused. Coordinates outside the canvas are clamped. One svg command may hold up to ' + MAX_SVG_CHARACTERS + ' characters.',
   },
   limits: { strokes: MAX_SKETCH_STROKES, pointsPerStroke: MAX_STROKE_POINTS, pointsTotal: MAX_SKETCH_POINTS, commandsPerBatch: 256, svgCharacters: MAX_SVG_CHARACTERS },
 }
@@ -50,10 +51,11 @@ export function applySketchCommands(source, commands, report) {
       else if(command.action==='duplicate'){strokes.splice(index+1,0,{...original,id:crypto.randomUUID(),points:original.points.map(p=>({...p}))})}
       else if(command.action==='update'){
         const patch=command.patch??{}
-        if(Object.keys(patch).some(k=>!['color','width','opacity','fill','text','points'].includes(k)))throw Error('Unsupported object property')
+        if(Object.keys(patch).some(k=>!['color','width','opacity','fill','text','points','gradient','blur'].includes(k)))throw Error('Unsupported object property')
         const changed=command.transform?transformObject({...original,...patch},command.transform):{...original,...patch}
         const validated=applySketchCommands({...doc,layers:[{...layer,strokes:[]}]},[{...changed,op:'stroke',layer:layer.id}])
         strokes[index]={...validated.layers[0].strokes[0],brush:original.brush??'pen',...(original.pressure!==undefined?{pressure:original.pressure}:{}),...(original.brushVersion===2?{brushVersion:2}:{})}
+        if(patch.gradient===undefined&&original.gradient&&!strokes[index].gradient&&original.fill)strokes[index].gradient=original.gradient
       }else throw Error('Unknown object action')
       doc={...doc,layers:doc.layers.map(l=>l===layer?{...l,strokes}:l)};continue
     }
@@ -77,7 +79,9 @@ export function applySketchCommands(source, commands, report) {
     if(shape==='text' && (typeof command.text!=='string'||!command.text.trim()||command.text.length>500||points[0].x===points[1].x||points[0].y===points[1].y))throw Error('Text requires 1–500 characters and a non-empty bounding box')
     const id=command.id??crypto.randomUUID()
     if(typeof id!=='string'||!id.length||id.length>100||layer.strokes.some(s=>s.id===id))throw Error('Invalid or duplicate object id')
-    const stroke = { id, ...(shape==='text'?{text:command.text}:{}), shape, color, width, opacity, fill, brush:'pen', points:points.map(p=>({x:p.x,y:p.y})) }
+    const gradient=normalizeGradient(command.gradient),blur=normalizeBlur(command.blur)
+    if(gradient&&!gradientFits(shape,fill))throw Error('A gradient needs fill:true on a rectangle, circle, polygon or bezier shape')
+    const stroke = { id, ...(shape==='text'?{text:command.text}:{}), shape, color, width, opacity, fill, ...(gradient?{gradient}:{}), ...(blur?{blur}:{}), brush:'pen', points:points.map(p=>({x:p.x,y:p.y})) }
     doc = {...doc,layers:doc.layers.map(item=>item===layer?{...item,strokes:[...item.strokes,stroke]}:item)}
   }
   const strokes = strokeCount(doc), points = doc.layers.reduce((n,l)=>n+l.strokes.reduce((m,s)=>m+s.points.length,0),0)

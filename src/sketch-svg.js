@@ -1,3 +1,4 @@
+import { normalizeGradient } from './sketch-effects.js'
 // Import a subset of SVG as native, editable sketch commands.
 //
 // Models draw far more fluently in SVG path syntax than in a JSON list of
@@ -20,8 +21,8 @@ const NAMED_COLORS = {
   indigo: '#4b0082', violet: '#ee82ee', turquoise: '#40e0d0', skyblue: '#87ceeb', darkgray: '#a9a9a9', darkgrey: '#a9a9a9',
   lightgray: '#d3d3d3', lightgrey: '#d3d3d3', darkred: '#8b0000', darkgreen: '#006400', darkblue: '#00008b', transparent: 'none',
 }
-const UNSUPPORTED = new Set(['text', 'tspan', 'image', 'foreignObject', 'filter', 'clipPath', 'mask', 'pattern', 'style', 'script', 'switch', 'marker', 'symbol'])
-const IGNORED = new Set(['title', 'desc', 'metadata', 'defs', 'linearGradient', 'radialGradient', 'stop', 'namedview', 'sodipodi:namedview'])
+const UNSUPPORTED = new Set(['text', 'tspan', 'image', 'foreignObject', 'clipPath', 'mask', 'pattern', 'style', 'script', 'switch', 'marker', 'symbol'])
+const IGNORED = new Set(['title', 'desc', 'metadata', 'defs', 'linearGradient', 'radialGradient', 'stop', 'filter', 'feGaussianBlur', 'feDropShadow', 'feOffset', 'feColorMatrix', 'feFlood', 'feComposite', 'feMerge', 'feMergeNode', 'feBlend', 'feMorphology', 'feTurbulence', 'feComponentTransfer', 'namedview', 'sodipodi:namedview'])
 
 const decode = value => value.split('&quot;').join('"').split('&apos;').join("'").split('&lt;').join('<').split('&gt;').join('>').split('&amp;').join('&')
 
@@ -118,6 +119,7 @@ function styleOf(node, parent) {
     strokeOpacity: number('stroke-opacity', parent.strokeOpacity),
     opacity: parent.opacity * number('opacity', 1),
     display: own.display === 'none' || own.visibility === 'hidden' ? 'none' : 'inline',
+    blur: parent.blur ?? 0,
   }
 }
 
@@ -312,23 +314,93 @@ export function svgToSketchCommands(text, { width, height, layer, existingIds = 
     return { x: clamp((tx - originX) / viewWidth), y: clamp((ty - originY) / viewHeight) }
   }
 
-  const gradientColor = reference => {
+  const gradientNode = reference => {
     const target = byId.get(/^url\(\s*['"]?#([^)'"]+)['"]?\s*\)/.exec(reference)?.[1] ?? '')
     if (!target || !/Gradient$/.test(target.name)) throw Error(`SVG paint ${reference} does not reference a gradient defined in the same SVG`)
-    const stops = target.children.filter(child => child.name === 'stop')
-    if (!stops.length) throw Error(`Gradient ${target.attrs.id} has no stops`)
-    const colors = stops.map(stop => parseColor(stop.attrs['stop-color'] ?? /stop-color\s*:\s*([^;]+)/.exec(stop.attrs.style ?? '')?.[1] ?? '#000000')).filter(color => color !== 'none')
+    return target
+  }
+  // A gradient may take its stops and attributes from another one through href.
+  const gradientChain = target => {
+    const chain = [target]
+    for (let node = target; chain.length < 5;) {
+      const href = node.attrs.href ?? node.attrs['xlink:href']
+      node = href?.startsWith('#') ? byId.get(href.slice(1)) : undefined
+      if (!node || !/Gradient$/.test(node.name)) break
+      chain.push(node)
+    }
+    return chain
+  }
+  const gradientStops = target => {
+    const holder = gradientChain(target).find(node => node.children.some(child => child.name === 'stop'))
+    if (!holder) throw Error(`Gradient ${target.attrs.id} has no stops`)
+    let last = 0
+    return holder.children.filter(child => child.name === 'stop').map(stop => {
+      const css = name => stop.attrs[name] ?? new RegExp(name + '\\s*:\\s*([^;]+)').exec(stop.attrs.style ?? '')?.[1]
+      const raw = String(stop.attrs.offset ?? '0').trim()
+      const offset = Math.max(last, Math.min(1, raw.endsWith('%') ? Number.parseFloat(raw) / 100 : Number.parseFloat(raw) || 0))
+      last = offset
+      const opacity = Number.parseFloat(css('stop-opacity') ?? '1')
+      return { offset, color: parseColor(css('stop-color') ?? '#000000'), opacity: Number.isFinite(opacity) ? Math.max(0, Math.min(1, opacity)) : 1 }
+    }).filter(stop => stop.color !== 'none')
+  }
+  const averageColor = (reference, warn) => {
+    const target = gradientNode(reference)
+    const colors = gradientStops(target).map(stop => stop.color)
+    if (!colors.length) throw Error(`Gradient ${target.attrs.id} has no usable stops`)
     const channels = colors.map(color => [1, 3, 5].map(offset => Number.parseInt(color.slice(offset, offset + 2), 16)))
     const mean = [0, 1, 2].map(channel => Math.round(channels.reduce((sum, item) => sum + item[channel], 0) / channels.length))
-    warnings.add(`Gradient ${target.attrs.id} was flattened to its average color; stack several bands for a real gradient.`)
+    if (warn) warnings.add(`Gradient ${target.attrs.id} was flattened to its average color (a gradient on a stroke line, or on a path that had to be split).`)
     return `#${mean.map(value => value.toString(16).padStart(2, '0')).join('')}`
   }
-  const paint = value => String(value).startsWith('url(') ? gradientColor(value) : parseColor(value)
+  const determinant = m => Math.abs(m[0] * m[3] - m[1] * m[2])
+  // Build the native gradient of a filled shape, relative to the shape's own box.
+  const nativeGradient = (reference, matrix, command) => {
+    const target = gradientNode(reference)
+    const chain = gradientChain(target)
+    const attr = name => chain.find(node => node.attrs[name] !== undefined)?.attrs[name]
+    const stops = gradientStops(target)
+    if (stops.length < 2) return undefined
+    const radial = target.name === 'radialGradient'
+    const objectBox = (attr('gradientUnits') ?? 'objectBoundingBox') === 'objectBoundingBox'
+    const xs = command.points.map(point => point.x), ys = command.points.map(point => point.y)
+    const bx = Math.min(...xs), by = Math.min(...ys), bw = Math.max(...xs) - bx, bh = Math.max(...ys) - by
+    if (!(bw > 1e-4 && bh > 1e-4)) return undefined
+    const gt = parseTransform(attr('gradientTransform'))
+    const length = (name, fraction, axis) => {
+      const raw = String(attr(name) ?? `${fraction * 100}%`).trim()
+      if (!raw.endsWith('%')) return Number.parseFloat(raw) || 0
+      const part = Number.parseFloat(raw) / 100
+      return objectBox ? part : part * (axis === 'x' ? viewWidth : axis === 'y' ? viewHeight : Math.hypot(viewWidth, viewHeight) / Math.SQRT2)
+    }
+    const full = objectBox ? gt : multiply(matrix, gt)
+    // A point of the gradient, as a fraction of the shape's box.
+    const place = (x, y) => {
+      const [px, py] = apply(full, x, y)
+      return objectBox ? [px, py] : [((px - originX) / viewWidth - bx) / bw, ((py - originY) / viewHeight - by) / bh]
+    }
+    const colors = stops.map(stop => ({ offset: stop.offset, color: stop.color, opacity: stop.opacity }))
+    if (!radial) {
+      const [x1, y1] = place(length('x1', 0, 'x'), length('y1', 0, 'y'))
+      const [x2, y2] = place(length('x2', 1, 'x'), length('y2', 0, 'y'))
+      return normalizeGradient({ type: 'linear', x1, y1, x2, y2, stops: colors })
+    }
+    const cx0 = length('cx', .5, 'x'), cy0 = length('cy', .5, 'y'), r0 = length('r', .5, 'r')
+    const [cx, cy] = place(cx0, cy0)
+    const [fx, fy] = place(attr('fx') === undefined ? cx0 : length('fx', .5, 'x'), attr('fy') === undefined ? cy0 : length('fy', .5, 'y'))
+    const k = Math.sqrt(determinant(full))
+    const r = objectBox ? r0 * k : r0 * k / viewWidth / bw
+    const ry = objectBox ? r0 * k : r0 * k / viewHeight / bh
+    return normalizeGradient({ type: 'radial', cx, cy, r, ry, fx, fy, stops: colors })
+  }
+  const paint = value => String(value).startsWith('url(') ? averageColor(value, false) : parseColor(value)
 
   const emit = (subpath, matrix, style, id) => {
     const points = [subpath.start, ...subpath.curves.flatMap(curve => [[curve[0], curve[1]], [curve[2], curve[3]], [curve[4], curve[5]]])]
+    const fillGradient = String(style.fill).startsWith('url(')
     const fill = style.fill === 'none' ? 'none' : paint(style.fill)
-    const stroke = style.stroke === 'none' ? 'none' : paint(style.stroke)
+    const stroke = style.stroke === 'none' ? 'none' : String(style.stroke).startsWith('url(') ? averageColor(style.stroke, true) : paint(style.stroke)
+    const blur = Math.min(64, Math.round(style.blur * scale * Math.sqrt(determinant(matrix)) * 10) / 10)
+    const add = list => commands.push(...(blur >= 0.5 ? list.map(item => ({ ...item, blur })) : list))
     const common = layer === undefined ? {} : { layer }
     const strokeWidth = Math.max(1, Math.min(256, (style.strokeWidth || 1) * scale * Math.hypot(matrix[0], matrix[1])))
     const segments = subpath.curves.length
@@ -375,20 +447,39 @@ export function svgToSketchCommands(text, { width, height, layer, existingIds = 
       return pieces
     }
     void points
-    if (fill !== 'none' && style.fillOpacity * style.opacity > 0) commands.push(...build(fill, style.fillOpacity * style.opacity, true, ''))
-    if (stroke !== 'none' && style.strokeOpacity * style.opacity > 0 && style.strokeWidth > 0) commands.push(...build(stroke, style.strokeOpacity * style.opacity, false, '-line'))
+    if (fill !== 'none' && style.fillOpacity * style.opacity > 0) {
+      let pieces = build(fill, style.fillOpacity * style.opacity, true, '')
+      if (fillGradient) {
+        const gradient = pieces.length === 1 && ['rectangle', 'circle', 'polygon', 'bezier'].includes(pieces[0].shape) ? nativeGradient(style.fill, matrix, pieces[0]) : undefined
+        if (gradient) pieces = [{ ...pieces[0], gradient }]
+        else warnings.add('A gradient fill was flattened to its average color (the path was split into several pieces, or its box is empty).')
+      }
+      add(pieces)
+    }
+    if (stroke !== 'none' && style.strokeOpacity * style.opacity > 0 && style.strokeWidth > 0) add(build(stroke, style.strokeOpacity * style.opacity, false, '-line'))
     void id
   }
 
+  // Only feGaussianBlur of a filter is kept (as a soft edge); the rest is ignored with a warning.
+  const filterBlur = (reference, group) => {
+    const target = byId.get(/^url\(\s*['"]?#([^)'"]+)['"]?\s*\)/.exec(reference)?.[1] ?? '')
+    if (!target || target.name !== 'filter') { warnings.add(`Filter ${reference} was ignored (it must be a <filter> defined in the same SVG).`); return 0 }
+    const blurs = target.children.filter(child => child.name === 'feGaussianBlur').map(child => Math.max(...numbers(child.attrs.stdDeviation ?? '0'), 0))
+    if (target.children.some(child => child.name !== 'feGaussianBlur')) warnings.add(`Filter ${target.attrs.id ?? ''}: only feGaussianBlur is applied; other effects were ignored.`)
+    if (blurs.length && group) warnings.add('A blur filter on a group softens each shape inside it separately.')
+    return Math.max(0, ...blurs)
+  }
   const walk = (node, matrix, parentStyle, depth) => {
     if (depth > 24) throw Error('SVG is nested too deeply')
     if (UNSUPPORTED.has(node.name)) throw Error(`Unsupported SVG element <${node.name}>. Draw with path, rect, circle, ellipse, line, polyline, polygon, g and use; add text with a native text command.`)
     if (IGNORED.has(node.name)) return
-    for (const name of ['clip-path', 'mask', 'filter']) {
+    for (const name of ['clip-path', 'mask']) {
       if (node.attrs[name] && node.attrs[name] !== 'none') throw Error(`Unsupported SVG attribute ${name}. Bake it into the shapes instead.`)
     }
     const style = styleOf(node, parentStyle)
     if (style.display === 'none') return
+    const filterValue = (node.attrs.filter ?? /(?:^|;)\s*filter\s*:\s*([^;]+)/.exec(node.attrs.style ?? '')?.[1] ?? 'none').trim()
+    if (filterValue !== 'none') style.blur = Math.max(style.blur, filterBlur(filterValue, ['g', 'svg', 'a', 'use'].includes(node.name)))
     const local = multiply(matrix, parseTransform(node.attrs.transform))
     const n = name => Number.parseFloat(node.attrs[name] ?? 0)
     const finish = subpaths => subpaths.forEach(subpath => emit(subpath, local, style, node.attrs.id))
@@ -426,7 +517,7 @@ export function svgToSketchCommands(text, { width, height, layer, existingIds = 
       default: throw Error(`Unsupported SVG element <${node.name}>`)
     }
   }
-  const base = { fill: '#000000', stroke: 'none', strokeWidth: 1, fillOpacity: 1, strokeOpacity: 1, opacity: 1 }
+  const base = { fill: '#000000', stroke: 'none', strokeWidth: 1, fillOpacity: 1, strokeOpacity: 1, opacity: 1, blur: 0 }
   walk(root, IDENTITY, base, 0)
   if (!commands.length) throw Error('The SVG contained no drawable shapes')
   return { commands, warnings: [...warnings], clamped }
