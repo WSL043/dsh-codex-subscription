@@ -414,7 +414,7 @@ export const STYLE = `
 .codexFlat .codexFeatureOverview>h3{margin-top:10px}
 .codexFlat .codexFeatureOptions{margin:0 0 8px;padding:0 0 0 0;background:transparent;gap:0;border-radius:0}
 .codexFlat .codexFeatureOptions .codexSubscriptionPreference{padding:8px 0 8px 12px;border-bottom:0;border-top:1px solid var(--dsw-alias-border-l2)}
-.codexFlat .codexFeatureScope{margin-top:0;border:0;border-top:1px solid var(--dsw-alias-border-l2);border-radius:0;padding:0}
+.codexFlat .codexFeatureScope{margin-top:0;border:0;border-radius:0;padding:0}
 .codexFlat .codexFeatureScope .codexSubscriptionPreference{border-bottom:0;padding:0}
 .codexFlat .codexScopeNote{margin-bottom:8px}
 .codexFlat .codexAdvancedFold{margin-top:0;padding:0 16px}
