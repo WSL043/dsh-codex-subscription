@@ -1,5 +1,6 @@
 export { CHANNEL, unwrap } from './rpc-contract.js'
 import { useSyncExternalStore } from 'react'
+import { forecastRunway } from './quota-pace.js'
 export const NS = 'settings.codexSubscription'
 export const SUPPORT_ISSUE_URL = 'https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml'
 export const QUICK_QUOTA_REFRESH_EVENT = 'dsh-codex-subscription:refresh-quick-quota'
@@ -25,6 +26,8 @@ export const hours = seconds => Math.round((seconds / 3600) * 10) / 10
 /** The language DSH shows its interface in, so dates and numbers match the text around them rather than the OS. */
 export const uiLocale = () => (typeof document === 'undefined' ? undefined : document.documentElement.lang || undefined)
 export const percent = value => Number(value).toLocaleString(uiLocale(), { maximumFractionDigits: 1 })
+// The API reports credits as a long decimal string; two decimals are enough to read.
+export const creditAmount = value => Number.isFinite(Number(value)) && String(value).trim() !== '' ? Number(value).toLocaleString(uiLocale(), { maximumFractionDigits: 2 }) : value
 export const isApproximateWindow = (seconds, expected) => seconds >= expected * 0.95 && seconds <= expected * 1.05
 export const windowLabel = (seconds, t) => {
   if (isApproximateWindow(seconds, 18_000)) return t('windowFiveHours')
@@ -34,7 +37,9 @@ export const windowLabel = (seconds, t) => {
   if (isApproximateWindow(seconds, 31_536_000)) return t('windowAnnual')
   return seconds >= 86_400 && seconds % 86_400 === 0
     ? fill(t('windowDays'), { value: seconds / 86_400 })
-    : fill(t('windowHours'), { value: hours(seconds) })
+    : seconds >= 172_800
+      ? fill(t('windowDays'), { value: Math.round(seconds / 8640) / 10 })
+      : fill(t('windowHours'), { value: hours(seconds) })
 }
 export const validDate = value => {
   const date = new Date(value)
@@ -62,15 +67,11 @@ export const formatRunway = (seconds, t) => {
 }
 
 export const formatQuotaForecast = (forecast, t) => {
-  if (forecast?.status === 'ready' && forecast.provisional) return `≈${formatRunway(forecast.runwaySeconds, t)}`
   if (forecast?.status === 'calibrating') return t(({ resolution: 'forecastResolution', 'changing-pace': 'forecastChanging', stale: 'forecastStale' })[forecast.reason] ?? 'quotaForecastCalibrating')
   if (forecast?.status === 'idle') return t('quotaForecastIdle')
-  if (forecast?.status !== 'ready') return undefined
-  if (forecast.survivesReset) return t('quotaForecastUntilReset')
-  if (Number.isFinite(forecast.runwayMinSeconds) && Number.isFinite(forecast.runwayMaxSeconds)) {
-    const min = formatRunway(forecast.runwayMinSeconds, t), max = formatRunway(forecast.runwayMaxSeconds, t)
-    if (min && max && min !== max) return fill(t('quotaForecast'), { symbol: '≈', duration: `${min}–${max}` })
-  }
-  const duration = formatRunway(forecast.runwaySeconds, t)
-  return duration === undefined ? undefined : fill(t('quotaForecast'), { symbol: '≈', duration })
+  const runway = forecastRunway(forecast)
+  if (runway === undefined) return undefined
+  if (runway.kind === 'reset') return t('quotaForecastUntilReset')
+  const duration = runway.kind === 'range' ? `${formatRunway(runway.min, t)}–${formatRunway(runway.max, t)}` : formatRunway(runway.seconds, t)
+  return fill(t('quotaForecast'), { symbol: '≈', duration })
 }
