@@ -12,7 +12,8 @@ function useBackdropOf(ref) {
       let parent = node.parentElement
       while (parent) {
         const colour = getComputedStyle(parent).backgroundColor
-        if (colour && colour !== 'transparent' && !/rgba(.*,s*0)$/u.test(colour)) { node.style.background = colour; return }
+        const parts = colour.match(/[\d.]+/gu)
+        if (parts && parts.length >= 3 && (parts.length < 4 || Number(parts[3]) > 0)) { node.style.background = `rgb(${parts[0]}, ${parts[1]}, ${parts[2]})`; return }
         parent = parent.parentElement
       }
       node.style.background = ''
