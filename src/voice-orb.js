@@ -229,7 +229,7 @@ export function createOrb(canvas, accent, options = {}) {
       const mic = clamp((input.mic ?? 0) * 1.75)
       const speaking = assistant > .05
       const thinking = !speaking && !!input.working
-      const calm = !!input.reduce
+      const pace = input.reduce ? 0.5 : 1 // reduced motion: the orb keeps moving (it is the call's feedback), only slower
 
       // state mix: listening, speaking, thinking ease toward their targets in about 0.3 s
       const target = speaking ? { listen: .2, speak: 1, think: 0 } : thinking ? { listen: .65, speak: 0, think: 1 } : { listen: 1, speak: 0, think: 0 }
@@ -281,9 +281,9 @@ export function createOrb(canvas, accent, options = {}) {
       offsets[2] = [b * d * 1.1 + Math.sin(p2 * 1.07) * b * w * 1.1, r * d * .7 + Math.cos(p2) * r * w * .75]
 
       // clocks run at 24 frames a second
-      s.base += dt * TUNE.fps
-      s.wave += dt * TUNE.fps * waveSpeed
-      s.flow += dt * TUNE.fps * (1 + s.flowBoost)
+      s.base += dt * pace * TUNE.fps
+      s.wave += dt * pace * TUNE.fps * waveSpeed
+      s.flow += dt * pace * TUNE.fps * (1 + s.flowBoost)
 
       // size: grows with the voice, breathes slowly when quiet (the Codex scale curve)
       s.level = ease(s.level, speaking ? assistant : 0, dt, .09, .3)
@@ -299,10 +299,10 @@ export function createOrb(canvas, accent, options = {}) {
       gl.clearColor(0, 0, 0, 0)
       gl.clear(gl.COLOR_BUFFER_BIT)
       gl.uniform2f(u.uRes, canvas.width, canvas.height)
-      gl.uniform1f(u.uWaveFrame, calm ? TUNE.startFrame : s.wave)
-      gl.uniform1f(u.uBaseFrame, calm ? TUNE.startFrame : s.base)
+      gl.uniform1f(u.uWaveFrame, s.wave)
+      gl.uniform1f(u.uBaseFrame, s.base)
       gl.uniform1f(u.uAmp, s.amp)
-      gl.uniform1f(u.uFlowFrame, calm ? TUNE.startFrame : s.flow)
+      gl.uniform1f(u.uFlowFrame, s.flow)
       gl.uniform1f(u.uEdge, s.edge)
       gl.uniform1f(u.uNoiseScale, noiseScale)
       gl.uniform1f(u.uSurface, surface)

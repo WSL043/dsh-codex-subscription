@@ -51,7 +51,7 @@ function VoiceStage({ call, connecting, rpc, sessionId, anchor, accent, t }) {
       const target = Math.max(mic, assistant)
       level += (target - level) * (target > level ? 0.35 : 0.12)
       orb.current?.style.setProperty('--level', reduce ? '0' : level.toFixed(3))
-      painter?.draw((performance.now() - started) / 1000, { mic: reduce ? 0 : mic, assistant: reduce ? 0 : assistant, working: working.current, reduce })
+      painter?.draw((performance.now() - started) / 1000, { mic, assistant, working: working.current, reduce })
       const next = assistant > 0.05 ? 'speaking' : mic > 0.05 ? 'listening' : 'idle'
       if (next !== last) { last = next; setMode(next) }
       frame.current = requestAnimationFrame(tick)
