@@ -31,3 +31,12 @@ test('the connectors row keeps its choices on one line beside the label and show
   assert.match(source, /data-danger=\{snapshot\.connectors === 'write'/u, 'writing without asking is shown as a warning')
   assert.match(STYLE, /\.codexSubscriptionPreferenceStack>\.codexSubscriptionQuotaModes\{[^}]*grid-auto-columns:minmax\(0,1fr\)/u)
 })
+
+test('every fold-out row in the settings is a pressable row with a chevron that turns when it opens', () => {
+  for (const name of ['codexSubscriptionHistory>summary', 'codexSubscriptionSearchOptions>summary', 'codexSubscriptionRuntime summary', 'codexImageDetails summary']) {
+    assert.ok(STYLE.includes(`.${name}::after`), `${name} has a chevron`)
+    assert.ok(STYLE.includes(`.${name}:hover`), `${name} has a hover state`)
+  }
+  assert.match(STYLE, /\[open\]>summary::after\{transform:translateY\(2px\) rotate\(-135deg\)\}/u)
+  assert.match(STYLE, /\.codexSubscriptionHintToggle\{[^}]*color:var\(--dsw-alias-label-primary\)/u)
+})
