@@ -90,7 +90,7 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
   const status = state?.status ?? 'connecting'
   return <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('remoteTitle')}>
     <div className="codexSubscriptionPreference">
-      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('remoteTitle')} <small>Beta</small></span><Hint t={t}>{t('remoteHint')}</Hint></div>
+      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('remoteTitle')} <small>Beta</small></span><Hint t={t}>{t(on ? 'state_remote_on' : 'state_remote_off')}</Hint></div>
       <Switch checked={on} label={t('remoteTitle')} disabled={!snapshot.writable} onChange={next => { void preference.set({ remoteControl: next ? 'on' : 'off' }) }} />
     </div>
     {on ? <>

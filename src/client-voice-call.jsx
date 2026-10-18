@@ -261,7 +261,7 @@ export function VoiceCallCard({ rpc, preference, snapshot, t }) {
   const languages = VOICE_LANGUAGES.map(value => ({ id: value, label: value === 'auto' ? t('voiceAuto') : t(`voiceLang_${value}`) }))
   return <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('voiceTitle')}>
     <div className="codexSubscriptionPreference">
-      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('voiceTitle')} <small>Beta</small></span><Hint t={t}>{t('voiceHint')}</Hint></div>
+      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('voiceTitle')} <small>Beta</small></span><Hint t={t}>{t(on ? 'state_voice_on' : 'state_voice_off')}</Hint></div>
       <Switch checked={on} label={t('voiceTitle')} disabled={!snapshot.writable} onChange={next => { void preference.set({ [VOICE_CALL_FIELD]: next ? 'on' : 'off' }) }} />
     </div>
     {on ? <>

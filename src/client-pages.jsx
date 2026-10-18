@@ -35,9 +35,9 @@ export function FeatureRow({ t, title, summary, beta, checked, onChange, disable
   </div>
 }
 
-function SwitchRow({ t, title, hint, beta, checked, disabled, reason, onChange }) {
+function SwitchRow({ t, title, hint, state, beta, checked, disabled, reason, onChange }) {
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{title}{beta ? <> <small>Beta</small></> : null}</span><Hint t={t}>{reason ?? hint}</Hint></div>
+    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{title}{beta ? <> <small>Beta</small></> : null}</span><Hint t={t}>{reason ?? (state ? t(`state_${state}_${checked ? 'on' : 'off'}`) : hint)}</Hint></div>
     <Switch checked={checked} label={title} disabled={disabled || Boolean(reason)} onChange={onChange} />
   </div>
 }
@@ -155,7 +155,7 @@ export function ToolsPage({ preference, rpc, t }) {
   const subagentsOn = snapshot.subagentBackend === 'codex'
   return <div className="codexSubscriptionAdvancedPreferences">
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('otherModelsTitle')}>
-      <SwitchRow t={t} title={t('otherModelsTitle')} hint={others ? t('otherModelsHintOn') : t('otherModelsHintOff')} checked={others} disabled={!writable}
+      <SwitchRow t={t} title={t('otherModelsTitle')} state="otherModels" checked={others} disabled={!writable}
         onChange={next => { void preference.set({ otherModels: next ? 'on' : 'off' }) }} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('searchSectionTitle')}>
@@ -185,10 +185,10 @@ export function CreatePage({ preference, t }) {
   return <div className="codexSubscriptionAdvancedPreferences">
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('imageSettings')}>
       <h3>{t('imageSettings')}</h3>
-      <SwitchRow t={t} title={t('imageGenerationRow')} hint={t('imageGenerationRowHint')} checked={snapshot.imageGeneration} disabled={disabled} onChange={next => set({ imageGeneration: next })} />
-      <SwitchRow t={t} title={t('imageEditingRow')} hint={t('imageEditingRowHint')} checked={snapshot.imageEditing} disabled={disabled} onChange={next => set({ imageEditing: next })} />
-      <SwitchRow t={t} title={t('imageShortcutRow')} hint={t('imageShortcutRowHint')} checked={snapshot.imageShortcut} disabled={disabled} reason={!imagesOn && !snapshot.imageShortcut ? t('imageShortcutNeedsImages') : undefined} onChange={next => set({ imageShortcut: next })} />
-      <SwitchRow t={t} title={t('imageViewerRow')} hint={t('imageViewerRowHint')} checked={snapshot.imageViewer && snapshot.imageAnnotations} disabled={disabled} onChange={next => set({ imageViewer: next, imageAnnotations: next })} />
+      <SwitchRow t={t} title={t('imageGenerationRow')} state="imageGeneration" checked={snapshot.imageGeneration} disabled={disabled} onChange={next => set({ imageGeneration: next })} />
+      <SwitchRow t={t} title={t('imageEditingRow')} state="imageEditing" checked={snapshot.imageEditing} disabled={disabled} onChange={next => set({ imageEditing: next })} />
+      <SwitchRow t={t} title={t('imageShortcutRow')} state="imageShortcut" checked={snapshot.imageShortcut} disabled={disabled} reason={!imagesOn && !snapshot.imageShortcut ? t('imageShortcutNeedsImages') : undefined} onChange={next => set({ imageShortcut: next })} />
+      <SwitchRow t={t} title={t('imageViewerRow')} state="imageViewer" checked={snapshot.imageViewer && snapshot.imageAnnotations} disabled={disabled} onChange={next => set({ imageViewer: next, imageAnnotations: next })} />
       <details className="codexAdvancedFold codexAdvancedInline">
         <summary>{t('imageAdvancedTitle')}<span>{imagesOn ? `${modelLabel(snapshot.imageModel)} · ${t(`imageQuality_${snapshot.imageQuality}`)}` : t('imageCapability_off')}</span></summary>
         <ImageChoice t={t} label={t('imageModel')} value={snapshot.imageModel} text={modelLabel(snapshot.imageModel)} disabled={disabled || !imagesOn}
@@ -200,10 +200,10 @@ export function CreatePage({ preference, t }) {
       </details>
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('creativeSketch')}>
-      <SwitchRow t={t} title={t('featureSketchTitle')} beta hint={!imagesOn ? t('featureSketchNeedsImages') : t('sketchBoardRowHint')} checked={snapshot.imageSketch} disabled={disabled}
+      <SwitchRow t={t} title={t('featureSketchTitle')} beta hint={!imagesOn ? t('featureSketchNeedsImages') : undefined} state={imagesOn ? 'sketchBoard' : undefined} checked={snapshot.imageSketch} disabled={disabled}
         reason={!imagesOn && !snapshot.imageSketch ? t('featureSketchNeedsImages') : undefined}
         onChange={next => set(next ? { imageSketch: true } : { imageSketch: false, imageSketchAgent: false })} />
-      <SwitchRow t={t} title={t('sketchAgentRow')} hint={t('sketchAgentRowHint')} checked={snapshot.imageSketchAgent} disabled={disabled}
+      <SwitchRow t={t} title={t('sketchAgentRow')} state="sketchAgent" checked={snapshot.imageSketchAgent} disabled={disabled}
         reason={!snapshot.imageSketch ? t('sketchAgentNeedsBoard') : undefined} onChange={next => set({ imageSketchAgent: next })} />
     </section>
   </div>

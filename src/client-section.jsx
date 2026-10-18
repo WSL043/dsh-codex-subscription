@@ -8,8 +8,8 @@ function Notices({ preference, t, tab, signedIn, go }) {
   const snapshot = usePreferenceSnapshot(preference)
   const items = []
   if (snapshot.error) items.push(<p key="failed" className="codexSubscriptionError" role="alert">{t('preferenceFailed')} <button type="button" onClick={() => { void preference.retry() }}>{t('preferenceRetry')}</button></p>)
-  if (snapshot.restartRequired) items.push(<p key="restart" className="codexSubscriptionError" role="status">{t('settingsRestartRequired')}</p>)
-  if (snapshot.status === 'ready' && snapshot.writable === false) items.push(<p key="readonly" className="codexSubscriptionError" role="status">{t('settingsReadonly')}</p>)
+  if (snapshot.restartRequired) items.push(<p key="restart" className="codexSubscriptionNotice" role="status">{t('settingsRestartRequired')}</p>)
+  if (snapshot.hostReadOnly) items.push(<p key="readonly" className="codexSubscriptionNotice" role="status">{t('settingsReadonly')}</p>)
   if (signedIn === false && tab !== 'start') items.push(<p key="signin" className="codexSubscriptionNotice" role="status">{t('needSignIn')} <button type="button" onClick={() => go('start')}>{t('needSignInGo')}</button></p>)
   return items.length === 0 ? null : <div className="codexSubscriptionNotices">{items}</div>
 }

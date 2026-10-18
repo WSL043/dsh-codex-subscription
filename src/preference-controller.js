@@ -114,6 +114,8 @@ export function createPreferenceController(rpc) {
       modelsLoading,
       modelError,
       writable: !updating && current.status === 'ready' && current.writable === true,
+      // The host itself refuses writes (not just a save in flight); the settings page says so once.
+      hostReadOnly: current.status === 'ready' && current.writable === false,
       saving: updating,
       restartRequired,
       error,
