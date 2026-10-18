@@ -425,6 +425,7 @@ export const STYLE = `
 .codexFlat .codexSubscriptionSearch>.codexSubscriptionSearchOptions,.codexFlat .codexSubscriptionRuntime,.codexFlat .codexSubscriptionHistory{border-top:0;margin-top:0;padding-top:0}
 .codexFlat .codexSubscriptionSearchOptions{margin:0;padding:0}.codexFlat .codexSubscriptionSearchOptions>summary{padding:10px 0;margin:0}
 .codexFlat .codexSubscriptionCard:has(>.codexSubscriptionAccounts),.codexFlat .codexSubscriptionCard:has(>.codexSubscriptionActions),.codexFlat .codexSubscriptionStorage{padding-block:10px}
+.codexFlat .codexSubscriptionCreditSection{display:block}.codexFlat .codexSubscriptionCreditSection[open]>summary{border-bottom:1px solid var(--dsw-alias-border-l2);margin-bottom:8px}
 .codexFlat .codexSubscriptionStorageMeter{background:transparent;padding:6px 0}
 .codexFlat .codexSubscriptionResetBox{border:0;border-radius:0;padding:0}
 .codexFlat :is(button,summary,a):focus-visible,.codexFlat label:has(:focus-visible){outline:2px solid var(--dsw-alias-border-inverted);outline-offset:2px;box-shadow:none}

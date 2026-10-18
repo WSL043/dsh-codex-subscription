@@ -199,7 +199,8 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
         <progress max="100" value={window.remainingPercent} aria-label={`${t('chatPass')} ${fill(t('remaining'), { value: percent(window.remainingPercent) })}`} />
         <div className="codexSubscriptionLimitMeta"><span className="codexSubscriptionLimitPeriod"><span>{windowLabel(window.windowSeconds, t)}</span></span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
       </div>)}</div>}
-    {visibleUsage?.credits === undefined && visibleUsage?.individualLimit === undefined && !(visibleUsage?.resetCredits?.availableCount > 0) ? null : <div className="codexSubscriptionCreditSection">
+    {visibleUsage?.credits === undefined && visibleUsage?.individualLimit === undefined && !(visibleUsage?.resetCredits?.availableCount > 0) ? null : <details className="codexSubscriptionCreditSection codexAdvancedFold codexAdvancedInline">
+      <summary>{t('creditsFoldTitle')}<span>{visibleUsage?.credits ? (visibleUsage.credits.unlimited ? t('unlimited') : visibleUsage.credits.balance == null ? t('unavailable') : `${creditAmount(visibleUsage.credits.balance)} ${t('creditsUnit')}`) : ''}</span></summary>
       <p className="codexSubscriptionCreditNote">{t('creditsNote')}</p>
       <div className="codexSubscriptionCreditRows">
         {visibleUsage?.credits ? <div className="codexSubscriptionCreditBalance"><span>{t('creditsBalance')}</span><strong>{visibleUsage.credits.unlimited ? t('unlimited') : visibleUsage.credits.balance == null ? t('unavailable') : `${creditAmount(visibleUsage.credits.balance)} ${t('creditsUnit')}`}</strong></div> : null}
@@ -213,6 +214,6 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
           <div className="codexSubscriptionLimitMeta"><span>{fill(t('creditsUsed'), { used: visibleUsage.individualLimit.used, limit: visibleUsage.individualLimit.limit })}</span><ResetTime resetsAt={visibleUsage.individualLimit.resetsAt} t={t} /></div>
         </div> : null}
       </div>
-    </div>}
+    </details>}
   </div>
 }
