@@ -412,7 +412,8 @@ export const STYLE = `
 .codexFlat .codexSubscriptionDivider{display:none}
 .codexFlat .codexSubscriptionQuotaModes{background:var(--dsw-alias-bg-module-platform);border-radius:10px;padding:2px;gap:2px;min-height:32px;box-sizing:border-box}
 .codexFlat .codexSubscriptionQuotaMode{min-height:28px;border-radius:8px;padding:0 10px;font-size:13px;white-space:nowrap}
-.codexFlat .codexSubscriptionContextTrigger,.codexFlat .codexSubscriptionPreference button[class*=_md_],.codexFlat .codexSubscriptionActions button[class*=_md_]{background:var(--dsw-alias-bg-module-platform);border-radius:10px;padding:0 12px;min-height:32px;height:32px;color:var(--dsw-alias-label-primary);font-size:13px}
+.codexFlat .codexSubscriptionContextTrigger{background:var(--dsw-alias-bg-module-platform);border-radius:10px;padding:0 12px;min-height:32px;height:32px;color:var(--dsw-alias-label-primary);font-size:13px}
+.codexFlat .codexSubscriptionPreference button[class*=_md_],.codexFlat .codexSubscriptionActions button[class*=_md_]{border-radius:10px;padding:0 12px;min-height:32px;height:32px;font-size:13px}
 .codexFlat .codexSubscriptionActions .codexSubscriptionContextTrigger{min-height:32px}
 .codexFlat .codexFeatureMore{box-sizing:border-box;width:28px;min-width:28px;height:28px;padding:0;gap:0;justify-content:center;background:transparent;border-radius:8px;color:var(--dsw-alias-label-secondary)}.codexFlat .codexFeatureMore:hover{background:var(--dsw-alias-bg-module-platform)}
 .codexFlat .codexFeatureMoreSpace{display:block;width:28px;min-width:28px;height:28px}

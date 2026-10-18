@@ -95,9 +95,9 @@ function OutputVerbosityPreference({ preference, t }) {
   </div>
 }
 
-function Radios({ snapshot, preference, field, values, label, name, text, disabled }) {
+function Radios({ snapshot, preference, field, values, label, name, text, disabled, disabledValues = [] }) {
   return <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={label} aria-busy={snapshot.saving || undefined}>
-    {values.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name={name} checked={snapshot[field] === value} disabled={disabled || !snapshot.writable} onChange={() => { void preference.set({ [field]: value }) }} /><span>{text(value)}</span></label>)}
+    {values.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name={name} checked={snapshot[field] === value} disabled={disabled || !snapshot.writable || disabledValues.includes(value)} onChange={() => { void preference.set({ [field]: value }) }} /><span>{text(value)}</span></label>)}
   </div>
 }
 
@@ -133,7 +133,10 @@ export function ModelsPage({ preference, t, defaultModel }) {
           <Radios snapshot={snapshot} preference={preference} field="connectionMode" values={['sse', 'websocket']} name="codex-connection-mode" label={t('connectionTitle')} text={value => t(`connection_${value}`)} />
         </div>
         <div className="codexSubscriptionDivider" />
-        <SwitchRow t={t} title={t('compactionTitle')} beta hint={t('compactionHint')} checked={snapshot.compactionMode === 'cloud'} disabled={!ready(snapshot)} onChange={next => { void preference.set({ compactionMode: next ? 'cloud' : 'dsh' }) }} />
+        <div className="codexSubscriptionPreference">
+          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('compactionTitle')} <small>Beta</small></span><Hint t={t}>{t('compactionHint')}</Hint></div>
+          <Radios snapshot={snapshot} preference={preference} field="compactionMode" values={['dsh', 'cloud']} name="codex-compaction-mode" label={t('compactionTitle')} text={value => t(`compaction_${value}`)} />
+        </div>
         <div className="codexSubscriptionDivider" />
         <div className="codexSubscriptionPreference">
           <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('reviewModelTitle')} <small>Beta</small></span><Hint t={t}>{t('reviewModelHint')}</Hint></div>
@@ -162,10 +165,12 @@ export function ToolsPage({ preference, rpc, t }) {
       <ConnectorsPreference preference={preference} t={t} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('subagentBackendTitle')}>
-      <h3>{t('subtasksTitle')}</h3>
-      <SwitchRow t={t} title={t('subagentBackendTitle')} beta checked={subagentsOn} disabled={!writable || !snapshot.subagentBackendAvailable || (!codexReady && !subagentsOn)}
-        hint={snapshot.subagentBackendAvailable ? t(codexReady || subagentsOn ? 'subagentBackendHint' : 'subagentBackendNeedsRuntime') : t('subagentBackendUnavailable')}
-        onChange={next => { void preference.set({ subagentBackend: next ? 'codex' : 'dsh' }) }} />
+      
+      <div className="codexSubscriptionPreference">
+        <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('subagentBackendTitle')} <small>Beta</small></span><Hint t={t}>{snapshot.subagentBackendAvailable ? t(codexReady || subagentsOn ? 'subagentBackendHint' : 'subagentBackendNeedsRuntime') : t('subagentBackendUnavailable')}</Hint></div>
+        <Radios snapshot={snapshot} preference={preference} field="subagentBackend" values={['dsh', 'codex']} name="codex-subagent-backend" label={t('subagentBackendTitle')} text={value => t(`subagentBackend_${value}`)}
+          disabled={!snapshot.subagentBackendAvailable} disabledValues={codexReady || subagentsOn ? [] : ['codex']} />
+      </div>
       <RuntimeManagement rpc={rpc} preference={preference} t={t} />
     </section>
   </div>
