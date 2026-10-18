@@ -109,7 +109,7 @@ Pair the ChatGPT mobile app's Codex section with a QR code and the DSH on your c
 - DSH workspaces appear as projects; fork a conversation, see usage limits, lifetime usage and context usage; where DSH has `/compact` (0.2.1-rc.2 onwards), compact the context from the phone;
 - model errors show on the phone; paired phones are listed in settings and can be removed.
 
-Off by default: **Settings → Codex → Models & runtime → Phone remote control**. The computer must stay on, online and running DSH. This feature is a third-party host compatibility layer built on the Codex Remote Control protocol and uses OpenAI's remote connection service. Codex has an official remote control implementation, but connecting DSH as a third-party host is not something OpenAI has explicitly committed to support, and later service updates may affect compatibility, hence Beta. It is off by default; you can turn it on, manage paired devices or turn it off at any time. It does not mean OpenAI has certified or endorsed it.
+Off by default: **Settings → Codex → Other models → Phone remote control**. The computer must stay on, online and running DSH. This feature is a third-party host compatibility layer built on the Codex Remote Control protocol and uses OpenAI's remote connection service. Codex has an official remote control implementation, but connecting DSH as a third-party host is not something OpenAI has explicitly committed to support, and later service updates may affect compatibility, hence Beta. It is off by default; you can turn it on, manage paired devices or turn it off at any time. It does not mean OpenAI has certified or endorsed it.
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Phone remote control in settings: the switch, pairing QR code and manual code, paired phones"></picture></p>
 
@@ -123,7 +123,11 @@ Examples are in [From sketch to image](#from-sketch-to-image); the switches are 
 
 ### ChatGPT connectors
 
-Let DeepSeek or any other DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more. Models search first, then call, and by default every change asks for your approval (you can switch that off in settings). Off by default; turn it on under Models & runtime.
+Let DeepSeek or any other DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more. Models search first, then call, and by default every change asks for your approval (you can switch that off in settings). Off by default; turn it on under Other models.
+
+### Decide whether DeepSeek and other models get the subscription features
+
+Web search source, ChatGPT connectors, review model, subtasks, voice and phone remote control are all on one page: **Settings → Codex subscription → Other models**. One master switch at the top: when off, conversations on DeepSeek and other non-Codex models no longer use subscription web search (DSH search is used instead), image generation or ChatGPT connectors; Codex subscription models are not affected. On by default.
 
 [Usage details, limitations and optional components →](docs/GUIDE.en.md)
 
@@ -132,7 +136,7 @@ Let DeepSeek or any other DSH model use the apps you connected in ChatGPT: GitHu
 Model access and quota depend on your account.
 
 <details>
-<summary><b>Models and search</b> (13)</summary>
+<summary><b>Models and search</b> (14)</summary>
 <br>
 
 | Feature | What you can do | Availability / setup |
@@ -146,7 +150,8 @@ Model access and quota depend on your account.
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
 | **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
 | **Subscription web search** | Use Codex search or choose DSH search | Auto, DSH, and Codex sources; routed at search time without rewriting DSH's own search settings, so the official settings page keeps showing what you set; both the DeepSeek account route and the API-key route (new Search API / legacy) work; when one side is signed out or has no key the other is used |
-| **Search scope** | Choose live / cached search, disable search, or restrict domains | Configure under Models & runtime |
+| **Other-models switch** | One switch that stops conversations on DeepSeek and other non-Codex models from using subscription web search, image generation and ChatGPT connectors | Settings → Codex subscription → Other models; on by default, Codex subscription models are not affected; phone remote control and voice are started by you and are not affected |
+| **Search scope** | Choose live / cached search, disable search, or restrict domains | Configure under Other models, next to the search source |
 | **Stream inactivity timeout** | Set how long a request can receive no streamed data before it is aborted | 10 minutes by default; not an overall response deadline |
 | **Context budget** | Use standard, extended, or custom budgets per model | Limited by the model catalog |
 | **GPT-Reserve** | Select the reserve model when your account offers it | Experimental; no promise of a separate reserve quota |
@@ -201,13 +206,13 @@ Model access and quota depend on your account.
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta; off by default; Settings → Codex → Models & runtime → Phone remote control, pair by QR or manual code |
+| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta; off by default; Settings → Codex → Other models → Phone remote control, pair by QR or manual code |
 | **Codex independent subtasks** | Reuse subscription sign-in and workspace permissions; select allowed models and reasoning levels | Beta, optional, most people do not need it: by default DSH runs its own subagents (they can use subscription models too); install the optional component (about 377 MB on Windows) and turn on model selection under Plugins → Subagents only if you want subtasks run by the official Codex agent. It uses its own data directory and your subscription sign-in, never the Codex login on this computer |
 | **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
 | **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
 | **WebSocket transport** | Experimentally reuse connections and context transfers, with SSE fallback on connection failure | Beta / experimental; SSE by default, no speed guarantee |
 | **Codex reviewer for Auto review** | DSH Auto review judges tool calls with Codex's own review model; DSH keeps its review policy and allow/deny flow | Beta; off by default, applies when your account catalog offers the model |
-| **ChatGPT connectors** | Let DeepSeek or any DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more; models search first, then call, and by default every change asks for your approval, switchable | Off by default, Settings → Codex → Models & runtime → ChatGPT connectors; connect the apps in ChatGPT first |
+| **ChatGPT connectors** | Let DeepSeek or any DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more; models search first, then call, and by default every change asks for your approval, switchable | Off by default, Settings → Codex → Other models → ChatGPT connectors; connect the apps in ChatGPT first |
 | **Support diagnostics** | Inspect prerequisites and recent operation results, and copy a short report (about 1 KB; the full one can be copied separately) without credentials or conversation text | Settings → Maintenance; unverified does not mean broken |
 | **Forecast cache cleanup** | Inspect and clear local quota forecast history | Keeps sign-in, drafts, originals, and shared dependencies |
 
@@ -231,7 +236,8 @@ Open **Settings → Codex** to manage accounts and quota. Enable other features 
 | Settings tab | What it controls |
 | --- | --- |
 | **Account** | Sign-in, account switching, reset times, quota display and alerts |
-| **Models & runtime** | Subscription search, context budget, connections, subtasks and phone remote control |
+| **Models & runtime** | Model list and default model, context budget, input image detail, connection mode, cloud compaction |
+| **Other models** | The master switch, plus search source, ChatGPT connectors, review model, independent subtasks, voice and phone remote control |
 | **Images & sketch** | Separate switches for image generation, the canvas, and agent drawing |
 | **Maintenance** | Support diagnostics and local quota forecast cache |
 
@@ -374,7 +380,7 @@ Diagnostics exclude credentials, account identifiers, raw responses, and full lo
 <details>
 <summary>Do I need the Codex command line?</summary>
 
-Not for ordinary subscription chat. Only if you want **Codex independent subtasks**: use "Install component" under Settings → Codex → Models & runtime; disabling and uninstalling are in the same place. Other experimental options are opt-in. [Optional components, storage cleanup and the full guide →](docs/GUIDE.en.md)
+Not for ordinary subscription chat. Only if you want **Codex independent subtasks**: use "Install component" under Settings → Codex → Other models; disabling and uninstalling are in the same place. Other experimental options are opt-in. [Optional components, storage cleanup and the full guide →](docs/GUIDE.en.md)
 
 </details>
 
