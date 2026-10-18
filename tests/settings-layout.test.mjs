@@ -58,11 +58,14 @@ test('settings are five task-based pages, and each feature has one place and one
   const part = name => { const at = pages.indexOf(`export function ${name}(`); const next = pages.indexOf('\nexport function ', at + 10); return pages.slice(at, next < 0 ? undefined : next) }
   const start = part('FeatureOverview'), tools = part('ToolsPage'), more = part('MorePage'), create = part('CreatePage'), models = part('ModelsPage')
   // the first page lists every feature with a switch and holds the master switch
-  for (const piece of ['featureSearchTitle', 'featureImageTitle', 'featureConnectorsTitle', 'featureSketchTitle', 'featureVoiceTitle', 'featureRemoteTitle', 'otherModelsTitle']) assert.ok(start.includes(piece), `${piece} is on the first page`)
-  for (const piece of ['SearchProviderPreference', 'ConnectorsPreference', 'codex-review-model', 'codex-subagent-backend']) assert.ok(tools.includes(piece), `${piece} is on the web and tools page`)
+  for (const piece of ['featureSearchTitle', 'featureImageTitle', 'featureConnectorsTitle', 'featureSketchTitle', 'featureVoiceTitle', 'featureRemoteTitle']) assert.ok(start.includes(piece), `${piece} is on the first page`)
+  assert.ok(!start.includes('SearchProviderPreference') && !start.includes('ConnectorsPreference') && !start.includes('SwitchRow'), 'the first page only shows state and links; options live on one page each')
+  assert.ok(tools.includes('otherModelsTitle'), 'the master switch sits first on the web and tools page')
+  for (const name of ['SearchProviderPreference', 'ConnectorsPreference', 'ImageChoice']) assert.equal(pages.split(`<${name} `).length - 1, name === 'ImageChoice' ? 2 : 1, `${name} appears once`)
+  for (const piece of ['SearchProviderPreference', 'ConnectorsPreference', 'subagentBackendTitle']) assert.ok(tools.includes(piece), `${piece} is on the web and tools page`)
   assert.ok(more.includes('RemoteControlCard') && more.includes('VoiceCallCard') && more.includes('DiagnosticsCard') && more.includes('StorageCard'))
   assert.ok(create.includes('imageEditingRow') && create.includes('imageGenerationRow'), 'generation and editing are separate switches')
-  assert.ok(models.includes('advancedTitle') && models.includes('StreamIdleTimeoutPreference') && models.includes('compactionMode'), 'rarely used runtime options sit in one folded Advanced')
+  assert.ok(models.includes('advancedTitle') && models.includes('reviewModelTitle') && models.includes('StreamIdleTimeoutPreference') && models.includes('compactionMode'), 'rarely used runtime options sit in one folded Advanced')
   assert.ok(!pages.includes('<ImageChoice t={t} label={t(\'imageGeneration'), 'on/off choices are switches, not dropdowns')
 })
 
@@ -77,4 +80,17 @@ test('voice calls are off until the user turns them on, and signing out of every
   assert.match(contract, /normalizeVoiceCall = value => value === 'on' \? 'on' : 'off'/u)
   const account = await readFile(new URL('../src/client-account.jsx', import.meta.url), 'utf8')
   assert.match(account, /signOutConfirm/u)
+})
+
+test('Chinese and English strings cover the same keys', async () => {
+  const { zh, en } = await import('../src/client-locales.js')
+  assert.deepEqual(Object.keys(zh).filter(key => !(key in en)), [])
+  assert.deepEqual(Object.keys(en).filter(key => !(key in zh)), [])
+})
+
+test('one banner reports a failed save, a read-only host and a missing sign-in on every page', async () => {
+  const section = await readFile(new URL('../src/client-section.jsx', import.meta.url), 'utf8')
+  for (const piece of ['preferenceFailed', 'preferenceRetry', 'settingsReadonly', 'needSignIn', 'settingsRestartRequired']) assert.ok(section.includes(piece), piece)
+  const pages = await readFile(new URL('../src/client-pages.jsx', import.meta.url), 'utf8')
+  assert.ok(!pages.includes("t('preferenceFailed')") && !pages.includes("t('settingsRestartRequired')"), 'pages do not repeat the banner')
 })

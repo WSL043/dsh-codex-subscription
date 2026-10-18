@@ -1,8 +1,19 @@
 import { useEffect, useId, useState } from 'react'
-import { useAccountStatusSnapshot } from './client-shared.js'
+import { useAccountStatusSnapshot, usePreferenceSnapshot } from './client-shared.js'
 import { CreatePage, FeatureOverview, ModelsPage, MorePage, QuotaSettingsCard, ToolsPage } from './client-pages.jsx'
 import { AccountCard, AccountFailureCard } from './client-account.jsx'
 import { UsageCard } from './client-usage.jsx'
+/** One place for what is wrong right now, whichever page the user is on. */
+function Notices({ preference, t, tab, signedIn, go }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  const items = []
+  if (snapshot.error) items.push(<p key="failed" className="codexSubscriptionError" role="alert">{t('preferenceFailed')} <button type="button" onClick={() => { void preference.retry() }}>{t('preferenceRetry')}</button></p>)
+  if (snapshot.restartRequired) items.push(<p key="restart" className="codexSubscriptionError" role="status">{t('settingsRestartRequired')}</p>)
+  if (snapshot.status === 'ready' && snapshot.writable === false) items.push(<p key="readonly" className="codexSubscriptionError" role="status">{t('settingsReadonly')}</p>)
+  if (signedIn === false && tab !== 'start') items.push(<p key="signin" className="codexSubscriptionNotice" role="status">{t('needSignIn')} <button type="button" onClick={() => go('start')}>{t('needSignInGo')}</button></p>)
+  return items.length === 0 ? null : <div className="codexSubscriptionNotices">{items}</div>
+}
+
 export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, defaultModel }) {
   const [tab, setTab] = useState('start')
   const id = useId()
@@ -29,6 +40,7 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
           event.preventDefault(); setTab(tabs[next]); document.getElementById(`${id}-${tabs[next]}-tab`)?.focus()
         }}>{t(`settingsTab_${value}`)}</button>)}
     </div>
+    <Notices preference={preference} t={t} tab={tab} signedIn={account === undefined ? undefined : account.authenticated === true} go={setTab} />
     <div className="codexFlat" role="tabpanel" id={`${id}-start`} aria-labelledby={`${id}-start-tab`} hidden={tab !== 'start'}>
     {accountSnapshot.status === 'error' ? <AccountFailureCard accountStatus={accountStatus} snapshot={accountSnapshot} t={t} rpc={rpc} onRecovered={accountChanged} /> : <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} />}
     <FeatureOverview preference={preference} t={t} go={setTab} />
@@ -36,7 +48,7 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
     <QuotaSettingsCard preference={preference} t={t} />
     </div>
     <div className="codexFlat" role="tabpanel" id={`${id}-models`} aria-labelledby={`${id}-models-tab`} hidden={tab !== 'models'}><ModelsPage preference={preference} t={t} defaultModel={defaultModel} /></div>
-    <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}><ToolsPage preference={preference} rpc={rpc} t={t} go={setTab} /></div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}><ToolsPage preference={preference} rpc={rpc} t={t} /></div>
     <div className="codexFlat" role="tabpanel" id={`${id}-create`} aria-labelledby={`${id}-create-tab`} hidden={tab !== 'create'}><CreatePage preference={preference} t={t} /></div>
     <div className="codexFlat" role="tabpanel" id={`${id}-more`} aria-labelledby={`${id}-more-tab`} hidden={tab !== 'more'}><MorePage preference={preference} rpc={rpc} t={t} diagnostics={diagnostics} /></div>
   </section>

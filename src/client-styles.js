@@ -394,36 +394,45 @@ export const STYLE = `
 .codexAdvancedFold[open]>summary::after{transform:translateY(2px) rotate(-135deg)}
 .codexAdvancedBody{display:flex;flex-direction:column;gap:10px;padding:2px 16px 14px}
 .codexAdvancedInline{margin-top:6px;border:0;border-top:1px solid var(--dsw-alias-border-l2);border-radius:0;background:transparent}.codexAdvancedInline>summary{padding:10px 0}.codexAdvancedInline>.codexSubscriptionPreference{margin-bottom:8px}
-/* Flat settings pages, in the look of DSH's own settings: no cards, one hairline between rows, 14px titles, 12px grey descriptions */
-.codexFlat{display:flex;flex-direction:column}.codexFlat[hidden]{display:none}
-.codexFlat .codexSubscriptionCard,.codexFlat .codexSubscriptionPreferencesCard,.codexFlat .codexImageSettings{border:1px solid var(--dsw-alias-border-l2);background:transparent;box-shadow:none;border-radius:14px;padding:0 16px;margin:0 0 8px}
+/* Settings pages in DSH's own look. One set of sizes for every page:
+   frame 1px / radius 12 / side padding 16 / gap between frames 8; row min-height 52, padding 8 0; title 13/20, hint 12/18;
+   every in-row control 32px high, radius 10, 13px; a hairline only under a row, never above one. */
+.codexFlat{display:flex;flex-direction:column;gap:0}.codexFlat[hidden]{display:none}
 .codexFlat .codexSubscriptionAdvancedPreferences{gap:0}
-.codexFlat h3,.codexFlat .codexSubscriptionSectionHead h3{margin:10px 0 0;font-size:14px;font-weight:500;color:var(--dsw-alias-label-primary)}
-.codexFlat .codexSubscriptionPreference,.codexFlat .codexFeatureRow>.codexFeatureMain{padding:9px 0;min-height:0;gap:6px 16px}
+.codexFlat .codexSubscriptionCard,.codexFlat .codexSubscriptionPreferencesCard,.codexFlat .codexImageSettings{border:1px solid var(--dsw-alias-border-l2);background:transparent;box-shadow:none;border-radius:12px;padding:2px 16px;margin:0 0 8px}
+.codexFlat h3,.codexFlat .codexSubscriptionSectionHead h3{margin:10px 0 2px;font-size:14px;font-weight:500;line-height:20px;color:var(--dsw-alias-label-primary)}
+.codexFlat .codexSubscriptionPreference,.codexFlat .codexFeatureRow>.codexFeatureMain{box-sizing:border-box;padding:8px 0;min-height:52px;gap:6px 16px;align-items:center}
 .codexFlat .codexSubscriptionPreference,.codexFlat .codexFeatureRow{border-bottom:1px solid var(--dsw-alias-border-l2)}
-.codexFlat .codexFeatureRow{border-top:0}
-.codexFlat section>.codexSubscriptionPreference:last-child,.codexFlat section>.codexFeatureRow:last-of-type,.codexFlat section>div:last-child>.codexSubscriptionPreference:last-child{border-bottom:0}
-.codexFlat .codexSubscriptionPreferenceLabel,.codexFlat .codexFeatureTitle{font-size:13px;font-weight:400;line-height:20px;color:var(--dsw-alias-label-primary)}
-.codexFlat .codexSubscriptionPreferenceHint,.codexFlat .codexFeatureSummary,.codexFlat .codexSubscriptionHintText{font-size:12px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
+.codexFlat .codexFeatureRow,.codexFlat .codexSubscriptionPreference{border-top:0}
+.codexFlat section>.codexSubscriptionPreference:last-child,.codexFlat section>.codexFeatureRow:last-of-type,.codexFlat section>div:last-child>.codexSubscriptionPreference:last-child,.codexFlat .codexAdvancedBody>.codexSubscriptionPreference:last-child{border-bottom:0}
+.codexFlat .codexSubscriptionPreferenceLabel,.codexFlat .codexFeatureTitle{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;line-height:20px;min-height:20px;color:var(--dsw-alias-label-primary)}
+.codexFlat .codexSubscriptionPreferenceLabel small,.codexFlat .codexFeatureTitle small{line-height:16px;height:16px;display:inline-flex;align-items:center}
+.codexFlat .codexSubscriptionPreferenceHint,.codexFlat .codexFeatureSummary,.codexFlat .codexSubscriptionHintText{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
 .codexFlat .codexSubscriptionPreferenceCopy{gap:0}
 .codexFlat .codexSubscriptionDivider{display:none}
-.codexFlat .codexSubscriptionQuotaModes{background:var(--dsw-alias-bg-module-platform);border-radius:10px;padding:2px;gap:2px}
-.codexFlat .codexSubscriptionQuotaMode{min-height:26px;border-radius:8px;padding:0 10px;font-size:12px}
-.codexFlat .codexSubscriptionContextTrigger{background:var(--dsw-alias-bg-module-platform);border-radius:10px;padding:0 10px;min-height:30px;color:var(--dsw-alias-label-primary);font-size:12px}
-.codexFlat .codexFeatureMore{min-width:0;gap:6px;background:transparent;border-radius:10px;padding:4px 4px 4px 8px;min-height:28px;color:var(--dsw-alias-label-secondary);font-size:12px}.codexFlat .codexFeatureMore:hover{background:var(--dsw-alias-bg-module-platform)}.codexFlat .codexFeatureMoreSpace{display:none}
+.codexFlat .codexSubscriptionQuotaModes{background:var(--dsw-alias-bg-module-platform);border-radius:10px;padding:2px;gap:2px;min-height:32px;box-sizing:border-box}
+.codexFlat .codexSubscriptionQuotaMode{min-height:28px;border-radius:8px;padding:0 10px;font-size:13px;white-space:nowrap}
+.codexFlat .codexSubscriptionContextTrigger,.codexFlat .codexSubscriptionPreference button[class*=_md_],.codexFlat .codexSubscriptionActions button[class*=_md_]{background:var(--dsw-alias-bg-module-platform);border-radius:10px;padding:0 12px;min-height:32px;height:32px;color:var(--dsw-alias-label-primary);font-size:13px}
+.codexFlat .codexSubscriptionActions .codexSubscriptionContextTrigger{min-height:32px}
+.codexFlat .codexFeatureMore{box-sizing:border-box;width:28px;min-width:28px;height:28px;padding:0;gap:0;justify-content:center;background:transparent;border-radius:8px;color:var(--dsw-alias-label-secondary)}.codexFlat .codexFeatureMore:hover{background:var(--dsw-alias-bg-module-platform)}
+.codexFlat .codexFeatureMoreSpace{display:block;width:28px;min-width:28px;height:28px}
+.codexFlat .codexFeatureStatus{font-size:12px;color:var(--dsw-alias-label-secondary)}
 .codexFlat .codexFeatureOverview>h3{margin-top:10px}
-.codexFlat .codexFeatureOptions{margin:0 0 8px;padding:0 0 0 0;background:transparent;gap:0;border-radius:0}
-.codexFlat .codexFeatureOptions .codexSubscriptionPreference{padding:8px 0 8px 12px;border-bottom:0;border-top:1px solid var(--dsw-alias-border-l2)}
-.codexFlat .codexFeatureScope{margin-top:0;border:0;border-radius:0;padding:0}
-.codexFlat .codexFeatureScope .codexSubscriptionPreference{border-bottom:0;padding:0}
-.codexFlat .codexScopeNote{margin-bottom:8px}
 .codexFlat .codexAdvancedFold{margin-top:0;padding:0 16px}
-.codexFlat .codexAdvancedFold>summary{padding:11px 0;font-weight:500;font-size:13px}
-.codexFlat .codexAdvancedBody{padding:0 0 8px}
-.codexFlat .codexAdvancedBody .codexSubscriptionPreference:last-child{border-bottom:0}
-.codexFlat .codexAdvancedInline{margin-top:0;border-top:0}.codexFlat .codexAdvancedInline>summary{padding:10px 0;font-weight:400}
-.codexFlat .codexSubscriptionActions .codexSubscriptionContextTrigger{min-height:36px}
-.codexSettingsTabs{background:transparent;border-radius:0;padding:0;gap:18px;display:flex;overflow-x:auto;scrollbar-width:none;grid-template-columns:none;border-bottom:1px solid var(--dsw-alias-border-l2);margin-bottom:8px}
-.codexSettingsTabs button{min-height:34px;padding:0 2px;border-radius:0;border-bottom:2px solid transparent;margin-bottom:-1px;font-size:14px;color:var(--dsw-alias-label-tertiary)}
+.codexFlat .codexAdvancedFold>summary{padding:10px 0;font-weight:500;font-size:13px;line-height:20px}
+.codexFlat .codexAdvancedBody{padding:0 0 4px}
+.codexFlat .codexAdvancedInline{margin-top:0;border-top:0;padding:0}.codexFlat .codexAdvancedInline>summary{padding:10px 0;font-weight:400}
+.codexFlat .codexSubscriptionSearch>.codexSubscriptionSearchOptions,.codexFlat .codexSubscriptionRuntime,.codexFlat .codexSubscriptionHistory{border-top:0;margin-top:0;padding-top:0}
+.codexFlat .codexSubscriptionSearchOptions{margin:0;padding:0}.codexFlat .codexSubscriptionSearchOptions>summary{padding:10px 0;margin:0}
+.codexFlat .codexSubscriptionCard:has(>.codexSubscriptionAccounts),.codexFlat .codexSubscriptionCard:has(>.codexSubscriptionActions),.codexFlat .codexSubscriptionStorage{padding-block:10px}
+.codexFlat .codexSubscriptionStorageMeter{background:transparent;padding:6px 0}
+.codexFlat .codexSubscriptionResetBox{border:0;border-radius:0;padding:0}
+.codexFlat :is(button,summary,a):focus-visible,.codexFlat label:has(:focus-visible){outline:2px solid var(--dsw-alias-border-inverted);outline-offset:2px;box-shadow:none}
+.codexSettingsTabs{position:sticky;top:0;z-index:2;background:var(--dsw-alias-bg-layer-1);border-radius:0;padding:6px 0 0;margin-top:-6px;gap:18px;display:flex;overflow-x:auto;scrollbar-width:none;grid-template-columns:none;border-bottom:1px solid var(--dsw-alias-border-l2);margin-bottom:8px}
+.codexSettingsTabs button{min-height:34px;padding:0 2px;border-radius:0;border-bottom:2px solid transparent;margin-bottom:-1px;font-size:14px;color:var(--dsw-alias-label-tertiary);white-space:nowrap}
 .codexSettingsTabs button[aria-selected=true]{background:transparent;box-shadow:none;color:var(--dsw-alias-label-primary);border-bottom-color:var(--dsw-alias-label-primary)}
+.codexSubscriptionNotices{display:flex;flex-direction:column;gap:6px;margin:0 0 8px}
+.codexSubscriptionNotices p{margin:0;padding:8px 12px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
+.codexSubscriptionNotice{font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionNotices button{margin-left:6px;border:0;background:transparent;padding:0;font:inherit;color:var(--dsw-alias-label-primary);text-decoration:underline;cursor:pointer}
 `
