@@ -53,6 +53,12 @@ export function appendChunks(text, limit = CONTEXT_APPEND_MAX_BYTES) {
   return chunks
 }
 
+/** A short utterance that is a goodbye or a request to hang up, in the languages the voice speaks. */
+export const isGoodbye = text => {
+  const said = String(text).trim().split(' ').filter(Boolean).join(' ')
+  return said.length > 0 && said.length <= 30 && /(拜拜|再见|再會|(?<![a-z])bye(?![a-z])|goodbye|hang up|end (the )?call|挂断|結束通話|结束通话|结束语音|さようなら|バイバイ|またね|じゃあね|안녕히|잘 가|adiós|au revoir|tschüss|tchau|до свидания)/iu.test(said)
+}
+
 const content = text => [{ type: 'input_text', text }]
 
 export const outbound = {
@@ -183,6 +189,7 @@ export function createRealtimeVoice(options) {
     if (!session) return false
     sessions.delete(threadId)
     session.ended = true
+    clearTimeout(session.goodbye)
     flushTail(threadId, session)
     try { session.ws.send(JSON.stringify(outbound.close())) } catch { /* already closed */ }
     try { session.ws.close() } catch { /* already closed */ }
@@ -206,7 +213,7 @@ export function createRealtimeVoice(options) {
       ...(typeof params.voiceSessionId === 'string' ? { 'voice-session-id': params.voiceSessionId } : {}),
     }
     const ws = await join(callId, headers)
-    const session = { ws, notify, ended: false, chain: Promise.resolve(), tail: [], lines: [], working: 0, flushTail: params.flushTranscriptTailOnSessionEnd !== false, silent: params.silentTailRecord === true }
+    const session = { ws, notify, ended: false, chain: Promise.resolve(), tail: [], lines: [], working: 0, flushTail: params.flushTranscriptTailOnSessionEnd !== false, silent: params.silentTailRecord === true, hangUp: params.hangUpOnGoodbye === true }
     sessions.set(threadId, session)
     const send = message => { try { ws.send(JSON.stringify(message)) } catch (error) { log.warn('voice', 'could not send to the voice call', String(error?.message ?? error)) } }
     const speak = (delegationId, text) => {
@@ -228,6 +235,10 @@ export function createRealtimeVoice(options) {
           session.lines.push({ role: event.role, text: event.text.slice(0, 400) }); if (session.lines.length > 12) session.lines.shift()
         }
         void notify('thread/realtime/transcript/done', { threadId, role: event.role, text: event.text }).catch(() => {})
+        // A desktop call hangs up on a goodbye: once the voice has said its own, or after a few seconds. The voice model cannot hang up
+        // itself and does not reliably hand the request over, so the host does not wait for it.
+        if (session.hangUp && event.role === 'user' && isGoodbye(event.text)) session.goodbye ??= setTimeout(() => stop(threadId, 'goodbye'), 4_500)
+        else if (session.goodbye && event.role === 'assistant') { clearTimeout(session.goodbye); session.goodbye = setTimeout(() => stop(threadId, 'goodbye'), 1_200) }
       }
       else if (event.kind === 'error') {
         log.error('voice', 'the voice service reported an error', event.message)

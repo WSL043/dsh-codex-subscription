@@ -1179,7 +1179,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
         delegation: { type: 'client' }, instructions: desktopInstructions(language), model: 'gpt-live-1.1-codex',
       }
       const { callId, answer } = await createVoiceCall({ fetch: voice.fetch, credentials: voice.credentials, userAgent, sdp, session, threadId: sessionId })
-      await realtimeVoice.start({ threadId: sessionId, transport: { type: 'existingCall', callId }, flushTranscriptTailOnSessionEnd: true, silentTailRecord: true, version: 'v3' }, async () => {})
+      await realtimeVoice.start({ threadId: sessionId, transport: { type: 'existingCall', callId }, flushTranscriptTailOnSessionEnd: true, silentTailRecord: true, hangUpOnGoodbye: true, version: 'v3' }, async () => {})
       return { answer }
     },
     stop: sessionId => realtimeVoice.stop(sessionId),

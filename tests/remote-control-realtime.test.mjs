@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import test from 'node:test'
-import { appendChunks, callRecord, callNote, channelOf, createRealtimeVoice, delegationText, parseEvent } from '../src/remote-control-realtime.js'
+import { appendChunks, callRecord, callNote, isGoodbye, channelOf, createRealtimeVoice, delegationText, parseEvent } from '../src/remote-control-realtime.js'
 
 // A stand-in for the voice service's side channel: what the phone's call would give the host.
 class FakeSocket extends EventEmitter {
@@ -147,4 +147,20 @@ test('a desktop call leaves its tail as a note in the context, without a turn', 
   assert.equal(delegated.length, 0)
   assert.equal(recorded.length, 1)
   assert.match(recorded[0].text, /You: Hello there\nVoice: Hi\.$/u)
+})
+
+test('a desktop call hangs up after the person says goodbye, and not on other talk', async () => {
+  assert.equal(isGoodbye('哦,知道了,拜拜'), true)
+  assert.equal(isGoodbye('OK, bye!'), true)
+  assert.equal(isGoodbye('Tell me about the goodbye song in my repo and what it does in this file please'), false)
+  assert.equal(isGoodbye('check the build'), false)
+  const { voice, notes, notify } = setup()
+  await voice.start({ ...start, hangUpOnGoodbye: true }, notify)
+  const [socket] = FakeSocket.instances
+  socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'check the build' } })
+  socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'ok, bye' } })
+  socket.hear({ type: 'turn.done', turn: { role: 'assistant', transcript: 'Goodbye!' } })
+  await new Promise(resolve => setTimeout(resolve, 1_500))
+  assert.equal(voice.active('t1'), false)
+  assert.ok(notes.some(note => note.method === 'thread/realtime/closed' && note.params.reason === 'goodbye'))
 })
