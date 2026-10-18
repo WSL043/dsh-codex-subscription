@@ -96,7 +96,7 @@ export function apply(ctx) {
     const modelDirectories = scope.get('modelDirectories')
     scope.slots.inject('conversation.input.model', () => scope.slots.register({
       name: 'conversation.input.model', priority: -10, locale: NS,
-      children: { 'conversation.input.model.label': { kind: 'single', scope: 'session', inline: true } },
+      // The label slot is declared by DSH's own picker entry; declaring it again makes DSH refuse this registration (and the picker disappears).
       inject: sessionId => {
         const directory = modelDirectories.directoryFor(sessionId)
         const available = sessions.subagentAddress(sessionId) === undefined
