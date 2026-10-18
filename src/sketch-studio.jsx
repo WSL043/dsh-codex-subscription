@@ -11,6 +11,7 @@ import { switchSketchToolWidth, stepSketchWidth } from './sketch-tool-widths.js'
 import { sketchShortcutAction } from './sketch-shortcuts.js'
 import { createSketchSessionState } from './sketch-session-state.js'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   SKETCH_SIZE,
   MAX_SKETCH_STROKES,
@@ -1196,7 +1197,7 @@ export function SketchStudio({
               t={t}
             />
           ) : null}
-          {replayOpen ? (
+          {replayOpen && dialog.current ? createPortal(
             <SketchReplay
               states={timeline.current}
               current={doc.current}
@@ -1204,7 +1205,8 @@ export function SketchStudio({
               name={saved.current?.name}
               onClose={() => setReplayOpen(false)}
               t={t}
-            />
+            />,
+            dialog.current
           ) : null}
           {layersOpen ? (
             <SketchLayerPanel

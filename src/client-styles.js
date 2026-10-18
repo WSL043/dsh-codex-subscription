@@ -209,7 +209,7 @@ export const STYLE = `
 .codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}
 .codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
-.codexSettingsTabs{position:sticky;top:0;z-index:2;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;background:var(--dsw-alias-bg-module-platform);border-radius:12px}
+.codexSettingsTabs{position:sticky;top:0;z-index:2;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:4px;background:var(--dsw-alias-bg-module-platform);border-radius:12px}
 .codexSettingsTabs button{min-width:0;min-height:36px;border:0;border-radius:9px;padding:7px 6px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:18px;cursor:pointer}
 .codexSettingsTabs button:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px}
 .codexSettingsTabs button[aria-selected=true]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 1px 3px #0001}
@@ -310,7 +310,8 @@ export const STYLE = `
 .codexSubscriptionRuntime{padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2);margin-top:2px}
 .codexSubscriptionRuntime details{margin-top:8px}.codexSubscriptionRuntime details[open]>summary{margin-bottom:10px}
 @container (max-width:480px){.codexSubscriptionPreference,.codexSubscriptionContextHead{flex-wrap:wrap}.codexSubscriptionPreferenceHint{max-width:none}.codexSubscriptionPreference>.codexSubscriptionPreferenceCopy{flex:1 1 220px}.codexSubscriptionQuotaModes{max-width:100%;flex-wrap:wrap}.codexSubscriptionQuotaMode{min-height:30px}.codexSubscriptionActions{flex-wrap:wrap}}
-@container (max-width:340px){.codexSettingsTabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:420px){.codexSettingsTabs{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container (max-width:300px){.codexSettingsTabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(prefers-reduced-motion:reduce){.codexSubscription *{transition:none!important}}
 .codexSubscriptionLogHead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:12px}.codexSubscriptionLogHead h4{margin:0;font-size:13px}.codexSubscriptionLog{max-height:320px;overflow:auto;margin:6px 0 0;padding:8px 10px;border:1px solid var(--border,#0002);border-radius:8px;font:11.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.codexSubscriptionLog_error{color:#c0392b}.codexSubscriptionLog_warn{color:#b9770e}.codexSubscriptionLog_info{opacity:.8}
 .codexSubscriptionConnectors>.codexSubscriptionQuotaModes{flex:0 0 auto;display:flex;flex-wrap:nowrap;margin-left:auto}

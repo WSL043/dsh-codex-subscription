@@ -71,10 +71,18 @@ export const SKETCH_CSS = `
 .codexSketchCursor{position:fixed;left:0;top:0;z-index:100;pointer-events:none;border:1px solid #222;border-radius:50%;corner-shape:round;box-shadow:0 0 0 1px #fff;box-sizing:border-box}.codexSketchCursor[hidden]{display:none}
 
 .codexSketchFiles{display:flex;gap:6px;align-items:center}.codexSketchFiles>button:disabled{opacity:.45}
-.codexSketchReplay{position:absolute;inset:0;z-index:9;display:flex;flex-direction:column;align-items:center;gap:10px;padding:14px;background:var(--sketch-bg);border-radius:inherit;overflow:hidden}
-.codexSketchReplay>header{display:flex;width:100%;align-items:center;justify-content:space-between}.codexSketchReplay>header button,.codexSketchReplayBar button{min-height:36px;padding:0 12px;border:1px solid var(--sketch-line);border-radius:10px;background:color-mix(in srgb,var(--sketch-fg) 6%,transparent);font-size:12px}
-.codexSketchReplay canvas{flex:1;min-height:0;max-width:100%;object-fit:contain;border-radius:8px;box-shadow:0 2px 18px #0002;background:#fff}
-.codexSketchReplayBar{display:flex;flex-wrap:wrap;width:100%;max-width:760px;align-items:center;gap:8px}.codexSketchReplayBar input[type=range]{flex:1;min-width:120px}
-.codexSketchReplay small{color:var(--sketch-muted)}
-.codexSketchReplaySave{display:inline-flex;align-items:center;min-height:36px;padding:0 14px;border-radius:10px;background:var(--sketch-fg);color:var(--sketch-bg);font-size:12px;text-decoration:none}
+.codexSketchReplay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;gap:12px;padding:14px 18px 16px;background:var(--sketch-bg);border-radius:inherit;overflow:hidden}
+.codexSketchReplay>header{display:flex;width:100%;align-items:center;justify-content:space-between;font-size:15px}
+.codexSketchDialog .codexSketchReplayClose{min-height:36px;padding:0 14px 0 10px;border-radius:18px;background:color-mix(in srgb,var(--sketch-fg) 7%,transparent);font-size:13px}
+.codexSketchReplayStage{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;container-type:size}
+.codexSketchReplayStage canvas,.codexSketchReplayStage video{max-width:100%;max-height:100%;border-radius:10px;background:#fff;box-shadow:0 0 0 1px var(--sketch-line),0 10px 36px #0002}
+.codexSketchReplayBar{display:flex;flex-wrap:wrap;width:100%;max-width:820px;align-items:center;justify-content:center;gap:10px;padding:8px 12px;border-radius:26px;background:color-mix(in srgb,var(--sketch-fg) 5%,transparent)}
+.codexSketchReplayBar input[type=range]{flex:1;min-width:140px;height:22px;accent-color:#0a84ff}
+.codexSketchDialog .codexSketchReplayBar>button{min-height:36px;padding:0 14px;border-radius:18px;background:color-mix(in srgb,var(--sketch-fg) 8%,transparent);font-size:13px}
+.codexSketchDialog .codexSketchReplayBar .codexSketchReplayPlay{width:40px;height:40px;min-height:40px;padding:0;border-radius:50%;background:#0a84ff;color:#fff}
+.codexSketchReplayTime{min-width:78px;font-variant-numeric:tabular-nums;color:var(--sketch-muted);font-size:12px}
+.codexSketchReplayRecord i{width:10px;height:10px;border-radius:50%;background:#ff3b30}
+.codexSketchDialog .codexSketchReplayRecord[data-recording]{background:#ff3b30;color:#fff}.codexSketchReplayRecord[data-recording] i{background:#fff;border-radius:2px}
+.codexSketchReplay small{color:var(--sketch-muted);text-align:center}
+.codexSketchReplaySave{display:inline-flex;align-items:center;min-height:36px;padding:0 18px;border-radius:18px;background:#0a84ff;color:#fff;font-size:13px;font-weight:600;text-decoration:none}
 `

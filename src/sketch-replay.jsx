@@ -93,28 +93,32 @@ export function SketchReplay({ states, current, images, name, onClose, t }) {
   }
   const stop = () => { if (clock.current.recorder?.state === 'recording') { clock.current.recorder.onstop = null; clock.current.recorder.stop(); clock.current.recorder = null; setRecording(false) } onClose() }
 
+  const clock0 = Math.round(progress * total / 1000), clock1 = Math.round(total / 1000)
+  const mmss = seconds => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
+  const icon = path => <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="currentColor">{path}</svg>
   return (
     <section className="codexSketchReplay" role="dialog" aria-label={t('sketchReplayTitle')}>
       <header>
         <strong>{t('sketchReplayTitle')}</strong>
-        <button type="button" onClick={stop}>{t('sketchReplayClose')}</button>
+        <button type="button" className="codexSketchReplayClose" onClick={stop} aria-label={t('sketchReplayClose')}>{icon(<path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12 19 17.6 17.6 19 12 13.4 6.4 19 5 17.6 10.6 12 5 6.4z" />)}<span>{t('sketchReplayClose')}</span></button>
       </header>
       {video ? <>
-        <video src={video.url} controls autoPlay loop style={{ flex: 1, minHeight: 0, maxWidth: '100%', borderRadius: 8 }} />
+        <div className="codexSketchReplayStage"><video src={video.url} controls autoPlay loop /></div>
         <div className="codexSketchReplayBar">
           <a className="codexSketchReplaySave" href={video.url} download={video.file}>{t('sketchReplaySave')}</a>
           <button type="button" onClick={() => setVideo(null)}>{t('sketchReplayAgain')}</button>
         </div>
         <small>{t('sketchReplaySaveHint')}</small>
       </> : steps.length === 0 ? <p>{t('sketchReplayEmpty')}</p> : <>
-        <canvas ref={canvas} width={width} height={height} style={{ aspectRatio: `${width} / ${height}` }} />
+        <div className="codexSketchReplayStage"><canvas ref={canvas} width={width} height={height} style={{ aspectRatio: `${width} / ${height}`, width: `min(100cqw, calc(100cqh * ${width / height}))` }} /></div>
         <div className="codexSketchReplayBar">
-          <button type="button" disabled={recording} onClick={toggle}>{playing ? t('sketchReplayPause') : t('sketchReplayPlay')}</button>
+          <button type="button" className="codexSketchReplayPlay" disabled={recording} onClick={toggle} aria-label={playing ? t('sketchReplayPause') : t('sketchReplayPlay')}>{playing ? icon(<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" />) : icon(<path d="M8 5.2v13.6L19 12z" />)}</button>
+          <span className="codexSketchReplayTime">{mmss(clock0)} / {mmss(clock1)}</span>
           <input type="range" min="0" max="1" step="0.001" value={progress} disabled={recording} aria-label={t('sketchReplayTitle')} onChange={event => seek(Number(event.target.value))} />
           <div className="codexSketchSegment" role="group" aria-label={t('sketchReplaySpeed')}>
             {SPEEDS.map(([value, , label]) => <button key={value} type="button" aria-pressed={speed === value} disabled={recording} onClick={() => setSpeed(value)}>{t(label)}</button>)}
           </div>
-          <button type="button" onClick={record}>{recording ? t('sketchReplayStopRecording') : t('sketchReplayRecord')}</button>
+          <button type="button" className="codexSketchReplayRecord" data-recording={recording || undefined} onClick={record}><i aria-hidden="true" />{recording ? t('sketchReplayStopRecording') : t('sketchReplayRecord')}</button>
         </div>
         {note ? <small role="alert">{note}</small> : <small>{t('sketchReplayHint')}</small>}
       </>}
