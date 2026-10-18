@@ -9,7 +9,7 @@ import { UsageCard } from './client-usage.jsx'
 export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, defaultModel }) {
   const [tab, setTab] = useState('account')
   const id = useId()
-  const tabs = ['account', 'advanced', 'creative', 'maintenance']
+  const tabs = ['account', 'advanced', 'interop', 'creative', 'maintenance']
   const accountSnapshot = useAccountStatusSnapshot(accountStatus)
   const account = accountSnapshot.account
   const [resetKey, setResetKey] = useState(0)
@@ -38,6 +38,7 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
     <PreferencesCard rpc={rpc} preference={preference} t={t} />
     </div>
     <div role="tabpanel" id={`${id}-advanced`} aria-labelledby={`${id}-advanced-tab`} hidden={tab !== 'advanced'}><PreferencesCard rpc={rpc} preference={preference} t={t} defaultModel={defaultModel} section="advanced" /></div>
+    <div role="tabpanel" id={`${id}-interop`} aria-labelledby={`${id}-interop-tab`} hidden={tab !== 'interop'}><PreferencesCard rpc={rpc} preference={preference} t={t} section="interop" /></div>
     <div role="tabpanel" id={`${id}-creative`} aria-labelledby={`${id}-creative-tab`} hidden={tab !== 'creative'}>
       <ImagePreferences preference={preference} t={t} />
       <ImagePreferences preference={preference} t={t} section="sketch" />

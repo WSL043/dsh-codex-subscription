@@ -213,6 +213,7 @@ export function apply(ctx, config = {}) {
         connectionMode: settings.get().connectionMode ?? 'sse',
         reviewModel: settings.get().reviewModel ?? 'session',
         remoteControl: settings.get().remoteControl ?? 'off',
+        otherModels: settings.get().otherModels === 'off' ? 'off' : 'on',
         subagentBackend: settings.get().subagentBackend ?? 'dsh',
         subagentBackendAvailable: subagentBackend !== undefined,
         subagentRuntimeInstalled: inspectSubagentRuntime().installed,
@@ -341,6 +342,7 @@ export function apply(ctx, config = {}) {
   })
   ctx.effect(() => watchImageTool(settings, () => ctx.tools.register(createCodexImageTool({
     getFeatures: () => settings.get(),
+    allowed: () => servesCurrentModel(),
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     attachments: ctx.attachments,
@@ -361,6 +363,7 @@ export function apply(ctx, config = {}) {
         disposers = createConnectorTools({
           client: connectorsClient,
           getMode: () => normalizeConnectorMode(settings.get()[CONNECTORS_FIELD]),
+          allowed: () => servesCurrentModel(),
           getApproval: () => ctx.get?.('approval'),
         }).map(tool => ctx.tools.register(tool))
       } else if (!on && disposers.length > 0) {
@@ -394,6 +397,12 @@ export function apply(ctx, config = {}) {
   })
   ctx.llm.registerAdapter([PROVIDER], observeAdapter(compaction.wrapAdapter(adapter), provider))
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
+  // With "other models" switched off, subscription search, images and connectors serve conversations on this plugin's own models only.
+  const servesCurrentModel = () => {
+    if (settings.get().otherModels !== 'off') return true
+    const provider = currentAgent()?.session.requestContext?.()?.provider
+    return provider === undefined || provider === PROVIDER
+  }
   const codexSearch = createCodexSearchProvider({
     resolvePreferences: () => readCapabilitySettings(settings.get()),
     getAuth: resolveAuth,
@@ -446,7 +455,8 @@ export function apply(ctx, config = {}) {
     const router = createSearchRouter({
       registry: realSearchProviders,
       configuredId: () => searchProvider.current(),
-      mode: () => settings.get()[SEARCH_PROVIDER_FIELD],
+      // Codex search for a conversation on another model is what the switch turns off: "auto" sends that conversation to DSH search.
+      mode: () => { const mode = settings.get()[SEARCH_PROVIDER_FIELD]; return mode === 'codex' && settings.get().otherModels === 'off' ? 'auto' : mode },
       providers: { codex: tracedCodexSearch, auto: autoSearch, dsh: dshSearch },
     })
     if (router === undefined) return undefined

@@ -233,11 +233,6 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
         <ReasoningSummaryPreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <RetryPolicyPreference preference={preference} t={t} />
-        <ConnectorsPreference preference={preference} t={t} />
-      </section>
-      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('searchSectionTitle')}>
-        <h3>{t('searchSectionTitle')}</h3>
-        <SearchProviderPreference preference={preference} t={t} />
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('connectionTitle')}>
         <div className="codexSubscriptionPreference">
@@ -249,21 +244,35 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
         <div className="codexSubscriptionDivider" />
         <StreamIdleTimeoutPreference preference={preference} t={t} />
       </section>
-      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('reviewModelTitle')}>
-        <div className="codexSubscriptionPreference">
-          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('reviewModelTitle')} <small>Beta</small></span><Hint t={t}>{t('reviewModelHint')}</Hint></div>
-          <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('reviewModelTitle')} aria-busy={snapshot.saving || undefined}>
-            {['session', 'official'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-review-model" checked={snapshot.reviewModel === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ reviewModel: value }) }} /><span>{t(`reviewModel_${value}`)}</span></label>)}
-          </div>
-        </div>
-      </section>
-      <RemoteControlCard rpc={rpc} preference={preference} snapshot={snapshot} t={t} />
-      <VoiceCallCard rpc={rpc} preference={preference} snapshot={snapshot} t={t} />
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('compactionTitle')}>
         <div className="codexSubscriptionPreference">
           <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('compactionTitle')} <small>Beta</small></span><Hint t={t}>{t('compactionHint')}</Hint></div>
           <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('compactionTitle')} aria-busy={snapshot.saving || undefined}>
             {['dsh', 'cloud'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-compaction-mode" checked={snapshot.compactionMode === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ compactionMode: value }) }} /><span>{t(`compaction_${value}`)}</span></label>)}
+          </div>
+        </div>
+      </section>
+    </> : section === 'interop' ? <>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('otherModelsTitle')}>
+        <div className="codexSubscriptionPreference">
+          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('otherModelsTitle')}</span><Hint t={t}>{t('otherModelsHint')}</Hint></div>
+          <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('otherModelsTitle')} aria-busy={snapshot.saving || undefined}>
+            {['on', 'off'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-other-models" checked={snapshot.otherModels === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ otherModels: value }) }} /><span>{t(`otherModels_${value}`)}</span></label>)}
+          </div>
+        </div>
+      </section>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('searchSectionTitle')}>
+        <h3>{t('searchSectionTitle')}</h3>
+        <SearchProviderPreference preference={preference} t={t} />
+      </section>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('connectors')}>
+        <ConnectorsPreference preference={preference} t={t} />
+      </section>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('reviewModelTitle')}>
+        <div className="codexSubscriptionPreference">
+          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('reviewModelTitle')} <small>Beta</small></span><Hint t={t}>{t('reviewModelHint')}</Hint></div>
+          <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('reviewModelTitle')} aria-busy={snapshot.saving || undefined}>
+            {['session', 'official'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-review-model" checked={snapshot.reviewModel === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ reviewModel: value }) }} /><span>{t(`reviewModel_${value}`)}</span></label>)}
           </div>
         </div>
       </section>
@@ -276,6 +285,8 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
       </div>
       <RuntimeManagement rpc={rpc} preference={preference} t={t} />
       </section>
+      <VoiceCallCard rpc={rpc} preference={preference} snapshot={snapshot} t={t} />
+      <RemoteControlCard rpc={rpc} preference={preference} snapshot={snapshot} t={t} />
     </> : <>
       <QuickQuotaPreference preference={preference} t={t} />
       <CapabilityPreferences preference={preference} t={t} section="quota" />

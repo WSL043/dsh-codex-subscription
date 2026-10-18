@@ -150,3 +150,10 @@ test('the connectors setting only accepts known modes and defaults to off', () =
   assert.equal(normalizeConnectorMode('write'), 'write')
   assert.equal(normalizeConnectorMode('all'), 'off')
 })
+
+test('connectors can be turned off for conversations on other models without any request', async () => {
+  const { client, calls } = fixture([listing()])
+  const set = createConnectorTools({ client, getMode: () => 'write', allowed: () => false })
+  for (const tool of set) await assert.rejects(tool.execute({ name: 'gmail.search_emails', arguments: {}, query: 'x' }, exec), /other models/)
+  assert.equal(calls.length, 0)
+})

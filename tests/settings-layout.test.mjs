@@ -50,3 +50,18 @@ test('the sketch button in the composer is transparent like its neighbours, not 
   assert.ok(source.includes('<Button variant="ghost"'), 'ghost variant: transparent, with a hover state')
   assert.ok(!source.includes('variant="toolbar"'), 'the toolbar variant is the dark fill meant for image viewers')
 })
+
+test('everything that reaches other models sits on its own settings page with one switch', async () => {
+  const preferences = await readFile(new URL('../src/client-preferences.jsx', import.meta.url), 'utf8')
+  const section = await readFile(new URL('../src/client-section.jsx', import.meta.url), 'utf8')
+  assert.match(section, /const tabs = \['account', 'advanced', 'interop', 'creative', 'maintenance'\]/u)
+  const start = preferences.indexOf("section === 'interop' ?"), end = preferences.indexOf('</> : <>', start)
+  assert.ok(start > 0 && end > start)
+  const interop = preferences.slice(start, end), models = preferences.slice(preferences.indexOf("section === 'advanced' ?"), start)
+  assert.match(interop, /name="codex-other-models"/u, 'the master switch')
+  for (const piece of ['SearchProviderPreference', 'ConnectorsPreference', "name=\"codex-review-model\"", 'VoiceCallCard', 'RemoteControlCard', "name=\"codex-subagent-backend\""]) {
+    assert.ok(interop.includes(piece), `${piece} is on the other-models page`)
+    assert.ok(!models.includes(piece), `${piece} is no longer on the models page`)
+  }
+  assert.match(interop.slice(0, interop.indexOf('SearchProviderPreference')), /name="codex-other-models"/u, 'the switch comes first')
+})
