@@ -149,18 +149,28 @@ test('a desktop call leaves its tail as a note in the context, without a turn', 
   assert.match(recorded[0].text, /You: Hello there\nVoice: Hi\.$/u)
 })
 
-test('a desktop call hangs up after the person says goodbye, and not on other talk', async () => {
+test('a goodbye the voice model did not hand over is handed to the agent, which decides; no keyword ends the call by itself', async () => {
   assert.equal(isGoodbye('哦,知道了,拜拜'), true)
   assert.equal(isGoodbye('OK, bye!'), true)
-  assert.equal(isGoodbye('Tell me about the goodbye song in my repo and what it does in this file please'), false)
   assert.equal(isGoodbye('check the build'), false)
-  const { voice, notes, notify } = setup()
+  assert.equal(isGoodbye('Tell me about the goodbye song in my repo and what it does in this file please'), false)
+  const { voice, notify, delegated } = setup()
   await voice.start({ ...start, hangUpOnGoodbye: true }, notify)
   const [socket] = FakeSocket.instances
   socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'check the build' } })
   socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'ok, bye' } })
-  socket.hear({ type: 'turn.done', turn: { role: 'assistant', transcript: 'Goodbye!' } })
-  await new Promise(resolve => setTimeout(resolve, 1_500))
-  assert.equal(voice.active('t1'), false)
-  assert.ok(notes.some(note => note.method === 'thread/realtime/closed' && note.params.reason === 'goodbye'))
+  await new Promise(resolve => setTimeout(resolve, 2_800))
+  assert.equal(voice.active('t1'), true)
+  assert.equal(delegated.length, 1)
+  assert.match(delegated[0].text, /"ok, bye"\. If they clearly intend to end the voice call, call end_voice_call/u)
+})
+
+test('when the voice model hands the goodbye over itself, the host does not ask twice', async () => {
+  const { voice, notify, delegated } = setup()
+  await voice.start({ ...start, hangUpOnGoodbye: true }, notify)
+  const [socket] = FakeSocket.instances
+  socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'bye' } })
+  socket.hear({ type: 'delegation.created', item: { id: 'd1', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: 'The user may want to end the voice call: bye' }] } })
+  await new Promise(resolve => setTimeout(resolve, 2_800))
+  assert.equal(delegated.length, 1)
 })

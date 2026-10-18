@@ -53,11 +53,17 @@ export function appendChunks(text, limit = CONTEXT_APPEND_MAX_BYTES) {
   return chunks
 }
 
-/** A short utterance that is a goodbye or a request to hang up, in the languages the voice speaks. */
+/**
+ * A short utterance that could be a goodbye or a request to hang up, in the languages the voice speaks. It only decides when the agent
+ * is asked; the agent decides whether the person really means to end the call (as in Codex), so a word inside other talk does no harm.
+ */
 export const isGoodbye = text => {
   const said = String(text).trim().split(' ').filter(Boolean).join(' ')
   return said.length > 0 && said.length <= 30 && /(拜拜|再见|再會|(?<![a-z])bye(?![a-z])|goodbye|hang up|end (the )?call|挂断|結束通話|结束通话|结束语音|さようなら|バイバイ|またね|じゃあね|안녕히|잘 가|adiós|au revoir|tschüss|tchau|до свидания)/iu.test(said)
 }
+
+/** What the agent is asked when the person may have said goodbye: it judges, and ends the call only when the intent is clear. */
+export const goodbyeRequest = text => `The user said this during the voice call: "${String(text).replace(/\s+/gu, ' ').trim().slice(0, 200)}". If they clearly intend to end the voice call, call end_voice_call. A request to stop work, stop speaking or pause does not end the call, and a goodbye word inside other talk does not either. If they do not mean to end it, answer in one short sentence.`
 
 const content = text => [{ type: 'input_text', text }]
 
@@ -126,7 +132,7 @@ export function desktopInstructions(language) {
     'You are the voice of DeepSeek Harness (DSH), a coding agent that works on the user\'s computer.',
     'Talk like a calm, brief colleague: short sentences, no lists, no markup.',
     'You cannot read files, run commands, search or change anything yourself. Hand every request that needs the computer, files, code, the web or any tool to the agent by delegating it, and say in a few words what you are handing over.',
-    'Chat that needs nothing from the computer (greetings, small talk, questions you can answer) you answer yourself. When the user says goodbye or asks to end the call, say a short goodbye and hand it over as the request "The user wants to end the voice call", so the agent hangs up.',
+    'Chat that needs nothing from the computer (greetings, small talk, questions you can answer) you answer yourself. You cannot hang up yourself. When the user may want to end the call (goodbye, that is all, hang up), do not say that you are hanging up: hand it over as the request "The user may want to end the voice call: <their words>" and let the agent decide.',
     'When the agent reports back, tell the user the result in your own words. Messages that start with [STATUS] are progress; messages that start with [COMPLETE] are final answers.',
     spoken ? `Speak and answer in ${spoken} unless the user clearly speaks another language.` : 'Answer in the language the user speaks.',
   ].join(' ')
@@ -222,6 +228,18 @@ export function createRealtimeVoice(options) {
       for (const piece of appendChunks(text)) send(delegationId ? outbound.delegationAppend(delegationId, piece, channel) : outbound.sessionAppend(piece, channel))
     }
     session.speak = speak
+    const runRequest = (input, delegationId) => {
+      session.chain = session.chain.then(async () => {
+        if (session.ended) return
+        try {
+          session.working += 1
+          try { await options.delegate(threadId, delegationText(input), text => { if (!session.ended) speak(delegationId, text) }) } finally { session.working -= 1 }
+        } catch (error) {
+          log.warn('voice', 'the agent could not take the voice request', String(error?.message ?? error))
+          if (!session.ended) speak(delegationId, `[COMPLETE] I could not do that: ${String(error?.message ?? 'the task could not start').slice(0, 160)}`)
+        }
+      })
+    }
     const seenTypes = new Set()
     ws.on('message', data => {
       const event = parseEvent(String(data))
@@ -235,27 +253,21 @@ export function createRealtimeVoice(options) {
           session.lines.push({ role: event.role, text: event.text.slice(0, 400) }); if (session.lines.length > 12) session.lines.shift()
         }
         void notify('thread/realtime/transcript/done', { threadId, role: event.role, text: event.text }).catch(() => {})
-        // A desktop call hangs up on a goodbye: once the voice has said its own, or after a few seconds. The voice model cannot hang up
-        // itself and does not reliably hand the request over, so the host does not wait for it.
-        if (session.hangUp && event.role === 'user' && isGoodbye(event.text)) session.goodbye ??= setTimeout(() => stop(threadId, 'goodbye'), 4_500)
-        else if (session.goodbye && event.role === 'assistant') { clearTimeout(session.goodbye); session.goodbye = setTimeout(() => stop(threadId, 'goodbye'), 1_200) }
+        // The voice model cannot hang up and does not reliably hand a goodbye over. When it has not delegated within a moment,
+        // the host hands the person's words to the agent, which judges whether they mean to end the call and has the tool for it.
+        if (session.hangUp && event.role === 'user' && isGoodbye(event.text)) {
+          clearTimeout(session.goodbye)
+          session.goodbye = setTimeout(() => { session.goodbye = undefined; if (!session.ended) runRequest(goodbyeRequest(event.text), undefined) }, 2_500)
+        }
       }
       else if (event.kind === 'error') {
         log.error('voice', 'the voice service reported an error', event.message)
         void notify('thread/realtime/error', { threadId, message: event.message }).catch(() => {})
       } else if (event.kind === 'delegation') {
-        const input = event.text
-        if (input === '') return
-        session.chain = session.chain.then(async () => {
-          if (session.ended) return
-          try {
-            session.working += 1
-            try { await options.delegate(threadId, delegationText(input), text => { if (!session.ended) speak(event.id, text) }) } finally { session.working -= 1 }
-          } catch (error) {
-            log.warn('voice', 'the agent could not take the voice request', String(error?.message ?? error))
-            if (!session.ended) speak(event.id, `[COMPLETE] I could not do that: ${String(error?.message ?? 'the task could not start').slice(0, 160)}`)
-          }
-        })
+        if (event.text === '') return
+        clearTimeout(session.goodbye)
+        session.goodbye = undefined
+        runRequest(event.text, event.id)
       }
     })
     ws.on('close', () => {

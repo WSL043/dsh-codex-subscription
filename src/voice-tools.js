@@ -7,7 +7,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools'
 export function createEndVoiceCallTool({ stop, isActive }) {
   return defineTool({
     name: 'end_voice_call',
-    description: 'End the current voice call. Only call this tool when the user clearly asks to end the voice call or says goodbye. Never call it for anything else, and never from a text conversation.',
+    description: 'End the current voice call. Only call this tool when the user clearly intends to end the call. A request to stop work, stop speaking or pause is not enough, and neither is a goodbye word inside other talk. Never call it from a text conversation.',
     parameters: {},
     isConcurrencySafe: () => false,
     async execute(_args, exec) {
