@@ -18,7 +18,7 @@
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[安装](#安装) · [核心功能](#核心功能) · [手机远程控制](#手机远程控制beta) · [作品案例](#从草图到作品) · [全部功能](#全部功能) · [使用指南](docs/GUIDE.zh-CN.md) · [常见问题](#常见问题)
+[安装](#安装) · [核心功能](#核心功能) · [手机远程控制](#手机远程控制beta) · [草图作画实测](#草图作画实测) · [全部功能](#全部功能) · [使用指南](docs/GUIDE.zh-CN.md) · [常见问题](#常见问题)
 
 </div>
 
@@ -119,7 +119,9 @@ dsh --profile headless "只回复：ok"
 
 <p align="center"><img src="docs/assets/annotate-zh.webp" width="900" alt="图片预览：在烟囱上方圈出区域并写下备注，再带着备注继续编辑"></p>
 
-案例见 [从草图到作品](#从草图到作品)，开关在 **设置 → Codex 订阅 → 图片与草图**。
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-replay-zh-dark.webp"><img src="docs/assets/ui-replay-zh-light.webp" width="640" alt="草图画板的回放：按落笔顺序重放整幅画，可调速、拖动进度，并录成视频"></picture></p>
+
+实测见 [草图作画实测](#草图作画实测)，开关在 **设置 → Codex 订阅 → 图片与草图**。
 
 ### ChatGPT 连接器
 
@@ -128,6 +130,8 @@ dsh --profile headless "只回复：ok"
 ### 订阅功能要不要给 DeepSeek 等其他模型用，由你定
 
 联网搜索来源、ChatGPT 连接器、审查模型、子任务、语音和手机远程控制都在 **设置 → Codex 订阅 → 与其他模型** 一页里。页首一个总开关：关闭后，用 DeepSeek 等非 Codex 模型对话时不再使用订阅的联网搜索（改用 DSH 搜索）、图片生成和 ChatGPT 连接器，Codex 订阅模型不受影响。默认开启。
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-interop-zh-dark.webp"><img src="docs/assets/ui-interop-zh-light.webp" width="640" alt="与其他模型设置页：总开关，以及搜索来源、ChatGPT 连接器、审查模型、子任务、语音和手机远程控制"></picture></p>
 
 [详细用法、限制与可选组件 →](docs/GUIDE.zh-CN.md)
 
@@ -249,96 +253,40 @@ dsh --profile headless "只回复：ok"
 
 [查看完整使用指南 →](docs/GUIDE.zh-CN.md)
 
-## 从草图到作品
+## 草图作画实测
 
-草图画板和 Agent 绘图为 **Beta**。画板和 Agent 绘图默认关闭，在“图片与草图”中按需开启。
+草图画板和 Agent 绘图为 **Beta**，默认关闭，在“图片与草图”中按需开启。手动画图点输入框的草图按钮；让 Agent 画发送 `@sketch` 加要求。有参考图时 Agent 可以并排对比、看差异热图、局部放大、量颜色和边缘位置、撤销重画；画完可以点画板里的“回放”，把过程一笔一笔重放并录成视频。这些工具只测量和展示，不替模型画。
 
-**画草图 → 附加到输入框 → 描述效果 → 生成成图。**
+下面两个例子都是**只在画板上画、没有调用生图**，每个都跑一次，不代表稳定水平。“误差”是画作与参考图逐像素颜色差的平均值（越小越接近，0 为一致）。
 
-手动画图时点击画板按钮；让 Agent 绘图时发送 `@sketch` 加绘图要求。
+**《DeepSeek 娘》· 照着参考图临摹**
 
 <table>
-<tr><th width="50%">Agent 绘制的原生草图</th><th width="50%">以草图为唯一参考的生图结果</th></tr>
-<tr><td><img src="docs/assets/sketch-lighthouse-sketch.webp" alt="GPT-6.1-Sol 绘制的灯塔与归航草图" width="480"></td><td><img src="docs/assets/sketch-lighthouse-result.webp" alt="根据草图生成的灯塔水彩海报" width="480"></td></tr>
+<tr><th width="33%">参考图</th><th width="33%">之前：旧工具里的最好成绩</th><th width="33%">现在：新工具</th></tr>
+<tr><td><img src="docs/assets/sketch-niang-reference.webp" alt="DeepSeek 娘表情包参考图" width="240"></td><td><img src="docs/assets/sketch-niang-astra-compare.webp" alt="旧工具画的 DeepSeek 娘" width="240"><br><sub>GPT-6-Astra Medium · 20 分 57 秒 · 686 笔<br>误差 8.8%</sub></td><td><img src="docs/assets/sketch-niang-astra-new.webp" alt="新工具画的 DeepSeek 娘" width="240"><br><sub>GPT-6-Astra Medium · 8 分 11 秒 · 481 笔<br>误差 9.3%</sub></td></tr>
 </table>
 
-**GPT-6.1-Sol · Xhigh**，官方桌面版 0.2.0-rc.2 实测：一条 `@sketch` 消息完成 6 个图层、229 笔可编辑原生笔画，再以这张草图为唯一参考调用一次 GPT Image 2（质量：高），全程约 13 分钟。
+数字上两者接近，新版用时不到一半；双手叉腰的姿势和围裙上的小鲸鱼更准，发丝和蕾丝的细腻程度仍不及原图。
 
-```text
-@sketch 用 4:3 横版画板绘制《灯塔与归航》：左侧礁石岬角上立一座红白条纹灯塔，塔顶灯室射出扇形光束；右侧海面上一艘挂橙色小帆的渔船正驶回港湾，船后拖出 V 形水痕；地平线上是半个初升的太阳，天空有三条横向云带和三只海鸥，前景礁石间有一圈白色浪花。按天空、太阳与云、海面、礁石与灯塔、渔船、海鸥与浪花分层绘制，保留原生可编辑笔画。画完后，把这张草图作为唯一参考图，调用订阅图片工具一次生成成品：保持构图不变，做成温暖的水彩旅行海报，晨光金橙配靛青海面，有纸纹和柔和晕染，不添加文字。
-```
+**《初音未来》· 竖图，照着参考图临摹**
+
+<table>
+<tr><th width="50%">之前：叠图对照和网格</th><th width="50%">现在：新工具</th></tr>
+<tr><td><img src="docs/assets/sketch-miku-sol-before.webp" alt="旧工具画的初音未来" width="330"><br><sub>GPT-6.1-Sol Xhigh · 误差 6.7%</sub></td><td><img src="docs/assets/sketch-miku-sol-new.webp" alt="新工具画的初音未来" width="330"><br><sub>GPT-6.1-Sol Xhigh · 21 分钟 · 685 笔 · 误差 5.2%</sub></td></tr>
+</table>
+
+误差降了约四分之一，肩上的“01”、袖屏、腿部的系带细节补全了。读了模型的完整操作记录，剩下的误差主要是大块头发、皮肤和腿部的明暗色调，而不是边缘位置；前 3 分钟的四次整层 SVG 就把误差从 18% 压到 6.5%，之后 17 分钟的细化只降了 1.3 个百分点。实验过程、记录里发现的问题和改进见 [绘图实验记录](docs/sketch-drawing-experiments.md)。
 
 <details>
-<summary>进阶展示 · 机械剖面、青绿山水与 DeepSeek 娘临摹</summary>
-
-前两道题都选了容易暴露差距的题材：机械剖面考结构与细节（齿轮咬合、摆锤、链条、楼梯上的人物），青绿山水考构图与审美（三远法、留白、皴法与设色）。同一条提示词分别交给 **GPT-6.1-Sol · Xhigh** 和 **GPT-6-Astra · Low**，各跑一次，均在官方桌面版上完成，生图统一为 GPT Image 2（质量：高）。
-
-**《钟塔剖面图》**
-
-<table>
-<tr><th></th><th width="45%">原生草图</th><th width="45%">生图结果</th></tr>
-<tr><td><b>Sol<br>Xhigh</b></td><td><img src="docs/assets/sketch-clocktower-sol-sketch.webp" alt="Sol 绘制的钟塔剖面草图" width="400"></td><td><img src="docs/assets/sketch-clocktower-sol-result.webp" alt="Sol 草图生成的钟塔剖面插画" width="400"></td></tr>
-<tr><td><b>Astra<br>Low</b></td><td><img src="docs/assets/sketch-clocktower-astra-sketch.webp" alt="Astra 绘制的钟塔剖面草图" width="400"></td><td><img src="docs/assets/sketch-clocktower-astra-result.webp" alt="Astra 草图生成的钟塔剖面插画" width="400"></td></tr>
-</table>
-
-Sol 先用脚本算出 9 个齿轮的齿数（48、38、27、46、36、24、34、30、22）与节圆，再按咬合位置排布，绘图约 1 小时；第一次生图请求失败，按它的询问同意重试一次后成功。Astra Low 约 5 分钟完成全部草图与生图，结构更简化，齿轮没有逐一校准。
-
-**《千峰翠色》**
-
-<table>
-<tr><th></th><th width="45%">原生草图</th><th width="45%">生图结果</th></tr>
-<tr><td><b>Sol<br>Xhigh</b></td><td><img src="docs/assets/sketch-shanshui-sol-sketch.webp" alt="Sol 绘制的青绿山水草图" width="400"></td><td><img src="docs/assets/sketch-shanshui-sol-result.webp" alt="Sol 草图生成的青绿山水" width="400"></td></tr>
-<tr><td><b>Astra<br>Low</b></td><td><img src="docs/assets/sketch-shanshui-astra-sketch.webp" alt="Astra 绘制的青绿山水草图" width="400"></td><td><img src="docs/assets/sketch-shanshui-astra-result.webp" alt="Astra 草图生成的青绿山水" width="400"></td></tr>
-</table>
-
-Sol Xhigh 约 28 分钟，Astra Low 约 5 分钟。两者都保留了主峰、瀑布、栈道与江面的位置；Sol 的远山层次和雾带留白更完整。
-
-**《DeepSeek 娘》· 照着参考图临摹（只画不生图）**
-
-这道题把一张参考图作为附件发给模型，让它在画板上临摹，考的是比例、渐变长发、蕾丝褶边、手写字和小图案能不能对得上。参考图是社区流传的 DeepSeek 娘表情包。每格都在官方桌面版上跑一次，没有调用生图；原生笔画版开启了“完成后返回预览”，SVG 版在同一条提示词后加了一句“每层用 svg 命令”。
-
-<table>
-<tr><th width="20%">参考图</th><th width="40%">原生笔画</th><th width="40%">SVG</th></tr>
-<tr><td rowspan="2"><img src="docs/assets/sketch-niang-reference.webp" alt="DeepSeek 娘表情包参考图" width="220"></td><td><img src="docs/assets/sketch-niang-sol-native.webp" alt="Sol 原生笔画版" width="330"><br><sub><b>Sol Xhigh</b> · 40 分 50 秒 · 526 笔</sub></td><td><img src="docs/assets/sketch-niang-sol-svg.webp" alt="Sol SVG 版" width="330"><br><sub><b>Sol Xhigh</b> · 31 分 48 秒 · 463 笔</sub></td></tr>
-<tr><td><img src="docs/assets/sketch-niang-astra-native.webp" alt="Astra 原生笔画版" width="330"><br><sub><b>Astra Medium</b> · 约 7 分钟 · 332 笔</sub></td><td><img src="docs/assets/sketch-niang-astra-svg.webp" alt="Astra SVG 版" width="330"><br><sub><b>Astra Medium</b> · 10 分 5 秒</sub></td></tr>
-</table>
-
-SVG 版的发丝高光、蕾丝褶边和手写字更精细，Sol 用 SVG 还比逐笔绘制快了近 9 分钟；Astra 用 SVG 多花约 3 分钟，换来明显更丰富的细节。两个模型都没能画准脸型（偏长偏平）和围裙上的小鲸鱼图案，Sol 的鲸鱼更像鲸。
-
-**同一题再跑一次：让模型自己叠图对照**
-
-这一次提示词和附件方式都和上面一样，只是插件多了两样东西：模型可以用 `reference` 把聊天里附的参考图放进画板（作为隐藏的图片图层），并且在预览时打开 `compare`（把画作和参考图各占 50% 叠在一起，位置偏差会显示成重影）和 `grid`（每 100 像素一条带数字的网格）。同一题、同一个 Astra Medium，在官方桌面版上跑了一次，没有调用生图，共 20 分 57 秒、7 个绘画图层、686 条原生笔画；模型还用脚本批量生成了发丝和花边，并在画的过程中多次叠图检查、修正文字和蕾丝遮挡。
-
-<table>
-<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" alt="Astra Medium 叠图对照版" width="380"><br><sub><b>Astra Medium</b> · 20 分 57 秒 · 686 笔</sub></td><td><img src="docs/assets/sketch-niang-astra-overlay.webp" alt="模型看到的叠图对照预览" width="260"><br><sub>模型看到的叠图预览：文字和发丝边缘的重影就是偏差</sub></td></tr>
-</table>
-
-脸型、长发走向、蕾丝、手和气泡字都比上面的两个 Astra 版更接近参考图，耗时约是 SVG 版的两倍。这是单次运行，不同提示词和参考图的效果可能不同。
-
-<details>
-<summary>展开三道题的完整提示词</summary>
-
-```text
-@sketch 用 3:4 竖版画板绘制《钟塔剖面图》：蒸汽朋克风格的钟塔纵向剖面技术插图。最上方是圆形大钟面（十二个刻度、两根指针）和一口铜钟；钟面下一层是齿轮机房：至少 9 个大小不同、齿数正确、彼此咬合的齿轮（相邻齿轮转向相反，齿廓要画出锯齿），另有一个锚形擒纵机构；中段是一根贯穿的长摆杆，末端为铜制圆盘摆锤，旁边两条挂着配重铁块的链条；塔壁一侧是沿墙盘旋而上的螺旋楼梯，梯上有三个微小的工匠人物；底部是石砌地基与拱门。剖面用厚实的暗色砖石墙体框出，内部露出黄铜与铁质结构，加入铆钉、管道，以及从小窗透进来的光柱。按背景砖墙、结构框架、齿轮组、摆锤与链条、楼梯与人物、光影与细节分层绘制。画完后，把这张草图作为唯一参考图，调用订阅图片工具一次生成成品：保持每个部件的位置、比例与咬合关系不变，做成精密的蒸汽朋克剖面图插画——黄铜与旧钢的金属质感、细致的机械倒影和铆钉、羊皮纸底色配墨线渲染、暖色灯光，不添加文字。
-```
-
-```text
-@sketch 用 3:4 竖版画板绘制《千峰翠色》：宋代青绿山水的构图，严格运用「三远法」。高远：右侧一座主峰拔地而起，占画面上半部，山体用层叠的块面表现，山腰有横向的云雾留白；深远：主峰后方还有两重淡青色远山，越远越淡，之间隔着大片留白的雾带；平远：下方是舒展的江面，一叶渔舟和两只飞鸟。左侧一挂瀑布从中段峭壁倾泻而下，落入山涧，涧边有三株松树，松针成簇；山腰有一座小亭和一条曲折栈道，栈道上有两个极小的行者；前景是坡石与芦苇，用勾勒加披麻皴式的笔触表现。色彩层次为石青、石绿、赭石，远山用淡青。按远山与天空、雾带留白、主峰、瀑布与松树、亭台栈道与行者、江面舟鸟与前景分层绘制。画完后，把这张草图作为唯一参考图，调用订阅图片工具一次生成成品：保持山体、瀑布、栈道、江面的位置和三远法的层次不变，做成宋代青绿山水绢本设色——石青石绿矿物颜料的沉着厚重、细腻的皴擦与勾勒、绢面纹理与微微泛黄的古意、云雾留白，不添加文字或印章。
-```
+<summary>展开完整提示词</summary>
 
 ```text
 @sketch 用 1:1 方形画板，尽可能忠实地临摹我附上的这张参考图（一张 Q 版二次元表情包）。画面：白色底；Q 版二头身的蓝发鲸鱼娘跪坐在画面右侧偏中，蓝色渐变长发披肩（发根深蓝、发梢浅蓝），头顶一根呆毛，戴白色蕾丝女仆头饰和蓝色蝴蝶结，头两侧是深蓝色带白色内里的鲸鱼耳鳍，蓝色大眼睛带高光，猫嘴嘟嘴的“ω”表情，脸颊泛红，双手叉腰；穿深蓝色女仆装，白色蕾丝围裙（围裙上有一只蓝色小鲸鱼图案），黑色领结，袖口和裙摆有白色蕾丝褶边；身后露出一条深蓝色的鲸鱼尾巴。左上方是白色对话气泡（黑色描边，尖角指向她），气泡里用黑色粗体写“你这吃白饭的蓝色大肥鱼。”；左侧从画面外伸进来一只黑袖子的手，食指指向她；她的左下方用蓝色描边字写“没吃饱喵！”；她脚边的地上放着一只空的白瓷饭碗，碗内壁印着一只蓝色小鲸鱼。请分层绘制：白色背景、头发与鲸鱼耳鳍与尾巴、身体与服装、脸部五官、饭碗、手臂与对话气泡文字，保留原生可编辑笔画，并特别注意角色比例、头发的渐变与发丝走向、蕾丝褶边和脸部表情的细节。这次只在草图画布上画，不要调用任何生图或图片编辑工具；画完后检查一遍与参考图的差异并修正，最后保存并完成。
 ```
 
-SVG 版在“这次只在草图画布上画”之前多加了一句：
-
 ```text
-作画方式：每个图层都用 svg 命令整层写成 SVG（路径用贝塞尔曲线，配色手动分层做出渐变感），不要逐点使用原生笔画命令。
+用画板（codex_sketch）按这张参考图画初音未来，竖图，尽量百分之百还原：构图、比例、姿势、颜色、细节都要一致。
 ```
-
-</details>
-
-每个例子只跑一次，不代表稳定水平；Sol Xhigh 耗时明显更长，日常草图用 Astra 或较低推理档即可。
 
 </details>
 

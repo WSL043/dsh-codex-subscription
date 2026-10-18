@@ -87,13 +87,9 @@ Sketch supports local drafts, image layers, aspect ratios, three brushes (solid 
 
 The board supports editable shapes and text, native curves, and a side control for size/opacity. During Agent drawing, you can view, zoom, close the panel or stop drawing; manual edits unlock when it finishes. Automatic completion previews are off by default and can be enabled under Images & sketch. The document, history and run state are retained when switching away and back. Background drawing while viewing another session is not guaranteed. Save before a full-page reload or exit; unsaved recovery is not guaranteed.
 
-**Sketch-to-image example**: draw, click Attach, describe the desired result in the composer, then send.
+**Sketch to image**: draw, click Attach, describe the desired result in the composer, then send; the sketch is the reference image and the composition is kept.
 
-| Original sketch | Actual plugin output |
-| --- | --- |
-| ![Lighthouse sketch drawn by GPT-6.1-Sol](assets/sketch-lighthouse-sketch.webp) | ![Watercolor lighthouse poster generated from the sketch](assets/sketch-lighthouse-result.webp) |
-
-Example: GPT-6.1-Sol at Xhigh drew a six-layer native sketch with `@sketch`, then generated a warm watercolor travel poster with the sketch as the only reference (full prompt and advanced comparisons are in the README). The agent prefers the SVG command to draw a whole stage at once; the import still yields editable native strokes.
+**Agent drawing from a reference**: attach the reference and send `@sketch` plus a request. The agent first puts the reference on the board as a hidden layer with `reference`, then draws in stages; every batch reports how the error changed, and it can compare side by side, read a difference heat map, zoom into a region, measure colours and edge positions, and undo. The board's Replay redraws the process stroke by stroke and can record it as a video (previewed first, saved only when you click Save video). Measured comparisons are in the README's "Sketch drawing, measured", the log is in [Drawing experiments](sketch-drawing-experiments.md). The agent prefers the SVG command to draw a whole stage at once; the import still produces editable native strokes.
 
 Flare / Sunburst request overrides remain experimental: successful generation does not confirm which image engine or quality the subscription backend used.
 

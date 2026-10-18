@@ -18,7 +18,7 @@ Sign in with ChatGPT Plus / Pro to use GPT-6 and other Codex models, quota, web 
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Install](#install) · [Highlights](#highlights) · [Phone remote control](#phone-remote-control-beta) · [Examples](#from-sketch-to-image) · [All features](#all-features) · [User guide](docs/GUIDE.en.md) · [Troubleshooting](#troubleshooting)
+[Install](#install) · [Highlights](#highlights) · [Phone remote control](#phone-remote-control-beta) · [Sketch drawing](#sketch-drawing-measured) · [All features](#all-features) · [User guide](docs/GUIDE.en.md) · [Troubleshooting](#troubleshooting)
 
 </div>
 
@@ -119,7 +119,7 @@ Generate images with your subscription, circle a region and write a note to keep
 
 <p align="center"><img src="docs/assets/annotate-en.webp" width="900" alt="Image preview: a region above the chimney is marked with a note, then editing continues with the note"></p>
 
-Examples are in [From sketch to image](#from-sketch-to-image); the switches are under **Settings → Codex → Images & sketch**.
+Examples are in [Sketch drawing, measured](#sketch-drawing-measured); the switches are under **Settings → Codex → Images & sketch**.
 
 ### ChatGPT connectors
 
@@ -249,69 +249,42 @@ Subscription failures remain visible: no silent fallback to another paid route.
 
 [Read the complete user guide →](docs/GUIDE.en.md)
 
-## From sketch to image
+## Sketch drawing, measured
 
-The sketch canvas and agent drawing are **Beta**. The canvas and agent drawing are off by default; enable them under Images & sketch when needed.
+The sketch board and agent drawing are **Beta** and off by default; turn them on under Images & sketch. Draw by hand with the sketch button in the composer, or send `@sketch` plus a request to let the agent draw. With a reference, the agent can compare side by side, read a difference heat map, zoom into a region, measure colours and edge positions, and undo; a finished drawing can be replayed stroke by stroke in the board's Replay and recorded as a video. The tools only measure and show; they never draw for the model.
 
-**Sketch → Attach to the composer → Describe the result → Generate.**
+Both examples below were **drawn on the board only, with no image generation**, one run each, so they do not show consistent performance. "Error" is the mean per-pixel colour difference from the reference (smaller is closer, 0 is identical).
 
-Draw by hand with the canvas button, or ask the agent with `@sketch` and your drawing request.
+**DeepSeek-chan, copied from a reference**
 
 <table>
-<tr><th width="50%">Native sketch drawn by the agent</th><th width="50%">Image generated with the sketch as the only reference</th></tr>
-<tr><td><img src="docs/assets/sketch-lighthouse-sketch.webp" alt="Lighthouse sketch drawn by GPT-6.1-Sol" width="480"></td><td><img src="docs/assets/sketch-lighthouse-result.webp" alt="Watercolor lighthouse poster generated from the sketch" width="480"></td></tr>
+<tr><th width="33%">Reference</th><th width="33%">Before: best of the old tools</th><th width="33%">Now: new tools</th></tr>
+<tr><td><img src="docs/assets/sketch-niang-reference.webp" alt="DeepSeek-chan meme reference" width="240"></td><td><img src="docs/assets/sketch-niang-astra-compare.webp" alt="DeepSeek-chan drawn with the old tools" width="240"><br><sub>GPT-6-Astra Medium · 20 min 57 s · 686 strokes<br>error 8.8%</sub></td><td><img src="docs/assets/sketch-niang-astra-new.webp" alt="DeepSeek-chan drawn with the new tools" width="240"><br><sub>GPT-6-Astra Medium · 8 min 11 s · 481 strokes<br>error 9.3%</sub></td></tr>
 </table>
 
-**GPT-6.1-Sol · Xhigh** on the official desktop app 0.2.0-rc.2: one `@sketch` message produced 6 layers and 229 editable native strokes, then called GPT Image 2 (quality: high) once with the sketch as the only reference. About 13 minutes end to end.
+By the numbers they are close and the new run took less than half the time; the hands-on-hips pose and the small whale on the apron are more accurate, while fine hair strands and lace are still less delicate than the original.
 
-The prompt (sent in Chinese): draw "Lighthouse and Homecoming" on a 4:3 canvas — a red-and-white lighthouse on a rocky cape casting a fan of light, an orange-sailed fishing boat heading home with a V-shaped wake, a half-risen sun, three cloud bands, three gulls and surf around the rocks, in six named layers; then turn the sketch into a warm watercolor travel poster with no text, keeping the composition.
+**Hatsune Miku, portrait, copied from a reference**
+
+<table>
+<tr><th width="50%">Before: overlay compare and grid</th><th width="50%">Now: new tools</th></tr>
+<tr><td><img src="docs/assets/sketch-miku-sol-before.webp" alt="Miku drawn with the old tools" width="330"><br><sub>GPT-6.1-Sol Xhigh · error 6.7%</sub></td><td><img src="docs/assets/sketch-miku-sol-new.webp" alt="Miku drawn with the new tools" width="330"><br><sub>GPT-6.1-Sol Xhigh · 21 min · 685 strokes · error 5.2%</sub></td></tr>
+</table>
+
+The error fell by about a quarter, and the shoulder "01", the sleeve screen and the thigh lacing were added. Reading the model's full tool trace shows that what remains is mostly the tone and colour of large masses (hair, skin, legs) rather than edge placement: four whole-layer SVG stages in the first three minutes took the error from 18% to 6.5%, and the next 17 minutes of refinement only lowered it by 1.3 points. The experiment log, the problems found in the trace and the changes made are in [Drawing experiments](docs/sketch-drawing-experiments.md).
 
 <details>
-<summary>Advanced examples · Mechanical cutaway, blue-green landscape and a reference-copy challenge</summary>
+<summary>Show the full prompts</summary>
 
-The first two subjects were chosen to expose quality differences: a mechanical cutaway tests structure and detail (meshing gears, pendulum, chains, tiny figures on a staircase), and a Song-dynasty blue-green landscape tests composition and taste (the "three distances", empty space, texture strokes and mineral color). The same prompt went to **GPT-6.1-Sol · Xhigh** and **GPT-6-Astra · Low**, one run each, on the official desktop app, with GPT Image 2 (quality: high).
+```text
+@sketch Using a 1:1 square board, copy the attached reference as faithfully as possible (a chibi anime meme). Scene: white background; a chibi two-head-tall blue-haired whale girl kneels right of centre, blue gradient long hair (dark roots, light tips), one ahoge, a white lace maid headband and a blue bow, dark-blue whale fins with white lining on both sides of the head, big blue eyes with highlights, a cat-mouth pout "ω" expression, blushing cheeks, hands on hips; a dark-blue maid dress, a white lace apron with a small blue whale on it, a black bow tie, white lace frills on cuffs and hem; a dark-blue whale tail behind her. Top left a white speech bubble (black outline, pointer toward her) with the bold black text "你这吃白饭的蓝色大肥鱼。"; from the left edge a hand in a black sleeve points at her; lower left blue-outlined text "没吃饱喵！"; an empty white porcelain bowl on the floor by her feet, with a small blue whale printed inside. Draw in layers: white background, hair and fins and tail, body and clothes, face, bowl, arms and bubble text; keep native editable strokes; pay special attention to proportions, hair gradient and strand direction, lace frills and facial expression. Draw only on the sketch canvas this time, do not call any image generation or editing tool; when done, check the differences from the reference, fix them, then save and finish.
+```
 
-**Clock Tower Cutaway**
+```text
+Use the sketch board (codex_sketch) to draw Hatsune Miku from this reference, portrait, as close to 100% as possible: composition, proportions, pose, colours and details all the same.
+```
 
-<table>
-<tr><th></th><th width="45%">Native sketch</th><th width="45%">Generated image</th></tr>
-<tr><td><b>Sol<br>Xhigh</b></td><td><img src="docs/assets/sketch-clocktower-sol-sketch.webp" alt="Clock tower sketch by Sol" width="400"></td><td><img src="docs/assets/sketch-clocktower-sol-result.webp" alt="Clock tower illustration from Sol's sketch" width="400"></td></tr>
-<tr><td><b>Astra<br>Low</b></td><td><img src="docs/assets/sketch-clocktower-astra-sketch.webp" alt="Clock tower sketch by Astra" width="400"></td><td><img src="docs/assets/sketch-clocktower-astra-result.webp" alt="Clock tower illustration from Astra's sketch" width="400"></td></tr>
-</table>
-
-Sol first computed tooth counts (48, 38, 27, 46, 36, 24, 34, 30, 22) and pitch circles for the nine gears with a script, then placed them in mesh; drawing took about an hour. Its first image request failed; it asked, was allowed one retry, and succeeded. Astra Low finished sketch and image in about 5 minutes, with a simpler structure and gears that are not individually calibrated.
-
-**A Thousand Green Peaks**
-
-<table>
-<tr><th></th><th width="45%">Native sketch</th><th width="45%">Generated image</th></tr>
-<tr><td><b>Sol<br>Xhigh</b></td><td><img src="docs/assets/sketch-shanshui-sol-sketch.webp" alt="Landscape sketch by Sol" width="400"></td><td><img src="docs/assets/sketch-shanshui-sol-result.webp" alt="Blue-green landscape from Sol's sketch" width="400"></td></tr>
-<tr><td><b>Astra<br>Low</b></td><td><img src="docs/assets/sketch-shanshui-astra-sketch.webp" alt="Landscape sketch by Astra" width="400"></td><td><img src="docs/assets/sketch-shanshui-astra-result.webp" alt="Blue-green landscape from Astra's sketch" width="400"></td></tr>
-</table>
-
-Sol Xhigh took about 28 minutes and Astra Low about 5. Both kept the main peak, waterfall, plank path and river in place; Sol's receding ranges and mist bands are more complete.
-
-**"DeepSeek-chan" · copy a reference image (draw only, no image generation)**
-
-Here the reference image is attached to the message and the model copies it on the canvas, which tests proportions, gradient long hair, lace trim, hand lettering and small motifs. The reference is a community sticker of the DeepSeek mascot girl. Each cell is one run on the official desktop app with no image generation; the native-stroke runs had "return preview when finished" enabled, and the SVG runs added one sentence to the same prompt asking for the svg command on every layer.
-
-<table>
-<tr><th width="20%">Reference</th><th width="40%">Native strokes</th><th width="40%">SVG</th></tr>
-<tr><td rowspan="2"><img src="docs/assets/sketch-niang-reference.webp" alt="DeepSeek-chan sticker reference" width="220"></td><td><img src="docs/assets/sketch-niang-sol-native.webp" alt="Sol native strokes" width="330"><br><sub><b>Sol Xhigh</b> · 40 min 50 s · 526 strokes</sub></td><td><img src="docs/assets/sketch-niang-sol-svg.webp" alt="Sol SVG" width="330"><br><sub><b>Sol Xhigh</b> · 31 min 48 s · 463 strokes</sub></td></tr>
-<tr><td><img src="docs/assets/sketch-niang-astra-native.webp" alt="Astra native strokes" width="330"><br><sub><b>Astra Medium</b> · about 7 min · 332 strokes</sub></td><td><img src="docs/assets/sketch-niang-astra-svg.webp" alt="Astra SVG" width="330"><br><sub><b>Astra Medium</b> · 10 min 5 s</sub></td></tr>
-</table>
-
-The SVG runs have finer hair highlights, lace trim and lettering, and Sol was almost 9 minutes faster with SVG than stroke by stroke; Astra spent about 3 extra minutes on SVG for clearly richer detail. Neither model got the face shape right (too long and flat) or the small whale motif on the apron, though Sol's whale looks more like a whale.
-
-**The same challenge again, with the model checking itself against the reference**
-
-Same prompt and the same way of attaching the image as above; the plugin just gives the model two more things. It can use `reference` to put the image attached in the chat onto the board as a hidden picture layer, and while previewing it can turn on `compare` (the drawing and the reference blended 50/50, so position errors show up as ghosting) and `grid` (a labelled line every 100 pixels). Same Astra Medium on the official desktop app, one run, no image generation: 20 min 57 s, 7 drawing layers and 686 native strokes. The model also generated hair strands and lace with scripts, and checked against the overlay several times while drawing, fixing lettering and lace overlaps.
-
-<table>
-<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" alt="Astra Medium with overlay checks" width="380"><br><sub><b>Astra Medium</b> · 20 min 57 s · 686 strokes</sub></td><td><img src="docs/assets/sketch-niang-astra-overlay.webp" alt="The overlay preview the model saw" width="260"><br><sub>The overlay the model saw: ghosting on the lettering and hair edges is the error</sub></td></tr>
-</table>
-
-The face shape, hair flow, lace, hand and speech-bubble lettering are all closer to the reference than the two Astra runs above, at about twice the time of the SVG run. This is a single run; other prompts and references may behave differently.
+</details>
 
 <details>
 <summary>View Images & sketch settings</summary>
