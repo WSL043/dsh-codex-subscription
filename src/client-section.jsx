@@ -1,15 +1,50 @@
-import { useEffect, useId, useState } from 'react'
-import { useAccountStatusSnapshot } from './client-shared.js'
-import { ImagePreferences } from './image-preferences.jsx'
-import { PreferencesCard } from './client-preferences.jsx'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useAccountStatusSnapshot, usePreferenceSnapshot } from './client-shared.js'
+import { CreatePage, FeatureOverview, ModelsPage, MorePage, QuotaSettingsCard, ToolsPage } from './client-pages.jsx'
 import { AccountCard, AccountFailureCard } from './client-account.jsx'
-import { DiagnosticsCard } from './client-diagnostics.jsx'
-import { StorageCard } from './client-storage.jsx'
 import { UsageCard } from './client-usage.jsx'
+/** The tab bar sticks to the top while the page scrolls under it, so it must paint the dialog's own background (which differs per theme). */
+function useBackdropOf(ref) {
+  useLayoutEffect(() => {
+    const node = ref.current
+    if (!node) return undefined
+    const paint = () => {
+      let parent = node.parentElement
+      while (parent) {
+        const colour = getComputedStyle(parent).backgroundColor
+        const parts = colour.match(/[\d.]+/gu)
+        if (parts && parts.length >= 3 && (parts.length < 4 || Number(parts[3]) > 0)) { node.style.background = `rgb(${parts[0]}, ${parts[1]}, ${parts[2]})`; return }
+        parent = parent.parentElement
+      }
+      node.style.background = ''
+    }
+    paint()
+    const watcher = new MutationObserver(paint)
+    watcher.observe(document.documentElement, { attributes: true })
+    watcher.observe(document.body, { attributes: true })
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)')
+    media?.addEventListener?.('change', paint)
+    return () => { watcher.disconnect(); media?.removeEventListener?.('change', paint) }
+  }, [ref])
+}
+
+/** One place for what is wrong right now, whichever page the user is on. */
+function Notices({ preference, t, tab, signedIn, go }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  const items = []
+  if (snapshot.error) items.push(<p key="failed" className="codexSubscriptionError" role="alert">{t('preferenceFailed')} <button type="button" onClick={() => { void preference.retry() }}>{t('preferenceRetry')}</button></p>)
+  if (snapshot.restartRequired) items.push(<p key="restart" className="codexSubscriptionNotice" role="status">{t('settingsRestartRequired')}</p>)
+  if (snapshot.hostReadOnly) items.push(<p key="readonly" className="codexSubscriptionNotice" role="status">{t('settingsReadonly')}</p>)
+  if (signedIn === false && tab !== 'start') items.push(<p key="signin" className="codexSubscriptionNotice" role="status">{t('needSignIn')} <button type="button" onClick={() => go('start')}>{t('needSignInGo')}</button></p>)
+  return items.length === 0 ? null : <div className="codexSubscriptionNotices">{items}</div>
+}
+
 export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, defaultModel }) {
-  const [tab, setTab] = useState('account')
+  const [tab, setTab] = useState('start')
+  const tabsRef = useRef(null)
+  useBackdropOf(tabsRef)
   const id = useId()
-  const tabs = ['account', 'advanced', 'interop', 'creative', 'maintenance']
+  const tabs = ['start', 'models', 'tools', 'create', 'more']
   const accountSnapshot = useAccountStatusSnapshot(accountStatus)
   const account = accountSnapshot.account
   const [resetKey, setResetKey] = useState(0)
@@ -24,7 +59,7 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
   }, [accountStatus, preference])
   return <section className="codexSubscription">
     <div className="codexSubscriptionHead"><h2>{t('title')}</h2></div>
-    <div className="codexSettingsTabs" role="tablist" aria-label={t('title')}>
+    <div className="codexSettingsTabs" ref={tabsRef} role="tablist" aria-label={t('title')}>
       {tabs.map((value, index) => <button key={value} type="button" role="tab" id={`${id}-${value}-tab`} aria-controls={`${id}-${value}`} aria-selected={tab === value} tabIndex={tab === value ? 0 : -1}
         onClick={() => setTab(value)} onKeyDown={event => {
           const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1
@@ -32,19 +67,16 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
           event.preventDefault(); setTab(tabs[next]); document.getElementById(`${id}-${tabs[next]}-tab`)?.focus()
         }}>{t(`settingsTab_${value}`)}</button>)}
     </div>
-    <div role="tabpanel" id={`${id}-account`} aria-labelledby={`${id}-account-tab`} hidden={tab !== 'account'}>
+    <Notices preference={preference} t={t} tab={tab} signedIn={account === undefined ? undefined : account.authenticated === true} go={setTab} />
+    <div className="codexFlat" role="tabpanel" id={`${id}-start`} aria-labelledby={`${id}-start-tab`} hidden={tab !== 'start'}>
     {accountSnapshot.status === 'error' ? <AccountFailureCard accountStatus={accountStatus} snapshot={accountSnapshot} t={t} rpc={rpc} onRecovered={accountChanged} /> : <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} />}
     {account === undefined ? null : <UsageCard key={resetKey} rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} preference={preference} />}
-    <PreferencesCard rpc={rpc} preference={preference} t={t} />
+    <QuotaSettingsCard preference={preference} t={t} />
+    <FeatureOverview preference={preference} t={t} go={setTab} />
     </div>
-    <div role="tabpanel" id={`${id}-advanced`} aria-labelledby={`${id}-advanced-tab`} hidden={tab !== 'advanced'}><PreferencesCard rpc={rpc} preference={preference} t={t} defaultModel={defaultModel} section="advanced" /></div>
-    <div role="tabpanel" id={`${id}-interop`} aria-labelledby={`${id}-interop-tab`} hidden={tab !== 'interop'}><PreferencesCard rpc={rpc} preference={preference} t={t} section="interop" /></div>
-    <div role="tabpanel" id={`${id}-creative`} aria-labelledby={`${id}-creative-tab`} hidden={tab !== 'creative'}>
-      <ImagePreferences preference={preference} t={t} />
-      <ImagePreferences preference={preference} t={t} section="sketch" />
-    </div>
-    <div role="tabpanel" id={`${id}-maintenance`} aria-labelledby={`${id}-maintenance-tab`} hidden={tab !== 'maintenance'}>
-      <StorageCard rpc={rpc} t={t} /><DiagnosticsCard rpc={rpc} t={t} diagnostics={diagnostics} />
-    </div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-models`} aria-labelledby={`${id}-models-tab`} hidden={tab !== 'models'}><ModelsPage preference={preference} t={t} defaultModel={defaultModel} /></div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}><ToolsPage preference={preference} rpc={rpc} t={t} /></div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-create`} aria-labelledby={`${id}-create-tab`} hidden={tab !== 'create'}><CreatePage preference={preference} t={t} /></div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-more`} aria-labelledby={`${id}-more-tab`} hidden={tab !== 'more'}><MorePage preference={preference} rpc={rpc} t={t} diagnostics={diagnostics} /></div>
   </section>
 }

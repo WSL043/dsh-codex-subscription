@@ -26,7 +26,7 @@ export const PREFERENCE_FIELDS = Object.freeze({
   [CONNECTORS_FIELD]: { choices: CONNECTOR_MODES, default: DEFAULT_CONNECTOR_MODE, error: 'Invalid connectors preference' },
   [INPUT_IMAGE_DETAIL_FIELD]: { choices: INPUT_IMAGE_DETAILS, default: DEFAULT_INPUT_IMAGE_DETAIL, error: 'Invalid input image detail preference' },
   [STREAM_IDLE_TIMEOUT_MINUTES_FIELD]: { choices: STREAM_IDLE_TIMEOUT_MINUTES, default: DEFAULT_STREAM_IDLE_TIMEOUT_MINUTES, error: 'Invalid stream idle timeout preference' },
-  [VOICE_CALL_FIELD]: { choices: ['off', 'on'], default: 'on', error: 'Invalid voice call setting' },
+  [VOICE_CALL_FIELD]: { choices: ['off', 'on'], default: 'off', error: 'Invalid voice call setting' },
   [VOICE_VOICE_FIELD]: { choices: VOICE_VOICES, default: 'cove', error: 'Invalid voice preference' },
   [VOICE_LANGUAGE_FIELD]: { choices: VOICE_LANGUAGES, default: 'auto', error: 'Invalid voice language preference' },
   [CONTEXT_MODE_FIELD]: { choices: [CONTEXT_MODE_STANDARD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM], default: DEFAULT_CONTEXT_MODE, error: 'Invalid context mode preference' },

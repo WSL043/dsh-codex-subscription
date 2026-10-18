@@ -20,6 +20,14 @@ export function useAccountQuotas(rpc, ids) {
       .finally(() => { if (request.current === id) setBusy(false) })
   }
   useEffect(() => { load(false); return () => { request.current += 1 } }, [key])
+  // Stay current: when the usage card reloads, and once a minute while the page is open (the server caches, so this is cheap).
+  useEffect(() => {
+    if (ids.length < 2) return undefined
+    const again = () => load(false)
+    window.addEventListener('codex-subscription:usage-loaded', again)
+    const timer = setInterval(again, 60_000)
+    return () => { window.removeEventListener('codex-subscription:usage-loaded', again); clearInterval(timer) }
+  }, [key])
   return { entries, busy, refresh: () => load(true) }
 }
 

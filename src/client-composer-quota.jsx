@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition, useDismissOnOutsidePointer } from './client-primitives.js'
 import { QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
+import { forecastRunway } from './quota-pace.js'
 import { fill, percent, uiLocale, windowLabel, usePreferenceSnapshot, formatRunway, formatQuotaForecast } from './client-shared.js'
 import { useQuickQuota } from './client-quota.jsx'
 import { quotaWarning } from './capability-settings.js'
@@ -77,13 +78,11 @@ function shortReset(quota, t) {
 }
 function forecastText(quota, t) {
   const forecast = quota.forecast
-  if (forecast?.status === 'ready' && forecast.provisional) return `≈${formatRunway(forecast.runwaySeconds, t)}`
   if (forecast?.status === 'calibrating') return t(({ 'changing-pace': 'forecastCompactChanging', stale: 'forecastCompactStale' })[forecast.reason] ?? 'forecastCompactPending')
   if (forecast?.status === 'idle') return t('quickQuotaForecastIdle')
-  if (forecast?.status === 'ready' && forecast.survivesReset) return t('quickQuotaForecastUntilReset')
-  if (forecast?.status === 'ready') {
-    const min = formatRunway(forecast.runwayMinSeconds, t), max = formatRunway(forecast.runwayMaxSeconds, t)
-    return min && max && min !== max ? `≈${min}–${max}` : `≈${formatRunway(forecast.runwaySeconds, t)}`
-  }
+  const runway = forecastRunway(forecast)
+  if (runway?.kind === 'reset') return t('quickQuotaForecastUntilReset')
+  if (runway?.kind === 'range') return `≈${formatRunway(runway.min, t)}–${formatRunway(runway.max, t)}`
+  if (runway?.kind === 'point') return `≈${formatRunway(runway.seconds, t)}`
   return t('forecastCompactPending')
 }

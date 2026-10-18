@@ -91,7 +91,7 @@ test('the default-model control is one settings row over the two RPC endpoints',
   assert.match(preferences, /<DefaultModelPreference preference=\{preference\} defaultModel=\{defaultModel\} t=\{t\} \/>/u)
   const modelsSection = preferences.slice(preferences.indexOf("t('modelsSectionTitle')"), preferences.indexOf("t('searchSectionTitle')"))
   assert.match(modelsSection, /DefaultModelPreference/u, 'the default model sits in the models section')
-  assert.match(section, /defaultModel=\{defaultModel\} section="advanced"/u)
+  assert.match(section, /<ModelsPage preference=\{preference\} t=\{t\} defaultModel=\{defaultModel\} \/>/u)
   assert.match(client, /const defaultModel = createDefaultModelController\(rpc\)/u)
   assert.match(client, /defaultModel\.dispose\(\)/u)
   assert.match(client, /accountStatus, t, diagnostics, defaultModel/u)

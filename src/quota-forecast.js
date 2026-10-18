@@ -47,7 +47,9 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
   const resetsAt = finite(window.resetsAt) ? Number(window.resetsAt) : null
   if ((record.resetsAt === null) !== (resetsAt === null)
     || (resetsAt !== null && Math.abs(record.resetsAt - resetsAt) > 300)) return { status: 'calibrating' }
-  let samples = record.samples.filter(sample => sample.at >= now - 2 * HOUR_MS && sample.at <= now)
+  // The 2 h window hangs off the newest reading, not off the clock, so re-reading the same snapshot later gives the same pace.
+  const newest = record.samples.filter(sample => sample.at <= now).at(-1)
+  let samples = newest === undefined ? [] : record.samples.filter(sample => sample.at >= newest.at - 2 * HOUR_MS && sample.at <= newest.at)
   if (samples.length < 2) return { status: 'calibrating', sampleCount: samples.length }
   if (now - samples.at(-1).at > 20 * 60_000) return { status: 'calibrating', reason: 'stale' }
   // The endpoint's rounding contract is unknown. A one-point error on either
@@ -73,9 +75,10 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
   if (spanMs >= 5 * 60_000 && samples.length >= 3 && bounds.min <= 1e-9
     && common.consumedPercent >= 1) {
     const pacePerHour = common.consumedPercent / (spanMs / HOUR_MS)
-    return { ...common, status: 'ready', provisional: true, pacePerHour,
-      runwaySeconds: clampPercent(window.remainingPercent) / pacePerHour * 3600,
-      survivesReset: false }
+    const runwaySeconds = clampPercent(window.remainingPercent) / pacePerHour * 3600
+    const untilReset = resetsAt === null ? null : resetsAt - now / 1000
+    return { ...common, status: 'ready', provisional: true, pacePerHour, runwaySeconds,
+      survivesReset: untilReset !== null && runwaySeconds >= untilReset }
   }
   // A flat trace or an isolated boundary crossing still cannot establish pace.
   if (spanMs < 60_000 || bounds.min <= 1e-9) return { ...common, status: 'calibrating', reason: 'resolution' }

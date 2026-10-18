@@ -38,6 +38,9 @@ export function channelOf(text, prefixes = CHANNEL_PREFIXES) {
   return 'speakable'
 }
 
+/** The voice said it would go and do something ("let me check", "我查一下", "調べます"): a promise that only the agent can keep. */
+export const promisesAction = text => /(\blet me\b|\bi'?ll (check|look|search|find|run|open|try|do)|\bone moment\b|\bchecking\b|\blooking (it )?up\b|\bsearching\b|(我|让我|帮你|马上|这就|稍等|等我).{0,4}(查|看|搜|找|问|试|开|跑|运行|执行|处理|改|画)|調べ|確認|検索|探し|見てみ|やってみ)/iu.test(text)
+
 /** Cut a long text on character boundaries into pieces the voice service accepts as one append. */
 export function appendChunks(text, limit = CONTEXT_APPEND_MAX_BYTES) {
   const chunks = []
@@ -113,7 +116,8 @@ export async function createVoiceCall({ fetch, credentials, userAgent, sdp, sess
     signal: AbortSignal.timeout(20_000),
   })
   const answer = await response.text()
-  if (!response.ok) throw new Error(`the voice backend refused the call (HTTP ${response.status}): ${answer.slice(0, 200)}`)
+  // A guess, not a documented signal: a refused account may just need two-step verification switched on.
+  if (!response.ok) throw new Error(`the voice backend refused the call (HTTP ${response.status}): ${answer.slice(0, 200)}${response.status === 403 ? ' (if your ChatGPT account has no two-step verification, turn it on in ChatGPT security settings and try again)' : ''}`)
   const callId = String(response.headers?.get?.('location') ?? '').replace(/[?#].*$/u, '').split('/').filter(Boolean).at(-1)
   if (!/^rtc_[A-Za-z0-9_-]{8,80}$/u.test(callId ?? '')) throw new Error('the voice backend returned no call id')
   if (!answer.startsWith('v=0')) throw new Error('the voice backend returned no session description')
@@ -192,7 +196,9 @@ export function createRealtimeVoice(options) {
     if (!session) return false
     sessions.delete(threadId)
     session.ended = true
+    log.info('voice', 'the voice call ended', reason)
     clearTimeout(session.goodbye)
+    clearTimeout(session.unhandledTimer)
     clearTimeout(session.closeTimer)
     flushTail(threadId, session)
     try { session.ws.send(JSON.stringify(outbound.close())) } catch { /* already closed */ }
@@ -231,12 +237,36 @@ export function createRealtimeVoice(options) {
         if (session.ended) return
         try {
           session.working += 1
-          try { await options.delegate(threadId, delegationText(input), text => { if (!session.ended) speak(delegationId, text) }) } finally { session.working -= 1 }
+          try {
+            await options.delegate(threadId, delegationText(input), text => {
+              if (session.ended) return
+              // An answer that ends in a question is the agent waiting for the person.
+              if (channelOf(text, params.codexResponseHandoffChannelPrefixes ?? CHANNEL_PREFIXES) === 'speakable') session.awaitingAnswer = /[?？]\s*$/u.test(text.trim())
+              speak(delegationId, text)
+            })
+          } finally { session.working -= 1 }
         } catch (error) {
           log.warn('voice', 'the agent could not take the voice request', String(error?.message ?? error))
           if (!session.ended) speak(delegationId, `[COMPLETE] I could not do that: ${String(error?.message ?? 'the task could not start').slice(0, 160)}`)
         }
       })
+    }
+    // Whatever the person said that the voice model neither handed over nor was a goodbye: if it answers a question the agent just
+    // asked, or the voice model promised to go and do something, nothing would ever happen. The host then hands the person's words
+    // over itself, so a spoken answer such as a city name is not lost between the voice model and the agent.
+    session.unhandled = []
+    const handoverMs = Number.isFinite(params.unhandledHandoverMs) ? params.unhandledHandoverMs : 3_000
+    const settleUnhandled = () => {
+      session.unhandledTimer = undefined
+      const pending = session.unhandled
+      session.unhandled = []
+      if (session.ended || pending.length === 0) return
+      if (session.delegatedAt > pending[0].at - 1) return
+      const voiceReply = session.lastVoice && session.lastVoice.at >= pending[0].at ? session.lastVoice.text : ''
+      if (!session.awaitingAnswer && !promisesAction(voiceReply)) return
+      session.awaitingAnswer = false
+      log.info('voice', 'the voice model did not hand over what was said; the host did')
+      runRequest(pending.map(item => item.text).join(' ').slice(0, DELEGATION_FIELD_MAX), undefined)
     }
     const seenTypes = new Set()
     ws.on('message', data => {
@@ -251,6 +281,12 @@ export function createRealtimeVoice(options) {
           session.lines.push({ role: event.role, text: event.text.slice(0, 400) }); if (session.lines.length > 12) session.lines.shift()
         }
         void notify('thread/realtime/transcript/done', { threadId, role: event.role, text: event.text }).catch(() => {})
+        if (event.role !== 'user' && event.text.trim() !== '') session.lastVoice = { text: event.text, at: Date.now() }
+        else if (event.role === 'user' && event.text.trim() !== '' && !(session.hangUp && isGoodbye(event.text))) {
+          session.unhandled.push({ text: event.text.trim(), at: Date.now() })
+          clearTimeout(session.unhandledTimer)
+          session.unhandledTimer = setTimeout(settleUnhandled, handoverMs)
+        }
         // The voice model cannot hang up and does not reliably hand a goodbye over. When it has not delegated within a moment,
         // the host hands the person's own words to the agent, which judges whether they mean to end the call (it has the tool).
         if (session.hangUp && event.role === 'user' && isGoodbye(event.text)) {
@@ -268,6 +304,9 @@ export function createRealtimeVoice(options) {
         clearTimeout(session.goodbye)
         session.goodbye = undefined
         session.delegatedAt = Date.now()
+        session.unhandled = []
+        session.awaitingAnswer = false
+        clearTimeout(session.unhandledTimer)
         runRequest(event.text, event.id)
       }
     })

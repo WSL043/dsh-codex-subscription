@@ -1,7 +1,7 @@
 import { Hint } from './client-hint.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { create as createQr } from 'qrcode/lib/core/qrcode.js'
-import { Button } from './client-primitives.js'
+import { Button, Switch } from './client-primitives.js'
 import { CHANNEL } from './rpc-contract.js'
 import { uiLocale } from './client-shared.js'
 
@@ -90,10 +90,8 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
   const status = state?.status ?? 'connecting'
   return <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('remoteTitle')}>
     <div className="codexSubscriptionPreference">
-      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('remoteTitle')} <small>Beta</small></span><Hint t={t}>{t('remoteHint')}</Hint></div>
-      <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('remoteTitle')} aria-busy={snapshot.saving || undefined}>
-        {['off', 'on'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-remote-control" checked={snapshot.remoteControl === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ remoteControl: value }) }} /><span>{t(`remote_${value}`)}</span></label>)}
-      </div>
+      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('remoteTitle')} <small>Beta</small></span><Hint t={t}>{t(on ? 'state_remote_on' : 'state_remote_off')}</Hint></div>
+      <Switch checked={on} label={t('remoteTitle')} disabled={!snapshot.writable} onChange={next => { void preference.set({ remoteControl: next ? 'on' : 'off' }) }} />
     </div>
     {on ? <>
       <div className="codexSubscriptionDivider" />
@@ -102,6 +100,7 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
         <Button type="button" variant="outline" disabled={busy || status === 'stopped'} onClick={() => { void pair() }}>{t(pairing ? 'remotePairAgain' : 'remotePair')}</Button>
       </div>
       {status === 'waiting' && state?.lastError === 'conflict' && state?.reconnects >= 6 ? <p role="status" className="codexSubscriptionHelp">{t('remoteConflictLong')}</p> : null}
+      {status === 'error' && state?.lastError === 'unauthorized' ? <p role="status" className="codexSubscriptionHelp">{t('remoteUnauthorizedHelp')}</p> : null}
       {failed ? <p role="alert" className="codexSubscriptionHelp">{t('remotePairFailed')}</p> : null}
       {pairing && !expired ? <div className="codexSubscriptionRemotePair">
         <Qr value={`${PAIR_URL}${pairing.pairingCode}`} label={t('remoteQrLabel')} />
@@ -111,9 +110,9 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
           <p className="codexSubscriptionHelp">{t('remoteExpires').replace('{minutes}', String(minutes))}</p>
         </div>
       </div> : pairing ? <p className="codexSubscriptionHelp">{t('remoteExpired')}</p> : null}
-      {clients ? <div className="codexSubscriptionRemoteClients" role="list" aria-label={t('remotePaired')}>
+      {clients && clients.length > 0 ? <div className="codexSubscriptionRemoteClients" role="list" aria-label={t('remotePaired')}>
         <span className="codexSubscriptionPreferenceLabel">{t('remotePaired')}</span>
-        {clients.length === 0 ? <p className="codexSubscriptionHelp">{t('remoteNoPhones')}</p> : clients.map(client => <div key={client.clientId} role="listitem" className="codexSubscriptionPreference">
+        {clients.map(client => <div key={client.clientId} role="listitem" className="codexSubscriptionPreference">
           <span>{[client.name ?? t('remotePhoneUnknown'), client.platform, client.lastSeenAt ? t('remoteLastSeen').replace('{date}', new Date(client.lastSeenAt).toLocaleString(uiLocale())) : null].filter(Boolean).join(' · ')}</span>
           <Button type="button" variant="outline" disabled={Boolean(removing)} onClick={() => { void remove(client) }}>{t('remoteRevoke')}</Button>
         </div>)}

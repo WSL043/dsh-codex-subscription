@@ -324,6 +324,9 @@ export const STYLE = `
 .codexVoiceChoice .codexSubscriptionContextTrigger:first-child:not(:last-child){min-width:0;justify-content:center}
 /* The voice button wears the send button's own classes, so its colours, shape and theme are always the send button's. */
 .codexVoiceCall{position:absolute;z-index:2;margin:0}
+/* DSH's send button is the light info colour at rest and darkens on hover. The voice button is an action in its own right, so it keeps the stronger colour all the time and only deepens a little on hover. */
+.codexVoiceCall:not(:disabled){background:var(--dsw-alias-button-info-hover,#4176e6)!important;filter:none}
+.codexVoiceCall:not(:disabled):hover{filter:brightness(.92)}
 .codexVoiceCall:disabled{cursor:progress}
 .codexVoiceCall[data-state=connecting]{animation:codexVoicePulse 1.1s ease-in-out infinite}
 .codexVoiceCallNote{position:absolute;bottom:calc(100% + 8px);z-index:3;width:max-content;max-width:320px;padding:6px 10px;border-radius:8px;background:var(--dsw-alias-surface-elevated,#2a2a2e);color:var(--dsw-alias-label-primary,#fff);font-size:12px;line-height:16px;box-shadow:0 4px 16px rgba(0,0,0,.3);white-space:normal}
@@ -366,4 +369,104 @@ export const STYLE = `
 .codexSubscriptionHintToggle{margin:2px 0 0 -6px;padding:1px 6px;border-radius:6px;font-size:12px;font-weight:500;color:var(--dsw-alias-label-primary);transition:background .12s}
 .codexSubscriptionHintToggle::after{width:6px;height:6px}
 .codexSubscriptionHintToggle:hover{background:var(--dsw-alias-interactive-bg-hover)}
+
+/* Feature overview: one row per feature, a sentence, a switch and optional options */
+.codexFeatureOverview{display:flex;flex-direction:column;gap:0}
+.codexFeatureOverview>h3{margin:0 0 4px}
+.codexFeatureRow{border-top:1px solid var(--dsw-alias-border-l2)}.codexFeatureOverview>h3+.codexFeatureRow{border-top:0}
+.codexFeatureMain{display:flex;align-items:center;gap:12px;padding:10px 0;min-height:52px}
+.codexFeatureCopy{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.codexFeatureTitle{font-size:13px;font-weight:600;color:var(--dsw-alias-label-primary)}
+.codexFeatureTitle small{margin-left:6px;font-size:10px;font-weight:500;padding:0 5px;border-radius:5px;background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-label-tertiary)}
+.codexFeatureSummary{font-size:12px;line-height:17px;color:var(--dsw-alias-label-secondary)}
+.codexFeatureRow[data-blocked=true] .codexFeatureSummary{color:var(--dsw-alias-label-tertiary)}
+.codexFeatureStatus{flex:none;font-size:12px;color:var(--dsw-alias-label-secondary)}
+.codexFeatureMore{flex:none;display:inline-flex;align-items:center;gap:4px;min-width:68px;justify-content:flex-end;border:0;background:transparent;padding:4px 0 4px 6px;font:inherit;font-size:12px;color:var(--dsw-alias-label-secondary);cursor:pointer}
+.codexFeatureMore:hover{color:var(--dsw-alias-label-primary)}.codexFeatureMore[aria-expanded=true] svg{transform:rotate(180deg)}
+.codexFeatureMoreSpace{flex:none;min-width:68px}
+.codexFeatureOptions{display:flex;flex-direction:column;gap:8px;margin:0 0 10px;padding:8px 12px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
+.codexFeatureScope{margin-top:6px;padding:6px 12px;border:1px dashed var(--dsw-alias-border-l3);border-radius:10px}
+.codexQuotaAlerts[data-disabled=true]>.codexSubscriptionPreference{opacity:.5}
+.codexScopeNote{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;border-radius:10px;background:var(--dsw-alias-bg-module-platform);font-size:12px;color:var(--dsw-alias-label-secondary)}
+.codexScopeNote[data-others-off=true]{background:color-mix(in srgb,var(--dsw-alias-bg-module-platform) 70%,#f5a30022)}
+.codexScopeNote button{border:0;background:transparent;font:inherit;color:var(--dsw-alias-label-primary);text-decoration:underline;cursor:pointer;flex:none}
+.codexAdvancedFold{padding:0}.codexAdvancedFold>summary{display:flex;align-items:center;gap:10px;padding:12px 16px;cursor:pointer;list-style:none;font-size:13px;font-weight:600}
+.codexAdvancedFold>summary::-webkit-details-marker{display:none}
+.codexAdvancedFold>summary>span{font-weight:400;font-size:12px;color:var(--dsw-alias-label-tertiary);margin-left:auto}
+.codexAdvancedFold>summary::after{content:"";flex:none;width:7px;height:7px;border:solid var(--dsw-alias-label-tertiary);border-width:0 1.5px 1.5px 0;transform:translateY(-2px) rotate(45deg)}
+.codexAdvancedFold[open]>summary::after{transform:translateY(2px) rotate(-135deg)}
+.codexAdvancedBody{display:flex;flex-direction:column;gap:10px;padding:2px 16px 14px}
+.codexAdvancedInline{margin-top:6px;border:0;border-top:1px solid var(--dsw-alias-border-l2);border-radius:0;background:transparent}.codexAdvancedInline>summary{padding:10px 0}.codexAdvancedInline>.codexSubscriptionPreference{margin-bottom:8px}
+/* Settings pages in DSH's own look. One set of sizes for every page:
+   frame 1px / radius 12 / side padding 16 / gap between frames 8; row min-height 52, padding 8 0; title 13/20, hint 12/18;
+   every in-row control 32px high, radius 10, 13px; a hairline only under a row, never above one. */
+.codexFlat{display:flex;flex-direction:column;gap:0}.codexFlat[hidden]{display:none}
+.codexFlat .codexSubscriptionAdvancedPreferences{gap:0}
+.codexFlat .codexSubscriptionCard,.codexFlat .codexSubscriptionPreferencesCard,.codexFlat .codexImageSettings{border:1px solid var(--dsw-alias-border-l2);background:transparent;box-shadow:none;border-radius:12px;padding:2px 16px;margin:0 0 8px}
+.codexFlat h3,.codexFlat .codexSubscriptionSectionHead h3{margin:10px 0 2px;font-size:14px;font-weight:500;line-height:20px;color:var(--dsw-alias-label-primary)}
+.codexFlat .codexSubscriptionPreference,.codexFlat .codexFeatureRow>.codexFeatureMain{box-sizing:border-box;padding:8px 0;min-height:52px;gap:6px 16px;align-items:center}
+.codexFlat .codexSubscriptionPreference,.codexFlat .codexFeatureRow{border-bottom:1px solid var(--dsw-alias-border-l2)}
+.codexFlat .codexFeatureRow,.codexFlat .codexSubscriptionPreference{border-top:0}
+.codexFlat section>.codexSubscriptionPreference:last-child,.codexFlat section>.codexFeatureRow:last-of-type,.codexFlat section>div:last-child>.codexSubscriptionPreference:last-child,.codexFlat .codexAdvancedBody>.codexSubscriptionPreference:last-child{border-bottom:0}
+.codexFlat .codexSubscriptionPreferenceLabel,.codexFlat .codexFeatureTitle{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;line-height:20px;min-height:20px;color:var(--dsw-alias-label-primary)}
+.codexFlat .codexSubscriptionPreferenceLabel small,.codexFlat .codexFeatureTitle small{line-height:16px;height:16px;display:inline-flex;align-items:center}
+.codexFlat .codexSubscriptionPreferenceHint,.codexFlat .codexFeatureSummary,.codexFlat .codexSubscriptionHintText{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
+.codexFlat .codexSubscriptionPreferenceCopy{gap:0}
+.codexFlat .codexSubscriptionDivider{display:none}
+.codexFlat .codexSubscriptionQuotaModes{background:var(--dsw-alias-bg-module-platform);border-radius:10px;padding:2px;gap:2px;min-height:32px;box-sizing:border-box}
+.codexFlat .codexSubscriptionQuotaMode{min-height:28px;border-radius:8px;padding:0 10px;font-size:13px;white-space:nowrap}
+.codexFlat .codexSubscriptionContextTrigger{background:var(--dsw-alias-bg-module-platform);border-radius:10px;padding:0 12px;min-height:32px;height:32px;color:var(--dsw-alias-label-primary);font-size:13px}
+.codexFlat .codexSubscriptionPreference button[class*=_md_],.codexFlat .codexSubscriptionActions button[class*=_md_]{border-radius:10px;padding:0 12px;min-height:32px;height:32px;font-size:13px}
+.codexFlat .codexSubscriptionActions .codexSubscriptionContextTrigger{min-height:32px}
+.codexFlat .codexFeatureMore{box-sizing:border-box;width:28px;min-width:28px;height:28px;padding:0;gap:0;justify-content:center;background:transparent;border-radius:8px;color:var(--dsw-alias-label-secondary)}.codexFlat .codexFeatureMore:hover{background:var(--dsw-alias-bg-module-platform)}
+.codexFlat .codexFeatureMoreSpace{display:block;width:28px;min-width:28px;height:28px}
+.codexFlat .codexFeatureStatus{font-size:12px;color:var(--dsw-alias-label-secondary)}
+.codexFlat .codexFeatureOverview>h3{margin-top:10px}
+.codexFlat .codexAdvancedFold{margin-top:0;padding:0 16px}
+.codexFlat .codexAdvancedFold>summary{padding:10px 0;font-weight:500;font-size:13px;line-height:20px}
+.codexFlat .codexAdvancedBody{padding:0 0 4px}
+.codexFlat .codexAdvancedInline{margin-top:0;border-top:0;padding:0}.codexFlat .codexAdvancedInline>summary{padding:10px 0;font-weight:400}
+.codexFlat .codexSubscriptionSearch>.codexSubscriptionSearchOptions,.codexFlat .codexSubscriptionRuntime,.codexFlat .codexSubscriptionHistory{border-top:0;margin-top:0;padding-top:0}
+.codexFlat .codexSubscriptionSearchOptions{margin:0;padding:0}.codexFlat .codexSubscriptionSearchOptions>summary{padding:10px 0;margin:0}
+.codexFlat .codexSubscriptionCard:has(>.codexSubscriptionAccounts),.codexFlat .codexSubscriptionCard:has(>.codexSubscriptionActions),.codexFlat .codexSubscriptionStorage{padding-block:10px}
+.codexFlat .codexSubscriptionCreditSection{display:block}.codexFlat .codexSubscriptionCreditSection[open]>summary{border-bottom:1px solid var(--dsw-alias-border-l2);margin-bottom:8px}
+.codexFlat .codexSubscriptionStorageMeter{background:transparent;padding:6px 0}
+.codexFlat .codexSubscriptionResetBox{border:0;border-radius:0;padding:0}
+.codexFlat :is(button,summary,a):focus-visible,.codexFlat label:has(:focus-visible){outline:2px solid var(--dsw-alias-border-inverted);outline-offset:2px;box-shadow:none}
+.codexSettingsTabs{position:sticky;top:0;z-index:2;background:var(--dsw-alias-bg-layer-1);border-radius:0;padding:6px 0 0;margin-top:-6px;gap:18px;display:flex;overflow-x:auto;scrollbar-width:none;grid-template-columns:none;border-bottom:1px solid var(--dsw-alias-border-l2);margin-bottom:8px}
+.codexSettingsTabs button{min-height:34px;padding:0 2px;border-radius:0;border-bottom:2px solid transparent;margin-bottom:-1px;font-size:14px;color:var(--dsw-alias-label-tertiary);white-space:nowrap}
+.codexSettingsTabs button[aria-selected=true]{background:transparent;box-shadow:none;color:var(--dsw-alias-label-primary);border-bottom-color:var(--dsw-alias-label-primary)}
+.codexSubscriptionNotices{display:flex;flex-direction:column;gap:6px;margin:0 0 8px}
+.codexSubscriptionNotices p{margin:0;padding:8px 12px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
+.codexSubscriptionNotice{font-size:13px;line-height:20px;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionNotices button{margin-left:6px;border:0;background:transparent;padding:0;font:inherit;color:var(--dsw-alias-label-primary);text-decoration:underline;cursor:pointer}
+.codexSubscriptionPace{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-state-warning-primary,#b45309)}
+.codexSubscriptionLimit[data-pace=true] progress{accent-color:var(--dsw-alias-state-warning-primary,#f5a300)}
+.codexSubscriptionLimit[data-pace=true] progress::-webkit-progress-value{background:var(--dsw-alias-state-warning-primary,#f5a300)}
+.codexSubscriptionLimit[data-pace=true] progress::-moz-progress-bar{background:var(--dsw-alias-state-warning-primary,#f5a300)}
+.codexDiagResult{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--dsw-alias-border-l2)}
+.codexDiagBadge{font-size:13px;line-height:20px;font-weight:500;color:var(--dsw-alias-label-primary)}
+.codexDiagResult[data-state=ok] .codexDiagBadge::before,.codexDiagResult[data-state=attention] .codexDiagBadge::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:var(--dsw-alias-state-success-primary,#1a9d58)}
+.codexDiagResult[data-state=attention] .codexDiagBadge::before{background:var(--dsw-alias-state-warning-primary,#f5a300)}
+.codexDiagTime{font-size:12px;color:var(--dsw-alias-label-tertiary)}
+.codexDiagFindings{list-style:none;margin:0;padding:0 0 6px;display:flex;flex-direction:column;gap:8px}
+.codexDiagFindings>li{display:flex;flex-direction:column;gap:2px;font-size:13px;line-height:20px}
+.codexDiagNext{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
+.codexDiagTable{width:100%;font-size:12px;text-align:left;border-spacing:0 6px}
+.codexFlat .codexSubscriptionDiagnostics details.codexAdvancedFold{margin:0;padding:0;border-top:1px solid var(--dsw-alias-border-l2)}.codexFlat .codexSubscriptionDiagnostics details>summary{margin:0}
+.codexDiagFindings>li{padding:0;margin:0}.codexDiagFindings{padding-left:0!important}
+/* The model search row stays put while the list scrolls under it: a hairline marks the edge so a partly scrolled group title reads as scrolled, not broken. */
+.codexModelSelectSearchRow{margin:2px 0 0;border-bottom:1px solid var(--dsw-alias-border-l2)}
+.codexModelSelectGroups{scroll-padding-block:30px;padding-top:2px}
+.codexModelsHead{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;padding:8px 0 2px}.codexModelsHead h3{margin:0!important;flex:0 0 auto}
+.codexModelsHead>span{flex:1 1 auto;min-width:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
+.codexModelsHead>button{flex:0 0 auto;margin-left:auto;height:28px;min-height:28px;padding:0 10px;font-size:12px}
+.codexFlat details.codexAdvancedFold.codexSubscriptionCard{padding-block:0}
+.codexFlat .codexAdvancedFold>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0;box-sizing:border-box}
+.codexFlat .codexAdvancedInline>summary{min-height:44px}
+.codexFlat details.codexAdvancedFold{display:block}
+.codexModelSelectGroups [class*=_heading_]{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-module-platform))}
+.codexFlat :is(button,summary,a):focus-visible,.codexFlat label:has(:focus-visible){outline-color:var(--dsw-alias-brand-primary,#3964fe)}
+.codexSubscriptionPace{color:var(--dsw-alias-state-warn-label,#b45309)}
+.codexSubscriptionAccountQuota{color:var(--dsw-alias-label-secondary)}
 `

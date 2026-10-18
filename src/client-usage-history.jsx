@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { recoveryCall } from './client-recovery.js'
 import { fill } from './client-shared.js'
+import { pendingReason } from './history-pending.js'
 import { uiLocale } from './client-usage-overview.jsx'
 
 const DIMENSIONS = ['model', 'surface', 'thread_source', 'turn_trigger']
@@ -29,9 +30,9 @@ function Rows({ dimension, rows, total, t }) {
 export function UsageHistory({ rpc, t, signedIn, resetKey }) {
   const [open, setOpen] = useState(false)
   const [state, setState] = useState({ status: 'idle' })
-  const [selected, setSelected] = useState(0)
+  const [selected, setSelected] = useState()
   const request = useRef(0)
-  useEffect(() => { request.current += 1; setState({ status: 'idle' }); setSelected(0) }, [signedIn, resetKey])
+  useEffect(() => { request.current += 1; setState({ status: 'idle' }); setSelected(undefined) }, [signedIn, resetKey])
   useEffect(() => {
     if (!open || !signedIn || state.status !== 'idle') return
     const id = ++request.current
@@ -42,8 +43,12 @@ export function UsageHistory({ rpc, t, signedIn, resetKey }) {
   }, [open, signedIn, state.status, rpc])
   if (!signedIn) return null
   const value = state.value
-  const periods = (value?.periods ?? []).filter(period => period.usedPercent !== undefined)
-  const period = periods[Math.min(selected, Math.max(0, periods.length - 1))]
+  // Newest first. A period without a figure stays selectable and says why (still running / not counted yet), while the
+  // newest period that has figures is the one shown first, instead of an old one that looks like the current week.
+  const periods = [...(value?.periods ?? [])].sort((a, b) => b.startsAt - a.startsAt)
+  const period = periods.find(item => item.startsAt === selected) ?? periods.find(item => item.usedPercent !== undefined)
+  const reason = period === undefined ? undefined : pendingReason(period)
+  const asOfDate = value?.asOf ? new Date(value.asOf).toLocaleDateString(uiLocale(), { month: 'numeric', day: 'numeric' }) : ''
   const present = DIMENSIONS.filter(dimension => period?.breakdowns?.[dimension]?.length > 0)
   return <details className="codexSubscriptionHistory" onToggle={event => setOpen(event.currentTarget.open)}>
     <summary>{t('historyTitle')}</summary>
@@ -55,10 +60,13 @@ export function UsageHistory({ rpc, t, signedIn, resetKey }) {
     </div>
     {period === undefined ? null : <>
       <div className="codexSubscriptionHistoryPeriods" role="group" aria-label={t('historyPeriods')}>
-        {periods.map((item, index) => <button type="button" key={item.startsAt} aria-pressed={item === period} onClick={() => setSelected(index)}>{`${day(item.startsAt)}–${day(item.endsAt)}`}</button>)}
+        {periods.map(item => <button type="button" key={item.startsAt} aria-pressed={item === period} title={item.usedPercent === undefined ? t('historyPending') : undefined} onClick={() => setSelected(item.startsAt)}>{`${day(item.startsAt)}–${day(item.endsAt)}`}</button>)}
       </div>
-      <p className="codexSubscriptionHistorySummary">{fill(t('historyUsed'), { value: amount(period.usedPercent) })}{period.complete ? '' : ` ${t('historyPartial')}`}</p>
+      {reason === undefined
+        ? <p className="codexSubscriptionHistorySummary">{fill(t('historyUsed'), { value: amount(period.usedPercent) })}{period.complete ? '' : ` ${t('historyPartial')}`}</p>
+        : <p className="codexSubscriptionEmpty" role="status">{fill(t(reason === 'current' ? 'historyPendingCurrent' : 'historyPendingPast'), { date: asOfDate })}</p>}
       {present.map(dimension => <Rows key={dimension} dimension={dimension} rows={period.breakdowns[dimension]} total={period.usedPercent} t={t} />)}
+      {value.asOf ? <p className="codexSubscriptionCreditNote">{fill(t('historyAsOf'), { date: new Date(value.asOf).toLocaleDateString(uiLocale(), { month: 'numeric', day: 'numeric' }) })}</p> : null}
       {value.approximate ? <p className="codexSubscriptionCreditNote">{t('historyApproximate')}</p> : null}
     </>}
   </details>

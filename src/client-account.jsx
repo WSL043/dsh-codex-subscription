@@ -27,6 +27,7 @@ export function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   const [manualCode, setManualCode] = useState('')
   const [adding, setAdding] = useState(false)
   const [removeId, setRemoveId] = useState()
+  const [confirmSignOut, setConfirmSignOut] = useState(false)
   const [emailVisible, setEmailVisible] = useState(false)
   const accounts = account?.accounts ?? []
   const accountVisibilityKey = `${account?.authenticated === true ? 'signed-in' : 'signed-out'}:${accounts.map(candidate => `${candidate.id ?? ''}:${candidate.active === true}:${candidate.email ?? ''}`).join('|')}`
@@ -111,6 +112,7 @@ export function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
     }).catch(() => setError(t('failed'))).finally(() => setBusy(false))
   }
   const logout = () => {
+    setConfirmSignOut(false)
     setBusy(true); setError(undefined)
     void call('logout').then(next => {
       setAccount(next); setFlow(undefined); onSignedOut(); notifyQuickQuota()
@@ -141,7 +143,7 @@ export function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   return <div className="codexSubscriptionCard">
     <div className="codexSubscriptionAccountRow">
       <div className="codexSubscriptionStatus" role="status" aria-live="polite"><span className="codexSubscriptionDot" data-state={accountReady ? signedIn ? 'connected' : 'disconnected' : 'loading'} aria-hidden="true" />{accountReady ? signedIn ? t('connected') : t('disconnected') : t('accountLoading')}</div>
-      <div className="codexSubscriptionActions">{signedIn ? <><Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => { setFlow(undefined); setAdding(true) }}>{t('addAccount')}</Button><Button type="button" variant="outline" disabled={busy || loginVisible} onClick={logout}>{t('signOutAll')}</Button></> : accountReady && (flow === undefined || ['failed', 'cancelled'].includes(flow.phase)) ? <><Button type="button" variant="primary" disabled={busy} onClick={() => begin('browser')}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => begin('device_code')}>{t('deviceLogin')}</Button></> : null}</div>
+      <div className="codexSubscriptionActions">{signedIn ? <><Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => { setFlow(undefined); setAdding(true) }}>{t('addAccount')}</Button>{confirmSignOut ? <><Button type="button" variant="outline" disabled={busy} onClick={logout}>{t('signOutConfirm')}</Button><Button type="button" variant="outline" onClick={() => setConfirmSignOut(false)}>{t('removeCancel')}</Button></> : <Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => setConfirmSignOut(true)}>{t('signOutAll')}</Button>}</> : accountReady && (flow === undefined || ['failed', 'cancelled'].includes(flow.phase)) ? <><Button type="button" variant="primary" disabled={busy} onClick={() => begin('browser')}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => begin('device_code')}>{t('deviceLogin')}</Button></> : null}</div>
     </div>
      {signedIn && accounts.length > 0 ? <div className="codexSubscriptionAccounts">{accounts.map(candidate => <div className="codexSubscriptionAccount" data-active={candidate.active} key={candidate.id}><div className="codexSubscriptionAccountMain"><AccountEmail candidate={candidate} fallback={candidate.label} t={t} emailVisible={emailVisibleForAccount} onClick={toggleEmail} />{accounts.length > 1 ? <AccountQuota entry={quotas.entries[candidate.id]} loading={quotas.busy} t={t} /> : null}</div><div className="codexSubscriptionActions">{candidate.active ? null : <Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => selectAccount(candidate.id)}>{t('switchAccount')}</Button>}{accounts.length > 1 ? <Button type="button" variant="outline" disabled={busy || loginVisible} onClick={() => removeAccount(candidate.id)}>{removeId === candidate.id ? t('removeConfirm') : t('removeAccount')}</Button> : null}{removeId === candidate.id ? <Button type="button" variant="outline" disabled={busy} onClick={() => setRemoveId(undefined)}>{t('removeCancel')}</Button> : null}</div></div>)}</div> : null}
     {signedIn && adding && flow === undefined ? <div className="codexSubscriptionFlow"><div className="codexSubscriptionActions"><Button type="button" variant="primary" disabled={busy} onClick={() => begin('browser')}>{t('browserLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => begin('device_code')}>{t('deviceLogin')}</Button><Button type="button" variant="outline" disabled={busy} onClick={() => setAdding(false)}>{t('cancel')}</Button></div></div> : null}

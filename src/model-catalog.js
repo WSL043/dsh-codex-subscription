@@ -172,7 +172,7 @@ export function parseOfficialModelCatalog(value, now = Date.now()) {
     .map(model => visibleModel(model, displayNames, now))
     .filter(model => model !== undefined && !seen.has(model.id) && seen.add(model.id))
     .sort((left, right) => Number(left.id === 'gpt-reserve') - Number(right.id === 'gpt-reserve')
-      || right.priority - left.priority)
+      || left.priority - right.priority)
 }
 
 function mergeModel(baseModels, remote) {

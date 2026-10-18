@@ -110,7 +110,7 @@ test('runway mode names calibration, idle, and reset-safe states instead of fall
   assert.match(source, /quotaForecastUntilReset/u)
   assert.match(source, /forecast\?\.status === ['"]calibrating['"]/u)
   assert.match(source, /forecast\?\.status === ['"]idle['"]/u)
-  assert.match(source, /forecast\.survivesReset/u)
+  assert.match(source, /runway?.kind === 'reset'/u)
   assert.match(source, /正在校准/u)
   assert.match(source, /足够用到重置/u)
   assert.match(source, /Calibrating/u)
@@ -368,7 +368,7 @@ test('support diagnostics show coverage with expandable evidence', async () => {
   assert.doesNotMatch(source, /diagnosticsOpen|diagnosticsClose|setDiagnosticsOpen|aria-expanded=\{diagnosticsOpen\}/u)
   assert.match(source, /codexSubscriptionDiagnostics[\s\S]*t\('diagnosticsLoad'\)/u)
   assert.match(source, /diagnosticsCoverageHint/u)
-  assert.match(source, /<details><summary>\{t\('diagnosticsDetails'\)\}/u)
+  assert.match(source, /<summary>\{t\('diagnosticsAdvanced'\)\}/u)
   assert.match(source, /diagnosticsCopy/u)
 })
 
