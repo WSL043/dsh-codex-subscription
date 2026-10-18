@@ -70,8 +70,8 @@ export const CUSTOM_CONTEXT_MODEL_FIELDS = Object.freeze({
 export const CUSTOM_CONTEXT_MODEL_CAPS = Object.freeze({
   'gpt-5.4': 1_000_000,
   'gpt-5.4-mini': 400_000,
-  'gpt-5.5': 1_000_000,
-  'gpt-5.6': 1_000_000,
+  'gpt-5.5': 272_000,
+  'gpt-5.6': 872_000,
   // Codex's audited override limit, not the API model's total context window.
   // https://github.com/openai/codex/blob/6af345407d9c2a568da9d01b6c4b81a9e61495c0/codex-rs/models-manager/models.json#L33-L34
   'gpt-6-astra': 872_000,

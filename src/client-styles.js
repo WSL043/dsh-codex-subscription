@@ -324,6 +324,9 @@ export const STYLE = `
 .codexVoiceChoice .codexSubscriptionContextTrigger:first-child:not(:last-child){min-width:0;justify-content:center}
 /* The voice button wears the send button's own classes, so its colours, shape and theme are always the send button's. */
 .codexVoiceCall{position:absolute;z-index:2;margin:0}
+/* DSH's send button is the light info colour at rest and darkens on hover. The voice button is an action in its own right, so it keeps the stronger colour all the time and only deepens a little on hover. */
+.codexVoiceCall:not(:disabled){background:var(--dsw-alias-button-info-hover,#4176e6)!important;filter:none}
+.codexVoiceCall:not(:disabled):hover{filter:brightness(.92)}
 .codexVoiceCall:disabled{cursor:progress}
 .codexVoiceCall[data-state=connecting]{animation:codexVoicePulse 1.1s ease-in-out infinite}
 .codexVoiceCallNote{position:absolute;bottom:calc(100% + 8px);z-index:3;width:max-content;max-width:320px;padding:6px 10px;border-radius:8px;background:var(--dsw-alias-surface-elevated,#2a2a2e);color:var(--dsw-alias-label-primary,#fff);font-size:12px;line-height:16px;box-shadow:0 4px 16px rgba(0,0,0,.3);white-space:normal}
@@ -455,4 +458,11 @@ export const STYLE = `
 /* The model search row stays put while the list scrolls under it: a hairline marks the edge so a partly scrolled group title reads as scrolled, not broken. */
 .codexModelSelectSearchRow{margin:2px 0 0;border-bottom:1px solid var(--dsw-alias-border-l2)}
 .codexModelSelectGroups{scroll-padding-block:30px;padding-top:2px}
+.codexModelsHead{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;padding:8px 0 2px}.codexModelsHead h3{margin:0!important;flex:0 0 auto}
+.codexModelsHead>span{flex:1 1 auto;min-width:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
+.codexModelsHead>button{flex:0 0 auto;margin-left:auto;height:28px;min-height:28px;padding:0 10px;font-size:12px}
+.codexFlat details.codexAdvancedFold.codexSubscriptionCard{padding-block:0}
+.codexFlat .codexAdvancedFold>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0;box-sizing:border-box}
+.codexFlat .codexAdvancedInline>summary{min-height:44px}
+.codexFlat details.codexAdvancedFold{display:block}
 `

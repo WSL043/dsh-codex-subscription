@@ -166,6 +166,8 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
         if (request.current === id) {
           setUsage(next)
           setUsageRefreshGeneration(value => value + 1)
+          // The per-account quota lines in the account card read the same report: keep them in step with this card.
+          if (typeof window !== 'undefined') window.dispatchEvent(new Event('codex-subscription:usage-loaded'))
           if (force) notifyQuickQuota()
         }
       })

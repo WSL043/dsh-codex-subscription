@@ -517,10 +517,10 @@ test('context presets preserve catalog defaults and cap every supported model in
     'gpt-5.3-codex-spark': 128_000,
     'gpt-5.4': 1_000_000,
     'gpt-5.4-mini': 400_000,
-    'gpt-5.5': 1_000_000,
-    'gpt-5.6-luna': 1_000_000,
-    'gpt-5.6-sol': 1_000_000,
-    'gpt-5.6-terra': 1_000_000,
+    'gpt-5.5': 272_000,
+    'gpt-5.6-luna': 872_000,
+    'gpt-5.6-sol': 872_000,
+    'gpt-5.6-terra': 872_000,
   })
 
   if ('gpt-6-astra' in contexts()) assert.equal(contexts()['gpt-6-astra'], 872_000)
@@ -531,7 +531,7 @@ test('context presets preserve catalog defaults and cap every supported model in
     'gpt-5.3-codex-spark': 128_000,
     'gpt-5.4': 500_000,
     'gpt-5.4-mini': 300_000,
-    'gpt-5.5': 500_000,
+    'gpt-5.5': 272_000,
     'gpt-5.6-luna': 750_000,
     'gpt-5.6-sol': 750_000,
     'gpt-5.6-terra': 750_000,

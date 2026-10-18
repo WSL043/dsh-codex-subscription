@@ -105,10 +105,8 @@ export function ModelsPage({ preference, t, defaultModel }) {
   const snapshot = usePreferenceSnapshot(preference)
   return <div className="codexSubscriptionAdvancedPreferences">
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('modelsSectionTitle')}>
-      <h3>{t('modelsSectionTitle')}</h3>
+      <ModelCatalogStatus preference={preference} t={t} title={t('modelsSectionTitle')} />
       {defaultModel === undefined ? null : <><DefaultModelPreference preference={preference} defaultModel={defaultModel} t={t} /><div className="codexSubscriptionDivider" /></>}
-      <ModelCatalogStatus preference={preference} t={t} />
-      <div className="codexSubscriptionDivider" />
       <PickerModelsPreference preference={preference} t={t} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('answerStyleTitle')}>

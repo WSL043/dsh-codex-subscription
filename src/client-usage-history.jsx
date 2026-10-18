@@ -29,9 +29,9 @@ function Rows({ dimension, rows, total, t }) {
 export function UsageHistory({ rpc, t, signedIn, resetKey }) {
   const [open, setOpen] = useState(false)
   const [state, setState] = useState({ status: 'idle' })
-  const [selected, setSelected] = useState(0)
+  const [selected, setSelected] = useState()
   const request = useRef(0)
-  useEffect(() => { request.current += 1; setState({ status: 'idle' }); setSelected(0) }, [signedIn, resetKey])
+  useEffect(() => { request.current += 1; setState({ status: 'idle' }); setSelected(undefined) }, [signedIn, resetKey])
   useEffect(() => {
     if (!open || !signedIn || state.status !== 'idle') return
     const id = ++request.current
@@ -42,8 +42,10 @@ export function UsageHistory({ rpc, t, signedIn, resetKey }) {
   }, [open, signedIn, state.status, rpc])
   if (!signedIn) return null
   const value = state.value
-  const periods = (value?.periods ?? []).filter(period => period.usedPercent !== undefined)
-  const period = periods[Math.min(selected, Math.max(0, periods.length - 1))]
+  // Newest first. A period the report has not counted yet is listed (greyed) so the list ends where today does, and the
+  // newest period that has figures is the one shown first, instead of an old one that looks like the current week.
+  const periods = [...(value?.periods ?? [])].sort((a, b) => b.startsAt - a.startsAt)
+  const period = periods.find(item => item.startsAt === selected && item.usedPercent !== undefined) ?? periods.find(item => item.usedPercent !== undefined)
   const present = DIMENSIONS.filter(dimension => period?.breakdowns?.[dimension]?.length > 0)
   return <details className="codexSubscriptionHistory" onToggle={event => setOpen(event.currentTarget.open)}>
     <summary>{t('historyTitle')}</summary>
@@ -55,10 +57,11 @@ export function UsageHistory({ rpc, t, signedIn, resetKey }) {
     </div>
     {period === undefined ? null : <>
       <div className="codexSubscriptionHistoryPeriods" role="group" aria-label={t('historyPeriods')}>
-        {periods.map((item, index) => <button type="button" key={item.startsAt} aria-pressed={item === period} onClick={() => setSelected(index)}>{`${day(item.startsAt)}–${day(item.endsAt)}`}</button>)}
+        {periods.map(item => <button type="button" key={item.startsAt} aria-pressed={item === period} disabled={item.usedPercent === undefined} title={item.usedPercent === undefined ? t('historyPending') : undefined} onClick={() => setSelected(item.startsAt)}>{`${day(item.startsAt)}–${day(item.endsAt)}`}</button>)}
       </div>
       <p className="codexSubscriptionHistorySummary">{fill(t('historyUsed'), { value: amount(period.usedPercent) })}{period.complete ? '' : ` ${t('historyPartial')}`}</p>
       {present.map(dimension => <Rows key={dimension} dimension={dimension} rows={period.breakdowns[dimension]} total={period.usedPercent} t={t} />)}
+      {value.asOf ? <p className="codexSubscriptionCreditNote">{fill(t('historyAsOf'), { date: new Date(value.asOf).toLocaleDateString(uiLocale(), { month: 'numeric', day: 'numeric' }) })}</p> : null}
       {value.approximate ? <p className="codexSubscriptionCreditNote">{t('historyApproximate')}</p> : null}
     </>}
   </details>
