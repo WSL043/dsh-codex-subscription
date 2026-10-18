@@ -368,7 +368,7 @@ test('support diagnostics show coverage with expandable evidence', async () => {
   assert.doesNotMatch(source, /diagnosticsOpen|diagnosticsClose|setDiagnosticsOpen|aria-expanded=\{diagnosticsOpen\}/u)
   assert.match(source, /codexSubscriptionDiagnostics[\s\S]*t\('diagnosticsLoad'\)/u)
   assert.match(source, /diagnosticsCoverageHint/u)
-  assert.match(source, /<details><summary>\{t\('diagnosticsDetails'\)\}/u)
+  assert.match(source, /<summary>\{t\('diagnosticsAdvanced'\)\}/u)
   assert.match(source, /diagnosticsCopy/u)
 })
 
