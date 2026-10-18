@@ -1,8 +1,32 @@
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { useAccountStatusSnapshot, usePreferenceSnapshot } from './client-shared.js'
 import { CreatePage, FeatureOverview, ModelsPage, MorePage, QuotaSettingsCard, ToolsPage } from './client-pages.jsx'
 import { AccountCard, AccountFailureCard } from './client-account.jsx'
 import { UsageCard } from './client-usage.jsx'
+/** The tab bar sticks to the top while the page scrolls under it, so it must paint the dialog's own background (which differs per theme). */
+function useBackdropOf(ref) {
+  useLayoutEffect(() => {
+    const node = ref.current
+    if (!node) return undefined
+    const paint = () => {
+      let parent = node.parentElement
+      while (parent) {
+        const colour = getComputedStyle(parent).backgroundColor
+        if (colour && colour !== 'transparent' && !/rgba(.*,s*0)$/u.test(colour)) { node.style.background = colour; return }
+        parent = parent.parentElement
+      }
+      node.style.background = ''
+    }
+    paint()
+    const watcher = new MutationObserver(paint)
+    watcher.observe(document.documentElement, { attributes: true })
+    watcher.observe(document.body, { attributes: true })
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)')
+    media?.addEventListener?.('change', paint)
+    return () => { watcher.disconnect(); media?.removeEventListener?.('change', paint) }
+  }, [ref])
+}
+
 /** One place for what is wrong right now, whichever page the user is on. */
 function Notices({ preference, t, tab, signedIn, go }) {
   const snapshot = usePreferenceSnapshot(preference)
@@ -16,6 +40,8 @@ function Notices({ preference, t, tab, signedIn, go }) {
 
 export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, defaultModel }) {
   const [tab, setTab] = useState('start')
+  const tabsRef = useRef(null)
+  useBackdropOf(tabsRef)
   const id = useId()
   const tabs = ['start', 'models', 'tools', 'create', 'more']
   const accountSnapshot = useAccountStatusSnapshot(accountStatus)
@@ -32,7 +58,7 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
   }, [accountStatus, preference])
   return <section className="codexSubscription">
     <div className="codexSubscriptionHead"><h2>{t('title')}</h2></div>
-    <div className="codexSettingsTabs" role="tablist" aria-label={t('title')}>
+    <div className="codexSettingsTabs" ref={tabsRef} role="tablist" aria-label={t('title')}>
       {tabs.map((value, index) => <button key={value} type="button" role="tab" id={`${id}-${value}-tab`} aria-controls={`${id}-${value}`} aria-selected={tab === value} tabIndex={tab === value ? 0 : -1}
         onClick={() => setTab(value)} onKeyDown={event => {
           const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1
