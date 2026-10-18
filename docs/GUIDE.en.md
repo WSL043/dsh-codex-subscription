@@ -24,7 +24,7 @@ When the official model catalog exposes GPT-6 Astra, Standard preserves the cata
 
 ### Default model
 
-Choose the model a new conversation opens with under **Settings → Codex → Models & runtime → Models → Default model**. It writes DSH's own default-model setting, the same one a model switch inside a chat writes: every conversation created afterwards uses it, and switching to another model in a chat (including a non-subscription one) is reflected here as **Follow DSH default**. The control is unavailable for models the catalog does not offer, while signed out, or with an empty catalog.
+Choose the model a new conversation opens with under **Settings → Codex subscription → Models → Default model**. It writes DSH's own default-model setting, the same one a model switch inside a chat writes: every conversation created afterwards uses it, and switching to another model in a chat (including a non-subscription one) is reflected here as **Follow DSH default**. The control is unavailable for models the catalog does not offer, while signed out, or with an empty catalog.
 
 ### Composer quota
 
@@ -39,7 +39,7 @@ Spark keeps its independent quota. The plugin does not invent five-hour limits, 
 
 ### ChatGPT connectors
 
-Set **ChatGPT connectors** under Other models to Read-only, Write after asking or Write directly, and every DSH model (DeepSeek included) gains three tools: `chatgpt_connectors_search` finds tools in the apps you connected in ChatGPT, `chatgpt_connectors_describe` shows their arguments, and `chatgpt_connectors_call` runs one. Apps such as GitHub, Gmail, Google Drive and Google Calendar work as far as your account has them connected.
+Set **ChatGPT connectors** under Web & tools to Read-only, Write after asking or Write directly, and every DSH model (DeepSeek included) gains three tools: `chatgpt_connectors_search` finds tools in the apps you connected in ChatGPT, `chatgpt_connectors_describe` shows their arguments, and `chatgpt_connectors_call` runs one. Apps such as GitHub, Gmail, Google Drive and Google Calendar work as far as your account has them connected.
 
 - **Read-only** runs only tools the app marks read-only (search mail, read files, look up pull requests).
 - **Write after asking** asks for your approval on every call that changes data (send mail, edit files, comment), showing the tool, arguments and description; with phone remote control on, the approval also appears on the phone. A refused call sends nothing.
@@ -105,7 +105,7 @@ see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-
 
 ### Phone remote control (Beta)
 
-Turn it on under **Settings → Codex → Other models → Phone remote control** and this computer's DSH appears in the ChatGPT mobile app's Codex host list. Press Generate pairing code, then scan the QR code or type the manual code in the app; the code lasts about 10 minutes.
+Turn it on under **Settings → Codex subscription → Phone & more → Phone remote control** and this computer's DSH appears in the ChatGPT mobile app's Codex host list. Press Generate pairing code, then scan the QR code or type the manual code in the app; the code lasts about 10 minutes.
 
 - From the phone you can browse history, start and continue conversations, interrupt, queue, fork, archive and unarchive conversations, and switch model (including DeepSeek and other third-party models), reasoning level and permissions (workspace write / full access).
 - DSH workspaces appear as projects on the phone, and a new chat can start in one; usage limits, plan and context usage are shown too.
@@ -123,9 +123,9 @@ Turn it on under **Settings → Codex → Other models → Phone remote control*
 
 ### Advanced experiments
 
-Opt in under **Models & runtime**. SSE and DSH subtasks remain the defaults:
+Opt in under **Models → Advanced**. SSE and DSH subtasks remain the defaults:
 
-- Set **Input image detail** under **Settings → Codex → Models & runtime**. It defaults to Auto; higher detail uses more input tokens.
+- Set **Input image detail** under **Settings → Codex subscription → Models**. It defaults to Auto; higher detail uses more input tokens.
 - Set **Stream inactivity timeout** in the same area (default: 10 minutes). It limits time without streamed data, not the overall response duration; lower values may interrupt slow but valid reasoning and hand the request to DSH retry handling.
 - **WebSocket** reuses connections and eligible context transfers. Failed handshakes can fall back to SSE; interrupted responses surface an error without automatic replay. Applies to the next request, does not expand context limits, and is not guaranteed to be faster.
 - **Codex independent subtasks** reuse your subscription login and the official DSH Codex runtime, without a separate login; install its optional component in settings. They inherit the current subscription model and workspace permissions by default. Turn on model selection under Plugins → Subagent, tick the allowed models and start a new session to specify the child model and reasoning effort in chat. Non-subscription sessions must explicitly select a subscription model. Shared-context subtasks remain with DSH. A Codex subtask gets the workspace tools only: the apps connected to your ChatGPT account (calendar, site deploys and so on), plugin installs and browser or computer control are switched off, because the subtask runs with automatic approval.
@@ -138,7 +138,7 @@ Opt in under **Models & runtime**. SSE and DSH subtasks remain the defaults:
 
 Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only **Codex independent subtasks (Beta)** require the optional official runtime. The plugin never downloads it in the background.
 
-In **Settings → Codex → Other models → Independent subtasks**, click **Install component**. DSH handles installation; the page shows its stage and offers cancellation before applying. Restart after completion, then choose Codex. Installation does not enable subtasks automatically.
+In **Settings → Codex subscription → Web & tools → Subtasks**, click **Install component**. DSH handles installation; the page shows its stage and offers cancellation before applying. Restart after completion, then choose Codex. Installation does not enable subtasks automatically.
 
 Prefer **Install component** above. The plugin selects a component matching the current DSH version: DSH `0.2.0-rc.2` installs component `0.2.0-rc.2`, while DSH `0.1.5-rc.2` installs component `0.1.5-rc.2`. An existing `0.1.5-rc.3` component is recognized only on a matching host. Do not omit the component version or substitute `@next`.
 
