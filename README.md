@@ -18,7 +18,7 @@
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[安装](#安装) · [核心功能](#核心功能) · [手机远程控制](#手机远程控制beta) · [草图作画实测](#草图作画实测) · [全部功能](#全部功能) · [使用指南](docs/GUIDE.zh-CN.md) · [常见问题](#常见问题)
+[安装](#安装) · [核心功能](#核心功能) · [手机远程控制](#手机远程控制beta) · [草图画板](#草图画板beta) · [全部功能](#全部功能) · [使用指南](docs/GUIDE.zh-CN.md) · [常见问题](#常见问题)
 
 </div>
 
@@ -83,7 +83,12 @@ dsh --profile headless "只回复：ok"
 
 短周期和每周额度、重置时间、额外 Credits 与重置卡都在设置里；输入框旁可以常驻显示剩余额度，低于阈值会提醒。
 
+<details>
+<summary>查看截图</summary>
+
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-zh-dark.png"><img src="docs/assets/ui-quota-zh-light.png" width="560" alt="额度卡片：每周额度与重置时间，下方可展开使用概览和额度去向"></picture></p>
+
+</details>
 
 <details>
 <summary>使用概览与额度去向：累计用量、连续天数、每日热力图，以及每周额度花在哪</summary>
@@ -95,7 +100,12 @@ dsh --profile headless "只回复：ok"
 
 选模型、调推理档位、切换速度档位，同时查看剩余额度，无需为每次请求打开设置。
 
+<details>
+<summary>查看截图</summary>
+
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-zh-dark.png"><img src="docs/assets/ui-composer-zh-light.png" width="760" alt="输入框：权限、草图、剩余额度、闪电标识的 Fast 模式和模型选择"></picture></p>
+
+</details>
 
 ### 手机远程控制（Beta）
 
@@ -111,17 +121,32 @@ dsh --profile headless "只回复：ok"
 
 默认关闭：**设置 → Codex 订阅 → 手机与更多 → 手机远程控制**。电脑需要保持开机、联网并打开 DSH。本功能基于 Codex Remote Control 协议实现第三方主机兼容，使用 OpenAI 的远程连接服务。Codex 的远程控制能力已有官方实现，但 DSH 作为第三方主机的接入方式尚不属于官方明确承诺支持的范围，后续服务更新可能影响兼容性，所以标为 Beta。功能默认关闭，你可以自行开启、管理已配对设备或随时停用。该功能不代表获得 OpenAI 官方认证或背书。
 
+<details>
+<summary>查看截图</summary>
+
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-zh-dark.png"><img src="docs/assets/ui-remote-zh-light.png" width="560" alt="设置里的手机远程控制：开关、配对二维码和手动码、已配对的手机"></picture></p>
+
+</details>
 
 ### 图片与草图
 
 用订阅生成图片，在图上圈出区域写备注继续修改，或者打开草图画板自己画、让 Agent 画，再以草图为参考生成成品。画板支持渐变、模糊、混合模式和形状裁剪；Agent 照着参考图画时能并排对比、看差异热图、量颜色和位置、撤销重来，画完还能一笔一笔回放并录成视频。
 
+<details>
+<summary>查看截图</summary>
+
 <p align="center"><img src="docs/assets/annotate-zh.webp" width="900" alt="图片预览：在烟囱上方圈出区域并写下备注，再带着备注继续编辑"></p>
+
+</details>
+
+<details>
+<summary>查看截图</summary>
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-replay-zh-dark.webp"><img src="docs/assets/ui-replay-zh-light.webp" width="640" alt="草图画板的回放：按落笔顺序重放整幅画，可调速、拖动进度，并录成视频"></picture></p>
 
-实测见 [草图作画实测](#草图作画实测)，开关在 **设置 → Codex 订阅 → 创作**。
+</details>
+
+草图画板见 [草图画板](#草图画板beta)，开关在 **设置 → Codex 订阅 → 创作**。
 
 ### ChatGPT 连接器
 
@@ -131,7 +156,12 @@ dsh --profile headless "只回复：ok"
 
 联网搜索来源、ChatGPT 连接器和官方 Codex 子任务在 **设置 → Codex 订阅 → 联网与工具**，页首一个总开关：关闭后，用 DeepSeek 等非 Codex 模型对话时不再使用订阅的联网搜索（改用 DSH 搜索）、图片生成和 ChatGPT 连接器，Codex 订阅模型不受影响。默认开启。
 
+<details>
+<summary>查看截图</summary>
+
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-interop-zh-dark.webp"><img src="docs/assets/ui-interop-zh-light.webp" width="640" alt="联网与工具设置页"></picture></p>
+
+</details>
 
 [详细用法、限制与可选组件 →](docs/GUIDE.zh-CN.md)
 
@@ -253,42 +283,9 @@ dsh --profile headless "只回复：ok"
 
 [查看完整使用指南 →](docs/GUIDE.zh-CN.md)
 
-## 草图作画实测
+## 草图画板（Beta）
 
-草图画板和 Agent 绘图为 **Beta**，默认关闭，在“创作”页按需开启。手动画图点输入框的草图按钮；让 Agent 画发送 `@sketch` 加要求。有参考图时 Agent 可以并排对比、看差异热图、局部放大、量颜色和边缘位置、撤销重画；画完可以点画板里的“回放”，把过程一笔一笔重放并录成视频。这些工具只测量和展示，不替模型画。
-
-下面两个例子都是**只在画板上画、没有调用生图**，每个都跑一次，不代表稳定水平。“误差”是画作与参考图逐像素颜色差的平均值（越小越接近，0 为一致）。
-
-**《DeepSeek 娘》· 照着参考图临摹**
-
-<table>
-<tr><th width="33%">参考图</th><th width="33%">之前：旧工具里的最好成绩</th><th width="33%">现在：新工具</th></tr>
-<tr><td><img src="docs/assets/sketch-niang-reference.webp" alt="DeepSeek 娘表情包参考图" width="240"></td><td><img src="docs/assets/sketch-niang-astra-compare.webp" alt="旧工具画的 DeepSeek 娘" width="240"><br><sub>GPT-6-Astra Medium · 20 分 57 秒 · 686 笔<br>误差 8.8%</sub></td><td><img src="docs/assets/sketch-niang-astra-new.webp" alt="新工具画的 DeepSeek 娘" width="240"><br><sub>GPT-6-Astra Medium · 8 分 11 秒 · 481 笔<br>误差 9.3%</sub></td></tr>
-</table>
-
-数字上两者接近，新版用时不到一半；双手叉腰的姿势和围裙上的小鲸鱼更准，发丝和蕾丝的细腻程度仍不及原图。
-
-**《初音未来》· 竖图，照着参考图临摹**
-
-<table>
-<tr><th width="50%">之前：叠图对照和网格</th><th width="50%">现在：新工具</th></tr>
-<tr><td><img src="docs/assets/sketch-miku-sol-before.webp" alt="旧工具画的初音未来" width="330"><br><sub>GPT-6.1-Sol Xhigh · 误差 6.7%</sub></td><td><img src="docs/assets/sketch-miku-sol-new.webp" alt="新工具画的初音未来" width="330"><br><sub>GPT-6.1-Sol Xhigh · 21 分钟 · 685 笔 · 误差 5.2%</sub></td></tr>
-</table>
-
-误差降了约四分之一，肩上的“01”、袖屏、腿部的系带细节补全了。读了模型的完整操作记录，剩下的误差主要是大块头发、皮肤和腿部的明暗色调，而不是边缘位置；前 3 分钟的四次整层 SVG 就把误差从 18% 压到 6.5%，之后 17 分钟的细化只降了 1.3 个百分点。实验过程、记录里发现的问题和改进见 [绘图实验记录](docs/sketch-drawing-experiments.md)。
-
-<details>
-<summary>展开完整提示词</summary>
-
-```text
-@sketch 用 1:1 方形画板，尽可能忠实地临摹我附上的这张参考图（一张 Q 版二次元表情包）。画面：白色底；Q 版二头身的蓝发鲸鱼娘跪坐在画面右侧偏中，蓝色渐变长发披肩（发根深蓝、发梢浅蓝），头顶一根呆毛，戴白色蕾丝女仆头饰和蓝色蝴蝶结，头两侧是深蓝色带白色内里的鲸鱼耳鳍，蓝色大眼睛带高光，猫嘴嘟嘴的“ω”表情，脸颊泛红，双手叉腰；穿深蓝色女仆装，白色蕾丝围裙（围裙上有一只蓝色小鲸鱼图案），黑色领结，袖口和裙摆有白色蕾丝褶边；身后露出一条深蓝色的鲸鱼尾巴。左上方是白色对话气泡（黑色描边，尖角指向她），气泡里用黑色粗体写“你这吃白饭的蓝色大肥鱼。”；左侧从画面外伸进来一只黑袖子的手，食指指向她；她的左下方用蓝色描边字写“没吃饱喵！”；她脚边的地上放着一只空的白瓷饭碗，碗内壁印着一只蓝色小鲸鱼。请分层绘制：白色背景、头发与鲸鱼耳鳍与尾巴、身体与服装、脸部五官、饭碗、手臂与对话气泡文字，保留原生可编辑笔画，并特别注意角色比例、头发的渐变与发丝走向、蕾丝褶边和脸部表情的细节。这次只在草图画布上画，不要调用任何生图或图片编辑工具；画完后检查一遍与参考图的差异并修正，最后保存并完成。
-```
-
-```text
-用画板（codex_sketch）按这张参考图画初音未来，竖图，尽量百分之百还原：构图、比例、姿势、颜色、细节都要一致。
-```
-
-</details>
+草图画板和 Agent 绘图为 **Beta**，默认关闭，在“创作”页按需开启。手动画图点输入框的草图按钮；让 Agent 画发送 `@sketch` 加要求。
 
 <details>
 <summary>查看图片与草图设置</summary>
