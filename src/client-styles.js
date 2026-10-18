@@ -36,8 +36,8 @@ export const STYLE = `
 .codexSubscriptionPreferenceLabel{display:flex;align-items:center;gap:6px}
 .codexSubscriptionPreference>.codexSubscriptionPreferenceCopy{flex:1 1 240px}
 .codexSubscriptionPreferenceHint{max-width:none;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
-.codexSubscriptionHintText{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
-.codexSubscriptionHintFold[data-open=true] .codexSubscriptionHintText{display:block;-webkit-line-clamp:unset}
+.codexSubscriptionHintText{display:block}
+.codexSubscriptionHintFold[data-fold=true] .codexSubscriptionHintText{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .codexSubscriptionHintToggle{display:inline-flex;align-items:center;gap:3px;margin-top:2px;padding:0;border:0;background:none;font:inherit;font-size:11px;line-height:17px;color:var(--dsw-alias-label-secondary);cursor:pointer}
 .codexSubscriptionHintToggle::after{content:"";width:5px;height:5px;margin-top:-2px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);transition:transform .15s}
 .codexSubscriptionHintFold[data-open=true] .codexSubscriptionHintToggle::after{margin-top:2px;transform:rotate(-135deg)}

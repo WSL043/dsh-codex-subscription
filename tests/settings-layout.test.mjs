@@ -16,11 +16,14 @@ test('every connectors mode has a label and a one-line description in both langu
   }
 })
 
-test('long setting explanations fold to two lines and unfold on demand', async () => {
+test('a setting explanation only folds when that saves several lines', async () => {
   const source = await readFile(new URL('../src/client-hint.jsx', import.meta.url), 'utf8')
-  assert.match(source, /scrollHeight > node\.clientHeight/u, 'the More link only appears when the text is actually cut off')
-  assert.match(STYLE, /\.codexSubscriptionHintText\{[^}]*-webkit-line-clamp:2/u)
-  assert.match(STYLE, /\.codexSubscriptionHintFold\[data-open=true\] \.codexSubscriptionHintText\{[^}]*-webkit-line-clamp:unset/u)
+  const MIN_FOLD_LINES = Number(/MIN_FOLD_LINES = (\d+)/u.exec(source)[1]), FOLDED_LINES = Number(/FOLDED_LINES = (\d+)/u.exec(source)[1])
+  assert.ok(MIN_FOLD_LINES - FOLDED_LINES >= 3, 'folding must hide at least three lines')
+  assert.match(source, /scrollHeight/u, 'the length is measured, not guessed')
+  assert.match(source, /const folds = lines >= MIN_FOLD_LINES/u)
+  assert.match(STYLE, /\.codexSubscriptionHintFold\[data-fold=true\] \.codexSubscriptionHintText\{[^}]*-webkit-line-clamp:3/u)
+  assert.doesNotMatch(STYLE, /(?:^|\n)\.codexSubscriptionHintText\{[^}]*-webkit-line-clamp/u, 'unfolded text is never clamped')
   assert.doesNotMatch(STYLE, /\.codexSubscriptionPreferenceHint\{[^}]*max-width:300px/u, 'a hint uses the width of its row')
 })
 
@@ -39,4 +42,11 @@ test('every fold-out row in the settings is a pressable row with a chevron that 
   }
   assert.match(STYLE, /\[open\]>summary::after\{transform:translateY\(2px\) rotate\(-135deg\)\}/u)
   assert.match(STYLE, /\.codexSubscriptionHintToggle\{[^}]*color:var\(--dsw-alias-label-primary\)/u)
+})
+
+test('the sketch button in the composer is transparent like its neighbours, not the dark image-toolbar fill', async () => {
+  const { readFile } = await import('node:fs/promises')
+  const source = await readFile(new URL('../src/image-workspace.jsx', import.meta.url), 'utf8')
+  assert.ok(source.includes('<Button variant="ghost"'), 'ghost variant: transparent, with a hover state')
+  assert.ok(!source.includes('variant="toolbar"'), 'the toolbar variant is the dark fill meant for image viewers')
 })

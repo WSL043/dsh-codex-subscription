@@ -354,18 +354,14 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.doesNotMatch(JSON.stringify(diagnostics), /access_token|refresh_token|accountId|expiresAt/)
 
   await host.updateSettings({ quickQuotaVisible: true })
-  assert.deepEqual(host.webUpdates, [{
-    config: { searchProvider: 'codex-subscription-auto', fetchProvider: 'local' },
-    noSave: true,
-  }], 'quota-only settings must not touch the web provider after automatic routing is selected')
+  // Search is routed when the configured provider is looked up: DSH's web configuration is never rewritten.
+  assert.deepEqual(host.webUpdates, [], 'selecting a search source must not touch the configured web provider')
+  const routed = host.ctx.web.searchProviders.get('deepseek-official')
+  assert.equal(routed.id, 'deepseek-official', 'the configured provider keeps its id')
+  assert.equal(routed.available(), true)
+  await host.updateSettings({ quickQuotaVisible: true })
   await host.updateSettings({ searchProvider: 'codex' })
-  assert.deepEqual(host.webUpdates, [{
-    config: { searchProvider: 'codex-subscription-auto', fetchProvider: 'local' },
-    noSave: true,
-  }, {
-    config: { searchProvider: 'codex-subscription', fetchProvider: 'local' },
-    noSave: true,
-  }])
+  assert.deepEqual(host.webUpdates, [])
 
   const preferenceStatus = await host.request('preferences/status', {}, signal)
   const activeContextModels = preferenceStatus.value.contextModels
@@ -404,10 +400,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
     failure: { code: 'RATE_LIMIT', message: 'quota reached' },
     signal,
   }, async () => downstream), downstream)
-  assert.deepEqual(host.webUpdates.at(-1), {
-    config: { searchProvider: 'codex-subscription-dsh', fetchProvider: 'local' },
-    noSave: true,
-  })
+  assert.deepEqual(host.webUpdates, [], 'the DSH source does not rewrite the configured web provider either')
   const invalidQuotaMode = await host.request('preferences/update', {
     quickQuotaMode: 'card',
   }, signal)

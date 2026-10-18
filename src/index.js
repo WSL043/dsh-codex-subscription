@@ -35,6 +35,7 @@ import { createModels, openaiCodexProvider, openaiCodexSubscriptionProvider } fr
 import { createOfficialModelCatalog } from './model-catalog.js'
 import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET } from './capability-settings.js'
 import { DSH_ACCOUNT_SEARCH_PROVIDER_ID, createDshAccountSearchProvider } from './deepseek-account-search.js'
+import { createSearchRouter } from './search-router.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
 import { createCodexImageTool } from './codex-images.js'
 import { IMAGE_FEATURE_DEFAULTS } from './image-features.js'
@@ -415,9 +416,11 @@ export function apply(ctx, config = {}) {
     },
   })
   ctx.web.registerSearchProvider(tracedCodexSearch)
+  // The registry as DSH built it: the search router below stands in for it, and the DSH provider is always looked up here.
+  const realSearchProviders = ctx.web.searchProviders
   const dshSearch = createDshAccountSearchProvider({
     report: searchTrace,
-    resolveDshProvider: () => ctx.web.searchProviders?.get(searchProvider.dshProviderId()),
+    resolveDshProvider: () => realSearchProviders?.get(searchProvider.dshProviderId()),
     resolveAccount: () => ctx.get?.('deepseekAccount'),
     resolveConfig: () => {
       const config = [...ctx.loader.entries()].find(entry => entry.options?.id === 'web-deepseek-api')?.options?.config
@@ -430,13 +433,33 @@ export function apply(ctx, config = {}) {
     },
   })
   ctx.web.registerSearchProvider(dshSearch)
-  ctx.web.registerSearchProvider(createCodexAutoSearchProvider({
+  const autoSearch = createCodexAutoSearchProvider({
     codex: tracedCodexSearch,
     resolveModelProvider: () => currentAgent()?.session.requestContext?.()?.provider,
     resolveDshProvider: () => dshSearch,
-  }))
+  })
+  ctx.web.registerSearchProvider(autoSearch)
+  // Search is routed at lookup time, so the provider DSH has configured (and its settings page shows) is never replaced.
+  let searchRouted = false
+  ctx.effect(() => {
+    const web = ctx.web
+    const router = createSearchRouter({
+      registry: realSearchProviders,
+      configuredId: () => searchProvider.current(),
+      mode: () => settings.get()[SEARCH_PROVIDER_FIELD],
+      providers: { codex: tracedCodexSearch, auto: autoSearch, dsh: dshSearch },
+    })
+    if (router === undefined) return undefined
+    try { web.searchProviders = router } catch { return undefined }
+    if (web.searchProviders !== router) return undefined
+    searchRouted = true
+    diagnosticLog.info('search', 'web search is routed without replacing the configured provider')
+    return () => { searchRouted = false; if (web.searchProviders === router) web.searchProviders = realSearchProviders }
+  }, 'codex-subscription: search router')
   ctx.effect(() => {
     const select = async value => {
+      // Hosts that do not let the registry be stood in for fall back to pointing DSH's web runtime at a provider of this plugin.
+      if (searchRouted) { diagnosticLog.info('search', `web search source is ${value[SEARCH_PROVIDER_FIELD]}`); return }
       try {
         await searchProvider.select(value[SEARCH_PROVIDER_FIELD])
         diagnosticLog.info('search', `web search source is ${searchProvider.current()}`)
