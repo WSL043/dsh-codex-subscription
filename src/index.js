@@ -35,7 +35,7 @@ import { createModels, openaiCodexProvider, openaiCodexSubscriptionProvider } fr
 import { createOfficialModelCatalog } from './model-catalog.js'
 import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET } from './capability-settings.js'
 import { DSH_ACCOUNT_SEARCH_PROVIDER_ID, createDshAccountSearchProvider } from './deepseek-account-search.js'
-import { createSearchRouter } from './search-router.js'
+import { createSearchRouter, effectiveSearchMode } from './search-router.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
 import { createCodexImageTool } from './codex-images.js'
 import { IMAGE_FEATURE_DEFAULTS } from './image-features.js'
@@ -456,7 +456,7 @@ export function apply(ctx, config = {}) {
       registry: realSearchProviders,
       configuredId: () => searchProvider.current(),
       // Codex search for a conversation on another model is what the switch turns off: "auto" sends that conversation to DSH search.
-      mode: () => { const mode = settings.get()[SEARCH_PROVIDER_FIELD]; return mode === 'codex' && settings.get().otherModels === 'off' ? 'auto' : mode },
+      mode: () => effectiveSearchMode(settings.get()[SEARCH_PROVIDER_FIELD], settings.get().otherModels),
       providers: { codex: tracedCodexSearch, auto: autoSearch, dsh: dshSearch },
     })
     if (router === undefined) return undefined

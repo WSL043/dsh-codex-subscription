@@ -46,3 +46,8 @@ export function createSearchRouter({ registry, configuredId, mode, providers }) 
     },
   })
 }
+
+/** With subscription features switched off for other models, an explicit Codex choice becomes automatic: Codex models still use Codex search, every other model uses DSH search. */
+export function effectiveSearchMode(mode, otherModels) {
+  return mode === 'codex' && otherModels === 'off' ? 'auto' : mode
+}

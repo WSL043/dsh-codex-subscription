@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createSearchRouter } from '../src/search-router.js'
+import { createSearchRouter, effectiveSearchMode } from '../src/search-router.js'
 
 const provider = (id, answer) => ({ id, available: () => true, search: async () => ({ sources: [{ url: answer }], truncated: false }) })
 const setup = (mode, configured = 'deepseek-search-api') => {
@@ -49,4 +49,12 @@ test('ids of this plugin and a registry that is not a Map are left alone', async
   assert.equal(await answer(router, 'codex-subscription-auto'), 'own')
   assert.equal(state.configured, 'codex-subscription-auto')
   assert.equal(createSearchRouter({ registry: {}, configuredId: () => 'x', mode: () => 'dsh', providers: {} }), undefined)
+})
+
+test('the other-models switch turns an explicit Codex choice into automatic routing and leaves the rest alone', () => {
+  assert.equal(effectiveSearchMode('codex', 'off'), 'auto')
+  assert.equal(effectiveSearchMode('codex', 'on'), 'codex')
+  assert.equal(effectiveSearchMode('dsh', 'off'), 'dsh')
+  assert.equal(effectiveSearchMode('auto', 'off'), 'auto')
+  assert.equal(effectiveSearchMode('codex', undefined), 'codex')
 })
