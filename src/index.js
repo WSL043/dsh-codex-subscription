@@ -35,6 +35,7 @@ import { createModels, openaiCodexProvider, openaiCodexSubscriptionProvider } fr
 import { createOfficialModelCatalog } from './model-catalog.js'
 import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET } from './capability-settings.js'
 import { DSH_ACCOUNT_SEARCH_PROVIDER_ID, createDshAccountSearchProvider } from './deepseek-account-search.js'
+import { createSearchRouter, effectiveSearchMode } from './search-router.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
 import { createCodexImageTool } from './codex-images.js'
 import { IMAGE_FEATURE_DEFAULTS } from './image-features.js'
@@ -212,6 +213,7 @@ export function apply(ctx, config = {}) {
         connectionMode: settings.get().connectionMode ?? 'sse',
         reviewModel: settings.get().reviewModel ?? 'session',
         remoteControl: settings.get().remoteControl ?? 'off',
+        otherModels: settings.get().otherModels === 'off' ? 'off' : 'on',
         subagentBackend: settings.get().subagentBackend ?? 'dsh',
         subagentBackendAvailable: subagentBackend !== undefined,
         subagentRuntimeInstalled: inspectSubagentRuntime().installed,
@@ -340,6 +342,7 @@ export function apply(ctx, config = {}) {
   })
   ctx.effect(() => watchImageTool(settings, () => ctx.tools.register(createCodexImageTool({
     getFeatures: () => settings.get(),
+    allowed: () => servesCurrentModel(),
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     attachments: ctx.attachments,
@@ -360,6 +363,7 @@ export function apply(ctx, config = {}) {
         disposers = createConnectorTools({
           client: connectorsClient,
           getMode: () => normalizeConnectorMode(settings.get()[CONNECTORS_FIELD]),
+          allowed: () => servesCurrentModel(),
           getApproval: () => ctx.get?.('approval'),
         }).map(tool => ctx.tools.register(tool))
       } else if (!on && disposers.length > 0) {
@@ -393,6 +397,12 @@ export function apply(ctx, config = {}) {
   })
   ctx.llm.registerAdapter([PROVIDER], observeAdapter(compaction.wrapAdapter(adapter), provider))
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
+  // With "other models" switched off, subscription search, images and connectors serve conversations on this plugin's own models only.
+  const servesCurrentModel = () => {
+    if (settings.get().otherModels !== 'off') return true
+    const provider = currentAgent()?.session.requestContext?.()?.provider
+    return provider === undefined || provider === PROVIDER
+  }
   const codexSearch = createCodexSearchProvider({
     resolvePreferences: () => readCapabilitySettings(settings.get()),
     getAuth: resolveAuth,
@@ -415,9 +425,11 @@ export function apply(ctx, config = {}) {
     },
   })
   ctx.web.registerSearchProvider(tracedCodexSearch)
+  // The registry as DSH built it: the search router below stands in for it, and the DSH provider is always looked up here.
+  const realSearchProviders = ctx.web.searchProviders
   const dshSearch = createDshAccountSearchProvider({
     report: searchTrace,
-    resolveDshProvider: () => ctx.web.searchProviders?.get(searchProvider.dshProviderId()),
+    resolveDshProvider: () => realSearchProviders?.get(searchProvider.dshProviderId()),
     resolveAccount: () => ctx.get?.('deepseekAccount'),
     resolveConfig: () => {
       const config = [...ctx.loader.entries()].find(entry => entry.options?.id === 'web-deepseek-api')?.options?.config
@@ -430,13 +442,34 @@ export function apply(ctx, config = {}) {
     },
   })
   ctx.web.registerSearchProvider(dshSearch)
-  ctx.web.registerSearchProvider(createCodexAutoSearchProvider({
+  const autoSearch = createCodexAutoSearchProvider({
     codex: tracedCodexSearch,
     resolveModelProvider: () => currentAgent()?.session.requestContext?.()?.provider,
     resolveDshProvider: () => dshSearch,
-  }))
+  })
+  ctx.web.registerSearchProvider(autoSearch)
+  // Search is routed at lookup time, so the provider DSH has configured (and its settings page shows) is never replaced.
+  let searchRouted = false
+  ctx.effect(() => {
+    const web = ctx.web
+    const router = createSearchRouter({
+      registry: realSearchProviders,
+      configuredId: () => searchProvider.current(),
+      // Codex search for a conversation on another model is what the switch turns off: "auto" sends that conversation to DSH search.
+      mode: () => effectiveSearchMode(settings.get()[SEARCH_PROVIDER_FIELD], settings.get().otherModels),
+      providers: { codex: tracedCodexSearch, auto: autoSearch, dsh: dshSearch },
+    })
+    if (router === undefined) return undefined
+    try { web.searchProviders = router } catch { return undefined }
+    if (web.searchProviders !== router) return undefined
+    searchRouted = true
+    diagnosticLog.info('search', 'web search is routed without replacing the configured provider')
+    return () => { searchRouted = false; if (web.searchProviders === router) web.searchProviders = realSearchProviders }
+  }, 'codex-subscription: search router')
   ctx.effect(() => {
     const select = async value => {
+      // Hosts that do not let the registry be stood in for fall back to pointing DSH's web runtime at a provider of this plugin.
+      if (searchRouted) { diagnosticLog.info('search', `web search source is ${value[SEARCH_PROVIDER_FIELD]}`); return }
       try {
         await searchProvider.select(value[SEARCH_PROVIDER_FIELD])
         diagnosticLog.info('search', `web search source is ${searchProvider.current()}`)

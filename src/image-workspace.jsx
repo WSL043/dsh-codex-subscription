@@ -14,7 +14,7 @@ export function ImageWorkspace(props) {
   }, [registerOpen])
   return <>
     {settings.imageSketch && settings.imageEditing ? <Tooltip label={t('sketch')}>
-      <Button variant="toolbar" size="sm" aria-label={t('sketch')}
+      <Button variant="ghost" size="sm" aria-label={t('sketch')}
         onClick={event => workspace.current?.('sketch', event.currentTarget)}
         icon={<WorkspaceIcon name="pen" size={16} />} />
     </Tooltip> : null}

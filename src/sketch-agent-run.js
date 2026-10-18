@@ -1,6 +1,6 @@
 // One run spans tool calls; closing the view is not a run event.
 // Short run handles are scoped to the unique documentId, never authentication tokens.
-export function createSketchAgentRun({ execute, open, changed, busy = () => false, idleMs = 180_000 }) {
+export function createSketchAgentRun({ execute, open, changed, busy = () => false, idleMs = 900_000 }) {
   let state = 'idle', generation = 0, runNumber = 0, pending = false, runId, timer, completed
   const update = next => { state = next; changed(next) }
   const clear = () => { clearTimeout(timer); timer = undefined }
@@ -31,7 +31,7 @@ export function createSketchAgentRun({ execute, open, changed, busy = () => fals
         update('finished')
         return completed.value
       } catch (error) {
-        if(version===generation && error.code==='SKETCH_INVALID_BATCH')throw error
+        if(version===generation && (error.code==='SKETCH_INVALID_BATCH'||error.code==='SKETCH_STALE'))throw error
         if (version === generation) {
           update('failed')
           throw new Error(`${error.message} Call inspect to obtain the current runId and revision before retrying.`,{cause:error})

@@ -21,6 +21,8 @@ export const SKETCH_CSS = `
 .codexSketchDialog *{box-sizing:border-box}
 .codexSketchDialog button{font:inherit;color:inherit;border:0;background:transparent;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;flex-shrink:0}
 .codexSketchDialog button:disabled{opacity:.35;cursor:default}
+.codexSketchDialog .codexSketchConfirm:disabled{background:color-mix(in srgb,var(--sketch-fg) 12%,transparent);color:var(--sketch-muted);opacity:1}
+.codexSketchDialog .codexSketchSwatch::before{box-shadow:0 0 0 1px color-mix(in srgb,var(--sketch-fg) 28%,transparent)}
 .codexSketchDialog button:focus-visible,.codexSketchCustom:focus-within,.codexSketchDialog input:focus-visible{outline:2px solid #0a84ff;outline-offset:3px}
 .codexSketchTop{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .codexSketchHeading{display:flex;align-items:center;gap:8px;flex:1}.codexSketchHeading strong{font-size:16px;font-weight:600}.codexSketchHeading>span{font-size:10px;color:var(--sketch-muted);border:1px solid var(--sketch-line);border-radius:6px;padding:1px 5px}
@@ -69,4 +71,20 @@ export const SKETCH_CSS = `
 .codexSketchViewControls{display:flex;gap:2px;align-items:center}.codexSketchViewControls button{min-height:32px;padding:0 7px;border-radius:8px}.codexSketchKeyPanel{position:absolute;overflow:auto;overscroll-behavior:contain;padding:12px;border:1px solid var(--sketch-line);border-radius:14px;background:var(--sketch-bg);z-index:5;box-shadow:0 8px 30px #0003;scrollbar-width:thin}.codexSketchKeyPanel header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}.codexSketchKeyPanel header button{width:28px;height:28px;border-radius:8px;font-size:20px}.codexSketchKeyPanel label{display:flex;align-items:center;justify-content:space-between;min-height:32px;gap:8px}.codexSketchKeysEnabled{padding-bottom:8px;border-bottom:1px solid var(--sketch-line)}.codexSketchKeysEnabled input{margin:0;accent-color:#0a84ff}.codexSketchKeyGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 16px;margin:10px 0}.codexSketchKeyPanel input:not([type=checkbox]){width:52px;min-width:0;border:1px solid var(--sketch-line);border-radius:6px;color:inherit;background:color-mix(in srgb,var(--sketch-fg) 4%,transparent);padding:4px;text-align:center;font:inherit}.codexSketchKeyPanel p,.codexSketchKeyPanel small{display:block;color:var(--sketch-muted);font-size:11px;line-height:1.5;margin:0}.codexSketchKeyPanel small{border-top:1px solid var(--sketch-line);padding-top:8px}@media(max-width:380px){.codexSketchKeyGrid{grid-template-columns:1fr}}.codexSketchControls{position:static}
 
 .codexSketchCursor{position:fixed;left:0;top:0;z-index:100;pointer-events:none;border:1px solid #222;border-radius:50%;corner-shape:round;box-shadow:0 0 0 1px #fff;box-sizing:border-box}.codexSketchCursor[hidden]{display:none}
+
+.codexSketchFiles{display:flex;gap:6px;align-items:center}.codexSketchFiles>button:disabled{opacity:.45}
+.codexSketchReplay{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;gap:12px;padding:14px 18px 16px;background:var(--sketch-bg);border-radius:inherit;overflow:hidden}
+.codexSketchReplay>header{display:flex;width:100%;align-items:center;justify-content:space-between;font-size:15px}
+.codexSketchDialog .codexSketchReplayClose{min-height:36px;padding:0 14px 0 10px;border-radius:18px;background:color-mix(in srgb,var(--sketch-fg) 7%,transparent);font-size:13px}
+.codexSketchReplayStage{flex:1;min-height:0;width:100%;display:flex;align-items:center;justify-content:center;container-type:size}
+.codexSketchReplayStage canvas,.codexSketchReplayStage video{max-width:100%;max-height:100%;border-radius:10px;background:#fff;box-shadow:0 0 0 1px var(--sketch-line),0 10px 36px #0002}
+.codexSketchReplayBar{display:flex;flex-wrap:wrap;width:100%;max-width:820px;align-items:center;justify-content:center;gap:10px;padding:8px 12px;border-radius:26px;background:color-mix(in srgb,var(--sketch-fg) 5%,transparent)}
+.codexSketchReplayBar input[type=range]{flex:1;min-width:140px;height:22px;accent-color:#0a84ff}
+.codexSketchDialog .codexSketchReplayBar>button{min-height:36px;padding:0 14px;border-radius:18px;background:color-mix(in srgb,var(--sketch-fg) 8%,transparent);font-size:13px}
+.codexSketchDialog .codexSketchReplayBar .codexSketchReplayPlay{width:40px;height:40px;min-height:40px;padding:0;border-radius:50%;background:#0a84ff;color:#fff}
+.codexSketchReplayTime{min-width:78px;font-variant-numeric:tabular-nums;color:var(--sketch-muted);font-size:12px}
+.codexSketchReplayRecord i{width:10px;height:10px;border-radius:50%;background:#ff3b30}
+.codexSketchDialog .codexSketchReplayRecord[data-recording]{background:#ff3b30;color:#fff}.codexSketchReplayRecord[data-recording] i{background:#fff;border-radius:2px}
+.codexSketchReplay small{color:var(--sketch-muted);text-align:center}
+.codexSketchReplaySave{display:inline-flex;align-items:center;min-height:36px;padding:0 18px;border-radius:18px;background:#0a84ff;color:#fff;font-size:13px;font-weight:600;text-decoration:none}
 `

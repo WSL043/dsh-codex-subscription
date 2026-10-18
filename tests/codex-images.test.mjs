@@ -517,3 +517,12 @@ test('the model is told the generated image is already shown and to copy, not mo
   assert.match(text, /already shown to the user/u)
   assert.match(text, /copy it rather than move it/u)
 })
+
+test('image generation can be turned off for conversations on other models and sends nothing then', async () => {
+  const { tool, requests } = fixture({ allowed: () => false })
+  await assert.rejects(tool.execute({ prompt: 'a lighthouse' }, execContext('call-other')), /other models/)
+  assert.equal(requests.length, 0)
+  const open = fixture({ allowed: () => true })
+  await open.tool.execute({ prompt: 'a lighthouse' }, execContext('call-codex'))
+  assert.equal(open.requests.length, 1)
+})

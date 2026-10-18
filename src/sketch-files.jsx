@@ -11,7 +11,8 @@ export function SketchFiles({
   hasContent,
   disabled,
   t,
-  runOperation
+  runOperation,
+  extra
 }) {
   const [open, setOpen] = useState(false),
     [rows, setRows] = useState([]),
@@ -66,6 +67,7 @@ export function SketchFiles({
       >
         {t('sketchFiles')}
       </button>
+      {extra}
       <input
         ref={input}
         type="file"

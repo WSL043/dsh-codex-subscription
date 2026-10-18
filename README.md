@@ -18,7 +18,7 @@
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[安装](#安装) · [核心功能](#核心功能) · [手机远程控制](#手机远程控制beta) · [作品案例](#从草图到作品) · [全部功能](#全部功能) · [使用指南](docs/GUIDE.zh-CN.md) · [常见问题](#常见问题)
+[安装](#安装) · [核心功能](#核心功能) · [手机远程控制](#手机远程控制beta) · [草图作画实测](#草图作画实测) · [全部功能](#全部功能) · [使用指南](docs/GUIDE.zh-CN.md) · [常见问题](#常见问题)
 
 </div>
 
@@ -42,7 +42,7 @@
 2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
 
    ```text
-   dsh-codex-subscription@3.0.1
+   dsh-codex-subscription@3.1.0
    ```
 
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
@@ -54,7 +54,7 @@
 <summary>终端安装（已能运行 dsh 命令）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.0.1
+dsh plugin --profile web add dsh-codex-subscription@3.1.0
 ```
 
 安装完成后按提示重启 DSH，再到 **设置 → Codex 订阅** 登录。插件页面和终端均由 DSH 管理安装。
@@ -67,7 +67,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.0.1
 先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.0.1
+dsh plugin --profile headless add dsh-codex-subscription@3.1.0
 dsh --profile headless "只回复：ok"
 ```
 
@@ -109,21 +109,29 @@ dsh --profile headless "只回复：ok"
 - DSH 工作区对应手机上的项目；可以从手机分叉对话，看用量额度、累计用量和上下文用量；DSH 带有 `/compact` 时（0.2.0-rc.2 起）还能从手机压缩上下文；
 - 模型报错会显示在手机上；设置里能看到已配对的手机，随时移除。
 
-默认关闭：**设置 → Codex 订阅 → 模型与运行 → 手机远程控制**。电脑需要保持开机、联网并打开 DSH。本功能基于 Codex Remote Control 协议实现第三方主机兼容，使用 OpenAI 的远程连接服务。Codex 的远程控制能力已有官方实现，但 DSH 作为第三方主机的接入方式尚不属于官方明确承诺支持的范围，后续服务更新可能影响兼容性，所以标为 Beta。功能默认关闭，你可以自行开启、管理已配对设备或随时停用。该功能不代表获得 OpenAI 官方认证或背书。
+默认关闭：**设置 → Codex 订阅 → 与其他模型 → 手机远程控制**。电脑需要保持开机、联网并打开 DSH。本功能基于 Codex Remote Control 协议实现第三方主机兼容，使用 OpenAI 的远程连接服务。Codex 的远程控制能力已有官方实现，但 DSH 作为第三方主机的接入方式尚不属于官方明确承诺支持的范围，后续服务更新可能影响兼容性，所以标为 Beta。功能默认关闭，你可以自行开启、管理已配对设备或随时停用。该功能不代表获得 OpenAI 官方认证或背书。
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-zh-dark.png"><img src="docs/assets/ui-remote-zh-light.png" width="560" alt="设置里的手机远程控制：开关、配对二维码和手动码、已配对的手机"></picture></p>
 
 ### 图片与草图
 
-用订阅生成图片，在图上圈出区域写备注继续修改，或者打开草图画板自己画、让 Agent 画，再以草图为参考生成成品。
+用订阅生成图片，在图上圈出区域写备注继续修改，或者打开草图画板自己画、让 Agent 画，再以草图为参考生成成品。画板支持渐变、模糊、混合模式和形状裁剪；Agent 照着参考图画时能并排对比、看差异热图、量颜色和位置、撤销重来，画完还能一笔一笔回放并录成视频。
 
 <p align="center"><img src="docs/assets/annotate-zh.webp" width="900" alt="图片预览：在烟囱上方圈出区域并写下备注，再带着备注继续编辑"></p>
 
-案例见 [从草图到作品](#从草图到作品)，开关在 **设置 → Codex 订阅 → 图片与草图**。
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-replay-zh-dark.webp"><img src="docs/assets/ui-replay-zh-light.webp" width="640" alt="草图画板的回放：按落笔顺序重放整幅画，可调速、拖动进度，并录成视频"></picture></p>
+
+实测见 [草图作画实测](#草图作画实测)，开关在 **设置 → Codex 订阅 → 图片与草图**。
 
 ### ChatGPT 连接器
 
-让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等。模型先搜索再调用，写操作默认每次都要你批准，也可以在设置里改成不再询问。默认关闭，在“模型与运行”里开启。
+让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等。模型先搜索再调用，写操作默认每次都要你批准，也可以在设置里改成不再询问。默认关闭，在“与其他模型”里开启。
+
+### 订阅功能要不要给 DeepSeek 等其他模型用，由你定
+
+联网搜索来源、ChatGPT 连接器、审查模型、子任务、语音和手机远程控制都在 **设置 → Codex 订阅 → 与其他模型** 一页里。页首一个总开关：关闭后，用 DeepSeek 等非 Codex 模型对话时不再使用订阅的联网搜索（改用 DSH 搜索）、图片生成和 ChatGPT 连接器，Codex 订阅模型不受影响。默认开启。
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-interop-zh-dark.webp"><img src="docs/assets/ui-interop-zh-light.webp" width="640" alt="与其他模型设置页：总开关，以及搜索来源、ChatGPT 连接器、审查模型、子任务、语音和手机远程控制"></picture></p>
 
 [详细用法、限制与可选组件 →](docs/GUIDE.zh-CN.md)
 
@@ -132,21 +140,22 @@ dsh --profile headless "只回复：ok"
 模型权限和额度以账号实际返回为准。
 
 <details>
-<summary><b>模型与搜索</b>（13 项）</summary>
+<summary><b>模型与搜索</b>（14 项）</summary>
 <br>
 
 | 功能 | 你可以做什么 | 使用方式 / 条件 |
 | --- | --- | --- |
 | **订阅登录** | 直接登录 ChatGPT，使用 Codex 订阅模型，无需 API Key | 普通聊天无需 Codex CLI |
 | **模型目录同步** | 自动读取账号可用模型与推理档位，支持手动刷新；目录标注退役的模型会在模型名称旁显示退役日期，不会自动切换你的选择 | 新型号以账号目录开放情况为准；模型只来自账号目录，未登录或读取失败时不显示任何模型，也不使用内置列表 |
-| **模型列表** | 在“模型与运行”中逐个显示或隐藏输入框中的模型 | 仅影响列表显示；已选模型和请求不受影响 |
+| **模型列表** | 在“模型与运行”中逐个显示或隐藏输入框中的模型；模型选择器沿用 DSH 官方的模型标识（如新模型徽章） | 仅影响列表显示；已选模型和请求不受影响 |
 | **默认模型** | 在“模型与运行 → 模型”里选择每次新建会话默认使用的模型 | 写入 DSH 的默认模型设置，与在对话里切换模型是同一处；未设置时跟随 DSH 默认 |
 | **推理等级** | 在输入框选择模型支持的推理档位 | 档位随模型变化 |
 | **速度档位** | 在支持的模型上切换标准 / Fast；账号目录提供时还有 Ultrafast（Beta），输入框显示闪电标识 | 默认标准；Fast 和 Ultrafast 会增加用量消耗，Ultrafast 目前仅 Pro 500 |
 | **输出详略** | 选择简短、适中或详细的回答偏好 | 默认跟随模型 |
 | **输入图片精度** | 为发送给聊天模型的图片选择低、高、原图或自动精度 | 影响输入 token 用量；默认自动 |
-| **订阅联网搜索** | 使用 Codex 搜索，或选择 DSH 搜索 | 可选自动、DSH、Codex 路由；一方未登录或没有 Key 时自动改用另一方，GPT 对话里的 DSH 搜索可用已登录的 DeepSeek 账号 |
-| **搜索范围** | 选择实时 / 缓存搜索、关闭搜索，或限定域名 | 在模型与运行中设置 |
+| **订阅联网搜索** | 使用 Codex 搜索，或选择 DSH 搜索 | 可选自动、DSH、Codex 来源；在搜索发生时分流，不改写 DSH 自己的搜索设置，所以官方设置页的开关保持你设的样子；DeepSeek 账号路线和填了 API Key 的路线（新版 Search API / 旧版）都兼容；一方未登录或没有 Key 时自动改用另一方 |
+| **其他模型总开关** | 一键让 DeepSeek 等非 Codex 模型的对话不再使用订阅的联网搜索、图片生成和 ChatGPT 连接器 | 设置 → Codex 订阅 → 与其他模型；默认开启，Codex 订阅模型不受影响；手机远程控制和语音由你主动开启或发起，不受它影响 |
+| **搜索范围** | 选择实时 / 缓存搜索、关闭搜索，或限定域名 | 在“与其他模型”中设置，就在搜索来源旁边 |
 | **流无响应超时** | 设置连续没有收到流式数据时中断请求的时长 | 默认 10 分钟；不是整体回答时限 |
 | **上下文预算** | 按模型使用标准、扩展或自定义上下文预算 | 受模型目录上限约束 |
 | **GPT-Reserve** | 在账号开放时选择备用模型入口 | 实验性；不承诺独立备用额度 |
@@ -173,7 +182,7 @@ dsh --profile headless "只回复：ok"
 </details>
 
 <details>
-<summary><b>图片与草图</b>（12 项）</summary>
+<summary><b>图片与草图</b>（14 项）</summary>
 <br>
 
 | 功能 | 你可以做什么 | 使用方式 / 条件 |
@@ -184,11 +193,13 @@ dsh --profile headless "只回复：ok"
 | **区域标注编辑** | 在图上圈定区域、填写备注，带定位参考继续编辑 | 回填输入框后由你确认发送 |
 | **手绘画板** | 选择画布比例，使用钢笔、铅笔、荧光笔及橡皮 | Beta；画板默认关闭 |
 | **形状与文字** | 绘制直线、箭头、形状、原生曲线，选中修改对象和文字 | 在草图画板中使用 |
+| **渐变、模糊、混合与裁剪** | 填充可用线性 / 径向渐变；笔画可加模糊（发光、阴影、雾气）、混合模式（正片叠底、滤色、叠加等）和形状裁剪；图层也能设混合模式 | 都保留为可编辑属性，随移动缩放、草稿和导出保存；Agent 用 SVG 的渐变、`feGaussianBlur`、`mix-blend-mode`、`clip-path` 画出同样效果 |
 | **图层与图片导入** | 分层创作，将图片加入草图继续画 | 图片作为图层管理 |
 | **笔画平滑与导航** | 抬笔后平滑整条路径；拖动、缩放、撤销重做 | 快捷键可自定义和关闭 |
 | **多份草稿** | 保存并重新编辑最多 20 份本地草稿 | 保存在当前浏览器 |
 | **导入与导出** | 导出 PNG，或交换保留原生笔画的草稿文件 | 草稿文件可重新导入继续编辑 |
-| **Agent 绘图** | 用 `@sketch` 让 Agent 绘制，查看进度并随时停止；Agent 可用 SVG 整段作画，导入为可编辑原生笔画 | Beta；默认关闭，需同时开启画板 |
+| **Agent 绘图** | 用 `@sketch` 让 Agent 绘制，查看进度并随时停止；Agent 可用 SVG 整段作画，导入为可编辑原生笔画；有参考图时可并排对比、看差异热图、局部放大、量颜色与边缘位置、撤销重画，每批画完都会返回误差变化 | Beta；默认关闭，需同时开启画板。这些工具只测量和展示，不替模型作画 |
+| **绘制回放与视频** | 画板里的“回放”按钮把绘制过程一笔一笔重放（线条沿路径画出，填充先描边再自上而下铺色），可调速、拖动进度，并录成 WebM 视频 | 视频先在画板里预览，点“保存视频”才会保存，不会自动下载 |
 | **绘图结果回看** | 完成后向模型返回画布预览，帮助后续检查 | Beta；默认关闭，会增加图片输入用量 |
 
 </details>
@@ -199,13 +210,13 @@ dsh --profile headless "只回复：ok"
 
 | 功能 | 你可以做什么 | 使用方式 / 条件 |
 | --- | --- | --- |
-| **手机远程控制** | 在 ChatGPT 手机 App 的 Codex 里直接指挥电脑上的 DSH：新建、续聊、归档对话，切换模型和权限，回答审批和提问，DeepSeek 等任意 DSH 模型都能用 | Beta；默认关闭，设置 → Codex 订阅 → 模型与运行 → 手机远程控制，扫码或输入手动码配对 |
+| **手机远程控制** | 在 ChatGPT 手机 App 的 Codex 里直接指挥电脑上的 DSH：新建、续聊、归档对话，切换模型和权限，回答审批和提问，DeepSeek 等任意 DSH 模型都能用 | Beta；默认关闭，设置 → Codex 订阅 → 与其他模型 → 手机远程控制，扫码或输入手动码配对 |
 | **Codex 独立子任务** | 复用订阅登录和工作区权限执行独立任务，可指定允许的模型与推理档位 | Beta，可选，多数人用不到：默认用 DSH 自己的子智能体（同样能用订阅模型）；想让子任务由官方 Codex Agent 执行时，才安装可选组件（约 377 MB，Windows），并在“插件 → 子智能体”开启模型选择。用独立数据目录和订阅登录，不读你电脑上的 Codex 登录 |
 | **子任务组件管理** | 在设置里安装、停用或卸载官方 Codex 子任务组件 | 由支持的 DSH 宿主管理，无需额外登录 |
 | **云端上下文压缩** | 使用 Codex 云端压缩继续长对话，同时保留 DSH 历史与原生压缩 | Beta / 实验性；默认关闭，开启的请求使用 SSE |
 | **WebSocket 连接** | 实验性复用连接和上下文传输，连接失败可回退 SSE | Beta / 实验性；默认 SSE，不保证更快 |
 | **Auto review 官方审查模型** | DSH Auto review 改用 Codex 自带的审查模型判断工具调用，审查规则与放行流程仍由 DSH 负责 | Beta；默认关闭，账号目录提供该模型时生效 |
-| **ChatGPT 连接器** | 让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等；模型先搜索再调用，写操作默认每次都要你批准，可改成不再询问 | 默认关闭，设置 → Codex 订阅 → 模型与运行 → ChatGPT 连接器；需先在 ChatGPT 里连接应用 |
+| **ChatGPT 连接器** | 让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等；模型先搜索再调用，写操作默认每次都要你批准，可改成不再询问 | 默认关闭，设置 → Codex 订阅 → 与其他模型 → ChatGPT 连接器；需先在 ChatGPT 里连接应用 |
 | **支持诊断** | 查看功能前置条件和近期操作结果，一键复制约 1 KB 的精简报告（完整报告可另行复制）；不含凭据和会话正文 | 设置 → 维护；未验证不代表故障 |
 | **预测缓存清理** | 查看并清理本地额度预测历史 | 保留登录、草稿、原图和共享依赖 |
 
@@ -224,12 +235,13 @@ dsh --profile headless "只回复：ok"
 在 **设置 → Codex 订阅** 中管理账号和额度；其余功能按任务需要开启。
 
 <details>
-<summary>四个设置页分别做什么？</summary>
+<summary>五个设置页分别做什么？</summary>
 
 | 设置页 | 在这里做什么 |
 | --- | --- |
 | **账号与额度** | 登录与切换账号、查看重置时间、设置额度显示和提醒 |
-| **模型与运行** | 订阅搜索、上下文预算、连接方式、独立子任务与手机远程控制 |
+| **模型与运行** | 模型列表与默认模型、上下文预算、输入图片精度、连接方式、云端压缩 |
+| **与其他模型** | 总开关，以及搜索来源、ChatGPT 连接器、审查模型、独立子任务、语音和手机远程控制 |
 | **图片与草图** | 分别开启图片生成、画板和 Agent 绘图 |
 | **维护** | 生成支持诊断、管理本地额度预测缓存 |
 
@@ -241,96 +253,40 @@ dsh --profile headless "只回复：ok"
 
 [查看完整使用指南 →](docs/GUIDE.zh-CN.md)
 
-## 从草图到作品
+## 草图作画实测
 
-草图画板和 Agent 绘图为 **Beta**。画板和 Agent 绘图默认关闭，在“图片与草图”中按需开启。
+草图画板和 Agent 绘图为 **Beta**，默认关闭，在“图片与草图”中按需开启。手动画图点输入框的草图按钮；让 Agent 画发送 `@sketch` 加要求。有参考图时 Agent 可以并排对比、看差异热图、局部放大、量颜色和边缘位置、撤销重画；画完可以点画板里的“回放”，把过程一笔一笔重放并录成视频。这些工具只测量和展示，不替模型画。
 
-**画草图 → 附加到输入框 → 描述效果 → 生成成图。**
+下面两个例子都是**只在画板上画、没有调用生图**，每个都跑一次，不代表稳定水平。“误差”是画作与参考图逐像素颜色差的平均值（越小越接近，0 为一致）。
 
-手动画图时点击画板按钮；让 Agent 绘图时发送 `@sketch` 加绘图要求。
+**《DeepSeek 娘》· 照着参考图临摹**
 
 <table>
-<tr><th width="50%">Agent 绘制的原生草图</th><th width="50%">以草图为唯一参考的生图结果</th></tr>
-<tr><td><img src="docs/assets/sketch-lighthouse-sketch.webp" alt="GPT-6.1-Sol 绘制的灯塔与归航草图" width="480"></td><td><img src="docs/assets/sketch-lighthouse-result.webp" alt="根据草图生成的灯塔水彩海报" width="480"></td></tr>
+<tr><th width="33%">参考图</th><th width="33%">之前：旧工具里的最好成绩</th><th width="33%">现在：新工具</th></tr>
+<tr><td><img src="docs/assets/sketch-niang-reference.webp" alt="DeepSeek 娘表情包参考图" width="240"></td><td><img src="docs/assets/sketch-niang-astra-compare.webp" alt="旧工具画的 DeepSeek 娘" width="240"><br><sub>GPT-6-Astra Medium · 20 分 57 秒 · 686 笔<br>误差 8.8%</sub></td><td><img src="docs/assets/sketch-niang-astra-new.webp" alt="新工具画的 DeepSeek 娘" width="240"><br><sub>GPT-6-Astra Medium · 8 分 11 秒 · 481 笔<br>误差 9.3%</sub></td></tr>
 </table>
 
-**GPT-6.1-Sol · Xhigh**，官方桌面版 0.2.0-rc.2 实测：一条 `@sketch` 消息完成 6 个图层、229 笔可编辑原生笔画，再以这张草图为唯一参考调用一次 GPT Image 2（质量：高），全程约 13 分钟。
+数字上两者接近，新版用时不到一半；双手叉腰的姿势和围裙上的小鲸鱼更准，发丝和蕾丝的细腻程度仍不及原图。
 
-```text
-@sketch 用 4:3 横版画板绘制《灯塔与归航》：左侧礁石岬角上立一座红白条纹灯塔，塔顶灯室射出扇形光束；右侧海面上一艘挂橙色小帆的渔船正驶回港湾，船后拖出 V 形水痕；地平线上是半个初升的太阳，天空有三条横向云带和三只海鸥，前景礁石间有一圈白色浪花。按天空、太阳与云、海面、礁石与灯塔、渔船、海鸥与浪花分层绘制，保留原生可编辑笔画。画完后，把这张草图作为唯一参考图，调用订阅图片工具一次生成成品：保持构图不变，做成温暖的水彩旅行海报，晨光金橙配靛青海面，有纸纹和柔和晕染，不添加文字。
-```
+**《初音未来》· 竖图，照着参考图临摹**
+
+<table>
+<tr><th width="50%">之前：叠图对照和网格</th><th width="50%">现在：新工具</th></tr>
+<tr><td><img src="docs/assets/sketch-miku-sol-before.webp" alt="旧工具画的初音未来" width="330"><br><sub>GPT-6.1-Sol Xhigh · 误差 6.7%</sub></td><td><img src="docs/assets/sketch-miku-sol-new.webp" alt="新工具画的初音未来" width="330"><br><sub>GPT-6.1-Sol Xhigh · 21 分钟 · 685 笔 · 误差 5.2%</sub></td></tr>
+</table>
+
+误差降了约四分之一，肩上的“01”、袖屏、腿部的系带细节补全了。读了模型的完整操作记录，剩下的误差主要是大块头发、皮肤和腿部的明暗色调，而不是边缘位置；前 3 分钟的四次整层 SVG 就把误差从 18% 压到 6.5%，之后 17 分钟的细化只降了 1.3 个百分点。实验过程、记录里发现的问题和改进见 [绘图实验记录](docs/sketch-drawing-experiments.md)。
 
 <details>
-<summary>进阶展示 · 机械剖面、青绿山水与 DeepSeek 娘临摹</summary>
-
-前两道题都选了容易暴露差距的题材：机械剖面考结构与细节（齿轮咬合、摆锤、链条、楼梯上的人物），青绿山水考构图与审美（三远法、留白、皴法与设色）。同一条提示词分别交给 **GPT-6.1-Sol · Xhigh** 和 **GPT-6-Astra · Low**，各跑一次，均在官方桌面版上完成，生图统一为 GPT Image 2（质量：高）。
-
-**《钟塔剖面图》**
-
-<table>
-<tr><th></th><th width="45%">原生草图</th><th width="45%">生图结果</th></tr>
-<tr><td><b>Sol<br>Xhigh</b></td><td><img src="docs/assets/sketch-clocktower-sol-sketch.webp" alt="Sol 绘制的钟塔剖面草图" width="400"></td><td><img src="docs/assets/sketch-clocktower-sol-result.webp" alt="Sol 草图生成的钟塔剖面插画" width="400"></td></tr>
-<tr><td><b>Astra<br>Low</b></td><td><img src="docs/assets/sketch-clocktower-astra-sketch.webp" alt="Astra 绘制的钟塔剖面草图" width="400"></td><td><img src="docs/assets/sketch-clocktower-astra-result.webp" alt="Astra 草图生成的钟塔剖面插画" width="400"></td></tr>
-</table>
-
-Sol 先用脚本算出 9 个齿轮的齿数（48、38、27、46、36、24、34、30、22）与节圆，再按咬合位置排布，绘图约 1 小时；第一次生图请求失败，按它的询问同意重试一次后成功。Astra Low 约 5 分钟完成全部草图与生图，结构更简化，齿轮没有逐一校准。
-
-**《千峰翠色》**
-
-<table>
-<tr><th></th><th width="45%">原生草图</th><th width="45%">生图结果</th></tr>
-<tr><td><b>Sol<br>Xhigh</b></td><td><img src="docs/assets/sketch-shanshui-sol-sketch.webp" alt="Sol 绘制的青绿山水草图" width="400"></td><td><img src="docs/assets/sketch-shanshui-sol-result.webp" alt="Sol 草图生成的青绿山水" width="400"></td></tr>
-<tr><td><b>Astra<br>Low</b></td><td><img src="docs/assets/sketch-shanshui-astra-sketch.webp" alt="Astra 绘制的青绿山水草图" width="400"></td><td><img src="docs/assets/sketch-shanshui-astra-result.webp" alt="Astra 草图生成的青绿山水" width="400"></td></tr>
-</table>
-
-Sol Xhigh 约 28 分钟，Astra Low 约 5 分钟。两者都保留了主峰、瀑布、栈道与江面的位置；Sol 的远山层次和雾带留白更完整。
-
-**《DeepSeek 娘》· 照着参考图临摹（只画不生图）**
-
-这道题把一张参考图作为附件发给模型，让它在画板上临摹，考的是比例、渐变长发、蕾丝褶边、手写字和小图案能不能对得上。参考图是社区流传的 DeepSeek 娘表情包。每格都在官方桌面版上跑一次，没有调用生图；原生笔画版开启了“完成后返回预览”，SVG 版在同一条提示词后加了一句“每层用 svg 命令”。
-
-<table>
-<tr><th width="20%">参考图</th><th width="40%">原生笔画</th><th width="40%">SVG</th></tr>
-<tr><td rowspan="2"><img src="docs/assets/sketch-niang-reference.webp" alt="DeepSeek 娘表情包参考图" width="220"></td><td><img src="docs/assets/sketch-niang-sol-native.webp" alt="Sol 原生笔画版" width="330"><br><sub><b>Sol Xhigh</b> · 40 分 50 秒 · 526 笔</sub></td><td><img src="docs/assets/sketch-niang-sol-svg.webp" alt="Sol SVG 版" width="330"><br><sub><b>Sol Xhigh</b> · 31 分 48 秒 · 463 笔</sub></td></tr>
-<tr><td><img src="docs/assets/sketch-niang-astra-native.webp" alt="Astra 原生笔画版" width="330"><br><sub><b>Astra Medium</b> · 约 7 分钟 · 332 笔</sub></td><td><img src="docs/assets/sketch-niang-astra-svg.webp" alt="Astra SVG 版" width="330"><br><sub><b>Astra Medium</b> · 10 分 5 秒</sub></td></tr>
-</table>
-
-SVG 版的发丝高光、蕾丝褶边和手写字更精细，Sol 用 SVG 还比逐笔绘制快了近 9 分钟；Astra 用 SVG 多花约 3 分钟，换来明显更丰富的细节。两个模型都没能画准脸型（偏长偏平）和围裙上的小鲸鱼图案，Sol 的鲸鱼更像鲸。
-
-**同一题再跑一次：让模型自己叠图对照**
-
-这一次提示词和附件方式都和上面一样，只是插件多了两样东西：模型可以用 `reference` 把聊天里附的参考图放进画板（作为隐藏的图片图层），并且在预览时打开 `compare`（把画作和参考图各占 50% 叠在一起，位置偏差会显示成重影）和 `grid`（每 100 像素一条带数字的网格）。同一题、同一个 Astra Medium，在官方桌面版上跑了一次，没有调用生图，共 20 分 57 秒、7 个绘画图层、686 条原生笔画；模型还用脚本批量生成了发丝和花边，并在画的过程中多次叠图检查、修正文字和蕾丝遮挡。
-
-<table>
-<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" alt="Astra Medium 叠图对照版" width="380"><br><sub><b>Astra Medium</b> · 20 分 57 秒 · 686 笔</sub></td><td><img src="docs/assets/sketch-niang-astra-overlay.webp" alt="模型看到的叠图对照预览" width="260"><br><sub>模型看到的叠图预览：文字和发丝边缘的重影就是偏差</sub></td></tr>
-</table>
-
-脸型、长发走向、蕾丝、手和气泡字都比上面的两个 Astra 版更接近参考图，耗时约是 SVG 版的两倍。这是单次运行，不同提示词和参考图的效果可能不同。
-
-<details>
-<summary>展开三道题的完整提示词</summary>
-
-```text
-@sketch 用 3:4 竖版画板绘制《钟塔剖面图》：蒸汽朋克风格的钟塔纵向剖面技术插图。最上方是圆形大钟面（十二个刻度、两根指针）和一口铜钟；钟面下一层是齿轮机房：至少 9 个大小不同、齿数正确、彼此咬合的齿轮（相邻齿轮转向相反，齿廓要画出锯齿），另有一个锚形擒纵机构；中段是一根贯穿的长摆杆，末端为铜制圆盘摆锤，旁边两条挂着配重铁块的链条；塔壁一侧是沿墙盘旋而上的螺旋楼梯，梯上有三个微小的工匠人物；底部是石砌地基与拱门。剖面用厚实的暗色砖石墙体框出，内部露出黄铜与铁质结构，加入铆钉、管道，以及从小窗透进来的光柱。按背景砖墙、结构框架、齿轮组、摆锤与链条、楼梯与人物、光影与细节分层绘制。画完后，把这张草图作为唯一参考图，调用订阅图片工具一次生成成品：保持每个部件的位置、比例与咬合关系不变，做成精密的蒸汽朋克剖面图插画——黄铜与旧钢的金属质感、细致的机械倒影和铆钉、羊皮纸底色配墨线渲染、暖色灯光，不添加文字。
-```
-
-```text
-@sketch 用 3:4 竖版画板绘制《千峰翠色》：宋代青绿山水的构图，严格运用「三远法」。高远：右侧一座主峰拔地而起，占画面上半部，山体用层叠的块面表现，山腰有横向的云雾留白；深远：主峰后方还有两重淡青色远山，越远越淡，之间隔着大片留白的雾带；平远：下方是舒展的江面，一叶渔舟和两只飞鸟。左侧一挂瀑布从中段峭壁倾泻而下，落入山涧，涧边有三株松树，松针成簇；山腰有一座小亭和一条曲折栈道，栈道上有两个极小的行者；前景是坡石与芦苇，用勾勒加披麻皴式的笔触表现。色彩层次为石青、石绿、赭石，远山用淡青。按远山与天空、雾带留白、主峰、瀑布与松树、亭台栈道与行者、江面舟鸟与前景分层绘制。画完后，把这张草图作为唯一参考图，调用订阅图片工具一次生成成品：保持山体、瀑布、栈道、江面的位置和三远法的层次不变，做成宋代青绿山水绢本设色——石青石绿矿物颜料的沉着厚重、细腻的皴擦与勾勒、绢面纹理与微微泛黄的古意、云雾留白，不添加文字或印章。
-```
+<summary>展开完整提示词</summary>
 
 ```text
 @sketch 用 1:1 方形画板，尽可能忠实地临摹我附上的这张参考图（一张 Q 版二次元表情包）。画面：白色底；Q 版二头身的蓝发鲸鱼娘跪坐在画面右侧偏中，蓝色渐变长发披肩（发根深蓝、发梢浅蓝），头顶一根呆毛，戴白色蕾丝女仆头饰和蓝色蝴蝶结，头两侧是深蓝色带白色内里的鲸鱼耳鳍，蓝色大眼睛带高光，猫嘴嘟嘴的“ω”表情，脸颊泛红，双手叉腰；穿深蓝色女仆装，白色蕾丝围裙（围裙上有一只蓝色小鲸鱼图案），黑色领结，袖口和裙摆有白色蕾丝褶边；身后露出一条深蓝色的鲸鱼尾巴。左上方是白色对话气泡（黑色描边，尖角指向她），气泡里用黑色粗体写“你这吃白饭的蓝色大肥鱼。”；左侧从画面外伸进来一只黑袖子的手，食指指向她；她的左下方用蓝色描边字写“没吃饱喵！”；她脚边的地上放着一只空的白瓷饭碗，碗内壁印着一只蓝色小鲸鱼。请分层绘制：白色背景、头发与鲸鱼耳鳍与尾巴、身体与服装、脸部五官、饭碗、手臂与对话气泡文字，保留原生可编辑笔画，并特别注意角色比例、头发的渐变与发丝走向、蕾丝褶边和脸部表情的细节。这次只在草图画布上画，不要调用任何生图或图片编辑工具；画完后检查一遍与参考图的差异并修正，最后保存并完成。
 ```
 
-SVG 版在“这次只在草图画布上画”之前多加了一句：
-
 ```text
-作画方式：每个图层都用 svg 命令整层写成 SVG（路径用贝塞尔曲线，配色手动分层做出渐变感），不要逐点使用原生笔画命令。
+用画板（codex_sketch）按这张参考图画初音未来，竖图，尽量百分之百还原：构图、比例、姿势、颜色、细节都要一致。
 ```
-
-</details>
-
-每个例子只跑一次，不代表稳定水平；Sol Xhigh 耗时明显更长，日常草图用 Astra 或较低推理档即可。
 
 </details>
 
@@ -355,7 +311,7 @@ DSH 实机设置截图，随浅色 / 深色主题切换。
 <summary>终端方式</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.0.1
+dsh plugin --profile web update dsh-codex-subscription@3.1.0
 ```
 
 仅在需要卸载时运行：
@@ -401,7 +357,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 <details>
 <summary>需要装 Codex 命令行才能用吗？</summary>
 
-普通订阅聊天不需要。只有想用 **Codex 独立子任务** 时，才在“设置 → Codex 订阅 → 模型与运行”里点“安装组件”，停用和卸载也在同一处。其余实验选项按需开启。[可选组件、存储清理与完整说明 →](docs/GUIDE.zh-CN.md)
+普通订阅聊天不需要。只有想用 **Codex 独立子任务** 时，才在“设置 → Codex 订阅 → 与其他模型”里点“安装组件”，停用和卸载也在同一处。其余实验选项按需开启。[可选组件、存储清理与完整说明 →](docs/GUIDE.zh-CN.md)
 
 </details>
 

@@ -72,3 +72,15 @@ test('failed writes tell the caller to inspect and allow recovery without partia
  await run.execute({action:'apply',runId:next.runId})
  assert.equal(revision,1);run.dispose()
 })
+
+test('a stale or missing revision is reported without ending the run', async () => {
+  const states = []
+  let fail = false
+  const run = createSketchAgentRun({ execute: async () => { if (fail) throw Object.assign(Error('Sketch changed or is being edited; inspect again'), { code: 'SKETCH_STALE' }); return { documentId: 'a', revision: 1 } }, open: () => {}, changed: state => states.push(state) })
+  const first = await run.execute({ action: 'inspect' })
+  fail = true
+  await assert.rejects(run.execute({ action: 'apply', runId: first.runId, revision: 0 }), /inspect again/)
+  assert.equal(run.state, 'drawing')
+  fail = false
+  assert.equal((await run.execute({ action: 'apply', runId: first.runId, revision: 1 })).runId, first.runId)
+})

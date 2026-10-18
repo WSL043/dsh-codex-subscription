@@ -1,5 +1,6 @@
 export const STYLE = `
 .codexSubscriptionAdvancedPreferences{display:flex;flex-direction:column;gap:10px}
+.codexSubscriptionAdvancedPreferences[data-others-off=true]>[data-governed=true]{opacity:.55;transition:opacity .15s}
 .codexSubscriptionSearchChoices.codexSubscriptionQuotaModes{display:flex;flex:0 0 auto;gap:0;grid-template-columns:none}
 .codexSubscriptionSettingsDisclosure>summary{display:flex;align-items:center;gap:10px;min-height:28px;cursor:pointer;list-style:none;font-size:14px;font-weight:500}
 .codexSubscriptionSettingsDisclosure>summary::-webkit-details-marker{display:none}
@@ -36,8 +37,8 @@ export const STYLE = `
 .codexSubscriptionPreferenceLabel{display:flex;align-items:center;gap:6px}
 .codexSubscriptionPreference>.codexSubscriptionPreferenceCopy{flex:1 1 240px}
 .codexSubscriptionPreferenceHint{max-width:none;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
-.codexSubscriptionHintText{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
-.codexSubscriptionHintFold[data-open=true] .codexSubscriptionHintText{display:block;-webkit-line-clamp:unset}
+.codexSubscriptionHintText{display:block}
+.codexSubscriptionHintFold[data-fold=true] .codexSubscriptionHintText{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
 .codexSubscriptionHintToggle{display:inline-flex;align-items:center;gap:3px;margin-top:2px;padding:0;border:0;background:none;font:inherit;font-size:11px;line-height:17px;color:var(--dsw-alias-label-secondary);cursor:pointer}
 .codexSubscriptionHintToggle::after{content:"";width:5px;height:5px;margin-top:-2px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);transition:transform .15s}
 .codexSubscriptionHintFold[data-open=true] .codexSubscriptionHintToggle::after{margin-top:2px;transform:rotate(-135deg)}
@@ -75,7 +76,7 @@ export const STYLE = `
 .codexSubscriptionContextModelCopy strong{font-size:12px;line-height:18px;font-weight:500}
 .codexSubscriptionContextModelCopy span{font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionContextInput{width:116px}
-.codexSubscriptionSearch{display:flex;flex-direction:column;gap:7px}
+.codexSubscriptionSearch{display:flex;flex-direction:column;gap:2px}
 .codexSubscriptionDivider{height:1px;background:var(--dsw-alias-border-l2)}
 .codexSubscriptionQuotaModes[data-saving=true] .codexSubscriptionQuotaMode:has(input:disabled){cursor:wait;opacity:1}
 .codexSubscriptionSearchChoices[data-saving=true] .codexSubscriptionQuotaMode:has(input:disabled){cursor:wait;opacity:1}
@@ -151,7 +152,7 @@ export const STYLE = `
 .codexSubscriptionLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexSubscriptionLimitMeta{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionLimitPeriod{display:flex;gap:8px;flex-wrap:wrap}
-.codexSubscriptionSearchOptions{margin-top:10px;font-size:12px}
+.codexSubscriptionSearch>.codexSubscriptionSearchOptions{margin-top:0;padding-top:2px;border-top:1px solid var(--dsw-alias-border-l2);font-size:12px}
 .codexSubscriptionDivider+.codexSubscriptionDivider{display:none}
 .codexSubscriptionPickerModels{display:flex;flex-direction:column;border-top:1px solid var(--dsw-alias-border-l2)}
 .codexSubscriptionPickerModel{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:36px;border-bottom:1px solid var(--dsw-alias-border-l2);font-size:13px}
@@ -209,7 +210,7 @@ export const STYLE = `
 .codexSubscriptionSpendLimit progress::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}
 .codexSubscriptionSpendLimit progress::-webkit-progress-value{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
 .codexSubscriptionSpendLimit progress::-moz-progress-bar{background:var(--dsw-alias-brand-primary,#3964fe);border-radius:999px}
-.codexSettingsTabs{position:sticky;top:0;z-index:2;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px;background:var(--dsw-alias-bg-module-platform);border-radius:12px}
+.codexSettingsTabs{position:sticky;top:0;z-index:2;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:4px;background:var(--dsw-alias-bg-module-platform);border-radius:12px}
 .codexSettingsTabs button{min-width:0;min-height:36px;border:0;border-radius:9px;padding:7px 6px;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:12px;line-height:18px;cursor:pointer}
 .codexSettingsTabs button:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px}
 .codexSettingsTabs button[aria-selected=true]{background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);box-shadow:0 1px 3px #0001}
@@ -310,7 +311,7 @@ export const STYLE = `
 .codexSubscriptionRuntime{padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2);margin-top:2px}
 .codexSubscriptionRuntime details{margin-top:8px}.codexSubscriptionRuntime details[open]>summary{margin-bottom:10px}
 @container (max-width:480px){.codexSubscriptionPreference,.codexSubscriptionContextHead{flex-wrap:wrap}.codexSubscriptionPreferenceHint{max-width:none}.codexSubscriptionPreference>.codexSubscriptionPreferenceCopy{flex:1 1 220px}.codexSubscriptionQuotaModes{max-width:100%;flex-wrap:wrap}.codexSubscriptionQuotaMode{min-height:30px}.codexSubscriptionActions{flex-wrap:wrap}}
-@container (max-width:340px){.codexSettingsTabs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:420px){.codexSettingsTabs{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:minmax(max-content,1fr);overflow-x:auto;scrollbar-width:none}.codexSettingsTabs button{padding:7px 10px;white-space:nowrap}}
 @media(prefers-reduced-motion:reduce){.codexSubscription *{transition:none!important}}
 .codexSubscriptionLogHead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:12px}.codexSubscriptionLogHead h4{margin:0;font-size:13px}.codexSubscriptionLog{max-height:320px;overflow:auto;margin:6px 0 0;padding:8px 10px;border:1px solid var(--border,#0002);border-radius:8px;font:11.5px/1.5 ui-monospace,Consolas,monospace;white-space:pre-wrap;word-break:break-word}.codexSubscriptionLog_error{color:#c0392b}.codexSubscriptionLog_warn{color:#b9770e}.codexSubscriptionLog_info{opacity:.8}
 .codexSubscriptionConnectors>.codexSubscriptionQuotaModes{flex:0 0 auto;display:flex;flex-wrap:nowrap;margin-left:auto}
@@ -352,7 +353,7 @@ export const STYLE = `
 .codexVoiceTool[aria-pressed=true]{color:var(--dsw-alias-label-tertiary)}
 
 /* Every fold-out in the settings reads as pressable: a full-width row, a chevron on the right that turns when it opens, a hover state. */
-.codexSubscriptionHistory>summary,.codexSubscriptionSearchOptions>summary,.codexSubscriptionRuntime summary,.codexSubscriptionDiagnostics details>summary,.codexImageDetails summary{display:flex;align-items:center;gap:8px;width:auto;min-height:32px;margin:0 -10px;padding:4px 10px;border-radius:8px;list-style:none;cursor:pointer;user-select:none;font-size:13px;font-weight:500;color:var(--dsw-alias-label-primary);transition:background .12s}
+.codexSubscriptionHistory>summary,.codexSubscriptionSearchOptions>summary,.codexSubscriptionRuntime summary,.codexSubscriptionDiagnostics details>summary,.codexImageDetails summary{display:flex;align-items:center;gap:8px;width:auto;box-sizing:border-box;min-height:32px;margin:0 -10px;padding:4px 10px;border-radius:8px;list-style:none;cursor:pointer;user-select:none;font-size:13px;font-weight:500;color:var(--dsw-alias-label-primary);transition:background .12s}
 .codexSubscriptionHistory>summary::-webkit-details-marker,.codexSubscriptionSearchOptions>summary::-webkit-details-marker,.codexSubscriptionRuntime summary::-webkit-details-marker,.codexSubscriptionDiagnostics details>summary::-webkit-details-marker,.codexImageDetails summary::-webkit-details-marker{display:none}
 .codexSubscriptionHistory>summary::after,.codexSubscriptionSearchOptions>summary::after,.codexSubscriptionRuntime summary::after,.codexSubscriptionDiagnostics details>summary::after,.codexImageDetails summary::after{content:"";flex:none;margin-left:auto;width:7px;height:7px;border:solid var(--dsw-alias-label-tertiary);border-width:0 1.6px 1.6px 0;transform:translateY(-2px) rotate(45deg);transition:transform .15s,border-color .12s}
 .codexSubscriptionHistory[open]>summary::after,.codexSubscriptionSearchOptions[open]>summary::after,.codexSubscriptionRuntime details[open]>summary::after,.codexSubscriptionDiagnostics details[open]>summary::after,.codexImageDetails[open]>summary::after{transform:translateY(2px) rotate(-135deg)}

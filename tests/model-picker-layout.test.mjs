@@ -37,3 +37,12 @@ test('rows drill into the same menu surface, as in the DSH picker', async () => 
   assert.match(source, /createPortal\(/u, 'the menu is portalled out of the composer like the DSH picker')
   assert.match(source, /MenuSurface \?\? 'div'/u, 'older hosts without MenuSurface keep working')
 })
+
+test('model names go through the host label slot so official badges show in our picker', async () => {
+  const select = await readFile(new URL('../src/client-model-select.jsx', import.meta.url), 'utf8')
+  const client = await readFile(new URL('../src/client.jsx', import.meta.url), 'utf8')
+  assert.ok(client.includes("children: { 'conversation.input.model.label': { kind: 'single', scope: 'session', inline: true } }"), 'the slot is declared like the DSH picker declares it')
+  for (const placement of ['trigger', 'menu', 'option']) assert.ok(select.split(String.fromCharCode(10)).some(line => line.includes('labelOf(') && line.includes("'" + placement + "'")), placement + ' label')
+  assert.ok(select.includes("renderSlot('conversation.input.model.label', { provider: { id: group.id, name: group.name }, model, placement, selected }, { fallback: model.name })"))
+  assert.ok(select.includes("typeof renderSlot !== 'function') return model.name"), 'hosts without the slot keep the plain name')
+})

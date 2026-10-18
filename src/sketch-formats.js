@@ -1,6 +1,7 @@
 import { paintSketch } from './sketch-document.js'
 import { applySketchCommands } from './sketch-commands.js'
 import { createSketchLayers, SKETCH_RATIOS } from './sketch-layers.js'
+import { normalizeBlend } from './sketch-effects.js'
 
 export const SKETCH_FILE_ACCEPT = '.dsh-sketch.json,image/png,image/jpeg,image/webp'
 const canvas=(w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;return c}
@@ -31,6 +32,7 @@ export function decodeSketchDocument(text) {
       }
     }
     const target=doc.layers.at(-1);target.name=String(layer.name??'').slice(0,40);target.visible=layer.visible!==false
+    const blend=normalizeBlend(layer.blend);if(blend)target.blend=blend
     if(layer.image){
       const image=layer.image
       if(typeof image.src!=='string'||!/^data:image\/png;base64,/.test(image.src)||image.src.length>8*1024*1024||['x','y','width','height'].some(k=>!Number.isFinite(image[k])||image[k]<0||image[k]>1))throw Error('Invalid draft image')

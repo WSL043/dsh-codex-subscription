@@ -52,3 +52,18 @@ test('the command session validates and forwards the preview options', async () 
   assert.equal(result.gridStep, 100)
   await assert.rejects(session({ action: 'preview', documentId: 'd', grid: 'yes' }), /grid must be true or false/)
 })
+
+test('side and diff lay the reference, the drawing and the difference next to each other', () => {
+  const surfaces = []
+  const make = (w, h) => { const s = { width: w, height: h, getContext: () => ({ drawImage() {}, fillRect() {}, fillText() {}, save() {}, restore() {}, beginPath() {}, rect() {}, clip() {}, translate() {}, scale() {}, putImageData() {}, moveTo() {}, lineTo() {}, stroke() {} }), toDataURL: () => 'data:image/png;x' }; surfaces.push(s); return s }
+  globalThis.ImageData ??= class { constructor(data, width, height) { Object.assign(this, { data, width, height }) } }
+  const flat = (w, h, v) => ({ data: new Uint8ClampedArray(w * h * 4).fill(v), width: w, height: h })
+  const base = { doc: { layers }, images: new Map(), width: 1000, height: 1000, makeSurface: make, paintLayers() {}, readPixels: s => flat(s.width, s.height, 128) }
+  const widest = () => Math.max(...surfaces.map(item => item.width))
+  composeSketchPreview({ ...base, options: { mode: 'side' } })
+  assert.equal(widest(), 560 * 2 + 10)
+  surfaces.length = 0
+  composeSketchPreview({ ...base, options: { mode: 'diff' } })
+  assert.equal(widest(), 560 * 3 + 20)
+  assert.throws(() => composeSketchPreview({ ...base, doc: { layers: [layers[1]] }, options: { mode: 'diff' } }), /reference picture/)
+})

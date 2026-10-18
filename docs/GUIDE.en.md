@@ -39,7 +39,7 @@ Spark keeps its independent quota. The plugin does not invent five-hour limits, 
 
 ### ChatGPT connectors
 
-Set **ChatGPT connectors** under Models & runtime to Read-only, Write after asking or Write directly, and every DSH model (DeepSeek included) gains three tools: `chatgpt_connectors_search` finds tools in the apps you connected in ChatGPT, `chatgpt_connectors_describe` shows their arguments, and `chatgpt_connectors_call` runs one. Apps such as GitHub, Gmail, Google Drive and Google Calendar work as far as your account has them connected.
+Set **ChatGPT connectors** under Other models to Read-only, Write after asking or Write directly, and every DSH model (DeepSeek included) gains three tools: `chatgpt_connectors_search` finds tools in the apps you connected in ChatGPT, `chatgpt_connectors_describe` shows their arguments, and `chatgpt_connectors_call` runs one. Apps such as GitHub, Gmail, Google Drive and Google Calendar work as far as your account has them connected.
 
 - **Read-only** runs only tools the app marks read-only (search mail, read files, look up pull requests).
 - **Write after asking** asks for your approval on every call that changes data (send mail, edit files, comment), showing the tool, arguments and description; with phone remote control on, the approval also appears on the phone. A refused call sends nothing.
@@ -87,13 +87,9 @@ Sketch supports local drafts, image layers, aspect ratios, three brushes (solid 
 
 The board supports editable shapes and text, native curves, and a side control for size/opacity. During Agent drawing, you can view, zoom, close the panel or stop drawing; manual edits unlock when it finishes. Automatic completion previews are off by default and can be enabled under Images & sketch. The document, history and run state are retained when switching away and back. Background drawing while viewing another session is not guaranteed. Save before a full-page reload or exit; unsaved recovery is not guaranteed.
 
-**Sketch-to-image example**: draw, click Attach, describe the desired result in the composer, then send.
+**Sketch to image**: draw, click Attach, describe the desired result in the composer, then send; the sketch is the reference image and the composition is kept.
 
-| Original sketch | Actual plugin output |
-| --- | --- |
-| ![Lighthouse sketch drawn by GPT-6.1-Sol](assets/sketch-lighthouse-sketch.webp) | ![Watercolor lighthouse poster generated from the sketch](assets/sketch-lighthouse-result.webp) |
-
-Example: GPT-6.1-Sol at Xhigh drew a six-layer native sketch with `@sketch`, then generated a warm watercolor travel poster with the sketch as the only reference (full prompt and advanced comparisons are in the README). The agent prefers the SVG command to draw a whole stage at once; the import still yields editable native strokes.
+**Agent drawing from a reference**: attach the reference and send `@sketch` plus a request. The agent first puts the reference on the board as a hidden layer with `reference`, then draws in stages; every batch reports how the error changed, and it can compare side by side, read a difference heat map, zoom into a region, measure colours and edge positions, and undo. The board's Replay redraws the process stroke by stroke and can record it as a video (previewed first, saved only when you click Save video). Measured comparisons are in the README's "Sketch drawing, measured", the log is in [Drawing experiments](sketch-drawing-experiments.md). The agent prefers the SVG command to draw a whole stage at once; the import still produces editable native strokes.
 
 Flare / Sunburst request overrides remain experimental: successful generation does not confirm which image engine or quality the subscription backend used.
 
@@ -109,7 +105,7 @@ see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-
 
 ### Phone remote control (Beta)
 
-Turn it on under **Settings → Codex → Models & runtime → Phone remote control** and this computer's DSH appears in the ChatGPT mobile app's Codex host list. Press Generate pairing code, then scan the QR code or type the manual code in the app; the code lasts about 10 minutes.
+Turn it on under **Settings → Codex → Other models → Phone remote control** and this computer's DSH appears in the ChatGPT mobile app's Codex host list. Press Generate pairing code, then scan the QR code or type the manual code in the app; the code lasts about 10 minutes.
 
 - From the phone you can browse history, start and continue conversations, interrupt, queue, fork, archive and unarchive conversations, and switch model (including DeepSeek and other third-party models), reasoning level and permissions (workspace write / full access).
 - DSH workspaces appear as projects on the phone, and a new chat can start in one; usage limits, plan and context usage are shown too.
@@ -142,7 +138,7 @@ Opt in under **Models & runtime**. SSE and DSH subtasks remain the defaults:
 
 Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only **Codex independent subtasks (Beta)** require the optional official runtime. The plugin never downloads it in the background.
 
-In **Settings → Codex → Models & runtime → Independent subtasks**, click **Install component**. DSH handles installation; the page shows its stage and offers cancellation before applying. Restart after completion, then choose Codex. Installation does not enable subtasks automatically.
+In **Settings → Codex → Other models → Independent subtasks**, click **Install component**. DSH handles installation; the page shows its stage and offers cancellation before applying. Restart after completion, then choose Codex. Installation does not enable subtasks automatically.
 
 Prefer **Install component** above. The plugin selects a component matching the current DSH version: DSH `0.2.0-rc.2` installs component `0.2.0-rc.2`, while DSH `0.1.5-rc.2` installs component `0.1.5-rc.2`. An existing `0.1.5-rc.3` component is recognized only on a matching host. Do not omit the component version or substitute `@next`.
 

@@ -419,6 +419,7 @@ export function createCodexImageTool(options) {
     timeoutMs: 5 * 60 * 1000,
     isConcurrencySafe: () => false,
     async execute(args, exec) {
+      if (options.allowed?.() === false) throw new Error('Codex image generation is turned off for conversations on other models (Settings → Codex subscription → Other models)')
       if (Array.isArray(args.referenceImages) && args.referenceImages.length === 0) {
         const { referenceImages: _empty, ...rest } = args
         args = rest

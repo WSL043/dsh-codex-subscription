@@ -1,6 +1,6 @@
 # Native sketch commands — development interface
 
-This document describes 2.1.0 and protocol v2.
+This document describes protocol v2 (feedback tools and appearance fields added after 3.0.1).
 Agent drawing remains an opt-in Beta feature.
 
 `codex_sketch` is a DSH-native tool, enabled only when both sketch editing and
@@ -17,7 +17,7 @@ automatically.
    command array (legacy JSON strings remain accepted). A batch is atomic and is
    one undo entry. A rejected geometry batch preserves the run and revision;
    correct it and retry. Other errors explain when a new inspect is needed.
-3. `preview` returns the actual rendered PNG as a native DSH attachment.
+3. `preview` returns the actual rendered PNG as a native DSH attachment (also `side`/`diff` modes against the reference; see Feedback tools).
 4. `save` checkpoints without releasing the editing lock. `finish` saves and
    unlocks; its optional image feedback is off by default.
 
@@ -53,12 +53,47 @@ The SVG is converted to the same native strokes (bezier, polygon, line, pen) in 
 
 Supported: `path` (M L H V C S Q T A Z, relative forms, compact arc flags), `rect` (with `rx`/`ry`), `circle`, `ellipse`, `line`, `polyline`, `polygon`, `g`, `use` of an element in the same SVG, `transform` (matrix, translate, scale, rotate, skew), `fill`, `stroke`, `stroke-width`, `opacity`, `fill-opacity`, `stroke-opacity` and `style="…"` declarations, colors as `#rgb`, `#rrggbb`, `rgb()` or a basic name.
 
+Kept as real effects (not flattened):
+- `linearGradient` / `radialGradient` on filled shapes: `objectBoundingBox` and `userSpaceOnUse`, `href` chains, `stop-opacity`, `gradientTransform`. A gradient on a stroked line is flattened to its average color (`warnings`).
+- `filter` with `feGaussianBlur` becomes a blur on each shape it covers; other filter primitives are ignored with a warning.
+- `mix-blend-mode` becomes the stroke's `blend`.
+- `clip-path="url(#id)"` whose `clipPath` holds one path, rect, circle, ellipse or polygon becomes the stroke's `clip`.
+
 Reported, not silent:
-- Gradients are flattened to their average color and returned in `warnings`; stack several bands for a real gradient.
 - A filled path with more than 64 curve segments is flattened to a polygon (`warnings`).
 - Points outside the canvas are clamped; the number is returned as `clampedPoints`.
 
-Refused with the element or attribute named: `text`, `image`, `filter`, `clipPath`, `mask`, `pattern`, `marker`, `symbol`, `style`, `foreignObject`, and `clip-path`/`mask`/`filter` attributes. The `viewBox` must match the canvas ratio. One command may hold up to 200000 characters, and a batch still stops at the stroke and point budgets.
+Refused with the element or attribute named: `text`, `image`, `mask`, `pattern`, `marker`, `symbol`, `style` elements, `foreignObject`, and the `mask` attribute. The `viewBox` must match the canvas ratio. One command may hold up to 200000 characters, and a batch still stops at the stroke and point budgets.
+
+### Appearance of a stroke
+
+Every stroke (native or from SVG) can carry four optional appearance fields, all kept as data so the object stays editable:
+
+| Field | Meaning |
+| --- | --- |
+| `gradient` | `linear` (`x1,y1,x2,y2`) or `radial` (`cx,cy,r`) with 2–8 stops; coordinates are relative to the shape's own box, so moving or scaling the object keeps the gradient |
+| `blur` | softens the stroke by that many canvas pixels (glow, shadow, haze) |
+| `blend` | `multiply`, `screen`, `overlay`, `soft-light`, `hard-light`, `color-dodge`, `color-burn`, `darken`, `lighten`, `lighter`; blends with what is already painted on the same layer |
+| `clip` | a polygon, bezier, rectangle or circle that the stroke is cut to, so shading stays inside the form it shades |
+
+A layer can blend with the layers under it: `{op:"layer",action:"blend",id:2,value:"multiply"}` (`normal` clears it). Gradient, blur, blend and clip are included in object transforms, saved drafts and exports.
+
+## Feedback tools for drawing from a reference
+
+The tools only measure and show; they never draw. The model decides every stroke.
+
+- `reference` puts the attached reference picture into the board as a hidden image layer.
+- `preview` returns the rendered PNG. `mode:"side"` shows reference and drawing next to each other; `mode:"diff"` adds a difference heat map (luma, chroma and edges); `box` zooms into a region (up to 3×); `grid` overlays canvas-pixel coordinates; `compare` overlays the two at 50%.
+- `measure` compares drawing and reference and returns the error (0 = identical), the worst cells, the reference and drawing colour at given `points`, the main colours (`palette`), where each main colour sits (`regions`), and a `scan` ruler along a line that lists colour runs with start and end positions, so edges can be placed exactly. `box` limits it to a region.
+- `apply` returns `progress` (error before and after the batch); `look:true` also returns a small preview, so the model sees what each batch did.
+- `undo` takes back the last `steps` batches.
+- The `guide` in `inspect` help describes the working method: plan, big to small, measure instead of guessing, five-tone shading with tinted shadows, undo what made things worse.
+
+An automatic tracing command was built and removed again: copying the reference pixels is not drawing, and the point of the tools is that the model's own strokes get better.
+
+## Replay and video
+
+The board keeps the state before each change. **Replay** (button beside Drafts) plays the drawing back stroke by stroke in the order it was made: lines are drawn along their path, filled shapes are outlined first and then filled from top to bottom. Speed presets 12 / 30 / 60 seconds and a scrubber. **Record** captures the replay as a WebM video with `MediaRecorder`; the video is shown inside the board and only saved when the user clicks Save video. Nothing is downloaded automatically.
 
 ## Lifecycle and recovery
 
@@ -66,7 +101,7 @@ Document, history, run state and deduplication receipts belong to the plugin's
 session registry, not the input component. Switching away and back in the same
 page preserves them. Closing the board does not stop drawing. Explicit stop is
 preserved across remounts; only the user can resume it. An abandoned run unlocks
-after three minutes without a tool operation.
+after fifteen minutes without a tool operation (long script work between drawing calls is normal).
 
 The browser bridge is active while that session is viewed. A different session
 has its own document and single authenticated browser lease. Connection failures
