@@ -8,7 +8,7 @@ const historyHash = messages => hash(messages.map(({ source, ...message }) => ({
 const MAX_BYTES = 2 * 1024 * 1024
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
-export function createCompactionBridge({ enabled = () => false, threshold = () => 100000, accountScope, diagnostic = () => {}, now = Date.now }) {
+export function createCompactionBridge({ enabled = () => false, threshold, accountScope, diagnostic = () => {}, now = Date.now }) {
  const scope = new AsyncLocalStorage()
  const stats = { requests: 0, checkpointsSaved: 0, checkpointsReused: 0 }
  const wrapStream = (factory, options) => (async function* () {
@@ -65,10 +65,14 @@ export function createCompactionBridge({ enabled = () => false, threshold = () =
     stats.requests = Math.min(Number.MAX_SAFE_INTEGER, stats.requests + 1)
     if (state.suffix) stats.checkpointsReused = Math.min(Number.MAX_SAFE_INTEGER, stats.checkpointsReused + 1)
    }
-   const configured = threshold()
-   if (!Number.isSafeInteger(configured) || configured < 1000) throw new Error('Invalid compaction threshold')
-   const limit = Number.isFinite(contextWindow) && contextWindow >= 2000
-    ? Math.min(configured, Math.floor(contextWindow / 2)) : configured
+   const windowKnown = Number.isFinite(contextWindow) && contextWindow >= 2000
+   // Without an explicit threshold the request compacts late, like DSH's own compaction: at 80% of the window,
+   // or when only the output reserve (at most 64Ki) is left. A larger window therefore compacts later, which keeps
+   // the cached prefix intact for longer. An explicit threshold can only lower that point.
+   const configured = threshold?.()
+   if (configured !== undefined && (!Number.isSafeInteger(configured) || configured < 1000)) throw new Error('Invalid compaction threshold')
+   const byWindow = windowKnown ? Math.floor(Math.min(contextWindow * 0.8, contextWindow - Math.min(65536, contextWindow / 4))) : 100000
+   const limit = configured === undefined ? byWindow : windowKnown ? Math.min(configured, Math.floor(contextWindow / 2)) : configured
    if (!Number.isSafeInteger(limit) || limit < 1000) throw new Error('Invalid compaction threshold')
    return { ...payload, input: [...(state.suffix ?? []), ...payload.input], context_management: [{ type: 'compaction', compact_threshold: limit }] }
   },

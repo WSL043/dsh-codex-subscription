@@ -99,3 +99,12 @@ test('small context caps the trigger and disabling cloud restores original histo
  assert.equal(f.wires.at(-1).context_management,undefined)
  assert.equal(f.wires.at(-1).input.length,3)
 })
+
+test('without an explicit threshold the trigger follows the context window instead of a fixed 100k', async () => {
+ const wide=createCompactionBridge({enabled:()=>true,accountScope:async()=>'a'})
+ const trigger=(window)=>wide.preparePayload({input:[]},window)
+ const run=(window)=>{ let out; const adapter={stream:async function*(o){out=trigger(window);yield {type:'finish',reason:{kind:'stop'}}}}; return wide.wrapAdapter(adapter).stream({provider:'openai-codex',model:'m',messages:[{role:'user',content:'x'}]}).next().then(()=>out) }
+ assert.equal((await run(872000)).context_management[0].compact_threshold,697600)
+ assert.equal((await run(272000)).context_management[0].compact_threshold,206464)
+ assert.equal((await run(undefined)).context_management[0].compact_threshold,100000)
+})
