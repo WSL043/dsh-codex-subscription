@@ -212,3 +212,10 @@ test('a promise to go and do something is recognised in Chinese, Japanese and En
   for (const text of ['深圳今天的天气，我看一下。', 'ちょっと調べますね', "Sure, let me check that", '好，我查一下']) assert.equal(promisesAction(text), true, text)
   for (const text of ['嗯，是啊。', 'はい、聞こえてます。', 'I do, quite a lot.']) assert.equal(promisesAction(text), false, text)
 })
+
+test('a 403 from the voice backend hints at two-step verification', async () => {
+  const { createVoiceCall } = await import('../src/remote-control-realtime.js')
+  const call = status => createVoiceCall({ fetch: async () => ({ ok: false, status, text: async () => 'denied', headers: new Headers() }), credentials: async () => ({ access: 'a', accountId: 'b' }), userAgent: 'test/1', sdp: 'v=0', session: {} })
+  await assert.rejects(call(403), /HTTP 403.*two-step verification/u)
+  await assert.rejects(call(500), error => !/two-step/u.test(error.message))
+})
