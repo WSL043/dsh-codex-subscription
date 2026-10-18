@@ -42,7 +42,7 @@ export function applySketchCommands(source, commands, report) {
         const id=command.id??doc.nextId,after=command.after??doc.active
         if(!Number.isSafeInteger(id)||id<1||id===Number.MAX_SAFE_INTEGER||doc.layers.some(l=>l.id===id))throw Error('New layer id must be a unique positive integer; omit id to allocate automatically')
         const next=changeSketchLayer(doc,'add',after)
-        if(next===doc)throw Error('Cannot add layer: check the existing after layer and the 8-layer limit')
+        if(next===doc)throw Error(doc.layers.length>=8?'Cannot add layer: the board already has 8 layers, the most it holds. Draw on an existing layer, or delete or merge one first.':'Cannot add layer: after must be the id of an existing layer')
         doc={...next,active:id,nextId:Math.max(next.nextId,id+1),layers:next.layers.map(l=>l.id===next.active?{...l,id,name:String(command.value??'').trim().slice(0,40)}:l)}
         continue
       }
