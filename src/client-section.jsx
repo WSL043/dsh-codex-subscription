@@ -1,15 +1,12 @@
 import { useEffect, useId, useState } from 'react'
 import { useAccountStatusSnapshot } from './client-shared.js'
-import { ImagePreferences } from './image-preferences.jsx'
-import { PreferencesCard } from './client-preferences.jsx'
+import { CreatePage, FeatureOverview, ModelsPage, MorePage, QuotaSettingsCard, ToolsPage } from './client-pages.jsx'
 import { AccountCard, AccountFailureCard } from './client-account.jsx'
-import { DiagnosticsCard } from './client-diagnostics.jsx'
-import { StorageCard } from './client-storage.jsx'
 import { UsageCard } from './client-usage.jsx'
 export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, defaultModel }) {
-  const [tab, setTab] = useState('account')
+  const [tab, setTab] = useState('start')
   const id = useId()
-  const tabs = ['account', 'advanced', 'interop', 'creative', 'maintenance']
+  const tabs = ['start', 'models', 'tools', 'create', 'more']
   const accountSnapshot = useAccountStatusSnapshot(accountStatus)
   const account = accountSnapshot.account
   const [resetKey, setResetKey] = useState(0)
@@ -32,19 +29,15 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
           event.preventDefault(); setTab(tabs[next]); document.getElementById(`${id}-${tabs[next]}-tab`)?.focus()
         }}>{t(`settingsTab_${value}`)}</button>)}
     </div>
-    <div role="tabpanel" id={`${id}-account`} aria-labelledby={`${id}-account-tab`} hidden={tab !== 'account'}>
+    <div role="tabpanel" id={`${id}-start`} aria-labelledby={`${id}-start-tab`} hidden={tab !== 'start'}>
     {accountSnapshot.status === 'error' ? <AccountFailureCard accountStatus={accountStatus} snapshot={accountSnapshot} t={t} rpc={rpc} onRecovered={accountChanged} /> : <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} />}
     {account === undefined ? null : <UsageCard key={resetKey} rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} preference={preference} />}
-    <PreferencesCard rpc={rpc} preference={preference} t={t} />
+    <FeatureOverview preference={preference} t={t} go={setTab} />
+    <QuotaSettingsCard preference={preference} t={t} />
     </div>
-    <div role="tabpanel" id={`${id}-advanced`} aria-labelledby={`${id}-advanced-tab`} hidden={tab !== 'advanced'}><PreferencesCard rpc={rpc} preference={preference} t={t} defaultModel={defaultModel} section="advanced" /></div>
-    <div role="tabpanel" id={`${id}-interop`} aria-labelledby={`${id}-interop-tab`} hidden={tab !== 'interop'}><PreferencesCard rpc={rpc} preference={preference} t={t} section="interop" /></div>
-    <div role="tabpanel" id={`${id}-creative`} aria-labelledby={`${id}-creative-tab`} hidden={tab !== 'creative'}>
-      <ImagePreferences preference={preference} t={t} />
-      <ImagePreferences preference={preference} t={t} section="sketch" />
-    </div>
-    <div role="tabpanel" id={`${id}-maintenance`} aria-labelledby={`${id}-maintenance-tab`} hidden={tab !== 'maintenance'}>
-      <StorageCard rpc={rpc} t={t} /><DiagnosticsCard rpc={rpc} t={t} diagnostics={diagnostics} />
-    </div>
+    <div role="tabpanel" id={`${id}-models`} aria-labelledby={`${id}-models-tab`} hidden={tab !== 'models'}><ModelsPage preference={preference} t={t} defaultModel={defaultModel} /></div>
+    <div role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}><ToolsPage preference={preference} rpc={rpc} t={t} go={setTab} /></div>
+    <div role="tabpanel" id={`${id}-create`} aria-labelledby={`${id}-create-tab`} hidden={tab !== 'create'}><CreatePage preference={preference} t={t} /></div>
+    <div role="tabpanel" id={`${id}-more`} aria-labelledby={`${id}-more-tab`} hidden={tab !== 'more'}><MorePage preference={preference} rpc={rpc} t={t} diagnostics={diagnostics} /></div>
   </section>
 }
