@@ -1,5 +1,6 @@
 import { createSettingsAdapter } from './settings-adapter.js'
 import { observeAdapter } from './request-observer.js'
+import { createHiddenModelDirectory } from './hidden-model-directory.js'
 import { createDefaultModelController } from './default-model.js'
 import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { createSubscriptionConnection } from './subscription-connection.js'
@@ -395,7 +396,28 @@ export function apply(ctx, config = {}) {
     auth: adapterAuth,
     resolveAttachments: () => ctx.get?.('attachments'),
   })
-  ctx.llm.registerAdapter([PROVIDER], observeAdapter(compaction.wrapAdapter(adapter), provider))
+  // Hiding a model means "do not use it": the host directory drops hidden models, except those a session, the default or a plugin setting still uses.
+  const hiddenDirectory = createHiddenModelDirectory({
+    provider: PROVIDER,
+    disabled: () => normalizeDisabledModels(settings.get()[DISABLED_MODELS_FIELD]),
+    pinned: () => {
+      const keep = []
+      try {
+        for (const session of ctx.get?.('sessions')?.list?.() ?? []) {
+          const route = session.requestContext?.()
+          if (route?.provider === PROVIDER && typeof route.model === 'string') keep.push(route.model)
+        }
+      } catch {}
+      const selection = defaultModel.status()
+      if (selection.managed) keep.push(selection.model)
+      return keep
+    },
+    fallback: () => { const selection = defaultModel.status(); return selection.managed ? selection.model : undefined },
+    emit: () => ctx.llm.emitAdaptersUpdated?.(),
+  })
+  ctx.effect(() => settings.watch((value, previous) => hiddenDirectory.settingsChanged(normalizeDisabledModels(value[DISABLED_MODELS_FIELD]), normalizeDisabledModels(previous[DISABLED_MODELS_FIELD]))), 'codex-subscription: hidden model directory')
+  ctx.effect(() => ctx.on?.('session/event', (_session, event) => { if (event?.type === 'request/context') hiddenDirectory.dependenciesChanged() }), 'codex-subscription: hidden model dependencies')
+  ctx.llm.registerAdapter([PROVIDER], hiddenDirectory.wrap(observeAdapter(compaction.wrapAdapter(adapter), provider)))
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
   // With "other models" switched off, subscription search, images and connectors serve conversations on this plugin's own models only.
   const servesCurrentModel = () => {
