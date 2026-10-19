@@ -377,4 +377,11 @@ DSH 插件交流可前往 [DeepSeek Harness Discussions](https://github.com/deep
 
 如果这个项目对你有帮助，[点一下 Star](https://github.com/WSL043/dsh-codex-subscription/stargazers) 可以让更多 DSH 用户发现它。
 
+<a href="https://star-history.com/#WSL043/dsh-codex-subscription&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date&theme=dark" />
+    <img alt="Star 趋势" src="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date" />
+  </picture>
+</a>
+
 [MIT](LICENSE)
