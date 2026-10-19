@@ -526,3 +526,15 @@ test('image generation can be turned off for conversations on other models and s
   await open.tool.execute({ prompt: 'a lighthouse' }, execContext('call-codex'))
   assert.equal(open.requests.length, 1)
 })
+
+test('a backend 403 says the account was refused instead of asking to sign in again (#173)', async () => {
+  const refused = body => fixture({ async fetch() { return new Response(body, { status: 403, headers: { 'content-type': 'application/json', 'x-codex-imagegen-request-id': 'req_1' } }) } }).tool
+  await assert.rejects(refused(JSON.stringify({ detail: 'Image generation is not available on your plan' })).execute({ prompt: 'x' }, execContext('r1')),
+    { message: /^ChatGPT refused Codex image generation for this account \(HTTP 403: Image generation is not available on your plan\)\. The sign-in itself is fine.*\(request req_1\)$/u })
+  await assert.rejects(refused(JSON.stringify({ error: { message: 'see https://x.test/?token=abc' } })).execute({ prompt: 'x' }, execContext('r2')),
+    { message: /^ChatGPT refused Codex image generation for this account \(HTTP 403\)\. /u })
+  const expired = fixture({ async fetch() { return new Response('{}', { status: 401 }) } }).tool
+  await assert.rejects(expired.execute({ prompt: 'x' }, execContext('r3')), { message: 'ChatGPT sign-in needs to be renewed' })
+  const blocked = fixture({ async fetch() { return new Response('<html>Just a moment</html>', { status: 403, headers: { 'content-type': 'text/html', server: 'cloudflare' } }) } }).tool
+  await assert.rejects(blocked.execute({ prompt: 'x' }, execContext('r4')), /blocked this request/u)
+})

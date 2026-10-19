@@ -521,3 +521,28 @@ test('official reviewer follows the account catalog, overrides and low effort', 
   assert.equal(officialReviewModel({ models: [{ slug: 'gpt-6-sol' }] }, 'gpt-6-sol'), undefined)
   assert.equal(officialReviewModel(undefined, 'gpt-6-sol'), undefined)
 })
+
+test('a failed first catalog read is retried on its own, and stops once the list is there (#187)', async () => {
+  const timers = []
+  let calls = 0
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => base,
+    retryDelaysMs: [5, 10],
+    setTimeout: (callback, delay) => { const timer = { callback, delay, cleared: false }; timers.push(timer); return timer },
+    clearTimeout: timer => { timer.cleared = true },
+    getAuth: async () => ({ auth: { apiKey: 'test-token' } }),
+    readCredential: async () => ({ type: 'oauth', access: 'test-token', accountId: 'test-account' }),
+    fetch: async () => ++calls < 3 ? new Response('', { status: 403 }) : Response.json({ models: [remote()] }),
+  })
+  const settle = () => new Promise(resolve => setImmediate(resolve))
+  const fire = delay => { const timer = timers.find(item => item.delay === delay && !item.cleared); timer.cleared = true; timer.callback() }
+  await assert.rejects(catalog.refresh(), /HTTP 403/)
+  assert.equal(catalog.getModels().length, 0)
+  fire(5); await settle(); await settle()
+  assert.equal(calls, 2)
+  fire(10); await settle(); await settle()
+  assert.equal(calls, 3)
+  assert.equal(catalog.getModels().length, 1)
+  assert.equal(catalog.status().source, 'online')
+  assert.equal(timers.filter(item => item.delay === 5 || item.delay === 10).every(item => item.cleared), true)
+})
