@@ -167,6 +167,7 @@ export function apply(ctx, config = {}) {
     readCredential: options => store.read(PROVIDER, options),
     baseModels: () => baseProvider.getModels(),
     fetch: (input, init) => network.fetch('catalog', input, init),
+    retryDelaysMs: [5_000, 15_000, 30_000, 60_000, 120_000, 300_000],
   })
   const connection = createSubscriptionConnection({ resolveMode: () => settings.get().connectionMode })
   // The settings surface edits DSH's own default model instead of keeping a

@@ -5,7 +5,7 @@ import { ORIGINAL_IMAGE_SCHEMA_VERSION } from './image-original-contract.js'
 import { USER_AGENT } from './version.js'
 import { IMAGE_MODELS, resolveImageModel, validateImageQuality } from './image-models.js'
 import { assertImageOperation, readImageDefaults } from './image-features.js'
-import { authFailureMessage } from './http-failure.js'
+import { authFailureMessage, SIGN_IN_RENEW } from './http-failure.js'
 
 export const CODEX_IMAGE_TOOL_NAME = 'codex_image_generate'
 export const CODEX_IMAGE_GENERATION_URL = 'https://chatgpt.com/backend-api/codex/images/generations'
@@ -315,6 +315,21 @@ async function limitMessage(response, now = Date.now()) {
   return `Codex image generation limit reached; it resets in about ${minutes >= 120 ? `${Math.round(minutes / 60)} hours` : `${minutes} minutes`}`
 }
 
+const REFUSAL_REASON = /^[\p{L}\p{N} .,:;'()_-]{1,160}$/u
+
+/** What a backend 403 from the image endpoint says, with the server's short reason when it is plain text. */
+async function refusalMessage(response, editing) {
+  let reason
+  try {
+    const value = JSON.parse(await readTextWithin(response, 16 * 1024))
+    const error = record(value?.error) ? value.error : undefined
+    const text = [error?.message, value?.detail, error?.code].find(item => typeof item === 'string' && REFUSAL_REASON.test(item.trim()))
+    reason = text?.trim()
+  } catch { /* no readable reason */ }
+  return `ChatGPT refused Codex image ${editing ? 'editing' : 'generation'} for this account (HTTP 403${reason === undefined ? '' : `: ${reason}`}). `
+    + 'The sign-in itself is fine, so signing in again will not help: this account\'s plan or workspace may not include Codex image generation'
+}
+
 async function readTextWithin(response, maximumBytes) {
   if (response.body === null || response.body === undefined) return ''
   const reader = response.body.getReader()
@@ -480,8 +495,11 @@ export function createCodexImageTool(options) {
       }
       if (!response.ok) {
         const authFailure = await authFailureMessage(response)
-        if (authFailure !== undefined) throw new Error(authFailure)
         const requestId = supportId(response)
+        // A 403 the ChatGPT backend itself sends is a refusal for this account (plan, workspace or region), not an
+        // expired sign-in: signing in again changes nothing, so say so instead of asking for it (#173).
+        if (response.status === 403 && authFailure === SIGN_IN_RENEW) throw new Error(`${await refusalMessage(response, editing)}${requestId}`)
+        if (authFailure !== undefined) throw new Error(authFailure)
         if (response.status === 429) throw new Error(`${await limitMessage(response)}${requestId}`)
         throw new Error(`Codex image ${editing ? 'edit' : 'generation'} failed (HTTP ${response.status})${requestId}`)
       }

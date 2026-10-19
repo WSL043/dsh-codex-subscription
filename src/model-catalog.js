@@ -211,6 +211,21 @@ export function createOfficialModelCatalog(options = {}) {
   let refreshing
   let generation = 0
   let refreshStatus = 'idle'
+  // Until the first catalog read succeeds the picker is empty, so a failed read (timeout, network block, proxy hiccup)
+  // is tried again on its own after these delays instead of waiting for the settings page or a restart (#187).
+  const retryDelays = Array.isArray(options.retryDelaysMs) ? options.retryDelaysMs.filter(delay => Number.isFinite(delay) && delay > 0) : []
+  let retries = 0
+  let retryTimer
+  const stopRetry = () => { if (retryTimer !== undefined) cancelTimeout(retryTimer); retryTimer = undefined }
+  const scheduleRetry = currentGeneration => {
+    if (models !== undefined || currentGeneration !== generation || retryTimer !== undefined || retries >= retryDelays.length) return
+    retryTimer = scheduleTimeout(() => {
+      retryTimer = undefined
+      if (models !== undefined || currentGeneration !== generation) return
+      refresh().catch(() => {})
+    }, retryDelays[retries++])
+    retryTimer.unref?.()
+  }
 
   const refresh = ({ signal } = {}) => {
     if (signal?.aborted) return Promise.reject(signal.reason ?? new Error('Codex model catalog refresh aborted'))
@@ -292,6 +307,7 @@ export function createOfficialModelCatalog(options = {}) {
         refreshing = undefined
         refreshStatus = outcome
       }
+      if (outcome === 'ok') { retries = 0; stopRetry() } else if (outcome === 'failed') scheduleRetry(currentGeneration)
     })
     refreshing = { generation: currentGeneration, promise, cancel: () => controller.abort() }
     return promise
@@ -316,6 +332,8 @@ export function createOfficialModelCatalog(options = {}) {
       const flight = refreshing
       refreshing = undefined
       flight?.cancel()
+      stopRetry()
+      retries = 0
       models = undefined
       rawCatalog = undefined
       metadata = new Map()
