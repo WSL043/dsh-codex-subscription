@@ -558,6 +558,37 @@ test('DSH workspaces appear as the phone projects and new chats can start in one
   assert.deepEqual(forks.find(entry => entry[0] === 'create')[1], { workspaceId: 'w1' })
 })
 
+test('a new chat in the folder of a workspace is filed under it, but not one in a folder inside it', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'dsh-rc-workspace-'))
+  try {
+    const inner = join(root, 'inner')
+    await mkdir(inner)
+    const created = []
+    let refuse = false
+    const made = fakeControl()
+    const bridge = createDshRemoteControl({
+      controller: () => ({
+        resolveAgent: async id => ({ agent: { session: { ...made.session, id }, options: { provider: 'openai-codex', model: 'gpt-6' } } }),
+        list: async () => ({ items: [] }), modelCatalog: async () => ({ groups: [] }), selectModel: async () => {},
+        create: async request => { created.push(request); if (refuse && request.workspaceId) throw Object.assign(new Error('cannot attach session'), refuse === 'attached' ? { code: 'session/workspace-attach-failed', details: { sessionId: 's1', workspaceId: 'w1' } } : {}); return { sessionId: 's1' } },
+      }),
+      workspaces: () => ({ archivedSessionIds: [], list: () => [{ id: 'w1', path: `${root}/`, title: 'App', sessionIds: [], createdAt: 1, updatedAt: 1 }] }), userAgent: 'x/1',
+    })
+    const start = params => bridge.methods['thread/start'](params, { notify: async () => {} })
+    await start({ cwd: root })
+    await start({ cwd: root, projectId: 'unknown' })
+    await start({ cwd: inner })
+    refuse = true
+    await start({ cwd: root })
+    assert.deepEqual(created, [{ workspaceId: 'w1' }, { workspaceId: 'w1' }, { cwd: inner }, { workspaceId: 'w1' }, { cwd: root }])
+    // DSH's own refusal names the session it already created: that one is kept, no second chat is made
+    refuse = 'attached'
+    created.length = 0
+    await start({ cwd: root })
+    assert.deepEqual(created, [{ workspaceId: 'w1' }])
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
+
 test('thread/list filters by folder and excluded ids and pages with a cursor', async () => {
   const { bridge } = bridgeWithWorkspaces()
   assert.deepEqual((await bridge.methods['thread/list']({ cwd: 'C:/other' }, {})).data.map(entry => entry.id), ['s2', 's3'])
