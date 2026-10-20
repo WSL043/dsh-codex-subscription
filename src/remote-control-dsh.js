@@ -1028,6 +1028,13 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
 
   /** DSH's ask-user tool: show the questions on the phone that drives the turn, else leave them to DSH. */
   const onQuestion = (request, next) => {
+    const threadId = request.agent?.session?.id
+    if (realtimeVoice?.active(threadId)) {
+      return realtimeVoice.askQuestion(threadId, request).catch(error => {
+        if (request.signal?.aborted) throw error
+        return next()
+      })
+    }
     const found = phoneFor(request)
     trace({ method: 'hook:user-questions', phone: Boolean(found), session: request.agent?.session?.id ?? null })
     if (!found) return next()
@@ -1208,6 +1215,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return { answer }
     },
     stop: sessionId => realtimeVoice.stop(sessionId),
+    interrupt: sessionId => realtimeVoice.interrupt(sessionId),
     end: sessionId => realtimeVoice.requestClose(sessionId),
     status: sessionId => realtimeVoice.status(sessionId),
   })

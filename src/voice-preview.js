@@ -1,31 +1,36 @@
 // A short sample of each live voice for the settings page, from the same catalog ChatGPT's own voice picker reads
-// (GET settings/voices): every entry has a name, a one-line description and a static preview clip.
+// (GET settings/voices?spoken_language=...): samples are localized independently of descriptions.
+import { normalizeVoiceLanguage } from './settings-contract.js'
 const BASE = 'https://chatgpt.com/backend-api'
 const CATALOG_TTL_MS = 10 * 60_000
 const MAX_CLIP_BYTES = 2 * 1024 * 1024
 const PREVIEW_HOSTS = /^https:\/\/[a-z0-9.-]*oaistatic\.com\//u
 
 export function createVoicePreview({ fetch, credentials, userAgent, now = Date.now, base = BASE }) {
-  let catalog
-  const clips = new Map() // voice -> result; the samples are small and fixed, so they are kept for the run
-  const readCatalog = async () => {
+  const catalogs = new Map()
+  const clips = new Map()
+  const languageOf = value => { const language = normalizeVoiceLanguage(value); return language === 'auto' ? 'en' : language }
+  const readCatalog = async language => {
+    const catalog = catalogs.get(language)
     if (catalog && now() - catalog.at < CATALOG_TTL_MS) return catalog.voices
     const { access, accountId } = await credentials()
-    const response = await fetch(`${base}/settings/voices`, { headers: { authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, accept: 'application/json', 'user-agent': userAgent }, signal: AbortSignal.timeout(15_000) })
+    const response = await fetch(`${base}/settings/voices?spoken_language=${language}`, { headers: { authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, accept: 'application/json', 'user-agent': userAgent }, signal: AbortSignal.timeout(15_000) })
     if (!response.ok) throw new Error(`voice catalog HTTP ${response.status}`)
     const value = await response.json()
     const voices = (Array.isArray(value?.voices) ? value.voices : []).filter(entry => typeof entry?.name === 'string' && typeof entry?.preview_url === 'string' && PREVIEW_HOSTS.test(entry.preview_url))
-    catalog = { at: now(), voices }
+    catalogs.set(language, { at: now(), voices })
     return voices
   }
   return {
     /** Which voices ChatGPT's own catalog offers right now (lower-case names), so the settings can mark the others unavailable. */
-    async available() { return (await readCatalog()).map(entry => entry.name.toLowerCase()) },
+    async available(language) { return (await readCatalog(languageOf(language))).map(entry => entry.name.toLowerCase()) },
     /** The clip of one voice (by its Codex name, e.g. "spruce") as a data URL, with the catalog's description. */
-    async preview(voice) {
+    async preview(voice, selectedLanguage) {
       if (typeof voice !== 'string' || !/^[a-z]{2,16}$/u.test(voice)) return undefined
-      if (clips.has(voice)) return clips.get(voice)
-      const entry = (await readCatalog()).find(item => item.name.toLowerCase() === voice || item.voice === voice)
+      const language = languageOf(selectedLanguage)
+      const key = `${language}:${voice}`
+      if (clips.has(key)) return clips.get(key)
+      const entry = (await readCatalog(language)).find(item => item.name.toLowerCase() === voice || item.voice === voice)
       if (!entry) return undefined
       const response = await fetch(entry.preview_url, { signal: AbortSignal.timeout(15_000) })
       if (!response.ok) throw new Error(`voice sample HTTP ${response.status}`)
@@ -33,7 +38,7 @@ export function createVoicePreview({ fetch, credentials, userAgent, now = Date.n
       if (bytes.byteLength === 0 || bytes.byteLength > MAX_CLIP_BYTES) throw new Error('voice sample has an unexpected size')
       const type = /\.mp3(?:$|\?)/u.test(entry.preview_url) ? 'audio/mpeg' : 'audio/mp4'
       const result = { name: entry.name, description: typeof entry.description === 'string' ? entry.description.slice(0, 120) : '', accent: typeof entry.accent === 'string' ? entry.accent.slice(0, 60) : '', audio: `data:${type};base64,${bytes.toString('base64')}` }
-      if (clips.size < 40) clips.set(voice, result)
+      if (clips.size < 40) clips.set(key, result)
       return result
     },
   }

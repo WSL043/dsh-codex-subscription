@@ -1,4 +1,5 @@
 import { CHANNEL } from './rpc-contract.js'
+import { createBargeInGate } from './voice-barge-in.js'
 
 const ICE_WAIT_MS = 3_000
 
@@ -67,9 +68,11 @@ export async function openVoiceCall({ rpc, sessionId, onEnd }) {
   for (const track of stream.getTracks()) connection.addTrack(track, stream)
   connection.createDataChannel('oai-events')
   let ended = false
+  let monitor
   const end = async () => {
     if (ended) return
     ended = true
+    clearInterval(monitor)
     if (context) chime(context, [740, 520])
     for (const track of stream.getTracks()) track.stop()
     sound.srcObject = null
@@ -96,12 +99,22 @@ export async function openVoiceCall({ rpc, sessionId, onEnd }) {
   if (context) chime(context, [520, 740])
   const buffers = { mic: new Uint8Array(512), assistant: new Uint8Array(512) }
   let muted = false
+  let outputMuted = false
+  let interrupted = false
+  const gate = createBargeInGate({
+    changed: value => { interrupted = value; sound.muted = outputMuted || interrupted },
+    interrupt: () => { void rpc.call(CHANNEL, 'voice/interrupt', { sessionId }).catch(() => {}) },
+  })
+  if (context) monitor = setInterval(() => gate.sample({
+    mic: muted ? 0 : loudness(analysers.mic, buffers.mic),
+    output: loudness(analysers.assistant, buffers.assistant), now: performance.now(),
+  }), 30)
   return {
     stop: end,
     isMuted: () => muted,
     setMuted: value => { muted = value; for (const track of stream.getAudioTracks()) track.enabled = !value },
-    isOutputMuted: () => sound.muted,
-    setOutputMuted: value => { sound.muted = value },
+    isOutputMuted: () => outputMuted,
+    setOutputMuted: value => { outputMuted = value; sound.muted = outputMuted || interrupted },
     /** How loud the person (mic) and the model (voice) are right now, 0..1 each. */
     levels: () => ({ mic: muted ? 0 : loudness(analysers.mic, buffers.mic), assistant: loudness(analysers.assistant, buffers.assistant) }),
   }

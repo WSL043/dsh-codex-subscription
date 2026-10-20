@@ -47,6 +47,16 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
           : 'Could not save the default model')
       }
     }
+    if (endpoint === 'voice/interrupt') {
+      try {
+        signal.throwIfAborted()
+        if (typeof desktopVoice?.interrupt !== 'function' || typeof payload?.sessionId !== 'string') return publicError('unavailable', 'Voice is unavailable')
+        return { ok: true, value: { interrupted: desktopVoice.interrupt(payload.sessionId) } }
+      } catch (error) {
+        if (signal.aborted) throw error
+        return publicError('operation-error', 'Could not interrupt voice')
+      }
+    }
     if (endpoint === 'voice/status') {
       try {
         signal.throwIfAborted()
@@ -75,8 +85,8 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
       try {
         signal.throwIfAborted()
         if (!voicePreview) return publicError('unavailable', 'Voice preview is unavailable')
-        if (endpoint === 'voice/catalog') return { ok: true, value: { voices: await voicePreview.available() } }
-        const value = await voicePreview.preview(payload?.voice)
+        if (endpoint === 'voice/catalog') return { ok: true, value: { voices: await voicePreview.available(payload?.language) } }
+        const value = await voicePreview.preview(payload?.voice, payload?.language)
         return value === undefined ? publicError('not-found', 'No sample for this voice') : { ok: true, value }
       } catch (error) {
         if (signal.aborted) throw error

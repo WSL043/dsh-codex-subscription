@@ -41,6 +41,37 @@ test('joining an existing call: the side channel opens on the call id and the ph
   assert.deepEqual(notes[0].params, { threadId: 't1', version: 'v3', realtimeSessionId: 'S1' })
 })
 
+test('a spoken choice resolves the running DSH question without queuing behind that same turn', async () => {
+  let answer, asked
+  const ready = new Promise(resolve => { asked = resolve })
+  const { voice, notify, delegated } = setup({ work: async () => {
+    const waiting = voice.askQuestion('t1', { questions: [{ id: 'pick', question: 'Pick a colour', options: [{ label: 'Red' }, { label: 'Blue' }] }] })
+    asked()
+    answer = await waiting
+  } })
+  await voice.start(start, notify)
+  const [socket] = FakeSocket.instances
+  socket.hear({ type: 'delegation.created', item: { id: 'task', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: 'Ask me to choose' }] } })
+  await ready
+  socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: '第二个' } })
+  socket.hear({ type: 'delegation.created', item: { id: 'echo', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: '第二个' }] } })
+  await settle()
+  assert.deepEqual(answer, { answers: [{ id: 'pick', selected: ['Blue'] }] })
+  assert.equal(delegated.length, 1)
+  assert.equal(voice.status('t1').working, false)
+  voice.stop('t1')
+})
+
+test('interrupting speech redirects the voice without stopping the call or the DSH task', async () => {
+  const { voice, notify } = setup()
+  await voice.start(start, notify)
+  assert.equal(voice.interrupt('t1'), true)
+  assert.equal(FakeSocket.instances[0].sent.at(-1).type, 'session.context.append')
+  assert.equal(FakeSocket.instances[0].sent.at(-1).channel, 'developer')
+  assert.equal(voice.active('t1'), true)
+  voice.stop('t1')
+})
+
 test('transcripts reach the phone, a spoken request runs as a turn and its answer is spoken back', async () => {
   const { voice, notes, notify, delegated } = setup({ work: async onMessage => { onMessage('[STATUS] Looking.'); onMessage('[COMPLETE] It is done.') } })
   await voice.start(start, notify)

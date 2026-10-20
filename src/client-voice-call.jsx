@@ -238,6 +238,7 @@ function ChoiceRow({ label, items, selectedId, disabled, onSelect, trailing = nu
 /** Settings for the composer's voice button: on or off, the voice (with a short sample to listen to) and the answer language. */
 export function VoiceCallCard({ rpc, preference, snapshot, t }) {
   const audio = useRef()
+  const previewSequence = useRef(0)
   const alive = useRef(false)
   const [offered, setOffered] = useState()
   const [sample, setSample] = useState({ state: 'idle', note: '' })
@@ -253,19 +254,20 @@ export function VoiceCallCard({ rpc, preference, snapshot, t }) {
     })()
   }, [on])
   /** Play a short clip of a voice; picking a voice plays it too, so it can be heard before it is used. */
-  const playVoice = async voice => {
+  const playVoice = async (voice, language = snapshot.voiceLanguage) => {
+    const sequence = ++previewSequence.current
     audio.current?.pause()
     setSample({ state: 'loading', note: '' })
     try {
-      const result = await rpc.call(CHANNEL, 'voice/preview', { voice })
-      if (!alive.current) return
+      const result = await rpc.call(CHANNEL, 'voice/preview', { voice, language })
+      if (!alive.current || sequence !== previewSequence.current) return
       if (!result.ok) { setSample({ state: 'missing', note: '' }); return }
       const clip = new Audio(result.value.audio)
       audio.current = clip
-      clip.onended = () => { if (alive.current) setSample(current => ({ ...current, state: 'idle' })) }
+      clip.onended = () => { if (alive.current && sequence === previewSequence.current) setSample(current => ({ ...current, state: 'idle' })) }
       setSample({ state: 'playing', note: [result.value.description, result.value.accent].filter(Boolean).join(' · ') })
       await clip.play()
-    } catch { if (alive.current) setSample({ state: 'missing', note: '' }) }
+    } catch { if (alive.current && sequence === previewSequence.current) setSample({ state: 'missing', note: '' }) }
   }
   // The voices ChatGPT lists (with a sample) come first; the rest sit in one submenu so the list stays short.
   const listed = VOICE_VOICES.filter(value => offered ? offered.includes(value) : VOICE_VOICES.indexOf(value) < 9)
@@ -284,7 +286,8 @@ export function VoiceCallCard({ rpc, preference, snapshot, t }) {
         trailing={<button className="codexSubscriptionContextTrigger" type="button" disabled={sample.state === 'loading'} onClick={() => { void playVoice(snapshot.voiceVoice) }}>{sample.state === 'loading' ? t('voiceLoading') : t('voicePlay')}</button>} />
       {sample.state === 'playing' && sample.note ? <p className="codexSubscriptionHelp" role="status">{sample.note}</p> : null}
       {sample.state === 'missing' ? <p className="codexSubscriptionHelp" role="status">{t('voiceNoSample')}</p> : null}
-      <ChoiceRow label={t('voiceLanguage')} disabled={!snapshot.writable} selectedId={snapshot.voiceLanguage} items={languages} onSelect={value => { void preference.set({ [VOICE_LANGUAGE_FIELD]: value }) }} />
+      <ChoiceRow label={t('voiceLanguage')} disabled={!snapshot.writable} selectedId={snapshot.voiceLanguage} items={languages} onSelect={value => { void preference.set({ [VOICE_LANGUAGE_FIELD]: value }); void playVoice(snapshot.voiceVoice, value) }} />
+      <p className="codexSubscriptionHelp">{t('voicePreviewHint')}</p>
     </> : null}
   </section>
 }

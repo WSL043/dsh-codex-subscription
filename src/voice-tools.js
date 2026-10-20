@@ -35,6 +35,7 @@ export function withEndCallTool(desktopVoice, register) {
     },
     stop(sessionId) { const result = desktopVoice.stop(sessionId); release(sessionId); return result },
     end: sessionId => desktopVoice.end(sessionId),
+    interrupt: sessionId => desktopVoice.interrupt(sessionId),
     status: sessionId => desktopVoice.status(sessionId),
   })
 }

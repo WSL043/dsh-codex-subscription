@@ -3,6 +3,8 @@
 // transcripts and the requests the voice model hands to the agent, runs them as DSH turns, and
 // sends the agent's answers back for the voice to speak.
 // api.openai.com is where the side channel of a ChatGPT-created call answers; realtime.chatgpt.com is kept as the fallback.
+import { createVoiceQuestions } from './voice-questions.js'
+
 const SIDEBAND_BASES = ['wss://api.openai.com/v1/live', 'wss://realtime.chatgpt.com/v1/live']
 const ACTIVATION_RETRY_MS = [100, 300, 800]
 const CONTEXT_APPEND_MAX_BYTES = 500
@@ -71,6 +73,7 @@ export const outbound = {
   sessionAppend: (text, channel) => ({ type: 'session.context.append', ...(channel ? { channel } : {}), content: content(text) }),
   delegationAppend: (delegationItemId, text, channel) => ({ type: 'delegation.context.append', delegation_item_id: delegationItemId, ...(channel ? { channel } : {}), content: content(text) }),
   close: () => ({ type: 'session.close' }),
+  interrupt: () => ({ type: 'session.context.append', channel: 'developer', content: content('The user has started speaking. Stop your current speech immediately and listen. Do not finish or repeat the interrupted answer. Respond to the user when they finish speaking.') }),
 }
 
 /** What the voice service sends, as the phone-facing notifications and the work to do. */
@@ -200,6 +203,7 @@ export function createRealtimeVoice(options) {
     clearTimeout(session.goodbye)
     clearTimeout(session.unhandledTimer)
     clearTimeout(session.closeTimer)
+    session.questions?.close()
     flushTail(threadId, session)
     try { session.ws.send(JSON.stringify(outbound.close())) } catch { /* already closed */ }
     try { session.ws.close() } catch { /* already closed */ }
@@ -223,7 +227,7 @@ export function createRealtimeVoice(options) {
       ...(typeof params.voiceSessionId === 'string' ? { 'voice-session-id': params.voiceSessionId } : {}),
     }
     const ws = await join(callId, headers)
-    const session = { ws, notify, ended: false, chain: Promise.resolve(), tail: [], lines: [], working: 0, flushTail: params.flushTranscriptTailOnSessionEnd !== false, silent: params.silentTailRecord === true, hangUp: params.hangUpOnGoodbye === true }
+    const session = { ws, notify, ended: false, chain: Promise.resolve(), tail: [], lines: [], working: 0, controls: new Set(), flushTail: params.flushTranscriptTailOnSessionEnd !== false, silent: params.silentTailRecord === true, hangUp: params.hangUpOnGoodbye === true }
     sessions.set(threadId, session)
     const send = message => { try { ws.send(JSON.stringify(message)) } catch (error) { log.warn('voice', 'could not send to the voice call', String(error?.message ?? error)) } }
     const speak = (delegationId, text) => {
@@ -232,7 +236,9 @@ export function createRealtimeVoice(options) {
       for (const piece of appendChunks(text)) send(delegationId ? outbound.delegationAppend(delegationId, piece, channel) : outbound.sessionAppend(piece, channel))
     }
     session.speak = speak
+    session.questions = createVoiceQuestions({ speak: text => speak(undefined, text) })
     const runRequest = (input, delegationId) => {
+      if (session.questions.consume(input, { delegation: true })) return
       session.chain = session.chain.then(async () => {
         if (session.ended) return
         try {
@@ -270,6 +276,14 @@ export function createRealtimeVoice(options) {
     }
     const seenTypes = new Set()
     ws.on('message', data => {
+      try {
+        const value = JSON.parse(String(data))
+        const id = value.client_event_id ?? value.error?.event_id
+        if (id && session.controls.delete(id)) {
+          if (value.type === 'error') log.warn('voice', 'the voice service refused an interruption command', String(value.error?.message ?? '').slice(0, 200))
+          return
+        }
+      } catch { /* ordinary voice events are parsed below */ }
       const event = parseEvent(String(data))
       // The first time each kind of message the voice service sends is noted, so what it does with our requests is visible.
       if (!event) { try { const type = JSON.parse(String(data))?.type; if (typeof type === 'string' && !seenTypes.has(type) && seenTypes.size < 40) { seenTypes.add(type); log.info('voice', `voice service message: ${type}`) } } catch { /* not JSON */ } }
@@ -283,6 +297,7 @@ export function createRealtimeVoice(options) {
         void notify('thread/realtime/transcript/done', { threadId, role: event.role, text: event.text }).catch(() => {})
         if (event.role !== 'user' && event.text.trim() !== '') session.lastVoice = { text: event.text, at: Date.now() }
         else if (event.role === 'user' && event.text.trim() !== '' && !(session.hangUp && isGoodbye(event.text))) {
+          if (session.questions.consume(event.text.trim())) return
           session.unhandled.push({ text: event.text.trim(), at: Date.now() })
           clearTimeout(session.unhandledTimer)
           session.unhandledTimer = setTimeout(settleUnhandled, handoverMs)
@@ -314,6 +329,7 @@ export function createRealtimeVoice(options) {
       if (session.ended || sessions.get(threadId) !== session) return
       sessions.delete(threadId)
       session.ended = true
+      session.questions.close()
       flushTail(threadId, session)
       log.warn('voice', 'the voice call closed')
       void notify('thread/realtime/closed', { threadId, reason: 'transportClosed' }).catch(() => {})
@@ -331,6 +347,18 @@ export function createRealtimeVoice(options) {
   }
 
   return {
+    askQuestion(threadId, request) {
+      const session = sessions.get(threadId)
+      return session ? session.questions.ask(request) : Promise.reject(new Error('No voice call is active'))
+    },
+    interrupt(threadId) {
+      const session = sessions.get(threadId)
+      if (!session) return false
+      const event_id = crypto.randomUUID()
+      if (session.controls.size > 20) session.controls.delete(session.controls.values().next().value)
+      session.controls.add(event_id)
+      try { session.ws.send(JSON.stringify({ ...outbound.interrupt(), event_id })); return true } catch { session.controls.delete(event_id); return false }
+    },
     start,
     stop,
     appendText: (threadId, text) => append(threadId, text, undefined),

@@ -24,3 +24,10 @@ test('the tool exists only while a desktop call is open', async () => {
   voice.stop('b')
   assert.equal(disposed, 1)
 })
+
+test('the desktop wrapper forwards speech interruption to the active call', async () => {
+  const interrupted = []
+  const voice = withEndCallTool({ interrupt: id => { interrupted.push(id); return true } }, () => {})
+  assert.equal(voice.interrupt('a'), true)
+  assert.deepEqual(interrupted, ['a'])
+})
