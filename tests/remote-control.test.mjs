@@ -570,7 +570,7 @@ test('a new chat in the folder of a workspace is filed under it, but not one in 
       controller: () => ({
         resolveAgent: async id => ({ agent: { session: { ...made.session, id }, options: { provider: 'openai-codex', model: 'gpt-6' } } }),
         list: async () => ({ items: [] }), modelCatalog: async () => ({ groups: [] }), selectModel: async () => {},
-        create: async request => { created.push(request); if (refuse && request.workspaceId) throw new Error('cannot attach session'); return { sessionId: 's1' } },
+        create: async request => { created.push(request); if (refuse && request.workspaceId) throw Object.assign(new Error('cannot attach session'), refuse === 'attached' ? { code: 'session/workspace-attach-failed', details: { sessionId: 's1', workspaceId: 'w1' } } : {}); return { sessionId: 's1' } },
       }),
       workspaces: () => ({ archivedSessionIds: [], list: () => [{ id: 'w1', path: `${root}/`, title: 'App', sessionIds: [], createdAt: 1, updatedAt: 1 }] }), userAgent: 'x/1',
     })
@@ -581,6 +581,11 @@ test('a new chat in the folder of a workspace is filed under it, but not one in 
     refuse = true
     await start({ cwd: root })
     assert.deepEqual(created, [{ workspaceId: 'w1' }, { workspaceId: 'w1' }, { cwd: inner }, { workspaceId: 'w1' }, { cwd: root }])
+    // DSH's own refusal names the session it already created: that one is kept, no second chat is made
+    refuse = 'attached'
+    created.length = 0
+    await start({ cwd: root })
+    assert.deepEqual(created, [{ workspaceId: 'w1' }])
   } finally { await rm(root, { recursive: true, force: true }) }
 })
 

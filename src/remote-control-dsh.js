@@ -863,8 +863,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       let created
       if (project) created = await service().create({ workspaceId: project.id })
       else if (workspace) {
-        // DSH compares the folders more strictly when it attaches; if it refuses, start the chat in the folder alone as before.
-        try { created = await service().create({ workspaceId: workspace.id }) } catch { created = await service().create({ cwd }) }
+        // DSH compares the folders more strictly when it attaches. When it refuses, the session already exists in the
+        // workspace folder (DSH says which one), so keep it rather than creating a second, orphaned chat.
+        try { created = await service().create({ workspaceId: workspace.id }) } catch (error) {
+          const made = error?.details?.sessionId
+          created = typeof made === 'string' && made !== '' ? { sessionId: made } : await service().create({ cwd })
+        }
       } else created = await service().create(cwd ? { cwd } : {})
       if (typeof params?.threadSource === 'string' && params.threadSource !== '') threadSources.set(created.sessionId, params.threadSource.slice(0, 64))
       const agent = await agentFor(created.sessionId)
