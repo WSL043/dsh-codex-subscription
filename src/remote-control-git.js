@@ -3,6 +3,7 @@
 // that turns off every way git could run something from the repository's own configuration.
 
 import { execFile } from 'node:child_process'
+import { homedir } from 'node:os'
 import { basename, relative, resolve, sep } from 'node:path'
 import { localFolder } from './remote-control-dsh.js'
 
@@ -17,6 +18,18 @@ const EXACT = [['branch', '--show-current'], ['remote'], ['remote', '-v'], ['sym
 // Options that write a file, run a program or reach out, whatever the subcommand.
 const FORBIDDEN = /^(?:-o$|--output(?:=|$)|--ext-diff|--textconv|--exec|--upload-pack|--receive-pack|--git-dir|--work-tree|--namespace|--super-prefix|--open-files-in-pager|-O|--paginate|-c$|-C$|--config)/u
 const TEXTUAL = new Set(['diff', 'show', 'log', 'blame', 'diff-tree', 'diff-files', 'diff-index'])
+
+/**
+ * The phone's folder picker first asks the host for its home folder with one fixed PowerShell line. Nothing is run for it:
+ * when the request is exactly that line, the answer is this machine's home folder.
+ */
+export function homeFolderAnswer(command, home = homedir()) {
+  if (!Array.isArray(command) || command.length !== 5 || command.some(part => typeof part !== 'string')) return undefined
+  const [exe, ...flags] = command
+  if (!/^(?:powershell|pwsh)(?:\.exe)?$/iu.test(basename(exe))) return undefined
+  if (JSON.stringify(flags) !== JSON.stringify(['-NoProfile', '-NonInteractive', '-Command', '(Resolve-Path -LiteralPath $HOME).Path'])) return undefined
+  return { exitCode: 0, stdout: `${home}\r\n`, stderr: '' }
+}
 
 /** The argv to run for a phone request, or a reason it is refused. */
 export function gitArguments(command) {

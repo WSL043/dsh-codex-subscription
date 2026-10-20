@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute } from 'node:path'
 import { RpcError, invalidParams } from './remote-control-host.js'
-import { runGit } from './remote-control-git.js'
+import { homeFolderAnswer, runGit } from './remote-control-git.js'
 import { searchFiles } from './remote-control-files.js'
 import { createRealtimeVoice, createVoiceCall, desktopInstructions } from './remote-control-realtime.js'
 import { diagnosticLog } from './diagnostic-log.js'
@@ -698,6 +698,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     // Arbitrary host commands bypass DSH's sandbox and approvals, so they stay off.
     // Only read-only git inside a conversation folder, for the phone's changes view; nothing else runs.
     'command/exec': async params => {
+      const home = homeFolderAnswer(params?.command)
+      if (home !== undefined) return home
       const folders = await conversationFolders()
       try { return await runGit(params, { folders }) } catch (error) {
         trace({ method: 'command/exec:refused', reason: String(error?.message).slice(0, 80), command: Array.isArray(params?.command) ? params.command.slice(0, 3).map(part => String(part).slice(0, 40)) : null })

@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
-import { gitArguments, runGit } from '../src/remote-control-git.js'
+import { gitArguments, homeFolderAnswer, runGit } from '../src/remote-control-git.js'
 
 test('only read-only git subcommands are run', () => {
   for (const command of [['git', 'status', '--porcelain=v1'], ['git', 'diff', '--numstat', 'HEAD'], ['git', '--no-pager', 'diff', '--', 'a b.txt'], ['git', 'rev-parse', '--show-toplevel'], ['git', 'branch', '--show-current'], ['git', 'remote', '-v'], ['/usr/bin/git', 'log', '-1']]) {
@@ -46,4 +46,19 @@ test('real git reports a change in a throwaway repository', async t => {
     const diff = await runGit({ command: ['git', 'diff'], cwd: root }, { folders: [root] })
     assert.match(diff.stdout, /-one\n\+two/u)
   } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+test('the folder picker\'s home probe is answered without running anything, and nothing else is', () => {
+  const probe = ['powershell.exe', '-NoProfile', '-NonInteractive', '-Command', '(Resolve-Path -LiteralPath $HOME).Path']
+  assert.deepEqual(homeFolderAnswer(probe, 'C:/Users/me'), { exitCode: 0, stdout: 'C:/Users/me' + String.fromCharCode(13, 10), stderr: '' })
+  assert.ok(homeFolderAnswer(['pwsh', ...probe.slice(1)], 'C:/Users/me'))
+  for (const other of [
+    [...probe.slice(0, 4), 'Remove-Item C:/x'],
+    [...probe.slice(0, 4), '(Resolve-Path -LiteralPath $HOME).Path; calc'],
+    ['cmd.exe', ...probe.slice(1)],
+    [...probe, 'extra'],
+    probe.slice(0, 4),
+    ['powershell.exe', '-NonInteractive', '-NoProfile', '-Command', '(Resolve-Path -LiteralPath $HOME).Path'],
+    undefined, 'powershell.exe',
+  ]) assert.equal(homeFolderAnswer(other, 'C:/Users/me'), undefined, JSON.stringify(other))
 })
