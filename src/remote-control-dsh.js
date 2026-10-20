@@ -4,7 +4,7 @@
 // the DSH web client uses: listing, creating, prompting, model selection.
 
 import { randomUUID } from 'node:crypto'
-import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, isAbsolute } from 'node:path'
 import { RpcError, invalidParams } from './remote-control-host.js'
 import { runGit } from './remote-control-git.js'
@@ -17,6 +17,18 @@ export function localFolder(value) {
   if (typeof value !== 'string' || value === '' || !isAbsolute(value)) return undefined
   if (process.platform === 'win32' && !/^[A-Za-z]:[\\/]/u.test(value)) return undefined
   try { return statSync(value).isDirectory() ? value : undefined } catch { return undefined }
+}
+
+/** Whether two local folders are the same one: real paths compared, separators unified, case ignored on Windows. */
+export function samePath(left, right) {
+  if (typeof left !== 'string' || typeof right !== 'string' || left === '' || right === '') return false
+  const normal = value => {
+    let resolved = value
+    try { resolved = realpathSync.native(value) } catch {}
+    resolved = resolved.replace(/\\/gu, '/').replace(/(?<=.)\/+$/u, '')
+    return process.platform === 'win32' ? resolved.toLowerCase() : resolved
+  }
+  return normal(left) === normal(right)
 }
 
 /** One image the phone attached, sent inline as a data URL (its own file paths mean nothing on this machine). */
@@ -846,7 +858,14 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       // The app sends a folder it made up under its own home ("/Documents/Codex/<date>/new-chat"); only a real local folder is used.
       const cwd = localFolder(params?.cwd)
       const project = typeof params?.projectId === 'string' ? workspaceList().find(entry => String(entry.id) === params.projectId) : undefined
-      const created = await service().create(project ? { workspaceId: project.id } : cwd ? { cwd } : {})
+      // A phone that names only the folder of a workspace still files the chat under that workspace (the folder itself, not one inside it).
+      const workspace = !project && cwd ? workspaceList().find(entry => samePath(entry.path, cwd)) : undefined
+      let created
+      if (project) created = await service().create({ workspaceId: project.id })
+      else if (workspace) {
+        // DSH compares the folders more strictly when it attaches; if it refuses, start the chat in the folder alone as before.
+        try { created = await service().create({ workspaceId: workspace.id }) } catch { created = await service().create({ cwd }) }
+      } else created = await service().create(cwd ? { cwd } : {})
       if (typeof params?.threadSource === 'string' && params.threadSource !== '') threadSources.set(created.sessionId, params.threadSource.slice(0, 64))
       const agent = await agentFor(created.sessionId)
       // A new chat that names no model starts with the model and effort the phone last saved.
