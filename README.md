@@ -10,19 +10,40 @@
 
 用 ChatGPT Plus / Pro 订阅登录，即可在 DSH 中使用 GPT-6 等 Codex 模型、查额度、联网搜索和生图。无需 OpenAI API Key，也不依赖 Codex CLI。
 
-**新：用 ChatGPT 手机 App 远程控制电脑上的 DSH（Beta）**，DeepSeek 等任意 DSH 模型都能在手机上用。
-
 [![CI](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml/badge.svg)](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/dsh-codex-subscription?logo=npm&label=npm)](https://www.npmjs.com/package/dsh-codex-subscription)
 [![npm 总下载量](https://img.shields.io/npm/dt/dsh-codex-subscription?logo=npm&label=%E6%80%BB%E4%B8%8B%E8%BD%BD%E9%87%8F)](https://www.npmjs.com/package/dsh-codex-subscription)
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[安装](#安装) · [核心功能](#核心功能) · [手机远程控制](#手机远程控制beta) · [草图画板](#草图画板beta) · [全部功能](#全部功能) · [使用指南](docs/GUIDE.zh-CN.md) · [常见问题](#常见问题)
+[核心功能](#核心功能) · [安装](#安装) · [图片与草图](#图片与草图) · [手机远程控制](#手机远程控制beta) · [全部功能](#全部功能) · [使用指南](docs/GUIDE.zh-CN.md) · [常见问题](#常见问题)
 
 </div>
 
 <p align="center"><img src="docs/assets/hero-zh.webp" width="1100" alt="已有的订阅，在 DSH 接着用：鲸鱼少女吉祥物与 Codex 订阅账号额度界面"></p>
+
+## 核心功能
+
+| 你想做什么 | 插件提供什么 |
+| --- | --- |
+| **聊天与搜索** | 用订阅登录，选择账号开放的 Codex 模型、推理档位和速度档位，使用订阅联网搜索。 |
+| **管理账号与额度** | 切换账号，查看短周期与每周额度、Credits 和重置时间；在输入框看额度、接收提醒，查看历史用量。 |
+| **生成与编辑图片** | 用订阅出图、圈选区域继续修改，或在可编辑草图画板上自己画、让 Agent 画。[查看实例 →](#图片与草图) |
+| **在手机上继续操作** | 用 ChatGPT 手机 App 配对电脑上的 DSH，DeepSeek 等其他模型也能用。[Beta，默认关闭 →](#手机远程控制beta) |
+| **使用已连接的应用** | 让 DSH 模型使用 ChatGPT 中已连接的 GitHub、Gmail、云端硬盘、日历等；写操作默认逐次询问。 |
+
+模型和额度以账号实际返回为准。[查看完整功能清单 →](#全部功能)
+
+<details>
+<summary>让 DeepSeek 等模型使用订阅能力</summary>
+
+让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等。模型先搜索再调用，写操作默认每次都要你批准，也可以在设置里改成不再询问。默认关闭，在“联网与工具”里开启。
+
+联网搜索来源、ChatGPT 连接器和官方 Codex 子任务在 **设置 → Codex 订阅 → 联网与工具**，页首一个总开关：关闭后，用 DeepSeek 等非 Codex 模型对话时不再使用订阅的联网搜索（改用 DSH 搜索）、图片生成和 ChatGPT 连接器，Codex 订阅模型不受影响。默认开启。
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-interop-zh-dark.webp"><img src="docs/assets/ui-interop-zh-light.webp" width="640" alt="联网与工具设置页"></picture></p>
+
+</details>
 
 ## 准备 DSH
 
@@ -30,9 +51,14 @@
 
 本插件支持软件包元数据中记录的最新版 DeepSeek Harness，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
 
+<details>
+<summary>选择 DSH：官方桌面端、便携版或命令行</summary>
+
 - **推荐：官方桌面端**。DeepSeek 已发布 [DeepSeek Harness 桌面版](https://www.deepseek.com/harness/)（macOS Apple Silicon、Windows 64 位，预览版、开源），无需配置 Node.js，安装后按下文在插件页面添加本插件即可。桌面端与网页版、命令行使用同一套 DSH 插件系统；本插件的端到端验收主要在网页版上完成，桌面端遇到问题请[提交 issue](https://github.com/WSL043/dsh-codex-subscription/issues)；
 - 需要 Linux，或想要社区便携分发：使用 [DSH-Portable](https://github.com/WSL043/DSH-Portable)。这是面向 Windows、macOS 和 Linux 的社区便携桌面分发；
 - 想按官方方式运行：查看 [DeepSeek Harness 官方说明](https://github.com/deepseek-ai/deepseek-harness#run)。
+
+</details>
 
 ## 安装
 
@@ -48,7 +74,12 @@
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
 4. 打开 **设置 → Codex 订阅**，登录 ChatGPT，然后在会话中选择 Codex 模型。
 
+<details>
+<summary>为什么包名里带版本号？</summary>
+
 为什么要带版本号：DSH 的插件页只会安装发布满 24 小时的版本，只填包名时，新版本发布后的第一天可能装到更早的旧版，而旧版不一定兼容你的 DSH。带上版本号可以直接装到这一版；发布一天后只填 `dsh-codex-subscription` 也会装到最新正式版。其他版本号见[发布页](https://github.com/WSL043/dsh-codex-subscription/releases)。
+
+</details>
 
 <details>
 <summary>终端安装（已能运行 dsh 命令）</summary>
@@ -73,90 +104,144 @@ dsh --profile headless "只回复：ok"
 
 </details>
 
-## 核心功能
+## 界面演示
 
-### 用订阅登录，直接用 Codex 模型
-
-在 DSH 的 **设置 → Codex 订阅** 登录 ChatGPT，会话里就能选 GPT-6 等账号目录里的模型，调推理档位和速度档位，并使用订阅联网搜索。不需要 API Key。模型和额度以账号实际返回为准。
-
-### 额度一眼看清
-
-短周期和每周额度、重置时间、额外 Credits 与重置卡都在设置里；输入框旁可以常驻显示剩余额度，低于阈值会提醒。
+在 **设置 → Codex 订阅** 中管理账号与偏好。下面按使用位置集中展示，截图与动图默认折叠。
 
 <details>
-<summary>查看截图</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-zh-dark.png"><img src="docs/assets/ui-quota-zh-light.png" width="560" alt="额度卡片：每周额度与重置时间，下方可展开使用概览和额度去向"></picture></p>
-
-</details>
-
-<details>
-<summary>使用概览与额度去向：累计用量、连续天数、每日热力图，以及每周额度花在哪</summary>
+<summary><b>界面演示（动图，点击展开）</b>：选模型、提问、出图、标注、草图、额度与重置</summary>
 <br>
-<p align="center"><img src="docs/assets/usage-overview.png" width="460" alt="额度卡片里的使用概览与额度去向：累计 token、连续使用天数、最近半年每日用量热力图，以及每周额度按模型、入口、来源的拆分"></p>
+<p align="center"><img src="docs/assets/readme-demo.webp" width="1100" alt="演示：登录 ChatGPT 选订阅模型、提问、用订阅出图、查看与标注、进入草图、查看额度与重置"></p>
 </details>
 
-### 日常操作，留在输入框
-
-选模型、调推理档位、切换速度档位，同时查看剩余额度，无需为每次请求打开设置。
-
 <details>
-<summary>查看截图</summary>
+<summary>输入框：模型、速度、权限与额度</summary>
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-zh-dark.png"><img src="docs/assets/ui-composer-zh-light.png" width="760" alt="输入框：权限、草图、剩余额度、闪电标识的 Fast 模式和模型选择"></picture></p>
 
 </details>
 
-### 手机远程控制（Beta）
+<details>
+<summary>额度与用量：剩余额度、使用概览和每周去向</summary>
 
-用 ChatGPT 手机 App 的 Codex 扫码配对，这台电脑上的 DSH 就出现在手机的主机列表里，DeepSeek 等任意 DSH 模型都能在手机上用：
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-zh-dark.png"><img src="docs/assets/ui-quota-zh-light.png" width="560" alt="额度卡片：每周额度与重置时间，下方可展开使用概览和额度去向"></picture></p>
+
+<p align="center"><img src="docs/assets/usage-overview.png" width="460" alt="额度卡片里的使用概览与额度去向：累计 token、连续使用天数、最近半年每日用量热力图，以及每周额度按模型、入口、来源的拆分"></p>
+
+</details>
+
+<details>
+<summary>五个设置页分别做什么？</summary>
+
+| 设置页 | 在这里做什么 |
+| --- | --- |
+| **开始** | 登录与切换账号、各功能开关一览、订阅额度、额度显示和提醒 |
+| **模型** | 默认模型与模型列表、回答风格；折叠的“高级”里有上下文长度、重试、连接方式、云端压缩、审查模型 |
+| **联网与工具** | 其他模型能否用订阅功能的总开关，搜索来源、ChatGPT 连接器、官方 Codex 子任务 |
+| **创作** | 图片生成、编辑、输入框 @生图、图片查看器，草图画板和 Agent 绘图 |
+| **手机与更多** | 手机远程控制、语音对话（实验性）、本机缓存、支持诊断 |
+
+**模型感知上下文**跟随账号模型目录，刷新不会覆盖未保存的草稿。额度分组以服务端实际返回为准，包括 Spark 等独立额度。
+
+订阅请求失败时会明确报错，不会静默切换到其他付费路由。
+
+</details>
+
+## 图片与草图
+
+用订阅生成图片，查看和下载原图；也可以圈选区域、填写备注后继续修改。图片生成与编辑开关在 **设置 → Codex 订阅 → 创作**。
+
+<details>
+<summary>图片标注与继续编辑</summary>
+
+<p align="center"><img src="docs/assets/annotate-zh.webp" width="900" alt="图片预览：在烟囱上方圈出区域并写下备注，再带着备注继续编辑"></p>
+
+</details>
+
+<details>
+<summary>查看图片与草图设置</summary>
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-creative-zh-dark.png"><img src="docs/assets/ui-creative-zh-light.png" width="564" alt="图片与草图设置：图片生成与编辑、创作入口、请求型号与质量"></picture></p>
+
+DSH 实机设置截图，随浅色 / 深色主题切换。
+
+</details>
+
+### 草图画板（Beta）
+
+草图画板和 Agent 绘图为 **Beta**，默认关闭，在“创作”页按需开启。手动画图点输入框的草图按钮；让 Agent 画发送 `@sketch` 加要求。
+
+画板支持图层、原生曲线、笔刷、渐变、模糊、混合、裁剪、撤销重做和快捷键，可保存多份草稿、导出 PNG 或可编辑草稿。Agent 可对照参考图、量颜色和位置、撤销重画；画稿还可回放并录成视频。
+
+<details>
+<summary>Agent 绘图实例：鲸鱼娘</summary>
+
+以下实例由 Agent 在草图画板上使用原生可编辑笔画绘制，没有调用生图工具。三者使用相同参考图和绘图工具基线；档位、耗时不同，展示的是各一次实跑结果。
+
+<p align="center"><b>原图</b><br><img src="docs/assets/sketch-niang-reference.webp" width="320" alt="鲸鱼娘原始参考图"></p>
+
+<table>
+<tr><th width="33%">GPT-6-Astra</th><th width="33%">GPT-6.1-Sol</th><th width="33%">DeepSeek Flash</th></tr>
+<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="280" alt="GPT-6-Astra 在草图画板绘制的鲸鱼娘"></td><td><img src="docs/assets/sketch-niang-sol-6-1.png" width="280" alt="GPT-6.1-Sol 在草图画板绘制的鲸鱼娘"></td><td><img src="docs/assets/sketch-niang-deepseek-flash.png" width="280" alt="DeepSeek Flash 在草图画板绘制的鲸鱼娘"></td></tr>
+<tr><td>Medium · 20 分 57 秒<br>686 笔</td><td>High · 首轮 23 分钟<br>1,020 笔</td><td>High · 9 分 33 秒<br>623 笔</td></tr>
+</table>
+
+6.1 在连接中断后，以自动草稿和原始成功调用恢复全部笔画，再由模型确认预览并保存，未人工补画；这次结果不代表全程无故障完成。
+
+</details>
+
+<details>
+<summary>草图到生图：钟塔剖面图与千峰翠色</summary>
+
+Agent 先在画板绘制可编辑草图，再以该草图为参考调用订阅生图工具生成成品。下方 Sol、Astra 指负责执行流程的对话模型，不是生图后端型号。
+
+**钟塔剖面图**
+
+<table>
+<tr><th>对话模型</th><th width="43%">Agent 原生草图</th><th width="43%">以草图为参考的生图结果</th></tr>
+<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-clocktower-sol-sketch.webp" width="360" alt="钟塔剖面图：sol 绘制的原生草图"></td><td><img src="docs/assets/sketch-clocktower-sol-result.webp" width="360" alt="钟塔剖面图：以 sol 草图为参考生成的图片"></td></tr>
+<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-clocktower-astra-sketch.webp" width="360" alt="钟塔剖面图：astra 绘制的原生草图"></td><td><img src="docs/assets/sketch-clocktower-astra-result.webp" width="360" alt="钟塔剖面图：以 astra 草图为参考生成的图片"></td></tr>
+</table>
+
+**千峰翠色**
+
+<table>
+<tr><th>对话模型</th><th width="43%">Agent 原生草图</th><th width="43%">以草图为参考的生图结果</th></tr>
+<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-shanshui-sol-sketch.webp" width="360" alt="千峰翠色：sol 绘制的原生草图"></td><td><img src="docs/assets/sketch-shanshui-sol-result.webp" width="360" alt="千峰翠色：以 sol 草图为参考生成的图片"></td></tr>
+<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-shanshui-astra-sketch.webp" width="360" alt="千峰翠色：astra 绘制的原生草图"></td><td><img src="docs/assets/sketch-shanshui-astra-result.webp" width="360" alt="千峰翠色：以 astra 草图为参考生成的图片"></td></tr>
+</table>
+
+</details>
+
+[图片编辑与草稿保存 →](docs/GUIDE.zh-CN.md#图片生成与编辑)
+
+## 手机远程控制（Beta）
+
+用 ChatGPT 手机 App 的 Codex 配对电脑上的 DSH，从手机新建或继续对话、调用工具、处理审批，DeepSeek 等任意 DSH 模型都能用。
+
+**默认关闭。** 在 **设置 → Codex 订阅 → 手机与更多 → 手机远程控制** 开启，扫码或输入手动码配对。电脑需要保持开机、联网并运行 DSH。
+
+本功能通过 OpenAI 的远程连接服务实现第三方主机兼容。Codex 已有官方远控实现，但 DSH 接入未获官方兼容性承诺，后续服务更新可能影响使用。可以随时移除配对设备或停用。
+
+<details>
+<summary>手机上支持哪些操作？</summary>
 
 - 查看、新建、续聊、中断、归档对话，搜索对话和对话内的关键词；
 - 切换模型、推理档位和权限（工作区内修改 / 完全访问）；
 - 批准工具调用或回答提问时手机直接弹出；手机掉线，重新打开会再弹一次，否则交回电脑处理；
 - 回复边生成边显示；命令、文件修改（带差异）、任务清单、联网搜索、连接器调用和生成的图片用手机原生视图显示；
 - 发图片，@ 搜电脑上的文件，/ 选 DSH 技能，只读 git 查看改动，用真实的文件夹选择器新建对话；
-- DSH 工作区对应手机上的项目；可以从手机分叉对话，看用量额度、累计用量和上下文用量；DSH 带有 `/compact` 时（0.2.0-rc.2 起）还能从手机压缩上下文；
+- DSH 工作区对应手机上的项目；可以从手机分叉对话，看用量额度、累计用量和上下文用量；DSH 支持 `/compact` 时还能从手机压缩上下文；
 - 模型报错会显示在手机上；设置里能看到已配对的手机，随时移除。
 
-默认关闭：**设置 → Codex 订阅 → 手机与更多 → 手机远程控制**。电脑需要保持开机、联网并打开 DSH。本功能基于 Codex Remote Control 协议实现第三方主机兼容，使用 OpenAI 的远程连接服务。Codex 的远程控制能力已有官方实现，但 DSH 作为第三方主机的接入方式尚不属于官方明确承诺支持的范围，后续服务更新可能影响兼容性，所以标为 Beta。功能默认关闭，你可以自行开启、管理已配对设备或随时停用。该功能不代表获得 OpenAI 官方认证或背书。
+</details>
 
 <details>
-<summary>查看截图</summary>
+<summary>配对设置与已配对手机</summary>
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-zh-dark.png"><img src="docs/assets/ui-remote-zh-light.png" width="560" alt="设置里的手机远程控制：开关、配对二维码和手动码、已配对的手机"></picture></p>
 
 </details>
-
-### 图片与草图
-
-用订阅生成图片，在图上圈出区域写备注继续修改，或者打开草图画板自己画、让 Agent 画，再以草图为参考生成成品。画板支持渐变、模糊、混合模式和形状裁剪；Agent 照着参考图画时能并排对比、看差异热图、量颜色和位置、撤销重来，画完还能一笔一笔回放并录成视频。
-
-<details>
-<summary>查看截图</summary>
-
-<p align="center"><img src="docs/assets/annotate-zh.webp" width="900" alt="图片预览：在烟囱上方圈出区域并写下备注，再带着备注继续编辑"></p>
-
-</details>
-
-草图画板见 [草图画板](#草图画板beta)，开关在 **设置 → Codex 订阅 → 创作**。
-
-### ChatGPT 连接器
-
-让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等。模型先搜索再调用，写操作默认每次都要你批准，也可以在设置里改成不再询问。默认关闭，在“与其他模型”里开启。
-
-### 订阅功能要不要给 DeepSeek 等其他模型用，由你定
-
-联网搜索来源、ChatGPT 连接器和官方 Codex 子任务在 **设置 → Codex 订阅 → 联网与工具**，页首一个总开关：关闭后，用 DeepSeek 等非 Codex 模型对话时不再使用订阅的联网搜索（改用 DSH 搜索）、图片生成和 ChatGPT 连接器，Codex 订阅模型不受影响。默认开启。
-
-<details>
-<summary>查看截图</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-interop-zh-dark.webp"><img src="docs/assets/ui-interop-zh-light.webp" width="640" alt="联网与工具设置页"></picture></p>
-
-</details>
-
-[详细用法、限制与可选组件 →](docs/GUIDE.zh-CN.md)
 
 ## 全部功能
 
@@ -239,99 +324,11 @@ dsh --profile headless "只回复：ok"
 | **云端上下文压缩** | 使用 Codex 云端压缩继续长对话，同时保留 DSH 历史与原生压缩 | Beta / 实验性；默认关闭，开启的请求使用 SSE |
 | **WebSocket 连接** | 实验性复用连接和上下文传输，连接失败可回退 SSE | Beta / 实验性；默认 SSE，不保证更快 |
 | **Auto review 官方审查模型** | DSH Auto review 改用 Codex 自带的审查模型判断工具调用，审查规则与放行流程仍由 DSH 负责 | Beta；默认关闭，账号目录提供该模型时生效 |
-| **ChatGPT 连接器** | 让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等；模型先搜索再调用，写操作默认每次都要你批准，可改成不再询问 | 默认关闭，设置 → Codex 订阅 → 与其他模型 → ChatGPT 连接器；需先在 ChatGPT 里连接应用 |
-| **支持诊断** | 查看功能前置条件和近期操作结果，一键复制约 1 KB 的精简报告（完整报告可另行复制）；不含凭据和会话正文 | 设置 → 维护；未验证不代表故障 |
+| **ChatGPT 连接器** | 让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等；模型先搜索再调用，写操作默认每次都要你批准，可改成不再询问 | 默认关闭，设置 → Codex 订阅 → 联网与工具 → ChatGPT 连接器；需先在 ChatGPT 里连接应用 |
+| **支持诊断** | 查看功能前置条件和近期操作结果，一键复制约 1 KB 的精简报告（完整报告可另行复制）；不含凭据和会话正文 | 设置 → Codex 订阅 → 手机与更多；未验证不代表故障 |
 | **预测缓存清理** | 查看并清理本地额度预测历史 | 保留登录、草稿、原图和共享依赖 |
 
 </details>
-
-## 界面演示
-
-<details>
-<summary><b>界面演示（动图，点击展开）</b>：选模型、提问、出图、标注、草图、额度与重置</summary>
-<br>
-<p align="center"><img src="docs/assets/readme-demo.webp" width="1100" alt="演示：登录 ChatGPT 选订阅模型、提问、用订阅出图、查看与标注、进入草图、查看额度与重置"></p>
-</details>
-
-### 账号与偏好，集中管理
-
-在 **设置 → Codex 订阅** 中管理账号和额度；其余功能按任务需要开启。
-
-<details>
-<summary>五个设置页分别做什么？</summary>
-
-| 设置页 | 在这里做什么 |
-| --- | --- |
-| **开始** | 登录与切换账号、各功能开关一览、订阅额度、额度显示和提醒 |
-| **模型** | 默认模型与模型列表、回答风格；折叠的“高级”里有上下文长度、重试、连接方式、云端压缩、审查模型 |
-| **联网与工具** | 其他模型能否用订阅功能的总开关，搜索来源、ChatGPT 连接器、官方 Codex 子任务 |
-| **创作** | 图片生成、编辑、输入框 @生图、图片查看器，草图画板和 Agent 绘图 |
-| **手机与更多** | 手机远程控制、语音对话、本机缓存、支持诊断 |
-
-**模型感知上下文**跟随账号模型目录，刷新不会覆盖未保存的草稿。额度分组以服务端实际返回为准，包括 Spark 等独立额度。
-
-订阅请求失败时会明确报错，不会静默切换到其他付费路由。
-
-</details>
-
-[查看完整使用指南 →](docs/GUIDE.zh-CN.md)
-
-## 草图画板（Beta）
-
-草图画板和 Agent 绘图为 **Beta**，默认关闭，在“创作”页按需开启。手动画图点输入框的草图按钮；让 Agent 画发送 `@sketch` 加要求。
-
-<details>
-<summary>Agent 绘图实例：鲸鱼娘</summary>
-
-以下实例由 Agent 在草图画板上使用原生可编辑笔画绘制，没有调用生图工具。三者使用相同参考图和绘图工具基线；档位、耗时不同，展示的是各一次实跑结果。
-
-<p align="center"><b>原图</b><br><img src="docs/assets/sketch-niang-reference.webp" width="320" alt="鲸鱼娘原始参考图"></p>
-
-<table>
-<tr><th width="33%">GPT-6-Astra</th><th width="33%">GPT-6.1-Sol</th><th width="33%">DeepSeek Flash</th></tr>
-<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="280" alt="GPT-6-Astra 在草图画板绘制的鲸鱼娘"></td><td><img src="docs/assets/sketch-niang-sol-6-1.png" width="280" alt="GPT-6.1-Sol 在草图画板绘制的鲸鱼娘"></td><td><img src="docs/assets/sketch-niang-deepseek-flash.png" width="280" alt="DeepSeek Flash 在草图画板绘制的鲸鱼娘"></td></tr>
-<tr><td>Medium · 20 分 57 秒<br>686 笔</td><td>High · 首轮 23 分钟<br>1,020 笔</td><td>High · 9 分 33 秒<br>623 笔</td></tr>
-</table>
-
-6.1 在连接中断后，以自动草稿和原始成功调用恢复全部笔画，再由模型确认预览并保存，未人工补画；这次结果不代表全程无故障完成。
-
-</details>
-
-<details>
-<summary>草图到生图：钟塔剖面图与千峰翠色</summary>
-
-Agent 先在画板绘制可编辑草图，再以该草图为参考调用订阅生图工具生成成品。下方 Sol、Astra 指负责执行流程的对话模型，不是生图后端型号。
-
-**钟塔剖面图**
-
-<table>
-<tr><th>对话模型</th><th width="43%">Agent 原生草图</th><th width="43%">以草图为参考的生图结果</th></tr>
-<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-clocktower-sol-sketch.webp" width="360" alt="钟塔剖面图：sol 绘制的原生草图"></td><td><img src="docs/assets/sketch-clocktower-sol-result.webp" width="360" alt="钟塔剖面图：以 sol 草图为参考生成的图片"></td></tr>
-<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-clocktower-astra-sketch.webp" width="360" alt="钟塔剖面图：astra 绘制的原生草图"></td><td><img src="docs/assets/sketch-clocktower-astra-result.webp" width="360" alt="钟塔剖面图：以 astra 草图为参考生成的图片"></td></tr>
-</table>
-
-**千峰翠色**
-
-<table>
-<tr><th>对话模型</th><th width="43%">Agent 原生草图</th><th width="43%">以草图为参考的生图结果</th></tr>
-<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-shanshui-sol-sketch.webp" width="360" alt="千峰翠色：sol 绘制的原生草图"></td><td><img src="docs/assets/sketch-shanshui-sol-result.webp" width="360" alt="千峰翠色：以 sol 草图为参考生成的图片"></td></tr>
-<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-shanshui-astra-sketch.webp" width="360" alt="千峰翠色：astra 绘制的原生草图"></td><td><img src="docs/assets/sketch-shanshui-astra-result.webp" width="360" alt="千峰翠色：以 astra 草图为参考生成的图片"></td></tr>
-</table>
-
-</details>
-
-<details>
-<summary>查看图片与草图设置</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-creative-zh-dark.png"><img src="docs/assets/ui-creative-zh-light.png" width="564" alt="图片与草图设置：图片生成与编辑、创作入口、请求型号与质量"></picture></p>
-
-DSH 实机设置截图，随浅色 / 深色主题切换。
-
-</details>
-
-支持图层、原生曲线、笔刷、撤销重做和快捷键；可保存多份草稿，导出 PNG 或可编辑草稿。生成图可标注区域后继续编辑。
-
-[图片编辑与草稿保存 →](docs/GUIDE.zh-CN.md#图片生成与编辑beta)
 
 ## 更新与卸载
 
@@ -378,7 +375,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 <details>
 <summary>如何反馈问题？</summary>
 
-在 **设置 → Codex 订阅 → 维护** 生成“支持诊断”，粘贴到[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)的诊断栏，并补充触发步骤。
+在 **设置 → Codex 订阅 → 手机与更多** 生成“支持诊断”，粘贴到[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)的诊断栏，并补充触发步骤。
 
 诊断不含凭据、账号标识、原始响应或完整日志。请勿附上登录链接、授权码或浏览器回调地址。
 
@@ -391,22 +388,23 @@ dsh plugin --profile web remove dsh-codex-subscription
 
 </details>
 
-## 定位与边界
+<a id="定位与边界"></a>
+<a id="边界与支持"></a>
+
+## 项目与支持
 
 - **只做 ChatGPT / Codex 订阅**，并把这一件事做深：额度与预测、图片与草图、子任务、诊断；不接入 Claude、Grok 等其他订阅。
 - **失败就明确报错**：不会静默切换到其他付费路由，也不会虚构账号没有返回的额度窗口。
 - **跟随官方 DSH 发布**：每次发版都用官方 DSH 的 latest、next 等通道做安装、启动、卸载、重装的端到端验收；已验证的版本见 [兼容性记录](docs/dsh-020-compatibility.md)。
 - 模型、额度和功能开放情况以你的账号实际返回为准；ChatGPT 后端与 DSH 可能独立变化。
 
-## 边界与支持
+本项目为社区项目，与 DeepSeek、OpenAI 无隶属或背书关系。
 
-ChatGPT Codex 后端和 DSH 可能独立变化；本项目为社区项目，与 DeepSeek、OpenAI 无隶属或背书关系。
-
-本项目的问题反馈请使用[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)；
-明确的产品建议请使用[功能建议表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml)；
-欢迎提交聚焦的修复和兼容性改进，具体要求见 [CONTRIBUTING.md](CONTRIBUTING.md)；
-DSH 插件交流可前往 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)。
-敏感问题请先阅读 [SECURITY.md](SECURITY.md)。
+- 本项目的问题反馈请使用[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)；
+- 明确的产品建议请使用[功能建议表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml)；
+- 欢迎提交聚焦的修复和兼容性改进，具体要求见 [CONTRIBUTING.md](CONTRIBUTING.md)；
+- DSH 插件交流可前往 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)。
+- 敏感问题请先阅读 [SECURITY.md](SECURITY.md)。
 
 如果这个项目对你有帮助，[点一下 Star](https://github.com/WSL043/dsh-codex-subscription/stargazers) 可以让更多 DSH 用户发现它。
 
