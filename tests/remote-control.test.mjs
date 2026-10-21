@@ -364,6 +364,27 @@ test('text the model is still writing reaches the phone as it arrives, then the 
   finish(); await wait()
 })
 
+test('the optimistic phone message keeps one id while running, reopening and completing, including a repeated prompt', async () => {
+  const { bridge, session, finish } = fakeControl()
+  const notes = []
+  const notify = async (method, params) => notes.push([method, structuredClone(params)])
+  const clientId = 'phone-message-2'
+  const old = [{ role: 'user', id: 'old-u', content: [{ type: 'text', text: 'again' }] }, { role: 'assistant', id: 'old-a', content: [{ type: 'text', text: 'old reply' }] }]
+  session.deriveMessages = () => old
+  const { turn } = await bridge.methods['turn/start']({ ...hello('again'), clientUserMessageId: clientId }, { notify })
+  assert.equal(turn.items[0].id, clientId)
+  assert.equal(turn.items[0].clientId, clientId)
+  assert.deepEqual(notes.filter(([method, params]) => method === 'item/started' && params.item.type === 'userMessage').map(([, params]) => params.item.id), [clientId])
+  session.deriveMessages = () => [...old, { role: 'user', id: 'committed-u', content: [{ type: 'text', text: 'again' }] }]
+  const live = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify })
+  assert.deepEqual(live.thread.turns.map(turn => turn.items.filter(item => item.type === 'userMessage').map(item => item.id)), [['old-u'], [clientId]])
+  finish(); await wait()
+  const completed = notes.find(([method]) => method === 'turn/completed')[1].turn
+  assert.equal(completed.items[0].id, clientId)
+  const reopened = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify })
+  assert.equal(reopened.thread.turns.at(-1).items[0].id, clientId)
+})
+
 test('a streamed attempt that never commits is closed instead of hanging on the phone', async () => {
   const { bridge, session, finish } = fakeControl()
   const notes = []

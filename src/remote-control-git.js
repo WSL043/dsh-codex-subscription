@@ -41,6 +41,7 @@ export function gitArguments(command) {
   if (subcommand === undefined) return { error: 'no git subcommand' }
   if (args.some(arg => FORBIDDEN.test(arg))) return { error: `option not allowed with git ${subcommand}` }
   const exact = EXACT.some(form => form.length === rest.length && form.every((part, index) => part === rest[index]))
+    || (subcommand === 'symbolic-ref' && args.length === 2 && args[0] === '--short' && /^refs\/remotes\/[^\0\r\n]+\/HEAD$/u.test(args[1]))
   if (!READ_ONLY.has(subcommand) && !exact) return { error: `git ${subcommand} is not available` }
   const safe = TEXTUAL.has(subcommand) ? ['--no-ext-diff', '--no-textconv'] : []
   return { argv: ['-c', 'core.fsmonitor=false', '-c', 'core.pager=cat', '-c', 'diff.external=', '--no-pager', subcommand, ...safe, ...args] }
@@ -63,7 +64,7 @@ export function runGit(params, { folders, run = execFile }) {
   if (!cwd || !folders.some(root => inside(cwd, root))) return Promise.reject(Object.assign(new Error('git only runs in a DSH conversation folder'), { code: 'not-allowed' }))
   const timeout = Math.min(Number.isFinite(params.timeoutMs) && params.timeoutMs > 0 ? params.timeoutMs : DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS)
   const cap = Math.min(Number.isInteger(params.outputBytesCap) && params.outputBytesCap > 0 ? params.outputBytesCap : DEFAULT_OUTPUT_BYTES, MAX_OUTPUT_BYTES)
-  const env = { ...process.env, GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', GIT_PAGER: 'cat', GIT_EXTERNAL_DIFF: '', GIT_ASKPASS: '', GCM_INTERACTIVE: 'never' }
+  const env = { ...process.env, GIT_LITERAL_PATHSPECS: '1', GIT_OPTIONAL_LOCKS: '0', GIT_TERMINAL_PROMPT: '0', GIT_PAGER: 'cat', GIT_EXTERNAL_DIFF: '', GIT_ASKPASS: '', GCM_INTERACTIVE: 'never' }
   return new Promise(resolvePromise => {
     run('git', parsed.argv, { cwd, env, timeout, maxBuffer: cap, windowsHide: true, encoding: 'utf8' }, (error, stdout, stderr) => {
       const exitCode = error ? (typeof error.code === 'number' ? error.code : 1) : 0

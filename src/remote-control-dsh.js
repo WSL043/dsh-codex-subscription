@@ -8,6 +8,7 @@ import { mkdirSync, readFileSync, readdirSync, realpathSync, statSync, writeFile
 import { dirname, isAbsolute } from 'node:path'
 import { RpcError, invalidParams } from './remote-control-host.js'
 import { homeFolderAnswer, runGit } from './remote-control-git.js'
+import { phoneGitProbe, runPhoneGitProbe } from './remote-control-git-probes.js'
 import { searchFiles } from './remote-control-files.js'
 import { createRealtimeVoice, createVoiceCall, desktopInstructions } from './remote-control-realtime.js'
 import { diagnosticLog } from './diagnostic-log.js'
@@ -551,9 +552,10 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const speedForTurn = typeof params?.serviceTierForTurn === 'string' ? params.serviceTierForTurn : undefined
     await applySpeed(speedForTurn ?? (Object.hasOwn(params ?? {}, 'serviceTier') ? params.serviceTier : undefined))
     const turn = emptyTurn()
-    const userItem = { type: 'userMessage', id: randomUUID(), clientId: params.clientUserMessageId ?? null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(picture => ({ type: 'image', url: picture.url }))] }
+    const userItem = { type: 'userMessage', id: params.clientUserMessageId ?? randomUUID(), clientId: params.clientUserMessageId ?? null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(picture => ({ type: 'image', url: picture.url }))] }
     active.set(id, { turn, ended: undefined, userItem })
     emit(id, 'turn/started', { threadId: id, turn })
+    turn.items.push(userItem)
     emit(id, 'thread/status/changed', { threadId: id, status: { type: 'active', activeFlags: [] } })
     emit(id, 'item/started', { threadId: id, turnId: turn.id, item: userItem, startedAtMs: Date.now() })
     emit(id, 'item/completed', { threadId: id, turnId: turn.id, item: userItem, completedAtMs: Date.now() })
@@ -697,11 +699,11 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     },
     // Arbitrary host commands bypass DSH's sandbox and approvals, so they stay off.
     // Only read-only git inside a conversation folder, for the phone's changes view; nothing else runs.
-    'command/exec': async params => {
+    'command/exec': async (params, { notify, signal }) => {
       const home = homeFolderAnswer(params?.command)
       if (home !== undefined) return home
       const folders = await conversationFolders()
-      try { return await runGit(params, { folders }) } catch (error) {
+      try { return phoneGitProbe(params?.command) ? await runPhoneGitProbe(params, { folders, notify, signal }) : await runGit(params, { folders }) } catch (error) {
         trace({ method: 'command/exec:refused', reason: String(error?.message).slice(0, 80), command: Array.isArray(params?.command) ? params.command.slice(0, 3).map(part => String(part).slice(0, 40)) : null })
         throw new RpcError(-32600, error?.code === 'not-allowed' ? `Not available on a DSH host: ${error.message}` : 'Could not run the command')
       }

@@ -1,0 +1,14 @@
+{
+  "command": [
+    "/bin/sh",
+    "-lc",
+    "set -eu\ncurrent_branch=\"$(git branch --show-current)\"\nprintf '%s\\t%s\\n' \"$CODEX_DRAFT_OUTPUT_CURRENT\" \"$current_branch\"\n\n# Preserve the actual default ref even when it has no local tracking branch.\ndefault_ref=\"$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null || true)\"\nif [ -z \"$default_ref\" ] && git show-ref --verify --quiet refs/heads/main; then\n  default_ref=\"main\"\nelif [ -z \"$default_ref\" ] && git show-ref --verify --quiet refs/heads/master; then\n  default_ref=\"master\"\nfi\n# Keep an unknown default empty so draft worktrees can preserve local changes.\nprintf '%s\\t%s\\n' \"$CODEX_DRAFT_OUTPUT_DEFAULT\" \"$default_ref\"\n\n# Keep a local default branch at the front of the branch picker when one exists.\npreferred_default_branch=\"${default_ref#origin/}\"\nif [ -n \"$preferred_default_branch\" ] && git show-ref --verify --quiet \"refs/heads/$preferred_default_branch\"; then\n  :\nelif git show-ref --verify --quiet refs/heads/main; then\n  preferred_default_branch=\"main\"\nelif git show-ref --verify --quiet refs/heads/master; then\n  preferred_default_branch=\"master\"\nelse\n  preferred_default_branch=\"\"\nfi\nrecent_branch_count=0\nif [ -n \"$preferred_default_branch\" ]; then\n  printf '%s\\t%s\\n' \"$CODEX_DRAFT_OUTPUT_BRANCH\" \"$preferred_default_branch\"\n  recent_branch_count=1\nfi\n\ngit for-each-ref \\\n  --sort=-committerdate \\\n  --format='%(refname:short)' \\\n  refs/heads |\n  while IFS= read -r branch_name; do\n    [ \"$branch_name\" = \"$preferred_default_branch\" ] && continue\n    printf '%s\\t%s\\n' \"$CODEX_DRAFT_OUTPUT_BRANCH\" \"$branch_name\"\n    recent_branch_count=$((recent_branch_count + 1))\n    if [ \"$recent_branch_count\" -ge 8 ]; then\n      break\n    fi\n  done\n"
+  ],
+  "env": {
+    "ENV": null,
+    "CODEX_DRAFT_OUTPUT_CURRENT": "CURRENT",
+    "CODEX_DRAFT_OUTPUT_BRANCH": "BRANCH",
+    "CODEX_DRAFT_OUTPUT_DEFAULT": "DEFAULT",
+    "BASH_ENV": null
+  }
+}
