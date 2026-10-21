@@ -274,14 +274,11 @@ Subscription failures remain visible: no silent fallback to another paid route.
 The sketch board and Agent drawing are **Beta** and off by default; turn them on in the Create page. Draw by hand from the sketch button in the composer, or send `@sketch` with a request to have the Agent draw.
 
 <details>
-<summary>Agent drawing examples: whale girl and Hatsune Miku</summary>
+<summary>Agent drawing example: whale girl</summary>
 
-The Agent drew these examples on the sketch board using native editable strokes, without calling image generation.
+The Agent drew this example on the sketch board using native editable strokes, without calling image generation.
 
-<table>
-<tr><th width="50%">Whale girl</th><th width="50%">Hatsune Miku</th></tr>
-<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="360" alt="Whale-girl drawing made by the Agent on the sketch board"><br><sub>GPT-6-Astra Medium · 20 min 57 s · 686 strokes</sub></td><td><img src="docs/assets/sketch-miku-sol-before.webp" width="330" alt="Hatsune Miku drawing made by the Agent on the sketch board"><br><sub>GPT-6.1-Sol Xhigh</sub></td></tr>
-</table>
+<p align="center"><img src="docs/assets/sketch-niang-astra-compare.webp" width="480" alt="Whale-girl drawing made by the Agent on the sketch board"><br><sub>GPT-6-Astra Medium · 20 min 57 s · 686 strokes</sub></p>
 
 </details>
 
