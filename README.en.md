@@ -273,7 +273,7 @@ Subscription failures remain visible: no silent fallback to another paid route.
 
 The sketch board and Agent drawing are **Beta** and off by default; turn them on in the Create page. Draw by hand from the sketch button in the composer, or send `@sketch` with a request to have the Agent draw.
 
-<details open>
+<details>
 <summary>Agent drawing: earlier whale-girl and Hatsune Miku results</summary>
 
 These are preserved earlier runs made on the sketch board with native editable strokes, without calling image generation. They are historical examples, not a new benchmark of the current version.

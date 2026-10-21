@@ -280,7 +280,7 @@ dsh --profile headless "只回复：ok"
 
 草图画板和 Agent 绘图为 **Beta**，默认关闭，在“创作”页按需开启。手动画图点输入框的草图按钮；让 Agent 画发送 `@sketch` 加要求。
 
-<details open>
+<details>
 <summary>Agent 绘图：old 鲸鱼娘与初音实例</summary>
 
 以下保留之前在草图画板上的实测结果，使用原生可编辑笔画完成，没有调用生图工具；展示的是历史实例，不代表当前版本的新一轮实测。
