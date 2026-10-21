@@ -71,6 +71,7 @@ const LEGACY_CREDENTIAL_REF = dshCredentials.credentialRef('WSL043_OPENAI_CODEX_
 const ACCOUNT_VAULT_KEY = dshCredentials.credentialKey('codex-subscription', 'accounts')
 const WEB_ENTRY_ID = 'web'
 const DSH_SEARCH_PROVIDER_FALLBACK = 'deepseek-official'
+const SUBSCRIPTION_SEARCH_PROVIDER_IDS = new Set([CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID, DSH_ACCOUNT_SEARCH_PROVIDER_ID])
 const MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
 const REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
 const REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
@@ -85,7 +86,10 @@ export function createSearchProviderSwitcher(loader) {
   // The entry's own raw config keeps the DSH provider; only the running web fiber is pointed elsewhere.
   const dshProviderId = () => {
     const configured = webEntry()?.options?.config?.searchProvider
-    return typeof configured === 'string' && configured.length > 0 ? configured : DSH_SEARCH_PROVIDER_FALLBACK
+    // A saved subscription provider must not route the DSH fallback back into this plugin.
+    return typeof configured === 'string' && configured.length > 0 && !SUBSCRIPTION_SEARCH_PROVIDER_IDS.has(configured)
+      ? configured
+      : DSH_SEARCH_PROVIDER_FALLBACK
   }
   // Fiber.config holds resolved volatile references (readable with get()), never raw strings.
   const current = () => {
