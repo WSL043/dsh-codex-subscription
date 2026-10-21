@@ -1,5 +1,3 @@
-> Version 3.1.4 on main is unpublished. The 3.1.4 install commands below become available after publication; the public version remains 3.1.3. Local acceptance uses the packed tgz.
-
 <p align="center"><img src="icon-subscription.webp" width="128" height="128" alt="DSH Codex Subscription icon"></p>
 
 <div align="center">

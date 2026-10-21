@@ -1,5 +1,3 @@
-> main 中的 3.1.4 尚未发布；下方 3.1.4 安装命令待发布后可用。当前公开版本仍为 3.1.3，本地验收使用打包的 tgz。
-
 <p align="center"><img src="icon-subscription.webp" width="128" height="128" alt="DSH Codex Subscription 图标"></p>
 
 <div align="center">
