@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { readFile, mkdtemp, writeFile, rm, mkdir, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -77,4 +77,25 @@ test('an ordinary folder returns the phone notGitRepository marker', async () =>
   try {
     assert.equal((await runPhoneGitProbe({ ...request(), cwd: root }, { folders: [root] })).stdout, '\0notGitRepository\0')
   } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+test('physical and alias conversation paths agree, while junction escapes and parent repositories are denied', async () => {
+  const base = await mkdtemp(join(tmpdir(), 'rc-phone-alias-'))
+  const root = join(base, 'repository'), alias = join(base, 'alias'), outside = join(base, 'outside')
+  try {
+    await mkdir(root); await mkdir(outside); await mkdir(join(root, 'sub'))
+    await symlink(root, alias, process.platform === 'win32' ? 'junction' : 'dir')
+    await symlink(outside, join(root, 'escape'), process.platform === 'win32' ? 'junction' : 'dir')
+    execFileSync('git', ['init', '-q', '-b', 'main'], { cwd: root, windowsHide: true })
+    await writeFile(join(root, 'new.txt'), 'new\n')
+    for (const [cwd, allowed] of [[alias, alias], [root, alias], [alias, root]]) {
+      const result = await runPhoneGitProbe({ ...request(), cwd }, { folders: [allowed] })
+      assert.match(decode(result, 'trackedDiff'), /\+new/u)
+    }
+    for (const cwd of [outside, join(root, 'escape')]) {
+      await assert.rejects(runPhoneGitProbe({ ...request(), cwd }, { folders: [root] }), /conversation folder/u)
+    }
+    await assert.rejects(runPhoneGitProbe({ ...request(), cwd: join(root, 'sub') }, { folders: [join(root, 'sub')] }), /conversation folder/u)
+    await assert.rejects(runPhoneGitProbe({ ...request(), cwd: root }, { folders: [join(base, 'missing')] }), /conversation folder/u)
+  } finally { await rm(base, { recursive: true, force: true }) }
 })

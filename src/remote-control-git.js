@@ -3,8 +3,9 @@
 // that turns off every way git could run something from the repository's own configuration.
 
 import { execFile } from 'node:child_process'
+import { realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { basename, relative, resolve, sep } from 'node:path'
+import { basename, isAbsolute, relative, sep } from 'node:path'
 import { localFolder } from './remote-control-dsh.js'
 
 const DEFAULT_TIMEOUT_MS = 15_000
@@ -48,8 +49,10 @@ export function gitArguments(command) {
 }
 
 const inside = (folder, root) => {
-  const path = relative(resolve(root), resolve(folder))
-  return path === '' || (!path.startsWith('..') && !path.startsWith(`..${sep}`) && !/^[A-Za-z]:/u.test(path))
+  try {
+    const path = relative(realpathSync.native(root), folder)
+    return path === '' || (path !== '..' && !path.startsWith(`..${sep}`) && !isAbsolute(path))
+  } catch { return false }
 }
 
 /**
@@ -60,7 +63,10 @@ export function runGit(params, { folders, run = execFile }) {
   const parsed = gitArguments(params?.command)
   if (parsed.error) return Promise.reject(Object.assign(new Error(parsed.error), { code: 'not-allowed' }))
   if (params.tty || params.streamStdin || params.streamStdoutStderr) return Promise.reject(Object.assign(new Error('streaming is not available'), { code: 'not-allowed' }))
-  const cwd = localFolder(params.cwd)
+  let cwd = localFolder(params.cwd)
+  // Git reports physical paths. Resolve both sides, including Windows short names
+  // and junctions, and execute at the validated physical directory.
+  try { cwd = cwd && realpathSync.native(cwd) } catch { cwd = undefined }
   if (!cwd || !folders.some(root => inside(cwd, root))) return Promise.reject(Object.assign(new Error('git only runs in a DSH conversation folder'), { code: 'not-allowed' }))
   const timeout = Math.min(Number.isFinite(params.timeoutMs) && params.timeoutMs > 0 ? params.timeoutMs : DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS)
   const cap = Math.min(Number.isInteger(params.outputBytesCap) && params.outputBytesCap > 0 ? params.outputBytesCap : DEFAULT_OUTPUT_BYTES, MAX_OUTPUT_BYTES)
