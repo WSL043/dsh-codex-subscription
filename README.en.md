@@ -276,12 +276,17 @@ The sketch board and Agent drawing are **Beta** and off by default; turn them on
 <details>
 <summary>Agent drawing example: whale girl</summary>
 
-The Agent drew this example on the sketch board using native editable strokes, without calling image generation.
+The agents drew these examples on the sketch board using native editable strokes, without calling image generation. All three used the same reference and drawing-tool baseline. These are individual runs with different effort levels and durations.
+
+<p align="center"><b>Reference image</b><br><img src="docs/assets/sketch-niang-reference.webp" width="320" alt="Original whale-girl reference image"></p>
 
 <table>
-<tr><th width="50%">Reference image</th><th width="50%">Agent drawing</th></tr>
-<tr><td><img src="docs/assets/sketch-niang-reference.webp" width="380" alt="Original whale-girl reference image"></td><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="380" alt="Whale-girl drawing made by the Agent on the sketch board"><br><sub>GPT-6-Astra Medium · 20 min 57 s · 686 strokes</sub></td></tr>
+<tr><th width="33%">GPT-6-Astra</th><th width="33%">GPT-6.1-Sol</th><th width="33%">DeepSeek Flash</th></tr>
+<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="280" alt="Whale-girl drawing made by GPT-6-Astra on the sketch board"></td><td><img src="docs/assets/sketch-niang-sol-6-1.png" width="280" alt="Whale-girl drawing made by GPT-6.1-Sol on the sketch board"></td><td><img src="docs/assets/sketch-niang-deepseek-flash.png" width="280" alt="Whale-girl drawing made by DeepSeek Flash on the sketch board"></td></tr>
+<tr><td>Medium · 20 min 57 s<br>686 strokes</td><td>High · first turn: 23 min<br>1,020 strokes</td><td>High · 9 min 33 s<br>623 strokes</td></tr>
 </table>
+
+After a connection interruption, the 6.1 drawing was restored from its autosave and original successful calls. The model then checked the preview and saved it, with no manual drawing added. This was not an uninterrupted successful run.
 
 </details>
 

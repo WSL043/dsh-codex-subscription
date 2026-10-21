@@ -283,12 +283,17 @@ dsh --profile headless "只回复：ok"
 <details>
 <summary>Agent 绘图实例：鲸鱼娘</summary>
 
-以下实例由 Agent 在草图画板上使用原生可编辑笔画绘制，没有调用生图工具。
+以下实例由 Agent 在草图画板上使用原生可编辑笔画绘制，没有调用生图工具。三者使用相同参考图和绘图工具基线；档位、耗时不同，展示的是各一次实跑结果。
+
+<p align="center"><b>原图</b><br><img src="docs/assets/sketch-niang-reference.webp" width="320" alt="鲸鱼娘原始参考图"></p>
 
 <table>
-<tr><th width="50%">原图</th><th width="50%">Agent 绘制结果</th></tr>
-<tr><td><img src="docs/assets/sketch-niang-reference.webp" width="380" alt="鲸鱼娘原始参考图"></td><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="380" alt="Agent 在草图画板绘制的鲸鱼娘"><br><sub>GPT-6-Astra Medium · 20 分 57 秒 · 686 笔</sub></td></tr>
+<tr><th width="33%">GPT-6-Astra</th><th width="33%">GPT-6.1-Sol</th><th width="33%">DeepSeek Flash</th></tr>
+<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="280" alt="GPT-6-Astra 在草图画板绘制的鲸鱼娘"></td><td><img src="docs/assets/sketch-niang-sol-6-1.png" width="280" alt="GPT-6.1-Sol 在草图画板绘制的鲸鱼娘"></td><td><img src="docs/assets/sketch-niang-deepseek-flash.png" width="280" alt="DeepSeek Flash 在草图画板绘制的鲸鱼娘"></td></tr>
+<tr><td>Medium · 20 分 57 秒<br>686 笔</td><td>High · 首轮 23 分钟<br>1,020 笔</td><td>High · 9 分 33 秒<br>623 笔</td></tr>
 </table>
+
+6.1 在连接中断后，以自动草稿和原始成功调用恢复全部笔画，再由模型确认预览并保存，未人工补画；这次结果不代表全程无故障完成。
 
 </details>
 
