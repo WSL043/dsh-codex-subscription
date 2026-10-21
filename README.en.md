@@ -278,7 +278,10 @@ The sketch board and Agent drawing are **Beta** and off by default; turn them on
 
 The Agent drew this example on the sketch board using native editable strokes, without calling image generation.
 
-<p align="center"><img src="docs/assets/sketch-niang-astra-compare.webp" width="480" alt="Whale-girl drawing made by the Agent on the sketch board"><br><sub>GPT-6-Astra Medium · 20 min 57 s · 686 strokes</sub></p>
+<table>
+<tr><th width="50%">Reference image</th><th width="50%">Agent drawing</th></tr>
+<tr><td><img src="docs/assets/sketch-niang-reference.webp" width="380" alt="Original whale-girl reference image"></td><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="380" alt="Whale-girl drawing made by the Agent on the sketch board"><br><sub>GPT-6-Astra Medium · 20 min 57 s · 686 strokes</sub></td></tr>
+</table>
 
 </details>
 

@@ -285,7 +285,10 @@ dsh --profile headless "只回复：ok"
 
 以下实例由 Agent 在草图画板上使用原生可编辑笔画绘制，没有调用生图工具。
 
-<p align="center"><img src="docs/assets/sketch-niang-astra-compare.webp" width="480" alt="Agent 在草图画板绘制的鲸鱼娘"><br><sub>GPT-6-Astra Medium · 20 分 57 秒 · 686 笔</sub></p>
+<table>
+<tr><th width="50%">原图</th><th width="50%">Agent 绘制结果</th></tr>
+<tr><td><img src="docs/assets/sketch-niang-reference.webp" width="380" alt="鲸鱼娘原始参考图"></td><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="380" alt="Agent 在草图画板绘制的鲸鱼娘"><br><sub>GPT-6-Astra Medium · 20 分 57 秒 · 686 笔</sub></td></tr>
+</table>
 
 </details>
 
