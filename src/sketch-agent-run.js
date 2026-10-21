@@ -24,7 +24,7 @@ export function createSketchAgentRun({ execute, open, changed, busy = () => fals
       pending = true
       try {
         if (state !== 'drawing') {runId=`run-${++runNumber}`;completed=undefined;update('drawing');open()}
-        const value = await execute(request.action === 'finish' ? {...request, action:'save'} : request)
+        const value = await execute(request.action === 'finish' ? {...request, action:'save', finalPreview:true} : request)
         if (version !== generation) throw Error('Drawing interrupted')
         if (request.action !== 'finish') return {...value,runId}
         completed={key:JSON.stringify(request),value:{...value,runId}}

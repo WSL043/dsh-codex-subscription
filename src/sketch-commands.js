@@ -155,7 +155,7 @@ export function createSketchCommandSession(adapter) {
     if (cached) { if(cached.fingerprint!==fingerprint)throw Error('requestId reused with different content');return cached.result }
     if (request.revision === undefined) throw stale('revision is required: copy it from the last result')
     if (request.revision !== current.revision || adapter.busy()) throw stale('Sketch changed or is being edited; inspect again')
-    let changedObjects, progress, previousError
+    let changedObjects, progress, previousError, png, delivery
     const report={}
     const measureNow = async () => { try { return typeof adapter.measure === 'function' ? await adapter.measure({ columns: 6, rows: 8, points: [] }) : undefined } catch { return undefined } }
     if (request.action === 'apply') {
@@ -173,14 +173,20 @@ export function createSketchCommandSession(adapter) {
       pending=true;try{await adapter.addReference(request.image,typeof request.name==='string'?request.name.slice(0,40):'reference')}finally{pending=false}
     } else {
       if(request.name!==undefined && (typeof request.name!=='string'||request.name.length>60))throw Error('Invalid draft name')
-      pending=true;try{await adapter.save(request.name)}finally{pending=false}
+      pending=true
+      try {
+        // Render and save under the same lock, so the attachment identifies the saved revision.
+        if (request.finalPreview) png = await adapter.preview({ drawingOnly: true })
+        await adapter.save(request.name)
+        if (request.finalPreview) delivery = { status: 'saved', documentId: current.documentId, revision: current.revision }
+      } finally { pending=false }
     }
     if (request.action === 'save') { const last = adapter.document?.().layers.some(layer => layer.image) ? await measureNow() : undefined; if (last) progress = { error: last.error, worst: last.worst.slice(0, 3) } }
-    const result = {...adapter.snapshot(),...(changedObjects?{changedObjects:changedObjects.slice(0,100),changedObjectCount:changedObjects.length}:{}),...(report?.warnings?.length?{warnings:report.warnings}:{}),...(report?.clampedPoints?{clampedPoints:report.clampedPoints}:{}),...(progress?{progress}:{})}
+    const result = {...adapter.snapshot(),...(changedObjects?{changedObjects:changedObjects.slice(0,100),changedObjectCount:changedObjects.length}:{}),...(report?.warnings?.length?{warnings:report.warnings}:{}),...(report?.clampedPoints?{clampedPoints:report.clampedPoints}:{}),...(progress?{progress}:{}),...(png?{png,delivery}:{})}
     completed.set(key,{fingerprint,result,receipt:{requestId:request.requestId,action:request.action,revision:result.revision}})
-    cachedCharacters+=fingerprint.length
+    cachedCharacters+=fingerprint.length+(png?.length??0)
     while(completed.size>1 && (completed.size>128 || cachedCharacters>4_000_000)){
-      const oldest=completed.keys().next().value;cachedCharacters-=completed.get(oldest).fingerprint.length;completed.delete(oldest)
+      const oldest=completed.keys().next().value;cachedCharacters-=completed.get(oldest).fingerprint.length+(completed.get(oldest).result.png?.length??0);completed.delete(oldest)
     }
     if (request.action === 'apply' && request.look === true && typeof adapter.preview === 'function') {
       const png = await adapter.preview({ compare: false, grid: false, mode: adapter.document().layers.some(layer => layer.image) ? 'side' : undefined })

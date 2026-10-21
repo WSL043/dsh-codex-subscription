@@ -68,7 +68,7 @@ export function composeSketchPreview({ doc, images, width, height, options = {},
     grid(context, surface.width, surface.height)
     return surface.toDataURL('image/png')
   }
-  const surface = render(doc)
+  const surface = render(options.drawingOnly ? drawingOf(doc) : doc)
   grid(surface.getContext('2d'), surface.width, surface.height)
   return surface.toDataURL('image/png')
 }

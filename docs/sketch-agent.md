@@ -19,7 +19,9 @@ automatically.
    correct it and retry. Other errors explain when a new inspect is needed.
 3. `preview` returns the actual rendered PNG as a native DSH attachment (also `side`/`diff` modes against the reference; see Feedback tools).
 4. `save` checkpoints without releasing the editing lock. `finish` saves and
-   unlocks; its optional image feedback is off by default.
+   unlocks and returns the saved drawing as a native PNG attachment. DSH displays
+   it after the answer without model-written Markdown links. Preview or save
+   failures are reported instead of claiming successful delivery.
 
 Coordinates are normalized; width is canvas pixels. Prefer meaningful object IDs
 and targeted `object` updates instead of redrawing the document. `inspect` returns

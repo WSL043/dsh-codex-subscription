@@ -4,7 +4,7 @@ const isImage = part => part?.type === 'image' && part.attachment
 // The host delivers a tool result's rendered blocks directly in `message.content`
 // (`[text, image]`); a wrapped `tool-result` block is accepted as well.
 const resultsOf = event => {
-  if (event?.type !== 'tool/result' || event.data.meta?.kind !== 'codex-subscription-image') return []
+  if (event?.type !== 'tool/result' || !['codex-subscription-image','codex-subscription-sketch-finish'].includes(event.data.meta?.kind) || event.data.message?.isError) return []
   const content = event.data.message?.content ?? []
   const wrapped = content.filter(block => block.type === 'tool-result' && !block.isError && hasImage(block))
   if (wrapped.length > 0) return wrapped

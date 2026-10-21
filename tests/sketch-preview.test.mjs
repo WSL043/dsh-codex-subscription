@@ -26,6 +26,13 @@ test('a plain preview paints the document once', () => {
   assert.match(url, /^data:image\/png/)
 })
 
+test('finished drawing excludes even a visible reference image without altering the document', () => {
+  const doc={layers:layers.map(layer=>({...layer,visible:true}))}
+  const original=structuredClone(doc)
+  assert.deepEqual(run({drawingOnly:true},doc).painted,[['1:true:1:false','2:true:1:false']])
+  assert.deepEqual(doc,original)
+})
+
 test('compare forces the reference visible without strokes, and draws without the picture, blended at half alpha', () => {
   const { painted, calls } = run({ compare: true })
   assert.deepEqual(painted, [['1:true:0:true', '2:false:0:false'], ['1:false:1:false', '2:true:1:false']])
