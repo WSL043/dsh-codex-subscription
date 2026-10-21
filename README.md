@@ -281,13 +281,13 @@ dsh --profile headless "只回复：ok"
 草图画板和 Agent 绘图为 **Beta**，默认关闭，在“创作”页按需开启。手动画图点输入框的草图按钮；让 Agent 画发送 `@sketch` 加要求。
 
 <details>
-<summary>Agent 绘图：old 鲸鱼娘与初音实例</summary>
+<summary>Agent 绘图实例：鲸鱼娘与初音未来</summary>
 
-以下保留之前在草图画板上的实测结果，使用原生可编辑笔画完成，没有调用生图工具；展示的是历史实例，不代表当前版本的新一轮实测。
+以下实例由 Agent 在草图画板上使用原生可编辑笔画绘制，没有调用生图工具。
 
 <table>
-<tr><th width="50%">鲸鱼娘 · old 结果</th><th width="50%">初音未来 · old 结果</th></tr>
-<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="360" alt="Agent 在草图画板绘制的 old 鲸鱼娘"><br><sub>GPT-6-Astra Medium · 20 分 57 秒 · 686 笔</sub></td><td><img src="docs/assets/sketch-miku-sol-before.webp" width="330" alt="Agent 在草图画板绘制的 old 初音未来"><br><sub>GPT-6.1-Sol Xhigh</sub></td></tr>
+<tr><th width="50%">鲸鱼娘</th><th width="50%">初音未来</th></tr>
+<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="360" alt="Agent 在草图画板绘制的鲸鱼娘"><br><sub>GPT-6-Astra Medium · 20 分 57 秒 · 686 笔</sub></td><td><img src="docs/assets/sketch-miku-sol-before.webp" width="330" alt="Agent 在草图画板绘制的初音未来"><br><sub>GPT-6.1-Sol Xhigh</sub></td></tr>
 </table>
 
 </details>
