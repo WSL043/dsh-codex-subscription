@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="A little fish and a little joy. DSH's hidden whale-girl Easter egg.">
+  <meta name="referrer" content="no-referrer">
+  <title>鲸鱼娘的午饭时间 · DSH</title>
+  <link rel="icon" href="mascot.webp" type="image/webp">
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><symbol id="fish" viewBox="0 0 24 24"><path d="M6 12C9 5 16 5 20 12C16 19 9 19 6 12ZM6 12L2 8V16ZM14 7L12 4M14 17L12 20"/><circle cx="16" cy="11" r=".75" fill="currentColor" stroke="none"/></symbol></svg>
+  <main class="egg-phone" aria-label="投喂鲸鱼娘">
+    <header class="egg-top"><span data-copy="bay">DSH / 秘密小海湾</span><button id="language" type="button" lang="en" aria-label="Switch to English">EN</button></header>
+    <div class="egg-discovered"><svg aria-hidden="true"><use href="#fish"/></svg><span data-copy="lunch">鲸鱼娘的午饭时间</span></div>
+    <div class="egg-dialogue" aria-live="polite" aria-atomic="true"><h1 id="title">没吃饱喵！</h1><p class="egg-intro" id="subtitle">听说扫到这里的人，<br>都随身带着小鱼。</p></div>
+    <div class="egg-portrait">
+      <div class="egg-halo" aria-hidden="true"></div><span class="egg-twinkle egg-twinkle-a" aria-hidden="true">✦</span>
+      <div class="egg-float"><img id="mascot" src="mascot.webp" width="224" height="224" alt="等待投喂的蓝发鲸鱼娘"></div>
+      <span class="egg-twinkle egg-twinkle-b" aria-hidden="true">✧</span><span class="egg-full-tag" id="full" hidden data-copy="full">♡ 吃饱啦</span>
+    </div>
+    <div class="egg-fish-counter">
+      <div class="egg-counter-label"><span data-copy="fish">今日份小鱼</span><span id="count">0 / 5</span></div>
+      <div class="egg-fish-row" id="progress" role="progressbar" aria-label="鲸鱼娘吃到的小鱼" aria-valuemin="0" aria-valuemax="5" aria-valuenow="0">
+        <span><svg aria-hidden="true"><use href="#fish"/></svg></span><span><svg aria-hidden="true"><use href="#fish"/></svg></span><span><svg aria-hidden="true"><use href="#fish"/></svg></span><span><svg aria-hidden="true"><use href="#fish"/></svg></span><span><svg aria-hidden="true"><use href="#fish"/></svg></span>
+      </div>
+    </div>
+    <div class="egg-feed-actions"><button class="egg-primary" id="feed" type="button"><span data-copy="feed">投喂一条小鱼</span><svg aria-hidden="true"><use href="#fish"/></svg></button><button class="egg-reset" id="reset" type="button" disabled aria-label="重新投喂"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10A9 9 0 1 1 5 18M3 4V10H9"/></svg></button></div>
+    <p class="egg-achievement" id="achievement">再喂几条，会发生什么呢？</p>
+    <footer class="egg-bottom"><a id="project" href="https://github.com/WSL043/dsh-codex-subscription">DSH Codex Subscription</a><br><span data-copy="footer">小鱼不消耗订阅额度</span></footer>
+    <noscript><p>请开启 JavaScript 来喂鱼。<br>Enable JavaScript to feed her.</p></noscript>
+  </main>
+</body>
+</html>
