@@ -139,13 +139,6 @@ dsh --profile headless "只回复：ok"
 
 </details>
 
-<details>
-<summary>查看截图</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-replay-zh-dark.webp"><img src="docs/assets/ui-replay-zh-light.webp" width="640" alt="草图画板的回放：按落笔顺序重放整幅画，可调速、拖动进度，并录成视频"></picture></p>
-
-</details>
-
 草图画板见 [草图画板](#草图画板beta)，开关在 **设置 → Codex 订阅 → 创作**。
 
 ### ChatGPT 连接器
@@ -286,6 +279,41 @@ dsh --profile headless "只回复：ok"
 ## 草图画板（Beta）
 
 草图画板和 Agent 绘图为 **Beta**，默认关闭，在“创作”页按需开启。手动画图点输入框的草图按钮；让 Agent 画发送 `@sketch` 加要求。
+
+<details open>
+<summary>Agent 绘图：old 鲸鱼娘与初音实例</summary>
+
+以下保留之前在草图画板上的实测结果，使用原生可编辑笔画完成，没有调用生图工具；展示的是历史实例，不代表当前版本的新一轮实测。
+
+<table>
+<tr><th width="50%">鲸鱼娘 · old 结果</th><th width="50%">初音未来 · old 结果</th></tr>
+<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="360" alt="Agent 在草图画板绘制的 old 鲸鱼娘"><br><sub>GPT-6-Astra Medium · 20 分 57 秒 · 686 笔</sub></td><td><img src="docs/assets/sketch-miku-sol-before.webp" width="330" alt="Agent 在草图画板绘制的 old 初音未来"><br><sub>GPT-6.1-Sol Xhigh</sub></td></tr>
+</table>
+
+</details>
+
+<details>
+<summary>草图到生图：钟塔剖面图与千峰翠色</summary>
+
+Agent 先在画板绘制可编辑草图，再以该草图为参考调用订阅生图工具生成成品。下方 Sol、Astra 指负责执行流程的对话模型，不是生图后端型号。
+
+**钟塔剖面图**
+
+<table>
+<tr><th>对话模型</th><th width="43%">Agent 原生草图</th><th width="43%">以草图为参考的生图结果</th></tr>
+<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-clocktower-sol-sketch.webp" width="360" alt="钟塔剖面图：sol 绘制的原生草图"></td><td><img src="docs/assets/sketch-clocktower-sol-result.webp" width="360" alt="钟塔剖面图：以 sol 草图为参考生成的图片"></td></tr>
+<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-clocktower-astra-sketch.webp" width="360" alt="钟塔剖面图：astra 绘制的原生草图"></td><td><img src="docs/assets/sketch-clocktower-astra-result.webp" width="360" alt="钟塔剖面图：以 astra 草图为参考生成的图片"></td></tr>
+</table>
+
+**千峰翠色**
+
+<table>
+<tr><th>对话模型</th><th width="43%">Agent 原生草图</th><th width="43%">以草图为参考的生图结果</th></tr>
+<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-shanshui-sol-sketch.webp" width="360" alt="千峰翠色：sol 绘制的原生草图"></td><td><img src="docs/assets/sketch-shanshui-sol-result.webp" width="360" alt="千峰翠色：以 sol 草图为参考生成的图片"></td></tr>
+<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-shanshui-astra-sketch.webp" width="360" alt="千峰翠色：astra 绘制的原生草图"></td><td><img src="docs/assets/sketch-shanshui-astra-result.webp" width="360" alt="千峰翠色：以 astra 草图为参考生成的图片"></td></tr>
+</table>
+
+</details>
 
 <details>
 <summary>查看图片与草图设置</summary>

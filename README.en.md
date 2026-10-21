@@ -273,6 +273,41 @@ Subscription failures remain visible: no silent fallback to another paid route.
 
 The sketch board and Agent drawing are **Beta** and off by default; turn them on in the Create page. Draw by hand from the sketch button in the composer, or send `@sketch` with a request to have the Agent draw.
 
+<details open>
+<summary>Agent drawing: earlier whale-girl and Hatsune Miku results</summary>
+
+These are preserved earlier runs made on the sketch board with native editable strokes, without calling image generation. They are historical examples, not a new benchmark of the current version.
+
+<table>
+<tr><th width="50%">Whale girl · earlier result</th><th width="50%">Hatsune Miku · earlier result</th></tr>
+<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="360" alt="Earlier whale-girl drawing made by the Agent on the sketch board"><br><sub>GPT-6-Astra Medium · 20 min 57 s · 686 strokes</sub></td><td><img src="docs/assets/sketch-miku-sol-before.webp" width="330" alt="Earlier Hatsune Miku drawing made by the Agent on the sketch board"><br><sub>GPT-6.1-Sol Xhigh</sub></td></tr>
+</table>
+
+</details>
+
+<details>
+<summary>Sketch to generated image: clocktower and blue-green landscape</summary>
+
+The Agent first drew an editable sketch, then used that sketch as the reference for subscription image generation. Sol and Astra below name the conversation models directing the workflow, not the image-generation backend.
+
+**Clocktower cutaway**
+
+<table>
+<tr><th>Conversation model</th><th width="43%">Agent sketch</th><th width="43%">Generated from the sketch</th></tr>
+<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-clocktower-sol-sketch.webp" width="360" alt="Clocktower cutaway: sol Agent sketch"></td><td><img src="docs/assets/sketch-clocktower-sol-result.webp" width="360" alt="Clocktower cutaway: subscription image generated from the sol sketch"></td></tr>
+<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-clocktower-astra-sketch.webp" width="360" alt="Clocktower cutaway: astra Agent sketch"></td><td><img src="docs/assets/sketch-clocktower-astra-result.webp" width="360" alt="Clocktower cutaway: subscription image generated from the astra sketch"></td></tr>
+</table>
+
+**Blue-green landscape**
+
+<table>
+<tr><th>Conversation model</th><th width="43%">Agent sketch</th><th width="43%">Generated from the sketch</th></tr>
+<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-shanshui-sol-sketch.webp" width="360" alt="Blue-green landscape: sol Agent sketch"></td><td><img src="docs/assets/sketch-shanshui-sol-result.webp" width="360" alt="Blue-green landscape: subscription image generated from the sol sketch"></td></tr>
+<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-shanshui-astra-sketch.webp" width="360" alt="Blue-green landscape: astra Agent sketch"></td><td><img src="docs/assets/sketch-shanshui-astra-result.webp" width="360" alt="Blue-green landscape: subscription image generated from the astra sketch"></td></tr>
+</table>
+
+</details>
+
 <details>
 <summary>View Images & sketch settings</summary>
 
