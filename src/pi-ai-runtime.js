@@ -107,6 +107,7 @@ export function openaiCodexSubscriptionProvider({
   catalog,
   connection,
   compaction,
+  reasoning,
   runNetwork = (_area, operation) => operation(),
 } = {}) {
   const provider = createOpenAICodexProvider()
@@ -157,11 +158,12 @@ export function openaiCodexSubscriptionProvider({
           ? next ?? managed
           : withInputImageDetail(next ?? managed, inputImageDetail)
         const { temperature: _dropped, ...accepted } = withReasoningSummary(detailed, reasoningSummary)
-        return {
+        const finalPayload = {
           ...accepted,
           ...(textVerbosity === undefined ? {} : { text: { ...(detailed.text ?? {}), verbosity: textVerbosity } }),
           ...(serviceTier === undefined ? {} : { service_tier: serviceTier }),
         }
+        return reasoning?.preparePayload(finalPayload, requestModel) ?? finalPayload
       },
     }
   }

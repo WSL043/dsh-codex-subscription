@@ -17,6 +17,40 @@ This project depends on software distributed under its own terms. The dependency
 
 No third-party project endorses this community plugin. See each installed package for its complete license text and transitive dependency notices.
 
+## Cache-preserving reasoning updates
+
+`src/reasoning-updates.js` adapts the boundary replay design, and
+`src/reasoning-json.js` adapts bounded JSON fingerprinting, from
+`pi-openai-reasoning@0.2.0`, commit `306242f2c802ea4c0067d64d4fd5fd103d89a6b5`:
+
+- https://github.com/jvm/pi-mono/blob/306242f2c802ea4c0067d64d4fd5fd103d89a6b5/packages/pi-openai-reasoning/src/reasoning.ts
+- https://github.com/jvm/pi-mono/blob/306242f2c802ea4c0067d64d4fd5fd103d89a6b5/packages/pi-openai-reasoning/src/bounded-json.ts
+
+No install telemetry or Pi session-log integration from that package is included.
+The original package's allowlist is not proof of Sol subscription compatibility.
+
+MIT License
+
+Copyright (c) 2026 Jose Mocito
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
 ## PSD codec (loaded on demand)
 
 ### ag-psd 31.0.2

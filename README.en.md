@@ -330,6 +330,20 @@ Model access and quota depend on your account.
 
 </details>
 
+### Experimental cache-preserving effort changes
+
+Under **Settings → Codex → Models**, **Cache-preserving effort changes → Sol** is an explicit opt-in, off by default. Enable it **before starting a new chat**. It applies only to standard, single-agent `gpt-6.1-sol` subscription requests.
+
+The request-level `reasoning.effort` stays at the chat's initial value. When you change effort in DSH, the plugin inserts a `configuration_update` at the next new-history boundary and replays earlier updates in their original positions. This can preserve a cacheable prefix; it does not guarantee cache hits. The service's response-level effort still reports the original request-level value.
+
+- **Cloud auto-compaction and Unlimited retries disable this feature.** The UI explains the conflict; your compaction, retry, authentication, connection and cache-key settings are never changed automatically.
+- Successful responses save small, text-free state alongside DSH's existing provider replay metadata. Resume and forks can recover that state. Unknown existing chats, edited/compacted history, changed account/model, unsupported requests and resource limits use the ordinary request with your selected effort, with a reason-only diagnostic. Start a new chat to establish a new baseline.
+- The same-process pending state freezes an already dispatched input even if it fails or is cancelled. Selecting a different effort for that exact retry reports an error; keep its original effort or send a new message. Failed attempts have no durable successful-response checkpoint, so preserving their cache prefix across a process restart or plugin reload is not guaranteed.
+- Disabling restores ordinary requests. Enable again before a new chat; the plugin never retrofits updates into old session logs. It does not send update history to `/responses/compact`, and does not support pro, multi-agent, automatic truncation or automatic compaction.
+- The feature is bounded to 20,000 input items, 16 MiB of fingerprinted input/envelope data, 128 updates and 256 active/pending sessions. Boundary or history validation failures stop preservation, not your selected reasoning effort.
+
+OpenAI documents configuration updates for the GPT-6 family in the [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning) and explains [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching). These public API documents do **not** establish support in the private ChatGPT subscription backend. This implementation is transport-mock tested, not live subscription validated; a backend parameter rejection is surfaced, never retried with an old effort or an API key.
+
 ## Update and uninstall
 
 Find this plugin on the DSH **Plugins** page and use its update or uninstall action. Follow any restart instructions. Uninstalling this plugin does not remove other plugins.

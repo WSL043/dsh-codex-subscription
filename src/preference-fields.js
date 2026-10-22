@@ -12,6 +12,7 @@ import {
 // One enum contract feeds persisted Host schemas and RPC writes.
 export const PREFERENCE_FIELDS = Object.freeze({
   compactionMode: { choices: ['dsh', 'cloud'], default: 'dsh', error: 'Invalid compaction mode' },
+  reasoningCache: { choices: ['off', 'sol'], default: 'off', error: 'Invalid reasoning cache preference' },
   connectionMode: { choices: ['sse', 'websocket'], default: 'sse', error: 'Invalid connection mode' },
   reviewModel: { choices: ['session', 'official'], default: 'session', error: 'Invalid review model' },
   remoteControl: { choices: ['off', 'on'], default: 'off', error: 'Invalid Remote Control setting' },
