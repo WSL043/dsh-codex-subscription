@@ -12,6 +12,7 @@ import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
   CONTEXT_MODE_STANDARD,
+  customContextModelKey,
   normalizeInputImageDetail,
 } from '../src/settings-contract.js'
 
@@ -239,7 +240,12 @@ test('subscription fast mode reaches only officially supported Codex model reque
 
   try {
     let speedMode = 'fast'
-    const provider = openaiCodexSubscriptionProvider({ resolveSpeedMode: () => speedMode })
+    // pi-ai 1.4 retired Spark; still exercise the catalog's negative capability on a shipped model.
+    const nonFastModel = openaiCodexProvider().getModels().some(model => model.id === 'gpt-5.3-codex-spark') ? 'gpt-5.3-codex-spark' : 'gpt-5.6-luna'
+    const provider = openaiCodexSubscriptionProvider({
+      resolveSpeedMode: () => speedMode,
+      catalog: { getModels: () => openaiCodexProvider().getModels(), metadata: id => id === nonFastModel ? { supportsFast: false } : undefined },
+    })
     const profiles = new Map([['openai-codex', {
       provider: 'openai-codex',
       displayName: 'ChatGPT subscription',
@@ -266,7 +272,7 @@ test('subscription fast mode reaches only officially supported Codex model reque
     }
 
     await run('gpt-5.6-sol')
-    await run('gpt-5.3-codex-spark')
+    await run(nonFastModel)
     speedMode = 'standard'
     await run('gpt-5.6-sol')
 
@@ -293,7 +299,11 @@ test('output detail reaches only verbosity-capable Codex requests', async () => 
   }
   try {
     let outputVerbosity = 'high'
-    const provider = openaiCodexSubscriptionProvider({ resolveOutputVerbosity: () => outputVerbosity })
+    const noVerbosityModel = openaiCodexProvider().getModels().some(model => model.id === 'gpt-5.3-codex-spark') ? 'gpt-5.3-codex-spark' : 'gpt-5.6-luna'
+    const provider = openaiCodexSubscriptionProvider({
+      resolveOutputVerbosity: () => outputVerbosity,
+      catalog: { getModels: () => openaiCodexProvider().getModels(), metadata: id => id === noVerbosityModel ? { supportVerbosity: false } : undefined },
+    })
     const profiles = new Map([['openai-codex', {
       provider: 'openai-codex', displayName: 'ChatGPT subscription', piProvider: provider,
       configuredMaxTokens: new Map(), modelErrors: new Map(), transport: 'sse', streamIdleTimeoutMs: 10_000,
@@ -307,10 +317,10 @@ test('output detail reaches only verbosity-capable Codex requests', async () => 
     await run('gpt-5.6-sol')
     outputVerbosity = 'low'
     await run('gpt-5.6-sol')
-    await run('gpt-5.3-codex-spark')
+    await run(noVerbosityModel)
     assert.equal(wires[0].text.verbosity, 'high')
     assert.equal(wires[1].text.verbosity, 'low')
-    assert.equal(wires[2].text.verbosity, 'low', 'Spark retains the audited pi-ai wire default when the catalog does not advertise verbosity')
+    assert.equal(wires[2].text.verbosity, 'low', 'a model without verbosity capability retains the audited pi-ai wire default')
   } finally {
     globalThis.fetch = previousFetch
   }
@@ -538,10 +548,13 @@ test('context presets preserve catalog defaults and cap every supported model in
   })
 
   if ('gpt-6-astra' in contexts()) assert.equal(contexts()['gpt-6-astra'], 500_000)
+  const floorModel = 'gpt-5.5' in contexts() ? 'gpt-5.5' : 'gpt-5.6-sol'
+  const floorKey = customContextModelKey(floorModel)
+  perModel.delete(floorKey)
   customContextWindow = 64_000
-  assert.equal(contexts()['gpt-5.5'], 128_000)
-  perModel.set('gpt-5.5', 200_000)
-  assert.equal(contexts()['gpt-5.5'], 200_000)
+  assert.equal(contexts()[floorModel], 128_000)
+  perModel.set(floorKey, 200_000)
+  assert.equal(contexts()[floorModel], 200_000)
 })
 
 test('the Ultrafast tier reaches the wire only for a model the account catalog lists it for', async () => {
