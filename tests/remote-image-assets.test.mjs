@@ -53,12 +53,12 @@ test('official create, unsigned blob PUT and finalize return a genuine HTTPS att
   assert.deepEqual(await readdir(join(stateFile, '..')), ['assets.json'])
 })
 
-test('identical parallel image requests upload once; persisted cache resolves a fresh URL with OAuth', async t => {
+test('identical parallel image requests upload once; persisted cache re-finalizes for a fresh storage URL with OAuth', async t => {
   const stateFile = await temporary(t), f = fixture(), assets = moduleFor(f, { stateFile })
   const results = await Promise.all(Array.from({ length: 12 }, () => assets.publish(image)))
   assert.equal(results.every(item => item.fileId === 'file-1'), true)
   assert.equal(f.calls.length, 3)
-  const cached = fixture({ resolve: () => ok({ status: 'success', download_url: 'https://files.oaiusercontent.com/new?sig=fresh' }) })
+  const cached = fixture({ finalize: () => ok({ status: 'success', download_url: 'https://files.oaiusercontent.com/new?sig=fresh' }) })
   assert.deepEqual(await moduleFor(cached, { stateFile }).publish(image), { fileId: 'file-1', downloadUrl: 'https://files.oaiusercontent.com/new?sig=fresh' })
   assert.equal(cached.calls.length, 1)
   assert.equal(cached.calls[0].headers.authorization, 'Bearer ' + auth.access)
@@ -113,10 +113,11 @@ test('finalize retries only its retry status, with a strict attempt bound', asyn
 test('expired cache 404 reuploads, but 403 fails without making another file', async t => {
   const stateFile = await temporary(t)
   await moduleFor(fixture(), { stateFile }).publish(image)
-  const denied = fixture({ resolve: () => fail(403) })
+  const denied = fixture({ finalize: () => fail(403) })
   await assert.rejects(moduleFor(denied, { stateFile }).publish(image), /HTTP 403/u)
   assert.equal(denied.calls.length, 1)
-  const expired = fixture({ resolve: () => fail(404) })
+  let old = true
+  const expired = fixture({ finalize: () => old ? (old = false, fail(404)) : ok({ status: 'success', download_url: signed }) })
   await moduleFor(expired, { stateFile }).publish(image)
   assert.equal(expired.calls.length, 4)
 })
@@ -174,4 +175,23 @@ test('transport and malformed response failures never expose a signed URL or cre
   await assert.rejects(moduleFor(f).publish(image), error => error.message === 'Remote image request failed')
   const malformed = fixture({ create: () => ({ ok: true, json: async () => { throw new Error(auth.access) } }) })
   await assert.rejects(moduleFor(malformed).publish(image), error => error.message === 'Invalid remote image response')
+})
+
+test('the real file_ identity shape is accepted and reused after restart', async t => {
+  const stateFile = await temporary(t), fileId = 'file_00000000000000000000000000000000'
+  const f = fixture({ create: () => ok({ file_id: fileId, upload_url: signed }) })
+  assert.equal((await moduleFor(f, { stateFile }).publish(image)).fileId, fileId)
+  const cached = fixture()
+  await moduleFor(cached, { stateFile }).publish(image)
+  assert.equal(cached.calls.length, 1)
+  assert.equal(cached.calls[0].method, 'POST')
+  assert.equal(cached.calls[0].url.endsWith(`/files/${fileId}/uploaded`), true)
+})
+
+test('an authenticated ChatGPT proxy is rejected as an image URL; no fake link or signed URL reaches disk', async t => {
+  const stateFile = await temporary(t)
+  const f = fixture({ finalize: () => ok({ status: 'success', download_url: 'https://chatgpt.com/backend-api/estuary/content?id=hidden&sig=hidden' }) })
+  await assert.rejects(moduleFor(f, { stateFile }).publish(image), /Untrusted signed image destination/u)
+  await assert.rejects(readFile(stateFile), { code: 'ENOENT' })
+  assert.equal(f.calls.length, 3)
 })

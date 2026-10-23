@@ -4,7 +4,7 @@ import { dirname } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const BASE = 'https://chatgpt.com/backend-api/'
-const FILE_ID = /^file-[A-Za-z0-9_-]{1,200}$/u
+const FILE_ID = /^file[-_][A-Za-z0-9_-]{1,200}$/u
 const HASH = /^[a-f0-9]{64}$/u
 const hash = value => createHash('sha256').update(value).digest('hex')
 function imageBytes({ data, mediaType } = {}) {
@@ -68,13 +68,23 @@ export function createRemoteImageAssets({ credentials, fetch: request = globalTh
       if (!response.ok) { const error = new Error(`Remote image ${method} failed (HTTP ${response.status})`); error.status = response.status; throw error }
       try { return await response.json() } catch { throw new Error('Invalid remote image response') }
     }
+    // The generic download resolver returns an OAuth-only ChatGPT proxy. Re-finalize
+    // the existing record to obtain a fresh storage URL usable by a native image view.
+    const finalize = async fileId => {
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const completed = await api('POST', `files/${encodeURIComponent(fileId)}/uploaded`, {})
+        if (completed.status === 'success') return signedUrl(completed.download_url)
+        if (completed.status !== 'retry') throw new Error('Remote image finalization failed')
+        if (attempt < 7) await delay(250, undefined, { signal })
+      }
+      throw new Error('Remote image finalization did not complete')
+    }
     let entries = accounts.get(owner)
     if (!entries) { entries = new Map(); accounts.set(owner, entries) }
     const saved = entries.get(key)
     if (saved) {
       try {
-        const resolved = await api('GET', `files/download/${encodeURIComponent(saved.fileId)}`)
-        if (resolved.status === 'success' && typeof resolved.download_url === 'string') { signedUrl(resolved.download_url); return { fileId: saved.fileId, downloadUrl: signedUrl(resolved.download_url) } }
+        return { fileId: saved.fileId, downloadUrl: await finalize(saved.fileId) }
       } catch (error) { if (error.status !== 404 && error.status !== 410) throw error }
       entries.delete(key)
     }
@@ -83,20 +93,13 @@ export function createRemoteImageAssets({ credentials, fetch: request = globalTh
     const destination = signedUrl(created.upload_url)
     const put = await send(destination, { method: 'PUT', redirect: 'error', signal: AbortSignal.any([signal, AbortSignal.timeout(60000)]), headers: { 'x-ms-blob-type': 'BlockBlob', 'content-length': String(bytes.length), 'content-type': mediaType }, body: bytes })
     if (!put.ok) throw new Error(`Remote image upload failed (HTTP ${put.status})`)
-    for (let attempt = 0; attempt < 8; attempt++) {
-      const completed = await api('POST', `files/${encodeURIComponent(created.file_id)}/uploaded`, {})
-      if (completed.status === 'success') {
-        signedUrl(completed.download_url)
-        signal.throwIfAborted()
-        entries.set(key, { hash: key, fileId: created.file_id, bytes: bytes.length, mediaType })
-        while (entries.size > 128) entries.delete(entries.keys().next().value)
-        try { await persist() } catch (error) { entries.delete(key); throw error }
-        return { fileId: created.file_id, downloadUrl: signedUrl(completed.download_url) }
-      }
-      if (completed.status !== 'retry') throw new Error('Remote image finalization failed')
-      if (attempt < 7) await delay(250, undefined, { signal })
-    }
-    throw new Error('Remote image finalization did not complete')
+    const downloadUrl = await finalize(created.file_id)
+    signal.throwIfAborted()
+    entries.set(key, { hash: key, fileId: created.file_id, bytes: bytes.length, mediaType })
+    while (entries.size > 128) entries.delete(entries.keys().next().value)
+    try { await persist() } catch (error) { entries.delete(key); throw error }
+    return { fileId: created.file_id, downloadUrl }
+
   }
   return Object.freeze({
     async publish(image, signal) {
