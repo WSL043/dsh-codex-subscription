@@ -19,6 +19,7 @@ import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { USER_AGENT } from './version.js'
 import { createRemoteControl } from './remote-control.js'
 import { createDshRemoteControl } from './remote-control-dsh.js'
+import { createRemoteImageAssets } from './remote-image-assets.js'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import * as dshLlm from '@deepseek-ai/dsh-llm'
 import { retryPolicyFor } from './retry-policy.js'
@@ -527,12 +528,18 @@ export function apply(ctx, config = {}) {
     },
   })
   const coordinator = new CodexLoginCoordinator(auth)
+  const remoteImages = createRemoteImageAssets({
+    credentials: ({ signal }) => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal),
+    fetch: (input, init) => network.fetch('remote', input, init),
+    stateFile: dshHomePath('state', 'codex-subscription', 'remote-images.json'),
+  })
   const remoteBridge = createDshRemoteControl({
     controller: () => ctx.get?.('sessionController'),
     agents: () => ctx.get?.('agents'),
     permissions: () => ctx.get?.('permissionPresets'),
     workspaces: () => ctx.get?.('workspaceRegistry'),
     attachments: () => ctx.attachments,
+    remoteImages,
     usage: () => usageReader,
     usageProfile: () => usageProfileReader,
     projections: () => ctx.get?.('sessionProjections'),

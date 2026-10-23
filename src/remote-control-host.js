@@ -31,7 +31,7 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
   const trace = []
   const record = entry => {
     if (!debug) return
-    const value = { at: Date.now(), ...entry }
+    const value = { at: Date.now(), ...Object.fromEntries(Object.entries(entry).map(([key, value]) => [key, typeof value === 'string' ? value.replace(/https?:\/\/[^\s"'<>]+/gu, url => url.split(/[?#]/u)[0]) : value])) }
     trace.push(value); if (trace.length > 60) trace.shift()
     // A copy on disk, so a development run can be read afterwards without the web page.
     if (debugFile !== undefined) try { appendFileSync(debugFile, `${JSON.stringify(value)}
