@@ -10,7 +10,7 @@ import { DiagnosticsCard } from './client-diagnostics.jsx'
 import { StorageCard } from './client-storage.jsx'
 import {
   AutoQuotaRetryPreference, ConnectorsPreference, ContextWindowPreference, InputImageDetailPreference, ModelCatalogStatus,
-  PickerModelsPreference, QuickQuotaPreference, ReasoningSummaryPreference, RetryPolicyPreference, SearchProviderPreference,
+  PickerModelsPreference, QuickQuotaPreference, ReasoningCachePreference, ReasoningSummaryPreference, RetryPolicyPreference, SearchProviderPreference,
   StreamIdleTimeoutPreference,
 } from './client-preferences.jsx'
 import { OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
@@ -121,6 +121,8 @@ export function ModelsPage({ preference, t, defaultModel }) {
       <summary>{t('advancedTitle')}<span>{t('advancedSummary')}</span></summary>
       <div className="codexAdvancedBody">
         <ContextWindowPreference preference={preference} t={t} />
+        <div className="codexSubscriptionDivider" />
+        <ReasoningCachePreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <RetryPolicyPreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />

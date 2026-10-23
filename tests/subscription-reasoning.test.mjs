@@ -9,9 +9,9 @@ const user = text => ({ role: 'user', content: [{ type: 'text', text }] })
 const block = { type: 'text', text: 'fixture answer' }
 const native = { response: { kind: 'pi-ai', version: 2, untouched: true }, blocks: [{ type: 'text', textSignature: 'fixture' }] }
 const assistant = finish => ({ role: 'assistant', source: { kind: 'model', provider: model.provider, model: model.id, replayState: structuredClone(finish.replayState) }, content: [block] })
-function fixture({ enabled = true, cloud = false, unlimited = false, account = 'synthetic-account', finish = true, fail = false } = {}) {
+function fixture({ enabled = true, cloud = false, unlimited = false, account = 'synthetic-account', finish = true, fail = false, supported = true, resolveSession } = {}) {
   const wires = [], reasons = []
-  const bridge = createReasoningBridge({ enabled: () => enabled, cloud: () => cloud, unlimited: () => unlimited, accountScope: async () => account, diagnostic: reason => reasons.push(reason) })
+  const bridge = createReasoningBridge({ enabled: () => enabled, cloud: () => cloud, unlimited: () => unlimited, supportsModel: () => supported, resolveSession, accountScope: async () => account, diagnostic: reason => reasons.push(reason) })
   const target = {
     marker: true,
     async *stream(options) {
@@ -46,6 +46,57 @@ test('native creation proof is required, not input size; unknown existing histor
   assert.deepEqual(first.replayState.blocks, native.blocks)
   assert.equal(first.replayState.response.untouched, true)
   assert.equal(f.adapter.identity(), true)
+})
+
+test('a missing account capability never injects updates, even with creation proof', async () => {
+  const f = fixture({ supported: false }); f.created()
+  const first = await f.run([user('first')])
+  await f.run([user('first'), assistant(first), user('next')], 'high')
+  assert.equal(f.wires.at(-1).reasoning.effort, 'high')
+  assert.equal(first.replayState.response[REASONING_STATE_KEY], undefined)
+})
+
+test('native committed compaction starts a new window, including restart before its first request', async () => {
+  let session = Session.create('native-session')
+  const events = []
+  const append = (type, data, ...rest) => { const e = session.append(type, data, ...rest); events.push(e); return e }
+  const addUser = (text, id) => append('user/message', { ...user(text), id, source: { kind: 'user' } }, { surfaceOp: 'append' })
+  const addAssistant = (finish, id) => append('assistant/message', { turn: 1, step: 1, message: { ...assistant(finish), id }, stream: [] }, { surfaceOp: 'append' })
+  const native = () => session
+  const f = fixture({ resolveSession: native })
+  addUser('first', 'user-1')
+  const first = await f.run(session.deriveMessages(), 'medium', session.id)
+  addAssistant(first, 'assistant-1'); addUser('second', 'user-2')
+  const second = await f.run(session.deriveMessages(), 'high', session.id)
+  assert.equal(f.wires.at(-1).reasoning.effort, 'medium')
+  addAssistant(second, 'assistant-2')
+  f.bridge.sessionEvent(session, { type: 'compaction/end', data: { error: 'failed summary' } })
+  assert.equal(f.bridge.snapshot().pending, 1, 'failed compaction keeps pending state')
+  const nodes = [...session.surface.nodes]
+  append('user/message', { ...user('native compacted summary'), id: 'checkpoint', source: { kind: 'compact-checkpoint', compactionId: 'compact-1' } }, {
+    surfaceOp: { op: 'replace', startSeq: nodes[0], endSeq: nodes.at(-1) }, sourceEventSeqs: nodes,
+  })
+  const end = append('compaction/end', { compactionId: 'compact-1', turn: null })
+  f.bridge.sessionEvent(session, end)
+  assert.equal(f.bridge.snapshot().pending, 0)
+  session = Session.create(session.id, events, session.header)
+  const restored = fixture({ resolveSession: native })
+  const compacted = await restored.run(session.deriveMessages(), 'high', session.id)
+  assert.equal(restored.wires[0].reasoning.effort, 'high')
+  assert.equal(restored.wires[0].input.some(x => x.type === 'configuration_update'), false)
+  assert.ok(compacted.replayState.response[REASONING_STATE_KEY].window)
+  addAssistant(compacted, 'assistant-3'); addUser('after restore', 'user-3')
+  const resumed = fixture({ resolveSession: native })
+  await resumed.run(session.deriveMessages(), 'low', session.id)
+  assert.equal(resumed.wires[0].reasoning.effort, 'high')
+  assert.deepEqual(resumed.wires[0].input.filter(x => x.type === 'configuration_update').map(x => x.reasoning.effort), ['low'])
+})
+
+test('a forged summary or an auxiliary subset cannot establish a trusted replacement window', async () => {
+  const f = fixture({ resolveSession: () => ({ surface: { contentGeneration: 2 }, deriveMessages: () => [user('native history')] }) })
+  const result = await f.run([user('different summary input')])
+  assert.equal(result.replayState.response[REASONING_STATE_KEY], undefined)
+  assert.ok(f.reasons.includes('unknown-window'))
 })
 
 test('state roundtrips on new finishes, restores across bridge instances and forks from the last ancestor', async () => {
@@ -118,7 +169,7 @@ test('prepared calls, session isolation, disposal and bounded lifecycle preserve
   assert.ok(f.bridge.snapshot().fresh <= 256)
 })
 
-test('enabling for existing or restored empty sessions never invents a baseline; disable/re-enable needs a new chat', async () => {
+test('without native history, existing or restored sessions and re-enabling never invent a baseline', async () => {
   const f = fixture({ enabled: false }); f.created(); f.setEnabled(true)
   await f.run([user('existing')], 'high')
   assert.ok(f.reasons.includes('unknown-window'))
@@ -163,7 +214,7 @@ test('pending ledger never evicts an uncheckpointed retry to admit an unbounded 
 test('an ineligible nested request cannot overwrite an outer request checkpoint', async () => {
   for (const mode of ['disabled', 'review']) {
   let enabled = true, adapter
-  const bridge = createReasoningBridge({ enabled: () => enabled, accountScope: async () => 'synthetic-account' })
+  const bridge = createReasoningBridge({ enabled: () => enabled, supportsModel: () => true, accountScope: async () => 'synthetic-account' })
   bridge.sessionCreated(Session.create('outer'))
   const target = { async *stream(options) {
     const payload = bridge.preparePayload({ model: model.id, input: [user(options.sessionId)], reasoning: { effort: options.reasoningEffort } }, model)

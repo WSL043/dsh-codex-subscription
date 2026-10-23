@@ -80,9 +80,9 @@ export function ReasoningCachePreference({ preference, t }) {
   const blocked = snapshot.compactionMode === 'cloud' || snapshot.retryPolicy === 'unlimited'
   const hint = snapshot.compactionMode === 'cloud' ? 'reasoningCacheCloud' : snapshot.retryPolicy === 'unlimited' ? 'reasoningCacheRetry' : 'reasoningCacheHint'
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('reasoningCache')} <small>Beta</small></span><Hint t={t}>{t(hint)}</Hint></div>
+    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('reasoningCache')}</span><Hint t={t}>{t(hint)}</Hint></div>
     <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('reasoningCache')} aria-busy={snapshot.saving || undefined}>
-      {['off', 'sol'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-reasoning-cache" checked={snapshot.reasoningCache === value} disabled={!writable || value === 'sol' && blocked} onChange={() => { void preference.set({ reasoningCache: value }) }} /><span>{t(`reasoningCache_${value}`)}</span></label>)}
+      {['off', 'on'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-reasoning-cache" checked={snapshot.reasoningCache === value} disabled={!writable || value === 'on' && blocked} onChange={() => { void preference.set({ reasoningCache: value }) }} /><span>{t(`reasoningCache_${value}`)}</span></label>)}
     </div>
   </div>
 }
