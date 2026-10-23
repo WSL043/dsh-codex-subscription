@@ -7,8 +7,8 @@ export { formatLogLine, sanitizeLogText } from './diagnostic-log-format.js'
 // A support log: what happened, in order, with a level. Text is cleaned before it is kept:
 // nothing that identifies the account or lets anyone act as it ever reaches the log.
 const LEVELS = ['info', 'warn', 'error']
-const MAX_ENTRIES = 400
-const FILE_LIMIT = 256 * 1024
+const MAX_ENTRIES = 1000
+const FILE_LIMIT = 1024 * 1024
 
 export function createDiagnosticLog({ now = Date.now, limit = MAX_ENTRIES } = {}) {
   let entries = []
