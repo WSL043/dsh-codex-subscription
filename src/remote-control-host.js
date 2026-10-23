@@ -3,6 +3,7 @@ import { appendFileSync } from 'node:fs'
 // Messages carry no "jsonrpc" field: {id,method,params}, {method,params}, {id,result}, {id,error}.
 
 import { randomUUID } from 'node:crypto'
+import { phoneLog } from './remote-control-log.js'
 
 const METHOD_NOT_FOUND = -32601
 const INVALID_PARAMS = -32602
@@ -55,7 +56,13 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
       let active = false
       const notify = async (method, params) => {
         if (debug && !STREAMING.test(method)) record({ method: `notify:${method}`, params: JSON.stringify({ threadId: params?.threadId, status: params?.status?.type, message: params?.message }) })
-        await client.send(params === undefined ? { method } : { method, params })
+        try {
+          await client.send(params === undefined ? { method } : { method, params })
+          if (!STREAMING.test(method)) phoneLog('notification sent', { method, clientId: client.id, threadId: params?.threadId, turnId: params?.turnId, itemId: params?.item?.id, type: params?.item?.type })
+        } catch (error) {
+          phoneLog('notification failed', { method, clientId: client.id, threadId: params?.threadId, error: error?.message }, 'error')
+          throw error
+        }
       }
       /** Ask the phone something (approvals); settles with its result or rejects. */
       const ask = (method, params, signal) => new Promise((resolve, reject) => {
@@ -97,11 +104,15 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
             return
           }
           note('request', method)
+          const started = Date.now()
+          const logged = { method, requestId: id, clientId: client.id, threadId: params?.threadId }
+          phoneLog('request received', { ...logged, hasClientId: typeof params?.clientUserMessageId === 'string' })
           // The relay probes every host with `initialize`; a real client asks for more.
           if (!active && method !== 'initialize') { active = true; onActive?.(client, notify) }
           if (debug && !QUIET.has(method)) record({ method: `request:${method}`, params: JSON.stringify(params ?? null).slice(0, /realtime/u.test(method) ? 8000 : 700) })
           const handler = methods[method]
           if (!handler) {
+            phoneLog('method unavailable', { ...logged, code: METHOD_NOT_FOUND }, 'warn')
             record({ method, missing: true, params: JSON.stringify(params ?? null).slice(0, /realtime/u.test(method) ? 8000 : 600) })
             void fail(id, new RpcError(METHOD_NOT_FOUND, `Method not found: ${method}`)).catch(() => {})
             return
@@ -114,11 +125,18 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
           aborts.add(controller)
           void Promise.resolve()
             .then(() => handler(params, { ...context, signal: controller.signal }))
-            .then(result => reply(id, result ?? {}), error => { if (!QUIET.has(method)) record({ method, error: String(error?.message ?? error).slice(0, 300), params: JSON.stringify(params ?? null).slice(0, 600) }); return fail(id, error) })
-            .catch(() => {})
+            .then(async result => {
+              await reply(id, result ?? {})
+              phoneLog('request completed', { ...logged, ms: Date.now() - started, bytes: Buffer.byteLength(JSON.stringify(result ?? {})), turns: result?.thread?.turns?.length })
+            }, error => {
+              phoneLog('request failed', { ...logged, ms: Date.now() - started, code: error?.code, error: error?.message }, 'error')
+              if (!QUIET.has(method)) record({ method, error: String(error?.message ?? error).slice(0, 300), params: JSON.stringify(params ?? null).slice(0, 600) }); return fail(id, error)
+            })
+            .catch(error => { phoneLog('response failed', { ...logged, ms: Date.now() - started, error: error?.message }, 'error') })
             .finally(() => aborts.delete(controller))
         },
         close() {
+          phoneLog('client disconnected', { clientId: client.id, pending: aborts.size })
           for (const waiting of [...pending.values()]) waiting.reject(new RpcError(-32800, 'Client disconnected'))
           for (const controller of aborts) controller.abort()
           aborts.clear()

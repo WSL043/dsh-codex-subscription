@@ -372,17 +372,19 @@ test('the optimistic phone message keeps one id while running, reopening and com
   const old = [{ role: 'user', id: 'old-u', content: [{ type: 'text', text: 'again' }] }, { role: 'assistant', id: 'old-a', content: [{ type: 'text', text: 'old reply' }] }]
   session.deriveMessages = () => old
   const { turn } = await bridge.methods['turn/start']({ ...hello('again'), clientUserMessageId: clientId }, { notify })
-  assert.equal(turn.items[0].id, clientId)
-  assert.equal(turn.items[0].clientId, clientId)
-  assert.deepEqual(notes.filter(([method, params]) => method === 'item/started' && params.item.type === 'userMessage').map(([, params]) => params.item.id), [clientId])
+  assert.deepEqual(turn.items, [], 'official app-server start acknowledgement does not repeat the optimistic message')
+  const user = notes.find(([method, params]) => method === 'item/started' && params.item.type === 'userMessage')[1].item
+  assert.notEqual(user.id, clientId)
+  assert.equal(user.clientId, clientId)
   session.deriveMessages = () => [...old, { role: 'user', id: 'committed-u', content: [{ type: 'text', text: 'again' }] }]
   const live = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify })
-  assert.deepEqual(live.thread.turns.map(turn => turn.items.filter(item => item.type === 'userMessage').map(item => item.id)), [['old-u'], [clientId]])
+  assert.deepEqual(live.thread.turns.map(turn => turn.items.filter(item => item.type === 'userMessage').map(item => item.id)), [['old-u'], [user.id]])
   finish(); await wait()
   const completed = notes.find(([method]) => method === 'turn/completed')[1].turn
-  assert.equal(completed.items[0].id, clientId)
+  assert.equal(completed.items[0].id, user.id)
   const reopened = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify })
-  assert.equal(reopened.thread.turns.at(-1).items[0].id, clientId)
+  assert.equal(reopened.thread.turns.at(-1).items[0].id, user.id)
+  assert.equal(reopened.thread.turns.at(-1).items[0].clientId, clientId)
 })
 
 test('a streamed attempt that never commits is closed instead of hanging on the phone', async () => {
@@ -794,7 +796,7 @@ test('reopening a thread while DSH is mid-turn returns the running turn with the
   const { bridge, session, finish } = fakeControl()
   const notes = []
   const { turn } = await bridge.methods['turn/start'](hello('go'), { notify: async (method, params) => { notes.push([method, params]) } })
-  session.deriveMessages = () => [{ role: 'user', id: 'u', content: [{ type: 'text', text: 'go' }] }, { role: 'assistant', id: 'a1', content: [{ type: 'tool-call', id: 'c1', name: 'bash', arguments: '{"command":"ls"}' }] }]
+  session.deriveMessages = () => [{ role: 'user', id: 'new-u', content: [{ type: 'text', text: 'go' }] }, { role: 'assistant', id: 'a1', content: [{ type: 'tool-call', id: 'c1', name: 'bash', arguments: '{"command":"ls"}' }] }]
   bridge.onStream(session, { type: 'start' })
   bridge.onStream(session, { type: 'chunk', chunk: { type: 'text-delta', text: 'Half a sen' } })
   const { thread } = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })
