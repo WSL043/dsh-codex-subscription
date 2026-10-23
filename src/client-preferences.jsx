@@ -74,6 +74,19 @@ export function ReasoningSummaryPreference({ preference, t }) {
   </div>
 }
 
+export function ReasoningCachePreference({ preference, t }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  const writable = snapshot.status === 'ready' && snapshot.writable === true
+  const blocked = snapshot.compactionMode === 'cloud' || snapshot.retryPolicy === 'unlimited'
+  const hint = snapshot.compactionMode === 'cloud' ? 'reasoningCacheCloud' : snapshot.retryPolicy === 'unlimited' ? 'reasoningCacheRetry' : 'reasoningCacheHint'
+  return <div className="codexSubscriptionPreference">
+    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('reasoningCache')}</span><Hint t={t}>{t(hint)}</Hint></div>
+    <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('reasoningCache')} aria-busy={snapshot.saving || undefined}>
+      {['off', 'on'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-reasoning-cache" checked={snapshot.reasoningCache === value} disabled={!writable || value === 'on' && blocked} onChange={() => { void preference.set({ reasoningCache: value }) }} /><span>{t(`reasoningCache_${value}`)}</span></label>)}
+    </div>
+  </div>
+}
+
 export function RetryPolicyPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = snapshot.status === 'ready' && snapshot.writable === true
@@ -233,6 +246,8 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
         <InputImageDetailPreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <ReasoningSummaryPreference preference={preference} t={t} />
+        <div className="codexSubscriptionDivider" />
+        <ReasoningCachePreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <RetryPolicyPreference preference={preference} t={t} />
       </section>

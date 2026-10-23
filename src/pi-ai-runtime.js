@@ -107,6 +107,7 @@ export function openaiCodexSubscriptionProvider({
   catalog,
   connection,
   compaction,
+  reasoning,
   runNetwork = (_area, operation) => operation(),
 } = {}) {
   const provider = createOpenAICodexProvider()
@@ -157,11 +158,12 @@ export function openaiCodexSubscriptionProvider({
           ? next ?? managed
           : withInputImageDetail(next ?? managed, inputImageDetail)
         const { temperature: _dropped, ...accepted } = withReasoningSummary(detailed, reasoningSummary)
-        return {
+        const finalPayload = {
           ...accepted,
           ...(textVerbosity === undefined ? {} : { text: { ...(detailed.text ?? {}), verbosity: textVerbosity } }),
           ...(serviceTier === undefined ? {} : { service_tier: serviceTier }),
         }
+        return reasoning?.preparePayload(finalPayload, requestModel) ?? finalPayload
       },
     }
   }
@@ -307,4 +309,4 @@ export function openaiCodexSubscriptionProvider({
   })
 }
 
-export const PI_AI_RUNTIME_VERSIONS = Object.freeze(['0.85.1', '0.87.1', '1.1.0', '1.2.0', '1.3.0'])
+export const PI_AI_RUNTIME_VERSIONS = Object.freeze(['0.85.1', '0.87.1', '1.1.0', '1.2.0', '1.3.0', '1.4.0'])

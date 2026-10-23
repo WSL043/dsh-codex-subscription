@@ -2,9 +2,10 @@ import { createSettingsAdapter } from './settings-adapter.js'
 import { observeAdapter } from './request-observer.js'
 import { createHiddenModelDirectory } from './hidden-model-directory.js'
 import { createDefaultModelController } from './default-model.js'
-import { PREFERENCE_FIELDS } from './preference-fields.js'
+import { PREFERENCE_FIELDS, normalizeReasoningCache } from './preference-fields.js'
 import { createSubscriptionConnection } from './subscription-connection.js'
 import { createCompactionBridge } from './subscription-compaction.js'
+import { createReasoningBridge } from './subscription-reasoning.js'
 import { registerSubscriptionTransport } from './subscription-transport.js'
 import { createSubagentBackendSwitcher, createSubscriptionSubagent, loadSubagentRuntime, presetEntries } from './subagent-backend.js'
 import { inspectSubagentRuntime } from './subagent-runtime.js'
@@ -181,18 +182,29 @@ export function apply(ctx, config = {}) {
     resolveService: () => ctx.get?.('agentDefaultModel'),
     listModels: () => modelCatalog.getModels().map(model => model.id),
   })
-  const compaction = createCompactionBridge({
-    enabled: () => settings.get().compactionMode === 'cloud',
-    accountScope: async () => {
-      await resolveAuth()
-      const credential = await store.read(PROVIDER)
-      return credential?.type === 'oauth' ? credential.accountId : undefined
-    },
+  const accountScope = async () => {
+    await resolveAuth()
+    const credential = await store.read(PROVIDER)
+    return credential?.type === 'oauth' ? credential.accountId : undefined
+  }
+  const compaction = createCompactionBridge({ enabled: () => settings.get().compactionMode === 'cloud', accountScope })
+  const reasoning = createReasoningBridge({
+    enabled: () => normalizeReasoningCache(settings.get().reasoningCache) === 'on',
+    supportsModel: id => modelCatalog.metadata(id)?.supportsReasoningEffortUpdates === true,
+    resolveSession: id => ctx.get?.('sessions')?.get?.(id),
+    cloud: () => settings.get().compactionMode === 'cloud',
+    unlimited: () => settings.get()[RETRY_POLICY_FIELD] === 'unlimited',
+    accountScope,
+    diagnostic: reason => diagnosticLog.info('model', `cache-preserving reasoning: ${reason}`),
   })
+  ctx.on('session/created', session => reasoning.sessionCreated(session))
+  ctx.on('session/disposed', session => reasoning.sessionDisposed(session))
+  ctx.on('session/event', (session, event) => reasoning.sessionEvent(session, event))
   ctx.effect(() => () => connection.dispose())
   const provider = openaiCodexSubscriptionProvider({
     connection,
     compaction,
+    reasoning,
     resolveSpeedMode: () => settings.get()[SPEED_MODE_FIELD],
     resolveOutputVerbosity: () => normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
     resolveInputImageDetail: () => settings.get()[INPUT_IMAGE_DETAIL_FIELD],
@@ -216,6 +228,7 @@ export function apply(ctx, config = {}) {
         [DISABLED_MODELS_FIELD]: normalizeDisabledModels(settings.get()[DISABLED_MODELS_FIELD]),
         [AUTO_QUOTA_RETRY_FIELD]: normalizeAutoQuotaRetry(settings.get()[AUTO_QUOTA_RETRY_FIELD]),
         compactionMode: settings.get().compactionMode ?? 'dsh',
+        reasoningCache: normalizeReasoningCache(settings.get().reasoningCache),
         connectionMode: settings.get().connectionMode ?? 'sse',
         reviewModel: settings.get().reviewModel ?? 'session',
         remoteControl: settings.get().remoteControl ?? 'off',
@@ -422,7 +435,7 @@ export function apply(ctx, config = {}) {
   })
   ctx.effect(() => settings.watch((value, previous) => hiddenDirectory.settingsChanged(normalizeDisabledModels(value[DISABLED_MODELS_FIELD]), normalizeDisabledModels(previous[DISABLED_MODELS_FIELD]))), 'codex-subscription: hidden model directory')
   ctx.effect(() => ctx.on?.('session/event', (_session, event) => { if (event?.type === 'request/context') hiddenDirectory.dependenciesChanged() }), 'codex-subscription: hidden model dependencies')
-  ctx.llm.registerAdapter([PROVIDER], hiddenDirectory.wrap(observeAdapter(compaction.wrapAdapter(adapter), provider)))
+  ctx.llm.registerAdapter([PROVIDER], hiddenDirectory.wrap(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(adapter)), provider)))
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
   // With "other models" switched off, subscription search, images and connectors serve conversations on this plugin's own models only.
   const servesCurrentModel = () => {
