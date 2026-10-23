@@ -423,12 +423,13 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       if (messages.some(message => imageBlocks(message).length)) phoneLog('image store unavailable', { images: messages.flatMap(imageBlocks).length }, 'warn')
       return { urls, assets }
     }
-    // Repeated tool previews must not crowd the person's reference images out
-    // of restored history. Bound each category independently, then deduplicate.
+    // Keep the original twelve-image total bound for inline fallback. Reserve
+    // six per category, then lend unused or duplicate slots to the other images.
     const recentUnique = blocks => [...new Map(blocks.toReversed().map(block => [block.attachment.attachmentId, block])).values()].slice(0, 12)
     const userImages = recentUnique(messages.flatMap(typedImages))
     const toolImages = recentUnique(messages.filter(message => message.role === 'tool').flatMap(imageBlocks))
-    const wanted = [...new Map([...userImages, ...toolImages].map(block => [block.attachment.attachmentId, block])).values()]
+    const balanced = [...userImages.slice(0, 6), ...toolImages.slice(0, 6), ...userImages.slice(6), ...toolImages.slice(6)]
+    const wanted = [...new Map(balanced.map(block => [block.attachment.attachmentId, block])).values()].slice(0, 12)
     await Promise.all(wanted.map(async block => {
       const started = Date.now()
       try {
