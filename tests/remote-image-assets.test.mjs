@@ -6,7 +6,8 @@ import { join } from 'node:path'
 import { setImmediate as tick } from 'node:timers/promises'
 import { createRemoteImageAssets } from '../src/remote-image-assets.js'
 
-const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jFioAAAAASUVORK5CYII=', 'base64')
+// Valid 64 x 64 RGB PNG with four color quadrants and verified chunk CRCs.
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAYklEQVR4nO3PIREAIBAAMJJgMBhCUIOwhEBjCIEnA+Ld7lZgaecWqs4eKgkICAgICAgICAgICAgICAgICAgICAgIfAfKOKHuyqEEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBL49rNtFS2jnCV0AAAAASUVORK5CYII=', 'base64')
 const image = { data: png, mediaType: 'image/png' }
 const auth = { access: 'private-oauth-secret', accountId: 'private-account-id' }
 const ok = value => ({ ok: true, status: 200, json: async () => value })
