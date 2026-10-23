@@ -6,7 +6,7 @@ import { REASONING_STATE_KEY, isReasoningState, reasoningDigest, reasoningHash, 
 const MAX_SESSIONS = 256
 const ownMessage = message => message.role === 'assistant' || message.source?.kind === 'model'
 /** Internal request scope, like the compaction bridge. No global patch or parallel session store. */
-export function createReasoningBridge({ enabled = () => false, cloud = () => false, unlimited = () => false, accountScope, diagnostic = () => {}, now = Date.now } = {}) {
+export function createReasoningBridge({ enabled = () => false, cloud = () => false, unlimited = () => false, supportsModel = () => false, resolveSession, accountScope, diagnostic = () => {}, now = Date.now } = {}) {
   const scope = new AsyncLocalStorage(), fresh = new Set(), pending = new Map(), busy = new Set()
   const startedAt = now()
   const report = reason => { try { diagnostic(reason) } catch { /* Diagnostics cannot disturb model calls. */ } }
@@ -26,7 +26,7 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
     if (isDshAutoReview(options)) { yield* unscoped(factory, options); return }
     const key = keyOf(options.sessionId)
     const optedIn = enabled() === true, automatic = cloud() === true, alwaysRetry = unlimited() === true
-    if (!optedIn || automatic || alwaysRetry || options.provider !== 'openai-codex' || options.model !== 'gpt-6.1-sol' || !key) {
+    if (!optedIn || automatic || alwaysRetry || options.provider !== 'openai-codex' || supportsModel(options.model) !== true || !key) {
       if (key) { fresh.delete(key); pending.delete(key) }
       if (optedIn) report(automatic ? 'cloud-compaction' : alwaysRetry ? 'unlimited-retries' : 'unsupported-request')
       yield* unscoped(factory, options); return
@@ -47,11 +47,24 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
       const saved = latest?.source?.provider === options.provider && latest.source.model === options.model
         ? latest.source.replayState?.response?.[REASONING_STATE_KEY] : undefined
       const previous = saved && saved.content === reasoningDigest(latest.content) && isReasoningState(saved.state) ? saved.state : undefined
+      // DSH increments this durable surface fold only after a committed replacement
+      // or message projection. Failed compaction leaves it unchanged; restore/fork
+      // reconstructs it. Do not infer a new window from model-authored summary text.
+      const session = resolveSession?.(options.sessionId)
+      const generation = session?.surface?.contentGeneration
+      const window = Number.isSafeInteger(generation) && generation > 0 ? reasoningHash(`dsh-surface:${generation}`) : undefined
+      const replaced = previous && saved.window !== window
+      const needsBaseline = !previous || replaced
+      const nativeHistory = needsBaseline && session?.deriveMessages?.()
+      const nativeDigest = nativeHistory && reasoningDigest(nativeHistory)
+      const trustedHistory = nativeDigest !== undefined && nativeDigest === reasoningDigest(options.messages)
+      const reset = trustedHistory && needsBaseline
       // The pending state covers transport failures/cancellation without a successful finish.
       const waiting = pending.get(key)
       request = {
-        key, identity, previous, waiting: waiting?.scope === identity && (!latest || previous !== undefined) ? waiting : undefined,
-        fresh: born && !latest, blocks: [], candidate: undefined,
+        key, identity, window, previous: replaced ? undefined : previous,
+        waiting: waiting?.state.scope === identity && waiting.window === window && (!latest || previous !== undefined) ? waiting.state : undefined,
+        fresh: born && !latest || reset, blocks: [], candidate: undefined,
       }
       iterator = scope.run(request, () => factory(options)[Symbol.asyncIterator]())
       while (true) {
@@ -63,7 +76,7 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
           ['stop', 'tool-calls'].includes(event.reason?.kind) && !options.signal?.aborted) {
           const content = reasoningDigest(request.blocks.filter(Boolean))
           if (content) event = { ...event, replayState: { ...event.replayState, response: {
-            ...event.replayState.response, [REASONING_STATE_KEY]: { state: request.candidate, content },
+            ...event.replayState.response, [REASONING_STATE_KEY]: { state: request.candidate, content, ...(request.window === undefined ? {} : { window: request.window }) },
           } } }
         }
         yield event
@@ -83,6 +96,12 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
       if (key && fresh.size < MAX_SESSIONS) fresh.add(key)
     },
     sessionDisposed(session) { const key = keyOf(session?.id); fresh.delete(key); pending.delete(key) },
+    sessionEvent(session, event) {
+      if (event?.type === 'compaction/end' && event.data?.error === undefined) {
+        const key = keyOf(session?.id)
+        fresh.delete(key); pending.delete(key)
+      }
+    },
     wrapAdapter(adapter) {
       return new Proxy(adapter, { get(target, property) {
         if (property === 'stream') return options => wrapStream(o => target.stream(o), options)
@@ -96,6 +115,7 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
     },
     preparePayload(payload, model) {
       const request = scope.getStore()
+      model = { ...model, supportsReasoningEffortUpdates: supportsModel(model?.id) === true }
       if (!request || !supportsReasoningUpdates(model)) return payload
       request.candidate = undefined
       const argumentsFor = previous => ({ model, scope: request.identity, previous, fresh: request.fresh })
@@ -106,7 +126,7 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
       if (!result.state) return payload
       request.candidate = result.state
       request.waiting = result.state
-      pending.set(request.key, result.state)
+      pending.set(request.key, { state: result.state, window: request.window })
       return result.payload
     },
     snapshot: () => ({ fresh: fresh.size, pending: pending.size, active: busy.size }),

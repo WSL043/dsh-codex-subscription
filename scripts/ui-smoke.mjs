@@ -163,12 +163,14 @@ try {
           scrollerOverflow: scroller ? scroller.scrollWidth - scroller.clientWidth : 0,
           tabsOverflow: tabs.scrollWidth - tabs.clientWidth,
           pageOverflow: document.documentElement.scrollWidth - window.innerWidth,
+          reasoningCacheCount: panel.querySelectorAll('input[name="codex-reasoning-cache"]').length,
         }
       })()`)
       if (report.missing) { problems.push(`${tab}: no visible panel`); continue }
       const keys = report.lines.filter(line => RAW_KEY.test(line) && !NOT_KEYS.has(line))
       if (keys.length > 0) problems.push(`${tab}: raw i18n keys ${[...new Set(keys)].slice(0, 6).join(', ')}`)
       if (report.lines.length < 2) problems.push(`${tab}: the panel is empty`)
+      if (tab === 'models' && report.reasoningCacheCount !== 2) problems.push('models: cache-preserving effort controls are not mounted')
       for (const [label, value] of Object.entries({ panel: report.panelOverflow, scroller: report.scrollerOverflow, tabs: report.tabsOverflow, page: report.pageOverflow })) {
         if (value > 1) problems.push(`${tab}: horizontal overflow of the ${label} by ${value}px`)
       }

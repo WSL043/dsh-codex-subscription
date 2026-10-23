@@ -12,7 +12,7 @@ import {
 // One enum contract feeds persisted Host schemas and RPC writes.
 export const PREFERENCE_FIELDS = Object.freeze({
   compactionMode: { choices: ['dsh', 'cloud'], default: 'dsh', error: 'Invalid compaction mode' },
-  reasoningCache: { choices: ['off', 'sol'], default: 'off', error: 'Invalid reasoning cache preference' },
+  reasoningCache: { choices: ['off', 'on', 'sol'], default: 'on', error: 'Invalid reasoning cache preference' },
   connectionMode: { choices: ['sse', 'websocket'], default: 'sse', error: 'Invalid connection mode' },
   reviewModel: { choices: ['session', 'official'], default: 'session', error: 'Invalid review model' },
   remoteControl: { choices: ['off', 'on'], default: 'off', error: 'Invalid Remote Control setting' },
@@ -32,3 +32,6 @@ export const PREFERENCE_FIELDS = Object.freeze({
   [VOICE_LANGUAGE_FIELD]: { choices: VOICE_LANGUAGES, default: 'auto', error: 'Invalid voice language preference' },
   [CONTEXT_MODE_FIELD]: { choices: [CONTEXT_MODE_STANDARD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM], default: DEFAULT_CONTEXT_MODE, error: 'Invalid context mode preference' },
 })
+
+// Default only absent settings; preserve explicit off and legacy opt-ins.
+export const normalizeReasoningCache = value => value === undefined || value === 'on' || value === 'sol' ? 'on' : 'off'

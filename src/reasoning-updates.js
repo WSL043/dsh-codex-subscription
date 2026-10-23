@@ -28,7 +28,7 @@ export function isReasoningState(value) {
 }
 
 export function supportsReasoningUpdates(model) {
-  if (model?.provider !== 'openai-codex' || model.id !== 'gpt-6.1-sol' || model.api !== 'openai-codex-responses' || !model.reasoning) return false
+  if (model?.provider !== 'openai-codex' || model.supportsReasoningEffortUpdates !== true || model.api !== 'openai-codex-responses' || !model.reasoning) return false
   try {
     const url = new URL(model.baseUrl)
     return url.origin === 'https://chatgpt.com' && !url.username && !url.password && !url.search && !url.hash &&

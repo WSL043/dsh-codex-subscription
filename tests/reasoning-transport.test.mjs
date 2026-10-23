@@ -33,7 +33,7 @@ function fixture(t, { enabled = true, cloud = false, reject = false } = {}) {
   t.after(() => { globalThis.fetch = previousFetch })
   const native = openaiCodexProvider(), base = native.getModels().find(model => model.id === 'gpt-6.1-sol') ?? native.getModels()[0]
   const model = { ...base, id: 'gpt-6.1-sol', name: 'Synthetic Sol descriptor', reasoning: true }
-  const reasoning = createReasoningBridge({ enabled: () => enabled, cloud: () => cloud, accountScope: async () => 'synthetic-account', diagnostic: reason => diagnostics.push(reason) })
+  const reasoning = createReasoningBridge({ enabled: () => enabled, cloud: () => cloud, supportsModel: () => true, accountScope: async () => 'synthetic-account', diagnostic: reason => diagnostics.push(reason) })
   const compaction = createCompactionBridge({ enabled: () => cloud, accountScope: async () => 'synthetic-account' })
   const provider = openaiCodexSubscriptionProvider({ reasoning, compaction, catalog: { getModels: () => [model], metadata: () => ({ supportsFast: true }) }, resolveSpeedMode: () => 'fast', resolveOutputVerbosity: () => 'low', resolveReasoningSummary: () => 'concise' })
   const profiles = new Map([['openai-codex', { provider: 'openai-codex', piProvider: provider, configuredMaxTokens: new Map(), modelErrors: new Map(), transport: 'sse', cacheRetention: 'short', streamIdleTimeoutMs: 3000 }]])

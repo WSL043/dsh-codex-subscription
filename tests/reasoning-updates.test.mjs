@@ -3,11 +3,20 @@ import assert from 'node:assert/strict'
 import { boundedStringify } from '../src/reasoning-json.js'
 import { isReasoningState, reasoningHash, rewriteReasoning, REASONING_LIMITS } from '../src/reasoning-updates.js'
 
-const model = { id: 'gpt-6.1-sol', provider: 'openai-codex', api: 'openai-codex-responses', baseUrl: 'https://chatgpt.com/backend-api', reasoning: true }
+const model = { id: 'gpt-6.1-sol', provider: 'openai-codex', api: 'openai-codex-responses', baseUrl: 'https://chatgpt.com/backend-api', reasoning: true, supportsReasoningEffortUpdates: true }
 const scope = reasoningHash('synthetic-account-and-model')
 const user = text => ({ role: 'user', content: text })
 const body = (input, effort = 'medium') => ({ model: model.id, input, reasoning: { effort, summary: 'concise' }, prompt_cache_key: 'fixture' })
 const rewrite = (payload, previous, extra = {}) => rewriteReasoning(payload, { model, scope, previous, fresh: true, ...extra })
+
+test('advertised models use the same protocol without inferring support from their names', () => {
+  for (const id of ['gpt-6-astra', 'gpt-6-luna', 'future-account-model']) {
+    const descriptor = { ...model, id }
+    const result = rewrite({ ...body([user('first')]), model: id }, undefined, { model: descriptor })
+    assert.equal(result.reason, 'baseline')
+    assert.ok(result.state)
+  }
+})
 
 test('fixed baseline and original update positions survive switches, retries and tool-only continuations', () => {
   let input = [user('first')], current = rewrite(body(input))
@@ -64,7 +73,7 @@ test('unsupported routes, pro, automatic compaction, truncation and foreign upda
     { ...body([user('x')]), background: true },
     ...['configuration_update', 'compaction', 'compaction_trigger', 'agent_message'].map(type => body([{ type }])),
   ]) assert.equal(rewrite(payload).payload, payload)
-  for (const badModel of [{ ...model, id: 'gpt-6-astra' }, { ...model, baseUrl: 'https://api.openai.com/v1/responses' }, { ...model, baseUrl: `${model.baseUrl}/codex/responses/compact` }]) {
+  for (const badModel of [{ ...model, supportsReasoningEffortUpdates: false }, { ...model, supportsReasoningEffortUpdates: undefined }, { ...model, baseUrl: 'https://api.openai.com/v1/responses' }, { ...model, baseUrl: `${model.baseUrl}/codex/responses/compact` }]) {
     const payload = body([user('x')]); assert.equal(rewrite(payload, undefined, { model: badModel }).payload, payload)
   }
 })

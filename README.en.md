@@ -66,7 +66,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@3.1.4
+   dsh-codex-subscription@3.1.5
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -83,7 +83,7 @@ Why the version is included: DSH's plugin page only installs versions that are a
 <summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.1.4
+dsh plugin --profile web add dsh-codex-subscription@3.1.5
 ```
 
 Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
@@ -96,7 +96,7 @@ Follow the restart instructions, then sign in under **Settings → Codex**. Both
 After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.1.4
+dsh plugin --profile headless add dsh-codex-subscription@3.1.5
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -330,19 +330,20 @@ Model access and quota depend on your account.
 
 </details>
 
-### Experimental cache-preserving effort changes
+### Reuse cache when changing effort
 
-Under **Settings → Codex → Models**, **Cache-preserving effort changes → Sol** is an explicit opt-in, off by default. Enable it **before starting a new chat**. It applies only to standard, single-agent `gpt-6.1-sol` subscription requests.
+**Reuse cache when changing effort** is under **Settings → Codex → Models → Advanced**. It is on by default and can be turned off; saved Off choices are preserved. It applies only to standard, single-agent models explicitly supported by the current account catalog; support is never inferred from model names. Ordinary prompt caching is automatic and still works when this switch is off.
 
-The request-level `reasoning.effort` stays at the chat's initial value. When you change effort in DSH, the plugin inserts a `configuration_update` at the next new-history boundary and replays earlier updates in their original positions. This can preserve a cacheable prefix; it does not guarantee cache hits. The service's response-level effort still reports the original request-level value.
+The request-level `reasoning.effort` stays at the current context window's initial value. Changes are recorded as `configuration_update` items in new history and replayed in their original positions. This can reduce cache invalidation when switching effort; it does not guarantee cache hits, faster replies or quota savings. The response-level effort can still report the initial value.
 
 - **Cloud auto-compaction and Unlimited retries disable this feature.** The UI explains the conflict; your compaction, retry, authentication, connection and cache-key settings are never changed automatically.
-- Successful responses save small, text-free state alongside DSH's existing provider replay metadata. Resume and forks can recover that state. Unknown existing chats, edited/compacted history, changed account/model, unsupported requests and resource limits use the ordinary request with your selected effort, with a reason-only diagnostic. Start a new chat to establish a new baseline.
+- Successful responses save small, text-free state alongside DSH's existing replay metadata for restart, resume and forks. Successful local compaction changes the prefix; after checking DSH's committed history replacement, the plugin establishes a fresh baseline at the selected effort. Failed compaction keeps the previous state.
+- Enabling an existing chat or returning to a supported model establishes a baseline only when the complete input matches DSH's native session history. The first request may lose the old cache. Unverifiable history, unsupported models, account changes and resource limits use ordinary requests with your selected effort.
 - The same-process pending state freezes an already dispatched input even if it fails or is cancelled. Selecting a different effort for that exact retry reports an error; keep its original effort or send a new message. Failed attempts have no durable successful-response checkpoint, so preserving their cache prefix across a process restart or plugin reload is not guaranteed.
-- Disabling restores ordinary requests. Enable again before a new chat; the plugin never retrofits updates into old session logs. It does not send update history to `/responses/compact`, and does not support pro, multi-agent, automatic truncation or automatic compaction.
+- Disabling restores ordinary requests without retrofitting updates into old logs. Update history is never sent to `/responses/compact`. Pro, multi-agent, automatic truncation and automatic compaction are not supported.
 - The feature is bounded to 20,000 input items, 16 MiB of fingerprinted input/envelope data, 128 updates and 256 active/pending sessions. Boundary or history validation failures stop preservation, not your selected reasoning effort.
 
-OpenAI documents configuration updates for the GPT-6 family in the [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning) and explains [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching). These public API documents do **not** establish support in the private ChatGPT subscription backend. This implementation is transport-mock tested, not live subscription validated; a backend parameter rejection is surfaced, never retried with an old effort or an API key.
+This uses configuration updates documented in OpenAI's [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning); see [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching) for cache requirements. Support follows the current account catalog and actual responses. Backend parameter rejections are surfaced, never retried with an old effort or an API key.
 
 ## Update and uninstall
 
@@ -352,7 +353,7 @@ Find this plugin on the DSH **Plugins** page and use its update or uninstall act
 <summary>Terminal commands</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.1.4
+dsh plugin --profile web update dsh-codex-subscription@3.1.5
 ```
 
 Run only when you want to uninstall:

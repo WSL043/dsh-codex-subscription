@@ -200,10 +200,30 @@ test('official model catalog filters hidden entries and preserves advertised cap
   assert.equal(models.length, 1)
   assert.deepEqual(models[0], {
     id: 'gpt-next', name: 'GPT Next', description: 'Current account model', priority: 10,
-    input: ['text', 'image'], contextWindow: 400_000, reasoning: true,
+    input: ['text', 'image'], contextWindow: 400_000, reasoning: true, supportsReasoningEffortUpdates: false,
     thinkingLevelMap: { off: null, minimal: null, low: 'low', medium: null, high: null, xhigh: null, max: 'max' },
     supportVerbosity: true, defaultVerbosity: 'medium', serviceTiers: [{ id: 'priority', name: 'Fast', description: 'Priority' }], supportsFast: true, supportsUltrafast: false,
   })
+})
+
+test('effort-update support requires an explicit account capability and survives refresh changes', async () => {
+  for (const value of [true, false, undefined, 'true', 1]) {
+    const [entry] = parseOfficialModelCatalog({ models: [remote({ supports_reasoning_effort_updates: value })] })
+    assert.equal(entry.supportsReasoningEffortUpdates, value === true)
+  }
+  let supported = true
+  const catalog = createOfficialModelCatalog({ baseModels: () => base,
+    getAuth: async () => ({ auth: { apiKey: 'fixture' } }), readCredential: async () => ({ type: 'oauth', access: 'fixture', accountId: 'fixture' }),
+    fetch: async () => Response.json({ models: [remote({ supports_reasoning_effort_updates: supported })] }),
+  })
+  await catalog.refresh()
+  assert.equal(catalog.getModels()[0].supportsReasoningEffortUpdates, true)
+  assert.equal(catalog.metadata('gpt-next').supportsReasoningEffortUpdates, true)
+  supported = false
+  await catalog.refresh()
+  assert.equal(catalog.getModels()[0].supportsReasoningEffortUpdates, false)
+  catalog.clear()
+  assert.equal(catalog.metadata('gpt-next'), undefined)
 })
 
 test('ChatGPT catalog keeps picker-visible subscription models that are not API-key models', () => {
