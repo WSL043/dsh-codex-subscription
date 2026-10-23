@@ -4,8 +4,26 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createPhoneImageFiles, phoneImageMarkdown, withGeneratedImageOutput } from '../src/remote-control-images.js'
-import { createDshRemoteControl } from '../src/remote-control-dsh.js'
+import { createDshRemoteControl, finishTool, projectTurns } from '../src/remote-control-dsh.js'
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jFioAAAAASUVORK5CYII=', 'base64')
+
+test('live tool previews and restored history never expose inline image bytes in generic tool fields', () => {
+  const files = createPhoneImageFiles(), ref = { attachmentId: 'preview' }
+  const urls = new Map([['preview', `data:image/png;base64,${png.toString('base64')}`]])
+  const result = { role: 'tool', toolCallId: 'preview-call', content: [{ type: 'text', text: '{"documentId":"drawing","revision":27}' }, { type: 'image', attachment: ref }] }
+  const call = { type: 'tool-call', name: 'codex_sketch', id: 'preview-call', arguments: '{"action":"preview"}' }
+  const messages = [{ role: 'user', id: 'u', content: [{ type: 'text', text: 'draw' }] }, { role: 'assistant', id: 'a', content: [call] }, result]
+  const history = projectTurns(messages, undefined, urls, undefined, files.publish)[0].items[1]
+  const live = { type: 'dynamicToolCall' }
+  finishTool(live, result, urls, files.publish)
+  for (const item of [history, live]) {
+    assert.doesNotMatch(JSON.stringify(item), /data:image|iVBORw0KGgo/u)
+    assert.equal(item.contentItems[0].text, result.content[0].text)
+    const imagePath = item.contentItems[1].imageUrl
+    assert.deepEqual(Buffer.from(files.read(imagePath).dataBase64, 'base64'), png)
+  }
+  assert.equal(messages[2].content[1].attachment, ref, 'persisted history is unchanged')
+})
 
 test('a final-answer image has an app-server readable path without exposing other host files', () => {
   const files = createPhoneImageFiles(), url = `data:image/png;base64,${png.toString('base64')}`

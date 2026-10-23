@@ -161,7 +161,7 @@ export function toolItem(block, cwd) {
   return { type: 'dynamicToolCall', ...base, namespace: null, tool: block.name, arguments: args, contentItems: null, success: null, durationMs: null }
 }
 /** Record a tool's result on the item that showed the call. */
-export function finishTool(item, message, imageUrls) {
+export function finishTool(item, message, imageUrls, publishImage = url => url) {
   const failed = Boolean(message.isError)
   item.status = failed ? 'failed' : 'completed'
   if (item.type === 'commandExecution') { item.aggregatedOutput = textOf(message.content); item.exitCode = failed ? 1 : 0 }
@@ -170,7 +170,7 @@ export function finishTool(item, message, imageUrls) {
     const url = imageBlocks(message).map(block => imageUrls.get(block.attachment.attachmentId)).find(Boolean)
     item.result = url ? url.slice(url.indexOf(',') + 1) : ''
     if (!url) item.status = 'failed'
-  } else if (item.type === 'dynamicToolCall') { item.contentItems = toolOutput(message, imageUrls); item.success = !failed }
+  } else if (item.type === 'dynamicToolCall') { item.contentItems = toolOutput(message, imageUrls, publishImage); item.success = !failed }
   else if (item.type === 'mcpToolCall') {
     const text = textOf(message.content)
     if (failed) item.error = { message: text.slice(0, 500) || 'The connector tool failed' }
@@ -179,9 +179,11 @@ export function finishTool(item, message, imageUrls) {
 }
 
 const imageBlocks = message => (message.content ?? []).filter(block => block?.type === 'image' && block.attachment)
-const toolOutput = (message, imageUrls) => [
+const toolOutput = (message, imageUrls, publishImage) => [
   { type: 'inputText', text: textOf(message.content) },
-  ...imageBlocks(message).map(block => imageUrls.get(block.attachment.attachmentId)).filter(Boolean).map(imageUrl => ({ type: 'inputImage', imageUrl })),
+  // iOS can display a generic tool's imageUrl as literal text. Keep the image bytes in
+  // the restricted file reader instead of repeating their base64 inside the tool view.
+  ...imageBlocks(message).map(block => imageUrls.get(block.attachment.attachmentId)).filter(Boolean).map(imageUrl => ({ type: 'inputImage', imageUrl: publishImage(imageUrl) })),
 ]
 
 /** One user message starts a turn; assistant blocks and tool results fill it. */
@@ -219,7 +221,7 @@ export function projectTurns(messages, at = Date.now(), imageUrls = new Map(), c
       }
     } else if (message.role === 'tool') {
       const item = calls.get(message.toolCallId)
-      if (item) finishTool(item, message, imageUrls)
+      if (item) finishTool(item, message, imageUrls, publishImage)
     }
   }
   close()
@@ -737,10 +739,19 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     // Arbitrary host commands bypass DSH's sandbox and approvals, so they stay off.
     // Only read-only git inside a conversation folder, for the phone's changes view; nothing else runs.
     'command/exec': async (params, { notify, signal }) => {
+      const command = Array.isArray(params?.command) ? params.command.filter(part => typeof part === 'string') : []
+      const executable = command[0]?.replaceAll('\\', '/').split('/').at(-1) ?? ''
+      phoneLog('command request classified', {
+        type: /^(?:git|powershell|pwsh|bash|sh)(?:\.exe)?$/iu.test(executable) ? executable.toLowerCase().replace(/\.exe$/u, '') : 'other',
+        items: command.length,
+        // Feature indicators only; never record shell contents or filenames.
+        images: command.some(part => /ReadAllBytes|ToBase64String|\bbase64\b/iu.test(part)) ? 1 : 0,
+      })
       const home = homeFolderAnswer(params?.command)
       if (home !== undefined) return home
       const folders = await conversationFolders()
       try { return phoneGitProbe(params?.command) ? await runPhoneGitProbe(params, { folders, notify, signal }) : await runGit(params, { folders }) } catch (error) {
+        phoneLog('command request refused', { code: error?.code ?? error?.name }, 'warn')
         trace({ method: 'command/exec:refused', reason: String(error?.message).slice(0, 80), command: Array.isArray(params?.command) ? params.command.slice(0, 3).map(part => String(part).slice(0, 40)) : null })
         throw new RpcError(-32600, error?.code === 'not-allowed' ? `Not available on a DSH host: ${error.message}` : 'Could not run the command')
       }
@@ -1192,7 +1203,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       const item = running.turn.items.find(entry => entry.id === message.toolCallId && entry.type !== 'agentMessage')
       if (item) {
         const finish = imageUrls => {
-          finishTool(item, message, imageUrls)
+          finishTool(item, message, imageUrls, imageFiles.publish)
           emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item, completedAtMs: Date.now() })
         }
         // Pictures a tool returned (a generated image) are read first so the phone can show them.
