@@ -26,7 +26,7 @@ function cachedEntry(value) {
 }
 
 /** Private, account-scoped image upload cache. Persist only IDs and image metadata. */
-export function createRemoteImageAssets({ credentials, fetch: request = globalThis.fetch, stateFile } = {}) {
+export function createRemoteImageAssets({ credentials, fetch: request = globalThis.fetch, stateFile, timeoutMs = 30000 } = {}) {
   const accounts = new Map(), flights = new Map()
   let writes = Promise.resolve()
   let ready
@@ -101,8 +101,7 @@ export function createRemoteImageAssets({ credentials, fetch: request = globalTh
     return { fileId: created.file_id, downloadUrl }
 
   }
-  return Object.freeze({
-    async publish(image, signal) {
+  const publish = async (image, signal) => {
       signal?.throwIfAborted()
       const bytes = imageBytes(image)
       const credential = await credentials({ signal })
@@ -125,13 +124,27 @@ export function createRemoteImageAssets({ credentials, fetch: request = globalTh
         const finish = (error, value) => {
           if (done) return
           done = true; signal?.removeEventListener('abort', abort)
-          if (--flight.waiters === 0 && !flight.settled) { flights.delete(flightKey); flight.controller.abort() }
+          if (--flight.waiters === 0 && !flight.settled) { if (flights.get(flightKey) === flight) flights.delete(flightKey); flight.controller.abort() }
           if (error) reject(error); else resolve(value)
         }
         const abort = () => finish(signal.reason ?? new Error('Remote image upload aborted'))
         signal?.addEventListener('abort', abort, { once: true })
         if (signal?.aborted) abort()
         flight.promise.then(value => finish(undefined, value), error => finish(error))
+      })
+  }
+  return Object.freeze({
+    publish(image, callerSignal) {
+      // The deadline covers credentials, disk state and every network/retry stage.
+      // It is also passed into the operation, so cancellation stops the real upload.
+      const deadline = AbortSignal.timeout(timeoutMs)
+      const signal = callerSignal ? AbortSignal.any([callerSignal, deadline]) : deadline
+      const operation = publish(image, signal)
+      return new Promise((resolve, reject) => {
+        const abort = () => { signal.removeEventListener('abort', abort); reject(signal.reason) }
+        signal.addEventListener('abort', abort, { once: true })
+        if (signal.aborted) abort()
+        operation.then(value => { signal.removeEventListener('abort', abort); resolve(value) }, error => { signal.removeEventListener('abort', abort); reject(error) })
       })
     },
   })

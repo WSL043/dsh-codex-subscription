@@ -196,3 +196,40 @@ test('an authenticated ChatGPT proxy is rejected as an image URL; no fake link o
   await assert.rejects(readFile(stateFile), { code: 'ENOENT' })
   assert.equal(f.calls.length, 3)
 })
+
+test('a module deadline without a caller signal cancels the underlying upload and permits a clean retry', async () => {
+  let cancelled = false, block = true
+  const f = fixture({ put: (_url, init) => block ? new Promise((_resolve, reject) => init.signal.addEventListener('abort', () => { cancelled = true; reject(init.signal.reason) }, { once: true })) : ok({}) })
+  const assets = moduleFor(f, { timeoutMs: 20 })
+  const keepAlive = setTimeout(() => {}, 1000)
+  try { await assert.rejects(assets.publish(image), { name: 'TimeoutError' }) } finally { clearTimeout(keepAlive) }
+  await until(() => cancelled)
+  block = false
+  assert.equal((await assets.publish(image)).fileId, 'file-2')
+})
+
+test('the overall deadline covers an unresponsive credential provider', async () => {
+  const assets = moduleFor(fixture(), { credentials: async () => new Promise(() => {}), timeoutMs: 20 })
+  const keepAlive = setTimeout(() => {}, 1000)
+  try { await assert.rejects(assets.publish(image), { name: 'TimeoutError' }) } finally { clearTimeout(keepAlive) }
+})
+
+test('a late aborted flight cannot remove the replacement flight from deduplication', async () => {
+  const releases = []
+  const f = fixture({ put: () => new Promise(resolve => releases.push(() => resolve(ok({})))) })
+  const assets = moduleFor(f), controller = new AbortController()
+  const first = assets.publish(image, controller.signal), rejected = assert.rejects(first, { name: 'AbortError' })
+  await until(() => releases.length === 1)
+  controller.abort()
+  await rejected
+  const second = assets.publish(image)
+  await until(() => releases.length === 2)
+  releases[0]()
+  await tick(); await tick()
+  const third = assets.publish(image)
+  await tick(); await tick()
+  assert.equal(f.calls.filter(call => call.url.endsWith('/files')).length, 2)
+  releases[1]()
+  assert.equal((await second).fileId, 'file-2')
+  assert.equal((await third).fileId, 'file-2')
+})
