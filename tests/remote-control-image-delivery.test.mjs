@@ -8,12 +8,12 @@ const ref = { attachmentId: 'image' }
 const picture = { role: 'tool', toolCallId: 'gen', content: [{ type: 'image', attachment: ref }] }
 const asset = { fileId: 'file-live', downloadUrl: 'https://test.blob.core.windows.net/live.png?sig=private' }
 
-function fixture(remoteImages, imagePublishMs = 20000) {
+function fixture(remoteImages, imagePublishMs = 20000, readImage = async () => ({ ref: { ...ref, mediaType: 'image/png' }, data: Buffer.from('png') })) {
   let idle
   const messages = [], notes = [], session = { id: 'session', meta: {}, deriveMessages: () => messages }
   const bridge = createDshRemoteControl({
     controller: () => ({ resolveAgent: async () => ({ agent: { session, whenIdle: () => new Promise(resolve => { idle = resolve }) } }), prompt: async () => ({ accepted: true }), modelCatalog: async () => ({ groups: [] }), cancel: () => {} }),
-    agents: () => ({}), attachments: () => ({ readImage: async () => ({ ref: { ...ref, mediaType: 'image/png' }, data: Buffer.from('png') }) }),
+    agents: () => ({}), attachments: () => ({ readImage }),
     remoteImages, imagePublishMs, userAgent: 'test/1',
   })
   const notify = async (method, params) => notes.push({ method, params: structuredClone(params) })
@@ -115,4 +115,104 @@ test('debug metadata removes signed URL query strings before keeping its trace',
   assert.doesNotMatch(JSON.stringify(host.trace()), /sig=|private/)
   assert.match(JSON.stringify(host.trace()), /blob.core.windows.net/)
   connection.close()
+})
+
+test('history publishes user attachments in message order without changing text, IDs or stored messages', async () => {
+  const published = []
+  const f = fixture({ publish: async image => {
+    const id = Buffer.from(image.data).toString()
+    published.push(id)
+    return { fileId: `file-${id}`, downloadUrl: `https://test.blob.core.windows.net/${id}.png?sig=private` }
+  } }, 20000, async ref => ({ ref: { ...ref, mediaType: 'image/png' }, data: Buffer.from(ref.attachmentId) }))
+  const original = { role: 'user', id: 'uploaded-user', content: [
+    { type: 'text', text: '原文不改：compare these pictures' },
+    ...['first', 'second', 'third'].map(attachmentId => ({ type: 'image', attachment: { attachmentId } })),
+  ] }
+  f.messages.push(original)
+  const stored = structuredClone(f.messages)
+  for (const method of ['thread/read', 'thread/resume']) {
+    const { thread } = await f.bridge.methods[method]({ threadId: 'session' }, { notify: async () => {} })
+    const shown = thread.turns[0].items[0]
+    assert.equal(shown.id, original.id)
+    assert.equal(thread.turns[0].id, original.id)
+    assert.deepEqual(shown.content[0], { type: 'text', text: original.content[0].text, text_elements: [] })
+    assert.deepEqual(shown.content.slice(1), ['first', 'second', 'third'].map(id => ({ type: 'image', url: `https://test.blob.core.windows.net/${id}.png?sig=private` })))
+    assert.deepEqual(f.messages, stored)
+  }
+  assert.deepEqual(published.toSorted(), ['first', 'first', 'second', 'second', 'third', 'third'])
+})
+
+for (const reason of ['failure', 'timeout', 'cancel']) test(`history user image publication ${reason} keeps the existing inline image`, async () => {
+  let started = false, cancelled = false
+  const f = fixture({ publish: async (_image, signal) => {
+    started = true
+    if (reason === 'failure') throw Error('no upload')
+    return new Promise((_, reject) => signal.addEventListener('abort', () => { cancelled = true; reject(signal.reason) }, { once: true }))
+  } }, 25)
+  f.messages.push({ role: 'user', id: 'uploaded-user', content: [
+    { type: 'text', text: 'keep this' }, { type: 'image', attachment: ref },
+  ] })
+  const controller = new AbortController()
+  const reading = f.bridge.methods['thread/read']({ threadId: 'session' }, { signal: controller.signal })
+  while (!started) await tick()
+  if (reason === 'cancel') controller.abort()
+  const { thread } = await reading
+  assert.equal(cancelled, reason !== 'failure')
+  assert.deepEqual(thread.turns[0].items[0].content, [
+    { type: 'text', text: 'keep this', text_elements: [] }, { type: 'image', url: 'data:image/png;base64,cG5n' },
+  ])
+})
+
+test('many tool previews do not evict the user reference image from the bounded history projection', async () => {
+  const read = []
+  const f = fixture({ publish: async image => ({ fileId: `file-${Buffer.from(image.data)}`, downloadUrl: `https://test.blob.core.windows.net/${Buffer.from(image.data)}.png` }) }, 20000, async ref => {
+    read.push(ref.attachmentId)
+    return { ref: { ...ref, mediaType: 'image/png' }, data: Buffer.from(ref.attachmentId) }
+  })
+  f.messages.push({ role: 'user', id: 'reference-user', content: [{ type: 'image', attachment: { attachmentId: 'reference' } }] })
+  for (let n = 0; n < 13; n++) f.messages.push({ role: 'tool', toolCallId: `preview-${n}`, content: [{ type: 'image', attachment: { attachmentId: `preview-${n}` } }] })
+  for (let n = 0; n < 20; n++) f.messages.push({ role: 'tool', toolCallId: `repeat-${n}`, content: [{ type: 'image', attachment: { attachmentId: 'preview-12' } }] })
+  const { thread } = await f.bridge.methods['thread/read']({ threadId: 'session' })
+  assert.deepEqual(thread.turns[0].items[0].content, [{ type: 'image', url: 'https://test.blob.core.windows.net/reference.png' }])
+  assert.equal(read.length, 12)
+  assert.equal(read.includes('reference'), true)
+  assert.equal(read.includes('preview-0'), false)
+  assert.equal(read.includes('preview-1'), false)
+})
+
+test('cloud failure keeps the original twelve-image total with six user and six tool images', async () => {
+  const read = []
+  const f = fixture({ publish: async () => { throw Error('offline') } }, 20000, async ref => {
+    read.push(ref.attachmentId)
+    return { ref: { ...ref, mediaType: 'image/png' }, data: Buffer.from(ref.attachmentId) }
+  })
+  f.messages.push({ role: 'user', id: 'user-many', content: [
+    { type: 'text', text: 'compare all' },
+    ...Array.from({ length: 12 }, (_, n) => ({ type: 'image', attachment: { attachmentId: `user-${n}` } })),
+  ] })
+  f.messages.push({ role: 'assistant', id: 'calls', content: Array.from({ length: 12 }, (_, n) => ({ type: 'tool-call', id: `gen-${n}`, name: 'codex_image_generate', arguments: '{}' })) })
+  for (let n = 0; n < 12; n++) f.messages.push({ role: 'tool', toolCallId: `gen-${n}`, content: [{ type: 'image', attachment: { attachmentId: `tool-${n}` } }] })
+  const { thread } = await f.bridge.methods['thread/read']({ threadId: 'session' })
+  assert.equal(read.length, 12)
+  assert.equal(read.filter(id => id.startsWith('user-')).length, 6)
+  assert.equal(read.filter(id => id.startsWith('tool-')).length, 6)
+  assert.deepEqual(read.filter(id => id.startsWith('user-')), ['user-11', 'user-10', 'user-9', 'user-8', 'user-7', 'user-6'])
+  const user = thread.turns[0].items[0]
+  assert.equal(user.id, 'user-many')
+  assert.equal(user.content.filter(part => part.type === 'image').length, 6)
+  assert.equal(user.content.filter(part => part.type === 'image').every(part => part.url.startsWith('data:image/png;base64,')), true)
+  assert.equal(thread.turns[0].items.filter(item => item.type === 'imageGeneration' && item.result).length, 6)
+})
+
+test('shared attachment identities across roles are read once and do not waste the twelve-image budget', async () => {
+  const read = []
+  const f = fixture(undefined, 20000, async ref => {
+    read.push(ref.attachmentId)
+    return { ref: { ...ref, mediaType: 'image/png' }, data: Buffer.from(ref.attachmentId) }
+  })
+  f.messages.push({ role: 'user', id: 'shared', content: Array.from({ length: 12 }, (_, n) => ({ type: 'image', attachment: { attachmentId: `same-${n}` } })) })
+  for (let n = 0; n < 12; n++) f.messages.push({ role: 'tool', toolCallId: `preview-${n}`, content: [{ type: 'image', attachment: { attachmentId: `same-${n}` } }] })
+  await f.bridge.methods['thread/read']({ threadId: 'session' })
+  assert.equal(read.length, 12)
+  assert.equal(new Set(read).size, 12)
 })
