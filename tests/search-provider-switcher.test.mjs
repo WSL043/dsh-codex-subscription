@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSearchProviderSwitcher } from '../src/index.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider } from '../src/codex-search.js'
-import { DSH_ACCOUNT_SEARCH_PROVIDER_ID, createDshAccountSearchProvider } from '../src/deepseek-account-search.js'
+import { DSH_SEARCH_PROVIDER_ID, createDshSearchProvider } from '../src/dsh-search.js'
 
 // Mirrors the real loader: the entry keeps the raw config, the running fiber holds resolved volatile
 // references and its update() takes a raw config.
@@ -48,7 +48,7 @@ test('a missing web runtime is reported', async () => {
   await assert.rejects(switcher.select('auto'), /unavailable/)
 })
 
-const subscriptionProviderIds = [CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID, DSH_ACCOUNT_SEARCH_PROVIDER_ID]
+const subscriptionProviderIds = [CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID, DSH_SEARCH_PROVIDER_ID]
 
 for (const searchProvider of subscriptionProviderIds) {
   test(`a saved ${searchProvider} is never used as the DSH fallback`, () => {
@@ -95,7 +95,7 @@ for (const modelProvider of ['opencode-go', 'kimi-coding', undefined, 'openai-co
         throw Object.assign(new Error('Simulated missing subscription credentials'), { code: 'WEB_PROVIDER_CREDENTIAL_MISSING' })
       },
     }
-    const dsh = createDshAccountSearchProvider({ resolveDshProvider: () => registry.get(switcher.dshProviderId()) })
+    const dsh = createDshSearchProvider({ resolveDshProvider: () => registry.get(switcher.dshProviderId()) })
     const auto = createCodexAutoSearchProvider({ codex, resolveModelProvider: () => modelProvider, resolveDshProvider: () => dsh })
     for (const provider of [codex, dsh, auto]) registry.set(provider.id, provider)
     assert.equal(await auto.search({ query: 'q' }), expected)

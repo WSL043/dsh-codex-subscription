@@ -12,6 +12,8 @@ import { phoneGitProbe, runPhoneGitProbe } from './remote-control-git-probes.js'
 import { searchFiles } from './remote-control-files.js'
 import { createRealtimeVoice, createVoiceCall, desktopInstructions } from './remote-control-realtime.js'
 import { diagnosticLog } from './diagnostic-log.js'
+import { phoneLog } from './remote-control-log.js'
+import { createPhoneImageFiles, phoneImageMarkdown, withGeneratedImageOutput } from './remote-control-images.js'
 
 /** A folder the phone named, only when it is an existing absolute folder on this machine. */
 export function localFolder(value) {
@@ -190,7 +192,7 @@ export const typedImages = message => message.role === 'user' && (message.source
   : []
 
 /** `imageUrls` maps an attachment id to a data URL the phone can show; images without one are left out. */
-export function projectTurns(messages, at = Date.now(), imageUrls = new Map(), cwd = undefined) {
+export function projectTurns(messages, at = Date.now(), imageUrls = new Map(), cwd = undefined, publishImage = url => url) {
   const turns = []
   let turn
   const calls = new Map()
@@ -221,7 +223,7 @@ export function projectTurns(messages, at = Date.now(), imageUrls = new Map(), c
     }
   }
   close()
-  return turns
+  return turns.map(turn => withGeneratedImageOutput(turn, publishImage))
 }
 
 function thread({ id, title, preview, cwd, createdAt, updatedAt, running, turns = [], projectId = null, threadSource = 'dsh' }) {
@@ -281,6 +283,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   const subscribers = new Map() // threadId -> Set<notify>
   const threadSources = new Map() // threadId -> the source the phone named when it created the thread ("user", "realtime_voice", ...)
   const active = new Map() // threadId -> { turn }
+  const imageFiles = createPhoneImageFiles()
   const queues = new Map() // threadId -> QueuedSubmission[]
   let catalog
 
@@ -316,7 +319,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     signal?.addEventListener('abort', stop, { once: true })
   })
   const emit = (threadId, method, params) => {
-    for (const notify of subscribers.get(threadId) ?? []) void notify(method, params).catch(() => {})
+    for (const notify of subscribers.get(threadId) ?? []) void notify(method, params).catch(error => { phoneLog('thread notification failed', { method, threadId, error: error?.message }, 'error') })
   }
   const agentFor = async id => {
     const result = await service().resolveAgent(id)
@@ -412,13 +415,18 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   const imageUrlsOf = async messages => {
     const urls = new Map()
     const store = attachments()
-    if (!store) return urls
+    if (!store) {
+      if (messages.some(message => imageBlocks(message).length)) phoneLog('image store unavailable', { images: messages.flatMap(imageBlocks).length }, 'warn')
+      return urls
+    }
     const wanted = messages.flatMap(message => message.role === 'tool' || typedImages(message).length > 0 ? imageBlocks(message) : []).toReversed().slice(0, 12)
     await Promise.all(wanted.map(async block => {
+      const started = Date.now()
       try {
         const stored = await store.readImage(block.attachment, AbortSignal.timeout(10_000))
         urls.set(block.attachment.attachmentId, `data:${stored.ref.mediaType};base64,${Buffer.from(stored.data).toString('base64')}`)
-      } catch { /* an image DSH can no longer read is simply not shown */ }
+        phoneLog('image read completed', { attachmentId: block.attachment.attachmentId, bytes: stored.data.byteLength, ms: Date.now() - started })
+      } catch (error) { phoneLog('image read failed', { attachmentId: block.attachment.attachmentId, ms: Date.now() - started, error: error?.message }, 'warn') }
     }))
     return urls
   }
@@ -426,12 +434,28 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   // The phone merges items by id. A message it watched arrive keeps the id it was shown with when DSH's committed
   // history is read back, otherwise the same message appears twice (or the live copy stays empty).
   const aliases = new Map() // `${threadId}\0${committed id}` -> the id the phone was shown
+  const turnAliases = new Map() // committed user id -> the live turn the phone already knows
+  const clientAliases = new Map() // committed user id -> the phone's optimistic submission id
   const keepShownId = (threadId, committed, shown) => {
     if (committed === shown) return
     aliases.set(`${threadId}\0${committed}`, shown)
     if (aliases.size > 2000) aliases.delete(aliases.keys().next().value)
   }
-  const withShownIds = (id, turns) => aliases.size === 0 ? turns : turns.map(turn => ({ ...turn, items: turn.items.map(item => aliases.has(`${id}\0${item.id}`) ? { ...item, id: aliases.get(`${id}\0${item.id}`) } : item) }))
+  const reconcileUser = (id, live, message) => {
+    if (!message || live.committedUserId || live.priorMessageIds.has(message.id)) return
+    const text = visibleText(live.userItem.content.filter(part => part.type === 'text'))
+    if (message.role !== 'user' || typedText(message) !== text || typedImages(message).length !== live.userItem.content.filter(part => part.type === 'image').length) return
+    live.committedUserId = message.id
+    keepShownId(id, message.id, live.userItem.id)
+    turnAliases.set(`${id}\0${message.id}`, live.turn.id)
+    if (turnAliases.size > 2000) turnAliases.delete(turnAliases.keys().next().value)
+    if (live.userItem.clientId !== null) {
+      clientAliases.set(`${id}\0${message.id}`, live.userItem.clientId)
+      if (clientAliases.size > 2000) clientAliases.delete(clientAliases.keys().next().value)
+    }
+    phoneLog('user message reconciled', { threadId: id, turnId: live.turn.id, itemId: live.userItem.id, matched: true })
+  }
+  const withShownIds = (id, turns) => turns.map(turn => ({ ...turn, id: turnAliases.get(`${id}\0${turn.id}`) ?? turn.id, items: turn.items.map(item => aliases.has(`${id}\0${item.id}`) ? { ...item, id: aliases.get(`${id}\0${item.id}`), ...(item.type === 'userMessage' ? { clientId: clientAliases.get(`${id}\0${item.id}`) ?? null } : {}) } : item) }))
   const withLiveTurn = (id, shownTurns) => {
     const turns = withShownIds(id, shownTurns)
     const live = active.get(id)
@@ -440,26 +464,33 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const writing = streams.get(id)
     const tail = writing ? [{ ...writing.item, text: writing.text }] : []
     const last = turns.at(-1)
-    const ours = last?.items[0]?.type === 'userMessage' && typed(last.items[0]) === typed(live.userItem)
+    const ours = last?.items[0]?.type === 'userMessage' && (last.items[0].id === live.userItem.id || (!live.priorMessageIds.has(last.items[0].id) && typed(last.items[0]) === typed(live.userItem)))
     const items = ours ? [live.userItem, ...last.items.slice(1), ...tail] : [live.userItem, ...tail]
     return [...(ours ? turns.slice(0, -1) : turns), { ...live.turn, items, status: 'inProgress', error: null, completedAt: null, durationMs: null }]
   }
   const openThread = async (id, notify) => {
+    const started = Date.now()
+    phoneLog('history restore started', { threadId: id })
     const agent = await agentFor(id)
     if (notify) subscribe(id, notify)
     await (catalog ? undefined : loadCatalog().catch(() => undefined))
     const session = agent.session
-    const messages = session.deriveMessages()
+    let messages = session.deriveMessages()
+    const live = active.get(id)
+    if (live?.userItem) for (const message of messages) reconcileUser(id, live, message)
     const first = messages.find(message => typedText(message) !== '')
     const imageUrls = await imageUrlsOf(messages)
     const cwd = directoryOf(session)
-    return {
+    messages = await Promise.all(messages.map(async message => message.role !== 'assistant' ? message : { ...message, content: await Promise.all(message.content.map(async block => block.type === 'text' ? { ...block, text: await phoneImageMarkdown(block.text, cwd, imageFiles.publish) } : block)) }))
+    const result = {
       agent,
       thread: thread({
         id, cwd, createdAt: session.meta?.createdAt, running: active.has(id), projectId: projectIdOf(id), threadSource: threadSources.get(id),
-        preview: first ? visibleText(first.content).slice(0, 200) : '', turns: withLiveTurn(id, projectTurns(messages, session.meta?.createdAt, imageUrls, cwd)),
+        preview: first ? visibleText(first.content).slice(0, 200) : '', turns: withLiveTurn(id, projectTurns(messages, session.meta?.createdAt, imageUrls, cwd, imageFiles.publish)),
       }),
     }
+    phoneLog('history restore completed', { threadId: id, ms: Date.now() - started, items: messages.length, turns: result.thread.turns.length, images: imageUrls.size })
+    return result
   }
   /** Apply a model or effort the phone picked; DSH validates it against its own catalog. */
   // Speed: the plugin keeps one speed setting (standard, fast, ultrafast); the phone's service tier is that setting.
@@ -552,8 +583,10 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const speedForTurn = typeof params?.serviceTierForTurn === 'string' ? params.serviceTierForTurn : undefined
     await applySpeed(speedForTurn ?? (Object.hasOwn(params ?? {}, 'serviceTier') ? params.serviceTier : undefined))
     const turn = emptyTurn()
-    const userItem = { type: 'userMessage', id: params.clientUserMessageId ?? randomUUID(), clientId: params.clientUserMessageId ?? null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(picture => ({ type: 'image', url: picture.url }))] }
-    active.set(id, { turn, ended: undefined, userItem })
+    const userItem = { type: 'userMessage', id: randomUUID(), clientId: params.clientUserMessageId ?? null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(picture => ({ type: 'image', url: picture.url }))] }
+    const running = { turn, ended: undefined, userItem, priorMessageIds: new Set(agent.session.deriveMessages().map(message => message.id)), pendingImages: new Set() }
+    active.set(id, running)
+    phoneLog('turn accepted', { threadId: id, turnId: turn.id, itemId: userItem.id, hasClientId: userItem.clientId !== null, images: pictures.length })
     emit(id, 'turn/started', { threadId: id, turn })
     turn.items.push(userItem)
     emit(id, 'thread/status/changed', { threadId: id, status: { type: 'active', activeFlags: [] } })
@@ -565,7 +598,10 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       active.delete(id)
       throw new RpcError(-32603, error?.message ? `DSH did not accept the message: ${String(error.message).slice(0, 200)}` : 'DSH did not accept the message')
     }
-    void Promise.resolve(agent.whenIdle?.()).catch(() => {}).then(() => {
+    void Promise.resolve(agent.whenIdle?.()).catch(() => {}).then(async () => {
+      // Tool image reads can outlast the model. Finish them before publishing the final turn.
+      if (running.pendingImages.size) phoneLog('waiting for tool images', { threadId: id, turnId: turn.id, pending: running.pendingImages.size })
+      await Promise.allSettled([...running.pendingImages])
       // Report how DSH closed the turn, so model or credential failures reach the phone.
       const reason = active.get(id)?.ended
       turn.status = reason?.kind === 'error' ? 'failed' : reason?.kind === 'aborted' || reason?.kind === 'interrupted' ? 'interrupted' : 'completed'
@@ -577,16 +613,15 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       turn.completedAt = seconds(Date.now())
       if (speedForTurn !== undefined && speedBefore !== undefined && speed?.current?.() !== speedBefore) void Promise.resolve(speed.set?.(speedBefore)).catch(() => {})
       // The phone was shown this message under its own id; keep that id once DSH has committed it.
-      const sentText = visibleText(userItem.content.filter(part => part.type === 'text'))
       try {
-        const committedUser = agent.session.deriveMessages().findLast(message => typedText(message) !== '' && typedText(message) === sentText)
-        if (committedUser) keepShownId(id, committedUser.id, userItem.id)
+        for (const message of agent.session.deriveMessages()) reconcileUser(id, running, message)
       } catch { /* the phone then simply reads DSH's own id */ }
       active.delete(id)
       compactions.delete(id)
       const usageNow = tokenUsage(agent.session)
       if (usageNow) emit(id, 'thread/tokenUsage/updated', { threadId: id, turnId: turn.id, tokenUsage: usageNow })
       emit(id, 'turn/completed', { threadId: id, turn })
+      phoneLog('turn completed', { threadId: id, turnId: turn.id, status: turn.status, items: turn.items.length })
       emit(id, 'thread/status/changed', { threadId: id, status: { type: 'idle' } })
       const [next, ...rest] = queues.get(id) ?? []
       if (next) {
@@ -595,7 +630,9 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
         void startTurn({ threadId: id, input: next.input, clientUserMessageId: next.clientUserMessageId }, notify).catch(() => {})
       }
     })
-    return { turn }
+    // Match app-server: acknowledge the turn only. The user message arrives through item notifications,
+    // linked to the phone's optimistic submission by clientId, rather than inserted a second time here.
+    return { turn: { ...turn, items: [] } }
   }
 
   /** Conversations the phone may see, filtered the way it asks, plus the passages DSH found for a search term. */
@@ -711,8 +748,13 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'plugin/installed': () => ({ marketplaceLoadErrors: [], marketplaces: [] }),
     // The app prepares a working folder before a new chat; sessions here use DSH's own folders, so nothing is created.
     'fs/createDirectory': () => ({}),
-    'fs/getMetadata': params => realMetadata(params?.path) ?? ({ isDirectory: true, isFile: false, isSymlink: false, createdAtMs: Date.now(), modifiedAtMs: Date.now() }),
+    'fs/getMetadata': params => imageFiles.metadata(params?.path) ?? realMetadata(params?.path) ?? ({ isDirectory: true, isFile: false, isSymlink: false, createdAtMs: Date.now(), modifiedAtMs: Date.now() }),
     'fs/readDirectory': params => ({ entries: readFolder(params?.path) }),
+    'fs/readFile': params => {
+      const image = imageFiles.read(params?.path)
+      if (!image) throw invalidParams('Only conversation images prepared for the phone can be read')
+      return image
+    },
     'collaborationMode/list': () => ({ data: [] }),
     // Live voice is not available through a DSH host yet. Answer the phone's voice calls instead of
     // leaving it on "connecting": list the voices, then end a start attempt with a clear error.
@@ -1094,9 +1136,10 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const running = session ? active.get(session.id) : undefined
     if (!running || !subscribers.has(session.id)) return
     const id = session.id
-    if (frame.type === 'start') { streams.delete(id); return }
+    if (frame.type === 'start') { streams.delete(id); phoneLog('assistant stream started', { threadId: id, turnId: running.turn.id }); return }
     if (frame.type === 'end') {
       const stream = streams.get(id)
+      phoneLog('assistant stream ended', { threadId: id, turnId: running.turn.id, chunks: stream?.chunks ?? 0, bytes: Buffer.byteLength(stream?.text ?? ''), status: frame.outcome?.kind })
       // A committed message completes the item itself; an abandoned or failed attempt must not leave it open.
       if (stream && frame.outcome?.eventType !== 'assistant/message') {
         streams.delete(id)
@@ -1109,12 +1152,13 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     if (chunk?.type !== 'text-delta' || typeof chunk.text !== 'string' || chunk.text === '') return
     let stream = streams.get(id)
     if (!stream) {
-      stream = { item: { type: 'agentMessage', id: randomUUID(), text: '', phase: null, memoryCitation: null, delivery: null }, text: '' }
+      stream = { item: { type: 'agentMessage', id: randomUUID(), text: '', phase: null, memoryCitation: null, delivery: null }, text: '', chunks: 0 }
       streams.set(id, stream)
       running.turn.items.push(stream.item)
       emit(id, 'item/started', { threadId: id, turnId: running.turn.id, item: stream.item, startedAtMs: Date.now() })
     }
     stream.text += chunk.text
+    stream.chunks++
     emit(id, 'item/agentMessage/delta', { threadId: id, turnId: running.turn.id, itemId: stream.item.id, delta: chunk.text })
   }
 
@@ -1126,6 +1170,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     }
     const running = active.get(session.id)
     if (!running || !subscribers.has(session.id)) return
+    if (event.type === 'user/message' && running.userItem) { reconcileUser(session.id, running, { role: 'user', ...event.data }); return }
     if (event.type === 'turn/end') { running.ended = event.data?.reason; return }
     // DSH shrinking a long conversation shows as the phone's "context compacted" row.
     if (event.type === 'compaction/start' || event.type === 'compaction/end') {
@@ -1142,7 +1187,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return
     }
     if (event.type !== 'assistant/message' && event.type !== 'tool/result') return
-    const message = session.deriveMessages().at(-1)
+    const message = event.data?.message ?? session.deriveMessages().at(-1)
     if (message?.role === 'tool') {
       const item = running.turn.items.find(entry => entry.id === message.toolCallId && entry.type !== 'agentMessage')
       if (item) {
@@ -1151,13 +1196,35 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
           emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item, completedAtMs: Date.now() })
         }
         // Pictures a tool returned (a generated image) are read first so the phone can show them.
-        if (imageBlocks(message).length > 0) void imageUrlsOf([message]).then(finish, () => finish(new Map()))
+        if (imageBlocks(message).length > 0) {
+          const pending = imageUrlsOf([message]).then(finish, () => finish(new Map()))
+          running.pendingImages ??= new Set()
+          running.pendingImages.add(pending)
+          void pending.then(() => running.pendingImages.delete(pending), error => { running.pendingImages.delete(pending); phoneLog('tool image delivery failed', { threadId: session.id, itemId: item.id, error: error?.message }, 'error') })
+        }
         else finish(new Map())
       }
       return
     }
     if (!message || message.role !== 'assistant') return
     const items = projectTurns([{ role: 'user', id: 'x', content: [{ type: 'text', text: 'x' }] }, message], undefined, undefined, directoryOf(session)).flatMap(turn => turn.items.slice(1))
+    const toolIds = new Set(message.content.filter(block => block.type === 'tool-call').map(block => block.id))
+    const completeText = item => {
+      const publish = () => {
+        if (toolIds.size === 0) {
+          const rendered = withGeneratedImageOutput({ id: running.turn.id, items: [...running.turn.items.filter(current => current !== item), item] }, imageFiles.publish).items.at(-1)
+          item.text = rendered.text
+          item.phase = rendered.phase
+        }
+        emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item, completedAtMs: Date.now() })
+      }
+      const pending = [...(running.pendingImages ?? [])]
+      if (pending.length === 0 && !item.text.includes('![')) { publish(); return }
+      const job = Promise.allSettled(pending).then(async () => { item.text = await phoneImageMarkdown(item.text, directoryOf(session), imageFiles.publish); publish() })
+      running.pendingImages ??= new Set()
+      running.pendingImages.add(job)
+      void job.then(() => running.pendingImages.delete(job), error => { running.pendingImages.delete(job); phoneLog('answer image preparation failed', { threadId: session.id, itemId: item.id, error: error?.message }, 'error') })
+    }
     const stream = streams.get(session.id)
     streams.delete(session.id)
     let reuse = stream?.item
@@ -1176,12 +1243,13 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
         reuse = undefined
         keepShownId(session.id, item.id, shown.id)
         shown.text = item.text
-        emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item: shown, completedAtMs: Date.now() })
+        completeText(shown)
         continue
       }
       running.turn.items.push(item)
       emit(session.id, 'item/started', { threadId: session.id, turnId: running.turn.id, item, startedAtMs: Date.now() })
-      emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item, completedAtMs: Date.now() })
+      if (item.type === 'agentMessage') completeText(item)
+      else if (!toolIds.has(item.id)) emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item, completedAtMs: Date.now() })
     }
   }
 

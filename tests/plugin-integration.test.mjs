@@ -234,6 +234,36 @@ function fakeContext({ connection = true, webServer = true } = {}) {
   }
 }
 
+for (const searchProvider of ['auto', 'dsh', 'codex']) {
+  for (const legacy of [false, true]) {
+    test(`other-models off bypasses subscription/account search in ${searchProvider}, legacy=${legacy}`, async () => {
+      const host = fakeContext()
+      Object.assign(host.config, { otherModels: 'off', searchProvider })
+      const registry = host.ctx.web.searchProviders
+      if (legacy) Object.defineProperty(host.ctx.web, 'searchProviders', { get: () => registry })
+      let accountReads = 0, dshCalls = 0
+      host.provided.set('agents', { currentInitiator: () => ({ session: { requestContext: () => ({ provider: 'custom-model' }) } }) })
+      host.provided.set('deepseekAccount', { resolveToken: async () => { accountReads++; throw new Error('Account token must not be read') } })
+      const missing = Object.assign(new Error('Configure the DSH search provider'), { code: 'WEB_PROVIDER_CREDENTIAL_MISSING' })
+      registry.set('deepseek-official', { id: 'deepseek-official', available: () => true, search: async () => { dshCalls++; throw missing } })
+      applyPlugin(host.ctx, host.config)
+      await Promise.resolve()
+      const configured = legacy ? host.webUpdates.at(-1).config.searchProvider : 'deepseek-official'
+      const selected = host.ctx.web.searchProviders.get(configured)
+      await assert.rejects(selected.search({ query: 'q' }), error => error === missing)
+      assert.equal(dshCalls, 1)
+      assert.equal(accountReads, 0, 'turning other models off must not read the account or reach its paid endpoint')
+      // Cached/direct provider handles must enforce the same boundary as the configured route.
+      for (const provider of host.searchProviders) {
+        await assert.rejects(provider.search({ query: 'q' }), error => error === missing)
+      }
+      assert.equal(accountReads, 0)
+      assert.equal(dshCalls, 4)
+      assert.equal(host.config.searchProvider, searchProvider, 'saved choice stays intact')
+    })
+  }
+}
+
 test('account routes register without directly accessing the web server', () => {
   const host = fakeContext({ webServer: false })
   assert.doesNotThrow(() => applyPlugin(host.ctx, host.config))

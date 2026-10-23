@@ -5,6 +5,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { diagnosticLog } from './diagnostic-log.js'
+import { phoneLog } from './remote-control-log.js'
 
 export const REMOTE_CONTROL_BASE_URL = 'https://chatgpt.com/backend-api/'
 const PROTOCOL_VERSION = '3'
@@ -239,6 +240,8 @@ export function createRemoteControlRelay(options) {
     if (bytes.byteLength > MAX_MESSAGE_BYTES) throw new RemoteControlError('too-large', 'Remote Control message is too large')
     const chunks = []
     for (let offset = 0; offset < bytes.byteLength; offset += TARGET_SEGMENT_BYTES) chunks.push(bytes.subarray(offset, offset + TARGET_SEGMENT_BYTES).toString('base64'))
+    const started = now()
+    phoneLog('chunked send started', { clientId, method: message.method, requestId: message.id, bytes: bytes.byteLength, segments: chunks.length, sequence })
     for (const [segmentId, chunk] of chunks.entries()) {
       const text = JSON.stringify({
         client_id: clientId,
@@ -253,6 +256,7 @@ export function createRemoteControlRelay(options) {
       if (isRequest) await put(text)
       else { remember(key, sequence, segmentId, text); if (socket?.readyState === 1) await new Promise(resolve => socket.send(text, () => resolve())) }
     }
+    phoneLog('chunked send completed', { clientId, bytes: bytes.byteLength, segments: chunks.length, sequence, ms: now() - started })
   }
 
   const closeClient = (clientId, streamId) => {
@@ -282,13 +286,22 @@ export function createRemoteControlRelay(options) {
     if (!client && !starts) return
     if (!client) {
       let closed = false
+      let sending = Promise.resolve()
       const connection = options.serve({
         id: `${envelope.client_id}/${streamId}`, clientId: envelope.client_id, streamId,
-        send: async message => { if (!closed) await sendServerMessage(envelope.client_id, streamId, message) },
+        // A later sequence acknowledges every earlier one. Keep each message's chunks together,
+        // and snapshot now: the bridge's live turn continues changing while the socket drains.
+        send: message => {
+          const snapshot = structuredClone(message)
+          const next = sending.then(() => { if (!closed) return sendServerMessage(envelope.client_id, streamId, snapshot) })
+          sending = next.catch(() => {})
+          return next
+        },
         close: () => { closed = true },
       })
       client = { receive: connection.receive, lastActivity: now(), close: () => { closed = true; connection.close() } }
       clients.set(key, client)
+      phoneLog('client stream opened', { clientId: envelope.client_id })
     }
     // After a reconnect the relay may send what we already handled again: deliver it once. A host does not
     // acknowledge client messages (the Codex app server does not either); the delivery cursor below does that job.
@@ -394,7 +407,7 @@ export function createRemoteControlRelay(options) {
         reject(error)
       })
       ws.on('message', data => {
-        queue = queue.then(() => receive(String(data))).catch(error => { state.lastError = error?.code ?? 'protocol' })
+        queue = queue.then(() => receive(String(data))).catch(error => { state.lastError = error?.code ?? 'protocol'; phoneLog('relay message failed', { code: error?.code, error: error?.message }, 'error') })
       })
       ws.on('error', error => { stopBeat(); reject(new RemoteControlError('socket', error?.message ?? 'socket error')) })
       ws.on('close', () => { stopBeat(); signal.removeEventListener('abort', onAbort); resolve() })

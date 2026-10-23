@@ -88,7 +88,8 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   ]) assert.equal(included.has(path), true, `package files must include ${path}`)
   assert.equal([...included].some(path => path.startsWith('docs/assets')), false, 'README screenshots stay on GitHub and out of the runtime package')
   assert.equal(pkg.name, 'dsh-codex-subscription')
-  assert.match(pkg.version, /^\d+\.\d+\.\d+(?:-beta\.\d+)?$/u)
+  // Internal dev packages can enter main without changing the documented stable install or release channel.
+  assert.match(pkg.version, /^\d+\.\d+\.\d+(?:-(?:beta|dev)\.\d+)?$/u)
   assert.equal(pkg.homepage, 'https://github.com/WSL043/dsh-codex-subscription')
   assert.equal('prepare' in pkg.scripts, false, 'GitHub installs use committed build output')
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
