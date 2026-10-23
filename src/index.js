@@ -36,8 +36,8 @@ import { createCodexNetworkTransport } from './oauth-network.js'
 import { createModels, openaiCodexProvider, openaiCodexSubscriptionProvider } from './pi-ai-runtime.js'
 import { createOfficialModelCatalog } from './model-catalog.js'
 import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET } from './capability-settings.js'
-import { DSH_ACCOUNT_SEARCH_PROVIDER_ID, createDshAccountSearchProvider } from './deepseek-account-search.js'
-import { createSearchRouter, effectiveSearchMode } from './search-router.js'
+import { DSH_SEARCH_PROVIDER_ID, createDshSearchProvider } from './dsh-search.js'
+import { createSearchRouter, gateSearchProvider } from './search-router.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
 import { createCodexImageTool } from './codex-images.js'
 import { IMAGE_FEATURE_DEFAULTS } from './image-features.js'
@@ -72,7 +72,7 @@ const LEGACY_CREDENTIAL_REF = dshCredentials.credentialRef('WSL043_OPENAI_CODEX_
 const ACCOUNT_VAULT_KEY = dshCredentials.credentialKey('codex-subscription', 'accounts')
 const WEB_ENTRY_ID = 'web'
 const DSH_SEARCH_PROVIDER_FALLBACK = 'deepseek-official'
-const SUBSCRIPTION_SEARCH_PROVIDER_IDS = new Set([CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID, DSH_ACCOUNT_SEARCH_PROVIDER_ID])
+const SUBSCRIPTION_SEARCH_PROVIDER_IDS = new Set([CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID, DSH_SEARCH_PROVIDER_ID])
 const MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
 const REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
 const REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
@@ -108,10 +108,10 @@ export function createSearchProviderSwitcher(loader) {
     // The restart reloads this plugin, which then finds the provider already selected.
     await fiber.update({ ...(entry.options?.config ?? {}), searchProvider: provider }, true)
   }
-  // "dsh" keeps DSH's own provider first, through a wrapper that adds the DeepSeek account fallback.
+  // "dsh" uses only the provider the host has configured.
   const select = selection => writeProvider(selection === SEARCH_PROVIDER_CODEX
     ? CODEX_SEARCH_PROVIDER_ID
-    : selection === SEARCH_PROVIDER_AUTO ? CODEX_AUTO_SEARCH_PROVIDER_ID : DSH_ACCOUNT_SEARCH_PROVIDER_ID)
+    : selection === SEARCH_PROVIDER_AUTO ? CODEX_AUTO_SEARCH_PROVIDER_ID : DSH_SEARCH_PROVIDER_ID)
   return Object.freeze({
     dshProviderId,
     current,
@@ -443,6 +443,12 @@ export function apply(ctx, config = {}) {
     const provider = currentAgent()?.session.requestContext?.()?.provider
     return provider === undefined || provider === PROVIDER
   }
+  const realSearchProviders = ctx.web.searchProviders
+  const resolveDshSearch = () => realSearchProviders?.get(searchProvider.dshProviderId())
+  const gateSearch = provider => gateSearchProvider(provider, {
+    allowed: () => settings.get().otherModels !== 'off' || currentAgent()?.session.requestContext?.()?.provider === PROVIDER,
+    resolveDshProvider: resolveDshSearch,
+  })
   const codexSearch = createCodexSearchProvider({
     resolvePreferences: () => readCapabilitySettings(settings.get()),
     getAuth: resolveAuth,
@@ -455,7 +461,7 @@ export function apply(ctx, config = {}) {
     fetch: (input, init) => network.fetch('search', input, init),
   })
   const searchTrace = route => diagnosticLog.info('search', `web search: ${route}`)
-  const tracedCodexSearch = Object.freeze({
+  const tracedCodexSearch = gateSearch({
     id: codexSearch.id,
     available: () => codexSearch.available(),
     async search(request, signal) {
@@ -466,27 +472,16 @@ export function apply(ctx, config = {}) {
   })
   ctx.web.registerSearchProvider(tracedCodexSearch)
   // The registry as DSH built it: the search router below stands in for it, and the DSH provider is always looked up here.
-  const realSearchProviders = ctx.web.searchProviders
-  const dshSearch = createDshAccountSearchProvider({
+  const dshSearch = gateSearch(createDshSearchProvider({
     report: searchTrace,
-    resolveDshProvider: () => realSearchProviders?.get(searchProvider.dshProviderId()),
-    resolveAccount: () => ctx.get?.('deepseekAccount'),
-    resolveConfig: () => {
-      const config = [...ctx.loader.entries()].find(entry => entry.options?.id === 'web-deepseek-api')?.options?.config
-      return config !== null && typeof config === 'object' ? config : {}
-    },
-    resolveQuestion: () => {
-      const messages = currentAgent()?.session.deriveMessages?.() ?? []
-      const prompt = messages.findLast(message => message.role === 'user' && message.source?.kind === 'user')
-      return prompt?.content?.flatMap(block => block.type === 'text' ? [block.text] : []).join(' ')
-    },
-  })
+    resolveDshProvider: resolveDshSearch,
+  }))
   ctx.web.registerSearchProvider(dshSearch)
-  const autoSearch = createCodexAutoSearchProvider({
+  const autoSearch = gateSearch(createCodexAutoSearchProvider({
     codex: tracedCodexSearch,
     resolveModelProvider: () => currentAgent()?.session.requestContext?.()?.provider,
     resolveDshProvider: () => dshSearch,
-  })
+  }))
   ctx.web.registerSearchProvider(autoSearch)
   // Search is routed at lookup time, so the provider DSH has configured (and its settings page shows) is never replaced.
   let searchRouted = false
@@ -495,8 +490,8 @@ export function apply(ctx, config = {}) {
     const router = createSearchRouter({
       registry: realSearchProviders,
       configuredId: () => searchProvider.current(),
-      // Codex search for a conversation on another model is what the switch turns off: "auto" sends that conversation to DSH search.
-      mode: () => effectiveSearchMode(settings.get()[SEARCH_PROVIDER_FIELD], settings.get().otherModels),
+      // Each provider enforces the model switch at request time, including legacy hosts.
+      mode: () => settings.get()[SEARCH_PROVIDER_FIELD],
       providers: { codex: tracedCodexSearch, auto: autoSearch, dsh: dshSearch },
     })
     if (router === undefined) return undefined

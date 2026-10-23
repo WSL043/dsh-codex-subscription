@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createSearchRouter, effectiveSearchMode } from '../src/search-router.js'
+import { createSearchRouter, gateSearchProvider } from '../src/search-router.js'
 
 const provider = (id, answer) => ({ id, available: () => true, search: async () => ({ sources: [{ url: answer }], truncated: false }) })
 const setup = (mode, configured = 'deepseek-search-api') => {
@@ -51,10 +51,24 @@ test('ids of this plugin and a registry that is not a Map are left alone', async
   assert.equal(createSearchRouter({ registry: {}, configuredId: () => 'x', mode: () => 'dsh', providers: {} }), undefined)
 })
 
-test('the other-models switch turns an explicit Codex choice into automatic routing and leaves the rest alone', () => {
-  assert.equal(effectiveSearchMode('codex', 'off'), 'auto')
-  assert.equal(effectiveSearchMode('codex', 'on'), 'codex')
-  assert.equal(effectiveSearchMode('dsh', 'off'), 'dsh')
-  assert.equal(effectiveSearchMode('auto', 'off'), 'auto')
-  assert.equal(effectiveSearchMode('codex', undefined), 'codex')
+test('cached provider handles follow model/setting changes and retain the selected route for Codex', async () => {
+  let otherModels = 'off', model = 'custom-model'
+  const selected = gateSearchProvider(provider('codex-subscription', 'codex'), {
+    allowed: () => otherModels !== 'off' || model === 'openai-codex',
+    resolveDshProvider: () => provider('native-dsh', 'native'),
+  })
+  assert.equal((await selected.search({ query: 'q' })).sources[0].url, 'native')
+  model = 'openai-codex'
+  assert.equal((await selected.search({ query: 'q' })).sources[0].url, 'codex')
+  model = 'custom-model'
+  otherModels = 'on'
+  assert.equal((await selected.search({ query: 'q' })).sources[0].url, 'codex')
+})
+
+test('a gated search fails without recursion when the native provider is absent or points back to the plugin', async () => {
+  for (const fallback of [undefined, provider('codex-subscription-dsh', 'wrong')]) {
+    const selected = gateSearchProvider(provider('codex-subscription', 'codex'), { allowed: () => false, resolveDshProvider: () => fallback })
+    assert.equal(selected.available(), false)
+    await assert.rejects(selected.search({ query: 'q' }), error => error.code === 'WEB_PROVIDER_UNAVAILABLE')
+  }
 })
