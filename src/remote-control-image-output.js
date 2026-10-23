@@ -11,8 +11,12 @@ export function rememberRemoteImage(item, message, assets) {
   const image = (message.content ?? []).find(block => block.type === 'image' && assets.has(block.attachment?.attachmentId))
   images.set(item, { asset: image ? assets.get(image.attachment.attachmentId) : undefined, state: metadata(message) })
 }
-const pathKey = value => typeof value === 'string' ? value.replaceAll('\\', '/').replace(/^\.\//u, '').toLowerCase() : ''
+const pathKey = value => typeof value === 'string' ? value.replaceAll('\\', '/').replace(/^\.\//u, '') : ''
 const filename = value => pathKey(value).split('/').at(-1)
+const matchesPresentedPath = (path, ref) => {
+  const normal = value => /^[A-Za-z]:\//u.test(pathKey(path)) ? pathKey(value).toLowerCase() : pathKey(value)
+  return normal(path) === normal(ref) || !/[\\/]/u.test(ref) && normal(filename(path)) === normal(filename(ref))
+}
 const fullPreview = item => item.arguments?.action === 'preview' && !item.arguments?.box && (!item.arguments?.mode || item.arguments.mode === 'full')
 
 /** A native image or the exact full preview of a successfully finished sketch. */
@@ -49,7 +53,7 @@ export function withRemoteImageOutput(turn) {
   const presented = turn.items.filter(item => item.type === 'dynamicToolCall' && item.tool === 'present').flatMap(item => item.arguments?.files ?? []).map(file => file.path).filter(path => typeof path === 'string')
   if (outputs.length === 1 && sketchOutputs.has(outputs[0].fileId)) text = text.replace(/!\[([^\]]*)\]\(([^)]+)\)/gu, (whole, alt, source) => {
     const ref = source.trim().replace(/^<|>$/gu, '')
-    return presented.some(path => pathKey(path) === pathKey(ref) || !/[\\/]/u.test(ref) && filename(path) === filename(ref)) ? `![${alt}](${outputs[0].downloadUrl})` : whole
+    return presented.some(path => matchesPresentedPath(path, ref)) ? `![${alt}](${outputs[0].downloadUrl})` : whole
   })
   for (const asset of outputs) if (!text.includes(asset.downloadUrl)) text += `\n\n![Image](${asset.downloadUrl})`
   const sources = new Map(outputs.map(asset => [asset.fileId, asset.downloadUrl]))
