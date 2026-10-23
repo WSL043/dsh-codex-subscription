@@ -203,7 +203,9 @@ export function projectTurns(messages, at = Date.now(), imageUrls = new Map(), c
   for (const message of messages) {
     if (message.role === 'user') {
       const text = typedText(message)
-      const pictures = typedImages(message).map(block => imageUrls.get(block.attachment.attachmentId)).filter(Boolean)
+      // Keep the URL-shaped user-input representation consumed by older clients.
+      // The durable file identity stays in the account-scoped asset cache.
+      const pictures = typedImages(message).map(block => imageAssets.get(block.attachment.attachmentId)?.downloadUrl ?? imageUrls.get(block.attachment.attachmentId)).filter(Boolean)
       if (text === '' && pictures.length === 0) continue
       close()
       turn = { ...emptyTurn(), id: message.id, startedAt: seconds(at) }
@@ -421,16 +423,21 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       if (messages.some(message => imageBlocks(message).length)) phoneLog('image store unavailable', { images: messages.flatMap(imageBlocks).length }, 'warn')
       return { urls, assets }
     }
-    const wanted = messages.flatMap(message => message.role === 'tool' || typedImages(message).length > 0 ? imageBlocks(message) : []).toReversed().slice(0, 12)
+    // Repeated tool previews must not crowd the person's reference images out
+    // of restored history. Bound each category independently, then deduplicate.
+    const recentUnique = blocks => [...new Map(blocks.toReversed().map(block => [block.attachment.attachmentId, block])).values()].slice(0, 12)
+    const userImages = recentUnique(messages.flatMap(typedImages))
+    const toolImages = recentUnique(messages.filter(message => message.role === 'tool').flatMap(imageBlocks))
+    const wanted = [...new Map([...userImages, ...toolImages].map(block => [block.attachment.attachmentId, block])).values()]
     await Promise.all(wanted.map(async block => {
       const started = Date.now()
       try {
         const stored = await store.readImage(block.attachment, AbortSignal.timeout(10_000))
         urls.set(block.attachment.attachmentId, `data:${stored.ref.mediaType};base64,${Buffer.from(stored.data).toString('base64')}`)
         phoneLog('image read completed', { attachmentId: block.attachment.attachmentId, bytes: stored.data.byteLength, ms: Date.now() - started })
-        // Only tool-returned attachments use the cloud image channel. User input
-        // attachments keep their existing transport; no local Markdown files are read.
-        if (remoteImages && messages.some(message => message.role === 'tool' && imageBlocks(message).includes(block))) {
+        // Publish only images read from DSH's attachment service, including the
+        // person's own images when restoring history. Never fetch Markdown paths.
+        if (remoteImages) {
           const signal = AbortSignal.any([AbortSignal.timeout(imagePublishMs), ...(parentSignal ? [parentSignal] : [])])
           try {
             const asset = await remoteImages.publish({ data: stored.data, mediaType: stored.ref.mediaType }, signal)
