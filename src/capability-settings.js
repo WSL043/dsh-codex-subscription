@@ -3,6 +3,10 @@ export const CUSTOM_CONTEXT_OVERRIDES_FIELD = 'customContextModels'
 export const SEARCH_MODE_FIELD = 'searchMode'
 export const SEARCH_DOMAINS_FIELD = 'searchDomains'
 export const QUOTA_ALERTS_FIELD = 'quotaAlerts'
+// DSH search normally answers with its own credential; without one the plugin may fall back to the
+// signed-in DeepSeek account, whose Search API bills every successful request. Off keeps the error.
+export const ACCOUNT_SEARCH_FALLBACK_FIELD = 'accountSearchFallback'
+export const ACCOUNT_SEARCH_FALLBACK_MODES = ['on', 'off']
 export const SEARCH_MODES = ['live', 'cached', 'disabled']
 export const QUOTA_ALERT_MODES = ['off', 'important', 'early', 'custom']
 export const QUOTA_THRESHOLD_FIELDS = ['quotaShortThreshold', 'quotaLongThreshold']
@@ -39,6 +43,7 @@ export function readCapabilitySettings(value = {}) {
     [SEARCH_MODE_FIELD]: SEARCH_MODES.includes(value[SEARCH_MODE_FIELD]) ? value[SEARCH_MODE_FIELD] : 'live',
     [SEARCH_DOMAINS_FIELD]: normalizeSearchDomains(value[SEARCH_DOMAINS_FIELD] ?? []),
     [QUOTA_ALERTS_FIELD]: QUOTA_ALERT_MODES.includes(value[QUOTA_ALERTS_FIELD]) ? value[QUOTA_ALERTS_FIELD] : 'important',
+    [ACCOUNT_SEARCH_FALLBACK_FIELD]: ACCOUNT_SEARCH_FALLBACK_MODES.includes(value[ACCOUNT_SEARCH_FALLBACK_FIELD]) ? value[ACCOUNT_SEARCH_FALLBACK_FIELD] : 'on',
   }
 }
 
@@ -49,7 +54,7 @@ export function capabilityPatch(payload) {
     if (!validQuotaThreshold(payload[field])) throw new Error('Threshold must be an integer from 1 to 100')
     patch[field] = payload[field]
   }
-  for (const [key, choices] of [[SEARCH_MODE_FIELD, SEARCH_MODES], [QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES]]) {
+  for (const [key, choices] of [[SEARCH_MODE_FIELD, SEARCH_MODES], [QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES], [ACCOUNT_SEARCH_FALLBACK_FIELD, ACCOUNT_SEARCH_FALLBACK_MODES]]) {
     if (!Object.hasOwn(payload ?? {}, key)) continue
     if (!choices.includes(payload[key])) throw new Error('Invalid capability preference')
     patch[key] = payload[key]

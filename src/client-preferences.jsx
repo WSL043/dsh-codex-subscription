@@ -1,5 +1,5 @@
 import { Hint } from './client-hint.jsx'
-import { CapabilityPreferences } from './capability-preferences.jsx'
+import { CapabilityPreferences, AccountSearchFallbackPreference } from './capability-preferences.jsx'
 import { DefaultModelPreference } from './default-model-preferences.jsx'
 import { RuntimeManagement } from './client-runtime-management.jsx'
 import { RemoteControlCard } from './client-remote-control.jsx'
@@ -48,6 +48,7 @@ export function SearchProviderPreference({ preference, t }) {
       {choice(SEARCH_PROVIDER_CODEX, 'Codex')}
     </div>
     </div>
+    {snapshot.searchProvider === SEARCH_PROVIDER_CODEX ? null : <AccountSearchFallbackPreference preference={preference} t={t} />}
     <CapabilityPreferences preference={preference} t={t} section="search" />
   </div>
 }

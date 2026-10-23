@@ -76,6 +76,17 @@ test('the DSH wrapper tries DSH first and falls back to the account only for a m
   await assert.rejects(signedOut.search({ query: 'q' }), error => error.code === 'WEB_PROVIDER_CREDENTIAL_MISSING' && error.message === 'no key')
 })
 
+test('the DSH wrapper keeps the credential error when the paid account fallback is switched off', async () => {
+  const { calls, options } = harness()
+  const wrapper = createDshAccountSearchProvider({
+    ...options,
+    allowAccountFallback: () => false,
+    resolveDshProvider: () => ({ id: 'deepseek-official', available: () => true, async search() { throw noKey() } }),
+  })
+  await assert.rejects(wrapper.search({ query: 'q' }), error => error.code === 'WEB_PROVIDER_CREDENTIAL_MISSING' && error.message === 'no key')
+  assert.equal(calls.some(call => call[0] === 'fetch'), false)
+})
+
 test('a credential error from the host\'s own WebError class is recognised by code', async () => {
   const hostError = Object.assign(new Error('no key'), { name: 'WebError', code: 'WEB_PROVIDER_CREDENTIAL_MISSING' })
   const wrapper = createDshAccountSearchProvider({

@@ -35,7 +35,7 @@ import { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinato
 import { createCodexNetworkTransport } from './oauth-network.js'
 import { createModels, openaiCodexProvider, openaiCodexSubscriptionProvider } from './pi-ai-runtime.js'
 import { createOfficialModelCatalog } from './model-catalog.js'
-import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET } from './capability-settings.js'
+import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET, ACCOUNT_SEARCH_FALLBACK_FIELD, ACCOUNT_SEARCH_FALLBACK_MODES } from './capability-settings.js'
 import { DSH_ACCOUNT_SEARCH_PROVIDER_ID, createDshAccountSearchProvider } from './deepseek-account-search.js'
 import { createSearchRouter, effectiveSearchMode } from './search-router.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
@@ -131,6 +131,7 @@ const settingsFields = {
   [SEARCH_DOMAINS_FIELD]: z.transform(z.array(z.string()).max(20), normalizeSearchDomains).default([]),
   ...Object.fromEntries(QUOTA_THRESHOLD_FIELDS.map(key => [key, z.number().step(1).min(1).max(100).default(20)])),
   [QUOTA_ALERTS_FIELD]: z.union(QUOTA_ALERT_MODES).default('important'),
+  [ACCOUNT_SEARCH_FALLBACK_FIELD]: z.union(ACCOUNT_SEARCH_FALLBACK_MODES).default('on'),
   [LEGACY_QUICK_QUOTA_FIELD]: z.boolean(),
   [CUSTOM_CONTEXT_WINDOW_FIELD]: z.number().step(1).min(128_000).max(1_000_000).default(DEFAULT_CUSTOM_CONTEXT_WINDOW),
   ...Object.fromEntries(Object.entries(CUSTOM_CONTEXT_MODEL_FIELDS).map(([modelKey, field]) => [field, z.number().step(1).min(128_000).max(CUSTOM_CONTEXT_MODEL_CAPS[modelKey]).default(CUSTOM_CONTEXT_MODEL_DEFAULTS[modelKey])])),
@@ -469,6 +470,8 @@ export function apply(ctx, config = {}) {
   const realSearchProviders = ctx.web.searchProviders
   const dshSearch = createDshAccountSearchProvider({
     report: searchTrace,
+    // The account route spends the user's DeepSeek balance per successful search, so it stays opt-outable.
+    allowAccountFallback: () => readCapabilitySettings(settings.get())[ACCOUNT_SEARCH_FALLBACK_FIELD] !== 'off',
     resolveDshProvider: () => realSearchProviders?.get(searchProvider.dshProviderId()),
     resolveAccount: () => ctx.get?.('deepseekAccount'),
     resolveConfig: () => {

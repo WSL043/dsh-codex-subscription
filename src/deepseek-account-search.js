@@ -108,6 +108,11 @@ export function createDshAccountSearchProvider(options) {
         return result
       } catch (error) {
         if (error?.code !== 'WEB_PROVIDER_CREDENTIAL_MISSING' || signal?.aborted) throw error
+        // The fallback bills the account's Search API per successful request; callers can turn it off.
+        if (options.allowAccountFallback?.() === false) {
+          options.report?.('DeepSeek account fallback disabled')
+          throw error
+        }
         try {
           const result = await searchWithDeepSeekAccount(options, request, signal)
           options.report?.('answered by DeepSeek account fallback')

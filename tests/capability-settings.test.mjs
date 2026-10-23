@@ -19,6 +19,14 @@ test('capability updates reject malformed settings and normalize domain spelling
   for (const patch of [{ searchMode: 'indexed' }, { quotaAlerts: 'always' }, { customContextModels: { model: -1 } }, { customContextModels: JSON.parse('{"__proto__":400000}') }, { searchDomains: ['https://example.com'] }, { searchDomains: ['*.example.com'] }, { searchDomains: Array(21).fill('example.com') }]) assert.throws(() => capabilityPatch(patch))
 })
 
+test('the paid account search fallback defaults to on and accepts an explicit off', () => {
+  assert.equal(readCapabilitySettings().accountSearchFallback, 'on')
+  assert.equal(readCapabilitySettings({ accountSearchFallback: 'off' }).accountSearchFallback, 'off')
+  assert.equal(readCapabilitySettings({ accountSearchFallback: 'bogus' }).accountSearchFallback, 'on')
+  assert.deepEqual(capabilityPatch({ accountSearchFallback: 'off' }), { accountSearchFallback: 'off' })
+  assert.throws(() => capabilityPatch({ accountSearchFallback: 'sometimes' }))
+})
+
 test('dynamic contexts migrate legacy values and accept object writes through the host', async () => {
   let value = { customContextGpt54: 500000, writable: true }
   const catalog = { contextModels: contextModelGroups([{ id: 'gpt-5.4', contextWindow: 272000 }, { id: 'future', contextWindow: 300000, maxContextWindow: 900000 }]), fastModels: ['future'] }

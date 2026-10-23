@@ -1,7 +1,7 @@
 import { Hint } from './client-hint.jsx'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { Input } from './client-primitives.js'
-import { SEARCH_MODES, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, validQuotaThreshold, normalizeSearchDomains } from './capability-settings.js'
+import { SEARCH_MODES, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, validQuotaThreshold, normalizeSearchDomains, ACCOUNT_SEARCH_FALLBACK_FIELD, ACCOUNT_SEARCH_FALLBACK_MODES } from './capability-settings.js'
 
 export function CapabilityPreferences({ preference, t, section, disabled = false }) {
   const snapshot = useSyncExternalStore(preference.subscribe, preference.getSnapshot)
@@ -26,6 +26,21 @@ export function CapabilityPreferences({ preference, t, section, disabled = false
     <label className="codexSubscriptionPreferenceCopy"><span>{t('searchDomains')}</span><Input aria-label={t('searchDomains')} aria-invalid={invalid} value={domains} disabled={!snapshot.writable} placeholder="example.com, example.org" onChange={event => setDomains(event.currentTarget.value)} onBlur={save} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /><Hint t={t}>{t('searchDomainsHint')}</Hint></label>
     {invalid ? <p role="alert" className="codexSubscriptionError">{t('searchDomainsInvalid')}</p> : null}
   </details>
+}
+
+/**
+ * The account route spends the DeepSeek balance per successful Search API request, so it is
+ * rendered next to the source radios (not inside the search-scope details, which hide for DSH).
+ */
+export function AccountSearchFallbackPreference({ preference, t }) {
+  const snapshot = useSyncExternalStore(preference.subscribe, preference.getSnapshot)
+  const label = t('accountSearchFallback')
+  return <div className="codexSubscriptionPreference">
+    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{label}</span><Hint t={t}>{t('accountSearchFallbackHint')}</Hint></div>
+    <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={label}>
+      {ACCOUNT_SEARCH_FALLBACK_MODES.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-account-search-fallback" checked={snapshot[ACCOUNT_SEARCH_FALLBACK_FIELD] === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ [ACCOUNT_SEARCH_FALLBACK_FIELD]: value }) }} /><span>{t(`accountSearchFallback_${value}`)}</span></label>)}
+    </div>
+  </div>
 }
 
 function QuotaThreshold({ field, snapshot, preference, t }) {
