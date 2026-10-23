@@ -1,16 +1,33 @@
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID } from './codex-search.js'
-import { DSH_ACCOUNT_SEARCH_PROVIDER_ID } from './deepseek-account-search.js'
+import { DSH_SEARCH_PROVIDER_ID } from './dsh-search.js'
 import { SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX } from './settings-contract.js'
+import { WebError } from '@deepseek-ai/dsh-web'
 
-const OWN_IDS = new Set([CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID, DSH_ACCOUNT_SEARCH_PROVIDER_ID])
+const OWN_IDS = new Set([CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID, DSH_SEARCH_PROVIDER_ID])
 
+/** Guard the provider itself, including direct/cached handles and hosts without the registry proxy. */
+export function gateSearchProvider(provider, { allowed, resolveDshProvider }) {
+  const selected = () => {
+    if (allowed()) return provider
+    const dsh = resolveDshProvider()
+    if (!dsh || OWN_IDS.has(dsh.id) || dsh.available() !== true) {
+      throw new WebError('DSH default search is unavailable', 'WEB_PROVIDER_UNAVAILABLE')
+    }
+    return dsh
+  }
+  return Object.freeze({
+    id: provider.id,
+    available: () => { try { return selected().available() } catch { return false } },
+    async search(request, signal) { return selected().search(request, signal) },
+  })
+}
 /**
  * Routes web search by the plugin's "search source" setting without touching which provider DSH has configured.
  *
  * The provider the user (or DSH's own settings page) picked stays the configured one, so DSH's settings keep showing
  * and saving what the user chose (for example the new Search API switch). Only the lookup of that one provider at
  * search time answers with a small router that sends the search to the Codex subscription, to the configured provider
- * (with the DeepSeek account fallback), or by the conversation's model.
+ * without an extra account fallback, or by the conversation's model.
  *
  * @returns {Map|undefined} a stand-in for the web registry, or undefined when the registry is not a Map.
  */
@@ -45,9 +62,4 @@ export function createSearchRouter({ registry, configuredId, mode, providers }) 
       return typeof value === 'function' ? value.bind(target) : value
     },
   })
-}
-
-/** With subscription features switched off for other models, an explicit Codex choice becomes automatic: Codex models still use Codex search, every other model uses DSH search. */
-export function effectiveSearchMode(mode, otherModels) {
-  return mode === 'codex' && otherModels === 'off' ? 'auto' : mode
 }

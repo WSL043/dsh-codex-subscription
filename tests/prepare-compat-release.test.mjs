@@ -177,11 +177,15 @@ test('regenerates exact release-age exceptions from the accepted lock graph', ()
  for (const invalid of [source.replace(/^\$PackageSpec.*\n/mu, ''), source.replace('@1.15.0', '@1.14.0'), source + "$PackageSpec = 'dsh-codex-subscription@1.15.0'\n"]) assert.throws(() => rewriteBoundedVersions(invalid, update, 'dsh-codex.ps1'), /PackageSpec/u)
 })
 
-test('current repository bounded artifacts can prepare the next DSH candidate', () => {
+test('current repository prepares compatibility artifacts only after internal development is finalized', () => {
  const read = file => readFileSync(new URL('../' + file, import.meta.url), 'utf8')
  const state = { manifest: JSON.parse(read('package.json')), compatibility: JSON.parse(read('compatibility.json')), documentedVersion: read('README.md').match(/dsh-codex-subscription@(\d+\.\d+\.\d+)/u)?.[1] }
  const current = state.compatibility.latestTested
  const candidate = current.replace(/^(\d+)\.(\d+)\.(\d+).*$/, (_, major, minor, patch) => major + '.' + minor + '.' + (Number(patch) + 1))
+ if (/-dev\.\d+$/u.test(state.manifest.version)) {
+   assert.throws(() => planCompatibilityUpdate(state, candidate), /unsupported plugin prerelease/u, 'a compatibility update must not promote unreleased development work')
+   return
+ }
  const update = planCompatibilityUpdate(state, candidate)
  for (const file of boundedArtifactPaths(update)) assert.doesNotThrow(() => rewriteBoundedVersions(read(file), update, file), file)
 })
