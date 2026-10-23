@@ -45,7 +45,7 @@ Web search source, ChatGPT connectors and official Codex subtasks are on **Setti
 
 ## Prepare DSH
 
-Verified against DSH `0.2.1-rc.2` (`latest` and `next` channels); the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
+Verified against DSH `0.2.1-rc.3` (the `next` channel), with `0.2.1-rc.2` still supported; the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
 
 This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 
