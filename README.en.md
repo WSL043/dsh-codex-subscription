@@ -45,7 +45,7 @@ Web search source, ChatGPT connectors and official Codex subtasks are on **Setti
 
 ## Prepare DSH
 
-Verified against DSH `0.2.1-rc.2` (`latest` and `next` channels); the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
+Verified against DSH `0.2.1-rc.3` (the `next` channel), with `0.2.1-rc.2` still supported; the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
 
 This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 
@@ -66,7 +66,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@3.1.4
+   dsh-codex-subscription@3.1.5
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -83,7 +83,7 @@ Why the version is included: DSH's plugin page only installs versions that are a
 <summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.1.4
+dsh plugin --profile web add dsh-codex-subscription@3.1.5
 ```
 
 Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
@@ -96,7 +96,7 @@ Follow the restart instructions, then sign in under **Settings → Codex**. Both
 After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.1.4
+dsh plugin --profile headless add dsh-codex-subscription@3.1.5
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -330,6 +330,21 @@ Model access and quota depend on your account.
 
 </details>
 
+### Reuse cache when changing effort
+
+**Reuse cache when changing effort** is under **Settings → Codex → Models → Advanced**. It is on by default and can be turned off; saved Off choices are preserved. It applies only to standard, single-agent models explicitly supported by the current account catalog; support is never inferred from model names. Ordinary prompt caching is automatic and still works when this switch is off.
+
+The request-level `reasoning.effort` stays at the current context window's initial value. Changes are recorded as `configuration_update` items in new history and replayed in their original positions. This can reduce cache invalidation when switching effort; it does not guarantee cache hits, faster replies or quota savings. The response-level effort can still report the initial value.
+
+- **Cloud auto-compaction and Unlimited retries disable this feature.** The UI explains the conflict; your compaction, retry, authentication, connection and cache-key settings are never changed automatically.
+- Successful responses save small, text-free state alongside DSH's existing replay metadata for restart, resume and forks. Successful local compaction changes the prefix; after checking DSH's committed history replacement, the plugin establishes a fresh baseline at the selected effort. Failed compaction keeps the previous state.
+- Enabling an existing chat or returning to a supported model establishes a baseline only when the complete input matches DSH's native session history. The first request may lose the old cache. Unverifiable history, unsupported models, account changes and resource limits use ordinary requests with your selected effort.
+- The same-process pending state freezes an already dispatched input even if it fails or is cancelled. Selecting a different effort for that exact retry reports an error; keep its original effort or send a new message. Failed attempts have no durable successful-response checkpoint, so preserving their cache prefix across a process restart or plugin reload is not guaranteed.
+- Disabling restores ordinary requests without retrofitting updates into old logs. Update history is never sent to `/responses/compact`. Pro, multi-agent, automatic truncation and automatic compaction are not supported.
+- The feature is bounded to 20,000 input items, 16 MiB of fingerprinted input/envelope data, 128 updates and 256 active/pending sessions. Boundary or history validation failures stop preservation, not your selected reasoning effort.
+
+This uses configuration updates documented in OpenAI's [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning); see [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching) for cache requirements. Support follows the current account catalog and actual responses. Backend parameter rejections are surfaced, never retried with an old effort or an API key.
+
 ## Update and uninstall
 
 Find this plugin on the DSH **Plugins** page and use its update or uninstall action. Follow any restart instructions. Uninstalling this plugin does not remove other plugins.
@@ -338,7 +353,7 @@ Find this plugin on the DSH **Plugins** page and use its update or uninstall act
 <summary>Terminal commands</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.1.4
+dsh plugin --profile web update dsh-codex-subscription@3.1.5
 ```
 
 Run only when you want to uninstall:

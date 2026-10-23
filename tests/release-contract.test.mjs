@@ -32,7 +32,7 @@ test('normal installation does not pull the optional Codex executable runtime', 
   for (const name of ['react', 'react-dom']) assert.equal(manifest.peerDependenciesMeta?.[name]?.optional, true, name)
   // The compatibility autopilot widens this range and the runtime list together.
   assert.equal(manifest.peerDependencies[runtime], [...SUPPORTED_RUNTIME_VERSIONS].sort(compareVersions).join(' || '))
-  assert.equal(manifest.devDependencies[runtime], '0.2.1-rc.2')
+  assert.equal(manifest.devDependencies[runtime], '0.2.1-rc.3')
   assert.equal(SUBAGENT_RUNTIME_VERSION, manifest.devDependencies[runtime])
   assert.deepEqual(new Set(SUPPORTED_RUNTIME_VERSIONS), new Set(manifest.peerDependencies[runtime].split(' || ')))
 })
@@ -108,7 +108,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(pkg.devDependencies['@deepseek-ai/cordis'], '4.0.4')
   assert.equal(pkg.devDependencies['@deepseek-ai/schemastery'], '3.18.4')
   assert.equal(pkg.peerDependencies['@deepseek-ai/schemastery'], '3.18.1 || ^3.18.2')
-  assert.equal(pkg.peerDependencies['@earendil-works/pi-ai'], '0.85.1 || 0.87.1 || 1.1.0 || 1.2.0 || 1.3.0')
+  assert.equal(pkg.peerDependencies['@earendil-works/pi-ai'], '0.85.1 || 0.87.1 || 1.1.0 || 1.2.0 || 1.3.0 || 1.4.0')
   assert.equal(pkg.packageManager, 'pnpm@11.26.0')
   assert.equal(existsSync(new URL('../lib/index.js', import.meta.url)), true)
   assert.equal(existsSync(new URL('../lib/client.js', import.meta.url)), true)
