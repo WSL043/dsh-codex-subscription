@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { cpSync, existsSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
@@ -21,6 +21,11 @@ try {
   for (const name of ['fake-indexeddb', 'react']) {
     const owner = existsSync(join(runner, 'node_modules', name)) ? runner : source
     cpSync(realpathSync(join(owner, 'node_modules', name)), join(probe, 'node_modules', name), { recursive: true })
+  }
+  // These are plugin-owned media dependencies from the locked checkout, not DSH cohort packages.
+  // A real-path link also retains their adjacent pnpm transitive dependencies.
+  for (const name of ['werift', 'opusscript']) {
+    symlinkSync(realpathSync(join(source, 'node_modules', name)), join(probe, 'node_modules', name), process.platform === 'win32' ? 'junction' : 'dir')
   }
   const result = spawnSync(process.execPath, ['--test', ...testFiles('behavior')], { cwd: probe, stdio: 'inherit' })
   if (result.error) throw result.error
