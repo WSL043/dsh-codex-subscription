@@ -30,7 +30,7 @@ settings.set_media_playback_requires_user_gesture(False)
 
 def permission(_view, request):
     if isinstance(request, WebKit2.UserMediaPermissionRequest):
-        if request.is_for_audio_device() and not request.is_for_video_device():
+        if request.get_property('is-for-audio-device') and not request.get_property('is-for-video-device'):
             request.allow()
         else:
             request.deny()
