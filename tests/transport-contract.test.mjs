@@ -8,6 +8,7 @@ import { openaiCodexProvider } from '@earendil-works/pi-ai/providers/openai-code
 
 import { DshOAuthCredentialStore } from '../src/credential-store.js'
 import { createModels, openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
+import { createDshRemoteControl } from '../src/remote-control-dsh.js'
 import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
@@ -28,6 +29,49 @@ const jwt = accountId => {
 
 const sse = events => `${events.map(event => `data: ${JSON.stringify(event)}`).join('\n\n')}\n\n`
 const pixelPng = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='
+
+test('server cache-write usage reaches the DSH adapter and phone counters without double counting', async () => {
+  const previousFetch = globalThis.fetch
+  try {
+    for (const written of [7, undefined]) {
+      globalThis.fetch = async () => new Response(sse([
+        { type: 'response.created', response: { id: 'resp_cache_write' } },
+        { type: 'response.done', response: { id: 'resp_cache_write', status: 'completed', output: [], usage: {
+          input_tokens: 100, input_tokens_details: { cached_tokens: 80, ...(written === undefined ? {} : { cache_write_tokens: written }) },
+          output_tokens: 5, total_tokens: 105,
+        } } },
+      ]), { status: 200, headers: { 'content-type': 'text/event-stream' } })
+      const provider = openaiCodexSubscriptionProvider()
+      const adapter = new PiAiAdapter({
+        profiles: () => new Map([['openai-codex', { provider: 'openai-codex', displayName: 'Subscription', piProvider: provider, configuredMaxTokens: new Map(), modelErrors: new Map(), transport: 'sse', streamIdleTimeoutMs: 1000 }]]),
+        resolveApiKey: async () => jwt('synthetic-cache-account'),
+      })
+      let dshUsage
+      for await (const chunk of adapter.stream({ provider: 'openai-codex', model: 'gpt-5.6-luna', sessionId: 'synthetic-cache-session', messages: [{ role: 'user', content: [{ type: 'text', text: 'usage' }] }] })) {
+        if (chunk.type === 'usage') dshUsage = chunk.usage
+      }
+      assert.ok(dshUsage)
+      assert.equal(dshUsage.cacheWriteTokens ?? 0, written ?? 0)
+      assert.equal(dshUsage.inputTokens, 20 - (written ?? 0))
+      // The projection seam carries the adapter's disjoint input categories.
+      // This fixture supplies those real parsed counts, not prebuilt phone usage.
+      const session = { id: 'synthetic-cache-session', meta: {}, deriveMessages: () => [] }
+      const bridge = createDshRemoteControl({
+        controller: () => ({ resolveAgent: async () => ({ agent: { session, whenIdle: () => Promise.resolve() } }), prompt: async () => ({ accepted: true }), modelCatalog: async () => ({ groups: [] }) }),
+        projections: () => ({ snapshot: () => ({ values: { tokenUsage: {
+          uncachedInputTokens: dshUsage.inputTokens, cacheReadTokens: dshUsage.cacheReadTokens,
+          cacheWriteTokens: dshUsage.cacheWriteTokens, outputTokens: dshUsage.outputTokens,
+        } } }) }), userAgent: 'usage-contract-test/1',
+      })
+      let phoneUsage
+      await bridge.methods['turn/start']({ threadId: session.id, input: [{ type: 'text', text: 'usage' }] }, { notify: async (method, params) => { if (method === 'thread/tokenUsage/updated') phoneUsage = params.tokenUsage } })
+      for (let n = 0; !phoneUsage && n < 20; n++) await new Promise(resolve => setImmediate(resolve))
+      assert.ok(phoneUsage)
+      assert.deepEqual(phoneUsage.total, { totalTokens: 105, inputTokens: 100, cachedInputTokens: 80, cacheWriteInputTokens: written ?? 0, outputTokens: 5, reasoningOutputTokens: 0 })
+      assert.equal(phoneUsage.last.cacheWriteInputTokens, 0, 'context pressure is not billed cache-write usage')
+    }
+  } finally { globalThis.fetch = previousFetch }
+})
 
 test('input image detail normalization falls back to auto for unknown values', () => {
   assert.equal(normalizeInputImageDetail('low'), 'low')
