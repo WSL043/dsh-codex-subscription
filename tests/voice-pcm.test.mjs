@@ -79,9 +79,18 @@ test('cancelling microphone permission acquisition stops a late granted track',a
   let grant
   const options=setup({microphone:()=>new Promise(resolve=>{grant=resolve})}),controller=new AbortController()
   const opening=openPcmVoiceCall({...options,sessionId:'s',signal:controller.signal})
+  while(!grant)await pause(1)
   controller.abort();grant(options.stream)
   await assert.rejects(opening,error=>error.name==='AbortError')
   assert.equal(options.state.stopped,1);assert.equal(options.state.requests.length,0)
+})
+
+test('audio resumes in the user gesture before waiting for microphone permission',async()=>{
+  let resumed=false
+  const options=setup({microphone:async()=>{assert.equal(resumed,true);await pause(20);return options.stream}})
+  options.surface.AudioContext.prototype.resume=async()=>{resumed=true}
+  const call=await openPcmVoiceCall({...options,sessionId:'s'})
+  await call.stop()
 })
 
 test('a cancelled start closes a late host response without leaving a media lease',async()=>{

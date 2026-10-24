@@ -50,7 +50,7 @@ jobs:
       - name: Install native GTK test runtime
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-webkit2-4.1 xvfb xauth pulseaudio gstreamer1.0-plugins-good
+          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-webkit2-4.1 xvfb xauth xdotool pulseaudio gstreamer1.0-plugins-good
           export XDG_RUNTIME_DIR="$RUNNER_TEMP/voice-runtime"
           mkdir -p "$XDG_RUNTIME_DIR"
           chmod 700 "$XDG_RUNTIME_DIR"
