@@ -6,6 +6,7 @@ import { redactRequest } from './failure-capture.js'
 import { hoistLeadingSystem, runtimeVersions, understandsSystemMessages } from './pi-ai-compat.js'
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 import { normalizeTransportEvent } from './transport-failure.js'
+import { createModelRetryBridge } from './model-retry-hint.js'
 import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
@@ -111,6 +112,7 @@ export function openaiCodexSubscriptionProvider({
   runNetwork = (_area, operation) => operation(),
 } = {}) {
   const provider = createOpenAICodexProvider()
+  const retryBridge = createModelRetryBridge()
   const requestToken = Object.freeze({
     name: 'DSH-managed Codex OAuth request token',
     async resolve({ credential }) {
@@ -265,16 +267,18 @@ export function openaiCodexSubscriptionProvider({
     let iterator
     let prepared
     let stage = 'prepare'
+    const retryHint = direct ? undefined : retryBridge.current()
     const step = async (method, value) => { try {
       // Review calls are one-shot: no WebSocket continuation or cloud compaction.
       const request = await (prepared ??= (direct ? undefined : connection?.prepare(options)) ?? Promise.resolve({ options }))
       if (stage === 'prepare') stage = 'request'
       const result = await runNetwork('model', () => {
         const next = direct ? request.options : compaction?.requestOptions(request.options) ?? request.options
-        iterator ??= factory({ ...next, async onPayload(payload, requestModel) { stage = 'payload'; return next.onPayload?.(payload, requestModel) } })[Symbol.asyncIterator]()
+        iterator ??= factory({ ...next, async onResponse(info, requestModel) { retryHint?.onResponse(info); return next.onResponse?.(info, requestModel) }, async onPayload(payload, requestModel) { stage = 'payload'; return next.onPayload?.(payload, requestModel) } })[Symbol.asyncIterator]()
         return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
       }, direct ? request.network : compaction?.networkOptions(request.network) ?? request.network)
       if (!result.done) {
+        retryHint?.observe(result.value, request.options?.signal)
         if (result.value?.type === 'error' && !request.options?.signal?.aborted) noteStreamFailure(stage, undefined, source)
         else if (stage === 'payload') stage = 'stream'
       }
@@ -306,6 +310,7 @@ export function openaiCodexSubscriptionProvider({
     reviewCounters: () => ({ ...review }),
     streamFailure: () => ({ ...streamFailure }),
     noteAdapterFailure,
+    wrapRetryAdapter: adapter => retryBridge.wrapAdapter(adapter),
   })
 }
 
