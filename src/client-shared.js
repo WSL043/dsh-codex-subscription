@@ -59,6 +59,6 @@ export const notifyQuickQuota = () => window.dispatchEvent(new Event(QUICK_QUOTA
 export const formatQuotaForecast = (forecast, t, options = {}) => {
   const view = quotaForecastView(forecast, options)
   if (view.kind !== 'time') return t(({ resolution: 'forecastResolution', 'changing-pace': 'forecastChanging', stale: 'forecastStale', idle: 'quotaForecastIdle', reset: 'quotaForecastUntilReset', exhausted: 'quotaExhausted' })[view.kind] ?? 'quotaForecastCalibrating')
-  const when = formatQuotaRunout(view, { t, locale: uiLocale(), now: options.now })
+  const when = formatQuotaRunout(view, { t, locale: options.locale ?? uiLocale(), now: options.now, timeZone: options.timeZone })
   return fill(t(view.provisional ? 'quotaForecastRoughAt' : 'quotaForecastAt'), { when })
 }
