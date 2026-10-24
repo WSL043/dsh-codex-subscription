@@ -187,7 +187,12 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
     setSpeakerOff(false)
     setState('connecting')
     try {
-      const opened = await openVoiceCall({ rpc, sessionId, signal: controller.signal, onEnd: () => { call.current = null; if (alive.current && !controller.signal.aborted) { setLiveCall(null); setState('idle') } } })
+      const opened = await openVoiceCall({ rpc, sessionId, signal: controller.signal, onEnd: () => {
+        if (!alive.current || controller.signal.aborted || pendingCall.current !== controller) return
+        call.current = null
+        setLiveCall(null)
+        setState('idle')
+      } })
       if (!alive.current || controller.signal.aborted) { await opened.stop(); return }
       call.current = opened
       setLiveCall(call.current)
