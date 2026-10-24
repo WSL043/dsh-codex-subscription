@@ -1,5 +1,5 @@
 export const EVIDENCE_WINDOW_MS = 15 * 60_000
-const areas = { catalog: 'models', quota: 'quota', search: 'search', image: 'images', model: 'transport', login: 'account', 'quota-reset': 'quota' }
+const areas = { catalog: 'models', quota: 'quota', search: 'search', image: 'images', model: 'transport', voice: 'transport', login: 'account', 'quota-reset': 'quota' }
 
 // Shared projection: never retain operation inputs, responses, or account data.
 export function diagnosticEvidence({ operations, history }, now) {

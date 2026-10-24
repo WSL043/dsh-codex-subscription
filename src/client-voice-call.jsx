@@ -6,6 +6,8 @@ import { CHANNEL } from './rpc-contract.js'
 import { usePreferenceSnapshot } from './client-shared.js'
 import { VOICE_CALL_FIELD, VOICE_LANGUAGE_FIELD, VOICE_LANGUAGES, VOICE_VOICE_FIELD, VOICE_VOICES } from './settings-contract.js'
 import { openVoiceCall } from './voice-call.js'
+import { voiceCallProblem, voicePreviewProblem } from './voice-problems.js'
+import { voiceBrowserUrl } from './voice-browser.js'
 import { createOrb } from './voice-orb.js'
 
 const Bars = () => <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M4 8.5v3M7 5.5v9M10 3v14M13 6v8M16 8.5v3" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg>
@@ -119,6 +121,8 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
   const [place, setPlace] = useState()
   const [state, setState] = useState('idle')
   const [problem, setProblem] = useState('')
+  const [unsupported, setUnsupported] = useState(false)
+  const [browserCopied, setBrowserCopied] = useState(false)
   const [micOff, setMicOff] = useState(false)
   const [speakerOff, setSpeakerOff] = useState(false)
   const enabled = snapshot.status === 'ready' && snapshot.voiceCall === 'on'
@@ -164,10 +168,12 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
   }, [place?.activity, live])
 
   useEffect(() => () => { void call.current?.stop() }, [])
-  useEffect(() => { if (!problem) return undefined; const timer = setTimeout(() => setProblem(''), 6000); return () => clearTimeout(timer) }, [problem])
+  useEffect(() => { if (!problem || unsupported) return undefined; const timer = setTimeout(() => setProblem(''), 6000); return () => clearTimeout(timer) }, [problem, unsupported])
 
   const start = async () => {
     setProblem('')
+    setUnsupported(false)
+    setBrowserCopied(false)
     accent.current = button.current ? getComputedStyle(button.current).backgroundColor : ''
     setMicOff(false)
     setSpeakerOff(false)
@@ -180,7 +186,8 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
       call.current = null
       setLiveCall(null)
       setState('idle')
-      setProblem(error?.name === 'NotAllowedError' ? t('voiceMicBlocked') : t('voiceFailed'))
+      setUnsupported(['voice-no-webrtc', 'voice-no-microphone', 'voice-insecure'].includes(error?.code) ? error.code : false)
+      setProblem(t(voiceCallProblem(error)))
     }
   }
   const click = () => {
@@ -203,6 +210,7 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
   if (!enabled || !place) return anchor
   // A call in progress keeps the button; otherwise it only covers the send button while that has nothing to send.
   const visible = state !== 'idle' || place.idle
+  const browserUrl = unsupported && unsupported !== 'voice-insecure' ? voiceBrowserUrl(window.location.href, sessionId) : undefined
   return <>
     {anchor}
     {visible ? createPortal(<>
@@ -211,7 +219,12 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
         aria-label={t(live ? 'voiceEnd' : 'voiceStart')} title={t(live ? 'voiceEnd' : 'voiceStart')}
         style={{ left: place.left, top: place.top, width: place.width, height: place.height }}
       >{live ? <Cross /> : <Bars />}</button>
-      {problem ? <span className="codexVoiceCallNote" role="alert" style={{ right: 0 }}>{problem}</span> : null}
+      {problem ? <span className="codexVoiceCallNote" role="alert" style={{ right: 0 }}>{problem}
+        {browserUrl ? <span className="codexVoiceBrowserActions">
+          <a href={browserUrl} target="_blank" rel="noopener noreferrer">{t('voiceBrowserContinue')}</a>
+          {typeof navigator.clipboard?.writeText === 'function' ? <button type="button" onClick={() => { void navigator.clipboard.writeText(browserUrl).then(() => setBrowserCopied(true)).catch(() => setBrowserCopied('error')) }}>{t(browserCopied === 'error' ? 'voiceBrowserCopyFailed' : browserCopied ? 'voiceBrowserCopied' : 'voiceBrowserCopy')}</button> : null}
+        </span> : null}
+      </span> : null}
     </>, place.host) : null}
     {live && place.activity && liveCall ? createPortal(<span className="codexVoiceTools">
       <button type="button" className="codexVoiceTool" aria-pressed={speakerOff} aria-label={t(speakerOff ? 'voiceUnmuteSpeaker' : 'voiceMuteSpeaker')} title={t(speakerOff ? 'voiceUnmuteSpeaker' : 'voiceMuteSpeaker')} onClick={() => { liveCall.setOutputMuted(!speakerOff); setSpeakerOff(!speakerOff) }}><Speaker off={speakerOff} /></button>
@@ -239,35 +252,45 @@ function ChoiceRow({ label, items, selectedId, disabled, onSelect, trailing = nu
 export function VoiceCallCard({ rpc, preference, snapshot, t }) {
   const audio = useRef()
   const previewSequence = useRef(0)
+  const previewAbort = useRef()
   const alive = useRef(false)
   const [offered, setOffered] = useState()
   const [sample, setSample] = useState({ state: 'idle', note: '' })
   const on = snapshot.voiceCall === 'on'
-  useEffect(() => { alive.current = true; return () => { alive.current = false; audio.current?.pause() } }, [])
+  useEffect(() => { alive.current = true; return () => { alive.current = false; previewAbort.current?.abort(); audio.current?.pause() } }, [])
   useEffect(() => {
-    if (!on) return
+    if (!on) { previewSequence.current++; previewAbort.current?.abort(); audio.current?.pause(); setSample({ state: 'idle', note: '' }); setOffered(undefined); return }
+    const controller = new AbortController()
+    setOffered(undefined)
     void (async () => {
       try {
-        const result = await rpc.call(CHANNEL, 'voice/catalog', {})
-        if (alive.current && result.ok) setOffered(result.value.voices)
+        const result = await rpc.call(CHANNEL, 'voice/catalog', { language: snapshot.voiceLanguage }, controller.signal)
+        if (alive.current && !controller.signal.aborted && result.ok) setOffered(result.value.voices)
       } catch { /* every voice then stays selectable */ }
     })()
-  }, [on])
+    return () => controller.abort()
+  }, [on, snapshot.voiceLanguage, rpc])
   /** Play a short clip of a voice; picking a voice plays it too, so it can be heard before it is used. */
   const playVoice = async (voice, language = snapshot.voiceLanguage) => {
     const sequence = ++previewSequence.current
+    previewAbort.current?.abort()
+    const controller = new AbortController()
+    previewAbort.current = controller
     audio.current?.pause()
     setSample({ state: 'loading', note: '' })
+    let phase = 'request'
     try {
-      const result = await rpc.call(CHANNEL, 'voice/preview', { voice, language })
+      const result = await rpc.call(CHANNEL, 'voice/preview', { voice, language }, controller.signal)
       if (!alive.current || sequence !== previewSequence.current) return
-      if (!result.ok) { setSample({ state: 'missing', note: '' }); return }
+      if (!result.ok) { setSample({ state: 'error', note: t(voicePreviewProblem(result.error?.code)) }); return }
+      phase = 'playback'
       const clip = new Audio(result.value.audio)
       audio.current = clip
       clip.onended = () => { if (alive.current && sequence === previewSequence.current) setSample(current => ({ ...current, state: 'idle' })) }
+      clip.onerror = () => { if (alive.current && sequence === previewSequence.current) setSample({ state: 'error', note: t('voicePlaybackFailed') }) }
       setSample({ state: 'playing', note: [result.value.description, result.value.accent].filter(Boolean).join(' · ') })
       await clip.play()
-    } catch { if (alive.current && sequence === previewSequence.current) setSample({ state: 'missing', note: '' }) }
+    } catch { if (alive.current && sequence === previewSequence.current && !controller.signal.aborted) setSample({ state: 'error', note: t(voicePreviewProblem(phase === 'playback' ? 'playback' : undefined)) }) }
   }
   // The voices ChatGPT lists (with a sample) come first; the rest sit in one submenu so the list stays short.
   const listed = VOICE_VOICES.filter(value => offered ? offered.includes(value) : VOICE_VOICES.indexOf(value) < 9)
@@ -285,7 +308,7 @@ export function VoiceCallCard({ rpc, preference, snapshot, t }) {
         onSelect={value => { if (value === 'more') return; void preference.set({ [VOICE_VOICE_FIELD]: value }); void playVoice(value) }}
         trailing={<button className="codexSubscriptionContextTrigger" type="button" disabled={sample.state === 'loading'} onClick={() => { void playVoice(snapshot.voiceVoice) }}>{sample.state === 'loading' ? t('voiceLoading') : t('voicePlay')}</button>} />
       {sample.state === 'playing' && sample.note ? <p className="codexSubscriptionHelp" role="status">{sample.note}</p> : null}
-      {sample.state === 'missing' ? <p className="codexSubscriptionHelp" role="status">{t('voiceNoSample')}</p> : null}
+      {sample.state === 'error' ? <p className="codexSubscriptionHelp" role="status">{sample.note}</p> : null}
       <ChoiceRow label={t('voiceLanguage')} disabled={!snapshot.writable} selectedId={snapshot.voiceLanguage} items={languages} onSelect={value => { void preference.set({ [VOICE_LANGUAGE_FIELD]: value }); void playVoice(snapshot.voiceVoice, value) }} />
       <p className="codexSubscriptionHelp">{t('voicePreviewHint')}</p>
     </> : null}

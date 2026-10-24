@@ -333,6 +333,7 @@ export const STYLE = `
 .codexVoiceCall:disabled{cursor:progress}
 .codexVoiceCall[data-state=connecting]{animation:codexVoicePulse 1.1s ease-in-out infinite}
 .codexVoiceCallNote{position:absolute;bottom:calc(100% + 8px);z-index:3;width:max-content;max-width:320px;padding:6px 10px;border-radius:8px;background:var(--dsw-alias-surface-elevated,#2a2a2e);color:var(--dsw-alias-label-primary,#fff);font-size:12px;line-height:16px;box-shadow:0 4px 16px rgba(0,0,0,.3);white-space:normal}
+.codexVoiceBrowserActions{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}.codexVoiceBrowserActions a,.codexVoiceBrowserActions button{color:inherit;text-decoration:underline;background:none;border:0;padding:0;cursor:pointer;font:inherit}
 @keyframes codexVoicePulse{50%{opacity:.55}}
 @media (prefers-reduced-motion:reduce){.codexVoiceCall{animation:none!important}}
 

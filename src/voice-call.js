@@ -1,5 +1,6 @@
 import { CHANNEL } from './rpc-contract.js'
 import { createBargeInGate } from './voice-barge-in.js'
+import { voiceCallCapability } from './voice-problems.js'
 
 const ICE_WAIT_MS = 3_000
 
@@ -46,13 +47,19 @@ const loudness = (analyser, buffer) => {
  * Resolves with a handle once the call is connected; rejects with the reason when it could not start.
  */
 export async function openVoiceCall({ rpc, sessionId, onEnd }) {
-  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia || typeof RTCPeerConnection !== 'function') throw new Error('unsupported')
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
-  const connection = new RTCPeerConnection()
-  const sound = new Audio()
-  sound.autoplay = true
-  const AudioContextClass = window.AudioContext ?? window.webkitAudioContext
-  const context = AudioContextClass ? new AudioContextClass() : undefined
+  const unsupported = voiceCallCapability()
+  if (unsupported) throw Object.assign(new Error('Voice is not supported in this environment'), { code: unsupported })
+  let connection
+  try { connection = new RTCPeerConnection() }
+  catch { throw Object.assign(new Error('WebRTC could not initialize'), { code: 'voice-no-webrtc' }) }
+  let stream, sound, context
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+    sound = new Audio()
+    sound.autoplay = true
+    const AudioContextClass = window.AudioContext ?? window.webkitAudioContext
+    context = AudioContextClass ? new AudioContextClass() : undefined
+  } catch (error) { stream?.getTracks().forEach(track => track.stop()); connection.close(); throw error }
   const analysers = { mic: undefined, assistant: undefined }
   const watch = (name, source) => {
     if (!context) return

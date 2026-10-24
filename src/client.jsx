@@ -24,6 +24,7 @@ import { CodexModelSelect } from './client-model-select.jsx'
 import { VoiceCallButton } from './client-voice-call.jsx'
 import { CodexSection } from './client-section.jsx'
 import { createHostDiagnostics } from './diagnostic-host.js'
+import { restoreVoiceConversation } from './voice-browser.js'
 
 export const inject = [
   'slots', 'locale', 'connection', 'remote', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
@@ -34,6 +35,18 @@ export const inject = [
 const ComposerRight = props => <><CodexComposerQuota {...props} /><VoiceCallButton {...props} /></>
 
 export function apply(ctx) {
+  if (new URL(window.location.href).searchParams.has('codexVoiceSession')) ctx.inject(['uiWorkspace', 'sessions'], scope => scope.effect(() => {
+    const sessions = scope.get('sessions'), controller = new AbortController()
+    let attempted = false
+    const restore = () => {
+      if (attempted || (typeof sessions.list?.getSnapshot === 'function' && sessions.list.getSnapshot().phase !== 'ready')) return
+      attempted = true
+      void restoreVoiceConversation({ href: window.location.href, workspace: scope.get('uiWorkspace'), history: window.history, sessions, signal: controller.signal }).catch(() => { /* retain an unavailable target for a deliberate retry */ })
+    }
+    const unsubscribe = sessions.list?.subscribe?.(restore) ?? (() => {})
+    restore()
+    return () => { controller.abort(); unsubscribe() }
+  }, 'codex-subscription: browser voice conversation'))
   const diagnostics = createHostDiagnostics()
   ctx.effect(() => diagnostics.register(ctx.slots), 'codex-subscription: host inspection')
   const imageViewer = new SubscriptionImageViewerService()
