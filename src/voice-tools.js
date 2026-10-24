@@ -26,6 +26,7 @@ export function withEndCallTool(desktopVoice, register) {
   const open = new Set()
   let dispose
   const release = sessionId => { open.delete(sessionId); if (open.size === 0 && dispose) { dispose(); dispose = undefined } }
+  desktopVoice.onStop?.(release)
   return Object.freeze({
     async start(params) {
       const result = await desktopVoice.start(params)
@@ -33,7 +34,8 @@ export function withEndCallTool(desktopVoice, register) {
       dispose ??= register(createEndVoiceCallTool({ end: id => desktopVoice.end(id), isActive: id => desktopVoice.status(id).active }))
       return result
     },
-    stop(sessionId) { const result = desktopVoice.stop(sessionId); release(sessionId); return result },
+    stop(sessionId, mediaId) { const result = desktopVoice.stop(sessionId, mediaId); if (result !== false) release(sessionId); return result },
+    audio: params => desktopVoice.audio(params),
     end: sessionId => desktopVoice.end(sessionId),
     interrupt: sessionId => desktopVoice.interrupt(sessionId),
     status: sessionId => desktopVoice.status(sessionId),

@@ -12,6 +12,8 @@ This project depends on software distributed under its own terms. The dependency
 | Heroicons | Composer speed icon | MIT | https://github.com/tailwindlabs/heroicons |
 | `https-proxy-agent` 7.0.6 | HTTPS proxy transport for Codex OAuth token requests | MIT | https://github.com/TooTallNate/proxy-agents |
 | `ws` 8.21.3 | Request-scoped subscription WebSocket transport | MIT | https://github.com/websockets/ws |
+| `werift` 0.25.1 | Lazy local media bridge for desktop engines without WebRTC | MIT | https://github.com/shinyoshiaki/werift-webrtc |
+| `opusscript` 0.1.1 / libopus | WebAssembly Opus codec for the local media bridge | MIT / BSD-3-Clause | https://github.com/abalabahaha/opusscript |
 | QuotaPin for Codex | Design basis for the opt-in local quota runway forecast | MIT | https://github.com/WSL043/QuotaPin-for-Codex |
 | tsdown | Development-time bundler | MIT | https://github.com/rolldown/tsdown |
 

@@ -594,6 +594,7 @@ export function apply(ctx, config = {}) {
     configFile: dshHomePath('state', 'codex-subscription', 'remote-config.json'),
     voice: { WebSocket, fetch: (input, init) => network.fetch('remote', input, init), credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal) },
   })
+  ctx.effect(() => () => remoteBridge.close())
   const remoteControl = createRemoteControl({
     credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal),
     WebSocket,
