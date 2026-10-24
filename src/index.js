@@ -436,7 +436,7 @@ export function apply(ctx, config = {}) {
   })
   ctx.effect(() => settings.watch((value, previous) => hiddenDirectory.settingsChanged(normalizeDisabledModels(value[DISABLED_MODELS_FIELD]), normalizeDisabledModels(previous[DISABLED_MODELS_FIELD]))), 'codex-subscription: hidden model directory')
   ctx.effect(() => ctx.on?.('session/event', (_session, event) => { if (event?.type === 'request/context') hiddenDirectory.dependenciesChanged() }), 'codex-subscription: hidden model dependencies')
-  ctx.llm.registerAdapter([PROVIDER], hiddenDirectory.wrap(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(adapter)), provider)))
+  ctx.llm.registerAdapter([PROVIDER], hiddenDirectory.wrap(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(provider.wrapRetryAdapter(adapter))), provider)))
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
   // With "other models" switched off, subscription search, images and connectors serve conversations on this plugin's own models only.
   const servesCurrentModel = () => {
