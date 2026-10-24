@@ -17,12 +17,16 @@ def finished(_manager, value):
     try:
         value = value.get_js_value() if hasattr(value, 'get_js_value') else value
         result = json.loads(value.to_string())
+        if result.pop('pending', False):
+            print(json.dumps({'phase': result.get('phase')}), flush=True)
+            return
     except Exception as error:
         result = {'passed': False, 'error': {'name': type(error).__name__}}
     Gtk.main_quit()
 
 manager.connect('script-message-received::nativeVoiceResult', finished)
-view = WebKit2.WebView.new_with_user_content_manager(manager)
+policies = WebKit2.WebsitePolicies(autoplay=WebKit2.AutoplayPolicy.ALLOW)
+view = WebKit2.WebView(user_content_manager=manager, website_policies=policies)
 settings = view.get_settings()
 settings.set_enable_mock_capture_devices(True)
 settings.set_enable_webrtc(True)
