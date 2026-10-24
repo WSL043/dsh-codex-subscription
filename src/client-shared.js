@@ -1,6 +1,6 @@
 export { CHANNEL, unwrap } from './rpc-contract.js'
 import { useSyncExternalStore } from 'react'
-import { forecastRunway } from './quota-pace.js'
+import { quotaForecastView, formatQuotaRunout } from './quota-forecast-view.js'
 export const NS = 'settings.codexSubscription'
 export const SUPPORT_ISSUE_URL = 'https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml'
 export const QUICK_QUOTA_REFRESH_EVENT = 'dsh-codex-subscription:refresh-quick-quota'
@@ -56,22 +56,9 @@ export const useAccountStatusSnapshot = accountStatus => useSyncExternalStore(
 
 export const notifyQuickQuota = () => window.dispatchEvent(new Event(QUICK_QUOTA_REFRESH_EVENT))
 
-export const formatRunway = (seconds, t) => {
-  if (!Number.isFinite(seconds) || seconds <= 0) return undefined
-  const minutes = Math.max(1, Math.round(seconds / 60))
-  const days = Math.floor(minutes / 1_440)
-  const hours = Math.floor((minutes % 1_440) / 60)
-  if (days > 0) return hours > 0 ? fill(t('runwayDaysHours'), { days, hours }) : fill(t('runwayDays'), { days })
-  if (hours > 0) return fill(t('runwayHours'), { hours })
-  return fill(t('runwayMinutes'), { minutes })
-}
-
-export const formatQuotaForecast = (forecast, t) => {
-  if (forecast?.status === 'calibrating') return t(({ resolution: 'forecastResolution', 'changing-pace': 'forecastChanging', stale: 'forecastStale' })[forecast.reason] ?? 'quotaForecastCalibrating')
-  if (forecast?.status === 'idle') return t('quotaForecastIdle')
-  const runway = forecastRunway(forecast)
-  if (runway === undefined) return undefined
-  if (runway.kind === 'reset') return t('quotaForecastUntilReset')
-  const duration = runway.kind === 'range' ? `${formatRunway(runway.min, t)}–${formatRunway(runway.max, t)}` : formatRunway(runway.seconds, t)
-  return fill(t('quotaForecast'), { symbol: '≈', duration })
+export const formatQuotaForecast = (forecast, t, options = {}) => {
+  const view = quotaForecastView(forecast, options)
+  if (view.kind !== 'time') return t(({ resolution: 'forecastResolution', 'changing-pace': 'forecastChanging', stale: 'forecastStale', idle: 'quotaForecastIdle', reset: 'quotaForecastUntilReset', exhausted: 'quotaExhausted' })[view.kind] ?? 'quotaForecastCalibrating')
+  const when = formatQuotaRunout(view, { t, locale: uiLocale(), now: options.now })
+  return fill(t(view.provisional ? 'quotaForecastRoughAt' : 'quotaForecastAt'), { when })
 }

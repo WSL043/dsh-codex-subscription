@@ -40,6 +40,8 @@ import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDE
 import { DSH_SEARCH_PROVIDER_ID, createDshSearchProvider } from './dsh-search.js'
 import { createSearchRouter, gateSearchProvider } from './search-router.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
+import { createCodexFetchProvider, createCodexFetchRouter, configuredFetchProviderId } from './codex-fetch.js'
+import { FETCH_PROVIDER_FIELD, FETCH_PROVIDER_CODEX, normalizeFetchProvider } from './settings-contract.js'
 import { createCodexImageTool } from './codex-images.js'
 import { IMAGE_FEATURE_DEFAULTS } from './image-features.js'
 import { watchImageTool } from './image-tool-registration.js'
@@ -222,6 +224,7 @@ export function apply(ctx, config = {}) {
     catalog: modelCatalog,
     runNetwork: network.run,
   })
+  let fetchRouted = false
   const preferences = {
     status: () => {
       const models = modelCatalog.getModels()
@@ -243,6 +246,8 @@ export function apply(ctx, config = {}) {
           settings.get()[LEGACY_QUICK_QUOTA_FIELD],
         ),
         [SEARCH_PROVIDER_FIELD]: settings.get()[SEARCH_PROVIDER_FIELD],
+        [FETCH_PROVIDER_FIELD]: normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]),
+        fetchRoutingAvailable: fetchRouted,
         [SPEED_MODE_FIELD]: settings.get()[SPEED_MODE_FIELD],
         [OUTPUT_VERBOSITY_FIELD]: normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
         [INPUT_IMAGE_DETAIL_FIELD]: normalizeInputImageDetail(settings.get()[INPUT_IMAGE_DETAIL_FIELD]),
@@ -266,6 +271,7 @@ export function apply(ctx, config = {}) {
       }
     },
     update: async patch => {
+      if (patch[FETCH_PROVIDER_FIELD] === FETCH_PROVIDER_CODEX && !fetchRouted) throw new Error('This DSH version does not support Codex webpage reading')
       if (Object.hasOwn(patch, 'subagentBackend')) {
         if (!subagentBackend) throw new Error('DSH subagent services are unavailable')
         await subagentBackend.select(patch.subagentBackend)
@@ -438,6 +444,38 @@ export function apply(ctx, config = {}) {
   ctx.effect(() => ctx.on?.('session/event', (_session, event) => { if (event?.type === 'request/context') hiddenDirectory.dependenciesChanged() }), 'codex-subscription: hidden model dependencies')
   ctx.llm.registerAdapter([PROVIDER], hiddenDirectory.wrap(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(provider.wrapRetryAdapter(adapter))), provider)))
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
+  const codexFetch = createCodexFetchProvider({
+    allowed: () => fetchRouted && (settings.get().otherModels !== 'off' || currentAgent()?.session.requestContext?.()?.provider === PROVIDER),
+    getAuth: resolveAuth,
+    readCredential: options => store.read(PROVIDER, options),
+    resolveModel: () => {
+      const request = currentAgent()?.session.requestContext?.()
+      return request?.provider === PROVIDER ? request.model : undefined
+    },
+    resolveSessionId: () => currentAgent()?.session.id,
+    fetch: (input, init) => network.fetch('search', input, init),
+  })
+  const realFetchProviders = ctx.web.fetchProviders
+  ctx.web.registerFetchProvider?.({ ...codexFetch, available: () => fetchRouted && normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) === FETCH_PROVIDER_CODEX })
+  ctx.effect(() => {
+    const web = ctx.web
+    const configuredId = () => configuredFetchProviderId(web, ctx.loader.entries())
+    const router = createCodexFetchRouter({ registry: realFetchProviders, configuredId, mode: () => fetchRouted ? normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) : 'dsh', codex: codexFetch })
+    if (router !== undefined) {
+      try { web.fetchProviders = router } catch { /* A host without a writable registry cannot opt in. */ }
+      fetchRouted = web.fetchProviders === router
+    }
+    if (!fetchRouted) {
+      diagnosticLog.warn('fetch', 'Codex webpage reading is unavailable: DSH does not support fetch routing')
+      if (normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) === FETCH_PROVIDER_CODEX) {
+        diagnosticLog.error('fetch', 'Configured Codex webpage reading could not be activated; select DSH or update the host')
+        throw new Error('Configured Codex webpage reading could not be activated; select DSH or update the host')
+      }
+      return undefined
+    }
+    diagnosticLog.info('fetch', 'webpage reading is routed without replacing the configured DSH provider')
+    return () => { fetchRouted = false; if (web.fetchProviders === router) web.fetchProviders = realFetchProviders }
+  }, 'codex-subscription: fetch router')
   // With "other models" switched off, subscription search, images and connectors serve conversations on this plugin's own models only.
   const servesCurrentModel = () => {
     if (settings.get().otherModels !== 'off') return true

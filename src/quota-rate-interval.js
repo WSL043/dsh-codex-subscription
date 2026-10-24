@@ -50,7 +50,10 @@ export function refineQuotaRate(samples, conservative) {
   }
   if(crossings<3)return conservative
   const candidate=quotaSharedOffsetInterval(samples)
-  if(!candidate.feasible || candidate.min<=0)return conservative
-  if(candidate.max-candidate.min>=conservative.max-conservative.min)return conservative
-  return {...candidate,method:'shared-offset',maxLagMs:120_000}
+  // Falling back silently would retain an old, apparently precise pace even
+  // when new readings have contradicted the steady-usage hypothesis.
+  if(!candidate.feasible)return {...conservative,steadyHypothesisFailed:true}
+  if(candidate.min<=0 || candidate.max-candidate.min>=conservative.max-conservative.min)
+    return {...conservative,steadyHypothesisFailed:false}
+  return {...candidate,method:'shared-offset',maxLagMs:120_000,steadyHypothesisFailed:false}
 }

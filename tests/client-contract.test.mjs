@@ -100,7 +100,7 @@ test('composer quota modes use the public composer slot before the model selecto
 })
 
 test('runway mode names calibration, idle, and reset-safe states instead of falling back to a bare percentage', async () => {
-  const source = await text('src/client.jsx')
+  const source = `${await text('src/client.jsx')}\n${await read('src/quota-forecast-view.js')}`
   assert.match(source, /quickQuotaForecastHint/u)
   assert.match(source, /quickQuotaForecastCalibrating/u)
   assert.match(source, /quickQuotaForecastIdle/u)
@@ -110,9 +110,10 @@ test('runway mode names calibration, idle, and reset-safe states instead of fall
   assert.match(source, /quotaForecastUntilReset/u)
   assert.match(source, /forecast\?\.status === ['"]calibrating['"]/u)
   assert.match(source, /forecast\?\.status === ['"]idle['"]/u)
-  assert.match(source, /runway?.kind === 'reset'/u)
+  assert.match(source, /quotaForecastView/u)
+  assert.match(source, /formatQuotaRunout/u)
   assert.match(source, /正在校准/u)
-  assert.match(source, /足够用到重置/u)
+  assert.match(source, /预计可用到重置/u)
   assert.match(source, /Calibrating/u)
   assert.match(source, /Enough until reset/u)
 })
@@ -287,7 +288,7 @@ test('settings exposes manual multi-account switching with an explicit remove co
   assert.match(source, /call\('account\/remove', \{ id \}\)/u)
   assert.match(source, /if \(removeId !== id\) \{ setRemoveId\(id\); return \}/u)
   assert.match(source, /removeId === candidate\.id \? t\('removeConfirm'\)/u)
-  assert.doesNotMatch(source, /accountId|\.access\b|\.refresh\b/u)
+  assert.doesNotMatch(await read('src/client-account.jsx'), /accountId|\.access\b|\.refresh\b/u)
 })
 
 test('account settings identify accounts by sanitized clickable email with privacy masking by default', async () => {

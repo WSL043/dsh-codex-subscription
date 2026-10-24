@@ -35,21 +35,22 @@ test('every place rounds the runway the same way', () => {
   assert.equal(roundRunwaySeconds(100 * 3600), 102 * 3600)
   assert.equal(roundRunwaySeconds(1000), 900)
   const raw = { status: 'ready', provisional: true, runwaySeconds: 20.4 * 3600 }
-  const t = key => ({ quotaForecast: '{symbol}{duration}', runwayHours: '{hours}h' })[key]
   assert.deepEqual(forecastRunway(raw), { kind: 'point', seconds: 20 * 3600 })
-  assert.equal(formatQuotaForecast(raw, t), '≈20h')
-  assert.equal(formatQuotaForecast({ status: 'ready', runwaySeconds: 20.4 * 3600 }, t), '≈20h')
+  const options = { fetchedAt: 1_900_000_000_000, now: 1_900_000_000_000 }
+  assert.match(formatQuotaForecast(raw, zh, options), /粗估/)
+  assert.match(formatQuotaForecast({ status: 'ready', runwaySeconds: 20.4 * 3600 }, zh, options), /预计.*用完/u)
 })
 
-test('a provisional estimate that outlasts the reset reads as enough until reset', () => {
+test('a provisional estimate that outlasts the reset remains rough rather than claiming enough until reset', () => {
   const start = 1_900_000_000_000
   const resetsAt = start / 1000 + 3 * 3600 + 3600
   // 2% in 1 h at 80% left would last 40 h, far beyond the 3 h to reset.
   const { state } = observed(18_000, resetsAt, [[0, 82], [0.5, 81], [1, 80]], start)
   const forecast = estimateQuotaForecast(state, win(80, 18_000, resetsAt), start + HOUR)
   assert.equal(forecast.status, 'ready')
-  assert.equal(forecast.survivesReset, true)
-  assert.deepEqual(forecastRunway(forecast), { kind: 'reset' })
+  assert.equal(forecast.provisional, true)
+  assert.equal(forecast.survivesReset, false)
+  assert.equal(forecastRunway(forecast).kind, 'point')
 })
 
 test('heatmap keeps the newest report day on the grid and honours the first weekday', () => {

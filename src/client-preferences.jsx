@@ -10,6 +10,7 @@ import { AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, CONNECTOR_MODES, REASONING_SU
 import { reconcileContextDrafts } from './context-draft-state.js'
 import { draftStep, toggleModelId } from './picker-draft.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
+import { FETCH_PROVIDER_FIELD, FETCH_PROVIDER_DSH, FETCH_PROVIDER_CODEX } from './settings-contract.js'
 export function QuickQuotaPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = snapshot.status === 'ready' && snapshot.writable === true
@@ -47,6 +48,12 @@ export function SearchProviderPreference({ preference, t }) {
       {choice(SEARCH_PROVIDER_DSH, 'DSH')}
       {choice(SEARCH_PROVIDER_CODEX, 'Codex')}
     </div>
+    </div>
+    <div className="codexSubscriptionPreference">
+      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('fetchTitle')}</span><Hint t={t}>{t(!snapshot.fetchRoutingAvailable ? 'fetchUnavailableHint' : snapshot.fetchProvider === FETCH_PROVIDER_CODEX ? 'fetchCodexHint' : 'fetchDshHint')}</Hint></div>
+      <div className="codexSubscriptionSearchChoices codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('fetchTitle')}>
+        {[FETCH_PROVIDER_DSH, FETCH_PROVIDER_CODEX].map(value => <label className="codexSubscriptionQuotaMode" key={value}><input type="radio" name="codex-subscription-fetch-provider" checked={snapshot.fetchProvider === value} disabled={!writable || value === FETCH_PROVIDER_CODEX && !snapshot.fetchRoutingAvailable} onChange={() => { void preference.set({ [FETCH_PROVIDER_FIELD]: value }) }} /><span>{value === FETCH_PROVIDER_CODEX ? 'Codex' : 'DSH'}</span></label>)}
+      </div>
     </div>
     <CapabilityPreferences preference={preference} t={t} section="search" />
   </div>
