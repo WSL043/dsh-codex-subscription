@@ -16,24 +16,25 @@ const entry=`import {openVoiceCall} from ${JSON.stringify(root.replaceAll('\\','
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const wait=async predicate=>{for(let i=0;i<150;i++){if(predicate())return;await sleep(40)}throw Error('audio deadline')};
 const report={secureContext:isSecureContext,nativePeerConnection:typeof RTCPeerConnection,worklet:typeof AudioWorkletNode,noAccount:true,noRealMicrophone:true};
+const phase=name=>{report.phase=name;window.webkit.messageHandlers.nativeVoiceResult.postMessage(JSON.stringify({...report,pending:true}))};
 const nativeGetUserMedia=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
 let call,source,oscillator,tracks=[];
 const rpc={async call(_channel,endpoint,payload,signal){const response=await fetch('/rpc/'+endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload),signal});return response.json()}};
 (async()=>{try{
   // Future engines may regain RTC; record that fact and keep exercising the explicit fallback.
   if(typeof RTCPeerConnection==='function')Object.defineProperty(window,'RTCPeerConnection',{configurable:true,value:undefined});
-  const mock=await nativeGetUserMedia({audio:true});report.mockMicrophone=mock.getAudioTracks().some(t=>t.readyState==='live');mock.getTracks().forEach(t=>t.stop());
-  source=new AudioContext();await source.resume();const destination=source.createMediaStreamDestination();oscillator=source.createOscillator();const volume=source.createGain();volume.gain.value=.15;oscillator.frequency.value=440;oscillator.connect(volume).connect(destination);oscillator.start();tracks=destination.stream.getTracks();
+  phase('mock-microphone');const mock=await nativeGetUserMedia({audio:true});report.mockMicrophone=mock.getAudioTracks().some(t=>t.readyState==='live');mock.getTracks().forEach(t=>t.stop());
+  phase('audio-context');source=new AudioContext();await source.resume();const destination=source.createMediaStreamDestination();oscillator=source.createOscillator();const volume=source.createGain();volume.gain.value=.15;oscillator.frequency.value=440;oscillator.connect(volume).connect(destination);oscillator.start();tracks=destination.stream.getTracks();
   navigator.mediaDevices.getUserMedia=async()=>destination.stream;
-  let ended=0;call=await openVoiceCall({rpc,sessionId:'native-voice-test',onEnd:()=>ended++});report.transport=call.transport;
-  await wait(()=>call.levels().mic>.1&&call.levels().assistant>.1);report.duplexPcm=true;
+  phase('open-call');let ended=0;call=await openVoiceCall({rpc,sessionId:'native-voice-test',onEnd:()=>ended++});report.transport=call.transport;
+  phase('duplex');await wait(()=>call.levels().mic>.1&&call.levels().assistant>.1);report.duplexPcm=true;
   call.setMuted(true);await sleep(120);report.muted=call.isMuted()&&call.levels().mic===0&&tracks.every(t=>!t.enabled);
   call.setOutputMuted(true);report.speakerMuted=call.isOutputMuted();call.setOutputMuted(false);
   call.setMuted(false);await wait(()=>call.levels().mic>.1);report.unmuted=true;
-  await call.stop();await sleep(650);report.ended=ended===1;report.tracksReleased=tracks.every(t=>t.readyState==='ended');
+  phase('stop');await call.stop();await sleep(650);report.ended=ended===1;report.tracksReleased=tracks.every(t=>t.readyState==='ended');
   report.passed=report.secureContext&&report.mockMicrophone&&report.transport==='pcm'&&report.duplexPcm&&report.muted&&report.speakerMuted&&report.unmuted&&report.ended&&report.tracksReleased;
 }catch(error){report.passed=false;report.error={name:error.name,code:error.code??null,message:String(error.message).slice(0,120)}}finally{
-  await call?.stop();tracks.forEach(t=>t.stop());oscillator?.stop();await source?.close();
+  await call?.stop();tracks.forEach(t=>t.stop());oscillator?.stop();await Promise.race([source?.close(),sleep(1000)]);
   document.body.textContent=JSON.stringify(report,null,2);window.webkit.messageHandlers.nativeVoiceResult.postMessage(JSON.stringify(report));
 }})();`
 const built=await rolldown({input:'virtual:native-voice',platform:'browser',plugins:[{name:'native-voice',resolveId:id=>id==='virtual:native-voice'?id:undefined,load:id=>id==='virtual:native-voice'?entry:undefined}]})
