@@ -38,10 +38,64 @@ test('coarse provisional consumption cannot claim survival until reset in either
   assert.match(label,/粗估/);assert.doesNotMatch(label,/够用/)
 })
 test('calendar labels cross local day and year boundaries and support English and Chinese', () => {
-  const start=new Date(2026,11,31,23,0).getTime(),end=new Date(2027,0,1,2,0).getTime()
+  const start=Date.UTC(2026,11,31,14),end=Date.UTC(2026,11,31,17)
   for(const [locale,words] of [['zh-CN',zh],['en-US',en]]) {
-    const label=formatQuotaRunout({kind:'time',earliest:end,latest:end},{t:key=>words[key],locale,now:start})
-    assert.match(label,locale==='zh-CN'?/明天/:/tomorrow|Tomorrow/)
-    assert.match(label,/02:00/)
+    const label=formatQuotaRunout({kind:'time',earliest:end,latest:end},{t:key=>words[key],locale,now:start,timeZone:'Asia/Tokyo'})
+    assert.equal(label,locale==='zh-CN'?'明天凌晨':'early tomorrow morning')
   }
+})
+
+const point = time => ({kind:'time',earliest:time,latest:time})
+const display = (time, now, timeZone, language) => formatQuotaRunout(point(time), {t:key=>language==='zh'?zh[key]:en[key],locale:language==='zh'?'zh-CN':'en-US',now,timeZone})
+for (const [zone,cn,english] of [
+  ['UTC','周三下午','Wednesday afternoon'],
+  ['Asia/Tokyo','周四凌晨','early Thursday morning'],
+  ['Asia/Shanghai','周四凌晨','early Thursday morning'],
+  ['America/Los_Angeles','周三早上','Wednesday morning'],
+  ['America/New_York','周三下午','Wednesday afternoon'],
+  ['Europe/London','周三下午','Wednesday afternoon'],
+  ['Europe/Berlin','周三晚上','Wednesday evening'],
+  ['Asia/Kolkata','周三晚上','Wednesday evening'],
+  ['Asia/Kathmandu','周三晚上','Wednesday evening'],
+  ['Pacific/Chatham','周四早上','Thursday morning'],
+  ['Pacific/Honolulu','周三早上','Wednesday morning'],
+  ['Australia/Lord_Howe','周四凌晨','early Thursday morning'],
+]) test(`one instant uses the viewer's local weekday and day part in ${zone}, in both languages`, () => {
+  const now=Date.UTC(2026,9,25,2),at=Date.UTC(2026,9,28,17)
+  assert.equal(display(at,now,zone,'zh'),cn)
+  assert.equal(display(at,now,zone,'en'),english)
+})
+
+test('today sounds natural in English, and intervals collapse to the same day part', () => {
+  const now=Date.UTC(2026,9,25,0)
+  assert.equal(display(Date.UTC(2026,9,25,7),now,'Asia/Tokyo','en'),'this afternoon')
+  assert.equal(display(Date.UTC(2026,9,25,14),now,'Asia/Tokyo','en'),'tonight')
+  const view={kind:'time',earliest:Date.UTC(2026,9,27,4),latest:Date.UTC(2026,9,27,12)}
+  assert.equal(formatQuotaRunout(view,{t:key=>zh[key],locale:'zh-CN',timeZone:'Asia/Tokyo',now}),'周二下午至晚上')
+  view.earliest=Date.UTC(2026,9,27,10)
+  assert.equal(formatQuotaRunout(view,{t:key=>zh[key],locale:'zh-CN',timeZone:'Asia/Tokyo',now}),'周二晚上')
+  const morning={kind:'time',earliest:Date.UTC(2026,9,26,18),latest:Date.UTC(2026,9,27,0)}
+  assert.equal(formatQuotaRunout(morning,{t:key=>zh[key],locale:'zh-CN',timeZone:'Asia/Tokyo',now}),'周二凌晨至早上')
+  assert.equal(formatQuotaRunout(morning,{t:key=>en[key],locale:'en-US',timeZone:'Asia/Tokyo',now}),'Tuesday morning')
+})
+
+for(const [zone,before,after] of [
+  ['America/New_York',Date.UTC(2026,2,7,17),Date.UTC(2026,2,8,13)],
+  ['America/New_York',Date.UTC(2026,9,31,16),Date.UTC(2026,10,1,14)],
+  ['Europe/Berlin',Date.UTC(2026,2,28,12),Date.UTC(2026,2,29,7)],
+  ['Europe/Berlin',Date.UTC(2026,9,24,11),Date.UTC(2026,9,25,8)],
+]) test(`tomorrow is a calendar day across DST in ${zone} at ${new Date(after).toISOString()}`, () => {
+  assert.equal(display(after,before,zone,'zh'),'明天早上')
+  assert.equal(display(after,before,zone,'en'),'tomorrow morning')
+})
+
+test('displaying another time zone or crossing midnight never changes the estimated instant', () => {
+  const at=Date.UTC(2026,11,31,14,30),forecast={status:'ready',runwaySeconds:7200}
+  const view=quotaForecastView(forecast,{fetchedAt:at,now:at})
+  const original=structuredClone(view)
+  for(const zone of ['Asia/Tokyo','America/Los_Angeles','Asia/Kathmandu']) formatQuotaRunout(view,{t:key=>en[key],locale:'en-US',timeZone:zone,now:at})
+  assert.deepEqual(view,original)
+  const end=Date.UTC(2027,0,1,1)
+  assert.equal(display(end,Date.UTC(2026,11,31,14),'Asia/Tokyo','zh'),'明天早上')
+  assert.equal(display(end,Date.UTC(2026,11,31,16),'Asia/Tokyo','zh'),'今天早上')
 })

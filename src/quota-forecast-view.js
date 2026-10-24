@@ -24,16 +24,30 @@ export function quotaForecastView(forecast, { fetchedAt, now = Date.now(), reset
   return { kind: 'time', earliest: round(anchor + min * 1000), latest: round(anchor + max * 1000), provisional: forecast.provisional === true }
 }
 
-export function formatQuotaRunout(view, { t, locale, now = Date.now() }) {
-  const midnight = time => { const date = new Date(time); return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime() }
+export function formatQuotaRunout(view, { t, locale, now = Date.now(), timeZone }) {
+  // Calendar days and day parts belong to the viewer's time zone, independently
+  // of interface language. UTC day serials avoid 23/25-hour DST-day arithmetic.
+  const clock = new Intl.DateTimeFormat('en-US-u-ca-gregory-nu-latn', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', hourCycle: 'h23' })
+  const local = time => {
+    const fields = Object.fromEntries(clock.formatToParts(time).filter(part => part.type !== 'literal').map(part => [part.type, Number(part.value)]))
+    return { day: Date.UTC(fields.year, fields.month - 1, fields.day), hour: fields.hour }
+  }
+  const today = local(now).day
+  const render = (key, values) => Object.entries(values).reduce((text, [name, value]) => text.replace(`{${name}}`, value), t(key))
   const when = time => {
-    const date = new Date(time), today = midnight(now)
-    const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1)
-    const day = midnight(time) === today ? t('paceDay_today') : midnight(time) === tomorrow.getTime() ? t('paceDay_tomorrow')
-      : date.toLocaleDateString(locale, { month: 'numeric', day: 'numeric' })
-    return `${day} ${date.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', hour12: false })}`
+    const date = local(time), gap = (date.day - today) / 86_400_000
+    const day = gap === 0 ? t('paceDay_today') : gap === 1 ? t('paceDay_tomorrow')
+      : new Intl.DateTimeFormat(locale, gap > 1 && gap < 7 ? { timeZone, weekday: locale?.startsWith('zh') ? 'short' : 'long' } : { timeZone, month: 'numeric', day: 'numeric' }).format(time)
+    const part = date.hour < 5 ? 'early' : date.hour < 12 ? 'morning' : date.hour < 18 ? 'afternoon' : date.hour < 23 ? 'evening' : 'night'
+    const partText = t(`pacePart_${part}`)
+    const key = gap === 0 ? part === 'early' ? 'quotaWhenEarlyToday' : part === 'night' ? 'quotaWhenTonight' : 'quotaWhenToday'
+      : part === 'early' ? 'quotaWhenEarly' : 'paceWhen'
+    return { day: date.day, period: part, part: partText, label: render(key, { day, part: partText }) }
   }
   if (view.kind !== 'time') return undefined
   const from = when(view.earliest), to = when(view.latest)
-  return from === to ? from : `${from}–${to}`
+  if (from.label === to.label) return from.label
+  const end = from.day === to.day ? render('quotaWhenRangeEnd', { part: to.part, label: to.label }) : to.label
+  const key = from.day === to.day && from.period === 'early' && to.period === 'morning' ? 'quotaWhenEarlyMorningRange' : 'quotaWhenRange'
+  return render(key, { from: from.label, to: end, latest: to.label })
 }
