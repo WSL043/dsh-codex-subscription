@@ -15,10 +15,13 @@ try {
   for (const name of ['src', 'tests', 'scripts', 'package.json', 'cordis.patch.yml']) {
     cpSync(join(source, name), join(probe, name), { recursive: true })
   }
-  // Supply only the test-owned IndexedDB emulator. DSH packages must continue
-  // resolving from the official runner, never the source checkout's versions.
-  const emulator = existsSync(join(runner, 'node_modules', 'fake-indexeddb')) ? runner : source
-  cpSync(realpathSync(join(emulator, 'node_modules', 'fake-indexeddb')), join(probe, 'node_modules', 'fake-indexeddb'), { recursive: true })
+  // Supply only test-owned browser dependencies. The shared client formatter
+  // imports React even though these behavior tests never mount a component.
+  // DSH packages must still resolve from the official runner's own cohort.
+  for (const name of ['fake-indexeddb', 'react']) {
+    const owner = existsSync(join(runner, 'node_modules', name)) ? runner : source
+    cpSync(realpathSync(join(owner, 'node_modules', name)), join(probe, 'node_modules', name), { recursive: true })
+  }
   const result = spawnSync(process.execPath, ['--test', ...testFiles('behavior')], { cwd: probe, stdio: 'inherit' })
   if (result.error) throw result.error
   process.exitCode = result.status ?? 1
