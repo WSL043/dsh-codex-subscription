@@ -1,4 +1,6 @@
 export const zh = {
+  voiceHostUnavailable: 'DSH 语音桥未能启动。可以在浏览器中继续，或查看语音诊断。',
+  voiceMediaHint: '缺少 WebRTC 的窗口会经运行 DSH 的主机转发音频，仍使用当前订阅，无需 API Key。',
   voiceBrowserContinue: '在浏览器继续此会话', voiceBrowserCopy: '复制会话链接', voiceBrowserCopied: '已复制', voiceBrowserCopyFailed: '复制失败，请手动复制链接',
   voicePreviewSignIn: '试听需要重新登录 ChatGPT，请登录后再试。', voiceCatalogFailed: '语音目录加载失败，请检查网络后重试；这不表示该音色没有样本。', voiceDownloadFailed: '试听音频下载失败，请重试。', voicePlaybackFailed: '音频已取得，但播放失败。请检查浏览器的声音权限后重试。', voicePreviewFailed: '试听加载失败，请检查连接后重试。',
   voiceWebRTCUnavailable: '此窗口不支持语音通话所需的 WebRTC。请在支持 WebRTC 的浏览器中打开同一 DSH 会话；音色试听仍可使用。', voiceInsecure: '语音需要安全连接。请通过 HTTPS 或本机 localhost 打开 DSH。', voiceMicUnavailable: '此窗口无法使用麦克风。请在支持麦克风的浏览器中打开 DSH。', voiceMicMissing: '未找到可用麦克风，请检查设备连接。',
@@ -293,6 +295,8 @@ export const zh = {
 }
 
 export const en = {
+  voiceHostUnavailable: 'The DSH voice bridge could not start. Continue in your browser or check voice diagnostics.',
+  voiceMediaHint: 'On engines without WebRTC, audio is relayed through the DSH host using your current subscription. No API key is needed.',
   voiceBrowserContinue: 'Continue this conversation in a browser', voiceBrowserCopy: 'Copy conversation link', voiceBrowserCopied: 'Copied', voiceBrowserCopyFailed: 'Copy failed; copy the link manually',
   voicePreviewSignIn: 'Sign in to ChatGPT again to load voice samples.', voiceCatalogFailed: 'The voice catalog could not load. Check the connection and retry; this does not mean the voice has no sample.', voiceDownloadFailed: 'The voice sample could not download. Please retry.', voicePlaybackFailed: 'The audio loaded but could not play. Check browser sound permissions and retry.', voicePreviewFailed: 'The voice sample could not load. Check the connection and retry.',
   voiceWebRTCUnavailable: 'This window does not support WebRTC voice calls. Open the same DSH conversation in a WebRTC-capable browser. Voice samples remain available.', voiceInsecure: 'Voice requires a secure connection. Open DSH over HTTPS or local localhost.', voiceMicUnavailable: 'Microphone access is unavailable in this window. Open DSH in a browser with microphone support.', voiceMicMissing: 'No microphone was found. Check the device connection.',

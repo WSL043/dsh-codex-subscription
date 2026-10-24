@@ -107,8 +107,9 @@ export function parseEvent(payload) {
  * Ask the ChatGPT backend for a voice call: the browser's WebRTC offer goes in with the session settings, the answer
  * comes back as plain SDP and the call id in the Location header. The same request the phone makes for its own call.
  */
-export async function createVoiceCall({ fetch, credentials, userAgent, sdp, session, base = 'https://chatgpt.com/backend-api', threadId }) {
-  const { access, accountId } = await credentials()
+export async function createVoiceCall({ fetch, credentials, userAgent, sdp, session, base = 'https://chatgpt.com/backend-api', threadId, signal }) {
+  signal?.throwIfAborted()
+  const { access, accountId } = await credentials(signal)
   const response = await fetch(`${base}/wham/realtime/calls?intent=quicksilver&architecture=avas`, {
     method: 'POST',
     headers: {
@@ -116,7 +117,7 @@ export async function createVoiceCall({ fetch, credentials, userAgent, sdp, sess
       'openai-alpha': 'quicksilver=v2', 'session-id': crypto.randomUUID(), 'thread-id': threadId ?? crypto.randomUUID(), 'user-agent': userAgent,
     },
     body: JSON.stringify({ sdp, session }),
-    signal: AbortSignal.timeout(20_000),
+    signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(20_000)]) : AbortSignal.timeout(20_000),
   })
   const answer = await response.text()
   // A guess, not a documented signal: a refused account may just need two-step verification switched on.
@@ -146,13 +147,16 @@ export function createRealtimeVoice(options) {
   const bases = options.bases ?? SIDEBAND_BASES
   const log = options.log ?? { info() {}, warn() {}, error() {} }
   const sessions = new Map() // threadId -> session
+  const starts = new Map() // pending starts also belong to the lifetime of the call
 
-  const connect = (base, callId, headers) => new Promise((resolve, reject) => {
+  const connect = (base, callId, headers, signal) => new Promise((resolve, reject) => {
+    signal?.throwIfAborted()
     const url = `${base.replace(/\/$/, '')}/${encodeURIComponent(callId)}`
     const ws = new options.WebSocket(url, { headers })
     let settled = false
-    const fail = error => { if (!settled) { settled = true; reject(error) } }
-    ws.on('open', () => { if (!settled) { settled = true; resolve(ws) } })
+    const abort = () => { fail(new Error('Voice start cancelled')); try { ws.close() } catch { /* closing */ } }
+    const fail = error => { if (!settled) { settled = true; signal?.removeEventListener('abort', abort); reject(error) } }
+    ws.on('open', () => { if (!settled) { settled = true; signal?.removeEventListener('abort', abort); resolve(ws) } })
     ws.on('unexpected-response', (request, response) => {
       try { request?.destroy?.() } catch { /* closing */ }
       const error = new Error(`HTTP ${response?.statusCode}`)
@@ -161,18 +165,21 @@ export function createRealtimeVoice(options) {
     })
     ws.on('error', error => fail(error))
     ws.on('close', () => fail(new Error('closed before it opened')))
+    signal?.addEventListener('abort', abort, { once: true })
   })
 
-  async function join(callId, headers) {
+  async function join(callId, headers, signal) {
     let last
     for (const base of bases) {
       const host = new URL(base).host
       for (let attempt = 0; attempt <= ACTIVATION_RETRY_MS.length; attempt++) {
         try {
-          const ws = await connect(base, callId, headers)
+          signal?.throwIfAborted()
+          const ws = await connect(base, callId, headers, signal)
           log.info('voice', `joined the voice call on ${host}`)
           return ws
         } catch (error) {
+          signal?.throwIfAborted()
           last = error
           // The call can need a moment before the side channel exists.
           if (error?.status === 404 && attempt < ACTIVATION_RETRY_MS.length) { await new Promise(resolve => setTimeout(resolve, ACTIVATION_RETRY_MS[attempt])); continue }
@@ -195,8 +202,10 @@ export function createRealtimeVoice(options) {
   }
 
   const stop = (threadId, reason = 'requested') => {
+    const pending = starts.get(threadId)
+    starts.delete(threadId); pending?.abort()
     const session = sessions.get(threadId)
-    if (!session) return false
+    if (!session) return pending !== undefined
     sessions.delete(threadId)
     session.ended = true
     log.info('voice', 'the voice call ended', reason)
@@ -211,13 +220,22 @@ export function createRealtimeVoice(options) {
     return true
   }
 
-  async function start(params, notify) {
+  async function start(params, notify, { signal } = {}) {
     const threadId = typeof params?.threadId === 'string' ? params.threadId : ''
     const callId = params?.transport?.type === 'existingCall' ? params.transport.callId : undefined
     if (threadId === '') throw new Error('The voice start has no thread')
     if (typeof callId !== 'string' || callId === '') throw new Error('Live voice needs a call the phone has already set up')
     stop(threadId, 'replaced')
-    const { access, accountId } = await options.credentials()
+    const pending = new AbortController()
+    starts.set(threadId, pending)
+    const lifetime = signal ? AbortSignal.any([signal, pending.signal]) : pending.signal
+    let credential, ws
+    try {
+      lifetime.throwIfAborted()
+      credential = await options.credentials(lifetime)
+      lifetime.throwIfAborted()
+    } catch (error) { if (starts.get(threadId) === pending) starts.delete(threadId); throw error }
+    const { access, accountId } = credential
     const headers = {
       authorization: `Bearer ${access}`,
       'chatgpt-account-id': accountId,
@@ -226,7 +244,10 @@ export function createRealtimeVoice(options) {
       ...(typeof params.realtimeSessionId === 'string' ? { 'x-session-id': params.realtimeSessionId } : {}),
       ...(typeof params.voiceSessionId === 'string' ? { 'voice-session-id': params.voiceSessionId } : {}),
     }
-    const ws = await join(callId, headers)
+    try { ws = await join(callId, headers, lifetime); lifetime.throwIfAborted() }
+    catch (error) { if (starts.get(threadId) === pending) starts.delete(threadId); try { ws?.close() } catch { /* closed */ }; throw error }
+    if (starts.get(threadId) !== pending) { ws.close(); throw new Error('Voice start replaced') }
+    starts.delete(threadId)
     const session = { ws, notify, ended: false, chain: Promise.resolve(), tail: [], lines: [], working: 0, controls: new Set(), flushTail: params.flushTranscriptTailOnSessionEnd !== false, silent: params.silentTailRecord === true, hangUp: params.hangUpOnGoodbye === true }
     sessions.set(threadId, session)
     const send = message => { try { ws.send(JSON.stringify(message)) } catch (error) { log.warn('voice', 'could not send to the voice call', String(error?.message ?? error)) } }
@@ -377,6 +398,6 @@ export function createRealtimeVoice(options) {
       const session = sessions.get(threadId)
       return session ? { active: true, working: session.working > 0, closing: session.closing === true, lines: session.lines.slice(-6) } : { active: false, working: false, closing: false, lines: [] }
     },
-    closeAll: () => { for (const threadId of [...sessions.keys()]) stop(threadId, 'shutdown') },
+    closeAll: () => { for (const threadId of new Set([...sessions.keys(), ...starts.keys()])) stop(threadId, 'shutdown') },
   }
 }

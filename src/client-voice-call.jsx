@@ -115,6 +115,8 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const marker = useRef(null)
   const call = useRef(null)
+  const pendingCall = useRef(null)
+  const alive = useRef(false)
   const [liveCall, setLiveCall] = useState(null)
   const accent = useRef('')
   const button = useRef(null)
@@ -167,10 +169,16 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
     return () => activity.removeAttribute('data-voice-live')
   }, [place?.activity, live])
 
-  useEffect(() => () => { void call.current?.stop() }, [])
+  useEffect(() => {
+    alive.current = true
+    call.current = null; setLiveCall(null); setState('idle')
+    return () => { alive.current = false; pendingCall.current?.abort(); void call.current?.stop() }
+  }, [sessionId])
   useEffect(() => { if (!problem || unsupported) return undefined; const timer = setTimeout(() => setProblem(''), 6000); return () => clearTimeout(timer) }, [problem, unsupported])
 
   const start = async () => {
+    const controller = new AbortController()
+    pendingCall.current?.abort(); pendingCall.current = controller
     setProblem('')
     setUnsupported(false)
     setBrowserCopied(false)
@@ -179,14 +187,17 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
     setSpeakerOff(false)
     setState('connecting')
     try {
-      call.current = await openVoiceCall({ rpc, sessionId, onEnd: () => { call.current = null; setLiveCall(null); setState('idle') } })
+      const opened = await openVoiceCall({ rpc, sessionId, signal: controller.signal, onEnd: () => { call.current = null; if (alive.current && !controller.signal.aborted) { setLiveCall(null); setState('idle') } } })
+      if (!alive.current || controller.signal.aborted) { await opened.stop(); return }
+      call.current = opened
       setLiveCall(call.current)
       setState('live')
     } catch (error) {
+      if (!alive.current || controller.signal.aborted) return
       call.current = null
       setLiveCall(null)
       setState('idle')
-      setUnsupported(['voice-no-webrtc', 'voice-no-microphone', 'voice-insecure'].includes(error?.code) ? error.code : false)
+      setUnsupported(['voice-no-webrtc', 'voice-no-microphone', 'voice-insecure', 'voice-host-unavailable'].includes(error?.code) ? error.code : false)
       setProblem(voiceCallProblem(error))
     }
   }
@@ -310,7 +321,7 @@ export function VoiceCallCard({ rpc, preference, snapshot, t }) {
       {sample.state === 'playing' && sample.note ? <p className="codexSubscriptionHelp" role="status">{sample.note}</p> : null}
       {sample.state === 'error' ? <p className="codexSubscriptionHelp" role="status">{t(sample.code)}</p> : null}
       <ChoiceRow label={t('voiceLanguage')} disabled={!snapshot.writable} selectedId={snapshot.voiceLanguage} items={languages} onSelect={value => { void preference.set({ [VOICE_LANGUAGE_FIELD]: value }); void playVoice(snapshot.voiceVoice, value) }} />
-      <p className="codexSubscriptionHelp">{t('voicePreviewHint')}</p>
+      <p className="codexSubscriptionHelp">{t('voicePreviewHint')} {t('voiceMediaHint')}</p>
     </> : null}
   </section>
 }

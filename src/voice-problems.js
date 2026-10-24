@@ -6,7 +6,7 @@ export function voicePreviewProblem(code) {
 export function voiceCallProblem(error) {
   if (error?.name === 'NotAllowedError') return 'voiceMicBlocked'
   if (error?.name === 'NotFoundError') return 'voiceMicMissing'
-  return ({ 'voice-insecure': 'voiceInsecure', 'voice-no-microphone': 'voiceMicUnavailable', 'voice-no-webrtc': 'voiceWebRTCUnavailable' })[error?.code] ?? 'voiceFailed'
+  return ({ 'voice-insecure': 'voiceInsecure', 'voice-no-microphone': 'voiceMicUnavailable', 'voice-no-webrtc': 'voiceWebRTCUnavailable', 'voice-host-unavailable': 'voiceHostUnavailable' })[error?.code] ?? 'voiceFailed'
 }
 
 export function voiceCallCapability(surface = globalThis) {
