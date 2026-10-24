@@ -1,4 +1,4 @@
-const areas = new Set(['login', 'model', 'catalog', 'quota', 'quota-reset', 'search', 'image'])
+const areas = new Set(['login', 'model', 'catalog', 'quota', 'quota-reset', 'search', 'image', 'voice'])
 const codes = new Set(['timeout', 'dns', 'tls', 'connection', 'network', 'http-error'])
 
 /** Process-local bounded evidence. No bodies, URLs, exception strings or identities. */

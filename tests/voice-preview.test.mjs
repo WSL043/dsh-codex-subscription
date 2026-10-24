@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createVoicePreview } from '../src/voice-preview.js'
+import { createSubscriptionRpcHandler } from '../src/subscription-rpc.js'
 
 const catalog = { selected: 'orbit', voices: [
   { voice: 'orbit', name: 'Spruce', preview_url: 'https://persistent.oaistatic.com/voice/previews/orbit.en.m4a', description: 'Calm and affirming', accent: 'American English' },
@@ -15,6 +16,34 @@ const make = (extra = {}) => {
   }
   return { calls, preview: createVoicePreview({ fetch, credentials: async () => ({ access: 'a', accountId: 'b' }), userAgent: 'x/1' }) }
 }
+
+test('catalog HTTP and malformed responses reach RPC as catalog failures rather than missing samples', async () => {
+  for (const body of [new Response('<html>blocked</html>', { status: 403 }), Response.json({ wrong: [] })]) {
+    const preview = createVoicePreview({ fetch: async () => body.clone(), credentials: async () => ({ access:'synthetic', accountId:'synthetic' }), userAgent:'test' })
+    const handler = createSubscriptionRpcHandler({ voicePreview: preview })
+    const result = await handler('voice/preview', { voice:'maple', language:'en' }, new AbortController().signal)
+    assert.equal(result.error.code, 'voice-catalog')
+    assert.doesNotMatch(JSON.stringify(result), /blocked|synthetic/)
+  }
+})
+
+test('expired credentials and absent voices do not masquerade as the same error', async () => {
+  const preview = createVoicePreview({ fetch: async () => new Response('', { status:401 }), credentials: async () => ({ access:'a', accountId:'b' }), userAgent:'test' })
+  await assert.rejects(preview.preview('maple'), error => error.code === 'voice-auth')
+  assert.equal(await make().preview.preview('maple'), undefined)
+})
+
+test('Maple loads from its catalog and audio failures remain download failures', async () => {
+  const preview = createVoicePreview({ credentials: async () => ({ access:'a', accountId:'b' }), userAgent:'test', fetch: async url => String(url).includes('settings/voices') ? Response.json({ voices:[{ name:'Maple', preview_url:'https://persistent.oaistatic.com/maple.en.m4a' }] }) : new Response(new Uint8Array([1,2,3])) })
+  assert.equal((await preview.preview('maple')).name, 'Maple')
+  await assert.rejects(make({ ok:false, status:503 }).preview.preview('spruce'), error => error.code === 'voice-download')
+})
+
+test('cancelled preview requests neither fetch nor cache stale samples', async () => {
+  const { preview, calls } = make()
+  await assert.rejects(preview.preview('spruce', 'en', AbortSignal.abort()), error => error.name === 'AbortError')
+  assert.equal(calls.length, 0)
+})
 
 test('a voice has a sample from ChatGPT\'s own catalog, as a playable data URL', async () => {
   const { preview, calls } = make()

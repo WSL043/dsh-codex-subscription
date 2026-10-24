@@ -9,6 +9,20 @@ import {
   withCodexOAuthNetwork,
 } from '../src/oauth-network.js'
 
+test('voice standard HTTPS honors direct and NO_PROXY routing without changing model transport', async () => {
+  const original = globalThis.fetch, requests = []
+  globalThis.fetch = async () => new Response('normal-fetch')
+  try {
+    for (const env of [{}, { HTTPS_PROXY:'http://127.0.0.1:7890', NO_PROXY:'chatgpt.com' }]) {
+      const network = createCodexNetworkTransport({ env, platform:'linux', fetchThroughProxy: async (_url,_init,proxy) => { requests.push(proxy); return new Response('standard-https') } })
+      assert.equal(await (await network.fetch('voice','https://chatgpt.com/backend-api/settings/voices',{}, { standardHttps:true })).text(), 'standard-https')
+      assert.equal(await (await network.fetch('model','https://chatgpt.com/backend-api/codex/responses')).text(), 'normal-fetch')
+      assert.equal(await (await network.fetch('voice','https://example.test/',{}, { standardHttps:true })).text(), 'normal-fetch')
+    }
+    assert.deepEqual(requests, [undefined, undefined])
+  } finally { globalThis.fetch = original }
+})
+
 test('OAuth proxy resolution honors standard environment variables and NO_PROXY', () => {
   assert.equal(proxyFromEnvironment({ HTTPS_PROXY: '127.0.0.1:7890' }), 'http://127.0.0.1:7890/')
   assert.equal(proxyFromEnvironment({ HTTPS_PROXY: 'http://127.0.0.1:7890', NO_PROXY: 'auth.openai.com' }), undefined)

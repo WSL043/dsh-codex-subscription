@@ -6,7 +6,7 @@ import { capabilityCoverage } from './diagnostic-capabilities.js'
 import { safeOperations } from './diagnostic-operations.js'
 import { diagnosticLog } from './diagnostic-log.js'
 
-const requestAreas = new Set(['login', 'model', 'catalog', 'quota', 'quota-reset', 'search', 'image'])
+const requestAreas = new Set(['login', 'model', 'catalog', 'quota', 'quota-reset', 'search', 'image', 'voice'])
 const statuses = new Set(['ok', 'failed'])
 const stages = new Set(['transport', 'http'])
 const codes = new Set(['timeout', 'dns', 'tls', 'connection', 'network', 'http-error'])

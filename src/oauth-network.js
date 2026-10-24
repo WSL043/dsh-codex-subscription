@@ -146,7 +146,7 @@ export function fetchThroughProxy(input, init, proxyUrl) {
     const request = httpsRequest(target, {
       method: init?.method ?? 'GET',
       headers: Object.fromEntries(headers.entries()),
-      agent: new HttpsProxyAgent(proxyUrl),
+      agent: proxyUrl ? new HttpsProxyAgent(proxyUrl) : undefined,
       signal: init?.signal,
     }, response => {
       const responseHeaders = new Headers()
@@ -202,7 +202,7 @@ export async function withCodexNetwork(run, options = {}) {
       }
       const route = await proxy
       scopedOptions.onRoute?.(route.source)
-      const response = await (route.url === undefined ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url))
+      const response = await (route.url === undefined && !scopedOptions.standardHttps ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url))
       return scopedOptions.transformResponse?.(response, target) ?? response
     }
     globalThis.fetch = scopedFetch
@@ -279,7 +279,7 @@ export function createCodexNetworkTransport(options = {}) {
   return Object.freeze({
     run,
     history: evidence.snapshot,
-    fetch: (area, input, init) => run(area, () => globalThis.fetch(input, init)),
+    fetch: (area, input, init, connection) => run(area, () => globalThis.fetch(input, init), connection),
     snapshot: () => Object.fromEntries([...attempts].map(([area, value]) => [area, { ...value }])),
   })
 }

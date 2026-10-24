@@ -85,12 +85,12 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
       try {
         signal.throwIfAborted()
         if (!voicePreview) return publicError('unavailable', 'Voice preview is unavailable')
-        if (endpoint === 'voice/catalog') return { ok: true, value: { voices: await voicePreview.available(payload?.language) } }
-        const value = await voicePreview.preview(payload?.voice, payload?.language)
+        if (endpoint === 'voice/catalog') return { ok: true, value: { voices: await voicePreview.available(payload?.language, signal) } }
+        const value = await voicePreview.preview(payload?.voice, payload?.language, signal)
         return value === undefined ? publicError('not-found', 'No sample for this voice') : { ok: true, value }
       } catch (error) {
         if (signal.aborted) throw error
-        return publicError('operation-error', 'Could not load the voice sample')
+        return publicError(['voice-auth', 'voice-catalog', 'voice-download'].includes(error?.code) ? error.code : 'operation-error', 'Could not load the voice sample')
       }
     }
     if (['remote/status', 'remote/enable', 'remote/disable', 'remote/pair', 'remote/clients', 'remote/revoke'].includes(endpoint)) {
