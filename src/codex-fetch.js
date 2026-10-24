@@ -107,6 +107,9 @@ export function createCodexFetchRouter({ registry, configuredId, mode, codex }) 
 
 /** Match the runtime's live volatile selection and constructor-time env snapshot. */
 export function configuredFetchProviderId(web, entries = [], ambient = process.env.DSH_WEB_FETCH_PROVIDER) {
+  // Older DSH captures the effective id once in its constructor, including an
+  // explicitly absent value. Match the same field that its native fetch reads.
+  if ('fetchProviderId' in web) return web.fetchProviderId
   const environment = 'fetchProviderEnv' in web ? web.fetchProviderEnv : ambient
   if (typeof web.config?.fetchProvider?.get === 'function') return web.config.fetchProvider.get() ?? environment
   const entry = [...entries].find(item => item.options?.id === 'web')
