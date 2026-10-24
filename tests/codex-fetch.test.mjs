@@ -101,7 +101,9 @@ function routing(configured = 'http') {
   const registry = new Map([['http', native('http')], ['deepseek-fetch-api', native('deepseek-fetch-api')]])
   const codex = { id: CODEX_FETCH_PROVIDER_ID, available: () => true, async fetch(request) { codexCalls += 1; return { codex: true, ...request } } }
   const router = createCodexFetchRouter({ registry, configuredId: () => selected, mode: () => mode, codex })
-  const host = { config: { fetchProvider: { get: () => selected } }, fetchProviders: router }
+  // Native fetch reads a constructor id on old cohorts and a volatile config on
+  // new ones. Keep both fixture fields in sync while exercising its real method.
+  const host = { config: { fetchProvider: { get: () => selected } }, get fetchProviderId() { return selected }, fetchProviders: router }
   const fetch = () => WebRuntime.prototype.fetch.call(host, { url: target })
   return { registry, router, host, fetch, setMode: value => { mode = value }, configure: value => { selected = value }, counts: () => ({ nativeCalls, codexCalls }) }
 }
@@ -145,7 +147,7 @@ test('explicit Codex errors never invoke a configured DeepSeek fetch provider', 
   const error = Object.assign(new Error('not signed in'), { code: 'WEB_PROVIDER_CREDENTIAL_MISSING' })
   const registry = new Map([['deepseek-fetch-api', { available: () => true, fetch: async () => { nativeCalls += 1 } }]])
   const router = createCodexFetchRouter({ registry, configuredId: () => 'deepseek-fetch-api', mode: () => 'codex', codex: { fetch: async () => { throw error } } })
-  await assert.rejects(WebRuntime.prototype.fetch.call({ fetchProviders: router, config: { fetchProvider: { get: () => 'deepseek-fetch-api' } } }, { url: target }), value => value === error)
+  await assert.rejects(WebRuntime.prototype.fetch.call({ fetchProviders: router, fetchProviderId: 'deepseek-fetch-api', config: { fetchProvider: { get: () => 'deepseek-fetch-api' } } }, { url: target }), value => value === error)
   assert.equal(nativeCalls, 0)
 })
 
@@ -167,7 +169,7 @@ test('cached Codex route handles stop on selection change without using either p
 test('configured id honors the native constructor env snapshot and never resurrects a cleared raw setting', async () => {
   const native = { id: 'original-env', available: () => true, fetch: async () => { throw Error('must not fall back') } }
   const registry = new Map([['original-env', native]])
-  const host = { config: { fetchProvider: { get: () => undefined } }, fetchProviderEnv: 'original-env' }
+  const host = { config: { fetchProvider: { get: () => undefined } }, fetchProviderEnv: 'original-env', get fetchProviderId() { return this.config.fetchProvider.get() ?? this.fetchProviderEnv } }
   const entries = [{ options: { id: 'web', config: { fetchProvider: 'stale-raw' } } }]
   const configuredId = () => configuredFetchProviderId(host, entries, 'later-env')
   assert.equal(configuredId(), 'original-env')
@@ -178,4 +180,22 @@ test('configured id honors the native constructor env snapshot and never resurre
   assert.deepEqual(await WebRuntime.prototype.fetch.call(host, { url: target }), { codex: true })
   const old = { fiber: { config: { fetchProvider: { get: () => undefined } } }, options: { id: 'web', config: { fetchProvider: 'stale-raw' } } }
   assert.equal(configuredFetchProviderId({ fetchProviderEnv: 'original-env' }, [old], 'later-env'), 'original-env')
+})
+
+test('old native constructor id overrides later raw config and ambient env, including an absent id', async () => {
+  const entries = [{ options: { id: 'web', config: { fetchProvider: 'stale-raw' } } }]
+  const host = { fetchProviderId: 'original-id', config: { fetchProvider: { get: () => 'later-volatile' } } }
+  const configuredId = () => configuredFetchProviderId(host, entries, 'later-env')
+  assert.equal(configuredId(), 'original-id')
+  // Mirror that effective selection for the actual runtime version under test.
+  host.config.fetchProvider.get = () => host.fetchProviderId
+  let nativeCalls = 0
+  const native = { available: () => true, fetch: async () => { nativeCalls += 1; throw Error('must not fall back') } }
+  const registry = new Map([['original-id', native], ['stale-raw', native]])
+  host.fetchProviders = createCodexFetchRouter({ registry, configuredId, mode: () => 'codex', codex: { fetch: async () => ({ codex: true }) } })
+  assert.deepEqual(await WebRuntime.prototype.fetch.call(host, { url: target }), { codex: true })
+  host.fetchProviderId = undefined
+  assert.equal(configuredId(), undefined)
+  assert.deepEqual(await WebRuntime.prototype.fetch.call(host, { url: target }), { codex: true })
+  assert.equal(nativeCalls, 0)
 })
