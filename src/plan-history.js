@@ -18,7 +18,7 @@ const timestamp = value => {
   const parsed = typeof value === 'string' ? Date.parse(value) : Number.NaN
   return Number.isFinite(parsed) ? parsed : undefined
 }
-const percent = basisPoints => (Number.isFinite(basisPoints) && basisPoints >= 0 ? Math.round(basisPoints) / 100 : undefined)
+const percent = basisPoints => (Number.isFinite(basisPoints) && basisPoints >= 0 ? basisPoints / 100 : undefined)
 
 /** Reduce the provider payload to a browser-safe projection; anything malformed is dropped, never an error. */
 export function parsePlanHistory(value) {

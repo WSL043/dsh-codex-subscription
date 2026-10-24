@@ -54,31 +54,42 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
   if (now - samples.at(-1).at > 20 * 60_000) return { status: 'calibrating', reason: 'stale' }
   // The endpoint's rounding contract is unknown. A one-point error on either
   // side covers floor, ceiling and nearest; decimals are retained, not invented.
-  let bounds = quotaRateInterval(samples)
+  const rateBounds = readings => refineQuotaRate(readings, quotaRateInterval(readings))
+  // A positive interval pinched to one rate is a quantization boundary, not
+  // evidence that consumption is known exactly.
+  const contradicted = range => !range.feasible || range.steadyHypothesisFailed === true
+    || (range.min > 1e-9 && range.max - range.min <= 1e-9)
+  let bounds = rateBounds(samples)
   let changedIntensity = false
-  while (!bounds.feasible && samples.length > 3) {
+  while (contradicted(bounds) && samples.length > 3) {
     samples = samples.slice(1)
-    bounds = quotaRateInterval(samples)
+    bounds = rateBounds(samples)
     changedIntensity = true
   }
-  bounds = refineQuotaRate(samples, bounds)
   const spanMs = samples.at(-1).at - samples[0].at
   const common = { sampleCount: samples.length, observedSpanMs: spanMs,
     consumedPercent: samples[0].remainingPercent - samples.at(-1).remainingPercent,
     lowerPacePerHour: bounds.min * 60, upperPacePerHour: bounds.max * 60,
     changedIntensity, rateMethod: bounds.method ?? 'conservative' }
-  if (!bounds.feasible) return { ...common, status: 'calibrating', reason: 'changing-pace' }
+  // After discarding a contradicted segment, establish the new pace before
+  // extrapolating it. Integer reports must pass the existing shared-quantizer
+  // check; a suffix with too few drops cannot establish that usage continued.
+  const integerReports = samples.every(sample => Number.isInteger(sample.remainingPercent))
+  if (contradicted(bounds) || (changedIntensity && (samples.length < 4 || spanMs < 20 * 60_000
+    || (integerReports && bounds.steadyHypothesisFailed !== false))))
+    return { ...common, status: 'calibrating', reason: 'changing-pace' }
   if (resetsAt !== null && resetsAt <= now / 1000) return { ...common, status: 'calibrating', reason: 'stale' }
+  // A fitted suffix after a change is only a rough estimate. Its conditional
+  // interval must not imply precision or promise to survive the next reset.
   // Quantization bounds may include zero even after several observed drops.
   // Offer a clearly provisional whole-segment estimate, never a finite upper
   // bound or a promise of surviving reset. Do not extrapolate a lone jump.
-  if (spanMs >= 5 * 60_000 && samples.length >= 3 && bounds.min <= 1e-9
+  if (spanMs >= 5 * 60_000 && samples.length >= 3 && (changedIntensity || bounds.min <= 1e-9)
     && common.consumedPercent >= 1) {
     const pacePerHour = common.consumedPercent / (spanMs / HOUR_MS)
     const runwaySeconds = clampPercent(window.remainingPercent) / pacePerHour * 3600
-    const untilReset = resetsAt === null ? null : resetsAt - now / 1000
     return { ...common, status: 'ready', provisional: true, pacePerHour, runwaySeconds,
-      survivesReset: untilReset !== null && runwaySeconds >= untilReset }
+      survivesReset: false }
   }
   // A flat trace or an isolated boundary crossing still cannot establish pace.
   if (spanMs < 60_000 || bounds.min <= 1e-9) return { ...common, status: 'calibrating', reason: 'resolution' }

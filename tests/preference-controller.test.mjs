@@ -32,6 +32,18 @@ function harness({ fail = false, extra = () => ({}), models } = {}) {
 
 const fallbackModels = [{ key: 'gpt-5.5', label: 'GPT-5.5', maximum: 1_000_000 }]
 
+test('webpage routing capability survives normalized preference reads and writes', async () => {
+  const h = harness({ extra: () => ({ fetchRoutingAvailable: true }) })
+  await h.ready()
+  assert.equal(h.controller.getSnapshot().fetchRoutingAvailable, true)
+  assert.equal(h.controller.getSnapshot().fetchProvider, 'dsh')
+  const pending = h.controller.set({ fetchProvider: 'codex' })
+  h.settle(); await pending
+  assert.equal(h.controller.getSnapshot().fetchRoutingAvailable, true)
+  assert.equal(h.controller.getSnapshot().fetchProvider, 'codex')
+  h.controller.dispose()
+})
+
 test('missing Codex runtime leaves ordinary preferences and the DSH backend usable', async () => {
   let installed = false
   const { controller } = harness({ extra: () => ({ subagentBackendAvailable: true, subagentRuntimeInstalled: installed }) })

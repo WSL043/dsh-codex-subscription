@@ -15,6 +15,11 @@ export const SEARCH_PROVIDER_AUTO = 'auto'
 export const SEARCH_PROVIDER_DSH = 'dsh'
 export const SEARCH_PROVIDER_CODEX = 'codex'
 export const DEFAULT_SEARCH_PROVIDER = SEARCH_PROVIDER_AUTO
+export const FETCH_PROVIDER_FIELD = 'fetchProvider'
+export const FETCH_PROVIDER_DSH = 'dsh'
+export const FETCH_PROVIDER_CODEX = 'codex'
+export const DEFAULT_FETCH_PROVIDER = FETCH_PROVIDER_DSH
+export const normalizeFetchProvider = value => value === FETCH_PROVIDER_CODEX ? FETCH_PROVIDER_CODEX : FETCH_PROVIDER_DSH
 export const SPEED_MODE_FIELD = 'speedMode'
 export const SPEED_MODE_STANDARD = 'standard'
 export const SPEED_MODE_FAST = 'fast'

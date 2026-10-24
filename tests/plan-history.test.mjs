@@ -29,6 +29,17 @@ test('the usage history keeps periods, hundredths of a percent and known breakdo
   assert.throws(() => parsePlanHistory({}), /malformed/)
 })
 
+test('tiny positive official usage stays positive, and missing totals are not inferred from breakdowns', () => {
+  const [tiny, pending] = parsePlanHistory({ periods: [
+    { ...period, used_basis_points: 0.125, breakdowns: [{ dimension: 'model', rows: [{ key: 'tiny', basis_points: 0.125 }] }] },
+    { ...period, used_basis_points: null },
+  ] }).periods
+  assert.equal(tiny.usedPercent, 0.00125)
+  assert.equal(tiny.breakdowns.model[0].percent, 0.00125)
+  assert.equal(pending.usedPercent, undefined)
+  assert.equal(pending.breakdowns.model[0].percent, 0.85)
+})
+
 function reader(responses) {
   const calls = []
   let clock = 1_000
@@ -57,6 +68,31 @@ test('the usage history reader sends the account headers once per cache lifetime
 test('a 403 says the account is not offered the report, only a 401 asks for a new sign-in', async () => {
   await assert.rejects(reader([new Response('x', { status: 403 })]).instance.read(), /does not offer the usage history to this account/)
   await assert.rejects(reader([new Response('x', { status: 401 })]).instance.read(), /sign-in needs to be renewed/)
+})
+
+test('manual refresh bypasses the five-minute data cache, background refresh reuses it', async () => {
+  const { instance, calls } = reader([
+    Response.json({ periods: [period] }), Response.json({ periods: [{ ...period, used_basis_points: 200 }] }),
+  ])
+  await instance.read()
+  assert.equal((await instance.read()).periods[0].usedPercent, 1.01)
+  assert.equal(calls.length, 1)
+  assert.equal((await instance.read({ force: true })).periods[0].usedPercent, 2)
+  assert.equal(calls.length, 2)
+})
+
+test('failure retry is bounded and clearing an account cannot reuse its cached history', async () => {
+  const { instance, calls, tick } = reader([
+    new Response('{}', { status: 503 }), Response.json({ periods: [period] }), Response.json({ periods: [] }),
+  ])
+  await assert.rejects(instance.read(), /503/)
+  await assert.rejects(instance.read({ force: true }), /503/)
+  assert.equal(calls.length, 1)
+  tick(30_001)
+  assert.equal((await instance.read({ force: true })).periods.length, 1)
+  instance.clear()
+  assert.equal((await instance.read()).periods.length, 0)
+  assert.equal(calls.length, 3)
 })
 
 test('usage/history is a public endpoint that only surfaces safe messages', async () => {

@@ -2,8 +2,7 @@ import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
 import { useAnchoredPosition, useDismissOnOutsidePointer } from './client-primitives.js'
 import { QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
-import { forecastRunway } from './quota-pace.js'
-import { fill, percent, uiLocale, windowLabel, usePreferenceSnapshot, formatRunway, formatQuotaForecast } from './client-shared.js'
+import { fill, percent, uiLocale, windowLabel, usePreferenceSnapshot, formatQuotaForecast } from './client-shared.js'
 import { useQuickQuota } from './client-quota.jsx'
 import { quotaWarning } from './capability-settings.js'
 
@@ -50,9 +49,9 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
       onMouseEnter={enter} onMouseLeave={leave}
       onClick={() => { if (pinned.current) dismiss(); else { pinned.current = true; setOpen(true); requestAnimationFrame(() => panel.current?.focus()) } }}>
       {compactQuotas.map((quota, index) => <span className="codexQuotaCompactWindow" key={`${quota.windowSeconds}-${index}`}>
-        {Math.abs(quota.windowSeconds - 604800) < 60 ? null : <span>{shortWindow(quota.windowSeconds, t)}</span>}
+        <span>{shortWindow(quota.windowSeconds, t)}</span>
         {preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR ? <progress className="codexComposerQuotaBar" max={100} value={quota.remainingPercent} aria-hidden="true" /> : null}
-        {preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_BAR ? <span>{`${percent(quota.remainingPercent)}%`}{forecastMode ? ` · ${forecastText(quota, t)}` : ''}</span> : null}
+        {preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_BAR ? <span>{`${percent(quota.remainingPercent)}%`}{forecastMode ? ` · ${formatQuotaForecast(quota.forecast, t, quota)}` : ''}</span> : null}
       </span>)}
     </button>
     {visible ? createPortal(<section ref={panel} id={id} role="dialog" aria-label={t('quotaDetails')}
@@ -60,7 +59,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
       style={{ ...position, visibility: position ? 'visible' : 'hidden' }}>
       {quotas.map((quota, index) => <div className="codexQuotaDetail" key={`${quota.windowSeconds}-${index}`}>
         <div><span>{windowLabel(quota.windowSeconds, t)}</span><strong>{fill(t('remaining'), { value: percent(quota.remainingPercent) })}</strong><span className="codexQuotaReset">{shortReset(quota, t)}</span></div>
-        {forecastMode ? <p>{formatQuotaForecast(quota.forecast, t)}</p> : null}
+        {forecastMode ? <p>{formatQuotaForecast(quota.forecast, t, quota)}</p> : null}
       </div>)}
     </section>, document.body) : null}
   </>
@@ -75,14 +74,4 @@ function shortReset(quota, t) {
   if (!Number.isSafeInteger(quota.resetsAt)) return t('resetUnknown')
   const value = new Date(quota.resetsAt * 1000).toLocaleString(uiLocale(), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   return fill(t('resets'), { value })
-}
-function forecastText(quota, t) {
-  const forecast = quota.forecast
-  if (forecast?.status === 'calibrating') return t(({ 'changing-pace': 'forecastCompactChanging', stale: 'forecastCompactStale' })[forecast.reason] ?? 'forecastCompactPending')
-  if (forecast?.status === 'idle') return t('quickQuotaForecastIdle')
-  const runway = forecastRunway(forecast)
-  if (runway?.kind === 'reset') return t('quickQuotaForecastUntilReset')
-  if (runway?.kind === 'range') return `≈${formatRunway(runway.min, t)}–${formatRunway(runway.max, t)}`
-  if (runway?.kind === 'point') return `≈${formatRunway(runway.seconds, t)}`
-  return t('forecastCompactPending')
 }

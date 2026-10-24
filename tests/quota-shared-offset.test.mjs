@@ -41,3 +41,17 @@ test('burst and long delayed delivery cannot be forced into a narrow steady-pace
  const plateau=[...Array.from({length:61},(_,i)=>sample(i,Math.floor(20+i*.1))),...Array.from({length:60},(_,i)=>sample(61+i,26))]
  assert.equal(quotaSharedOffsetInterval(plateau).feasible,false)
 })
+
+test('a refuted eligible steady quantizer is reported even when broad bounds still fit',()=>{
+ const points=Array.from({length:23},(_,i)=>{
+  const minute=i*3
+  return sample(minute,Math.round(20+.04*Math.min(minute,60)+.32*Math.max(0,minute-60)))
+ })
+ const base=quotaRateInterval(points)
+ assert.equal(base.feasible,true)
+ assert.equal(quotaSharedOffsetInterval(points).feasible,false)
+ const result=refineQuotaRate(points,base)
+ assert.equal(result.steadyHypothesisFailed,true)
+ assert.equal(result.min,base.min)
+ assert.equal(result.max,base.max)
+})

@@ -37,6 +37,8 @@ import {
   OUTPUT_VERBOSITY_FIELD,
   QUICK_QUOTA_MODE_FIELD,
   SEARCH_PROVIDER_FIELD,
+  FETCH_PROVIDER_FIELD,
+  normalizeFetchProvider,
   SPEED_MODE_FIELD,
 } from './settings-contract.js'
 import { readCapabilitySettings, CUSTOM_CONTEXT_OVERRIDES_FIELD } from './capability-settings.js'
@@ -63,6 +65,7 @@ export function createPreferenceController(rpc) {
   let disposed = false
   let subagentBackendAvailable = false
   let subagentRuntimeInstalled = false
+  let fetchRoutingAvailable = false
   let restartRequired = false
 
   const sameModels = (left, right) => left.length === right.length
@@ -90,6 +93,8 @@ export function createPreferenceController(rpc) {
         value?.[LEGACY_QUICK_QUOTA_FIELD],
       ),
       searchProvider: normalizeSearchProvider(value?.[SEARCH_PROVIDER_FIELD]),
+      fetchProvider: normalizeFetchProvider(value?.[FETCH_PROVIDER_FIELD]),
+      fetchRoutingAvailable,
       speedMode: normalizeSpeedMode(value?.[SPEED_MODE_FIELD]),
       outputVerbosity: normalizeOutputVerbosity(value?.[OUTPUT_VERBOSITY_FIELD]),
       inputImageDetail: normalizeInputImageDetail(value?.[INPUT_IMAGE_DETAIL_FIELD]),
@@ -134,6 +139,7 @@ export function createPreferenceController(rpc) {
     if (value?.liveSynced === false) restartRequired = true
     subagentBackendAvailable = value?.subagentBackendAvailable === true
     subagentRuntimeInstalled = value?.subagentRuntimeInstalled === true
+    fetchRoutingAvailable = value?.fetchRoutingAvailable === true
     if (!modelRefreshStarted) {
       contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
       availableModels = Array.isArray(value?.availableModels) ? value.availableModels : []
@@ -161,6 +167,7 @@ export function createPreferenceController(rpc) {
           value?.[LEGACY_QUICK_QUOTA_FIELD],
         ),
         [SEARCH_PROVIDER_FIELD]: normalizeSearchProvider(value?.[SEARCH_PROVIDER_FIELD]),
+        [FETCH_PROVIDER_FIELD]: normalizeFetchProvider(value?.[FETCH_PROVIDER_FIELD]),
         [SPEED_MODE_FIELD]: normalizeSpeedMode(value?.[SPEED_MODE_FIELD]),
         [OUTPUT_VERBOSITY_FIELD]: normalizeOutputVerbosity(value?.[OUTPUT_VERBOSITY_FIELD]),
         [INPUT_IMAGE_DETAIL_FIELD]: normalizeInputImageDetail(value?.[INPUT_IMAGE_DETAIL_FIELD]),

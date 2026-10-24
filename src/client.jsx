@@ -19,6 +19,7 @@ import { createAccountStatusController } from './account-status-controller.js'
 import { NS, CHANNEL, unwrap } from './client-shared.js'
 import { createSubscriptionRpcClient } from './rpc-contract.js'
 import { CodexComposerQuota } from './client-composer-quota.jsx'
+import { quotaUsageController } from './client-quota.jsx'
 import { CodexModelSelect } from './client-model-select.jsx'
 import { VoiceCallButton } from './client-voice-call.jsx'
 import { CodexSection } from './client-section.jsx'
@@ -46,6 +47,14 @@ export function apply(ctx) {
   }, 'codex-subscription: style')
   const rpc = createSubscriptionRpcClient(ctx.get('connection').rpc)
   const preference = createPreferenceController(rpc)
+  const quotaUsage = quotaUsageController(rpc)
+  ctx.effect(() => {
+    let mode = preference.getSnapshot().quickQuotaMode
+    return preference.subscribe(() => {
+      const next = preference.getSnapshot().quickQuotaMode
+      if (next !== mode) { mode = next; quotaUsage.invalidate({ preserveUsage: true }) }
+    })
+  }, 'codex-subscription: quota preference snapshot')
   const defaultModel = createDefaultModelController(rpc)
   ctx.effect(() => {
     let previous = JSON.stringify(preference.getSnapshot(), (key,value) => key.startsWith('image') || key === '' ? value : undefined)
@@ -59,7 +68,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     void preference.load()
     void accountStatus.load()
-    const disposeReset = ctx.on('connection/reset', () => { void preference.load(); void preference.refreshModels(); void accountStatus.reload() })
+    const disposeReset = ctx.on('connection/reset', () => { quotaUsage.invalidate(); void preference.load(); void preference.refreshModels(); void accountStatus.reload() })
     return () => {
       disposeReset?.()
       preference.dispose()

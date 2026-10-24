@@ -24,6 +24,68 @@ const usage = (remainingPercent, resetsAt = 2_000_000_000) => ({
   rateLimits: [{ id: 'codex', windows: [{ remainingPercent, windowSeconds: 604_800, resetsAt }] }],
 })
 
+const forecastTrace = points => {
+  const start = 1_900_000_000_000
+  let state, window
+  for (const [minute, remainingPercent] of points) {
+    window = { remainingPercent, windowSeconds: 604800, resetsAt: (start + 900 * 60_000) / 1000 }
+    state = observeQuotaForecast(state, [window], start + minute * 60_000).state
+  }
+  return estimateQuotaForecast(state, window, start + points.at(-1)[0] * 60_000)
+}
+
+test('observed acceleration recalibrates, then offers only a rough suffix estimate', () => {
+  const points = end => Array.from({ length: end / 3 + 1 }, (_, i) => {
+    const minute = i * 3
+    return [minute, 100 - Math.round(20 + .04 * Math.min(minute, 60) + .32 * Math.max(0, minute - 60))]
+  })
+  for (const minute of [66, 69, 72]) {
+    const result = forecastTrace(points(minute))
+    assert.equal(result.changedIntensity, true)
+    assert.equal(result.status, 'calibrating')
+    assert.equal(result.runwaySeconds, undefined)
+    assert.notEqual(result.survivesReset, true)
+  }
+  for (const minute of [75, 90, 120]) {
+    const result = forecastTrace(points(minute))
+    assert.equal(result.status, 'ready')
+    assert.equal(result.changedIntensity, true)
+    assert.equal(result.provisional, true)
+    assert.ok(result.runwaySeconds > 0)
+    assert.equal(result.runwayMinSeconds, undefined)
+    assert.equal(result.runwayMaxSeconds, undefined)
+    assert.equal(result.survivesReset, false)
+  }
+  // Once the old regime has left the existing two-hour window, normal
+  // stable-rate bounds can return without a permanent changed flag.
+  const recovered = forecastTrace(points(210))
+  assert.equal(recovered.status, 'ready')
+  assert.equal(recovered.changedIntensity, false)
+  assert.notEqual(recovered.provisional, true)
+  assert.ok(recovered.lowerPacePerHour <= 19.2 && recovered.upperPacePerHour >= 19.2)
+})
+
+test('stopped consumption and a pinched boundary do not retain the old precise countdown', () => {
+  for (const end of [75, 90, 120]) {
+    const points = Array.from({ length: end / 3 + 1 }, (_, i) => [i * 3, 100 - Math.floor(20 + .17 * Math.min(i * 3, 60))])
+    const result = forecastTrace(points)
+    assert.equal(result.status, 'calibrating')
+    assert.equal(result.runwaySeconds, undefined)
+    assert.notEqual(result.survivesReset, true)
+  }
+  const result = forecastTrace([[0,80],[15,78],[30,75],[45,73],[60,70],[75,70]])
+  assert.equal(result.status, 'calibrating')
+  assert.equal(result.runwaySeconds, undefined)
+})
+
+test('zero-lower-bound rough estimates never promise to last until reset', () => {
+  const result = forecastTrace([[0,42],[19,41],[38,40]])
+  assert.equal(result.status, 'ready')
+  assert.equal(result.provisional, true)
+  assert.equal(result.survivesReset, false)
+  assert.equal(result.runwayMaxSeconds, undefined)
+})
+
 test('forecast calibrates from official percentage observations without session or token data', () => {
   const start = 1_900_000_000_000
   let state = { windows: {} }
