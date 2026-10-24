@@ -141,6 +141,8 @@ Open **Settings → Codex** to manage accounts and preferences. Screenshots and 
 | **Create** | Image generation, editing, @image in the composer, image viewer, sketch board and agent drawing |
 | **Phone & more** | Phone remote control, experimental voice calls, local cache, support diagnostics |
 
+Voice conversation is off by default. Enable it under **Phone & more**, then start a call from the composer. When a native Linux window lacks WebRTC but supports audio capture, DSH automatically relays the audio using your existing subscription.
+
 **Model-aware context** follows your account's model directory; refreshing preserves your unsaved draft. Quota groups use backend-provided values, including separate buckets such as Spark.
 
 Subscription failures remain visible: no silent fallback to another paid route.

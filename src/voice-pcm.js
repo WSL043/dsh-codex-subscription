@@ -35,11 +35,13 @@ export async function openPcmVoiceCall({ rpc, sessionId, onEnd, chime = () => {}
   try {
     signal?.throwIfAborted()
     signal?.addEventListener('abort', abort, { once: true })
-    stream = await surface.navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
-    if (ended || signal?.aborted) { stream.getTracks().forEach(track => track.stop()); signal?.throwIfAborted(); throw new Error('Voice cancelled') }
+    // Resume inside the click gesture, before a microphone permission prompt can consume it.
     const AudioContextClass = surface.AudioContext ?? surface.webkitAudioContext
     context = new AudioContextClass()
     await context.resume()
+    signal?.throwIfAborted()
+    stream = await surface.navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
+    if (ended || signal?.aborted) { stream.getTracks().forEach(track => track.stop()); signal?.throwIfAborted(); throw new Error('Voice cancelled') }
     moduleUrl = surface.URL.createObjectURL(new surface.Blob([VOICE_CAPTURE_WORKLET], { type: 'application/javascript' }))
     await context.audioWorklet.addModule(moduleUrl)
     surface.URL.revokeObjectURL(moduleUrl); moduleUrl = undefined
