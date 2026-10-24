@@ -48,9 +48,16 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Install native GTK test runtime
+        timeout-minutes: 5
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends python3-gi gir1.2-webkit2-4.1 xvfb xauth xdotool pulseaudio gstreamer1.0-plugins-good
+          # Avoid the occasionally throttled runner mirror; keep Ubuntu archive signature checks.
+          for native_voice_sources in /etc/apt/sources.list /etc/apt/sources.list.d/ubuntu.sources /etc/apt/apt-mirrors.txt; do
+            if [[ -f "$native_voice_sources" ]]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$native_voice_sources"
+            fi
+          done
+          sudo apt-get -o Acquire::https::Timeout=30 -o Acquire::Retries=1 update -qq
+          sudo apt-get -o Acquire::https::Timeout=30 -o Acquire::Retries=1 install -y --no-install-recommends python3-gi gir1.2-webkit2-4.1 xvfb xauth xdotool pulseaudio gstreamer1.0-plugins-good
           export XDG_RUNTIME_DIR="$RUNNER_TEMP/voice-runtime"
           mkdir -p "$XDG_RUNTIME_DIR"
           chmod 700 "$XDG_RUNTIME_DIR"

@@ -29,7 +29,7 @@ function queue(limit) {
   }
 }
 
-/** Lazy, in-process audio transport for engines without WebRTC. No microphone, ports or credentials live here. */
+/** Lazy, in-process audio transport for engines without WebRTC. No microphone or credentials live here. */
 export function createHostVoiceMedia({ load = defaults, now = Date.now, idleMs = 5_000, connectMs = 20_000, onStop = () => {}, log = { info() {}, warn() {} } } = {}) {
   const calls = new Map(), starting = new Map()
   const stop = (sessionId, mediaId) => {
