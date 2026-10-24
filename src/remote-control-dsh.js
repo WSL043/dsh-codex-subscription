@@ -289,6 +289,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   const threadSources = new Map() // threadId -> the source the phone named when it created the thread ("user", "realtime_voice", ...)
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
+  const starting = new Map() // synchronous admission reservations, before the first await
   let catalog
 
   const service = () => {
@@ -396,11 +397,11 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       const values = projections()?.snapshot?.(session, ['tokenUsage', 'contextPressure'])?.values
       const used = values?.tokenUsage
       if (!used) return undefined
-      const breakdown = (total, input, cached, output) => ({ totalTokens: total, inputTokens: input, cachedInputTokens: cached, cacheWriteInputTokens: 0, outputTokens: output, reasoningOutputTokens: 0 })
+      const breakdown = (total, input, cached, output, written = 0) => ({ totalTokens: total, inputTokens: input, cachedInputTokens: cached, cacheWriteInputTokens: written, outputTokens: output, reasoningOutputTokens: 0 })
       const input = (used.uncachedInputTokens ?? 0) + (used.cacheReadTokens ?? 0) + (used.cacheWriteTokens ?? 0)
       const pressure = values.contextPressure?.pressureTokens ?? 0
       return {
-        total: breakdown(input + (used.outputTokens ?? 0), input, used.cacheReadTokens ?? 0, used.outputTokens ?? 0),
+        total: breakdown(input + (used.outputTokens ?? 0), input, used.cacheReadTokens ?? 0, used.outputTokens ?? 0, used.cacheWriteTokens ?? 0),
         last: breakdown(pressure, pressure, 0, 0), modelContextWindow: values.contextPressure?.contextWindow ?? null,
       }
     } catch { return undefined }
@@ -589,7 +590,23 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     return { text, pictures, content: [...(text === '' ? [] : [{ type: 'text', text }]), ...images] }
   }
 
-  async function startTurn(params, notify) {
+  async function startTurn(params, notify, queued) {
+    const id = params?.threadId
+    if (active.has(id) || starting.has(id)) throw invalidParams('A turn is already running in this conversation')
+    const launch = { queued, submitted: false, abort: new AbortController() }
+    starting.set(id, launch)
+    try { return await acceptTurn(params, notify, launch) }
+    catch (error) { if (launch.abort.signal.aborted && error?.name === 'AbortError') throw new RpcError(-32800, 'Turn start cancelled'); throw error }
+    finally { if (starting.get(id) === launch) starting.delete(id) }
+  }
+
+  async function startQueuedTurn(id, notify, queuedId, selection = {}) {
+    const queued = (queues.get(id) ?? []).find(entry => queuedId == null || entry.id === queuedId)
+    if (!queued) throw invalidParams('Nothing queued')
+    return startTurn({ ...selection, threadId: id, input: queued.input, clientUserMessageId: queued.clientUserMessageId }, notify, queued)
+  }
+
+  async function acceptTurn(params, notify, launch) {
     const { text, pictures, content } = contentOf(params?.input)
     lastPrompt.text = text
     const id = params?.threadId
@@ -601,10 +618,16 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     // serviceTier sticks like the model; serviceTierForTurn is for this turn only and is put back afterwards.
     const speedBefore = speed?.current?.()
     const speedForTurn = typeof params?.serviceTierForTurn === 'string' ? params.serviceTierForTurn : undefined
-    await applySpeed(speedForTurn ?? (Object.hasOwn(params ?? {}, 'serviceTier') ? params.serviceTier : undefined))
+    const restoreSpeed = async () => { if (speedForTurn !== undefined && speedBefore !== undefined && speed?.current?.() !== speedBefore) await Promise.resolve(speed.set?.(speedBefore)).catch(() => {}) }
+    try {
+      await applySpeed(speedForTurn ?? (Object.hasOwn(params ?? {}, 'serviceTier') ? params.serviceTier : undefined))
+      launch.abort.signal.throwIfAborted()
+      if (active.has(id)) throw invalidParams('A turn is already running in this conversation')
+      if (launch.queued && !(queues.get(id) ?? []).includes(launch.queued)) throw invalidParams('Queued submission was deleted before starting')
+    } catch (error) { await restoreSpeed(); throw error }
     const turn = emptyTurn()
     const userItem = { type: 'userMessage', id: randomUUID(), clientId: params.clientUserMessageId ?? null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(picture => ({ type: 'image', url: picture.url }))] }
-    const running = { turn, ended: undefined, userItem, priorMessageIds: new Set(agent.session.deriveMessages().map(message => message.id)), pendingImages: new Set(), abort: new AbortController() }
+    const running = { turn, ended: undefined, userItem, priorMessageIds: new Set(agent.session.deriveMessages().map(message => message.id)), pendingImages: new Set(), pendingSteers: new Set(), abort: launch.abort }
     active.set(id, running)
     phoneLog('turn accepted', { threadId: id, turnId: turn.id, itemId: userItem.id, hasClientId: userItem.clientId !== null, images: pictures.length })
     emit(id, 'turn/started', { threadId: id, turn })
@@ -613,18 +636,51 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     emit(id, 'item/started', { threadId: id, turnId: turn.id, item: userItem, startedAtMs: Date.now() })
     emit(id, 'item/completed', { threadId: id, turnId: turn.id, item: userItem, completedAtMs: Date.now() })
     try {
-      await service().prompt({ requestId: randomUUID(), sessionId: id, mode: 'queue', content }, AbortSignal.timeout(30_000))
+      launch.submitted = true
+      const admitted = await service().prompt({ requestId: launch.queued?.id ?? randomUUID(), sessionId: id, mode: 'queue', content }, AbortSignal.any([running.abort.signal, AbortSignal.timeout(30_000)]))
+      if (admitted?.accepted === false) throw new Error('DSH rejected the message')
     } catch (error) {
-      active.delete(id)
+      if (active.get(id) === running) active.delete(id)
+      const cancelled = running.abort.signal.aborted
+      turn.status = cancelled ? 'interrupted' : 'failed'
+      turn.completedAt = seconds(Date.now())
+      turn.error = cancelled ? null : { message: 'DSH did not accept the message', codexErrorInfo: null, additionalDetails: null }
+      running.abort.abort()
+      emit(id, 'turn/completed', { threadId: id, turn })
+      emit(id, 'thread/status/changed', { threadId: id, status: { type: 'idle' } })
+      await restoreSpeed()
+      if (cancelled) throw new RpcError(-32800, 'Turn start cancelled')
       throw new RpcError(-32603, error?.message ? `DSH did not accept the message: ${String(error.message).slice(0, 200)}` : 'DSH did not accept the message')
     }
+    // Admission can await I/O. Remove only this accepted identity from the latest
+    // queue, preserving concurrent reorder, additions and deletion of other items.
+    if (launch.queued) {
+      queues.set(id, (queues.get(id) ?? []).filter(entry => entry.id !== launch.queued.id))
+      emit(id, 'thread/queue/changed', { threadId: id })
+    }
+    // The host can finish attachment admission after an interrupt despite its
+    // RPC signal. Cancel once more after the accepted message actually exists.
+    if (running.abort.signal.aborted) {
+      running.ended ??= { kind: 'aborted' }
+      await Promise.resolve(service().cancel({ sessionId: id })).catch(() => {})
+    }
+    if (starting.get(id) === launch) starting.delete(id)
     void Promise.resolve(agent.whenIdle?.()).catch(() => {}).then(async () => {
+      running.finishing = true
+      const pendingSteers = [...running.pendingSteers]
+      if (pendingSteers.length) {
+        await Promise.allSettled(pendingSteers)
+        // Late host admission may briefly start a new driver after the first
+        // idle observation. Do not drain the next queued turn until it stops.
+        await Promise.resolve(agent.whenIdle?.()).catch(() => {})
+      }
       // Tool image reads can outlast the model. Finish them before publishing the final turn.
       if (running.pendingImages.size) phoneLog('waiting for tool images', { threadId: id, turnId: turn.id, pending: running.pendingImages.size })
       await Promise.allSettled([...running.pendingImages])
+      if (active.get(id) !== running) return
       turn.items = withRemoteImageOutput(turn).items
       // Report how DSH closed the turn, so model or credential failures reach the phone.
-      const reason = active.get(id)?.ended
+      const reason = running.ended
       turn.status = reason?.kind === 'error' ? 'failed' : reason?.kind === 'aborted' || reason?.kind === 'interrupted' ? 'interrupted' : 'completed'
       if (reason?.kind === 'error') {
         const message = String(reason.error?.message ?? reason.error?.code ?? 'The model request failed').slice(0, 500)
@@ -638,18 +694,14 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
         for (const message of agent.session.deriveMessages()) reconcileUser(id, running, message)
       } catch { /* the phone then simply reads DSH's own id */ }
       active.delete(id)
+      running.abort.abort()
       compactions.delete(id)
       const usageNow = tokenUsage(agent.session)
       if (usageNow) emit(id, 'thread/tokenUsage/updated', { threadId: id, turnId: turn.id, tokenUsage: usageNow })
       emit(id, 'turn/completed', { threadId: id, turn })
       phoneLog('turn completed', { threadId: id, turnId: turn.id, status: turn.status, items: turn.items.length })
       emit(id, 'thread/status/changed', { threadId: id, status: { type: 'idle' } })
-      const [next, ...rest] = queues.get(id) ?? []
-      if (next) {
-        queues.set(id, rest)
-        emit(id, 'thread/queue/changed', { threadId: id })
-        void startTurn({ threadId: id, input: next.input, clientUserMessageId: next.clientUserMessageId }, notify).catch(() => {})
-      }
+      if (queues.get(id)?.length) void startQueuedTurn(id, notify).catch(error => phoneLog('queued turn not accepted', { threadId: id, code: error?.code }, 'warn'))
     })
     // Match app-server: acknowledge the turn only. The user message arrives through item notifications,
     // linked to the phone's optimistic submission by clientId, rather than inserted a second time here.
@@ -951,7 +1003,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return { ...settings(agent, value.cwd), thread: value }
     },
     'turn/start': (params, { notify }) => titles.has(params?.threadId) ? titleTurn(params, notify) : startTurn(params, notify),
-    'turn/interrupt': params => { service().cancel({ sessionId: params?.threadId }); active.get(params?.threadId)?.abort?.abort(); return {} },
+    'turn/interrupt': params => { active.get(params?.threadId)?.abort?.abort(); starting.get(params?.threadId)?.abort.abort(); service().cancel({ sessionId: params?.threadId }); return {} },
     // DSH's /compact (0.2.0-rc.2 and later): condense the older history now. It is a turn of its own, like the app's.
     'thread/compact/start': async (params, { notify }) => {
       const id = params?.threadId
@@ -959,7 +1011,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       const agent = await agentFor(id)
       // The same /compact the Web app runs, so it answers with DSH's own wording and keeps the session log in step.
       if (typeof registry?.execute !== 'function' || registry.find?.(agent, 'compact') === undefined) throw new RpcError(-32601, 'This DSH version cannot compact a conversation on request')
-      if (active.has(id)) throw new RpcError(-32602, 'A turn is already running in this conversation')
+      if (active.has(id) || starting.has(id)) throw new RpcError(-32602, 'A turn is already running in this conversation')
       subscribe(id, notify)
       const turn = emptyTurn()
       const abort = new AbortController()
@@ -996,10 +1048,25 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       })()
       return {}
     },
-    'turn/steer': async params => {
+    'turn/steer': async (params, { signal } = {}) => {
+      const running = active.get(params?.threadId)
+      const current = () => running && active.get(params?.threadId) === running && running.userItem && !running.finishing && !running.ended && !running.abort.signal.aborted && !starting.has(params?.threadId) && params?.expectedTurnId === running.turn.id
+      signal?.throwIfAborted()
+      if (!current()) throw invalidParams('The expected turn is not active')
       const { content } = contentOf(params?.input)
-      await service().prompt({ requestId: randomUUID(), sessionId: params?.threadId, mode: 'steer', content }, AbortSignal.timeout(30_000))
-      return { turnId: params?.expectedTurnId ?? active.get(params?.threadId)?.turn.id ?? '' }
+      const operation = (async () => {
+        const admitted = await service().prompt({ requestId: randomUUID(), sessionId: params.threadId, mode: 'steer', content }, AbortSignal.any([running.abort.signal, AbortSignal.timeout(30_000), ...(signal ? [signal] : [])]))
+        if (admitted?.accepted === false) throw invalidParams('DSH rejected the steering message')
+        if (!current()) {
+          // Keep this turn reserved until admission settles; a late steer must
+          // not create work after its target completed or was interrupted. Its
+          // accepted acknowledgement still belongs to this actual turn ID.
+          if (active.get(params.threadId) === running) await Promise.resolve(service().cancel({ sessionId: params.threadId })).catch(() => {})
+        }
+        return { turnId: running.turn.id }
+      })()
+      running.pendingSteers.add(operation)
+      try { return await operation } finally { running.pendingSteers.delete(operation) }
     },
     'thread/name/set': async params => {
       await service().rename({ sessionId: params?.threadId, title: String(params?.name ?? '') })
@@ -1009,17 +1076,18 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'thread/queue/list': params => ({ data: queues.get(params?.threadId) ?? [], nextCursor: null }),
     'thread/queue/add': async (params, { notify }) => {
       if (!Array.isArray(params?.input)) throw invalidParams('input is required')
+      contentOf(params.input)
       const id = params?.threadId
       const queued = { id: randomUUID(), clientUserMessageId: String(params.clientUserMessageId ?? randomUUID()), input: params.input }
       subscribe(id, notify)
-      if (!active.has(id)) await startTurn({ threadId: id, input: queued.input, clientUserMessageId: queued.clientUserMessageId, model: params.model, effort: params.effort }, notify)
-      else {
-        queues.set(id, [...(queues.get(id) ?? []), queued])
-        emit(id, 'thread/queue/changed', { threadId: id })
-      }
+      queues.set(id, [...(queues.get(id) ?? []), queued])
+      emit(id, 'thread/queue/changed', { threadId: id })
+      if (!active.has(id) && !starting.has(id)) await startQueuedTurn(id, notify, queued.id, { model: params.model, effort: params.effort })
       return { queuedSubmission: queued }
     },
     'thread/queue/delete': params => {
+      const launch = starting.get(params?.threadId)
+      if (launch?.submitted && launch.queued?.id === params?.queuedSubmissionId) throw invalidParams('Queued submission is being accepted')
       const list = queues.get(params?.threadId) ?? []
       const next = list.filter(entry => entry.id !== params?.queuedSubmissionId)
       queues.set(params?.threadId, next)
@@ -1027,20 +1095,13 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return { deleted: next.length !== list.length }
     },
     'thread/queue/reorder': params => {
-      const order = Array.isArray(params?.queuedSubmissionIds) ? params.queuedSubmissionIds : []
+      const order = Array.isArray(params?.queuedSubmissionIds) ? [...new Set(params.queuedSubmissionIds)] : []
       const list = queues.get(params?.threadId) ?? []
       queues.set(params?.threadId, [...order.map(id => list.find(entry => entry.id === id)).filter(Boolean), ...list.filter(entry => !order.includes(entry.id))])
       emit(params?.threadId, 'thread/queue/changed', { threadId: params?.threadId })
       return {}
     },
-    'thread/queue/start': async (params, { notify }) => {
-      const list = queues.get(params?.threadId) ?? []
-      const queued = list.find(entry => params?.queuedSubmissionId == null || entry.id === params.queuedSubmissionId)
-      if (!queued) throw invalidParams('Nothing queued')
-      queues.set(params.threadId, list.filter(entry => entry !== queued))
-      emit(params.threadId, 'thread/queue/changed', { threadId: params.threadId })
-      return startTurn({ threadId: params.threadId, input: queued.input, clientUserMessageId: queued.clientUserMessageId }, notify)
-    },
+    'thread/queue/start': (params, { notify }) => startQueuedTurn(params?.threadId, notify, params?.queuedSubmissionId),
   }
 
   const callOf = (session, callId) => {
