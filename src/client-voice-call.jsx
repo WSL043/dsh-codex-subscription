@@ -187,7 +187,7 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
       setLiveCall(null)
       setState('idle')
       setUnsupported(['voice-no-webrtc', 'voice-no-microphone', 'voice-insecure'].includes(error?.code) ? error.code : false)
-      setProblem(t(voiceCallProblem(error)))
+      setProblem(voiceCallProblem(error))
     }
   }
   const click = () => {
@@ -219,7 +219,7 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
         aria-label={t(live ? 'voiceEnd' : 'voiceStart')} title={t(live ? 'voiceEnd' : 'voiceStart')}
         style={{ left: place.left, top: place.top, width: place.width, height: place.height }}
       >{live ? <Cross /> : <Bars />}</button>
-      {problem ? <span className="codexVoiceCallNote" role="alert" style={{ right: 0 }}>{problem}
+      {problem ? <span className="codexVoiceCallNote" role="alert" style={{ right: 0 }}>{t(problem)}
         {browserUrl ? <span className="codexVoiceBrowserActions">
           <a href={browserUrl} target="_blank" rel="noopener noreferrer">{t('voiceBrowserContinue')}</a>
           {typeof navigator.clipboard?.writeText === 'function' ? <button type="button" onClick={() => { void navigator.clipboard.writeText(browserUrl).then(() => setBrowserCopied(true)).catch(() => setBrowserCopied('error')) }}>{t(browserCopied === 'error' ? 'voiceBrowserCopyFailed' : browserCopied ? 'voiceBrowserCopied' : 'voiceBrowserCopy')}</button> : null}
@@ -282,15 +282,15 @@ export function VoiceCallCard({ rpc, preference, snapshot, t }) {
     try {
       const result = await rpc.call(CHANNEL, 'voice/preview', { voice, language }, controller.signal)
       if (!alive.current || sequence !== previewSequence.current) return
-      if (!result.ok) { setSample({ state: 'error', note: t(voicePreviewProblem(result.error?.code)) }); return }
+      if (!result.ok) { setSample({ state: 'error', code: voicePreviewProblem(result.error?.code) }); return }
       phase = 'playback'
       const clip = new Audio(result.value.audio)
       audio.current = clip
       clip.onended = () => { if (alive.current && sequence === previewSequence.current) setSample(current => ({ ...current, state: 'idle' })) }
-      clip.onerror = () => { if (alive.current && sequence === previewSequence.current) setSample({ state: 'error', note: t('voicePlaybackFailed') }) }
+      clip.onerror = () => { if (alive.current && sequence === previewSequence.current) setSample({ state: 'error', code: 'voicePlaybackFailed' }) }
       setSample({ state: 'playing', note: [result.value.description, result.value.accent].filter(Boolean).join(' · ') })
       await clip.play()
-    } catch { if (alive.current && sequence === previewSequence.current && !controller.signal.aborted) setSample({ state: 'error', note: t(voicePreviewProblem(phase === 'playback' ? 'playback' : undefined)) }) }
+    } catch { if (alive.current && sequence === previewSequence.current && !controller.signal.aborted) setSample({ state: 'error', code: voicePreviewProblem(phase === 'playback' ? 'playback' : undefined) }) }
   }
   // The voices ChatGPT lists (with a sample) come first; the rest sit in one submenu so the list stays short.
   const listed = VOICE_VOICES.filter(value => offered ? offered.includes(value) : VOICE_VOICES.indexOf(value) < 9)
@@ -308,7 +308,7 @@ export function VoiceCallCard({ rpc, preference, snapshot, t }) {
         onSelect={value => { if (value === 'more') return; void preference.set({ [VOICE_VOICE_FIELD]: value }); void playVoice(value) }}
         trailing={<button className="codexSubscriptionContextTrigger" type="button" disabled={sample.state === 'loading'} onClick={() => { void playVoice(snapshot.voiceVoice) }}>{sample.state === 'loading' ? t('voiceLoading') : t('voicePlay')}</button>} />
       {sample.state === 'playing' && sample.note ? <p className="codexSubscriptionHelp" role="status">{sample.note}</p> : null}
-      {sample.state === 'error' ? <p className="codexSubscriptionHelp" role="status">{sample.note}</p> : null}
+      {sample.state === 'error' ? <p className="codexSubscriptionHelp" role="status">{t(sample.code)}</p> : null}
       <ChoiceRow label={t('voiceLanguage')} disabled={!snapshot.writable} selectedId={snapshot.voiceLanguage} items={languages} onSelect={value => { void preference.set({ [VOICE_LANGUAGE_FIELD]: value }); void playVoice(snapshot.voiceVoice, value) }} />
       <p className="codexSubscriptionHelp">{t('voicePreviewHint')}</p>
     </> : null}
