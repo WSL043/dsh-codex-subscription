@@ -58,3 +58,18 @@ test('catalog cache ignores malformed JSON and catalog shapes, and supports acco
   await clearModelCatalogCache(accountId, { directory })
   assert.equal(await loadModelCatalogCache(accountId, cacheOptions(savedAt)), undefined)
 })
+
+test('cancelled or superseded cache writes do not publish a file', async t => {
+  const { accountId, filename } = await testAccount(t)
+  const controller = new AbortController()
+  controller.abort()
+  await assert.rejects(saveModelCatalogCache(accountId, { rawCatalog }, { ...cacheOptions(savedAt), signal: controller.signal }), error => error.name === 'AbortError')
+  await saveModelCatalogCache(accountId, { rawCatalog }, { ...cacheOptions(savedAt), isCurrent: () => false })
+  await assert.rejects(readFile(filename), error => error.code === 'ENOENT')
+})
+
+test('oversized catalogs are rejected before writing a cache artifact', async t => {
+  const { accountId, filename } = await testAccount(t)
+  await assert.rejects(saveModelCatalogCache(accountId, { rawCatalog: { ...rawCatalog, padding: 'x'.repeat(4 * 1024 * 1024) } }, cacheOptions(savedAt)), /size limit/)
+  await assert.rejects(readFile(filename), error => error.code === 'ENOENT')
+})

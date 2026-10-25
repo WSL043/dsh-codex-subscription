@@ -206,283 +206,211 @@ function mergeModel(baseModels, remote) {
 export function createOfficialModelCatalog(options = {}) {
   const fetchCatalog = options.fetch ?? fetch
   const getNow = options.now ?? Date.now
-  const scheduleTimeout = options.setTimeout ?? setTimeout
-  const cancelTimeout = options.clearTimeout ?? clearTimeout
-  const timeoutMs = Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
-    ? options.timeoutMs
-    : DEFAULT_REFRESH_TIMEOUT_MS
-  let models
-  let metadata = new Map()
-  let etag
-  let rawCatalog
-  let activeAccountId
-  let source = 'unavailable'
-  let initializing
-  let revision = 0
-  let refreshing
-  let generation = 0
-  let refreshStatus = 'idle'
-  // Until the first catalog read succeeds the picker is empty, so a failed read (timeout, network block, proxy hiccup)
-  // is tried again on its own after these delays instead of waiting for the settings page or a restart (#187).
-  const retryDelays = Array.isArray(options.retryDelaysMs) ? options.retryDelaysMs.filter(delay => Number.isFinite(delay) && delay > 0) : []
-  let retries = 0
-  let retryTimer
-  const stopRetry = () => { if (retryTimer !== undefined) cancelTimeout(retryTimer); retryTimer = undefined }
-  const scheduleRetry = currentGeneration => {
-    if (currentGeneration !== generation || retryTimer !== undefined || retries >= retryDelays.length) return
-    retryTimer = scheduleTimeout(() => {
+  const schedule = options.setTimeout ?? setTimeout
+  const cancelTimer = options.clearTimeout ?? clearTimeout
+  const timeoutMs = Number.isFinite(options.timeoutMs) && options.timeoutMs > 0 ? options.timeoutMs : DEFAULT_REFRESH_TIMEOUT_MS
+  const loadCache = options.loadCache ?? loadModelCatalogCache
+  const saveCache = options.saveCache ?? saveModelCatalogCache
+  const retryDelays = (options.retryDelaysMs ?? []).filter(delay => Number.isFinite(delay) && delay > 0)
+  let models, rawCatalog, etag, accountId, initializing, refreshing, retryTimer
+  let metadata = new Map(), generation = 0, revision = 0, retries = 0, initialized = false
+  let source = 'unavailable', refreshStatus = 'idle', writeSequence = 0
+  const writes = new Set()
+  const notify = () => { try { options.onUpdated?.() } catch {} }
+  const cacheError = error => { try { options.onCacheError?.(error) } catch {} }
+  const stopRetry = () => { if (retryTimer !== undefined) cancelTimer(retryTimer); retryTimer = undefined }
+  const cancelled = () => Object.assign(new Error('Codex model catalog operation cancelled'), { name: 'AbortError' })
+  const current = flight => flight.generation === generation && !flight.controller.signal.aborted
+  const wait = (promise, signal) => {
+    if (!signal) return promise
+    if (signal.aborted) return Promise.reject(signal.reason ?? cancelled())
+    let abort
+    const interrupted = new Promise((_, reject) => {
+      abort = () => reject(signal.reason ?? cancelled())
+      signal.addEventListener('abort', abort, { once: true })
+    })
+    return Promise.race([promise, interrupted]).finally(() => signal.removeEventListener('abort', abort))
+  }
+  const bounded = (label, work, signal) => {
+    const controller = new AbortController()
+    const abort = () => controller.abort(signal?.reason ?? cancelled())
+    signal?.addEventListener('abort', abort, { once: true })
+    if (signal?.aborted) abort()
+    const flight = { generation, controller }
+    const timer = schedule(() => controller.abort(new Error(`Codex model catalog ${label} timed out`)), timeoutMs)
+    timer.unref?.()
+    const task = Promise.resolve().then(() => { controller.signal.throwIfAborted(); return work(flight, controller.signal) })
+    flight.promise = wait(task, controller.signal).finally(() => {
+      cancelTimer(timer)
+      signal?.removeEventListener('abort', abort)
+    })
+    return flight
+  }
+  const scheduleRetry = expected => {
+    if (expected !== generation || retryTimer !== undefined || retries >= retryDelays.length) return
+    retryTimer = schedule(() => {
       retryTimer = undefined
-      if (currentGeneration !== generation) return
-      refresh().catch(() => {})
+      if (expected === generation) void refresh().catch(() => {})
     }, retryDelays[retries++])
     retryTimer.unref?.()
   }
-
-  /** 清除当前账号的内存目录并使未完成请求失效。 */
-  const invalidate = (notify, preserveInitialization = false, advanceRevision = true) => {
-    generation += 1
-    const flight = refreshing
-    refreshing = undefined
-    flight?.cancel()
-    stopRetry()
-    retries = 0
-    models = undefined
-    rawCatalog = undefined
-    metadata = new Map()
-    etag = undefined
-    activeAccountId = undefined
-    source = 'unavailable'
-    refreshStatus = 'idle'
-    if (advanceRevision) revision += 1
-    if (!preserveInitialization) initializing = undefined
-    if (notify) options.onUpdated?.()
-  }
-
-  /** 读取当前账号并在远端刷新前恢复该账号的有效缓存。 */
-  const initialize = () => {
-    if (initializing !== undefined) return initializing.promise
-    const startGeneration = generation
-    const promise = (async () => {
-      const { accountId } = await readSubscriptionCredentials(options.getAuth, options.readCredential)
-      if (startGeneration !== generation) return false
-      if (typeof accountId !== 'string' || accountId.length === 0) {
-        if (activeAccountId !== undefined || models !== undefined) throw new Error('Codex model catalog credentials are unavailable')
-        return false
-      }
-      if (accountId === activeAccountId) return true
-      const hadState = activeAccountId !== undefined || models !== undefined
+  const restore = async (nextAccountId, flight, signal) => {
+    if (!current(flight)) return false
+    if (accountId !== nextAccountId) {
       const hadModels = models !== undefined
-      invalidate(false, true, hadState)
-      const cacheGeneration = generation
-      activeAccountId = accountId
-      let cache
-      if (options.cacheDirectory !== undefined) {
-        try {
-          cache = await loadModelCatalogCache(accountId, {
-            directory: options.cacheDirectory,
-            now: getNow(),
-            parseCatalog: parseOfficialModelCatalog,
-          })
-        } catch (error) {
-          if (options.onCacheError === undefined) throw error
-          options.onCacheError(error)
-        }
-      }
-      if (cacheGeneration !== generation || activeAccountId !== accountId) return false
-      if (cache !== undefined) {
-        const remote = parseOfficialModelCatalog(cache.rawCatalog, getNow())
-        const next = remote.map(model => mergeModel(options.baseModels(), model)).filter(Boolean)
-        if (next.length > 0) {
-          models = next
-          rawCatalog = cache.rawCatalog
-          metadata = new Map(remote.map(model => [model.id, model]))
-          etag = cache.etag
-          source = 'cached'
-          revision += 1
-          options.onUpdated?.()
-          return true
-        }
-      }
-      if (hadModels) options.onUpdated?.()
-      return true
-    })().finally(() => {
-      if (initializing?.promise === promise) initializing = undefined
-    })
-    initializing = { generation: startGeneration, promise }
-    return promise
-  }
-
-  /** 确认账号缓存已初始化后刷新远端目录。 */
-  const refresh = ({ signal } = {}) => {
-    if (signal?.aborted) return Promise.reject(signal.reason ?? new Error('Codex model catalog refresh aborted'))
-    if (refreshing?.generation === generation) return refreshing.promise
-    const currentGeneration = generation
-    refreshStatus = 'refreshing'
-    return initialize().then(initialized => {
-      if (!initialized) {
-        if (currentGeneration === generation) refreshStatus = 'idle'
-        return false
-      }
-      return refreshInitialized(signal)
-    }, error => {
-      if (currentGeneration === generation) {
-        refreshStatus = 'failed'
-        scheduleRetry(currentGeneration)
-      }
-      throw error
-    })
-  }
-
-  /** 使用已初始化的账号凭据请求目录，并提交仍属于当前账号的响应。 */
-  const refreshInitialized = signal => {
-    if (signal?.aborted) return Promise.reject(signal.reason ?? new Error('Codex model catalog refresh aborted'))
-    if (refreshing?.generation === generation) return refreshing.promise
-    const currentGeneration = generation
-    refreshStatus = 'refreshing'
-    let outcome = 'idle'
-    const controller = new AbortController()
-    const abort = () => {
-      if (!controller.signal.aborted) controller.abort(signal?.reason ?? new Error('Codex model catalog refresh aborted'))
+      accountId = nextAccountId
+      models = rawCatalog = etag = undefined
+      metadata = new Map()
+      source = 'unavailable'
+      if (hadModels) { revision += 1; notify() }
     }
-    signal?.addEventListener('abort', abort, { once: true })
-    const requestSignal = controller.signal
-    let timer
-    const timeoutError = new Error('Codex model catalog refresh timed out')
-    const work = (async () => {
-      const { access, accountId } = await readSubscriptionCredentials(options.getAuth, options.readCredential, requestSignal)
-      if (currentGeneration !== generation || requestSignal.aborted) return false
-      if (typeof access !== 'string' || access.length === 0 || typeof accountId !== 'string' || accountId.length === 0) {
-        if (activeAccountId !== undefined || models !== undefined) throw new Error('Codex model catalog credentials are unavailable')
-        return false
+    let cached
+    if (nextAccountId && options.cacheDirectory !== undefined) {
+      try { cached = await loadCache(nextAccountId, { directory: options.cacheDirectory, now: getNow(), parseCatalog: parseOfficialModelCatalog, signal }) }
+      catch (error) { if (!current(flight)) throw error; cacheError(error) }
+    }
+    if (!current(flight) || accountId !== nextAccountId) return false
+    if (cached !== undefined) {
+      const remote = parseOfficialModelCatalog(cached.rawCatalog, getNow())
+      const next = remote.map(model => mergeModel(options.baseModels(), model)).filter(Boolean)
+      if (next.length) {
+        models = next; rawCatalog = cached.rawCatalog; etag = cached.etag
+        metadata = new Map(remote.map(model => [model.id, model]))
+        source = 'cached'; revision += 1; notify()
       }
-      if (accountId !== activeAccountId) {
-        invalidate(true)
-        await initialize()
-        if (activeAccountId === accountId) void refresh().catch(() => {})
-        return false
-      }
-      const headers = {
-        authorization: `Bearer ${access}`,
-        'chatgpt-account-id': accountId,
-        accept: 'application/json',
-        originator: 'pi',
-        'user-agent': USER_AGENT,
-        ...(etag === undefined ? {} : { 'if-none-match': etag }),
-      }
-      const response = await fetchCatalog(CODEX_MODELS_URL, { method: 'GET', redirect: 'error', headers, signal: requestSignal })
-      if (currentGeneration !== generation || requestSignal.aborted) return false
-      if (response.status === 304) {
-        // An unchanged catalog can still have crossed a retirement date since it was parsed.
-        if (rawCatalog === undefined) throw new Error('Codex returned HTTP 304 without a cached model catalog')
-        const remote = parseOfficialModelCatalog(rawCatalog, getNow())
-        const next = remote.map(model => mergeModel(options.baseModels(), model)).filter(Boolean)
-        if (next.length === 0) throw new Error('Codex returned an empty model catalog')
-        const changed = JSON.stringify(next) !== JSON.stringify(models)
-        const previousSource = source
-        const nextEtag = nonEmpty(response.headers.get('etag')) ?? etag
-        if (changed) {
-          models = next
-          metadata = new Map(remote.map(model => [model.id, model]))
-          revision += 1
-        }
-        etag = nextEtag
-        source = 'online'
-        if (options.cacheDirectory !== undefined) {
-          try {
-            await saveModelCatalogCache(accountId, { rawCatalog, etag: nextEtag }, {
-              directory: options.cacheDirectory,
-              now: getNow(),
-              parseCatalog: parseOfficialModelCatalog,
-              isCurrent: () => currentGeneration === generation && !requestSignal.aborted,
-            })
-          } catch (error) {
-            if (options.onCacheError === undefined) throw error
-            options.onCacheError(error)
-          }
-        }
-        if (currentGeneration !== generation || requestSignal.aborted) return false
-        outcome = 'ok'
-        refreshStatus = 'ok'
-        if (changed || previousSource !== 'online') options.onUpdated?.()
-        return changed
-      }
-      if (!response.ok) throw new Error(`Codex model catalog failed (HTTP ${response.status})`)
-      const raw = await response.json()
-      const remote = parseOfficialModelCatalog(raw, getNow())
-      if (currentGeneration !== generation || requestSignal.aborted) return false
-      if (remote.length === 0) throw new Error('Codex returned an empty model catalog')
-      const baseModels = options.baseModels()
-      const next = remote.map(model => mergeModel(baseModels, model)).filter(Boolean)
-      if (next.length === 0) throw new Error('Codex model catalog has no compatible models')
-      if (currentGeneration !== generation || requestSignal.aborted) return false
-      const nextEtag = nonEmpty(response.headers.get('etag')) ?? etag
-      models = next
-      rawCatalog = raw
-      metadata = new Map(remote.map(model => [model.id, model]))
-      etag = nextEtag
-      revision += 1
-      source = 'online'
-      if (options.cacheDirectory !== undefined) {
-        try {
-          await saveModelCatalogCache(accountId, { rawCatalog: raw, etag: nextEtag }, {
-            directory: options.cacheDirectory,
-            now: getNow(),
-            parseCatalog: parseOfficialModelCatalog,
-            isCurrent: () => currentGeneration === generation && !requestSignal.aborted,
-          })
-        } catch (error) {
-          if (options.onCacheError === undefined) throw error
-          options.onCacheError(error)
-        }
-      }
-      if (currentGeneration !== generation || requestSignal.aborted) return false
-      outcome = 'ok'
-      refreshStatus = 'ok'
-      options.onUpdated?.()
-      return true
-    })()
-    let rejectAborted
-    const abortPromise = new Promise((_, reject) => {
-      rejectAborted = () => reject(requestSignal.reason ?? new Error('Codex model catalog refresh aborted'))
-      if (requestSignal.aborted) rejectAborted()
-      else requestSignal.addEventListener('abort', rejectAborted, { once: true })
-    })
-    timer = scheduleTimeout(() => controller.abort(timeoutError), timeoutMs)
-    timer.unref?.()
-    const promise = Promise.race([work, abortPromise]).catch(error => {
-      outcome = 'failed'
-      throw error
-    }).finally(() => {
-      cancelTimeout(timer)
-      signal?.removeEventListener('abort', abort)
-      requestSignal.removeEventListener('abort', rejectAborted)
-      if (refreshing?.promise === promise) {
-        refreshing = undefined
-        refreshStatus = outcome
-      }
-      if (outcome === 'ok') { retries = 0; stopRetry() } else if (outcome === 'failed') scheduleRetry(currentGeneration)
-    })
-    refreshing = { generation: currentGeneration, promise, cancel: () => controller.abort() }
-    return promise
+    }
+    return true
   }
-
+  const initialize = ({ signal } = {}) => {
+    if (signal?.aborted) return Promise.reject(signal.reason ?? cancelled())
+    if (initializing) return wait(initializing.promise, signal)
+    if (initialized) return Promise.resolve(accountId !== undefined)
+    const flight = bounded('initialization', async (flight, requestSignal) => {
+      // Cached metadata needs the current vault identity, not an OAuth network refresh.
+      // Actual authenticated requests still take their token and account from one snapshot.
+      const credential = await options.readCredential?.({ signal: requestSignal })
+      if (!current(flight)) return false
+      const id = credential?.type === 'oauth' ? nonEmpty(credential.accountId) : undefined
+      await restore(id, flight, requestSignal)
+      if (!current(flight)) return false
+      initialized = true
+      return id !== undefined
+    }, signal)
+    initializing = flight
+    flight.promise = flight.promise.finally(() => { if (initializing === flight) initializing = undefined })
+    return flight.promise
+  }
+  const persist = (id, raw, nextEtag) => {
+    if (options.cacheDirectory === undefined) return
+    const expected = generation, sequence = ++writeSequence
+    const flight = bounded('cache write', async (flight, signal) => {
+      await saveCache(id, { rawCatalog: raw, etag: nextEtag }, {
+        directory: options.cacheDirectory, now: getNow(), parseCatalog: parseOfficialModelCatalog, signal,
+        isCurrent: () => current(flight) && accountId === id && writeSequence === sequence,
+      })
+    })
+    writes.add(flight)
+    flight.promise.catch(error => { if (expected === generation) cacheError(error) })
+      .finally(() => writes.delete(flight))
+  }
+  const refresh = ({ signal } = {}) => {
+    if (signal?.aborted) return Promise.reject(signal.reason ?? cancelled())
+    if (refreshing) return wait(refreshing.promise, signal)
+    refreshStatus = 'refreshing'
+    const flight = bounded('refresh', async (flight, requestSignal) => {
+      await initialize({ signal: requestSignal })
+      if (!current(flight)) return false
+      const credentials = await readSubscriptionCredentials(options.getAuth, options.readCredential, requestSignal)
+      if (!current(flight)) return false
+      if (!nonEmpty(credentials.access) || !nonEmpty(credentials.accountId)) {
+        if (accountId !== undefined || models !== undefined) throw new Error('Codex model catalog credentials are unavailable')
+        refreshStatus = 'idle'
+        return false
+      }
+      if (credentials.accountId !== accountId) {
+        await restore(credentials.accountId, flight, requestSignal)
+        if (!current(flight)) return false
+        initialized = true
+      }
+      const id = credentials.accountId
+      const response = await fetchCatalog(CODEX_MODELS_URL, {
+        method: 'GET', redirect: 'error', signal: requestSignal,
+        headers: { authorization: `Bearer ${credentials.access}`, 'chatgpt-account-id': id, accept: 'application/json', originator: 'pi', 'user-agent': USER_AGENT, ...(etag === undefined ? {} : { 'if-none-match': etag }) },
+      })
+      if (!current(flight) || accountId !== id) return false
+      if (response.status !== 304 && !response.ok) throw new Error(`Codex model catalog failed (HTTP ${response.status})`)
+      const raw = response.status === 304 ? rawCatalog : await response.json()
+      if (!current(flight) || accountId !== id) return false
+      if (raw === undefined) throw new Error('Codex returned HTTP 304 without a cached model catalog')
+      const remote = parseOfficialModelCatalog(raw, getNow())
+      const next = remote.map(model => mergeModel(options.baseModels(), model)).filter(Boolean)
+      if (!next.length) throw new Error('Codex returned an empty or incompatible model catalog')
+      const changed = response.status !== 304 || JSON.stringify(next) !== JSON.stringify(models)
+      const previousSource = source
+      models = next; rawCatalog = raw
+      metadata = new Map(remote.map(model => [model.id, model]))
+      etag = nonEmpty(response.headers.get('etag')) ?? etag
+      source = 'online'; refreshStatus = 'ok'
+      if (changed) revision += 1
+      if (changed || previousSource !== 'online') notify()
+      // Cache availability must never hold back a valid directory or its host notification.
+      if (current(flight) && accountId === id) persist(id, raw, etag)
+      return changed
+    }, signal)
+    refreshing = flight
+    flight.promise = flight.promise.then(value => {
+      if (current(flight)) { retries = 0; stopRetry() }
+      return value
+    }, error => {
+      if (flight.generation === generation) {
+        refreshStatus = signal?.aborted ? 'idle' : 'failed'
+        if (!signal?.aborted) scheduleRetry(flight.generation)
+      }
+      throw error
+    }).finally(() => { if (refreshing === flight) refreshing = undefined })
+    return flight.promise
+  }
   return Object.freeze({
-    refresh,
-    // The account's catalog is the only list. Signed out, or before the first
-    // successful read, there are no models: without the account or the network
-    // no request could succeed, so a bundled list would only mislead.
-    getModels: () => models ?? [],
-    metadata: modelId => metadata.get(modelId),
-    reviewModel: parentId => officialReviewModel(rawCatalog, parentId),
-    revision: () => revision,
-    capabilityGaps: () => [...metadata.values()]
-      .filter(model => model.unsupported && /^[a-z][a-z0-9._-]{0,79}$/u.test(model.id))
-      .slice(0, 20)
-      .map(model => ({ model: model.id, ...structuredClone(model.unsupported) })),
+    initialize, refresh,
+    getModels: () => models ?? [], metadata: id => metadata.get(id),
+    reviewModel: id => officialReviewModel(rawCatalog, id), revision: () => revision,
+    capabilityGaps: () => [...metadata.values()].filter(model => model.unsupported && /^[a-z][a-z0-9._-]{0,79}$/u.test(model.id)).slice(0, 20).map(model => ({ model: model.id, ...structuredClone(model.unsupported) })),
     status: () => ({ source, refresh: refreshStatus }),
-    initialize,
+    flushCache: () => Promise.all([...writes].map(flight => flight.promise.catch(() => {}))),
     clear() {
-      invalidate(true)
+      generation += 1; writeSequence += 1
+      initializing?.controller.abort(cancelled()); refreshing?.controller.abort(cancelled())
+      for (const flight of writes) flight.controller.abort(cancelled())
+      initializing = refreshing = undefined
+      stopRetry(); retries = 0; initialized = false
+      models = rawCatalog = etag = accountId = undefined
+      metadata = new Map(); source = 'unavailable'; refreshStatus = 'idle'
+      revision += 1; notify()
+    },
+  })
+}
+
+/** Gate actual asynchronous adapter entry points, while keeping the provider registered. */
+export function withModelCatalogReady(adapter, catalog, { signal: lifetime } = {}) {
+  const ready = async signal => {
+    const active = lifetime && signal ? AbortSignal.any([lifetime, signal]) : lifetime ?? signal
+    active?.throwIfAborted()
+    await catalog.initialize({ signal: active })
+    if (catalog.getModels().length === 0) await catalog.refresh({ signal: active })
+    active?.throwIfAborted()
+  }
+  return new Proxy(adapter, {
+    get(target, property) {
+      const value = Reflect.get(target, property, target)
+      if (typeof value === 'function' && ['resolveModel', 'prepareCall', 'listModels'].includes(property)) return async (...args) => {
+        await ready(args[2])
+        return value.apply(target, args)
+      }
+      if (property === 'stream' && typeof value === 'function') return async function* (options) {
+        await ready(options?.signal)
+        yield* value.call(target, options)
+      }
+      return typeof value === 'function' ? value.bind(target) : value
     },
   })
 }

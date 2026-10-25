@@ -35,7 +35,7 @@ import { openCodexAuthUrl } from './external-url.js'
 import { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinator.js'
 import { createCodexNetworkTransport } from './oauth-network.js'
 import { createModels, openaiCodexProvider, openaiCodexSubscriptionProvider } from './pi-ai-runtime.js'
-import { createOfficialModelCatalog } from './model-catalog.js'
+import { createOfficialModelCatalog, withModelCatalogReady } from './model-catalog.js'
 import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET } from './capability-settings.js'
 import { DSH_SEARCH_PROVIDER_ID, createDshSearchProvider } from './dsh-search.js'
 import { createSearchRouter, gateSearchProvider } from './search-router.js'
@@ -444,15 +444,15 @@ export function apply(ctx, config = {}) {
   })
   ctx.effect(() => settings.watch((value, previous) => hiddenDirectory.settingsChanged(normalizeDisabledModels(value[DISABLED_MODELS_FIELD]), normalizeDisabledModels(previous[DISABLED_MODELS_FIELD]))), 'codex-subscription: hidden model directory')
   ctx.effect(() => ctx.on?.('session/event', (_session, event) => { if (event?.type === 'request/context') hiddenDirectory.dependenciesChanged() }), 'codex-subscription: hidden model dependencies')
-  ctx.effect(async () => {
-    try {
-      await modelCatalog.initialize()
-    } catch (error) {
-      ctx.logger?.debug?.('could not initialize the Codex model catalog (%s)', error?.code ?? error?.name ?? 'unknown error')
-    }
-    const disposeAdapter = ctx.llm.registerAdapter([PROVIDER], hiddenDirectory.wrap(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(provider.wrapRetryAdapter(adapter))), provider)))
-    void modelCatalog.refresh().catch(error => ctx.logger?.debug?.('could not refresh Codex model catalog (%s)', error?.code ?? error?.name ?? 'unknown error'))
+  ctx.effect(() => {
+    const lifetime = new AbortController()
+    const readyAdapter = withModelCatalogReady(hiddenDirectory.wrap(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(provider.wrapRetryAdapter(adapter))), provider)), modelCatalog, { signal: lifetime.signal })
+    const disposeAdapter = ctx.llm.registerAdapter([PROVIDER], readyAdapter)
+    // Defer credential work until the synchronous apply() has installed resolveAuth.
+    void Promise.resolve().then(() => modelCatalog.refresh({ signal: lifetime.signal }))
+      .catch(error => { if (!lifetime.signal.aborted) ctx.logger?.debug?.('could not refresh Codex model catalog (%s)', error?.code ?? error?.name ?? 'unknown error') })
     return () => {
+      lifetime.abort()
       disposeAdapter?.()
       modelCatalog.clear()
     }
