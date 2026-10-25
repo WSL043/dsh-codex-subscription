@@ -1,4 +1,4 @@
-import { cpSync, existsSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
@@ -6,6 +6,8 @@ import { testFiles } from '../../scripts/test-groups.mjs'
 
 const source = fileURLToPath(new URL('../../', import.meta.url))
 const runner = resolve(process.argv[2])
+if (!process.argv[3]) throw new Error('Explicit locked test dependency directory is required')
+const testDependencies = resolve(process.argv[3])
 const dependencies = join(runner, 'node_modules', '.pnpm', 'node_modules')
 if (!existsSync(dependencies)) throw new Error('Official pnpm runtime dependencies are missing')
 // Keep resolution beside pnpm's real hoisted directory. Aliasing that directory
@@ -15,17 +17,18 @@ try {
   for (const name of ['src', 'tests', 'scripts', 'package.json', 'cordis.patch.yml']) {
     cpSync(join(source, name), join(probe, name), { recursive: true })
   }
-  // Supply only test-owned browser dependencies. The shared client formatter
-  // imports React even though these behavior tests never mount a component.
-  // DSH packages must still resolve from the official runner's own cohort.
-  for (const name of ['fake-indexeddb', 'react']) {
-    const owner = existsSync(join(runner, 'node_modules', name)) ? runner : source
-    cpSync(realpathSync(join(owner, 'node_modules', name)), join(probe, 'node_modules', name), { recursive: true })
-  }
-  // These are plugin-owned media dependencies from the locked checkout, not DSH cohort packages.
-  // A real-path link also retains their adjacent pnpm transitive dependencies.
-  for (const name of ['werift', 'opusscript']) {
-    symlinkSync(realpathSync(join(source, 'node_modules', name)), join(probe, 'node_modules', name), process.platform === 'win32' ? 'junction' : 'dir')
+  // Release checkouts intentionally have no node_modules. Only these test-owned
+  // packages come from the separately materialized, frozen checkout lockfile.
+  // DSH packages still resolve from the official runner's own cohort.
+  mkdirSync(join(probe, 'node_modules'), { recursive: true })
+  const manifest = JSON.parse(readFileSync(join(source, 'package.json'), 'utf8'))
+  for (const name of ['fake-indexeddb', 'react', 'werift', 'opusscript']) {
+    const dependency = realpathSync(join(testDependencies, 'node_modules', name))
+    const expected = manifest.dependencies?.[name] ?? manifest.devDependencies?.[name]
+    const installed = JSON.parse(readFileSync(join(dependency, 'package.json'), 'utf8'))
+    if (installed.name !== name || installed.version !== expected) throw new Error(`Locked test dependency mismatch: ${name}`)
+    // Keep transitive resolution adjacent to the actual pnpm package directory.
+    symlinkSync(dependency, join(probe, 'node_modules', name), process.platform === 'win32' ? 'junction' : 'dir')
   }
   const result = spawnSync(process.execPath, ['--test', ...testFiles('behavior')], { cwd: probe, stdio: 'inherit' })
   if (result.error) throw result.error

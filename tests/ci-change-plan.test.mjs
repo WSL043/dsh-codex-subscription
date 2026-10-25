@@ -44,7 +44,7 @@ test('previously omitted suites and future behavior tests reach their CI gate', 
 })
 
 test('test dispatch changes exercise all CI gates', () => {
-  for (const file of ['scripts/test-groups.mjs', 'scripts/run-tests.mjs', '.github/scripts/accept-official-release.ps1', '.github/scripts/test-official-runtime.mjs']) {
+  for (const file of ['scripts/test-groups.mjs', 'scripts/run-tests.mjs', '.github/scripts/accept-official-release.ps1', '.github/scripts/test-official-runtime.mjs', '.github/scripts/prepare-official-test-dependencies.mjs']) {
     const result = plan([file])
     assert.equal(result.status, 0, result.stderr)
     assert.deepEqual(JSON.parse(result.stdout).plan, {
