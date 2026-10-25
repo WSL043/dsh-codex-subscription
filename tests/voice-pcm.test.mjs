@@ -5,7 +5,7 @@ import { voicePcmBytes } from '../src/voice-audio.js'
 
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms))
 const tone=Buffer.from(voicePcmBytes(new Float32Array(960).fill(.3))).toString('base64')
-function setup({ moduleError, microphone, start }={}) {
+function setup({ moduleError, microphone, start, stop }={}) {
   const state={stopped:0,revoked:0,closed:0,ended:0,requests:[],gains:[],failAudio:false}
   const track={enabled:true,stop(){state.stopped++}},stream={getTracks:()=>[track],getAudioTracks:()=>[track]}
   const node=()=>({connect(){return this},disconnect(){},stop(){this.onended?.()},start(){}})
@@ -27,6 +27,7 @@ function setup({ moduleError, microphone, start }={}) {
   const rpc={async call(_channel,endpoint,payload,signal){
     state.requests.push({endpoint,payload,signal})
     if(endpoint==='voice/start')return start?start(payload,signal):{ok:true,value:{transport:'pcm',mediaId:'test-media',sampleRate:24000}}
+    if(endpoint==='voice/stop'&&stop)return stop(payload,signal)
     if(endpoint==='voice/audio')return state.failAudio?{ok:false,error:{code:'unavailable'}}:{ok:true,value:{audio:tone}}
     return {ok:true,value:{}}
   }}
@@ -102,4 +103,47 @@ test('a cancelled start closes a late host response without leaving a media leas
   await assert.rejects(opening,error=>error.name==='AbortError')
   assert.equal(options.state.stopped,1)
   assert.equal(options.state.requests.find(r=>r.endpoint==='voice/stop').payload.mediaId,'late-media')
+})
+
+test('a cancelled late start bounds its cleanup independently when the host withholds the stop acknowledgement',async t=>{
+  t.mock.timers.enable({apis:['setTimeout']})
+  let reply,cleanupSignal,finished=false,failure
+  const deadlines=[]
+  const options=setup({
+    start:()=>new Promise(resolve=>{reply=resolve}),
+    stop:(_payload,signal)=>new Promise((_resolve,reject)=>{
+      cleanupSignal=signal
+      signal?.addEventListener('abort',()=>reject(signal.reason),{once:true})
+    }),
+  }),controller=new AbortController()
+  options.surface.AbortSignal={timeout(ms){
+    deadlines.push(ms)
+    const timeout=new AbortController()
+    setTimeout(()=>timeout.abort(new DOMException('Cleanup deadline','TimeoutError')),ms)
+    return timeout.signal
+  }}
+  const opening=openPcmVoiceCall({...options,sessionId:'s',signal:controller.signal})
+  const observed=opening.then(()=>{finished=true},error=>{finished=true;failure=error})
+  for(let i=0;i<20&&!reply;i++)await Promise.resolve()
+  assert.equal(typeof reply,'function')
+  controller.abort()
+  assert.equal(options.state.stopped,1,'the microphone is released before the late response')
+  reply({ok:true,value:{transport:'pcm',mediaId:'late-media',sampleRate:24000}})
+  for(let i=0;i<20&&!cleanupSignal;i++)await Promise.resolve()
+  assert.deepEqual(deadlines,[3000])
+  assert.ok(cleanupSignal)
+  assert.notEqual(cleanupSignal,controller.signal)
+  assert.equal(cleanupSignal.aborted,false,'cleanup must not reuse the already cancelled opening signal')
+  assert.equal(options.state.requests.find(r=>r.endpoint==='voice/stop').payload.mediaId,'late-media')
+  t.mock.timers.tick(2999)
+  await Promise.resolve()
+  assert.equal(finished,false)
+  t.mock.timers.tick(1)
+  for(let i=0;i<20&&!finished;i++)await Promise.resolve()
+  assert.equal(finished,true,'opening must settle at the independent cleanup deadline')
+  await observed
+  assert.equal(failure?.name,'AbortError','the original cancellation stays the opening result')
+  assert.equal(options.state.stopped,1)
+  assert.equal(options.state.closed,1)
+  assert.equal(options.state.portClosed,true)
 })
