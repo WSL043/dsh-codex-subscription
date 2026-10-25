@@ -222,14 +222,15 @@ export function ContextWindowPreference({ preference, t }) {
 export function ModelCatalogStatus({ preference, t, title }) {
   const snapshot = usePreferenceSnapshot(preference)
   const online = snapshot.catalogStatus?.source === 'online'
+  const cached = snapshot.catalogStatus?.source === 'cached'
   const { refresh: catalogRefresh } = snapshot.catalogStatus ?? {}
   const failed = snapshot.modelError || catalogRefresh === 'failed'
   const loading = snapshot.modelsLoading || catalogRefresh === 'refreshing'
-  const message = loading ? 'catalogLoading' : failed && !online ? 'catalogFailed' : online ? 'catalogOnline' : 'catalogSignedOut'
+  const message = loading ? 'catalogLoading' : failed && cached ? 'catalogCachedFailed' : failed && !online ? 'catalogFailed' : online ? 'catalogOnline' : cached ? 'catalogCached' : 'catalogSignedOut'
   return <div className="codexModelsHead">
     <h3>{title}</h3>
     <span className={failed && !online ? 'codexSubscriptionError' : 'codexSubscriptionPreferenceHint'} role={failed && !online ? 'alert' : undefined}>{t(message)}</span>
-    {online || catalogRefresh !== 'idle' ? <Button type="button" variant="outline" disabled={snapshot.modelsLoading} aria-busy={snapshot.modelsLoading} onClick={() => { void preference.refreshModels() }}>{t(snapshot.modelsLoading ? 'refreshing' : 'catalogRefresh')}</Button> : null}
+    {online || cached || catalogRefresh !== 'idle' ? <Button type="button" variant="outline" disabled={snapshot.modelsLoading} aria-busy={snapshot.modelsLoading} onClick={() => { void preference.refreshModels() }}>{t(snapshot.modelsLoading ? 'refreshing' : 'catalogRefresh')}</Button> : null}
   </div>
 }
 

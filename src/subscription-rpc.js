@@ -345,7 +345,10 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
       if (endpoint === 'logout') tasks.push(() => usageReader.clear(), () => accountUsageReader?.clear())
       if (endpoint === 'account/remove' && typeof payload?.id === 'string') tasks.push(() => usageReader.clearScope(payload.id))
       const outcomes = await Promise.allSettled(tasks.map(task => Promise.resolve().then(task)))
-      if (outcomes.some(value => value.status === 'rejected')) {
+      const catalogOutcomes = endpoint === 'logout'
+        ? []
+        : await Promise.allSettled([Promise.resolve().then(() => modelCatalog?.initialize())])
+      if ([...outcomes, ...catalogOutcomes].some(value => value.status === 'rejected')) {
         try { onCleanupFailure?.() } catch { /* Diagnostics must not change account results. */ }
       }
       if (endpoint !== 'logout') void Promise.resolve().then(() => modelCatalog?.refresh({ signal: undefined })).catch(() => {})

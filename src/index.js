@@ -172,6 +172,8 @@ export function apply(ctx, config = {}) {
   ctx.effect(() => ctx.on?.('plugin-manager/install-state', value => runtimeManagement.progress(value)))
   const modelCatalog = createOfficialModelCatalog({
     onUpdated: () => ctx.llm.emitAdaptersUpdated?.(),
+    onCacheError: error => ctx.logger?.debug?.('could not access the Codex model catalog cache (%s)', error?.code ?? error?.name ?? 'unknown error'),
+    cacheDirectory: dshHomePath('state', 'codex-subscription', 'model-catalog'),
     getAuth: options => resolveAuth(options),
     readCredential: options => store.read(PROVIDER, options),
     baseModels: () => baseProvider.getModels(),
@@ -442,7 +444,19 @@ export function apply(ctx, config = {}) {
   })
   ctx.effect(() => settings.watch((value, previous) => hiddenDirectory.settingsChanged(normalizeDisabledModels(value[DISABLED_MODELS_FIELD]), normalizeDisabledModels(previous[DISABLED_MODELS_FIELD]))), 'codex-subscription: hidden model directory')
   ctx.effect(() => ctx.on?.('session/event', (_session, event) => { if (event?.type === 'request/context') hiddenDirectory.dependenciesChanged() }), 'codex-subscription: hidden model dependencies')
-  ctx.llm.registerAdapter([PROVIDER], hiddenDirectory.wrap(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(provider.wrapRetryAdapter(adapter))), provider)))
+  ctx.effect(async () => {
+    try {
+      await modelCatalog.initialize()
+    } catch (error) {
+      ctx.logger?.debug?.('could not initialize the Codex model catalog (%s)', error?.code ?? error?.name ?? 'unknown error')
+    }
+    const disposeAdapter = ctx.llm.registerAdapter([PROVIDER], hiddenDirectory.wrap(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(provider.wrapRetryAdapter(adapter))), provider)))
+    void modelCatalog.refresh().catch(error => ctx.logger?.debug?.('could not refresh Codex model catalog (%s)', error?.code ?? error?.name ?? 'unknown error'))
+    return () => {
+      disposeAdapter?.()
+      modelCatalog.clear()
+    }
+  }, 'codex-subscription: official model catalog')
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
   const codexFetch = createCodexFetchProvider({
     allowed: () => fetchRouted && (settings.get().otherModels !== 'off' || currentAgent()?.session.requestContext?.()?.provider === PROVIDER),
@@ -751,9 +765,6 @@ export function apply(ctx, config = {}) {
   })
 
   const handler=diagnosticOperations.wrap((endpoint,payload,signal)=>endpoint.startsWith('sketch/')?sketchBridge.rpc(endpoint,payload):subscriptionHandler(endpoint,payload,signal))
-  ctx.effect(() => {
-    void modelCatalog.refresh().catch(error => ctx.logger?.debug?.('could not refresh Codex model catalog: %s', error.message))
-  }, 'codex-subscription: official model catalog')
 
   ctx.inject(['connection'], connectionContext => connectionContext.effect(
     () => registerSubscriptionTransport(connectionContext.connection, handler),

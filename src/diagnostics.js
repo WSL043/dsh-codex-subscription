@@ -130,7 +130,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     ...(collected.compaction ? { compaction: collected.compaction } : {}),
     ...(collected.review ? { review: collected.review } : {}),
     ...(collected.streamFailure ? { streamFailure: collected.streamFailure } : {}),
-    ...(catalog && ['unavailable', 'online'].includes(catalog.source)
+    ...(catalog && ['unavailable', 'cached', 'online'].includes(catalog.source)
       && ['idle', 'refreshing', 'ok', 'failed'].includes(catalog.refresh)
       ? { catalog: { source: catalog.source, refresh: catalog.refresh, ...(gaps.length ? { unsupported: gaps } : {}) } } : {}),
     configuration: {
