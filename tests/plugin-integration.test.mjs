@@ -114,6 +114,7 @@ test('custom context rows follow the active upstream model catalog', () => {
 
 function fakeContext({ connection = true, webServer = true, fetchRouting = true } = {}) {
   const registered = []
+  const disposedAdapters = []
   const handled = []
   const listeners = []
   const searchProviders = []
@@ -121,6 +122,7 @@ function fakeContext({ connection = true, webServer = true, fetchRouting = true 
   const settings = []
   const webUpdates = []
   const disposers = new Map()
+  const pendingEffects = []
   const provided = new Map()
   const preference = { autoQuotaRetry: false, quickQuotaVisible: false, searchProvider: SEARCH_PROVIDER_AUTO, outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, streamIdleTimeoutMinutes: 10, speedMode: SPEED_MODE_STANDARD, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 1_000_000, customContextGpt56: 1_000_000 }
   let credential
@@ -160,7 +162,7 @@ function fakeContext({ connection = true, webServer = true, fetchRouting = true 
     llm: {
       registerAdapter(providers, adapter) {
         registered.push({ providers, adapter })
-        return () => {}
+        return () => { disposedAdapters.push(adapter) }
       },
     },
     attachments: {
@@ -224,11 +226,23 @@ function fakeContext({ connection = true, webServer = true, fetchRouting = true 
     },
     get(name) { return provided.get(name) },
     provide(name, value) { provided.set(name, value) },
-    effect(register, label) { const dispose = register(); if (typeof dispose === 'function') disposers.set(label, dispose); return dispose },
+    effect(register, label) {
+      const result = register()
+      if (result && typeof result.then === 'function') {
+        const pending = Promise.resolve(result).then(dispose => {
+          if (typeof dispose === 'function') disposers.set(label, dispose)
+        })
+        pendingEffects.push(pending)
+        return pending
+      }
+      if (typeof result === 'function') disposers.set(label, result)
+      return result
+    },
   }
   if (!fetchRouting) Object.defineProperty(ctx.web, 'fetchProviders', { get: () => fetchProviderMap })
   return {
-    ctx, config: preference, registered, handled, listeners, provided, searchProviders, settings, tools, webUpdates, disposers, fetchProviderMap,
+    ctx, config: preference, registered, disposedAdapters, handled, listeners, provided, searchProviders, settings, tools, webUpdates, disposers, fetchProviderMap,
+    async settleEffects() { await Promise.all(pendingEffects) },
     async request(endpoint, payload, signal) {
       const method = 'codex-subscription/' + endpoint
       const route = handled.find(route => route.path === '/api/' + method)
@@ -324,17 +338,44 @@ test('unloading stops retained Codex handles even when a later registry wrapper 
   await assert.rejects(host.fetchProviderMap.get('codex-subscription-fetch').fetch({ url: 'https://example.com/' }), error => error.code === 'WEB_PROVIDER_UNAVAILABLE')
 })
 
-test('plugin activates without the web connection service in Headless mode', () => {
+test('plugin activates without the web connection service in Headless mode', async () => {
   const host = fakeContext({ connection: false })
 
   assert.doesNotThrow(() => applyPlugin(host.ctx, host.config))
+  await host.settleEffects()
   assert.deepEqual(host.registered.map(item => item.providers), [['openai-codex']])
   assert.equal(host.handled.length, 0)
+})
+
+test('a credential read failure does not prevent adapter registration', async () => {
+  const host = fakeContext()
+  host.ctx.credentials.resolve = async () => { throw new Error('credential store unavailable') }
+  applyPlugin(host.ctx, host.config)
+  await host.settleEffects()
+  assert.deepEqual(host.registered.map(item => item.providers), [['openai-codex']])
+})
+
+test('adapter is registered immediately and disposal cannot wait for or register after a stuck vault read', async () => {
+  const host = fakeContext()
+  let release
+  const vault = new Promise(resolve => { release = resolve })
+  host.ctx.credentials.resolve = () => vault
+  applyPlugin(host.ctx, host.config)
+  assert.equal(host.registered.length, 1, 'no provider-missing startup window')
+  await new Promise(resolve => setImmediate(resolve))
+  const result = host.disposers.get('codex-subscription: official model catalog')()
+  assert.equal(result, undefined, 'disposal does not await asynchronous initialization')
+  assert.equal(host.disposedAdapters.length, 1)
+  await assert.rejects(host.registered[0].adapter.resolveModel('openai-codex', 'gpt-6-luna'), error => error.name === 'AbortError')
+  release(undefined)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(host.registered.length, 1, 'late initialization cannot register an adapter again')
 })
 
 test('signed out, the account advertises no models and model metadata needs no credentials', async () => {
   const host = fakeContext()
   applyPlugin(host.ctx, host.config)
+  await host.settleEffects()
   // DSH 0.2.1-alpha.3 and later resolve the route's key while listing models, so signed out must answer
   // "no credential" (an empty list) rather than an authorization failure.
   host.ctx.credentials.resolve = async () => undefined
@@ -346,6 +387,7 @@ test('signed out, the account advertises no models and model metadata needs no c
 test('hiding a model only changes the saved display list, not what the adapter advertises', async () => {
   const host = fakeContext()
   applyPlugin(host.ctx, host.config)
+  await host.settleEffects()
   const adapter = host.registered[0].adapter
   const signal = new AbortController().signal
   const updated = await host.request('preferences/update', { [DISABLED_MODELS_FIELD]: ['gpt-5.5'] }, signal)
@@ -359,6 +401,7 @@ test('hiding a model only changes the saved display list, not what the adapter a
 test('plugin registers one Codex route, subscription image tool, and DSH-trusted redacted RPC', async () => {
   const host = fakeContext()
   applyPlugin(host.ctx, host.config)
+  await host.settleEffects()
 
   assert.equal('CODEX_PROVIDER_POLICY' in plugin, false, 'do not replace the removed boundary with cosmetic metadata')
   assert.deepEqual(host.registered.map(item => item.providers), [['openai-codex']])

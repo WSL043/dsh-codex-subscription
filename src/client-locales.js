@@ -1,6 +1,6 @@
 export const zh = {
   voiceHostUnavailable: 'DSH 语音桥未能启动。可以在浏览器中继续，或查看语音诊断。',
-  voiceMediaHint: '缺少 WebRTC 的窗口会经运行 DSH 的主机转发音频，仍使用当前订阅，无需 API Key。',
+  voiceMediaHint: '窗口不支持 WebRTC 时，可在浏览器中继续同一会话。音色试听不受影响，仍使用当前订阅，无需 API Key。',
   voiceBrowserContinue: '在浏览器继续此会话', voiceBrowserCopy: '复制会话链接', voiceBrowserCopied: '已复制', voiceBrowserCopyFailed: '复制失败，请手动复制链接',
   voicePreviewSignIn: '试听需要重新登录 ChatGPT，请登录后再试。', voiceCatalogFailed: '语音目录加载失败，请检查网络后重试；这不表示该音色没有样本。', voiceDownloadFailed: '试听音频下载失败，请重试。', voicePlaybackFailed: '音频已取得，但播放失败。请检查浏览器的声音权限后重试。', voicePreviewFailed: '试听加载失败，请检查连接后重试。',
   voiceWebRTCUnavailable: '此窗口不支持语音通话所需的 WebRTC。请在支持 WebRTC 的浏览器中打开同一 DSH 会话；音色试听仍可使用。', voiceInsecure: '语音需要安全连接。请通过 HTTPS 或本机 localhost 打开 DSH。', voiceMicUnavailable: '此窗口无法使用麦克风。请在支持麦克风的浏览器中打开 DSH。', voiceMicMissing: '未找到可用麦克风，请检查设备连接。',
@@ -173,7 +173,7 @@ export const zh = {
   sketch: '草图 · Beta', sketchTitle: '画出你的想法', sketchAttach: '附加草图', sketchCancel: '取消', sketchUndo: '撤销', sketchRedo: '重做', sketchClear: '清空', sketchEraser: '橡皮', sketchPen: '画笔', sketchColor: '颜色', sketchWidth: '笔刷粗细', sketchFailed: '无法附加草图，请保留画板后重试。', sketchHint: '确认只会附加图片，不会自动生成。发送时说明你想要的风格与细节。',
 
   searchOptions: '搜索选项', searchDomainCount: '个域名',
-  catalogRefresh: '刷新模型', catalogOnline: '已加载账户在线模型目录', catalogSignedOut: '登录后显示账户可用的模型。', catalogLoading: '正在读取账户模型目录…', catalogFailed: '无法读取账户模型目录，请检查网络后重试。',
+  catalogRefresh: '刷新模型', catalogOnline: '已加载账户在线模型目录', catalogCached: '正在使用本地保存的账户模型目录', catalogCachedFailed: '正在使用本地模型目录，在线更新失败。', catalogSignedOut: '登录后显示账户可用的模型。', catalogLoading: '正在读取账户模型目录…', catalogFailed: '无法读取账户模型目录，请检查网络后重试。',
   pickerModelsTitle: '输入框模型列表', pickerModelsHint: '只控制输入框中的模型列表；不会影响已选模型或模型请求。新模型默认显示。',
   searchMode: '订阅搜索模式', searchMode_live: '实时', searchMode_cached: '缓存（实验）', searchMode_disabled: '停用',
   searchModeHint: '仅影响 Codex 订阅搜索。缓存模式请求已有索引，需实机确认账户支持；失败时不会自动切换来源。',
@@ -296,7 +296,7 @@ export const zh = {
 
 export const en = {
   voiceHostUnavailable: 'The DSH voice bridge could not start. Continue in your browser or check voice diagnostics.',
-  voiceMediaHint: 'On engines without WebRTC, audio is relayed through the DSH host using your current subscription. No API key is needed.',
+  voiceMediaHint: 'If this window does not support WebRTC, continue the same conversation in a browser. Voice samples remain available. Your existing subscription is used; no API key is needed.',
   voiceBrowserContinue: 'Continue this conversation in a browser', voiceBrowserCopy: 'Copy conversation link', voiceBrowserCopied: 'Copied', voiceBrowserCopyFailed: 'Copy failed; copy the link manually',
   voicePreviewSignIn: 'Sign in to ChatGPT again to load voice samples.', voiceCatalogFailed: 'The voice catalog could not load. Check the connection and retry; this does not mean the voice has no sample.', voiceDownloadFailed: 'The voice sample could not download. Please retry.', voicePlaybackFailed: 'The audio loaded but could not play. Check browser sound permissions and retry.', voicePreviewFailed: 'The voice sample could not load. Check the connection and retry.',
   voiceWebRTCUnavailable: 'This window does not support WebRTC voice calls. Open the same DSH conversation in a WebRTC-capable browser. Voice samples remain available.', voiceInsecure: 'Voice requires a secure connection. Open DSH over HTTPS or local localhost.', voiceMicUnavailable: 'Microphone access is unavailable in this window. Open DSH in a browser with microphone support.', voiceMicMissing: 'No microphone was found. Check the device connection.',
@@ -469,7 +469,7 @@ export const en = {
   sketch: 'Sketch · Beta', sketchTitle: 'Draw your idea', sketchAttach: 'Attach sketch', sketchCancel: 'Cancel', sketchUndo: 'Undo', sketchRedo: 'Redo', sketchClear: 'Clear', sketchEraser: 'Eraser', sketchPen: 'Pen', sketchColor: 'Color', sketchWidth: 'Brush width', sketchFailed: 'Could not attach the sketch. Keep the canvas and try again.', sketchHint: 'Confirming only attaches an image. Describe the style and details before sending.',
 
   searchOptions: 'Search options', searchDomainCount: 'domains',
-  catalogRefresh: 'Refresh models', catalogOnline: 'Account model catalog loaded', catalogSignedOut: 'Sign in to show the models your account can use.', catalogLoading: 'Reading the account model catalog…', catalogFailed: 'Could not read the account model catalog. Check the network and try again.',
+  catalogRefresh: 'Refresh models', catalogOnline: 'Account model catalog loaded', catalogCached: 'Using the locally saved account model catalog', catalogCachedFailed: 'Using the local model catalog; the online update failed.', catalogSignedOut: 'Sign in to show the models your account can use.', catalogLoading: 'Reading the account model catalog…', catalogFailed: 'Could not read the account model catalog. Check the network and try again.',
   pickerModelsTitle: 'Models in picker', pickerModelsHint: 'Only controls the composer model list. Selected models and requests still work. New models appear by default.',
   searchMode: 'Subscription search mode', searchMode_live: 'Live', searchMode_cached: 'Cached (experimental)', searchMode_disabled: 'Disabled',
   searchModeHint: 'Applies only to Codex subscription search. Cached mode requests indexed results; account support needs live acceptance. Failures do not switch providers.',
