@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict'
+import { randomUUID } from 'node:crypto'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import test from 'node:test'
 
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 
 import { CODEX_MODELS_URL, createOfficialModelCatalog, parseOfficialModelCatalog, retirementNotice } from '../src/model-catalog.js'
+import { clearModelCatalogCache, loadModelCatalogCache, saveModelCatalogCache } from '../src/model-catalog-cache.js'
 import { openaiCodexProvider, openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
 import { contextModelGroups } from '../src/settings-contract.js'
 
@@ -18,6 +22,12 @@ test('without a successful account catalog there are no models, and the bundled 
   assert.deepEqual(catalog.getModels(), [])
   assert.deepEqual(catalog.getModels(base), [])
   assert.equal(catalog.status().source, 'unavailable')
+})
+
+test('a signed-out refresh returns to idle instead of remaining in progress', async () => {
+  const catalog = createOfficialModelCatalog({ baseModels: () => base, async getAuth() { return undefined } })
+  assert.equal(await catalog.refresh(), false)
+  assert.deepEqual(catalog.status(), { source: 'unavailable', refresh: 'idle' })
 })
 
 const remote = (overrides = {}) => ({
@@ -328,6 +338,376 @@ test('new Codex models appear from the account catalog with supported reasoning 
   assert.equal(catalog.metadata('gpt-6-sol').supportsFast, true)
 })
 
+test('a restored catalog resolves gpt-6-luna while its background refresh remains pending', async t => {
+  const accountId = `catalog-cache-test-${randomUUID()}`
+  const cacheDirectory = join(process.cwd(), '.artifacts')
+  await mkdir(cacheDirectory, { recursive: true })
+  t.after(() => clearModelCatalogCache(accountId, { directory: cacheDirectory }))
+  const catalogResponse = { models: [
+    remote({ slug: 'gpt-6-sol', display_name: 'GPT-6 Sol', priority: 2 }),
+    remote({ slug: 'gpt-6-luna', display_name: 'GPT-6 Luna', priority: 3 }),
+  ] }
+  const options = {
+    baseModels: () => openaiCodexProvider().getModels(),
+    cacheDirectory,
+    now: () => CATALOG_NOW,
+    async getAuth() { return { auth: { apiKey: 'cache-test-token' } } },
+    async readCredential() { return { type: 'oauth', access: 'cache-test-token', accountId } },
+  }
+  const online = createOfficialModelCatalog({ ...options, fetch: async () => Response.json(catalogResponse) })
+  await online.refresh()
+  const persisted = await loadModelCatalogCache(accountId, {
+    directory: cacheDirectory,
+    now: CATALOG_NOW,
+    parseCatalog: parseOfficialModelCatalog,
+  })
+  assert.deepEqual(persisted.rawCatalog, catalogResponse)
+  assert.equal(online.metadata('gpt-6-luna').thinkingLevelMap.max, 'max')
+
+  let fetchStarted = false
+  const restarted = createOfficialModelCatalog({
+    ...options,
+    timeoutMs: 60_000,
+    fetch: async () => {
+      fetchStarted = true
+      return new Promise(() => {})
+    },
+  })
+  assert.equal(await restarted.initialize(), true)
+  assert.deepEqual(restarted.status(), { source: 'cached', refresh: 'idle' })
+  const provider = openaiCodexSubscriptionProvider({ catalog: restarted })
+  const adapter = new PiAiAdapter({
+    profiles: () => new Map([['openai-codex', {
+      provider: 'openai-codex', displayName: 'ChatGPT subscription',
+      piProvider: provider, configuredMaxTokens: new Map(), modelErrors: new Map(),
+    }]]),
+    resolveApiKey: async () => { throw new Error('model resolution must not send a request') },
+  })
+  const pendingRefresh = restarted.refresh()
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(fetchStarted, true)
+  assert.equal((await adapter.resolveModel('openai-codex', 'gpt-6-luna')).context.contextWindow, 400_000)
+  assert.equal(restarted.metadata('gpt-6-luna').thinkingLevelMap.max, 'max')
+  restarted.clear()
+  await assert.rejects(pendingRefresh)
+})
+
+test('a late response from the previous account cannot replace the selected account catalog', async t => {
+  const accountA = `catalog-account-a-${randomUUID()}`
+  const accountB = `catalog-account-b-${randomUUID()}`
+  const cacheDirectory = join(process.cwd(), '.artifacts')
+  await mkdir(cacheDirectory, { recursive: true })
+  t.after(() => Promise.all([
+    clearModelCatalogCache(accountA, { directory: cacheDirectory }),
+    clearModelCatalogCache(accountB, { directory: cacheDirectory }),
+  ]))
+  let accountId = accountA
+  let releaseOldFetch
+  let markOldFetchStarted
+  const oldFetchStarted = new Promise(resolve => { markOldFetchStarted = resolve })
+  let fetchCount = 0
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => openaiCodexProvider().getModels(),
+    cacheDirectory,
+    now: () => CATALOG_NOW,
+    async getAuth() { return { auth: { apiKey: 'account-switch-token' } } },
+    async readCredential() { return { type: 'oauth', access: 'account-switch-token', accountId } },
+    async fetch() {
+      fetchCount += 1
+      if (fetchCount === 1) {
+        markOldFetchStarted()
+        return new Promise(resolve => { releaseOldFetch = resolve })
+      }
+      return Response.json({ models: [remote({ slug: 'account-b-model' })] })
+    },
+  })
+
+  await catalog.initialize()
+  const oldRefresh = catalog.refresh()
+  await oldFetchStarted
+  const oldRefreshRejected = assert.rejects(oldRefresh)
+  accountId = accountB
+  catalog.clear()
+  await catalog.initialize()
+  await catalog.refresh()
+  releaseOldFetch(Response.json({ models: [remote({ slug: 'account-a-model' })] }))
+  await oldRefreshRejected
+  await new Promise(resolve => setImmediate(resolve))
+
+  assert.deepEqual(catalog.getModels().map(model => model.id), ['account-b-model'])
+  assert.deepEqual(await loadModelCatalogCache(accountB, {
+    directory: cacheDirectory,
+    now: CATALOG_NOW,
+    parseCatalog: parseOfficialModelCatalog,
+  }), { rawCatalog: { models: [remote({ slug: 'account-b-model' })] } })
+  assert.equal(await loadModelCatalogCache(accountA, {
+    directory: cacheDirectory,
+    now: CATALOG_NOW,
+    parseCatalog: parseOfficialModelCatalog,
+  }), undefined)
+})
+
+test('a changed credential is revalidated and restores only the new account cache', async t => {
+  const accountA = `catalog-refresh-account-a-${randomUUID()}`
+  const accountB = `catalog-refresh-account-b-${randomUUID()}`
+  const cacheDirectory = join(process.cwd(), '.artifacts')
+  await mkdir(cacheDirectory, { recursive: true })
+  const keepAlive = setInterval(() => {}, 1_000)
+  t.after(() => clearInterval(keepAlive))
+  t.after(() => Promise.all([
+    clearModelCatalogCache(accountA, { directory: cacheDirectory }),
+    clearModelCatalogCache(accountB, { directory: cacheDirectory }),
+  ]))
+  await saveModelCatalogCache(accountA, { rawCatalog: { models: [remote({ slug: 'gpt-6-luna' })] } }, {
+    directory: cacheDirectory,
+    now: CATALOG_NOW,
+    parseCatalog: parseOfficialModelCatalog,
+  })
+  const accountBCatalog = { models: [remote({ slug: 'gpt-6-orbit' })] }
+  await saveModelCatalogCache(accountB, { rawCatalog: accountBCatalog }, {
+    directory: cacheDirectory,
+    now: CATALOG_NOW,
+    parseCatalog: parseOfficialModelCatalog,
+  })
+  let credentialReads = 0
+  let catalog
+  let notifyAccountB
+  let markReplacementFetchStarted
+  const accountBCached = new Promise(resolve => { notifyAccountB = resolve })
+  const replacementFetchStarted = new Promise(resolve => { markReplacementFetchStarted = resolve })
+  catalog = createOfficialModelCatalog({
+    baseModels: () => openaiCodexProvider().getModels(),
+    cacheDirectory,
+    now: () => CATALOG_NOW,
+    async getAuth() { return { auth: { apiKey: 'refresh-account-token' } } },
+    readCredential() {
+      credentialReads += 1
+      const selectedAccount = credentialReads === 1 ? accountA : accountB
+      return { type: 'oauth', access: 'refresh-account-token', accountId: selectedAccount }
+    },
+    onUpdated() { if (catalog?.metadata('gpt-6-orbit')) notifyAccountB() },
+    async fetch() {
+      markReplacementFetchStarted()
+      return new Promise(() => {})
+    },
+  })
+
+  await catalog.initialize()
+  const previousRefresh = catalog.refresh()
+  await assert.rejects(previousRefresh)
+  await accountBCached
+  await replacementFetchStarted
+
+  assert.deepEqual(catalog.getModels().map(model => model.id), ['gpt-6-orbit'])
+  assert.equal(catalog.status().source, 'cached')
+  catalog.clear()
+})
+
+test('cache filesystem errors do not block a valid remote catalog', async t => {
+  const accountId = `catalog-cache-error-${randomUUID()}`
+  const cacheDirectory = join(process.cwd(), '.artifacts', `cache-parent-${randomUUID()}`)
+  await mkdir(join(process.cwd(), '.artifacts'), { recursive: true })
+  await writeFile(cacheDirectory, 'occupied path')
+  t.after(() => rm(cacheDirectory, { force: true }))
+  const cacheErrors = []
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => openaiCodexProvider().getModels(),
+    cacheDirectory,
+    now: () => CATALOG_NOW,
+    onCacheError(error) { cacheErrors.push(error) },
+    async getAuth() { return { auth: { apiKey: 'cache-error-token' } } },
+    async readCredential() { return { type: 'oauth', access: 'cache-error-token', accountId } },
+    async fetch() { return Response.json({ models: [remote({ slug: 'gpt-6-luna' })] }) },
+  })
+
+  assert.equal(await catalog.initialize(), true)
+  assert.equal(await catalog.refresh(), true)
+  assert.deepEqual(catalog.getModels().map(model => model.id), ['gpt-6-luna'])
+  assert.deepEqual(catalog.status(), { source: 'online', refresh: 'ok' })
+  assert.equal(cacheErrors.length, 2)
+})
+
+test('an unchanged 304 response notifies DSH when the catalog source becomes online', async t => {
+  const accountId = `catalog-notify-304-${randomUUID()}`
+  const cacheDirectory = join(process.cwd(), '.artifacts')
+  await mkdir(cacheDirectory, { recursive: true })
+  t.after(() => clearModelCatalogCache(accountId, { directory: cacheDirectory }))
+  const cachedCatalog = { models: [remote({ slug: 'gpt-6-luna' })] }
+  await saveModelCatalogCache(accountId, { rawCatalog: cachedCatalog, etag: 'etag-cached' }, {
+    directory: cacheDirectory,
+    now: CATALOG_NOW,
+    parseCatalog: parseOfficialModelCatalog,
+  })
+  let updates = 0
+  let notifiedStatus
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => openaiCodexProvider().getModels(),
+    cacheDirectory,
+    now: () => CATALOG_NOW,
+    onUpdated() { updates += 1; notifiedStatus = catalog.status() },
+    async getAuth() { return { auth: { apiKey: 'catalog-304-token' } } },
+    async readCredential() { return { type: 'oauth', access: 'catalog-304-token', accountId } },
+    async fetch() { return new Response(null, { status: 304, headers: { etag: 'etag-revalidated' } }) },
+  })
+
+  await catalog.initialize()
+  assert.equal(updates, 1)
+  assert.equal(catalog.status().source, 'cached')
+  assert.equal(await catalog.refresh(), false)
+  assert.equal(catalog.status().source, 'online')
+  assert.equal(updates, 2)
+  assert.deepEqual(notifiedStatus, { source: 'online', refresh: 'ok' })
+})
+
+test('an old credential read failure cannot change the new account refresh state', async () => {
+  const accountA = `catalog-credential-a-${randomUUID()}`
+  const accountB = `catalog-credential-b-${randomUUID()}`
+  let rejectOldCredential
+  let markOldReadStarted
+  const oldReadStarted = new Promise(resolve => { markOldReadStarted = resolve })
+  let credentialReads = 0
+  const catalog = createOfficialModelCatalog({
+    baseModels: () => openaiCodexProvider().getModels(),
+    async getAuth() { return { auth: { apiKey: 'credential-race-token' } } },
+    readCredential() {
+      credentialReads += 1
+      if (credentialReads === 1) {
+        markOldReadStarted()
+        return new Promise((_, reject) => { rejectOldCredential = reject })
+      }
+      return { type: 'oauth', access: 'credential-race-token', accountId: accountB }
+    },
+    async fetch() { return Response.json({ models: [remote({ slug: 'account-b-model' })] }) },
+  })
+
+  const oldRefresh = catalog.refresh()
+  await oldReadStarted
+  const oldRefreshRejected = assert.rejects(oldRefresh)
+  catalog.clear()
+  await catalog.refresh()
+  rejectOldCredential(new Error('stale account credential read failed'))
+  await oldRefreshRejected
+
+  assert.deepEqual(catalog.getModels().map(model => model.id), ['account-b-model'])
+  assert.deepEqual(catalog.status(), { source: 'online', refresh: 'ok' })
+})
+
+test('cached models remain active after a failed refresh and a later success updates memory and disk', async t => {
+  const accountId = `catalog-retry-test-${randomUUID()}`
+  const cacheDirectory = join(process.cwd(), '.artifacts')
+  await mkdir(cacheDirectory, { recursive: true })
+  t.after(() => clearModelCatalogCache(accountId, { directory: cacheDirectory }))
+  const cachedCatalog = { models: [remote({ slug: 'gpt-6-luna' })] }
+  await saveModelCatalogCache(accountId, { rawCatalog: cachedCatalog, etag: 'etag-old' }, {
+    directory: cacheDirectory,
+    now: CATALOG_NOW,
+    parseCatalog: parseOfficialModelCatalog,
+  })
+  let fetchCount = 0
+  let notifyRemoteUpdate
+  const remoteUpdate = new Promise(resolve => { notifyRemoteUpdate = resolve })
+  let recoveredUpdateCount = 0
+  let notifyRecoveredUpdate
+  const recoveredOnlineUpdate = new Promise(resolve => { notifyRecoveredUpdate = resolve })
+  const keepAlive = setInterval(() => {}, 1_000)
+  t.after(() => clearInterval(keepAlive))
+  let catalog
+  catalog = createOfficialModelCatalog({
+    baseModels: () => openaiCodexProvider().getModels(),
+    cacheDirectory,
+    now: () => CATALOG_NOW,
+    retryDelaysMs: [5],
+    async getAuth() { return { auth: { apiKey: 'retry-test-token' } } },
+    async readCredential() { return { type: 'oauth', access: 'retry-test-token', accountId } },
+    onUpdated() {
+      if (catalog?.metadata('gpt-6-orbit')) {
+        recoveredUpdateCount += 1
+        if (recoveredUpdateCount === 1) notifyRemoteUpdate()
+        if (recoveredUpdateCount === 2) notifyRecoveredUpdate()
+      }
+    },
+    async fetch() {
+      fetchCount += 1
+      return fetchCount === 1 || fetchCount === 3
+        ? new Response('', { status: 503 })
+        : Response.json({ models: [remote({ slug: 'gpt-6-orbit', display_name: 'GPT-6 Orbit' })] }, { headers: { etag: 'etag-new' } })
+    },
+  })
+
+  await catalog.initialize()
+  assert.deepEqual(catalog.getModels().map(model => model.id), ['gpt-6-luna'])
+  assert.deepEqual(catalog.status(), { source: 'cached', refresh: 'idle' })
+  await assert.rejects(catalog.refresh(), /HTTP 503/u)
+  assert.deepEqual(catalog.getModels().map(model => model.id), ['gpt-6-luna'])
+  assert.deepEqual(catalog.status(), { source: 'cached', refresh: 'failed' })
+  await remoteUpdate
+  assert.deepEqual(catalog.getModels().map(model => model.id), ['gpt-6-orbit'])
+  assert.equal(catalog.metadata('gpt-6-orbit').name, 'GPT-6 Orbit')
+  assert.equal(catalog.status().source, 'online')
+  assert.deepEqual((await loadModelCatalogCache(accountId, {
+    directory: cacheDirectory,
+    now: CATALOG_NOW,
+    parseCatalog: parseOfficialModelCatalog,
+  })), { rawCatalog: { models: [remote({ slug: 'gpt-6-orbit', display_name: 'GPT-6 Orbit' })] }, etag: 'etag-new' })
+  await assert.rejects(catalog.refresh(), /HTTP 503/u)
+  assert.deepEqual(catalog.status(), { source: 'online', refresh: 'failed' })
+  await recoveredOnlineUpdate
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(fetchCount, 4)
+  assert.deepEqual(catalog.status(), { source: 'online', refresh: 'ok' })
+})
+
+test('a temporary credential mismatch keeps the cached catalog and schedules a refresh retry', async t => {
+  const accountId = `catalog-credential-retry-${randomUUID()}`
+  const cacheDirectory = join(process.cwd(), '.artifacts')
+  await mkdir(cacheDirectory, { recursive: true })
+  t.after(() => clearModelCatalogCache(accountId, { directory: cacheDirectory }))
+  await saveModelCatalogCache(accountId, { rawCatalog: { models: [remote({ slug: 'gpt-6-luna' })] } }, {
+    directory: cacheDirectory,
+    now: CATALOG_NOW,
+    parseCatalog: parseOfficialModelCatalog,
+  })
+  let credentialsAvailable = true
+  let catalog
+  const timers = []
+  const retryResolved = new Promise(resolve => {
+    catalog = createOfficialModelCatalog({
+      baseModels: () => openaiCodexProvider().getModels(),
+      cacheDirectory,
+      now: () => CATALOG_NOW,
+      retryDelaysMs: [5],
+      setTimeout(callback, delay) {
+        const timer = { callback, delay, cleared: false, unref() {} }
+        timers.push(timer)
+        return timer
+      },
+      clearTimeout(timer) { timer.cleared = true },
+      onUpdated() { if (catalog?.status().source === 'online') resolve() },
+      async getAuth() { return { auth: { apiKey: 'credential-retry-token' } } },
+      async readCredential() {
+        return credentialsAvailable
+          ? { type: 'oauth', access: 'credential-retry-token', accountId }
+          : { type: 'oauth', access: 'stale-token', accountId }
+      },
+      async fetch() { return Response.json({ models: [remote({ slug: 'gpt-6-orbit' })] }) },
+    })
+  })
+
+  await catalog.initialize()
+  credentialsAvailable = false
+  await assert.rejects(catalog.refresh(), /credentials are unavailable/)
+  assert.deepEqual(catalog.getModels().map(model => model.id), ['gpt-6-luna'])
+  assert.deepEqual(catalog.status(), { source: 'cached', refresh: 'failed' })
+  const retry = timers.find(timer => timer.delay === 5)
+  assert.ok(retry)
+  credentialsAvailable = true
+  retry.callback()
+  await retryResolved
+  assert.deepEqual(catalog.getModels().map(model => model.id), ['gpt-6-orbit'])
+  assert.deepEqual(catalog.status(), { source: 'online', refresh: 'ok' })
+  catalog.clear()
+})
+
 test('catalog refresh is conditional, keeps the last good result, and never exposes credentials', async () => {
   const requests = []
   let mode = 'fresh'
@@ -357,7 +737,9 @@ test('catalog refresh is conditional, keeps the last good result, and never expo
   assert.doesNotMatch(JSON.stringify(catalog.getModels(base)), /secret-token|secret-account/u)
 })
 
-test('catalog timeout rejects even when an injected request ignores abort and drops its late result', async () => {
+test('catalog timeout rejects even when an injected request ignores abort and drops its late result', async t => {
+  const keepAlive = setInterval(() => {}, 1_000)
+  t.after(() => clearInterval(keepAlive))
   let resolveFetch
   const catalog = createOfficialModelCatalog({
     baseModels: () => base,

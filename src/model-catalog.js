@@ -1,4 +1,5 @@
 import { readSubscriptionCredentials } from './subscription-credentials.js'
+import { loadModelCatalogCache, saveModelCatalogCache } from './model-catalog-cache.js'
 import { PACKAGE_VERSION, USER_AGENT } from './version.js'
 
 export const CODEX_MODELS_URL = `https://chatgpt.com/backend-api/codex/models?client_version=${encodeURIComponent(PACKAGE_VERSION)}`
@@ -197,6 +198,11 @@ function mergeModel(baseModels, remote) {
   }
 }
 
+/**
+ * 创建带账号缓存、远端刷新和模型能力元数据的官方目录。
+ * @param {object} options - 凭据、模型来源、网络和目录更新配置
+ * @returns {object} 可初始化、刷新、查询和清除的模型目录
+ */
 export function createOfficialModelCatalog(options = {}) {
   const fetchCatalog = options.fetch ?? fetch
   const getNow = options.now ?? Date.now
@@ -209,6 +215,9 @@ export function createOfficialModelCatalog(options = {}) {
   let metadata = new Map()
   let etag
   let rawCatalog
+  let activeAccountId
+  let source = 'unavailable'
+  let initializing
   let revision = 0
   let refreshing
   let generation = 0
@@ -220,16 +229,112 @@ export function createOfficialModelCatalog(options = {}) {
   let retryTimer
   const stopRetry = () => { if (retryTimer !== undefined) cancelTimeout(retryTimer); retryTimer = undefined }
   const scheduleRetry = currentGeneration => {
-    if (models !== undefined || currentGeneration !== generation || retryTimer !== undefined || retries >= retryDelays.length) return
+    if (currentGeneration !== generation || retryTimer !== undefined || retries >= retryDelays.length) return
     retryTimer = scheduleTimeout(() => {
       retryTimer = undefined
-      if (models !== undefined || currentGeneration !== generation) return
+      if (currentGeneration !== generation) return
       refresh().catch(() => {})
     }, retryDelays[retries++])
     retryTimer.unref?.()
   }
 
+  /** 清除当前账号的内存目录并使未完成请求失效。 */
+  const invalidate = (notify, preserveInitialization = false, advanceRevision = true) => {
+    generation += 1
+    const flight = refreshing
+    refreshing = undefined
+    flight?.cancel()
+    stopRetry()
+    retries = 0
+    models = undefined
+    rawCatalog = undefined
+    metadata = new Map()
+    etag = undefined
+    activeAccountId = undefined
+    source = 'unavailable'
+    refreshStatus = 'idle'
+    if (advanceRevision) revision += 1
+    if (!preserveInitialization) initializing = undefined
+    if (notify) options.onUpdated?.()
+  }
+
+  /** 读取当前账号并在远端刷新前恢复该账号的有效缓存。 */
+  const initialize = () => {
+    if (initializing !== undefined) return initializing.promise
+    const startGeneration = generation
+    const promise = (async () => {
+      const { accountId } = await readSubscriptionCredentials(options.getAuth, options.readCredential)
+      if (startGeneration !== generation) return false
+      if (typeof accountId !== 'string' || accountId.length === 0) {
+        if (activeAccountId !== undefined || models !== undefined) throw new Error('Codex model catalog credentials are unavailable')
+        return false
+      }
+      if (accountId === activeAccountId) return true
+      const hadState = activeAccountId !== undefined || models !== undefined
+      const hadModels = models !== undefined
+      invalidate(false, true, hadState)
+      const cacheGeneration = generation
+      activeAccountId = accountId
+      let cache
+      if (options.cacheDirectory !== undefined) {
+        try {
+          cache = await loadModelCatalogCache(accountId, {
+            directory: options.cacheDirectory,
+            now: getNow(),
+            parseCatalog: parseOfficialModelCatalog,
+          })
+        } catch (error) {
+          if (options.onCacheError === undefined) throw error
+          options.onCacheError(error)
+        }
+      }
+      if (cacheGeneration !== generation || activeAccountId !== accountId) return false
+      if (cache !== undefined) {
+        const remote = parseOfficialModelCatalog(cache.rawCatalog, getNow())
+        const next = remote.map(model => mergeModel(options.baseModels(), model)).filter(Boolean)
+        if (next.length > 0) {
+          models = next
+          rawCatalog = cache.rawCatalog
+          metadata = new Map(remote.map(model => [model.id, model]))
+          etag = cache.etag
+          source = 'cached'
+          revision += 1
+          options.onUpdated?.()
+          return true
+        }
+      }
+      if (hadModels) options.onUpdated?.()
+      return true
+    })().finally(() => {
+      if (initializing?.promise === promise) initializing = undefined
+    })
+    initializing = { generation: startGeneration, promise }
+    return promise
+  }
+
+  /** 确认账号缓存已初始化后刷新远端目录。 */
   const refresh = ({ signal } = {}) => {
+    if (signal?.aborted) return Promise.reject(signal.reason ?? new Error('Codex model catalog refresh aborted'))
+    if (refreshing?.generation === generation) return refreshing.promise
+    const currentGeneration = generation
+    refreshStatus = 'refreshing'
+    return initialize().then(initialized => {
+      if (!initialized) {
+        if (currentGeneration === generation) refreshStatus = 'idle'
+        return false
+      }
+      return refreshInitialized(signal)
+    }, error => {
+      if (currentGeneration === generation) {
+        refreshStatus = 'failed'
+        scheduleRetry(currentGeneration)
+      }
+      throw error
+    })
+  }
+
+  /** 使用已初始化的账号凭据请求目录，并提交仍属于当前账号的响应。 */
+  const refreshInitialized = signal => {
     if (signal?.aborted) return Promise.reject(signal.reason ?? new Error('Codex model catalog refresh aborted'))
     if (refreshing?.generation === generation) return refreshing.promise
     const currentGeneration = generation
@@ -247,6 +352,13 @@ export function createOfficialModelCatalog(options = {}) {
       const { access, accountId } = await readSubscriptionCredentials(options.getAuth, options.readCredential, requestSignal)
       if (currentGeneration !== generation || requestSignal.aborted) return false
       if (typeof access !== 'string' || access.length === 0 || typeof accountId !== 'string' || accountId.length === 0) {
+        if (activeAccountId !== undefined || models !== undefined) throw new Error('Codex model catalog credentials are unavailable')
+        return false
+      }
+      if (accountId !== activeAccountId) {
+        invalidate(true)
+        await initialize()
+        if (activeAccountId === accountId) void refresh().catch(() => {})
         return false
       }
       const headers = {
@@ -260,17 +372,39 @@ export function createOfficialModelCatalog(options = {}) {
       const response = await fetchCatalog(CODEX_MODELS_URL, { method: 'GET', redirect: 'error', headers, signal: requestSignal })
       if (currentGeneration !== generation || requestSignal.aborted) return false
       if (response.status === 304) {
-        outcome = 'ok'
         // An unchanged catalog can still have crossed a retirement date since it was parsed.
-        if (rawCatalog === undefined) return false
+        if (rawCatalog === undefined) throw new Error('Codex returned HTTP 304 without a cached model catalog')
         const remote = parseOfficialModelCatalog(rawCatalog, getNow())
         const next = remote.map(model => mergeModel(options.baseModels(), model)).filter(Boolean)
-        if (next.length === 0 || JSON.stringify(next) === JSON.stringify(models)) return false
-        models = next
-        metadata = new Map(remote.map(model => [model.id, model]))
-        revision += 1
-        options.onUpdated?.()
-        return true
+        if (next.length === 0) throw new Error('Codex returned an empty model catalog')
+        const changed = JSON.stringify(next) !== JSON.stringify(models)
+        const previousSource = source
+        const nextEtag = nonEmpty(response.headers.get('etag')) ?? etag
+        if (changed) {
+          models = next
+          metadata = new Map(remote.map(model => [model.id, model]))
+          revision += 1
+        }
+        etag = nextEtag
+        source = 'online'
+        if (options.cacheDirectory !== undefined) {
+          try {
+            await saveModelCatalogCache(accountId, { rawCatalog, etag: nextEtag }, {
+              directory: options.cacheDirectory,
+              now: getNow(),
+              parseCatalog: parseOfficialModelCatalog,
+              isCurrent: () => currentGeneration === generation && !requestSignal.aborted,
+            })
+          } catch (error) {
+            if (options.onCacheError === undefined) throw error
+            options.onCacheError(error)
+          }
+        }
+        if (currentGeneration !== generation || requestSignal.aborted) return false
+        outcome = 'ok'
+        refreshStatus = 'ok'
+        if (changed || previousSource !== 'online') options.onUpdated?.()
+        return changed
       }
       if (!response.ok) throw new Error(`Codex model catalog failed (HTTP ${response.status})`)
       const raw = await response.json()
@@ -281,12 +415,29 @@ export function createOfficialModelCatalog(options = {}) {
       const next = remote.map(model => mergeModel(baseModels, model)).filter(Boolean)
       if (next.length === 0) throw new Error('Codex model catalog has no compatible models')
       if (currentGeneration !== generation || requestSignal.aborted) return false
+      const nextEtag = nonEmpty(response.headers.get('etag')) ?? etag
       models = next
       rawCatalog = raw
       metadata = new Map(remote.map(model => [model.id, model]))
-      etag = nonEmpty(response.headers.get('etag')) ?? etag
+      etag = nextEtag
       revision += 1
+      source = 'online'
+      if (options.cacheDirectory !== undefined) {
+        try {
+          await saveModelCatalogCache(accountId, { rawCatalog: raw, etag: nextEtag }, {
+            directory: options.cacheDirectory,
+            now: getNow(),
+            parseCatalog: parseOfficialModelCatalog,
+            isCurrent: () => currentGeneration === generation && !requestSignal.aborted,
+          })
+        } catch (error) {
+          if (options.onCacheError === undefined) throw error
+          options.onCacheError(error)
+        }
+      }
+      if (currentGeneration !== generation || requestSignal.aborted) return false
       outcome = 'ok'
+      refreshStatus = 'ok'
       options.onUpdated?.()
       return true
     })()
@@ -328,21 +479,10 @@ export function createOfficialModelCatalog(options = {}) {
       .filter(model => model.unsupported && /^[a-z][a-z0-9._-]{0,79}$/u.test(model.id))
       .slice(0, 20)
       .map(model => ({ model: model.id, ...structuredClone(model.unsupported) })),
-    status: () => ({ source: models === undefined ? 'unavailable' : 'online', refresh: refreshStatus }),
+    status: () => ({ source, refresh: refreshStatus }),
+    initialize,
     clear() {
-      generation += 1
-      const flight = refreshing
-      refreshing = undefined
-      flight?.cancel()
-      stopRetry()
-      retries = 0
-      models = undefined
-      rawCatalog = undefined
-      metadata = new Map()
-      etag = undefined
-      refreshStatus = 'idle'
-      revision += 1
-      options.onUpdated?.()
+      invalidate(true)
     },
   })
 }
