@@ -64,7 +64,7 @@ export async function openPcmVoiceCall({ rpc, sessionId, onEnd, chime = () => {}
     const started = await rpc.call(CHANNEL, 'voice/start', { sessionId, transport: 'pcm' }, signal)
     if (!started?.ok || started.value?.transport !== 'pcm' || started.value?.sampleRate !== VOICE_PCM_RATE || typeof started.value?.mediaId !== 'string') throw Object.assign(new Error('The local voice bridge could not start'), { code: 'voice-host-unavailable' })
     mediaId = started.value.mediaId
-    if (ended || signal?.aborted) { try { await rpc.call(CHANNEL, 'voice/stop', { sessionId, mediaId }) } catch { /* host idle guard releases it */ }; signal?.throwIfAborted(); throw new Error('Voice cancelled') }
+    if (ended || signal?.aborted) { try { await rpc.call(CHANNEL, 'voice/stop', { sessionId, mediaId }, surface.AbortSignal.timeout(3_000)) } catch { /* host idle guard releases it */ }; signal?.throwIfAborted(); throw new Error('Voice cancelled') }
     const gain = context.createGain(); gain.connect(context.destination)
     const gate = createBargeInGate({
       changed: value => { interrupted = value; gain.gain.value = outputMuted || interrupted ? 0 : 1; if (value) clearPlayback() },
