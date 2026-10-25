@@ -114,6 +114,7 @@ test('custom context rows follow the active upstream model catalog', () => {
 
 function fakeContext({ connection = true, webServer = true, fetchRouting = true } = {}) {
   const registered = []
+  const disposedAdapters = []
   const handled = []
   const listeners = []
   const searchProviders = []
@@ -161,7 +162,7 @@ function fakeContext({ connection = true, webServer = true, fetchRouting = true 
     llm: {
       registerAdapter(providers, adapter) {
         registered.push({ providers, adapter })
-        return () => {}
+        return () => { disposedAdapters.push(adapter) }
       },
     },
     attachments: {
@@ -240,7 +241,7 @@ function fakeContext({ connection = true, webServer = true, fetchRouting = true 
   }
   if (!fetchRouting) Object.defineProperty(ctx.web, 'fetchProviders', { get: () => fetchProviderMap })
   return {
-    ctx, config: preference, registered, handled, listeners, provided, searchProviders, settings, tools, webUpdates, disposers, fetchProviderMap,
+    ctx, config: preference, registered, disposedAdapters, handled, listeners, provided, searchProviders, settings, tools, webUpdates, disposers, fetchProviderMap,
     async settleEffects() { await Promise.all(pendingEffects) },
     async request(endpoint, payload, signal) {
       const method = 'codex-subscription/' + endpoint
@@ -352,6 +353,23 @@ test('a credential read failure does not prevent adapter registration', async ()
   applyPlugin(host.ctx, host.config)
   await host.settleEffects()
   assert.deepEqual(host.registered.map(item => item.providers), [['openai-codex']])
+})
+
+test('adapter is registered immediately and disposal cannot wait for or register after a stuck vault read', async () => {
+  const host = fakeContext()
+  let release
+  const vault = new Promise(resolve => { release = resolve })
+  host.ctx.credentials.resolve = () => vault
+  applyPlugin(host.ctx, host.config)
+  assert.equal(host.registered.length, 1, 'no provider-missing startup window')
+  await new Promise(resolve => setImmediate(resolve))
+  const result = host.disposers.get('codex-subscription: official model catalog')()
+  assert.equal(result, undefined, 'disposal does not await asynchronous initialization')
+  assert.equal(host.disposedAdapters.length, 1)
+  await assert.rejects(host.registered[0].adapter.resolveModel('openai-codex', 'gpt-6-luna'), error => error.name === 'AbortError')
+  release(undefined)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(host.registered.length, 1, 'late initialization cannot register an adapter again')
 })
 
 test('signed out, the account advertises no models and model metadata needs no credentials', async () => {

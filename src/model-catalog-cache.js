@@ -1,10 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { mkdir, open, readFile, rename, rm } from 'node:fs/promises'
+import { mkdir, open, readFile, rename, rm, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 
 const SCHEMA_VERSION = 1
 const MAX_AGE_MS = 24 * 60 * 60 * 1000
+const MAX_BYTES = 4 * 1024 * 1024
 
 /**
  * 按账号身份读取并校验本地模型目录缓存。
@@ -16,7 +17,9 @@ export async function loadModelCatalogCache(accountId, options) {
   const { accountKey, filename } = cacheLocation(accountId, options.directory)
   let entry
   try {
-    entry = JSON.parse(await readFile(filename, 'utf8'))
+    options.signal?.throwIfAborted()
+    if ((await stat(filename)).size > MAX_BYTES) return undefined
+    entry = JSON.parse(await readFile(filename, { encoding: 'utf8', signal: options.signal }))
   } catch (error) {
     if (error?.code === 'ENOENT' || error instanceof SyntaxError) return undefined
     throw error
@@ -42,6 +45,7 @@ export async function loadModelCatalogCache(accountId, options) {
  * @returns {Promise<void>} 缓存写入完成
  */
 export async function saveModelCatalogCache(accountId, catalog, options) {
+  options.signal?.throwIfAborted()
   const { accountKey, filename } = cacheLocation(accountId, options.directory)
   const now = options.now ?? Date.now()
   if (!isRecord(catalog) || !isRecord(catalog.rawCatalog) || !Number.isSafeInteger(now) || now <= 0
@@ -55,15 +59,19 @@ export async function saveModelCatalogCache(accountId, catalog, options) {
     ...(catalog.etag === undefined ? {} : { etag: catalog.etag }),
     rawCatalog: catalog.rawCatalog,
   })}\n`
+  if (Buffer.byteLength(data) > MAX_BYTES) throw new Error('Model catalog cache exceeds its size limit')
+  if (options.isCurrent?.() === false) return
   await mkdir(dirname(filename), { recursive: true, mode: 0o700 })
   const temporary = `${filename}.${process.pid}.${randomUUID()}.tmp`
   let handle
   try {
     handle = await open(temporary, 'wx', 0o600)
-    await handle.writeFile(data)
+    options.signal?.throwIfAborted()
+    await handle.writeFile(data, { signal: options.signal })
     await handle.sync()
     await handle.close()
     handle = undefined
+    options.signal?.throwIfAborted()
     if (options.isCurrent !== undefined && !options.isCurrent()) return
     await rename(temporary, filename)
   } finally {
