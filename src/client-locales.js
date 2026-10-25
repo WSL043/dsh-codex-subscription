@@ -173,7 +173,7 @@ export const zh = {
   sketch: '草图 · Beta', sketchTitle: '画出你的想法', sketchAttach: '附加草图', sketchCancel: '取消', sketchUndo: '撤销', sketchRedo: '重做', sketchClear: '清空', sketchEraser: '橡皮', sketchPen: '画笔', sketchColor: '颜色', sketchWidth: '笔刷粗细', sketchFailed: '无法附加草图，请保留画板后重试。', sketchHint: '确认只会附加图片，不会自动生成。发送时说明你想要的风格与细节。',
 
   searchOptions: '搜索选项', searchDomainCount: '个域名',
-  catalogRefresh: '刷新模型', catalogOnline: '已加载账户在线模型目录', catalogSignedOut: '登录后显示账户可用的模型。', catalogLoading: '正在读取账户模型目录…', catalogFailed: '无法读取账户模型目录，请检查网络后重试。',
+  catalogRefresh: '刷新模型', catalogOnline: '已加载账户在线模型目录', catalogCached: '正在使用本地保存的账户模型目录', catalogCachedFailed: '正在使用本地模型目录，在线更新失败。', catalogSignedOut: '登录后显示账户可用的模型。', catalogLoading: '正在读取账户模型目录…', catalogFailed: '无法读取账户模型目录，请检查网络后重试。',
   pickerModelsTitle: '输入框模型列表', pickerModelsHint: '只控制输入框中的模型列表；不会影响已选模型或模型请求。新模型默认显示。',
   searchMode: '订阅搜索模式', searchMode_live: '实时', searchMode_cached: '缓存（实验）', searchMode_disabled: '停用',
   searchModeHint: '仅影响 Codex 订阅搜索。缓存模式请求已有索引，需实机确认账户支持；失败时不会自动切换来源。',
@@ -469,7 +469,7 @@ export const en = {
   sketch: 'Sketch · Beta', sketchTitle: 'Draw your idea', sketchAttach: 'Attach sketch', sketchCancel: 'Cancel', sketchUndo: 'Undo', sketchRedo: 'Redo', sketchClear: 'Clear', sketchEraser: 'Eraser', sketchPen: 'Pen', sketchColor: 'Color', sketchWidth: 'Brush width', sketchFailed: 'Could not attach the sketch. Keep the canvas and try again.', sketchHint: 'Confirming only attaches an image. Describe the style and details before sending.',
 
   searchOptions: 'Search options', searchDomainCount: 'domains',
-  catalogRefresh: 'Refresh models', catalogOnline: 'Account model catalog loaded', catalogSignedOut: 'Sign in to show the models your account can use.', catalogLoading: 'Reading the account model catalog…', catalogFailed: 'Could not read the account model catalog. Check the network and try again.',
+  catalogRefresh: 'Refresh models', catalogOnline: 'Account model catalog loaded', catalogCached: 'Using the locally saved account model catalog', catalogCachedFailed: 'Using the local model catalog; the online update failed.', catalogSignedOut: 'Sign in to show the models your account can use.', catalogLoading: 'Reading the account model catalog…', catalogFailed: 'Could not read the account model catalog. Check the network and try again.',
   pickerModelsTitle: 'Models in picker', pickerModelsHint: 'Only controls the composer model list. Selected models and requests still work. New models appear by default.',
   searchMode: 'Subscription search mode', searchMode_live: 'Live', searchMode_cached: 'Cached (experimental)', searchMode_disabled: 'Disabled',
   searchModeHint: 'Applies only to Codex subscription search. Cached mode requests indexed results; account support needs live acceptance. Failures do not switch providers.',
