@@ -202,7 +202,7 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
       call.current = null
       setLiveCall(null)
       setState('idle')
-      setUnsupported(['voice-no-webrtc', 'voice-no-microphone', 'voice-insecure', 'voice-host-unavailable'].includes(error?.code) ? error.code : false)
+      setUnsupported(['voice-no-webrtc', 'voice-no-microphone', 'voice-insecure'].includes(error?.code) ? error.code : false)
       setProblem(voiceCallProblem(error))
     }
   }

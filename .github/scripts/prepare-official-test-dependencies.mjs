@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-export const TEST_DEPENDENCIES = ['fake-indexeddb', 'react', 'werift', 'opusscript']
+export const TEST_DEPENDENCIES = ['fake-indexeddb', 'react']
 
 /** Preserve the checkout's locked package graph, with only the test-owned roots enabled. */
 export function projectTestDependencies(manifest, lockfile) {
