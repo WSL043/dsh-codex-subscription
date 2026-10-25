@@ -22,8 +22,9 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
     }
   }
   const wrapStream = (factory, options) => (async function* () {
-    // Review is a one-shot auxiliary call, possibly nested in the same session.
-    if (isDshAutoReview(options)) { yield* unscoped(factory, options); return }
+    // Auxiliary prompts share the session id, but do not own its conversation checkpoint.
+    // Clear the async scope as well: a nested title/review must not inherit its caller's state.
+    if (isDshAutoReview(options) || options.purpose === 'session-title') { yield* unscoped(factory, options); return }
     const key = keyOf(options.sessionId)
     const optedIn = enabled() === true, automatic = cloud() === true, alwaysRetry = unlimited() === true
     if (!optedIn || automatic || alwaysRetry || options.provider !== 'openai-codex' || supportsModel(options.model) !== true || !key) {

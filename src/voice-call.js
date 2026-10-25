@@ -1,7 +1,6 @@
 import { CHANNEL } from './rpc-contract.js'
 import { createBargeInGate } from './voice-barge-in.js'
 import { voiceCallCapability } from './voice-problems.js'
-import { openPcmVoiceCall, supportsPcmVoice } from './voice-pcm.js'
 
 const ICE_WAIT_MS = 3_000
 
@@ -50,12 +49,10 @@ const loudness = (analyser, buffer) => {
 export async function openVoiceCall({ rpc, sessionId, onEnd, signal }) {
   signal?.throwIfAborted()
   const unsupported = voiceCallCapability()
-  if (unsupported === 'voice-no-webrtc' && supportsPcmVoice()) return openPcmVoiceCall({ rpc, sessionId, onEnd, chime, signal })
   if (unsupported) throw Object.assign(new Error('Voice is not supported in this environment'), { code: unsupported })
   let connection
   try { connection = new RTCPeerConnection() }
   catch {
-    if (supportsPcmVoice()) return openPcmVoiceCall({ rpc, sessionId, onEnd, chime, signal })
     throw Object.assign(new Error('WebRTC could not initialize'), { code: 'voice-no-webrtc' })
   }
   let stream, sound, context

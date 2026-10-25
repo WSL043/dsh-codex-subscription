@@ -68,7 +68,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@3.1.6
+   dsh-codex-subscription@3.1.7
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -85,7 +85,7 @@ Why the version is included: DSH's plugin page only installs versions that are a
 <summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.1.6
+dsh plugin --profile web add dsh-codex-subscription@3.1.7
 ```
 
 Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
@@ -98,7 +98,7 @@ Follow the restart instructions, then sign in under **Settings → Codex**. Both
 After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.1.6
+dsh plugin --profile headless add dsh-codex-subscription@3.1.7
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -141,7 +141,7 @@ Open **Settings → Codex** to manage accounts and preferences. Screenshots and 
 | **Create** | Image generation, editing, @image in the composer, image viewer, sketch board and agent drawing |
 | **Phone & more** | Phone remote control, experimental voice calls, local cache, support diagnostics |
 
-Voice conversation is off by default. Enable it under **Phone & more**, then start a call from the composer. When a native Linux window lacks WebRTC but supports audio capture, DSH automatically relays the audio using your existing subscription.
+Voice conversation is off by default. Enable it under **Phone & more**, then start a call from the composer. If a native window, including Linux, does not support WebRTC, DSH offers to continue the same conversation in a browser. Voice samples remain available, and your existing subscription is used without an API key.
 
 **Model-aware context** follows your account's model directory; refreshing preserves your unsaved draft. Quota groups use backend-provided values, including separate buckets such as Spark.
 
@@ -258,7 +258,7 @@ Model access and quota depend on your account.
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
 | **Subscription sign-in** | Sign in to ChatGPT and use Codex subscription models without an API key | Normal chat needs no Codex CLI |
-| **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh; models marked for retirement show their retirement date next to the model name, without automatically switching your selection | New models appear when your account offers them; the account catalog is the only source, so signed out or when it cannot be read no models are shown and no bundled list stands in |
+| **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh; the last successful catalog is stored locally per account and remains available during the background refresh after restart, with a 24-hour lifetime; models marked for retirement show their retirement date next to the model name, without automatically switching your selection | New models appear when your account offers them; the account catalog is the only source, so no models are shown when signed out or when neither a remote read nor a valid cache is available |
 | **Model list** | Show or hide individual models in the composer picker on the Models page; the picker keeps DSH's own model labels (such as the new-model badge) | Display only; selected models and requests still work |
 | **Default model** | Choose the model a new conversation opens with on the Models page | Writes the DSH default model setting, the same one a model switch inside a chat writes; unset it to follow the DSH default |
 | **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
@@ -357,7 +357,7 @@ Find this plugin on the DSH **Plugins** page and use its update or uninstall act
 <summary>Terminal commands</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.1.6
+dsh plugin --profile web update dsh-codex-subscription@3.1.7
 ```
 
 Run only when you want to uninstall:

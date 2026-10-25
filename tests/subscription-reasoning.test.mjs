@@ -212,7 +212,7 @@ test('pending ledger never evicts an uncheckpointed retry to admit an unbounded 
 })
 
 test('an ineligible nested request cannot overwrite an outer request checkpoint', async () => {
-  for (const mode of ['disabled', 'review']) {
+  for (const mode of ['disabled', 'review', 'title']) {
   let enabled = true, adapter
   const bridge = createReasoningBridge({ enabled: () => enabled, supportsModel: () => true, accountScope: async () => 'synthetic-account' })
   bridge.sessionCreated(Session.create('outer'))
@@ -222,7 +222,7 @@ test('an ineligible nested request cannot overwrite an outer request checkpoint'
     if (options.sessionId === 'outer' && !options.nested) {
       enabled = mode !== 'disabled'
       const messages = mode === 'review' ? [{ role: 'system', content: [{ type: 'text', text: 'REVIEW_POLICY\nYou are the final authorization reviewer' }] }] : options.messages
-      for await (const _ of adapter.stream({ ...options, messages, sessionId: mode === 'review' ? 'outer' : 'nested', reasoningEffort: 'high', nested: true })) {}
+      for await (const _ of adapter.stream({ ...options, messages, sessionId: mode === 'disabled' ? 'nested' : 'outer', ...(mode === 'title' ? { purpose: 'session-title' } : {}), reasoningEffort: 'high', nested: true })) {}
       enabled = true
     }
     yield { type: 'block-end', index: 0, block }
@@ -233,5 +233,37 @@ test('an ineligible nested request cannot overwrite an outer request checkpoint'
   for await (const event of adapter.stream({ provider: model.provider, model: model.id, sessionId: 'outer', reasoningEffort: 'medium', messages: [user('outer')] })) finish = event
   assert.equal(finish.replayState.response[REASONING_STATE_KEY].state.baseline, 'medium')
   assert.equal(bridge.snapshot().pending, 1)
+  }
+})
+
+test('overlapping session titles bypass checkpoint writes without allowing concurrent conversation writers', async () => {
+  for (const prepared of [false, true]) {
+    const f = fixture()
+    f.created()
+    const call = prepared ? await f.adapter.prepareCall() : f.adapter
+    const options = { provider: model.provider, model: model.id, sessionId: 'fixture-session', messages: [user('first')], reasoningEffort: 'medium' }
+    const main = call.stream(options)
+    try {
+      assert.equal((await main.next()).done, false)
+      const before = f.bridge.snapshot()
+      const titleOptions = { ...options, purpose: 'session-title', messages: [user('summarize title')], reasoningEffort: 'high' }
+      let titleFinish
+      for await (const event of call.stream(titleOptions)) titleFinish = event
+      assert.deepEqual(f.bridge.snapshot(), before, 'the title must not clear or replace the main checkpoint')
+      assert.equal(titleFinish.replayState.response[REASONING_STATE_KEY], undefined)
+      assert.equal(f.wires.at(-1).reasoning.effort, 'high')
+      assert.equal(f.wires.at(-1).input.some(item => item.type === 'configuration_update'), false)
+      const conflicting = call.stream(options)
+      await assert.rejects(conflicting.next(), error => error.code === 'UNSUPPORTED_OPTION' && /concurrent/.test(error.message))
+      const mainFinish = (await main.next()).value
+      assert.equal(mainFinish.replayState.response[REASONING_STATE_KEY].state.baseline, 'medium')
+    } finally { await main.return() }
+    assert.equal(f.bridge.snapshot().active, 0)
+    // A title that runs first must not consume the new-session proof either.
+    const early = fixture(); early.created()
+    await early.run([user('title only')], 'high', 'fixture-session', { purpose: 'session-title' })
+    assert.equal(early.bridge.snapshot().fresh, 1)
+    const finish = await early.run([user('actual first')], 'medium')
+    assert.equal(finish.replayState.response[REASONING_STATE_KEY].state.baseline, 'medium')
   }
 })
