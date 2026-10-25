@@ -11,7 +11,6 @@ import { homeFolderAnswer, runGit } from './remote-control-git.js'
 import { phoneGitProbe, runPhoneGitProbe } from './remote-control-git-probes.js'
 import { searchFiles } from './remote-control-files.js'
 import { createRealtimeVoice, createVoiceCall, desktopInstructions } from './remote-control-realtime.js'
-import { createHostVoiceMedia } from './voice-host-media.js'
 import { diagnosticLog } from './diagnostic-log.js'
 import { phoneLog } from './remote-control-log.js'
 import { rememberRemoteImage, withRemoteImageOutput } from './remote-control-image-output.js'
@@ -1367,26 +1366,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       await realtimeVoice.start({ threadId: sessionId, transport: { type: 'existingCall', callId }, flushTranscriptTailOnSessionEnd: true, silentTailRecord: true, hangUpOnGoodbye: true, version: 'v3' }, async () => {}, { signal })
       return { answer }
   }
-  const voiceStopped = new Set()
-  const hostMedia = createHostVoiceMedia({ onStop(sessionId) { realtimeVoice?.stop(sessionId); for (const listener of voiceStopped) listener(sessionId) }, log: diagnosticLog })
   const desktopVoice = realtimeVoice === undefined ? undefined : Object.freeze({
-    async start(params) {
-      // Resolve the actual conversation before allocating an in-process media peer.
-      await agentFor(params.sessionId)
-      if (params.transport === 'pcm') return hostMedia.start({ sessionId: params.sessionId, signal: params.signal, negotiate: async (sdp, signal) => (await startDesktopVoice({ ...params, sdp, signal })).answer })
-      hostMedia.stop(params.sessionId)
-      return startDesktopVoice(params)
-    },
-    audio: params => hostMedia.exchange(params),
-    onStop(listener) { voiceStopped.add(listener); return () => voiceStopped.delete(listener) },
-    stop(sessionId, mediaId) {
-      if (mediaId !== undefined) return hostMedia.stop(sessionId, mediaId)
-      const stopped = hostMedia.stop(sessionId)
-      return realtimeVoice.stop(sessionId) || stopped
-    },
+    start: startDesktopVoice,
+    stop: sessionId => realtimeVoice.stop(sessionId),
     interrupt: sessionId => realtimeVoice.interrupt(sessionId),
     end: sessionId => realtimeVoice.requestClose(sessionId),
     status: sessionId => realtimeVoice.status(sessionId),
   })
-  return { methods, desktopVoice, onSessionEvent, onStream, onApproval, onQuestion, adopt, close() { hostMedia.closeAll(); realtimeVoice?.closeAll(); voiceStopped.clear() }, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
+  return { methods, desktopVoice, onSessionEvent, onStream, onApproval, onQuestion, adopt, close() { realtimeVoice?.closeAll() }, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
 }

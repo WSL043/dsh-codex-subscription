@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { voiceCallCapability, voiceCallProblem, voicePreviewProblem } from '../src/voice-problems.js'
 import { openVoiceCall } from '../src/voice-call.js'
-import { supportsPcmVoice } from '../src/voice-pcm.js'
 import { voiceBrowserUrl, restoreVoiceConversation } from '../src/voice-browser.js'
 
 test('voice capabilities distinguish insecure pages, missing microphone and missing WebRTC', () => {
@@ -14,7 +13,7 @@ test('voice capabilities distinguish insecure pages, missing microphone and miss
   assert.equal(voiceCallCapability({ ...available, MediaRecorder() {}, RTCPeerConnection: undefined }), 'voice-no-webrtc')
 })
 
-test('unsupported or unusable WebRTC offers browser continuation even when PCM capabilities are available', async () => {
+test('unsupported or unusable WebRTC offers browser continuation without opening audio devices', async () => {
   const previous = Object.getOwnPropertyDescriptors(globalThis)
   let microphones = 0, requests = 0, audioContexts = 0
   const replaced = ['navigator', 'RTCPeerConnection', 'AudioContext', 'AudioWorkletNode', 'isSecureContext']
@@ -24,7 +23,6 @@ test('unsupported or unusable WebRTC offers browser continuation even when PCM c
     Object.defineProperty(globalThis, 'AudioContext', { configurable: true, value: class { constructor() { audioContexts++; throw Error('unexpected audio context') } } })
     Object.defineProperty(globalThis, 'AudioWorkletNode', { configurable: true, value: class {} })
     Object.defineProperty(globalThis, 'RTCPeerConnection', { configurable: true, writable: true, value: undefined })
-    assert.equal(supportsPcmVoice(), true)
     const options = { rpc: { call() { requests++ } }, sessionId: 'test' }
     await assert.rejects(openVoiceCall(options), error => error.code === 'voice-no-webrtc')
     globalThis.RTCPeerConnection = class { constructor() { throw Error('unsupported engine') } }

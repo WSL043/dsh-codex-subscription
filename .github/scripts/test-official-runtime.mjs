@@ -22,7 +22,7 @@ try {
   // DSH packages still resolve from the official runner's own cohort.
   mkdirSync(join(probe, 'node_modules'), { recursive: true })
   const manifest = JSON.parse(readFileSync(join(source, 'package.json'), 'utf8'))
-  for (const name of ['fake-indexeddb', 'react', 'werift', 'opusscript']) {
+  for (const name of ['fake-indexeddb', 'react']) {
     const dependency = realpathSync(join(testDependencies, 'node_modules', name))
     const expected = manifest.dependencies?.[name] ?? manifest.devDependencies?.[name]
     const installed = JSON.parse(readFileSync(join(dependency, 'package.json'), 'utf8'))

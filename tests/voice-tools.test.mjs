@@ -31,13 +31,3 @@ test('the desktop wrapper forwards speech interruption to the active call', asyn
   assert.equal(voice.interrupt('a'), true)
   assert.deepEqual(interrupted, ['a'])
 })
-
-test('an idle native window releases its end-call tool, and stale media stops do not close a new call', async () => {
-  let ended, disposed=0
-  const wrapped=withEndCallTool({start:async()=>({}),onStop:callback=>{ended=callback},stop:()=>false,status:()=>({active:true})},()=>()=>{disposed++})
-  await wrapped.start({sessionId:'s'})
-  wrapped.stop('s','old-media')
-  assert.equal(disposed,0)
-  ended('s')
-  assert.equal(disposed,1)
-})

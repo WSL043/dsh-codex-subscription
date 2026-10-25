@@ -67,28 +67,15 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
         return publicError('operation-error', 'Could not read the voice status')
       }
     }
-    if (endpoint === 'voice/audio') {
-      try {
-        signal.throwIfAborted()
-        if (preferences?.status?.().voiceCall !== 'on' || typeof desktopVoice?.audio !== 'function') return publicError('unavailable', 'Voice is unavailable')
-        if (typeof payload?.sessionId !== 'string' || payload.sessionId.length === 0 || payload.sessionId.length > 512 || typeof payload?.mediaId !== 'string' || payload.mediaId.length > 80) return publicError('invalid-input', 'Invalid voice request')
-        return { ok: true, value: desktopVoice.audio(payload) }
-      } catch (error) {
-        if (signal.aborted) throw error
-        return publicError(error?.code === 'invalid-input' ? 'invalid-input' : 'unavailable', 'Voice audio is unavailable')
-      }
-    }
     if (endpoint === 'voice/start' || endpoint === 'voice/stop') {
       try {
         signal.throwIfAborted()
         if (!desktopVoice) return publicError('unavailable', 'Voice is unavailable')
         if (typeof payload?.sessionId !== 'string' || payload.sessionId.length === 0 || payload.sessionId.length > 512) return publicError('invalid-input', 'Invalid voice request')
-        if (payload.mediaId !== undefined && (typeof payload.mediaId !== 'string' || payload.mediaId.length > 80)) return publicError('invalid-input', 'Invalid voice request')
-        if (endpoint === 'voice/stop') { desktopVoice.stop(payload.sessionId, payload.mediaId); return { ok: true, value: {} } }
+        if (endpoint === 'voice/stop') { desktopVoice.stop(payload.sessionId); return { ok: true, value: {} } }
         const current = preferences?.status?.() ?? {}
         if (current.voiceCall !== 'on') return publicError('unavailable', 'Voice is turned off')
-        if (payload.transport !== undefined && payload.transport !== 'pcm') return publicError('invalid-input', 'Invalid voice transport')
-        return { ok: true, value: await desktopVoice.start({ sessionId: payload.sessionId, sdp: payload.sdp, transport: payload.transport, voice: current.voiceVoice, language: current.voiceLanguage, signal }) }
+        return { ok: true, value: await desktopVoice.start({ sessionId: payload.sessionId, sdp: payload.sdp, voice: current.voiceVoice, language: current.voiceLanguage, signal }) }
       } catch (error) {
         if (signal.aborted) throw error
         return publicError('operation-error', 'Could not start the voice call')
