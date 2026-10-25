@@ -44,7 +44,7 @@ const files = (explicitFiles === undefined ? git('diff', '--name-only', `${base}
 const matches = patterns => files.some(file => patterns.some(pattern => pattern.test(file)))
 
 const plannerChanged = matches([/^scripts\/(?:ci-change-plan|test-groups|run-tests)\.mjs$/u, /^\.github\/workflows\/ci\.yml$/u,
-  /^\.github\/scripts\/(?:accept-official-release\.ps1|test-official-runtime\.mjs)$/u])
+  /^\.github\/scripts\/(?:accept-official-release\.ps1|test-official-runtime\.mjs|prepare-official-test-dependencies\.mjs)$/u])
 const changedTest = group => files.some(file => testGroup(file) === group)
 const runtime = matches([
   /^src\//u,

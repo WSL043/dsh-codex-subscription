@@ -31,11 +31,13 @@ function Initialize-Runner {
     [IO.File]::WriteAllText((Join-Path $runnerRoot 'package.json'), '{"private":true}')
     & node (Join-Path $PSScriptRoot 'pin-official-cohort.mjs') $runnerRoot $DshVersion
     if ($LASTEXITCODE -ne 0) { throw 'Official DSH cohort pinning failed.' }
-    # The isolated CI checkout intentionally has no development node_modules.
-    # Materialize the one test-only browser storage emulator beside the runner.
-    $sourceManifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../package.json') -Raw | ConvertFrom-Json
-    $indexedDbVersion = $sourceManifest.devDependencies.'fake-indexeddb'
-    if (-not $indexedDbVersion) { throw 'Missing IndexedDB test dependency version.' }
+    # Keep plugin-owned test dependencies separate from the official DSH cohort.
+    # Project their exact roots from the checkout lockfile, without needing root node_modules.
+    $testDependenciesRoot = Join-Path $acceptanceRoot 'test-dependencies'
+    & node (Join-Path $PSScriptRoot 'prepare-official-test-dependencies.mjs') $testDependenciesRoot
+    if ($LASTEXITCODE -ne 0) { throw 'Locked test dependency projection failed.' }
+    & $runner.Source --dir $testDependenciesRoot --config.minimum-release-age=0 install --frozen-lockfile --ignore-scripts
+    if ($LASTEXITCODE -ne 0) { throw 'Locked test dependency materialization failed.' }
     & $runner.Source `
         --dir $runnerRoot `
         --config.minimum-release-age=0 `
@@ -47,8 +49,7 @@ function Initialize-Runner {
         '--allow-build=koffi' `
         '--allow-build=node-pty' `
         '--allow-build=protobufjs' `
-        "@deepseek-ai/dsh@$DshVersion" `
-        "fake-indexeddb@$indexedDbVersion"
+        "@deepseek-ai/dsh@$DshVersion"
     if ($LASTEXITCODE -ne 0) { throw 'Official DSH runner materialization failed.' }
 
     $installedManifest = Get-Content -LiteralPath `
@@ -59,7 +60,7 @@ function Initialize-Runner {
     $script:runner = Get-Command (Join-Path $runnerRoot 'node_modules\.bin\dsh.cmd') `
         -CommandType Application -ErrorAction Stop
     $script:runnerPrefix = @()
-    & node (Join-Path $PSScriptRoot 'test-official-runtime.mjs') $runnerRoot
+    & node (Join-Path $PSScriptRoot 'test-official-runtime.mjs') $runnerRoot $testDependenciesRoot
     if ($LASTEXITCODE -ne 0) { throw 'Subscription behavior failed against official DSH dependencies.' }
 }
 
