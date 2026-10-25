@@ -68,7 +68,7 @@
 2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
 
    ```text
-   dsh-codex-subscription@3.1.6
+   dsh-codex-subscription@3.1.7
    ```
 
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
@@ -85,7 +85,7 @@
 <summary>终端安装（已能运行 dsh 命令）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.1.6
+dsh plugin --profile web add dsh-codex-subscription@3.1.7
 ```
 
 安装完成后按提示重启 DSH，再到 **设置 → Codex 订阅** 登录。插件页面和终端均由 DSH 管理安装。
@@ -98,7 +98,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.1.6
 先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.1.6
+dsh plugin --profile headless add dsh-codex-subscription@3.1.7
 dsh --profile headless "只回复：ok"
 ```
 
@@ -141,7 +141,7 @@ dsh --profile headless "只回复：ok"
 | **创作** | 图片生成、编辑、输入框 @生图、图片查看器，草图画板和 Agent 绘图 |
 | **手机与更多** | 手机远程控制、语音对话（实验性）、本机缓存、支持诊断 |
 
-语音对话默认关闭，在 **手机与更多** 开启后可从输入框发起。Linux 原生窗口缺少 WebRTC、但音频采集能力可用时，会自动经 DSH 转接，继续使用现有订阅。
+语音对话默认关闭，在 **手机与更多** 开启后可从输入框发起。Linux 等原生窗口不支持 WebRTC 时，会提供在浏览器中继续同一会话的入口；音色试听仍可使用，继续使用现有订阅，无需 API Key。
 
 **模型感知上下文**跟随账号模型目录，刷新不会覆盖未保存的草稿。额度分组以服务端实际返回为准，包括 Spark 等独立额度。
 
@@ -357,7 +357,7 @@ Agent 先在画板绘制可编辑草图，再以该草图为参考调用订阅�
 <summary>终端方式</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.1.6
+dsh plugin --profile web update dsh-codex-subscription@3.1.7
 ```
 
 仅在需要卸载时运行：
