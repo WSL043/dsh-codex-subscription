@@ -23,6 +23,21 @@ test('plugin card translations are exported and included in the published packag
 })
 const compatibility = JSON.parse(text('compatibility.json'))
 
+test('verify-only release runs the acceptance layout while disabling every publication job', () => {
+  const workflow = text('.github/workflows/publish.yml')
+  assert.match(workflow, /verify_only:\s*\n\s*description:[^\n]+\n\s*required: false\n\s*type: boolean\n\s*default: false/u)
+  assert.match(workflow, /VERIFY_ONLY: \$\{\{ inputs\.verify_only \}\}/u)
+  assert.match(workflow, /if \[\[ "\$VERIFY_ONLY" == 'true' \]\]; then[\s\S]*?echo "needed=true"[\s\S]*?exit 0/u)
+  for (const [name, next] of [['release', 'publish-npm'], ['publish-npm', 'sync-mirror'], ['sync-mirror', undefined]]) {
+    const start = workflow.indexOf(`\n  ${name}:`)
+    const end = next ? workflow.indexOf(`\n  ${next}:`, start) : workflow.length
+    assert.ok(start > 0 && end > start, name)
+    const job = workflow.slice(start, end)
+    const guard = job.slice(job.indexOf('\n    if:'), job.indexOf('\n    runs-on:'))
+    assert.match(guard, /inputs\.verify_only != true/u, `${name} must stay disabled during acceptance-only runs`)
+  }
+})
+
 test('normal installation does not pull the optional Codex executable runtime', () => {
   const runtime = '@deepseek-ai/dsh-subagent-codex'
   assert.equal(manifest.dependencies?.[runtime], undefined)
