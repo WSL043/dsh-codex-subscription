@@ -8,6 +8,11 @@ on:
         description: Optional correlation id used by the compatibility autopilot
         required: false
         type: string
+      verify_only:
+        description: Run all release acceptance checks without creating or publishing a version
+        required: false
+        type: boolean
+        default: false
       release_kind:
         description: Release-note template
         required: false
@@ -83,8 +88,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          VERIFY_ONLY: ${{ inputs.verify_only }}
         shell: bash
         run: |
+          if [[ "$VERIFY_ONLY" == 'true' ]]; then
+            echo 'Verification only: run acceptance even if the version already exists.'
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json isDraft >/tmp/release.json 2>/dev/null; then
             if [[ "$(jq -r '.isDraft' /tmp/release.json)" == "true" ]]; then
               echo "$RELEASE_TAG is a stale draft and will be rebuilt by the release job."
@@ -205,7 +216,7 @@ jobs:
 
   release:
     needs: [preflight, verify, windows, official-acceptance]
-    if: needs.preflight.outputs.needed == 'true' && needs.verify.result == 'success' && needs.windows.result == 'success' && needs.official-acceptance.result == 'success'
+    if: inputs.verify_only != true && needs.preflight.outputs.needed == 'true' && needs.verify.result == 'success' && needs.windows.result == 'success' && needs.official-acceptance.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -604,6 +615,7 @@ jobs:
     needs: [preflight, release]
     if: >-
       always() &&
+      inputs.verify_only != true &&
       needs.preflight.result == 'success' &&
       (needs.preflight.outputs.needed == 'false' || needs.release.result == 'success')
     runs-on: ubuntu-latest
@@ -718,7 +730,7 @@ jobs:
   # A failure here never fails the release, which is already published.
   sync-mirror:
     needs: [preflight, publish-npm]
-    if: needs.publish-npm.result == 'success'
+    if: inputs.verify_only != true && needs.publish-npm.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 75
     continue-on-error: true
