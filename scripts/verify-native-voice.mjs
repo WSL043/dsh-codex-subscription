@@ -1,4 +1,5 @@
-// Real WebKitGTK + real in-process WebRTC loopback, never a subscriber token or microphone.
+// Experimental PCM component probe: real WebKitGTK and local WebRTC loopback, mock microphone, no subscription.
+// Calls the PCM implementation directly; this is not acceptance of the production voice entry point or OS audio output.
 import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
@@ -12,20 +13,18 @@ const root=path.resolve('.'),out=path.resolve('.artifacts/native-voice')
 fs.mkdirSync(out,{recursive:true})
 const require=createRequire(import.meta.url)
 const {rolldown}=await import(pathToFileURL(createRequire(require.resolve('tsdown')).resolve('rolldown')).href)
-const entry=`import {openVoiceCall} from ${JSON.stringify(root.replaceAll('\\','/')+'/src/voice-call.js')};
+const entry=`import {openPcmVoiceCall} from ${JSON.stringify(root.replaceAll('\\','/')+'/src/voice-pcm.js')};
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const wait=async predicate=>{for(let i=0;i<150;i++){if(predicate())return;await sleep(40)}throw Error('audio deadline')};
-const report={secureContext:isSecureContext,nativePeerConnection:typeof RTCPeerConnection,worklet:typeof AudioWorkletNode,noAccount:true,noRealMicrophone:true};
+const report={experimental:true,entryPoint:'openPcmVoiceCall',productionVoiceAcceptance:false,osAudioOutputVerified:false,chimesVerified:false,secureContext:isSecureContext,nativePeerConnection:typeof RTCPeerConnection,worklet:typeof AudioWorkletNode,noAccount:true,noRealMicrophone:true};
 const phase=name=>{report.phase=name;window.webkit.messageHandlers.nativeVoiceResult.postMessage(JSON.stringify({...report,pending:true}))};
 const nativeGetUserMedia=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
 let call,tracks=[];
 const rpc={async call(_channel,endpoint,payload,signal){const response=await fetch('/rpc/'+endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload),signal});return response.json()}};
 document.querySelector('#run').onclick=async event=>{try{
   report.nativeClick=event.isTrusted;report.userActivation=navigator.userActivation?.isActive??null;
-  // Future engines may regain RTC; record that fact and keep exercising the explicit fallback.
-  if(typeof RTCPeerConnection==='function')Object.defineProperty(window,'RTCPeerConnection',{configurable:true,value:undefined});
   navigator.mediaDevices.getUserMedia=async options=>{phase('mock-microphone');const mock=await nativeGetUserMedia(options);tracks=mock.getTracks();report.mockMicrophone=mock.getAudioTracks().some(t=>t.readyState==='live');await sleep(600);return mock};
-  phase('open-call');let ended=0;call=await openVoiceCall({rpc,sessionId:'native-voice-test',onEnd:()=>ended++});report.transport=call.transport;
+  phase('open-call');let ended=0;call=await openPcmVoiceCall({rpc,sessionId:'native-voice-test',chime:()=>{},onEnd:()=>ended++});report.transport=call.transport;
   phase('duplex');await wait(()=>call.levels().mic>.1&&call.levels().assistant>.1);report.duplexPcm=true;
   call.setMuted(true);await sleep(120);report.muted=call.isMuted()&&call.levels().mic===0&&tracks.every(t=>!t.enabled);
   call.setOutputMuted(true);report.speakerMuted=call.isOutputMuted();call.setOutputMuted(false);
@@ -38,7 +37,7 @@ document.querySelector('#run').onclick=async event=>{try{
 }};document.querySelector('#run').focus();`
 const built=await rolldown({input:'virtual:native-voice',platform:'browser',plugins:[{name:'native-voice',resolveId:id=>id==='virtual:native-voice'?id:undefined,load:id=>id==='virtual:native-voice'?entry:undefined}]})
 const generated=await built.generate({format:'iife'});await built.close()
-const html='<!doctype html><meta charset="utf-8"><title>Native voice loopback acceptance</title><body>Testing synthetic audio only<button id="run" autofocus>Start native audio test</button><script>'+generated.output[0].code.replaceAll('</script','<\\/script')+'</script>'
+const html='<!doctype html><meta charset="utf-8"><title>Experimental PCM component probe</title><body>Mock microphone and local loopback only; production voice and OS playback are not verified.<button id="run" autofocus>Start PCM experiment</button><script>'+generated.output[0].code.replaceAll('</script','<\\/script')+'</script>'
 const peers=new Set()
 let active=0,exchanges=0
 const media=createHostVoiceMedia({onStop(){active--}})
