@@ -1,0 +1,43 @@
+name: Isolated native audio validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - native/**
+      - scripts/verify-native-audio.py
+      - scripts/run-native-audio-checks.sh
+      - .github/workflows/native-audio-validation.yml
+  pull_request:
+    paths:
+      - native/**
+      - scripts/verify-native-audio.py
+      - scripts/run-native-audio-checks.sh
+      - .github/workflows/native-audio-validation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-audio-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  arch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Native PipeWire audio in Arch userspace
+        run: |
+          mkdir -p .artifacts/native-audio-arch
+          docker run --rm --env NATIVE_AUDIO_REPEATS=2 --volume "$PWD:/work:ro" --volume "$PWD/.artifacts/native-audio-arch:/evidence" archlinux@sha256:52dfbd5afb23a220d5ee92dafcb4c788d96c026ed04179890c23adef4c897fa0 bash /work/scripts/run-native-audio-checks.sh arch
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: native-audio-arch
+          path: .artifacts/native-audio-arch
+          retention-days: 3
