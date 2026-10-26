@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
+import { spawnSync } from 'node:child_process'
+import { dirname, join } from 'node:path'
 
 const releaseWorkflow = readFileSync(new URL('../.github/workflows/publish.yml', import.meta.url), 'utf8')
 
@@ -78,6 +80,25 @@ test('feature releases credit merged contributor PRs with verified authors and l
   assert.match(releaseWorkflow, /Adopted from PR #\$pr_number/u)
   assert.match(releaseWorkflow, /if \[\[ "\$merged_at" == 'null' \]\]; then/u)
   assert.match(releaseWorkflow, /Thanks to \[@\$author\][\s\S]*for contributing in \[#\$number\]/u)
+})
+
+test('adoption lookup consumes the entire history under pipefail and rejects absent credit', () => {
+  const gitPaths = process.platform === 'win32'
+    ? (spawnSync('where.exe', ['git'], { encoding: 'utf8' }).stdout ?? '').trim().split(/\r?\n/u)
+    : []
+  const candidates = process.platform === 'win32'
+    ? gitPaths.flatMap(file => [join(dirname(dirname(file)), 'bin', 'bash.exe'), join(dirname(dirname(file)), 'usr', 'bin', 'bash.exe')])
+    : ['/bin/bash', '/usr/bin/bash']
+  const bash = candidates.find(existsSync)
+  assert.ok(bash, 'release pipeline regression needs the Git Bash or system Bash already used by CI')
+  const command = releaseWorkflow.match(/^\s+(git log --format=%B -n 200 FETCH_HEAD \| [^\n]+) \|\| \{$/mu)?.[1]
+  assert.ok(command, 'exercise the actual workflow adoption lookup')
+  for (const present of [true, false]) {
+    const script = `set -o pipefail\npr_number=214\ngit() {\n  printf '%s\\n' '${present ? 'Adopted from PR #214 (settings approach).' : 'Unrelated change.'}'\n  head -c 1048576 /dev/zero | tr '\\0' x\n}\n${command}\n`
+    const result = spawnSync(bash, ['--noprofile', '--norc', '-c', script], { encoding: 'utf8', timeout: 5000, windowsHide: true })
+    assert.equal(result.status, present ? 0 : 1, `present=${present}: ${result.stderr}`)
+    assert.equal(result.stdout, '', 'credit lookup should stay quiet without closing the producer early')
+  }
 })
 
 test('releases credit merged PR contributors but never turn issue reports into release credits', () => {

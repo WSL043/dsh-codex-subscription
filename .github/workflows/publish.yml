@@ -280,7 +280,8 @@ jobs:
                 # An adopted PR is closed rather than merged; accept it only when
                 # a commit in the release history records the adoption.
                 git fetch --quiet --no-tags --depth=200 origin "$GITHUB_SHA"
-                git log --format=%B -n 200 FETCH_HEAD | grep -qE "Adopted from PR #$pr_number( |\.|$)" || {
+                # Read the full pipe: grep -q can SIGPIPE git log under pipefail.
+                git log --format=%B -n 200 FETCH_HEAD | grep -E "Adopted from PR #$pr_number( |\.|$)" >/dev/null || {
                   echo "PR #$pr_number is neither merged nor recorded as adopted." >&2
                   return 1
                 }
