@@ -13,7 +13,7 @@ import {
   PickerModelsPreference, QuickQuotaPreference, ReasoningCachePreference, ReasoningSummaryPreference, RetryPolicyPreference, SearchProviderPreference,
   StreamIdleTimeoutPreference,
 } from './client-preferences.jsx'
-import { OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
+import { DEFAULT_REASONING_EFFORT_FIELD, DEFAULT_REASONING_EFFORTS, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
 import { IMAGE_MODELS } from './image-models.js'
 import { ImageChoice } from './image-preferences.jsx'
 
@@ -101,12 +101,23 @@ function Radios({ snapshot, preference, field, values, label, name, text, disabl
   </div>
 }
 
+/** The effort every subscription model starts on; 'auto' keeps the account catalog's own default per model. */
+function DefaultReasoningEffortPreference({ preference, t }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  return <div className="codexSubscriptionPreference">
+    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('defaultReasoningEffortTitle')}</span><Hint t={t}>{t('defaultReasoningEffortHint')}</Hint></div>
+    <Radios snapshot={snapshot} preference={preference} field={DEFAULT_REASONING_EFFORT_FIELD} values={DEFAULT_REASONING_EFFORTS} name="codex-default-reasoning-effort" label={t('defaultReasoningEffortTitle')} text={value => t(`reasoningEffort_${value}`)} />
+  </div>
+}
+
 export function ModelsPage({ preference, t, defaultModel }) {
   const snapshot = usePreferenceSnapshot(preference)
   return <div className="codexSubscriptionAdvancedPreferences">
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('modelsSectionTitle')}>
       <ModelCatalogStatus preference={preference} t={t} title={t('modelsSectionTitle')} />
       {defaultModel === undefined ? null : <><DefaultModelPreference preference={preference} defaultModel={defaultModel} t={t} /><div className="codexSubscriptionDivider" /></>}
+      <DefaultReasoningEffortPreference preference={preference} t={t} />
+      <div className="codexSubscriptionDivider" />
       <PickerModelsPreference preference={preference} t={t} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('answerStyleTitle')}>

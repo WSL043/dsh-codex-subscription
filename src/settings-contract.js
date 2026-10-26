@@ -44,6 +44,15 @@ export const normalizeVoiceLanguage = value => VOICE_LANGUAGES.includes(value) ?
 export const REASONING_SUMMARY_FIELD = 'reasoningSummary'
 export const REASONING_SUMMARIES = Object.freeze(['auto', 'concise', 'detailed', 'none'])
 export const DEFAULT_REASONING_SUMMARY = 'auto'
+// The level a subscription model starts on when it is selected. 'auto' keeps the
+// account catalog's own default_reasoning_level; the other entries name host
+// effort ids the subscription catalog offers today ('off'/'minimal' never appear).
+export const DEFAULT_REASONING_EFFORT_FIELD = 'defaultReasoningEffort'
+export const DEFAULT_REASONING_EFFORT_AUTO = 'auto'
+export const DEFAULT_REASONING_EFFORTS = Object.freeze(['auto', 'low', 'medium', 'high', 'xhigh', 'max'])
+export const DEFAULT_REASONING_EFFORT = DEFAULT_REASONING_EFFORT_AUTO
+export const normalizeDefaultReasoningEffortChoice = value =>
+  DEFAULT_REASONING_EFFORTS.includes(value) ? value : DEFAULT_REASONING_EFFORT
 export const RETRY_POLICY_FIELD = 'retryPolicy'
 export const RETRY_POLICIES = Object.freeze(['default', 'off', '10', '20', 'unlimited'])
 export const DEFAULT_RETRY_POLICY = 'default'

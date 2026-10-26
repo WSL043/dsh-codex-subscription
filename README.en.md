@@ -136,7 +136,7 @@ Open **Settings → Codex** to manage accounts and preferences. Screenshots and 
 | Settings tab | What it controls |
 | --- | --- |
 | **Start** | Sign-in and accounts, a switch for every feature, subscription quota, quota display and alerts |
-| **Models** | Default model and model list, answer style; the folded Advanced group has context length, retry, connection mode, cloud compaction and the review model |
+| **Models** | Default model and model list, answer style, default reasoning effort; the folded Advanced group has context length, retry, connection mode, cloud compaction and the review model |
 | **Web & tools** | The master switch for other models, search source, ChatGPT connectors, official Codex subtasks |
 | **Create** | Image generation, editing, @image in the composer, image viewer, sketch board and agent drawing |
 | **Phone & more** | Phone remote control, experimental voice calls, local cache, support diagnostics |
@@ -261,6 +261,7 @@ Model access and quota depend on your account.
 | **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh; the last successful catalog is stored locally per account and remains available during the background refresh after restart, with a 24-hour lifetime; models marked for retirement show their retirement date next to the model name, without automatically switching your selection | New models appear when your account offers them; the account catalog is the only source, so no models are shown when signed out or when neither a remote read nor a valid cache is available |
 | **Model list** | Show or hide individual models in the composer picker on the Models page; the picker keeps DSH's own model labels (such as the new-model badge) | Display only; selected models and requests still work |
 | **Default model** | Choose the model a new conversation opens with on the Models page | Writes the DSH default model setting, the same one a model switch inside a chat writes; unset it to follow the DSH default |
+| **Default reasoning effort** | Choose the effort a subscription model starts with when it is selected, on the Models page | Follow catalog keeps the account default for each model; a model that does not offer the level falls back to its own default, and an effort picked in the composer still wins |
 | **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
 | **Speed tiers** | Switch supported models between Standard and Fast; Ultrafast (Beta) too when the account catalog offers it, with a lightning indicator | Standard by default; Fast and Ultrafast increase usage, and Ultrafast is Pro 500 only today |
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |

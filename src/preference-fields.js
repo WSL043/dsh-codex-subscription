@@ -5,6 +5,7 @@ import {
   SPEED_MODE_FIELD, SPEED_MODE_STANDARD, SPEED_MODE_FAST, SPEED_MODE_ULTRAFAST, DEFAULT_SPEED_MODE,
   OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, OUTPUT_VERBOSITY_HIGH, DEFAULT_OUTPUT_VERBOSITY,
   INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, DEFAULT_INPUT_IMAGE_DETAIL, REASONING_SUMMARY_FIELD, REASONING_SUMMARIES, DEFAULT_REASONING_SUMMARY, RETRY_POLICY_FIELD, RETRY_POLICIES, DEFAULT_RETRY_POLICY, CONNECTORS_FIELD, CONNECTOR_MODES, DEFAULT_CONNECTOR_MODE,
+  DEFAULT_REASONING_EFFORT_FIELD, DEFAULT_REASONING_EFFORTS, DEFAULT_REASONING_EFFORT, DEFAULT_REASONING_EFFORT_AUTO,
   STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, DEFAULT_STREAM_IDLE_TIMEOUT_MINUTES,
   CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM, DEFAULT_CONTEXT_MODE,
   VOICE_CALL_FIELD, VOICE_VOICE_FIELD, VOICE_VOICES, VOICE_LANGUAGE_FIELD, VOICE_LANGUAGES,
@@ -25,6 +26,7 @@ export const PREFERENCE_FIELDS = Object.freeze({
   [SPEED_MODE_FIELD]: { choices: [SPEED_MODE_STANDARD, SPEED_MODE_FAST, SPEED_MODE_ULTRAFAST], default: DEFAULT_SPEED_MODE, error: 'Invalid speed mode preference' },
   [OUTPUT_VERBOSITY_FIELD]: { choices: [OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, OUTPUT_VERBOSITY_HIGH], default: DEFAULT_OUTPUT_VERBOSITY, error: 'Invalid output verbosity preference' },
   [REASONING_SUMMARY_FIELD]: { choices: REASONING_SUMMARIES, default: DEFAULT_REASONING_SUMMARY, error: 'Invalid reasoning summary preference' },
+  [DEFAULT_REASONING_EFFORT_FIELD]: { choices: DEFAULT_REASONING_EFFORTS, default: DEFAULT_REASONING_EFFORT, error: 'Invalid default reasoning effort preference' },
   [RETRY_POLICY_FIELD]: { choices: RETRY_POLICIES, default: DEFAULT_RETRY_POLICY, error: 'Invalid retry policy preference' },
   [CONNECTORS_FIELD]: { choices: CONNECTOR_MODES, default: DEFAULT_CONNECTOR_MODE, error: 'Invalid connectors preference' },
   [INPUT_IMAGE_DETAIL_FIELD]: { choices: INPUT_IMAGE_DETAILS, default: DEFAULT_INPUT_IMAGE_DETAIL, error: 'Invalid input image detail preference' },
@@ -37,3 +39,9 @@ export const PREFERENCE_FIELDS = Object.freeze({
 
 // Default only absent settings; preserve explicit off and legacy opt-ins.
 export const normalizeReasoningCache = value => value === undefined || value === 'on' || value === 'sol' ? 'on' : 'off'
+
+// The provider default handed to the adapter: 'auto' and unknown values leave the
+// account catalog's per-model default in charge, which is also what an unsupported
+// level falls back to once the adapter matches it against the exact model.
+export const normalizeDefaultReasoningEffort = value =>
+  DEFAULT_REASONING_EFFORTS.includes(value) && value !== DEFAULT_REASONING_EFFORT_AUTO ? value : undefined
