@@ -2,6 +2,8 @@ import { createSettingsAdapter } from './settings-adapter.js'
 import { observeAdapter } from './request-observer.js'
 import { createHiddenModelDirectory } from './hidden-model-directory.js'
 import { createDefaultModelController } from './default-model.js'
+import { withDefaultReasoningEffort } from './default-reasoning-effort.js'
+import { DEFAULT_REASONING_EFFORT_FIELD, normalizeDefaultReasoningEffort } from './settings-contract.js'
 import { PREFERENCE_FIELDS, normalizeReasoningCache } from './preference-fields.js'
 import { createSubscriptionConnection } from './subscription-connection.js'
 import { createCompactionBridge } from './subscription-compaction.js'
@@ -235,6 +237,7 @@ export function apply(ctx, config = {}) {
         [AUTO_QUOTA_RETRY_FIELD]: normalizeAutoQuotaRetry(settings.get()[AUTO_QUOTA_RETRY_FIELD]),
         compactionMode: settings.get().compactionMode ?? 'dsh',
         reasoningCache: normalizeReasoningCache(settings.get().reasoningCache),
+        [DEFAULT_REASONING_EFFORT_FIELD]: normalizeDefaultReasoningEffort(settings.get()[DEFAULT_REASONING_EFFORT_FIELD]),
         connectionMode: settings.get().connectionMode ?? 'sse',
         reviewModel: settings.get().reviewModel ?? 'session',
         remoteControl: settings.get().remoteControl ?? 'off',
@@ -444,9 +447,16 @@ export function apply(ctx, config = {}) {
   })
   ctx.effect(() => settings.watch((value, previous) => hiddenDirectory.settingsChanged(normalizeDisabledModels(value[DISABLED_MODELS_FIELD]), normalizeDisabledModels(previous[DISABLED_MODELS_FIELD]))), 'codex-subscription: hidden model directory')
   ctx.effect(() => ctx.on?.('session/event', (_session, event) => { if (event?.type === 'request/context') hiddenDirectory.dependenciesChanged() }), 'codex-subscription: hidden model dependencies')
+  ctx.effect(() => settings.watch((value, previous) => {
+    if (normalizeDefaultReasoningEffort(value[DEFAULT_REASONING_EFFORT_FIELD]) !== normalizeDefaultReasoningEffort(previous[DEFAULT_REASONING_EFFORT_FIELD])) ctx.llm.emitAdaptersUpdated?.()
+  }), 'codex-subscription: default reasoning effort')
   ctx.effect(() => {
     const lifetime = new AbortController()
-    const readyAdapter = withModelCatalogReady(hiddenDirectory.wrap(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(provider.wrapRetryAdapter(adapter))), provider)), modelCatalog, { signal: lifetime.signal })
+    const defaults = withDefaultReasoningEffort(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(provider.wrapRetryAdapter(adapter))), provider), {
+      preference: () => settings.get()[DEFAULT_REASONING_EFFORT_FIELD],
+      modelDefault: id => modelCatalog.metadata(id)?.defaultReasoningEffort,
+    })
+    const readyAdapter = withModelCatalogReady(hiddenDirectory.wrap(defaults), modelCatalog, { signal: lifetime.signal })
     const disposeAdapter = ctx.llm.registerAdapter([PROVIDER], readyAdapter)
     // Defer credential work until the synchronous apply() has installed resolveAuth.
     void Promise.resolve().then(() => modelCatalog.refresh({ signal: lifetime.signal }))

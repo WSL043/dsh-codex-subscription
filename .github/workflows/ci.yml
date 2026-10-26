@@ -31,7 +31,7 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - name: Refuse unpublished runtime drift and select meaningful gates
+      - name: Select acceptance gates and check package metadata
         id: plan
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}

@@ -304,8 +304,9 @@ export const STYLE = `
 .codexSubscriptionDiagnostics .codexSubscriptionSectionTitle{display:flex;flex-direction:column;gap:5px}
 .codexSubscriptionRemotePair{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:8px}.codexSubscriptionRemoteQr{width:168px;height:168px;flex:none;border-radius:12px;overflow:hidden;background:#fff}.codexSubscriptionRemoteQr svg{display:block;width:100%;height:100%}.codexSubscriptionRemoteCode{margin:6px 0;font:600 20px/28px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em;user-select:all}
 .codexSubscriptionStorageMeter{display:flex;flex-direction:column;gap:9px;padding:12px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
-.codexSubscriptionStorageMeter>div{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:12px;line-height:18px}
-.codexSubscriptionStorageMeter output{font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary)}
+.codexSubscriptionStorageHead{display:flex;align-items:center;justify-content:space-between;gap:8px 16px;flex-wrap:wrap}
+.codexSubscriptionStorageTitle{display:flex;align-items:baseline;gap:6px 12px;flex-wrap:wrap;min-width:0}
+.codexSubscriptionStorageTitle output{font-size:12px;line-height:18px;font-variant-numeric:tabular-nums;color:var(--dsw-alias-label-secondary)}
 .codexSubscriptionStorageMeter progress{width:100%;height:4px;border:0;border-radius:4px;overflow:hidden;accent-color:var(--dsw-alias-label-secondary)}
 .codexSubscriptionStorageMeter progress::-webkit-progress-bar{background:var(--dsw-alias-border-l2)}
 .codexSubscriptionStorageMeter progress::-webkit-progress-value{background:var(--dsw-alias-label-secondary)}
@@ -407,11 +408,12 @@ export const STYLE = `
 .codexFlat{display:flex;flex-direction:column;gap:0}.codexFlat[hidden]{display:none}
 .codexFlat .codexSubscriptionAdvancedPreferences{gap:0}
 .codexFlat .codexSubscriptionCard,.codexFlat .codexSubscriptionPreferencesCard,.codexFlat .codexImageSettings{border:1px solid var(--dsw-alias-border-l2);background:transparent;box-shadow:none;border-radius:12px;padding:2px 16px;margin:0 0 8px}
+.codexFlat .codexSubscriptionPreferencesCard,.codexFlat .codexFeatureOverview{gap:0}
 .codexFlat h3,.codexFlat .codexSubscriptionSectionHead h3{margin:10px 0 2px;font-size:14px;font-weight:500;line-height:20px;color:var(--dsw-alias-label-primary)}
 .codexFlat .codexSubscriptionPreference,.codexFlat .codexFeatureRow>.codexFeatureMain{box-sizing:border-box;padding:8px 0;min-height:52px;gap:6px 16px;align-items:center}
 .codexFlat .codexSubscriptionPreference,.codexFlat .codexFeatureRow{border-bottom:1px solid var(--dsw-alias-border-l2)}
 .codexFlat .codexFeatureRow,.codexFlat .codexSubscriptionPreference{border-top:0}
-.codexFlat section>.codexSubscriptionPreference:last-child,.codexFlat section>.codexFeatureRow:last-of-type,.codexFlat section>div:last-child>.codexSubscriptionPreference:last-child,.codexFlat .codexAdvancedBody>.codexSubscriptionPreference:last-child{border-bottom:0}
+.codexFlat section>.codexSubscriptionPreference:last-child,.codexFlat .codexSubscriptionCard>.codexSubscriptionPreference:last-child,.codexFlat section>.codexFeatureRow:last-of-type,.codexFlat section>div:last-child>.codexSubscriptionPreference:last-child,.codexFlat .codexAdvancedBody>.codexSubscriptionPreference:last-child{border-bottom:0}
 .codexFlat .codexSubscriptionPreferenceLabel,.codexFlat .codexFeatureTitle{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;line-height:20px;min-height:20px;color:var(--dsw-alias-label-primary)}
 .codexFlat .codexSubscriptionPreferenceLabel small,.codexFlat .codexFeatureTitle small{line-height:16px;height:16px;display:inline-flex;align-items:center}
 .codexFlat .codexSubscriptionPreferenceHint,.codexFlat .codexFeatureSummary,.codexFlat .codexSubscriptionHintText{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
@@ -434,7 +436,9 @@ export const STYLE = `
 .codexFlat .codexSubscriptionSearchOptions{margin:0;padding:0}.codexFlat .codexSubscriptionSearchOptions>summary{padding:10px 0;margin:0}
 .codexFlat .codexSubscriptionCard:has(>.codexSubscriptionAccounts),.codexFlat .codexSubscriptionCard:has(>.codexSubscriptionActions),.codexFlat .codexSubscriptionStorage{padding-block:10px}
 .codexFlat .codexSubscriptionCreditSection{display:block}.codexFlat .codexSubscriptionCreditSection[open]>summary{border-bottom:1px solid var(--dsw-alias-border-l2);margin-bottom:8px}
-.codexFlat .codexSubscriptionStorageMeter{background:transparent;padding:6px 0}
+.codexFlat .codexSubscriptionStorage{gap:6px}
+.codexFlat .codexSubscriptionStorageTitle h3{margin:0}
+.codexFlat .codexSubscriptionStorageMeter{background:transparent;padding:0}
 .codexFlat .codexSubscriptionResetBox{border:0;border-radius:0;padding:0}
 .codexFlat :is(button,summary,a):focus-visible,.codexFlat label:has(:focus-visible){outline:2px solid var(--dsw-alias-border-inverted);outline-offset:2px;box-shadow:none}
 .codexSettingsTabs{position:sticky;top:0;z-index:2;background:var(--dsw-alias-bg-layer-1);border-radius:0;padding:6px 0 0;margin-top:-6px;gap:18px;display:flex;overflow-x:auto;scrollbar-width:none;grid-template-columns:none;border-bottom:1px solid var(--dsw-alias-border-l2);margin-bottom:8px}

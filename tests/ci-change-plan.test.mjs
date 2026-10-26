@@ -53,10 +53,18 @@ test('test dispatch changes exercise all CI gates', () => {
   }
 })
 
-test('runtime changes cannot remain on the already-published version', () => {
+test('unreleased runtime changes keep all acceptance gates at the current stable version', () => {
   const result = plan(['src/index.js'])
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout).plan, {
+    behavior: true, delivery: true, manager: false, official: true, runtime: true,
+  })
+})
+
+test('runtime metadata cannot lag behind the published stable version', () => {
+  const result = plan(['src/index.js'], '1.9.0')
   assert.equal(result.status, 1)
-  assert.match(result.stderr, /package\.json is still 1\.10\.0/u)
+  assert.match(result.stderr, /package\.json 1\.9\.0 is behind published 1\.10\.0/u)
 })
 
 test('a versioned runtime change runs behavior and installed-product acceptance', () => {

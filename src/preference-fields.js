@@ -4,6 +4,7 @@ import {
   FETCH_PROVIDER_FIELD, FETCH_PROVIDER_DSH, FETCH_PROVIDER_CODEX, DEFAULT_FETCH_PROVIDER,
   SPEED_MODE_FIELD, SPEED_MODE_STANDARD, SPEED_MODE_FAST, SPEED_MODE_ULTRAFAST, DEFAULT_SPEED_MODE,
   OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, OUTPUT_VERBOSITY_HIGH, DEFAULT_OUTPUT_VERBOSITY,
+  DEFAULT_REASONING_EFFORT_FIELD, DEFAULT_REASONING_EFFORTS, DEFAULT_REASONING_EFFORT,
   INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, DEFAULT_INPUT_IMAGE_DETAIL, REASONING_SUMMARY_FIELD, REASONING_SUMMARIES, DEFAULT_REASONING_SUMMARY, RETRY_POLICY_FIELD, RETRY_POLICIES, DEFAULT_RETRY_POLICY, CONNECTORS_FIELD, CONNECTOR_MODES, DEFAULT_CONNECTOR_MODE,
   STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, DEFAULT_STREAM_IDLE_TIMEOUT_MINUTES,
   CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM, DEFAULT_CONTEXT_MODE,
@@ -14,6 +15,7 @@ import {
 export const PREFERENCE_FIELDS = Object.freeze({
   compactionMode: { choices: ['dsh', 'cloud'], default: 'dsh', error: 'Invalid compaction mode' },
   reasoningCache: { choices: ['off', 'on', 'sol'], default: 'on', error: 'Invalid reasoning cache preference' },
+  [DEFAULT_REASONING_EFFORT_FIELD]: { choices: DEFAULT_REASONING_EFFORTS, default: DEFAULT_REASONING_EFFORT, error: 'Invalid default reasoning effort' },
   connectionMode: { choices: ['sse', 'websocket'], default: 'sse', error: 'Invalid connection mode' },
   reviewModel: { choices: ['session', 'official'], default: 'session', error: 'Invalid review model' },
   remoteControl: { choices: ['off', 'on'], default: 'off', error: 'Invalid Remote Control setting' },

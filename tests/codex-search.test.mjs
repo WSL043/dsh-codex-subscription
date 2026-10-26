@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { REQUEST_BLOCKED } from '../src/http-failure.js'
+import { diagnosticLog } from '../src/diagnostic-log.js'
 import { WebError } from '@deepseek-ai/dsh-web'
 
 import {
@@ -209,7 +210,7 @@ test('Codex search reports subscription, provider, and cancellation failures wit
 
   for (const [response, code, message] of [
     [new Response('', { status: 401 }), 'WEB_PROVIDER_CREDENTIAL_MISSING', 'ChatGPT sign-in needs to be renewed'],
-    [new Response('', { status: 503 }), 'WEB_PROVIDER_ERROR', 'Codex search request failed (HTTP 503)'],
+    ...[400, 429, 501, 503].map(status => [new Response('', { status }), 'WEB_PROVIDER_ERROR', `Codex search request failed (HTTP ${status})`]),
     [new Response('<title>Just a moment...</title>', { status: 403, headers: { 'content-type': 'text/html' } }), 'WEB_PROVIDER_ERROR', REQUEST_BLOCKED],
   ]) {
     let calls = 0
@@ -222,7 +223,7 @@ test('Codex search reports subscription, provider, and cancellation failures wit
       provider.search({ query: 'current result', maxResults: 8 }),
       error => error?.code === code && error.message === message,
     )
-    assert.equal(calls, 1)
+    assert.equal(calls, response.status === 503 ? 2 : 1)
   }
 
   const aborted = authed(async () => {
@@ -232,4 +233,75 @@ test('Codex search reports subscription, provider, and cancellation failures wit
     aborted.search({ query: 'current result', maxResults: 8 }),
     error => error?.code === 'WEB_ABORTED' && error.message === 'Codex search aborted',
   )
+})
+
+
+test('a three-query batch recovers one 500 without changing its source, model, mode or credentials', async () => {
+  for (const mode of ['live', 'cached']) {
+    const requests = [], counts = new Map()
+    let released = 0, reads = 0
+    const provider = createCodexSearchProvider({
+      getAuth: async () => ({ auth: { apiKey: 'private-access-value' } }),
+      readCredential: async () => { reads++; return { type: 'oauth', access: 'private-access-value', accountId: 'private-account-value' } },
+      resolveModel: () => 'gpt-6.1-sol',
+      resolveSessionId: () => 'private-session-value',
+      resolvePreferences: () => ({ searchMode: mode }),
+      async fetch(url, init) {
+        const body = JSON.parse(init.body), count = (counts.get(body.input) ?? 0) + 1
+        counts.set(body.input, count); requests.push({ url, init, body })
+        if (body.input === 'private-query-two' && count === 1) return new Response(new ReadableStream({ cancel() { released++ } }), { status: 500, headers: { 'x-request-id': 'search-recovery-test' } })
+        return Response.json({ results: [{ url: 'https://example.com/' + count, title: 'Result' }] })
+      },
+    })
+    const values = await Promise.all(['private-query-one', 'private-query-two', 'private-query-three'].map(query => provider.search({ query })))
+    assert.ok(values.every(value => value.sources.length === 1))
+    assert.deepEqual([...counts.values()], [1, 2, 1]); assert.equal(released, 1); assert.equal(reads, 3)
+    const retried = requests.filter(value => value.body.input === 'private-query-two')
+    assert.equal(retried.length, 2); assert.equal(retried[0].url, CODEX_SEARCH_URL); assert.equal(retried[1].url, CODEX_SEARCH_URL)
+    assert.equal(retried[0].init.body, retried[1].init.body); assert.deepEqual(retried[0].init.headers, retried[1].init.headers)
+    assert.equal(retried[1].body.model, 'gpt-6.1-sol'); assert.equal(retried[1].body.settings.external_web_access, mode === 'live')
+  }
+  const log = JSON.stringify(diagnosticLog.snapshot())
+  for (const privateValue of ['private-query-two', 'private-access-value', 'private-account-value', 'private-session-value']) assert.ok(!log.includes(privateValue))
+  assert.ok(log.includes('search-recovery-test')); assert.ok(log.includes('mode=cached')); assert.ok(log.includes('mode=live'))
+})
+
+test('persistent transient HTTP errors stop after one retry and stay on the subscription source', async () => {
+  for (const status of [500, 502, 503, 504]) {
+    let requests = 0
+    const provider = createCodexSearchProvider({
+      getAuth: async () => ({ auth: { apiKey: 'access' } }),
+      readCredential: async () => ({ type: 'oauth', access: 'access', accountId: 'account' }),
+      async fetch(url) { assert.equal(url, CODEX_SEARCH_URL); requests++; return new Response('', { status }) },
+    })
+    await assert.rejects(provider.search({ query: 'query' }), error => error.code === 'WEB_PROVIDER_ERROR' && error.message.endsWith(`(HTTP ${status})`))
+    assert.equal(requests, 2)
+  }
+})
+
+test('cancellation during HTTP-error cleanup prevents the retry', async () => {
+  let requests = 0
+  const controller = new AbortController()
+  const provider = createCodexSearchProvider({
+    getAuth: async () => ({ auth: { apiKey: 'access' } }),
+    readCredential: async () => ({ type: 'oauth', access: 'access', accountId: 'account' }),
+    fetch: async () => { requests++; return new Response(new ReadableStream({ cancel() { controller.abort() } }), { status: 500 }) },
+  })
+  await assert.rejects(provider.search({ query: 'query' }, controller.signal), error => error.code === 'WEB_ABORTED')
+  assert.equal(requests, 1)
+})
+
+
+test('a stuck response cleanup cannot delay caller cancellation', { timeout: 200 }, async () => {
+  let requests = 0
+  const controller = new AbortController()
+  const provider = createCodexSearchProvider({
+    getAuth: async () => ({ auth: { apiKey: 'access' } }),
+    readCredential: async () => ({ type: 'oauth', access: 'access', accountId: 'account' }),
+    fetch: async () => { requests++; return new Response(new ReadableStream({ cancel() { return new Promise(() => {}) } }), { status: 500 }) },
+  })
+  const timer = setTimeout(() => controller.abort(), 20)
+  try { await assert.rejects(provider.search({ query: 'query' }, controller.signal), error => error.code === 'WEB_ABORTED') }
+  finally { clearTimeout(timer) }
+  assert.equal(requests, 1)
 })

@@ -1,5 +1,7 @@
 import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { randomUUID } from 'node:crypto'
+import { setTimeout as wait } from 'node:timers/promises'
+import { diagnosticLog } from './diagnostic-log.js'
 
 import { WebError } from '@deepseek-ai/dsh-web'
 import { USER_AGENT } from './version.js'
@@ -13,6 +15,7 @@ export const CODEX_SEARCH_URL = 'https://chatgpt.com/backend-api/codex/alpha/sea
 const DEFAULT_MODEL = 'gpt-5.6-luna'
 const MAX_OUTPUT_TOKENS = 4096
 const MAX_SOURCE_DATE = 64
+const RETRYABLE_STATUSES = new Set([500, 502, 503, 504])
 
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 const nonEmpty = value => typeof value === 'string' && value.length > 0 ? value : undefined
@@ -87,7 +90,7 @@ export function createCodexSearchProvider(options) {
       const id = nonEmpty(options.resolveSessionId?.()) ?? randomUUID()
       let response
       try {
-        response = await fetchSearch(CODEX_SEARCH_URL, {
+        const init = {
           method: 'POST',
           redirect: 'error',
           headers: {
@@ -113,7 +116,18 @@ export function createCodexSearchProvider(options) {
             max_output_tokens: MAX_OUTPUT_TOKENS,
           }),
           signal,
-        })
+        }
+        for (let attempt = 0; attempt < 2; attempt++) {
+          response = await fetchSearch(CODEX_SEARCH_URL, init)
+          signal?.throwIfAborted()
+          const requestId = response.headers?.get?.('x-request-id') ?? response.headers?.get?.('cf-ray')
+          const detail = `model=${model}, mode=${preferences.searchMode}, attempt=${attempt + 1}${typeof requestId === 'string' && /^[a-zA-Z0-9._:-]{1,128}$/u.test(requestId) ? `, requestId=${requestId}` : ''}`
+          const retry = attempt === 0 && RETRYABLE_STATUSES.has(response.status)
+          diagnosticLog.log(response.ok ? 'info' : 'warn', 'search', `Codex search HTTP ${response.status}${retry ? '; retrying once on the same source' : ''}`, detail)
+          if (!retry) break
+          try { void response.body?.cancel().catch(() => {}) } catch { /* best-effort release of the failed response */ }
+          await wait(300, undefined, { signal })
+        }
       } catch (error) {
         if (signal?.aborted || error?.name === 'AbortError') {
           throw new WebError('Codex search aborted', 'WEB_ABORTED', { cause: error })

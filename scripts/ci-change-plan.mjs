@@ -79,9 +79,11 @@ const official = plannerChanged || runtime || matches([
   /^pnpm-workspace\.yaml$/u,
 ])
 
-if (runtime && publishedVersion && compareVersions(packageVersion, publishedVersion) <= 0) {
-  console.error(`Runtime-bearing files changed after ${publishedVersion}, but package.json is still ${packageVersion}.`)
-  console.error('Advance the package version before merging so main cannot advertise code that npm latest does not contain.')
+// Main can accumulate accepted fixes before a release. Equal versions still
+// run every runtime gate; publication and immutable assets have their own gates.
+if (runtime && publishedVersion && compareVersions(packageVersion, publishedVersion) < 0) {
+  console.error(`Runtime-bearing files changed, but package.json ${packageVersion} is behind published ${publishedVersion}.`)
+  console.error('Synchronize the package metadata with the current stable release before merging.')
   process.exit(1)
 }
 
