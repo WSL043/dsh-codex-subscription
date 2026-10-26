@@ -4,7 +4,9 @@
 // one the ChatGPT desktop app speaks; OpenAI does not document third-party hosts.
 
 import { randomUUID } from 'node:crypto'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 import { diagnosticLog } from './diagnostic-log.js'
+import { resolveCodexOAuthProxy } from './oauth-network.js'
 import { phoneLog } from './remote-control-log.js'
 
 export const REMOTE_CONTROL_BASE_URL = 'https://chatgpt.com/backend-api/'
@@ -84,6 +86,7 @@ function enrollment(value) {
  *   credentials: (signal?: AbortSignal) => Promise<{ access?: string, accountId?: string }>,
  *   fetch?: typeof fetch,
  *   WebSocket: new (url: string, options: object) => any,
+ *   resolveProxy?: (options: { target: URL }) => Promise<string | undefined>,
  *   installationId: string,
  *   hostName: string,
  *   userAgent: string,
@@ -362,8 +365,16 @@ export function createRemoteControlRelay(options) {
 
   const connectOnce = async signal => {
     const current = await ensureEnrollment(signal)
+    if (signal.aborted) return
+    // HTTP enrollment already uses the shared proxy policy; the imported ws
+    // constructor needs its own agent. Resolve again on each reconnect.
+    const proxy = endpoints.websocket.protocol === 'wss:'
+      ? await (options.resolveProxy ?? resolveCodexOAuthProxy)({ target: endpoints.websocket })
+      : undefined
+    if (signal.aborted) return
     await new Promise((resolve, reject) => {
       const ws = new options.WebSocket(endpoints.websocket.toString(), {
+        ...(proxy ? { agent: new HttpsProxyAgent(proxy) } : {}),
         headers: {
           authorization: `Bearer ${current.token}`,
           'user-agent': options.userAgent,
