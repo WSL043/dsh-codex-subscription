@@ -2,6 +2,8 @@ import { CHANNEL, unwrap } from './rpc-contract.js'
 import { normalizeReasoningCache } from './preference-fields.js'
 import {
   AUTO_QUOTA_RETRY_FIELD,
+  DEFAULT_REASONING_EFFORT_FIELD,
+  normalizeDefaultReasoningEffort,
   clampModelContext,
   CONTEXT_MODE_FIELD,
   DISABLED_MODELS_FIELD,
@@ -85,6 +87,7 @@ export function createPreferenceController(rpc) {
       otherModels: value?.otherModels === 'off' ? 'off' : 'on',
       compactionMode: value?.compactionMode === 'cloud' ? 'cloud' : 'dsh',
       reasoningCache: normalizeReasoningCache(value?.reasoningCache),
+      defaultReasoningEffort: normalizeDefaultReasoningEffort(value?.[DEFAULT_REASONING_EFFORT_FIELD]),
       subagentBackend: value?.subagentBackend === 'codex' ? 'codex' : 'dsh',
       subagentBackendAvailable,
       subagentRuntimeInstalled,
@@ -160,6 +163,7 @@ export function createPreferenceController(rpc) {
       otherModels: value?.otherModels === 'off' ? 'off' : 'on',
         compactionMode: value?.compactionMode === 'cloud' ? 'cloud' : 'dsh',
         reasoningCache: normalizeReasoningCache(value?.reasoningCache),
+        [DEFAULT_REASONING_EFFORT_FIELD]: normalizeDefaultReasoningEffort(value?.[DEFAULT_REASONING_EFFORT_FIELD]),
         subagentBackend: value?.subagentBackend === 'codex' ? 'codex' : 'dsh',
         ...readCapabilitySettings(value),
         [QUICK_QUOTA_MODE_FIELD]: normalizeQuickQuotaMode(

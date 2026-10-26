@@ -53,3 +53,6 @@ debugging history or private design discussion.
 
 Maintainers batch ordinary fixes into planned stable releases. A merged pull
 request does not imply an immediate npm release.
+Main may retain the current stable package version while unreleased fixes
+accumulate; all runtime acceptance gates still apply. Version increments,
+release tags and publication belong to the separately approved release.

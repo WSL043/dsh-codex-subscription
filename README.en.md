@@ -136,7 +136,7 @@ Open **Settings → Codex** to manage accounts and preferences. Screenshots and 
 | Settings tab | What it controls |
 | --- | --- |
 | **Start** | Sign-in and accounts, a switch for every feature, subscription quota, quota display and alerts |
-| **Models** | Default model and model list, answer style; the folded Advanced group has context length, retry, connection mode, cloud compaction and the review model |
+| **Models** | Default model, default reasoning effort and model list, answer style; the folded Advanced group has context length, retry, connection mode, cloud compaction and the review model |
 | **Web & tools** | The master switch for other models, search source, ChatGPT connectors, official Codex subtasks |
 | **Create** | Image generation, editing, @image in the composer, image viewer, sketch board and agent drawing |
 | **Phone & more** | Phone remote control, experimental voice calls, local cache, support diagnostics |
@@ -261,6 +261,7 @@ Model access and quota depend on your account.
 | **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh; the last successful catalog is stored locally per account and remains available during the background refresh after restart, with a 24-hour lifetime; models marked for retirement show their retirement date next to the model name, without automatically switching your selection | New models appear when your account offers them; the account catalog is the only source, so no models are shown when signed out or when neither a remote read nor a valid cache is available |
 | **Model list** | Show or hide individual models in the composer picker on the Models page; the picker keeps DSH's own model labels (such as the new-model badge) | Display only; selected models and requests still work |
 | **Default model** | Choose the model a new conversation opens with on the Models page | Writes the DSH default model setting, the same one a model switch inside a chat writes; unset it to follow the DSH default |
+| **Default reasoning effort** | Choose a default level for subscription models on the Models page; Model default follows each model's official catalog recommendation | Manual choices take priority. Unsupported levels fall back to the model's valid default; existing manual conversation choices are preserved |
 | **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
 | **Speed tiers** | Switch supported models between Standard and Fast; Ultrafast (Beta) too when the account catalog offers it, with a lightning indicator | Standard by default; Fast and Ultrafast increase usage, and Ultrafast is Pro 500 only today |
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
@@ -286,7 +287,7 @@ Model access and quota depend on your account.
 | **Usage overview** | In the quota card, see lifetime tokens, busiest day, streaks, most used reasoning level and a half-year daily heatmap | From the official usage statistics; hidden when the account has none |
 | **Credits and reset cards** | View extra Credits, spending caps, and available reset cards | Shown when returned for your account |
 | **Composer quota** | See remaining quota as a percentage or progress bar while chatting | Off by default; choose your display mode |
-| **Runway estimate** | Estimate remaining time from recent usage | Beta; optional estimate, not a guarantee |
+| **Runway estimate** | Hover over or click the composer quota to see when recent usage would exhaust it | Beta; optional estimate, not a guarantee |
 | **Quota alerts** | Use fixed, early, or custom short / long-window thresholds | 20% remaining by default; can be disabled |
 | **Redeem reset cards** | Use an available reset card after confirmation | Confirmation and waiting safeguards; server decides the result |
 | **Retry after reset** | Wait for a confirmed short-window reset before continuing | Off by default; waiting can be stopped |

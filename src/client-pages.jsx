@@ -3,6 +3,7 @@ import { Switch, IconChevronRightOutline14 } from './client-primitives.js'
 import { usePreferenceSnapshot } from './client-shared.js'
 import { CapabilityPreferences } from './capability-preferences.jsx'
 import { DefaultModelPreference } from './default-model-preferences.jsx'
+import { DefaultReasoningEffortPreference } from './default-reasoning-preferences.jsx'
 import { RuntimeManagement } from './client-runtime-management.jsx'
 import { RemoteControlCard } from './client-remote-control.jsx'
 import { VoiceCallCard } from './client-voice-call.jsx'
@@ -107,6 +108,7 @@ export function ModelsPage({ preference, t, defaultModel }) {
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('modelsSectionTitle')}>
       <ModelCatalogStatus preference={preference} t={t} title={t('modelsSectionTitle')} />
       {defaultModel === undefined ? null : <><DefaultModelPreference preference={preference} defaultModel={defaultModel} t={t} /><div className="codexSubscriptionDivider" /></>}
+      <DefaultReasoningEffortPreference preference={preference} t={t} />
       <PickerModelsPreference preference={preference} t={t} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('answerStyleTitle')}>

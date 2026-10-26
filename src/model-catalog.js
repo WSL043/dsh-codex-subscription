@@ -107,6 +107,9 @@ function visibleModel(value, displayNames, now) {
   const reserve = id === 'gpt-reserve' && ['list', 'hide'].includes(value.visibility)
   if (id === undefined || (value.visibility !== 'list' && !reserve)) return undefined
   const supported = Array.isArray(value.supported_reasoning_levels) ? value.supported_reasoning_levels : []
+  const thinkingLevelMap = reasoningMap(supported)
+  const defaultEffort = value.default_reasoning_level === 'none' ? 'off' : value.default_reasoning_level
+  const defaultReasoningEffort = LEVELS.includes(defaultEffort) && thinkingLevelMap[defaultEffort] != null ? defaultEffort : undefined
   const input = Array.isArray(value.input_modalities)
     ? value.input_modalities.filter(item => ['text', 'image'].includes(item))
     : ['text', 'image']
@@ -129,7 +132,8 @@ function visibleModel(value, displayNames, now) {
     ...(positiveInteger(value.max_context_window) === undefined ? {} : { maxContextWindow: value.max_context_window }),
     reasoning: supported.length > 0,
     supportsReasoningEffortUpdates: value.supports_reasoning_effort_updates === true,
-    thinkingLevelMap: reasoningMap(supported),
+    thinkingLevelMap,
+    ...(defaultReasoningEffort === undefined ? {} : { defaultReasoningEffort }),
     supportVerbosity: value.support_verbosity === true,
     defaultVerbosity: ['low', 'medium', 'high'].includes(value.default_verbosity) ? value.default_verbosity : undefined,
     serviceTiers: serviceTierEntries(value),
@@ -191,6 +195,7 @@ function mergeModel(baseModels, remote) {
     reasoning: remote.reasoning,
     supportsReasoningEffortUpdates: remote.supportsReasoningEffortUpdates,
     thinkingLevelMap: remote.thinkingLevelMap,
+    ...(remote.defaultReasoningEffort === undefined ? {} : { defaultReasoningEffort: remote.defaultReasoningEffort }),
     ...(remote.contextWindow === undefined ? {} : { contextWindow: remote.contextWindow }),
     ...(remote.maxContextWindow === undefined ? {} : { maxContextWindow: remote.maxContextWindow }),
     // Subscription-backed models do not expose API billing to this plugin.
