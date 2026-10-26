@@ -328,6 +328,7 @@ export const STYLE = `
 .codexVoiceChoice .codexSubscriptionContextTrigger:first-child:not(:last-child){min-width:0;justify-content:center}
 /* The voice button wears the send button's own classes, so its colours, shape and theme are always the send button's. */
 .codexVoiceCall{position:absolute;z-index:2;margin:0}
+a.codexVoiceCall{display:flex;align-items:center;justify-content:center;box-sizing:border-box;text-decoration:none}
 /* DSH's send button is the light info colour at rest and darkens on hover. The voice button is an action in its own right, so it keeps the stronger colour all the time and only deepens a little on hover. */
 .codexVoiceCall:not(:disabled){background:var(--dsw-alias-button-info-hover,#4176e6)!important;filter:none}
 .codexVoiceCall:not(:disabled):hover{filter:brightness(.92)}

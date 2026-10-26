@@ -37,6 +37,16 @@ test('unsupported or unusable WebRTC offers browser continuation without opening
   }
 })
 
+test('desktop fallback checks stay passive and accept a restored constructor', () => {
+  let banners = 0
+  const surface = { isSecureContext: true, navigator: { mediaDevices: { getUserMedia() { throw Error('must stay passive') } } }, __dshWebRtcFallback: true }
+  Object.defineProperty(surface, 'RTCPeerConnection', { configurable: true, get() { banners++; return undefined } })
+  for (let i = 0; i < 5; i++) assert.equal(voiceCallCapability(surface), 'voice-no-webrtc')
+  assert.equal(banners, 0)
+  Object.defineProperty(surface, 'RTCPeerConnection', { configurable: true, value: class {} })
+  assert.equal(voiceCallCapability(surface), undefined)
+})
+
 test('missing sample, catalog, authentication, download, playback and call errors stay distinct', () => {
   const codes = ['not-found','voice-catalog','voice-auth','voice-download','playback','unknown']
   assert.equal(new Set(codes.map(voicePreviewProblem)).size, codes.length)

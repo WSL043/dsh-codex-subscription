@@ -6,7 +6,7 @@ import { CHANNEL } from './rpc-contract.js'
 import { usePreferenceSnapshot } from './client-shared.js'
 import { VOICE_CALL_FIELD, VOICE_LANGUAGE_FIELD, VOICE_LANGUAGES, VOICE_VOICE_FIELD, VOICE_VOICES } from './settings-contract.js'
 import { openVoiceCall } from './voice-call.js'
-import { voiceCallProblem, voicePreviewProblem } from './voice-problems.js'
+import { voiceCallCapability, voiceCallProblem, voicePreviewProblem } from './voice-problems.js'
 import { voiceBrowserUrl } from './voice-browser.js'
 import { createOrb } from './voice-orb.js'
 
@@ -128,6 +128,8 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
   const [micOff, setMicOff] = useState(false)
   const [speakerOff, setSpeakerOff] = useState(false)
   const enabled = snapshot.status === 'ready' && snapshot.voiceCall === 'on'
+  const capability = enabled ? voiceCallCapability() : undefined
+  useEffect(() => { setProblem(''); setUnsupported(false); setBrowserCopied(false) }, [sessionId, capability])
 
   useLayoutEffect(() => {
     if (!enabled) { setPlace(undefined); return undefined }
@@ -226,15 +228,20 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
   if (!enabled || !place) return anchor
   // A call in progress keeps the button; otherwise it only covers the send button while that has nothing to send.
   const visible = state !== 'idle' || place.idle
-  const browserUrl = unsupported && unsupported !== 'voice-insecure' ? voiceBrowserUrl(window.location.href, sessionId) : undefined
+  const browserUrl = (capability === 'voice-no-webrtc' || (unsupported && unsupported !== 'voice-insecure')) ? voiceBrowserUrl(window.location.href, sessionId) : undefined
+  const browserCall = state === 'idle' && capability === 'voice-no-webrtc' && browserUrl
   return <>
     {anchor}
     {visible ? createPortal(<>
-      <button
+      {browserCall ? <a
+        ref={button} href={browserUrl} target="_blank" rel="noopener noreferrer" className={`${place.className} codexVoiceCall`} data-state="browser"
+        aria-label={t('voiceBrowserCall')} title={t('voiceBrowserCall')}
+        style={{ left: place.left, top: place.top, width: place.width, height: place.height }}
+      ><Bars /></a> : <button
         ref={button} type="button" className={`${place.className} codexVoiceCall`} data-state={state} onClick={click} disabled={state === 'connecting'}
         aria-label={t(live ? 'voiceEnd' : 'voiceStart')} title={t(live ? 'voiceEnd' : 'voiceStart')}
         style={{ left: place.left, top: place.top, width: place.width, height: place.height }}
-      >{live ? <Cross /> : <Bars />}</button>
+      >{live ? <Cross /> : <Bars />}</button>}
       {problem ? <span className="codexVoiceCallNote" role="alert" style={{ right: 0 }}>{t(problem)}
         {browserUrl ? <span className="codexVoiceBrowserActions">
           <a href={browserUrl} target="_blank" rel="noopener noreferrer">{t('voiceBrowserContinue')}</a>

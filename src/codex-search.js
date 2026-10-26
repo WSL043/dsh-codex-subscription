@@ -136,6 +136,7 @@ export function createCodexSearchProvider(options) {
       }
       if (!response.ok) {
         const authFailure = await authFailureMessage(response)
+        if (signal?.aborted) throw new WebError('Codex search aborted', 'WEB_ABORTED', { cause: signal.reason })
         throw authFailure === SIGN_IN_RENEW
           ? new WebError(authFailure, 'WEB_PROVIDER_CREDENTIAL_MISSING')
           : authFailure !== undefined ? new WebError(authFailure, 'WEB_PROVIDER_ERROR')
@@ -144,7 +145,9 @@ export function createCodexSearchProvider(options) {
       let value
       try {
         value = await response.json()
+        signal?.throwIfAborted()
       } catch (error) {
+        if (signal?.aborted || error?.name === 'AbortError') throw new WebError('Codex search aborted', 'WEB_ABORTED', { cause: error })
         throw new WebError('Codex returned an unreadable search response', 'WEB_PROVIDER_ERROR', { cause: error })
       }
       try {

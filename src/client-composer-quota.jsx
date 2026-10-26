@@ -18,14 +18,14 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
   const pinned = useRef(false)
   const dismissTimer = useRef(null)
   const enter = () => { clearTimeout(dismissTimer.current); setOpen(true) }
-  const leave = () => { if (!pinned.current) dismissTimer.current = setTimeout(() => setOpen(false), 150) }
-  const dismiss = () => { pinned.current = false; setOpen(false) }
+  const leave = () => { clearTimeout(dismissTimer.current); if (!pinned.current) dismissTimer.current = setTimeout(() => setOpen(false), 150) }
+  const dismiss = () => { clearTimeout(dismissTimer.current); pinned.current = false; setOpen(false) }
   useEffect(() => () => clearTimeout(dismissTimer.current), [])
   const id = useId()
   const visible = open && quotaEnabled && !!quotas?.length
   const position = useAnchoredPosition({ open: visible, anchorRef: trigger, panelRef: panel, side: 'top', gap: 8, margin: 12 })
   useDismissOnOutsidePointer(trigger, visible, dismiss, panel)
-  useEffect(() => { setOpen(false) }, [current?.model, quotaEnabled])
+  useEffect(() => { dismiss() }, [current?.model, quotaEnabled])
   useEffect(() => {
     if (!visible) return
     const escape = event => {
@@ -47,7 +47,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
     <button ref={trigger} type="button" className="codexComposerQuota" data-mode={preferenceSnapshot.quickQuotaMode} data-warning={warning ? true : undefined} aria-label={`${t('quotaDetails')}: ${label}${warning ? `; ${t('quotaThresholdReached')}` : ''}`}
       aria-haspopup="dialog" aria-expanded={visible} aria-controls={visible ? id : undefined}
       onMouseEnter={enter} onMouseLeave={leave}
-      onClick={() => { if (pinned.current) dismiss(); else { pinned.current = true; setOpen(true); requestAnimationFrame(() => panel.current?.focus()) } }}>
+      onClick={() => { clearTimeout(dismissTimer.current); if (pinned.current) dismiss(); else { pinned.current = true; setOpen(true); requestAnimationFrame(() => panel.current?.focus()) } }}>
       {compactQuotas.map((quota, index) => <span className="codexQuotaCompactWindow" key={`${quota.windowSeconds}-${index}`}>
         <span>{shortWindow(quota.windowSeconds, t)}</span>
         {preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_BAR ? <progress className="codexComposerQuotaBar" max={100} value={quota.remainingPercent} aria-hidden="true" /> : null}
