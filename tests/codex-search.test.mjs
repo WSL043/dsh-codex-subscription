@@ -305,3 +305,45 @@ test('a stuck response cleanup cannot delay caller cancellation', { timeout: 200
   finally { clearTimeout(timer) }
   assert.equal(requests, 1)
 })
+
+test('cancelling streamed response bodies reports cancellation rather than parsing or sign-in failure', async () => {
+  for (const status of [200, 401, 403]) {
+    const caller = new AbortController()
+    let started, requests = 0
+    const reading = new Promise(resolve => { started = resolve })
+    const provider = createCodexSearchProvider({
+      getAuth: async () => ({ auth: { apiKey: 'synthetic' } }),
+      readCredential: async () => ({ type: 'oauth', access: 'synthetic', accountId: 'synthetic' }),
+      fetch: async () => {
+        requests++
+        return new Response(new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('{"results":['))
+            caller.signal.addEventListener('abort', () => controller.error(new DOMException('cancelled', 'AbortError')), { once: true })
+          },
+          pull() { started() },
+        }), { status, headers: { 'content-type': 'application/json' } })
+      },
+    })
+    const pending = provider.search({ query: 'synthetic' }, caller.signal)
+    await reading
+    // Allow the response/body reader to enter before cancelling it.
+    await new Promise(resolve => setImmediate(resolve))
+    caller.abort()
+    await assert.rejects(pending, error => error.code === 'WEB_ABORTED', `HTTP ${status}`)
+    assert.equal(requests, 1)
+  }
+})
+
+test('cancellation racing with successful JSON decoding cannot return stale search results', async () => {
+  const caller = new AbortController()
+  const provider = createCodexSearchProvider({
+    getAuth: async () => ({ auth: { apiKey: 'synthetic' } }),
+    readCredential: async () => ({ type: 'oauth', access: 'synthetic', accountId: 'synthetic' }),
+    fetch: async () => ({ ok: true, status: 200, async json() {
+      caller.abort()
+      return { results: [{ url: 'https://example.com/', title: 'Stale' }] }
+    } }),
+  })
+  await assert.rejects(provider.search({ query: 'synthetic' }, caller.signal), error => error.code === 'WEB_ABORTED')
+})

@@ -12,6 +12,9 @@ export function voiceCallProblem(error) {
 export function voiceCallCapability(surface = globalThis) {
   if (surface.isSecureContext === false) return 'voice-insecure'
   if (typeof surface.navigator?.mediaDevices?.getUserMedia !== 'function') return 'voice-no-microphone'
+  // The desktop fallback getter displays a banner. Keep checks passive while
+  // accepting a real constructor if the host installs one later.
+  if (surface.__dshWebRtcFallback && Object.getOwnPropertyDescriptor(surface, 'RTCPeerConnection')?.get) return 'voice-no-webrtc'
   if (typeof surface.RTCPeerConnection !== 'function') return 'voice-no-webrtc'
   return undefined
 }

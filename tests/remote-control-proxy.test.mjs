@@ -164,6 +164,115 @@ test('disabling during proxy resolution never opens a late socket', { timeout: 5
   assert.equal(relay.status().status, 'stopped')
 })
 
+test('stop does not wait for an unresolved proxy lookup or open a late socket', { timeout: 2000 }, async () => {
+  const entered = Promise.withResolvers(), late = Promise.withResolvers()
+  let lookupSignal
+  const { relay, sockets } = fixture({ resolveProxy: ({ signal }) => { lookupSignal = signal; entered.resolve(); return late.promise } })
+  void relay.start()
+  await entered.promise
+  await relay.stop()
+  assert.equal(lookupSignal.aborted, true)
+  assert.equal(relay.status().status, 'stopped')
+  assert.equal(relay.status().lastError, undefined)
+  late.reject(Error('late resolver failure'))
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(sockets.length, 0)
+})
+
+test('a stopped system proxy query receives cancellation and a bounded exec timeout', { timeout: 2000 }, async () => {
+  const entered = Promise.withResolvers()
+  let queryOptions
+  const { relay, sockets } = fixture({ resolveProxy: ({ target, signal }) => resolveCodexOAuthProxy({
+    target, signal, env: {}, platform: 'win32', execFile: (_file, _args, options) => {
+      queryOptions = options; entered.resolve()
+      return new Promise((_resolve, reject) => options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true }))
+    },
+  }) })
+  void relay.start()
+  await entered.promise
+  await relay.stop()
+  assert.equal(queryOptions.signal.aborted, true)
+  assert.equal(queryOptions.timeout, 10_000)
+  assert.equal(sockets.length, 0)
+})
+
+test('a silent real CONNECT proxy times out and releases its socket before backoff', { timeout: 3000 }, async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const accepted = Promise.withResolvers(), ended = Promise.withResolvers(), closed = Promise.withResolvers(), backingOff = Promise.withResolvers()
+  const sockets = new Set()
+  let connects = 0
+  const server = http.createServer()
+  server.on('connect', (_request, socket) => {
+    connects++; sockets.add(socket)
+    socket.on('error', () => {})
+    socket.on('end', () => { ended.resolve(); socket.end() })
+    socket.on('close', () => { sockets.delete(socket); closed.resolve() })
+    socket.resume() // No CONNECT response; only acknowledge the client's eventual FIN.
+    accepted.resolve()
+  })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  const { relay } = fixture({
+    WebSocket,
+    resolveProxy: async () => `http://127.0.0.1:${server.address().port}`,
+    wait: (ms, signal) => {
+      backingOff.resolve(ms)
+      return new Promise(resolve => { if (signal.aborted) resolve(); else signal.addEventListener('abort', resolve, { once: true }) })
+    },
+  })
+  t.after(async () => { await relay.stop(); for (const socket of sockets) socket.destroy(); await new Promise(resolve => server.close(resolve)) })
+  void relay.start()
+  await accepted.promise
+  assert.equal(relay.status().status, 'connecting')
+  t.mock.timers.tick(30_000) // Advance only the real production setTimeout deadline, not wall time.
+  const delay = await backingOff.promise
+  await ended.promise
+  await closed.promise
+  assert.equal(relay.status().lastError, 'timeout')
+  assert.ok(delay > 0)
+  assert.equal(connects, 1)
+  assert.equal(sockets.size, 0, 'client FIN and server close must precede forced teardown')
+  await relay.stop()
+  assert.equal(relay.status().status, 'stopped')
+})
+
+test('an opened relay outlives its cleared connection deadline', { timeout: 3000 }, async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const { relay, connected } = fixture({ resolveProxy: async () => 'http://proxy.example:8080' })
+  t.after(() => relay.stop())
+  void relay.start()
+  const socket = await connected
+  assert.equal(socket.options.handshakeTimeout, 30_000)
+  const signal = socket.options.agent.connectOpts.signal
+  assert.equal(signal.aborted, false)
+  t.mock.timers.tick(30_001)
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(relay.status().status, 'connected')
+  assert.equal(socket.readyState, 1)
+  assert.equal(signal.aborted, false, 'a successful open must clear the deadline without aborting its socket')
+  await relay.stop()
+  assert.equal(signal.aborted, true)
+})
+
+test('stopping a silent real CONNECT proxy releases its pending TCP socket', { timeout: 3000 }, async t => {
+  const accepted = Promise.withResolvers(), closed = Promise.withResolvers(), sockets = new Set()
+  const server = http.createServer()
+  server.on('connect', (_request, socket) => {
+    sockets.add(socket); socket.on('error', () => {}); socket.on('close', () => { sockets.delete(socket); closed.resolve() }); accepted.resolve()
+    socket.on('end', () => socket.end()) // HTTP CONNECT sockets are half-open: acknowledge the client's FIN.
+    socket.resume() // Deliberately never send a CONNECT response.
+  })
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+  const { relay } = fixture({ WebSocket, resolveProxy: async () => `http://127.0.0.1:${server.address().port}` })
+  t.after(async () => { await relay.stop(); for (const socket of sockets) socket.destroy(); await new Promise(resolve => server.close(resolve)) })
+  void relay.start()
+  await accepted.promise
+  await relay.stop()
+  await closed.promise
+  assert.equal(sockets.size, 0)
+  assert.equal(relay.status().status, 'stopped')
+  assert.equal(relay.status().lastError, undefined)
+})
+
 test('real ws uses the default proxy policy for CONNECT without disclosing relay tokens', { timeout: 5000 }, async t => {
   const requests = []
   const server = http.createServer()

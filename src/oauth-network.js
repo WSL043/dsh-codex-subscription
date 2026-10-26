@@ -67,9 +67,9 @@ async function windowsSystemProxy(options = {}) {
   const reg = `${process.env.SystemRoot ?? 'C:\\Windows'}\\System32\\reg.exe`
   const key = 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings'
   try {
-    const enabled = await run(reg, ['query', key, '/v', 'ProxyEnable'], { windowsHide: true, encoding: 'utf8' })
+    const enabled = await run(reg, ['query', key, '/v', 'ProxyEnable'], { windowsHide: true, encoding: 'utf8', timeout: 10_000, signal: options.signal })
     if (!/REG_DWORD\s+0x1\b/iu.test(enabled.stdout)) return undefined
-    const configured = await run(reg, ['query', key, '/v', 'ProxyServer'], { windowsHide: true, encoding: 'utf8' })
+    const configured = await run(reg, ['query', key, '/v', 'ProxyServer'], { windowsHide: true, encoding: 'utf8', timeout: 10_000, signal: options.signal })
     const match = /^\s*ProxyServer\s+REG_\w+\s+(.+)$/imu.exec(configured.stdout)
     return selectWindowsProxy(match?.[1])
   } catch {
@@ -80,7 +80,7 @@ async function windowsSystemProxy(options = {}) {
 async function macSystemProxy(options = {}) {
   const run = options.execFile ?? execFileAsync
   try {
-    const result = await run('/usr/sbin/scutil', ['--proxy'], { encoding: 'utf8' })
+    const result = await run('/usr/sbin/scutil', ['--proxy'], { encoding: 'utf8', timeout: 10_000, signal: options.signal })
     if (!/^\s*HTTPSEnable\s*:\s*1\s*$/imu.test(result.stdout)) return undefined
     const host = /^\s*HTTPSProxy\s*:\s*(\S+)\s*$/imu.exec(result.stdout)?.[1]
     const port = /^\s*HTTPSPort\s*:\s*(\d+)\s*$/imu.exec(result.stdout)?.[1]

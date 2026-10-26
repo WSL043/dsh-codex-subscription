@@ -68,7 +68,7 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@3.1.7
+   dsh-codex-subscription@3.1.8
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -85,7 +85,7 @@ Why the version is included: DSH's plugin page only installs versions that are a
 <summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.1.7
+dsh plugin --profile web add dsh-codex-subscription@3.1.8
 ```
 
 Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
@@ -98,7 +98,7 @@ Follow the restart instructions, then sign in under **Settings → Codex**. Both
 After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.1.7
+dsh plugin --profile headless add dsh-codex-subscription@3.1.8
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -356,7 +356,7 @@ Find this plugin on the DSH **Plugins** page and use its update or uninstall act
 <summary>Terminal commands</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.1.7
+dsh plugin --profile web update dsh-codex-subscription@3.1.8
 ```
 
 Run only when you want to uninstall:
