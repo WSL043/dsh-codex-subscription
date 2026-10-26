@@ -243,8 +243,6 @@ This is a third-party compatibility layer using OpenAI's remote connection servi
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Phone remote control in settings: the switch, pairing QR code and manual code, paired phones"></picture></p>
 
-<p align="center"><sub>The screenshot’s QR code hides a little Easter egg. To pair your phone, use the code generated in DSH settings.</sub></p>
-
 </details>
 
 ## All features

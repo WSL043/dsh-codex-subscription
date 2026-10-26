@@ -243,8 +243,6 @@ Agent 先在画板绘制可编辑草图，再以该草图为参考调用订阅�
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-zh-dark.png"><img src="docs/assets/ui-remote-zh-light.png" width="560" alt="设置里的手机远程控制：开关、配对二维码和手动码、已配对的手机"></picture></p>
 
-<p align="center"><sub>截图中的二维码藏着一个小彩蛋；实际配对请使用 DSH 设置里生成的二维码。</sub></p>
-
 </details>
 
 ## 全部功能
