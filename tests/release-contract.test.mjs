@@ -47,7 +47,7 @@ test('normal installation does not pull the optional Codex executable runtime', 
   for (const name of ['react', 'react-dom']) assert.equal(manifest.peerDependenciesMeta?.[name]?.optional, true, name)
   // The compatibility autopilot widens this range and the runtime list together.
   assert.equal(manifest.peerDependencies[runtime], [...SUPPORTED_RUNTIME_VERSIONS].sort(compareVersions).join(' || '))
-  assert.equal(manifest.devDependencies[runtime], '0.2.1-rc.3')
+  assert.equal(manifest.devDependencies[runtime], compatibility.latestTested)
   assert.equal(SUBAGENT_RUNTIME_VERSION, manifest.devDependencies[runtime])
   assert.deepEqual(new Set(SUPPORTED_RUNTIME_VERSIONS), new Set(manifest.peerDependencies[runtime].split(' || ')))
 })
@@ -81,7 +81,7 @@ test('official DSH acceptance materializes one exact runner instead of resolving
 
 test('release acceptance includes the exact declared DSH release alongside public channels', () => {
   const workflow = text('.github/workflows/publish.yml')
-  assert.match(workflow, /channel: \[latest, accepted, 0\.1\.7-rc\.2, alpha\]/u)
+  assert.match(workflow, /channel: \[latest, accepted, 0\.1\.7-rc\.2, alpha, next\]/u)
   assert.match(workflow, /Get-Content -LiteralPath compatibility\.json -Raw \| ConvertFrom-Json\)\.latestTested/u)
   const ci = text('.github/workflows/ci.yml')
   assert.match(ci, /channel: \[latest, accepted, 0\.1\.7-rc\.2, alpha, next\]/u)
@@ -380,7 +380,7 @@ test('official DSH install and web startup are hard gates before a release', () 
     assert.match(workflow, /Official DSH acceptance/u)
     assert.match(workflow, workflow === ci
       ? /channel: \[latest, (?:accepted, )?0\.1\.7-rc\.2, alpha, next\]/u
-      : /channel: \[latest, (?:accepted, )?0\.1\.7-rc\.2, alpha\]/u)
+      : /channel: \[latest, (?:accepted, )?0\.1\.7-rc\.2, alpha, next\]/u)
     assert.match(workflow, /-DshVersion \$version/u)
     assert.match(workflow, /accept-official-release\.ps1/u)
     assert.match(workflow, /accept-official-release\.ps1 -PackagePath \$package -DshRunner pnpm/u)

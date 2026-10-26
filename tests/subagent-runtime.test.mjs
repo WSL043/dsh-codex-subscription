@@ -52,6 +52,14 @@ test('preparation checks the provider-local CLI without shell or PATH and suppor
     assert.equal(matchingSubagentRuntimeVersion(resolve),'0.2.0-rc.1')
     assert.deepEqual(inspectSubagentRuntime(resolve),{installed:true})
     await loadSubagentRuntime({resolve,run,importModule:async()=>({JsonRpcLineTransport:class {}})})
+    for (const version of ['0.2.1-rc.3', '0.2.1-rc.4']) {
+      await writeFile(host,JSON.stringify({version}))
+      assert.deepEqual(inspectSubagentRuntime(resolve),{installed:false,present:true}, 'a different cohort must not load')
+      await writeFile(provider,JSON.stringify({version}))
+      assert.equal(matchingSubagentRuntimeVersion(resolve),version)
+      assert.deepEqual(inspectSubagentRuntime(resolve),{installed:true})
+      await loadSubagentRuntime({resolve,run,importModule:async()=>({JsonRpcLineTransport:class {}})})
+    }
     await writeFile(provider,JSON.stringify({version:'9.9.9'}))
     assert.deepEqual(inspectSubagentRuntime(resolve),{installed:false,present:true})
     await writeFile(host,JSON.stringify({version:'9.9.9'}))
