@@ -183,6 +183,7 @@ test('the relay enrolls, pairs, frames messages and re-chunks large replies', as
   }
   const received = []
   const relay = createRemoteControlRelay({
+    resolveProxy: async () => undefined,
     credentials: async () => ({ access: 'tok', accountId: 'acct' }), fetch, WebSocket: FakeSocket, installationId: 'inst', hostName: 'DSH (test)', userAgent: 'dsh-codex-subscription/1',
     serve: client => ({ receive: message => { received.push(message); void client.send({ id: message.id, result: { big: 'x'.repeat(400_000) } }) }, close() {} }),
     wait: () => new Promise(() => {}),
@@ -281,6 +282,7 @@ test('a host id the relay keeps refusing with 409 is enrolled again and finally 
   class Refused { constructor() { this.handlers = {}; setTimeout(() => this.handlers.error?.(new Error('Unexpected server response: 409')), 1) } on(name, handler) { this.handlers[name] = handler } close() {} }
   const fetch = async () => { enrolls += 1; return { ok: true, json: async () => ({ environment_id: 'env', server_id: 'srv', remote_control_token: 'tok', expires_at: new Date(Date.now() + 3_600_000).toISOString() }) } }
   const relay = createRemoteControlRelay({
+    resolveProxy: async () => undefined,
     credentials: async () => ({ access: 'a', accountId: 'b' }), fetch, WebSocket: Refused, installationId: 'i', hostName: 'h', userAgent: 'x/1',
     serve: () => ({ receive() {}, close() {} }), wait: () => new Promise(resolve => setTimeout(resolve, 2)),
     renewInstallation: async () => { renewals += 1; return `new-${renewals}` }, conflictRenewMs: 0,
@@ -496,6 +498,7 @@ test('a connection that stops answering pings is dropped and reconnected', async
     close() { this.handlers.close?.() }
   }
   const relay = createRemoteControlRelay({
+    resolveProxy: async () => undefined,
     credentials: async () => ({ access: 'a', accountId: 'b' }), fetch: async () => enrollOk(), WebSocket: Silent, installationId: 'i', hostName: 'h', userAgent: 'x/1',
     serve: () => ({ receive() {}, close() {} }), wait: () => new Promise(resolve => setTimeout(resolve, 2)), pingMs: 5, pongTimeoutMs: 30,
   })
@@ -517,6 +520,7 @@ test('a socket that keeps answering pings stays connected', async () => {
     close() { this.handlers.close?.() }
   }
   const relay = createRemoteControlRelay({
+    resolveProxy: async () => undefined,
     credentials: async () => ({ access: 'a', accountId: 'b' }), fetch: async () => enrollOk(), WebSocket: Alive, installationId: 'i', hostName: 'h', userAgent: 'x/1',
     serve: () => ({ receive() {}, close() {} }), wait: (_ms, signal) => new Promise(resolve => signal.addEventListener('abort', resolve, { once: true })), pingMs: 5, pongTimeoutMs: 30,
   })
@@ -539,6 +543,7 @@ test('a server Retry-After is a floor for the next attempt and a flapping connec
   }
   class Flap { constructor() { this.handlers = {}; queueMicrotask(() => { this.handlers.open?.(); this.handlers.close?.() }) } on(name, handler) { this.handlers[name] = handler } close() {} }
   const relay = createRemoteControlRelay({
+    resolveProxy: async () => undefined,
     credentials: async () => ({ access: 'a', accountId: 'b' }), fetch, WebSocket: Flap, installationId: 'i', hostName: 'h', userAgent: 'x/1',
     serve: () => ({ receive() {}, close() {} }), random: () => 1,
     wait: (ms, signal) => { waits.push(ms); return new Promise(resolve => { const timer = setTimeout(resolve, waits.length >= 5 ? 1_000_000 : 1); signal.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true }) }) },
@@ -720,6 +725,7 @@ test('the paired phones are listed and one can be removed', async () => {
     return { ok: true, json: async () => ({ items: [{ client_id: 'c1', display_name: 'iPhone', platform: 'ios', os_version: '19', app_version: '2', last_seen_at: '2026-10-10T10:00:00Z' }, { nope: true }] }) }
   }
   const relay = createRemoteControlRelay({
+    resolveProxy: async () => undefined,
     credentials: async () => ({ access: 'a', accountId: 'b' }), fetch, WebSocket: class {}, installationId: 'i', hostName: 'h', userAgent: 'x/1',
     serve: () => ({ receive() {}, close() {} }),
   })

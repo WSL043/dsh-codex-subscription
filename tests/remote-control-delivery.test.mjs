@@ -16,6 +16,7 @@ test('large history and image chunks finish before a later reply or notification
     close() { this.readyState = 3; this.handlers.close?.() }
   }
   const relay = createRemoteControlRelay({
+    resolveProxy: async () => undefined,
     credentials: async () => ({ access: 'a', accountId: 'b' }),
     fetch: async () => Response.json({ environment_id: 'env', server_id: 'srv', remote_control_token: 'rct', expires_at: new Date(Date.now() + 3600000).toISOString() }),
     WebSocket: Socket, installationId: 'test', hostName: 'test', userAgent: 'test/1',
