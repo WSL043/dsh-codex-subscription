@@ -16,6 +16,7 @@ function setup(extra = {}) {
   }
   const received = []
   const relay = createRemoteControlRelay({
+    resolveProxy: async () => undefined,
     credentials: async () => ({ access: 'a', accountId: 'b' }), fetch: async () => enrollOk(), WebSocket: Socket, installationId: 'i', hostName: 'h', userAgent: 'x/1',
     serve: client => { connections.push(client); return { receive: message => received.push(message), close() {} } },
     wait: () => new Promise(resolve => setTimeout(resolve, 1)), ...extra,
@@ -83,6 +84,7 @@ test('a refused upgrade with Retry-After delays the next attempt', async () => {
     close() {}
   }
   const relay = createRemoteControlRelay({
+    resolveProxy: async () => undefined,
     credentials: async () => ({ access: 'a', accountId: 'b' }), fetch: async () => enrollOk(), WebSocket: Refused, installationId: 'i', hostName: 'h', userAgent: 'x/1',
     serve: () => ({ receive() {}, close() {} }), random: () => 0,
     wait: (ms, signal) => { waits.push(ms); return new Promise(resolve => { signal.addEventListener('abort', resolve, { once: true }) }) },
