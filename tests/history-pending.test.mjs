@@ -1,52 +1,54 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { historyPeriodKey, pendingReason, selectHistoryPeriod } from '../src/history-pending.js'
+import { historyPeriodKey, reportedHistoryPeriods, selectHistoryPeriod } from '../src/history-pending.js'
 import { parsePlanHistory } from '../src/plan-history.js'
 
-// Shape seen on a real Pro account: the two newest periods carry null figures, data_as_of trails by days.
-const live = {
-  data_as_of: '2026-10-13T00:00:00Z', coverage_complete: false, approximate: true,
-  periods: [
-    { id: 'a', window_minutes: 10080, plan_type: 'pro', starts_at: '2026-10-11T04:22:24.427000Z', ends_at: '2026-10-18T04:22:24.427000Z', accounting_complete: false, used_basis_points: null, breakdowns: null },
-    { id: 'b', window_minutes: 10080, plan_type: 'pro', starts_at: '2026-10-07T09:22:01Z', ends_at: '2026-10-11T03:56:55Z', accounting_complete: false, used_basis_points: null, breakdowns: null },
-    { id: 'c', window_minutes: 10080, plan_type: 'pro', starts_at: '2026-10-03T07:20:24Z', ends_at: '2026-10-07T03:27:24Z', accounting_complete: true, used_basis_points: 101.205575, breakdowns: [] },
-  ],
+const period = {
+  window_minutes: 10080, starts_at: '2026-10-25T04:52:53.879Z', ends_at: '2026-10-26T04:37:39Z',
+  accounting_complete: false, used_basis_points: null, breakdowns: null,
 }
+const parse = periods => parsePlanHistory({ data_as_of: '2026-10-27T00:00:00Z', periods }).periods
 
-test('periods the report left null have no figure and say whether they are running or not yet counted', () => {
-  const [a, b, c] = parsePlanHistory(live).periods
-  assert.equal(a.usedPercent, undefined)
-  assert.equal(c.usedPercent, 1.01205575)
-  assert.equal(pendingReason(a, Date.parse('2026-10-15T00:00:00Z')), 'current')
-  assert.equal(pendingReason(a, Date.parse('2026-10-19T00:00:00Z')), 'past')
-  assert.equal(pendingReason(b, Date.parse('2026-10-19T00:00:00Z')), 'past')
-  assert.equal(pendingReason(c, Date.parse('2026-10-19T00:00:00Z')), undefined)
+test('a current real report with only null figures offers no usable history periods', () => {
+  const periods = parse([period, { ...period, starts_at: '2026-10-22T00:00:00Z', ends_at: '2026-10-23T00:00:00Z' }])
+  assert.equal(periods.length, 2, 'retain official boundaries without inventing figures')
+  assert.deepEqual(reportedHistoryPeriods(periods), [])
+  assert.equal(selectHistoryPeriod(reportedHistoryPeriods(periods)), undefined)
+  assert.deepEqual(reportedHistoryPeriods(), [])
 })
 
-test('all pending periods remain selectable instead of being reported as empty', () => {
-  const periods = parsePlanHistory(live).periods.slice(0, 2)
-  assert.equal(selectHistoryPeriod(periods, undefined, Date.parse('2026-10-15')), periods[0])
+test('an explicitly reported zero is data, not an unsupported report', () => {
+  const [zero] = reportedHistoryPeriods(parse([{ ...period, used_basis_points: 0 }]))
+  assert.equal(zero.usedPercent, 0)
+})
+
+test('real breakdowns remain available when the official total is missing', () => {
+  const [detail] = reportedHistoryPeriods(parse([{ ...period, breakdowns: [{ dimension: 'model', rows: [{ key: 'gpt-6.1-sol', basis_points: 0.125 }] }] }]))
+  assert.equal(detail.usedPercent, undefined)
+  assert.equal(detail.breakdowns.model[0].percent, 0.00125)
+})
+
+test('empty periods never hide a dated older report or impersonate current allowance', () => {
+  const older = { ...period, starts_at: '2026-10-18T00:00:00Z', ends_at: '2026-10-24T00:00:00Z', used_basis_points: 101.205575 }
+  const periods = reportedHistoryPeriods(parse([period, older]))
+  assert.equal(periods.length, 1)
+  assert.equal(selectHistoryPeriod(periods, undefined, Date.parse('2026-10-25')), periods[0])
+  assert.equal(periods[0].startsAt, Date.parse(older.starts_at))
+  assert.equal(periods[0].usedPercent, 1.01205575)
+})
+
+test('reported current and older periods preserve a valid explicit selection', () => {
+  const a = { ...period, used_basis_points: 10 }
+  const b = { ...period, starts_at: '2026-10-20T00:00:00Z', ends_at: '2026-10-24T00:00:00Z', used_basis_points: 20 }
+  const periods = reportedHistoryPeriods(parse([b, a]))
+  assert.equal(selectHistoryPeriod(periods, undefined, Date.parse('2026-10-25T12:00:00Z')), periods[0])
   assert.equal(selectHistoryPeriod(periods, historyPeriodKey(periods[1])), periods[1])
-  assert.equal(selectHistoryPeriod([]), undefined)
+  assert.equal(selectHistoryPeriod(periods, 'expired-selection'), periods[0])
 })
 
-test('current pending period is the default even when old periods have figures', () => {
-  const periods = parsePlanHistory(live).periods
-  const now = Date.parse('2026-10-15')
-  assert.equal(selectHistoryPeriod(periods, undefined, now), periods[0])
-  assert.equal(selectHistoryPeriod(periods, historyPeriodKey(periods[2]), now), periods[2])
-  assert.equal(selectHistoryPeriod(periods, 'expired-selection', now), periods[0])
-})
-
-test('period identity includes its end and allowance length, not just its start', () => {
-  const [weekly] = parsePlanHistory(live).periods
+test('period identity includes the end and allowance length', () => {
+  const [weekly] = parse([period])
   const short = { ...weekly, endsAt: weekly.startsAt + 300 * 60_000, windowMinutes: 300 }
   assert.notEqual(historyPeriodKey(weekly), historyPeriodKey(short))
   assert.equal(selectHistoryPeriod([weekly, short], historyPeriodKey(short)), short)
-})
-
-test('a period that really used nothing (0 basis points) is a figure, not pending', () => {
-  const [p] = parsePlanHistory({ periods: [{ ...live.periods[2], used_basis_points: 0 }] }).periods
-  assert.equal(p.usedPercent, 0)
-  assert.equal(pendingReason(p), undefined)
 })

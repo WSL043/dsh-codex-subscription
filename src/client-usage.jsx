@@ -144,9 +144,14 @@ export function resetCreditErrorText(error, t) {
 
 export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
   const { usage, busy, error, now, refresh } = useQuotaUsage(rpc, signedIn)
+  const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
   const preferenceSnapshot = usePreferenceSnapshot(preference)
   const forecastMode = preferenceSnapshot.quickQuotaMode === QUICK_QUOTA_MODE_FORECAST
-  const load = force => { if (signedIn) void refresh(force).catch(() => {}) }
+  const load = force => {
+    if (!signedIn) return
+    if (force) setHistoryRefreshKey(value => value + 1)
+    void refresh(force).catch(() => {})
+  }
   const usageRefreshGeneration = usage?.fetchedAt ?? 0
   const visibleUsage = signedIn ? usage : undefined
   const limits = visibleUsage?.rateLimits ?? []
@@ -174,7 +179,7 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
         {forecastMode ? <p className="codexSubscriptionForecast" role="status">{formatQuotaForecast(window.forecast, t, { ...window, fetchedAt: visibleUsage.fetchedAt, now, refreshError: error !== undefined })}</p> : null}
       </div>))}</div>}
     {limits.length === 0 ? null : <UsageOverview rpc={rpc} t={t} signedIn={signedIn} resetKey={resetKey} />}
-    {limits.length === 0 ? null : <UsageHistory rpc={rpc} t={t} signedIn={signedIn} resetKey={resetKey} refreshKey={usageRefreshGeneration} />}
+    {limits.length === 0 ? null : <UsageHistory rpc={rpc} t={t} signedIn={signedIn} resetKey={resetKey} refreshKey={usageRefreshGeneration} forceRefreshKey={historyRefreshKey} />}
     {visibleUsage?.chatPass === undefined ? null : <div className="codexSubscriptionLimits">{visibleUsage.chatPass.windows.map((window, index) => <div className="codexSubscriptionLimit" key={`chatpass-${window.windowSeconds}-${index}`}>
         <div className="codexSubscriptionLimitTop"><span className="codexSubscriptionLimitLabel">{t('chatPass')}</span><strong>{percent(window.remainingPercent)}%</strong></div>
         <progress max="100" value={window.remainingPercent} aria-label={`${t('chatPass')} ${fill(t('remaining'), { value: percent(window.remainingPercent) })}`} />

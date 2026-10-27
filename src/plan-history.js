@@ -83,8 +83,8 @@ export function createReportReader({ url, parse, label, getAuth, readCredential,
   return Object.freeze({
     read({ force = false, signal } = {}) {
       if (failed !== undefined && now() < failed.retryAt) return Promise.reject(new Error(failed.message))
-      if (!force && cached !== undefined && now() - cached.fetchedAt < ttlMs) return Promise.resolve(structuredClone(cached))
       if (inFlight !== undefined) return inFlight.then(structuredClone)
+      if (!force && cached !== undefined && now() - cached.fetchedAt < ttlMs) return Promise.resolve(structuredClone(cached))
       const current = generation
       const run = load(signal)
         .then(value => { if (generation === current) { cached = structuredClone(value); failed = undefined } return structuredClone(value) })

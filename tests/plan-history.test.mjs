@@ -95,6 +95,22 @@ test('failure retry is bounded and clearing an account cannot reuse its cached h
   assert.equal(calls.length, 3)
 })
 
+test('a background read joins a pending forced refresh instead of restoring the old cached report', async () => {
+  let finish
+  const pending = new Promise(resolve => { finish = resolve })
+  const { instance, calls } = reader([Response.json({ periods: [period] }), pending])
+  await instance.read()
+  const forced = instance.read({ force: true })
+  const background = instance.read()
+  finish(Response.json({ periods: [{ ...period, used_basis_points: 200 }] }))
+  const [fresh, shared] = await Promise.all([forced, background])
+  assert.equal(fresh.periods[0].usedPercent, 2)
+  assert.equal(shared.periods[0].usedPercent, 2)
+  assert.equal(calls.length, 2)
+  shared.periods.length = 0
+  assert.equal((await instance.read()).periods.length, 1)
+})
+
 test('usage/history is a public endpoint that only surfaces safe messages', async () => {
   assert.ok(RPC_ENDPOINTS.includes('usage/history'))
   const signal = new AbortController().signal
