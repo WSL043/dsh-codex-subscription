@@ -1,4 +1,5 @@
 import { dirname, resolve } from 'node:path'
+import { stat, utimes } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { defineConfig, Rolldown } from 'tsdown'
 
@@ -28,6 +29,30 @@ const clientFeatures = [
   { entry: 'src/client-sketch.jsx', fileName: 'client.sketch.js' },
   { entry: 'src/client-image-viewer.jsx', fileName: 'client.image-viewer.js' },
 ]
+
+// Reused pnpm stores can sit outside this checkout. Keep that machine-specific
+// location out of region labels and maps, just as for a local node_modules tree.
+function portableSourcePath(source) {
+  const normalized = source.replaceAll('\\', '/')
+  const dependency = normalized.indexOf('node_modules/')
+  return dependency < 0 ? normalized : normalized.slice(dependency)
+}
+
+function portableSourcePaths() {
+  return {
+    name: 'dsh-client-portable-source-paths',
+    renderChunk(code) {
+      const transformed = new Rolldown.RolldownMagicString(code)
+      for (const match of code.matchAll(/^[\t ]*\/\/#region ([^\r\n]+)/gmu)) {
+        const stable = portableSourcePath(match[1])
+        if (stable === match[1]) continue
+        const start = match.index + match[0].length - match[1].length
+        transformed.overwrite(start, start + match[1].length, stable)
+      }
+      return transformed.hasChanged() ? transformed : null
+    },
+  }
+}
 
 // Each feature is built independently so Rolldown cannot introduce a synchronous
 // relative shared-chunk require, which DSH's module-table require cannot resolve.
@@ -74,6 +99,34 @@ function featureImports() {
   }
 }
 
+// DSH versions every package-local chunk with its client.js metadata. Separate
+// feature watchers must publish their completed write through that same entry.
+let featurePublication = Promise.resolve()
+function featureRebuildNotice() {
+  return {
+    name: 'dsh-client-feature-rebuild-notice',
+    async writeBundle(options) {
+      if (!options.dir) return
+      const publish = async () => {
+        const entryPath = resolve(options.dir, 'client.js')
+        try {
+          const current = await stat(entryPath)
+          // Serialize features and allow the clock to tick if necessary; never
+          // invent a future mtime merely to force a distinct generation.
+          if (Math.floor(current.mtimeMs) === Date.now()) await new Promise(done => setTimeout(done, 1))
+          await utimes(entryPath, current.atime, new Date())
+        } catch (error) {
+          // A clean build may finish a feature before the entry is written.
+          if (error.code !== 'ENOENT') throw error
+        }
+      }
+      const completion = featurePublication.catch(() => {}).then(publish)
+      featurePublication = completion
+      await completion
+    },
+  }
+}
+
 function clientBundle(entry, fileName, chunk) {
   return {
     name: `${id}/${fileName}`,
@@ -81,10 +134,11 @@ function clientBundle(entry, fileName, chunk) {
     outDir: 'lib', format: 'cjs', platform: 'browser', target: 'es2022',
     dts: false, sourcemap: true, clean: false,
     deps: { neverBundle: clientExternal },
-    plugins: chunk ? [] : [featureImports()],
+    plugins: [...(chunk ? [featureRebuildNotice()] : [featureImports()]), portableSourcePaths()],
     define: { 'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production') },
     outputOptions: {
       codeSplitting: false,
+      sourcemapPathTransform: portableSourcePath,
       entryFileNames: fileName,
       banner: `window.__ModuleLoader__.load({ id: ${JSON.stringify(id)}, ${chunk ? `chunk: ${JSON.stringify(fileName)}, ` : ''}factory: (require) => {`,
       footer: 'return module.exports; } });',
