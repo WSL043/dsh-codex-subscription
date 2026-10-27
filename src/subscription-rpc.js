@@ -24,8 +24,35 @@ export async function settlesLive(preferences, patch, signal, { attempts = 8, de
   return live()
 }
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, accountUsageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, desktopVoice, voicePreview, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, accountUsageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, desktopVoice, nativeVoice, voicePreview, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
   return async (endpoint, payload, signal) => {
+    if (endpoint.startsWith('voice/native/')) {
+      try {
+        signal.throwIfAborted()
+        if (!nativeVoice) return publicError('voice-native-unavailable', 'Native voice is unavailable')
+        const action = endpoint.slice('voice/native/'.length)
+        if (action === 'probe') return { ok: true, value: await nativeVoice.probe(signal) }
+        const sessionId = payload?.sessionId
+        if (typeof sessionId !== 'string' || !sessionId || sessionId.length > 512) return publicError('invalid-input', 'Invalid voice request')
+        if (action === 'start') {
+          const current = preferences?.status?.() ?? {}
+          if (current.voiceCall !== 'on') return publicError('unavailable', 'Voice is turned off')
+          if (payload.captureAllowed !== true) return publicError('invalid-input', 'Microphone permission is required')
+          return { ok: true, value: await nativeVoice.start({ sessionId, captureAllowed: true, voice: current.voiceVoice, language: current.voiceLanguage }, signal) }
+        }
+        const leaseToken = payload?.leaseToken
+        if (typeof leaseToken !== 'string' || leaseToken.length < 16 || leaseToken.length > 128) return publicError('invalid-input', 'Invalid voice owner')
+        if (action === 'status') return { ok: true, value: nativeVoice.status(sessionId, leaseToken) }
+        if (action === 'stop') return { ok: true, value: await nativeVoice.stop({ sessionId, leaseToken }) }
+        if (action === 'control' && ['mute', 'outputMute'].includes(payload.action) && typeof payload.muted === 'boolean') {
+          return { ok: true, value: await nativeVoice[payload.action]({ sessionId, leaseToken, muted: payload.muted }) }
+        }
+        return publicError('invalid-input', 'Invalid voice request')
+      } catch (error) {
+        if (signal.aborted) throw error
+        return publicError(error?.code === 'voice-native-unavailable' ? 'voice-native-unavailable' : 'operation-error', 'Could not use native voice')
+      }
+    }
     if (endpoint === 'default-model/status' || endpoint === 'default-model/select') {
       try {
         signal.throwIfAborted()
@@ -75,6 +102,10 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
         if (endpoint === 'voice/stop') { desktopVoice.stop(payload.sessionId); return { ok: true, value: {} } }
         const current = preferences?.status?.() ?? {}
         if (current.voiceCall !== 'on') return publicError('unavailable', 'Voice is turned off')
+        // A browser call takes over only after the previous host microphone and
+        // its remote session have been released, so late cleanup cannot stop it.
+        await nativeVoice?.close()
+        signal.throwIfAborted()
         return { ok: true, value: await desktopVoice.start({ sessionId: payload.sessionId, sdp: payload.sdp, voice: current.voiceVoice, language: current.voiceLanguage, signal }) }
       } catch (error) {
         if (signal.aborted) throw error

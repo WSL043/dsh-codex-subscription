@@ -3,6 +3,7 @@
 import argparse
 import array
 import collections
+import importlib.util
 import json
 import math
 import os
@@ -12,6 +13,7 @@ import subprocess
 import sys
 import threading
 import time
+import types
 import uuid
 import wave
 
@@ -251,6 +253,76 @@ def pulse_streams(pids):
     return found
 
 
+def helper_level_cache_guard(helper_path):
+    """Simulated bus messages exercise the actual helper; no media acceptance."""
+    spec = importlib.util.spec_from_file_location('dsh_native_level_regression', helper_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    helper = module.Helper()
+    helper.pipeline = object()  # Only satisfy the bus handler's active-generation guard.
+    helper.generation = 1
+    clock, emitted, cases = [100.0], [], {}
+    real_clock, real_emit = module.time.monotonic, module.emit
+
+    def level_message(channel, decibels):
+        structure = types.SimpleNamespace(get_name=lambda: 'level',
+            get_value=lambda name: [decibels] if name == 'rms' else None)
+        source = types.SimpleNamespace(get_name=lambda: channel + '_level')
+        return types.SimpleNamespace(type=module.Gst.MessageType.ELEMENT,
+            src=source, get_structure=lambda: structure)
+
+    try:
+        module.time.monotonic = lambda: clock[0]
+        module.emit = lambda **message: emitted.append(dict(message))
+        helper.bus_message(None, level_message('assistant', -6), 1)
+        clock[0] = 100.20
+        helper.bus_message(None, level_message('mic', -20), 1)
+        cases['freshAssistantSurvivesMicFrame'] = math.isclose(
+            emitted[-1]['assistant'], 10 ** (-6 / 20), rel_tol=1e-9)
+        clock[0] = 100.30  # Assistant RTP has stopped; only the microphone reports a level.
+        helper.bus_message(None, level_message('mic', -20), 1)
+        cases['micFrameExpiresStaleAssistant'] = emitted[-1]['assistant'] == 0 \
+            and emitted[-1]['mic'] > 0
+        clock[0] = 100.31
+        helper.bus_message(None, level_message('assistant', -3), 1)
+        cases['newAssistantRestoresLevelImmediately'] = math.isclose(
+            emitted[-1]['assistant'], 10 ** (-3 / 20), rel_tol=1e-9)
+        helper.reset_metrics()
+        cases['resetMetricsClearsLevelsAndTimestamps'] = \
+            helper.levels == {'mic': 0.0, 'assistant': 0.0} \
+            and helper.level_seen == {'mic': 0.0, 'assistant': 0.0}
+    finally:
+        module.emit = real_emit
+        module.time.monotonic = real_clock
+        helper.pipeline = None
+        helper.loop.quit()
+    return {'simulationOnly': True, 'cases': cases, 'passed': all(cases.values())}
+
+
+def default_device_bindings(pid, capture, playback):
+    """Resolve this helper's live Pulse streams to actual source/sink names."""
+    bindings = []
+    for streams, devices, field, expected in (
+            ('source-outputs', 'sources', 'source', capture),
+            ('sink-inputs', 'sinks', 'sink', playback)):
+        targets = {value['index']: value['name']
+                   for value in json.loads(command('pactl', '-f', 'json', 'list', devices))}
+        for stream in json.loads(command('pactl', '-f', 'json', 'list', streams)):
+            props = stream.get('properties', {})
+            if str(props.get('application.process.id', '')) != str(pid):
+                continue
+            actual = targets.get(stream.get(field))
+            bindings.append({'kind': streams, 'index': stream.get('index'),
+                'pid': pid, 'deviceIndex': stream.get(field), 'deviceName': actual,
+                'applicationName': props.get('application.name'),
+                'applicationId': props.get('application.id'), 'expectedDevice': expected,
+                'matched': actual == expected and props.get('application.name') == 'DSH Voice'
+                    and props.get('application.id') == 'com.dsh.codex-subscription.voice'})
+    selected = len(bindings) == 2 and {v['kind'] for v in bindings} == {'source-outputs', 'sink-inputs'} \
+        and all(value['matched'] for value in bindings)
+    return {'bindings': bindings, 'passed': selected}
+
+
 def alive(pid):
     try:
         text = Path('/proc/' + str(pid) + '/stat').read_text()
@@ -270,6 +342,7 @@ def main():
               'physicalSpeakerVerified': False, 'fakeSinkUsed': False, 'phases': {},
               'checks': {}, 'helper': str(args.helper.resolve()), 'passed': False}
     modules, peers, monitors, generators = [], [], {}, []
+    previous_defaults = None
     Gst = loop = supervisor = grandchild = None
     began = time.monotonic()
     try:
@@ -283,6 +356,14 @@ def main():
         gi.require_version('Gst', '1.0')
         from gi.repository import Gst, GLib
         Gst.init(None)
+        level_guard = helper_level_cache_guard(args.helper.resolve())
+        report['helperLevelCacheSimulation'] = level_guard
+        report['checks']['helperLevelCacheExpiresWithoutAssistantRtp'] = level_guard['passed']
+        if not level_guard['passed']:
+            raise AssertionError('Actual helper bus handler retained stale speaker levels')
+        previous_defaults = {'source': command('pactl', 'get-default-source'),
+                             'sink': command('pactl', 'get-default-sink')}
+        report['defaultDevices'] = {'before': previous_defaults, 'restored': False}
         loop = GLib.MainLoop()
         threading.Thread(target=loop.run, daemon=True).start()
         prefix = 'dsh_native_' + uuid.uuid4().hex[:10]
@@ -328,8 +409,12 @@ def main():
             report.setdefault('capabilities', {})[peer.name] = response
             if response.get('ok') is not True or response.get('available') is not True:
                 raise RuntimeError('Native helper capabilities unavailable: ' + ','.join(response.get('missing', [])))
+        command('pactl', 'set-default-source', devices['mic_a'] + '.monitor')
+        command('pactl', 'set-default-sink', devices['speaker_a'])
+        report['defaultDevices']['during'] = {'source': command('pactl', 'get-default-source'),
+                                              'sink': command('pactl', 'get-default-sink')}
         b.send('start', role='answerer', inputDevice=devices['mic_b'] + '.monitor', outputDevice=devices['speaker_b'], captureAllowed=True)
-        a.send('start', role='offerer', inputDevice=devices['mic_a'] + '.monitor', outputDevice=devices['speaker_a'], captureAllowed=True)
+        a.send('start', role='offerer', captureAllowed=True)
         b.send('remote', descriptionType='offer', sdp=a.wait('offer')['sdp'])
         a.send('remote', descriptionType='answer', sdp=b.wait('answer')['sdp'])
         for peer in peers:
@@ -337,11 +422,19 @@ def main():
         report['checks']['twoNativePeersConnected'] = True
         for index, generator in enumerate(generators):
             change_source(generator, 'initial-tone-' + str(index), volume=.24)
-
         def window(name, settle=.35, duration=1.25, new_tone=False):
             phase_start = time.monotonic()
             time.sleep(settle)
             start = time.monotonic(); time.sleep(duration); end = time.monotonic()
+            if name == 'duplex':
+                # Connected precedes the first decoded packet and Pulse sink.
+                # Record live routes before any baseline pass/fail assertion,
+                # once this unchanged observation window has actually played.
+                selected = default_device_bindings(a.pid, devices['mic_a'] + '.monitor', devices['speaker_a'])
+                report['defaultDevices']['peerA'] = selected
+                report['defaultDevices']['peerB'] = default_device_bindings(
+                    b.pid, devices['mic_b'] + '.monitor', devices['speaker_b'])
+                report['checks']['defaultDevicesSelectedByAlias'] = selected['passed']
             values = {key: stats(value, start, end, (1499 if new_tone else 613) if key in ('mic_a', 'speaker_b') else 997)
                       for key, value in monitors.items()}
             report['phases'][name] = values
@@ -368,6 +461,18 @@ def main():
                 'staleInputDropped', 'staleOutputDropped', 'interrupts', 'dataMessagesReceived',
                 'active', 'uptimeMs', 'muted', 'outputMuted', 'interrupted', 'generation')
             for peer in (a, b):
+                with peer.lock:
+                    levels = [event for event in peer.events
+                              if event.get('event') == 'level' and start <= event['_at'] <= end]
+                # Existing bus levels are after webrtcdsp / after decoding.
+                # Diagnostic only: the independent PCM gates stay authoritative.
+                item.setdefault('postDspLevelSummary', {})[peer.name] = {
+                    channel: {'events': len(levels),
+                              'mean': sum(event.get(channel, 0) for event in levels) / len(levels) if levels else None,
+                              'min': min((event.get(channel, 0) for event in levels), default=None),
+                              'max': max((event.get(channel, 0) for event in levels), default=None),
+                              'belowAudibleFraction': sum(event.get(channel, 0) < AUDIBLE_RMS for event in levels) / len(levels) if levels else None}
+                    for channel in ('mic', 'assistant')}
                 try:
                     response = peer.wait(peer.send('probe'), 2)
                     metrics = response.get('metrics', {})
@@ -491,11 +596,31 @@ def main():
                 command('pactl', 'unload-module', module)
             except Exception:
                 report['moduleCleanupFailed'] = True
+        if previous_defaults is not None:
+            # A fresh server may recreate its original auto-null device only
+            # after our null sinks disappear. Retry cleanup briefly, never media.
+            for attempt in range(5):
+                restored, restore_errors = {}, {}
+                for kind, device in previous_defaults.items():
+                    try:
+                        command('pactl', 'set-default-' + kind, device)
+                        restored[kind] = command('pactl', 'get-default-' + kind)
+                    except Exception as error:
+                        restore_errors[kind] = type(error).__name__
+                if restored == previous_defaults:
+                    break
+                if attempt < 4:
+                    time.sleep(.05)
+            report['defaultDevices']['after'] = restored
+            report['defaultDevices']['restored'] = restored == previous_defaults
+            if restored != previous_defaults:
+                report['defaultDevicesRestoreFailed'] = True
+                report['defaultDevices']['restoreErrors'] = restore_errors
         if loop:
             loop.quit()
         report['elapsedSeconds'] = time.monotonic() - began
         report['evidenceWav'] = 'native-webrtc-proof.wav' if (output / 'native-webrtc-proof.wav').exists() else None
-        if report.get('failedGrandchildForcedCleanup') or report.get('moduleCleanupFailed'):
+        if report.get('failedGrandchildForcedCleanup') or report.get('moduleCleanupFailed') or report.get('defaultDevicesRestoreFailed'):
             report['passed'] = False
         (output / 'result.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps(report, indent=2))

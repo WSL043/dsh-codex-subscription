@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Experimental native voice sidecar. No browser, credentials or arbitrary pipelines.
+"""Native voice media sidecar. No browser, credentials or arbitrary pipelines.
 
 Requires Python GI: Gst, GstSdp, GstWebRTC 1.0, libnice and the fixed factories
 listed in REQUIRED. JSON-lines protocol on stdin/stdout; diagnostics on stderr.
-This is an opt-in prototype, not a product integration or audio acceptance claim.
+The DSH host owns confirmation, account signaling and the lifetime of each call.
 """
 import ctypes
 import json
@@ -66,10 +66,13 @@ class Helper:
         self.metrics_lock = threading.Lock()
         self.metrics = {}
         self.levels = {'mic': 0.0, 'assistant': 0.0}
+        self.level_seen = {'mic': 0.0, 'assistant': 0.0}
         self.shutdown_requested = False
         self.started_at = None
 
     def reset_metrics(self):
+        self.levels = {'mic': 0.0, 'assistant': 0.0}
+        self.level_seen = {'mic': 0.0, 'assistant': 0.0}
         self.metrics = dict(captureBuffers=0, captureSamples=0, rtpSent=0,
                             rtpReceived=0, decodedBuffers=0, playbackBuffers=0,
                             rtpBlockedByMute=0, rtpSentWhileMuted=0,
@@ -150,16 +153,22 @@ class Helper:
         self.webrtc.connect('notify::connection-state', lambda *_: GLib.idle_add(self.connection_state, epoch))
         self.webrtc.connect('pad-added', self.pad_added, epoch)
         self.webrtc.connect('on-data-channel', lambda _, channel: self.attach_channel(channel, epoch))
+        # Keep the call separate from unrelated Python audio applications.
+        audio_identity = Gst.Structure.new_empty('props')
+        audio_identity.set_value('application.name', 'DSH Voice')
+        audio_identity.set_value('application.id', 'com.dsh.codex-subscription.voice')
         source = self.factory('pulsesrc', 'microphone', do_timestamp=True,
-                              buffer_time=100000, latency_time=10000)
-        if input_device:
-            source.set_property('device', input_device)
+                              buffer_time=100000, latency_time=10000,
+                              client_name='DSH Voice', stream_properties=audio_identity,
+                              device=input_device or '@DEFAULT_SOURCE@')
+        # NULL may restore an old per-application route instead of the selected
+        # system microphone. The Pulse default alias resolves that choice now.
         convert = self.factory('audioconvert', 'mic_convert')
         resample = self.factory('audioresample', 'mic_resample')
         caps = self.factory('capsfilter', 'mic_caps', caps=Gst.Caps.from_string(RAW))
         dsp = self.factory('webrtcdsp', 'mic_dsp', probe='voice_echo_probe', echo_cancel=True,
                            noise_suppression=True, gain_control=True)
-        mic_level = self.factory('level', 'mic_level', interval=100 * Gst.MSECOND, post_messages=True)
+        mic_level = self.factory('level', 'mic_level', interval=30 * Gst.MSECOND, post_messages=True)
         self.mic_volume = self.factory('volume', 'mic_mute', mute=False)
         encoder = self.factory('opusenc', 'encoder', bitrate=24000, frame_size=20, inband_fec=True)
         pay = self.factory('rtpopuspay', 'pay', pt=111)
@@ -179,13 +188,13 @@ class Helper:
         out_convert = self.factory('audioconvert', 'out_convert')
         out_resample = self.factory('audioresample', 'out_resample')
         out_caps = self.factory('capsfilter', 'out_caps', caps=Gst.Caps.from_string(RAW))
-        remote_level = self.factory('level', 'assistant_level', interval=100 * Gst.MSECOND, post_messages=True)
+        remote_level = self.factory('level', 'assistant_level', interval=30 * Gst.MSECOND, post_messages=True)
         self.speaker_volume = self.factory('volume', 'speaker_mute', mute=False)
         self.sink = self.factory('pulsesink', 'speaker', sync=True,
-                                buffer_time=100000, latency_time=10000)
+                                buffer_time=100000, latency_time=10000,
+                                client_name='DSH Voice', stream_properties=audio_identity,
+                                device=output_device or '@DEFAULT_SINK@')
         self.sink.set_property('async', False)
-        if output_device:
-            self.sink.set_property('device', output_device)
         self.link(self.rx_queue, depay, decoder, out_convert, out_resample, out_caps,
                   remote_level, self.speaker_volume, self.echo, self.sink)
         remote_level.get_static_pad('src').add_probe(Gst.PadProbeType.BUFFER, self.decoded_probe, epoch)
@@ -359,6 +368,9 @@ class Helper:
             error, _debug = message.parse_error()
             print('GStreamer error from ' + message.src.get_name() + ': ' + error.message, file=sys.stderr, flush=True)
             self.fail('native GStreamer pipeline error')
+        elif message.type == Gst.MessageType.LATENCY:
+            # Incoming WebRTC pads change the live graph after PLAYING.
+            self.pipeline.recalculate_latency()
         elif message.type == Gst.MessageType.EOS:
             self.fail('unexpected native audio end-of-stream')
         elif message.type == Gst.MessageType.ELEMENT:
@@ -367,18 +379,16 @@ class Helper:
                 rms = structure.get_value('rms')
                 level = max((10 ** (float(value) / 20) for value in rms if math.isfinite(float(value))), default=0)
                 key = 'mic' if message.src.get_name() == 'mic_level' else 'assistant'
+                now = time.monotonic()
+                self.level_seen[key] = now
                 self.levels[key] = min(1.0, level)
+                # A live service may stop sending RTP during an interruption.
+                # Silence then has no level message of its own; never retain a
+                # positive speaker level forever and prevent the gate resuming.
+                for channel in self.levels:
+                    if now - self.level_seen[channel] > .25:
+                        self.levels[channel] = 0.0
                 emit(event='level', **self.levels)
-
-    def flush_speaker(self):
-        # Only flush the local renderer, never the WebRTC/RTP receive transport.
-        # Live RTP/decoder keeps draining as silence while interrupted.
-        pad = self.speaker_volume.get_static_pad('src')
-        segment = pad.get_sticky_event(Gst.EventType.SEGMENT, 0)
-        pad.push_event(Gst.Event.new_flush_start())
-        pad.push_event(Gst.Event.new_flush_stop(False))
-        if segment is not None:
-            pad.push_event(segment.copy())
 
     def controls(self, command):
         if self.pipeline is None:
@@ -399,8 +409,8 @@ class Helper:
             self.output_cutoff = self.running_time()
             self.interrupted = False
         self.speaker_volume.set_property('mute', self.output_muted or self.interrupted)
-        if kind == 'interrupt' or kind == 'outputMute' and self.output_muted:
-            self.flush_speaker()
+        # Drain the bounded renderer as silent PCM. A downstream flush can return
+        # FLUSHING upstream and permanently stop WebRTC reception.
         return dict(monotonicNs=time.monotonic_ns(), metrics=self.snapshot())
 
     def stop(self):

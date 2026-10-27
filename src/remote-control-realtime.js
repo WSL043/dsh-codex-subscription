@@ -248,7 +248,7 @@ export function createRealtimeVoice(options) {
     catch (error) { if (starts.get(threadId) === pending) starts.delete(threadId); try { ws?.close() } catch { /* closed */ }; throw error }
     if (starts.get(threadId) !== pending) { ws.close(); throw new Error('Voice start replaced') }
     starts.delete(threadId)
-    const session = { ws, notify, ended: false, chain: Promise.resolve(), tail: [], lines: [], working: 0, controls: new Set(), flushTail: params.flushTranscriptTailOnSessionEnd !== false, silent: params.silentTailRecord === true, hangUp: params.hangUpOnGoodbye === true }
+    const session = { ws, notify, ended: false, inputReady: false, chain: Promise.resolve(), tail: [], lines: [], working: 0, controls: new Set(), flushTail: params.flushTranscriptTailOnSessionEnd !== false, silent: params.silentTailRecord === true, hangUp: params.hangUpOnGoodbye === true }
     sessions.set(threadId, session)
     const send = message => { try { ws.send(JSON.stringify(message)) } catch (error) { log.warn('voice', 'could not send to the voice call', String(error?.message ?? error)) } }
     const speak = (delegationId, text) => {
@@ -299,6 +299,7 @@ export function createRealtimeVoice(options) {
     ws.on('message', data => {
       try {
         const value = JSON.parse(String(data))
+        if (!session.ended && value.type === 'session.input_audio.append' && typeof value.audio === 'string' && value.audio.length > 0) session.inputReady = true
         const id = value.client_event_id ?? value.error?.event_id
         if (id && session.controls.delete(id)) {
           if (value.type === 'error') log.warn('voice', 'the voice service refused an interruption command', String(value.error?.message ?? '').slice(0, 200))
@@ -396,7 +397,7 @@ export function createRealtimeVoice(options) {
     /** What the voice stage shows: the last spoken lines, whether the agent is working on a request, whether the call is about to end. */
     status(threadId) {
       const session = sessions.get(threadId)
-      return session ? { active: true, working: session.working > 0, closing: session.closing === true, lines: session.lines.slice(-6) } : { active: false, working: false, closing: false, lines: [] }
+      return session ? { active: true, inputReady: session.inputReady, working: session.working > 0, closing: session.closing === true, lines: session.lines.slice(-6) } : { active: false, working: false, closing: false, lines: [] }
     },
     closeAll: () => { for (const threadId of new Set([...sessions.keys(), ...starts.keys()])) stop(threadId, 'shutdown') },
   }

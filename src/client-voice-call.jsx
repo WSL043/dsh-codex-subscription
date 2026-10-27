@@ -6,6 +6,7 @@ import { CHANNEL } from './rpc-contract.js'
 import { usePreferenceSnapshot } from './client-shared.js'
 import { VOICE_CALL_FIELD, VOICE_LANGUAGE_FIELD, VOICE_LANGUAGES, VOICE_VOICE_FIELD, VOICE_VOICES } from './settings-contract.js'
 import { openVoiceCall } from './voice-call.js'
+import { nativeVoiceEligible, openNativeVoiceCall } from './voice-native-call.js'
 import { voiceCallCapability, voiceCallProblem, voicePreviewProblem } from './voice-problems.js'
 import { voiceBrowserUrl } from './voice-browser.js'
 import { createOrb } from './voice-orb.js'
@@ -127,9 +128,27 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
   const [browserCopied, setBrowserCopied] = useState(false)
   const [micOff, setMicOff] = useState(false)
   const [speakerOff, setSpeakerOff] = useState(false)
+  const [nativeAvailable, setNativeAvailable] = useState(false)
   const enabled = snapshot.status === 'ready' && snapshot.voiceCall === 'on'
   const capability = enabled ? voiceCallCapability() : undefined
   useEffect(() => { setProblem(''); setUnsupported(false); setBrowserCopied(false) }, [sessionId, capability])
+  useEffect(() => {
+    setNativeAvailable(false)
+    if (!enabled || !['voice-no-webrtc', 'voice-no-microphone'].includes(capability) || !nativeVoiceEligible()) return undefined
+    const controller = new AbortController()
+    let retry
+    const probe = async (attempt = 0) => {
+      try {
+        const result = await rpc.call(CHANNEL, 'voice/native/probe', {}, controller.signal)
+        if (controller.signal.aborted) return
+        if (result.value?.code === 'native-voice-busy' && attempt < 3) {
+          retry = setTimeout(() => { void probe(attempt + 1) }, 400)
+        } else setNativeAvailable(result.ok && result.value?.available === true)
+      } catch { /* keep the existing browser continuation */ }
+    }
+    void probe()
+    return () => { controller.abort(); clearTimeout(retry) }
+  }, [enabled, capability, rpc])
 
   useLayoutEffect(() => {
     if (!enabled) { setPlace(undefined); return undefined }
@@ -179,6 +198,7 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
   useEffect(() => { if (!problem || unsupported) return undefined; const timer = setTimeout(() => setProblem(''), 6000); return () => clearTimeout(timer) }, [problem, unsupported])
 
   const start = async () => {
+    if (nativeAvailable && !window.confirm(t('voiceNativeCaptureConfirm'))) return
     const controller = new AbortController()
     pendingCall.current?.abort(); pendingCall.current = controller
     setProblem('')
@@ -188,23 +208,25 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
     setMicOff(false)
     setSpeakerOff(false)
     setState('connecting')
+    let attemptEnded = false
     try {
-      const opened = await openVoiceCall({ rpc, sessionId, signal: controller.signal, onEnd: () => {
+      const opened = await (nativeAvailable ? openNativeVoiceCall : openVoiceCall)({ rpc, sessionId, captureAllowed: nativeAvailable, signal: controller.signal, onEnd: () => {
+        attemptEnded = true
         if (!alive.current || controller.signal.aborted || pendingCall.current !== controller) return
         call.current = null
         setLiveCall(null)
         setState('idle')
       } })
-      if (!alive.current || controller.signal.aborted) { await opened.stop(); return }
+      if (!alive.current || controller.signal.aborted || attemptEnded || pendingCall.current !== controller) { await opened.stop(); return }
       call.current = opened
       setLiveCall(call.current)
       setState('live')
     } catch (error) {
-      if (!alive.current || controller.signal.aborted) return
+      if (!alive.current || controller.signal.aborted || pendingCall.current !== controller) return
       call.current = null
       setLiveCall(null)
       setState('idle')
-      setUnsupported(['voice-no-webrtc', 'voice-no-microphone', 'voice-insecure'].includes(error?.code) ? error.code : false)
+      setUnsupported(['voice-no-webrtc', 'voice-no-microphone', 'voice-insecure', 'voice-native-unavailable'].includes(error?.code) ? error.code : false)
       setProblem(voiceCallProblem(error))
     }
   }
@@ -229,7 +251,7 @@ export function VoiceCallButton({ sessionId, rpc, preference, t }) {
   // A call in progress keeps the button; otherwise it only covers the send button while that has nothing to send.
   const visible = state !== 'idle' || place.idle
   const browserUrl = (capability === 'voice-no-webrtc' || (unsupported && unsupported !== 'voice-insecure')) ? voiceBrowserUrl(window.location.href, sessionId) : undefined
-  const browserCall = state === 'idle' && capability === 'voice-no-webrtc' && browserUrl
+  const browserCall = state === 'idle' && !nativeAvailable && capability === 'voice-no-webrtc' && browserUrl
   return <>
     {anchor}
     {visible ? createPortal(<>

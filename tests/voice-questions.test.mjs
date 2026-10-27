@@ -3,6 +3,22 @@ import test from 'node:test'
 import { createVoiceQuestions, spokenChoice } from '../src/voice-questions.js'
 import { createBargeInGate } from '../src/voice-barge-in.js'
 
+test('native barge-in covers brief pauses between spoken words without triggering while idle', () => {
+  const changes = []
+  let interrupts = 0
+  const gate = createBargeInGate({ outputTailMs: 500, interrupt: () => { interrupts++ }, changed: value => changes.push(value) })
+  gate.sample({ mic: 0, output: .2, now: 0 })
+  gate.sample({ mic: .2, output: 0, now: 60 })
+  gate.sample({ mic: .2, output: 0, now: 210 })
+  assert.equal(interrupts, 1)
+  gate.sample({ mic: 0, output: 0, now: 400 })
+  gate.sample({ mic: 0, output: 0, now: 801 })
+  assert.deepEqual(changes, [true, false])
+  gate.sample({ mic: .2, output: 0, now: 1000 })
+  gate.sample({ mic: .2, output: 0, now: 1200 })
+  assert.equal(interrupts, 1)
+})
+
 const question = { id: 'scope', question: 'Which change?', options: [{ label: 'Only report the time' }, { label: 'Change computer settings' }] }
 
 test('spoken ordinals and labels choose the offered option; uncertainty never submits', () => {

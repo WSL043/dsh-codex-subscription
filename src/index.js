@@ -85,6 +85,7 @@ const REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 import { createSubscriptionRpcHandler } from './subscription-rpc.js'
 import { createVoicePreview } from './voice-preview.js'
 import { withEndCallTool } from './voice-tools.js'
+import { createNativeVoiceHost } from './voice-native-host.js'
 export { createSubscriptionRpcHandler } from './subscription-rpc.js'
 
 export function createSearchProviderSwitcher(loader) {
@@ -749,6 +750,14 @@ export function apply(ctx, config = {}) {
     expirySkewMs: OAUTH_EXPIRY_SKEW_MS,
     activeReader: baseUsageReader,
   })
+  const desktopVoice = withEndCallTool(remoteBridge.desktopVoice, tool => ctx.tools.register(tool))
+  const nativeVoice = createNativeVoiceHost({ desktopVoice, log: diagnosticLog })
+  ctx.effect(() => {
+    const close = () => { void nativeVoice.close().catch(() => diagnosticLog.warn('voice-native', 'native call cleanup is waiting for a cancelled start')) }
+    const sync = () => { if (settings.get().voiceCall !== 'on') close() }
+    const unwatch = settings.watch(sync)
+    return () => { unwatch(); close() }
+  })
   const subscriptionHandler = createSubscriptionRpcHandler({
     authHandler: createCodexRpcHandler(coordinator, { openExternal: openCodexAuthUrl }),
     usageReader,
@@ -760,7 +769,8 @@ export function apply(ctx, config = {}) {
     defaultModel,
     runtimeManagement,
     remoteControl,
-    desktopVoice: withEndCallTool(remoteBridge.desktopVoice, tool => ctx.tools.register(tool)),
+    desktopVoice,
+    nativeVoice,
     voicePreview: createVoicePreview({ fetch: (input, init) => network.fetch('voice', input, init, { standardHttps: true }), credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal), userAgent: USER_AGENT }),
     onAccountChanged: () => { connectorsClient.clear(); usageProfileReader.clear(); quotaRetryHandler.notifyAccountChanged() },
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, review: provider, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),

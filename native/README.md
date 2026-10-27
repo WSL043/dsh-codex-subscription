@@ -1,13 +1,25 @@
-# Native Linux voice experiment
+# Native Linux voice component
 
-`linux-voice-helper.py` is an independent Python/GI GStreamer process. It is not
-loaded by the plugin, does not change WebKit, and never accepts account credentials.
-No audio samples cross Python/JavaScript IPC. No dependencies are installed by it.
+`linux-voice-helper.py` is an independent Python/GI GStreamer process. The plugin
+uses it only from a local Linux desktop window without browser WebRTC, after an
+explicit microphone confirmation. A normal WebRTC browser keeps its existing
+media path. No audio samples cross Python/JavaScript IPC, no dependencies are
+installed automatically, and the helper never accepts account credentials.
+
+The authenticated host keeps signaling, account access and conversation ownership.
+The helper handles audio devices and WebRTC. A session-specific lease protects
+controls; losing the window's heartbeat stops capture after ten seconds. Startup
+cancellation, hangup, settings disable and host disposal release the component.
+The existing speech gate uses native levels to interrupt playback and resumes
+only after old output has drained. Probe opens no microphone or speaker.
 
 Runtime prerequisites: Python GI with Gst/GstSdp/GstWebRTC 1.0 introspection,
 libnice, Opus RTP plugins, PulseAudio source/sink plugins and webrtcdsp. PulseAudio
-can be supplied by PipeWire's Pulse server. `probe` reports missing factories
-without constructing a pipeline or opening audio devices.
+can be supplied by PipeWire's Pulse server. On Arch the media dependencies are
+`python-gobject gst-python gstreamer gst-plugins-base gst-plugins-good
+gst-plugins-bad libnice pipewire-pulse wireplumber`. `probe` reports missing
+factories without constructing a pipeline or opening audio devices. If the
+runtime is unavailable, continue the same conversation in a WebRTC browser.
 
 One bounded JSON object per line (128 KiB), with `id` and **`type`**. Replies contain
 the same id and `ok`. stdout is protocol only; stderr contains native diagnostics.
@@ -23,7 +35,7 @@ the same id and `ok`. stdout is protocol only; stderr contains native diagnostic
   encoder input while continuing silent RTP to preserve the receiver's clock;
   already-buffered pre-mute packets are discarded. It does not revoke the previously permitted
   native device capture. Assistant level is measured before output mute.
-- `interrupt`: suppresses output and flushes local speaker storage. RTP and decoder
+- `interrupt`: suppresses output through the bounded native renderer. RTP and decoder
   keep draining. `resume` discards stale timestamped output and restores playback
   only if `outputMute` is not active. Acknowledgements include monotonicNs.
 - `send`: optional bounded `data` string for data-channel tests. Received text is
@@ -41,6 +53,9 @@ before pulsesink. Speaker output is native, never a browser AudioContext. A Puls
 server or hardware gain applied after this process is not observable by this probe.
 Queue and Pulse ring requests are bounded; independent OS recordings, not level
 events or packet counters, must establish sound quality and mute/interrupt latency.
+Dynamic LATENCY messages recalculate the live graph's latency. Muting keeps the
+receive graph running: flushing the renderer can propagate FLUSHING upstream and
+stop WebRTC reception. Silent PCM drains the bounded speaker storage instead.
 
 Official contracts:
 
@@ -48,21 +63,28 @@ Official contracts:
 - https://gstreamer.freedesktop.org/documentation/webrtcdsp/webrtcdsp.html
 - https://gstreamer.freedesktop.org/documentation/webrtcdsp/webrtcechoprobe.html
 
-The prototype has been exercised on Arch userspace with GStreamer 1.28.8 and
+The component has been exercised on Arch userspace with GStreamer 1.28.8 and
 PipeWire 1.6.9 using digital Pulse input/output devices. Tests cover independent
 speaker recordings, mute/resume, command interruption, stale-output rejection,
-and stop/EOF/parent-death cleanup. This does not establish physical microphone or
-speaker quality, acoustic echo cancellation/double-talk, natural speech-driven
-interruption, real-account signaling, or Hyprland window integration.
+default-device selection, level-cache expiry and stop/EOF/parent-death cleanup.
+
+The host integration was also verified in the actual v0.25.0 Tauri window on
+Arch/Hyprland with WebKitGTK 2.54.1, a real signed-in account, digital audio devices
+and synthetic spoken requests. It covered permission denial, capture/playback,
+automatic speech-driven interruption, a fresh spoken answer, microphone/speaker
+controls and hangup. No manual interrupt command was used in that call. Physical
+microphone/speaker quality and acoustic echo cancellation/double-talk remain
+unverified; digital-device evidence does not establish those properties.
 
 Ubuntu 24.04's stock GStreamer 1.24.2 package omits webrtcdsp/webrtcechoprobe;
 the capability probe correctly refuses to start there. A compatible media runtime
 must be supplied before enabling this component on such a distribution. No runtime
-installer or default DSH integration is included in this experiment.
+installer is included. The component is not a replacement WebKit build.
 
-The [recorded acceptance run](https://github.com/WSL043/dsh-codex-subscription/actions/runs/40388255071)
+The [earlier component baseline](https://github.com/WSL043/dsh-codex-subscription/actions/runs/40388255071)
 completed two consecutive fresh call sequences in one media runtime, each with
-17 passing checks and eight PCM positive/negative controls. Command interruption
-to monitor silence measured 51.65ms and 49.78ms; this is not acoustic latency.
-The path-filtered native-audio workflow reproduces those sequences on main and
-pull requests using the tested image digest and pinned Arch package snapshot.
+17 passing checks and eight PCM positive/negative controls. The current
+path-filtered workflow runs 19 checks per sequence, adding default-device and
+level-cache regressions, and records each run's command-to-monitor-silence timing.
+It runs on main and pull requests using the tested image digest and pinned Arch
+package snapshot. These timings are not acoustic latency.

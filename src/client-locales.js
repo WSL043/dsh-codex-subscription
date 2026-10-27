@@ -1,4 +1,5 @@
 export const zh = {
+  voiceNativeCaptureConfirm: '允许本次通话使用此电脑的麦克风和扬声器？挂断或离开会话后会停止收音。',
   voiceMediaHint: '窗口不支持 WebRTC 时，可在浏览器中继续同一会话。音色试听不受影响，仍使用当前订阅，无需 API Key。',
   voiceBrowserContinue: '在浏览器继续此会话', voiceBrowserCall: '在浏览器继续语音通话', voiceBrowserCopy: '复制会话链接', voiceBrowserCopied: '已复制', voiceBrowserCopyFailed: '复制失败，请手动复制链接',
   voicePreviewSignIn: '试听需要重新登录 ChatGPT，请登录后再试。', voiceCatalogFailed: '语音目录加载失败，请检查网络后重试；这不表示该音色没有样本。', voiceDownloadFailed: '试听音频下载失败，请重试。', voicePlaybackFailed: '音频已取得，但播放失败。请检查浏览器的声音权限后重试。', voicePreviewFailed: '试听加载失败，请检查连接后重试。',
@@ -296,6 +297,7 @@ export const zh = {
 }
 
 export const en = {
+  voiceNativeCaptureConfirm: 'Use this computer’s microphone and speakers for this call? Capture stops when you hang up or leave the conversation.',
   voiceMediaHint: 'If this window does not support WebRTC, continue the same conversation in a browser. Voice samples remain available. Your existing subscription is used; no API key is needed.',
   voiceBrowserContinue: 'Continue this conversation in a browser', voiceBrowserCall: 'Continue voice in a browser', voiceBrowserCopy: 'Copy conversation link', voiceBrowserCopied: 'Copied', voiceBrowserCopyFailed: 'Copy failed; copy the link manually',
   voicePreviewSignIn: 'Sign in to ChatGPT again to load voice samples.', voiceCatalogFailed: 'The voice catalog could not load. Check the connection and retry; this does not mean the voice has no sample.', voiceDownloadFailed: 'The voice sample could not download. Please retry.', voicePlaybackFailed: 'The audio loaded but could not play. Check browser sound permissions and retry.', voicePreviewFailed: 'The voice sample could not load. Check the connection and retry.',
