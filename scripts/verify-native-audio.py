@@ -45,6 +45,52 @@ def command(*args):
     return subprocess.check_output(args, text=True, timeout=5).strip()
 
 
+def configured_pipewire_defaults():
+    """Preserve an unset preference as unset, not a Pulse default alias."""
+    for value in json.loads(command('pw-dump')):
+        if value.get('type') == 'PipeWire:Interface:Metadata' and value.get('props', {}).get('metadata.name') == 'default':
+            return {item['key']: {'type': item['type'], 'value': item['value']}
+                    for item in value.get('metadata', []) if item.get('subject') == 0
+                    and item.get('key') in ('default.configured.audio.source', 'default.configured.audio.sink')}
+    raise RuntimeError('PipeWire default metadata is not ready')
+
+
+def restore_pipewire_defaults(previous):
+    for kind in ('source', 'sink'):
+        key = 'default.configured.audio.' + kind
+        if key in previous:
+            item = previous[key]
+            value = item['value'] if isinstance(item['value'], str) else json.dumps(item['value'])
+            command('pw-metadata', '-n', 'default', '0', key, value, item['type'])
+        else:
+            # Delete this preference only; never clear the metadata object.
+            command('pw-metadata', '-n', 'default', '-d', '0', key)
+
+
+def default_names_match(previous, current, configured, prefix):
+    for kind, device in previous.items():
+        actual = current.get(kind)
+        if actual == device:
+            continue
+        # A previously unresolved alias is not a concrete device to restore.
+        # Its original absent preference must be restored independently, and
+        # policy resolution must not point at one of our temporary devices.
+        if configured is None or 'default.configured.audio.' + kind in configured \
+                or device != '@DEFAULT_' + kind.upper() + '@' or not actual \
+                or prefix and actual.startswith(prefix):
+            return False
+    return True
+
+
+def fixture_identity(Gst, element, identifier):
+    properties = Gst.Structure.new_empty('props')
+    properties.set_value('application.name', identifier)
+    properties.set_value('application.id', identifier)
+    properties.set_value('media.name', identifier)
+    element.set_property('client-name', identifier)
+    element.set_property('stream-properties', properties)
+
+
 class Peer:
     def __init__(self, helper, name, output, reader=None, writer=None, pid=None):
         self.events, self.lock = [], threading.Condition()
@@ -117,14 +163,15 @@ class Peer:
 
 
 class Monitor:
-    def __init__(self, Gst, source):
+    def __init__(self, Gst, source, identifier):
         self.Gst, self.frames, self.lock = Gst, collections.deque(maxlen=12000), threading.Lock()
         self.pending = b''
         self.pipeline = Gst.parse_launch(
-            'pulsesrc device=' + source + ' do-timestamp=true buffer-time=40000 latency-time=10000 '
+            'pulsesrc name=monitor_source device=' + source + ' do-timestamp=true buffer-time=40000 latency-time=10000 '
             '! audioconvert ! audioresample ! audio/x-raw,format=S16LE,rate=48000,channels=1 '
             '! appsink name=capture emit-signals=true sync=false max-buffers=32 drop=true')
         self.pipeline.get_by_name('capture').connect('new-sample', self.sample)
+        fixture_identity(Gst, self.pipeline.get_by_name('monitor_source'), identifier)
         if self.pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
             raise RuntimeError('Pulse monitor could not start: ' + source)
 
@@ -323,6 +370,30 @@ def default_device_bindings(pid, capture, playback):
     return {'bindings': bindings, 'passed': selected}
 
 
+def fixture_device_bindings(devices, prefix):
+    expected = {prefix + '.monitor.' + name: ('source-outputs', device + '.monitor')
+                for name, device in devices.items()}
+    expected.update({prefix + '.injector.' + name: ('sink-inputs', devices[name])
+                     for name in ('mic_a', 'mic_b')})
+    bindings = []
+    for streams, targets, field in (('source-outputs', 'sources', 'source'), ('sink-inputs', 'sinks', 'sink')):
+        names = {value['index']: value['name']
+                 for value in json.loads(command('pactl', '-f', 'json', 'list', targets))}
+        for stream in json.loads(command('pactl', '-f', 'json', 'list', streams)):
+            props = stream.get('properties', {})
+            identifier = props.get('application.id')
+            if identifier not in expected or str(props.get('application.process.id', '')) != str(os.getpid()):
+                continue
+            wanted_kind, wanted_device = expected[identifier]
+            actual = names.get(stream.get(field))
+            bindings.append({'applicationId': identifier, 'kind': streams, 'index': stream['index'],
+                             'deviceName': actual, 'expectedDevice': wanted_device,
+                             'matched': streams == wanted_kind and actual == wanted_device})
+    selected = len(bindings) == len(expected) and {item['applicationId'] for item in bindings} == set(expected) \
+        and all(item['matched'] for item in bindings)
+    return {'bindings': bindings, 'passed': selected}
+
+
 def alive(pid):
     try:
         text = Path('/proc/' + str(pid) + '/stat').read_text()
@@ -343,6 +414,8 @@ def main():
               'checks': {}, 'helper': str(args.helper.resolve()), 'passed': False}
     modules, peers, monitors, generators = [], [], {}, []
     previous_defaults = None
+    previous_configured_defaults = None
+    prefix = None
     Gst = loop = supervisor = grandchild = None
     began = time.monotonic()
     try:
@@ -364,6 +437,10 @@ def main():
         previous_defaults = {'source': command('pactl', 'get-default-source'),
                              'sink': command('pactl', 'get-default-sink')}
         report['defaultDevices'] = {'before': previous_defaults, 'restored': False}
+        report['pulseServer'] = 'pipewire-pulse' if 'PipeWire' in command('pactl', 'info') else 'pulseaudio'
+        if report['pulseServer'] == 'pipewire-pulse':
+            previous_configured_defaults = configured_pipewire_defaults()
+            report['defaultDevices']['configuredBefore'] = previous_configured_defaults
         loop = GLib.MainLoop()
         threading.Thread(target=loop.run, daemon=True).start()
         prefix = 'dsh_native_' + uuid.uuid4().hex[:10]
@@ -373,8 +450,14 @@ def main():
             modules.append(command('pactl', 'load-module', 'module-null-sink', 'sink_name=' + device,
                                    'rate=48000', 'channels=1', 'format=s16le'))
             devices[name] = device
-            monitors[name] = Monitor(Gst, device + '.monitor')
-        report['pulseServer'] = 'pipewire-pulse' if 'PipeWire' in command('pactl', 'info') else 'pulseaudio'
+        # Establish the fixture before opening any streams: a session manager
+        # may move already-open streams when the system default changes.
+        command('pactl', 'set-default-source', devices['mic_a'] + '.monitor')
+        command('pactl', 'set-default-sink', devices['speaker_a'])
+        report['defaultDevices']['during'] = {'source': command('pactl', 'get-default-source'),
+                                              'sink': command('pactl', 'get-default-sink')}
+        for name, device in devices.items():
+            monitors[name] = Monitor(Gst, device + '.monitor', prefix + '.monitor.' + name)
         report['gstreamerVersion'] = Gst.version_string()
         for name, frequency in (('mic_a', 613), ('mic_b', 997)):
             pipeline = Gst.parse_launch('audiotestsrc name=tone is-live=true samplesperbuffer=480 wave=sine freq=' + str(frequency)
@@ -382,6 +465,7 @@ def main():
                 + '! queue max-size-buffers=4 max-size-time=40000000 max-size-bytes=0 '
                 + '! pulsesink name=injection device=' + devices[name]
                 + ' sync=true buffer-time=40000 latency-time=10000')
+            fixture_identity(Gst, pipeline.get_by_name('injection'), prefix + '.injector.' + name)
             if pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
                 raise RuntimeError('Native pulse tone injection failed')
             generators.append(pipeline)
@@ -409,10 +493,6 @@ def main():
             report.setdefault('capabilities', {})[peer.name] = response
             if response.get('ok') is not True or response.get('available') is not True:
                 raise RuntimeError('Native helper capabilities unavailable: ' + ','.join(response.get('missing', [])))
-        command('pactl', 'set-default-source', devices['mic_a'] + '.monitor')
-        command('pactl', 'set-default-sink', devices['speaker_a'])
-        report['defaultDevices']['during'] = {'source': command('pactl', 'get-default-source'),
-                                              'sink': command('pactl', 'get-default-sink')}
         b.send('start', role='answerer', inputDevice=devices['mic_b'] + '.monitor', outputDevice=devices['speaker_b'], captureAllowed=True)
         a.send('start', role='offerer', captureAllowed=True)
         b.send('remote', descriptionType='offer', sdp=a.wait('offer')['sdp'])
@@ -481,6 +561,10 @@ def main():
                 except Exception as error:
                     item['helperMetrics'][peer.name] = {'probeError': type(error).__name__}
             evidence.append(item)
+            if name == 'duplex':
+                item['fixturePulseRoutes'] = fixture_device_bindings(devices, prefix)
+                if not item['fixturePulseRoutes']['passed']:
+                    raise AssertionError('Monitor or injector Pulse stream moved away from its explicit device')
             return values, start, end
 
         baseline = None
@@ -601,19 +685,31 @@ def main():
             # after our null sinks disappear. Retry cleanup briefly, never media.
             for attempt in range(5):
                 restored, restore_errors = {}, {}
+                configured_restored = True
+                if previous_configured_defaults is not None:
+                    try:
+                        restore_pipewire_defaults(previous_configured_defaults)
+                        configured_after = configured_pipewire_defaults()
+                        report['defaultDevices']['configuredAfter'] = configured_after
+                        configured_restored = configured_after == previous_configured_defaults
+                    except Exception as error:
+                        restore_errors['configured'] = type(error).__name__
+                        configured_restored = False
                 for kind, device in previous_defaults.items():
                     try:
-                        command('pactl', 'set-default-' + kind, device)
+                        if previous_configured_defaults is None:
+                            command('pactl', 'set-default-' + kind, device)
                         restored[kind] = command('pactl', 'get-default-' + kind)
                     except Exception as error:
                         restore_errors[kind] = type(error).__name__
-                if restored == previous_defaults:
+                if default_names_match(previous_defaults, restored, previous_configured_defaults, prefix) and configured_restored:
                     break
                 if attempt < 4:
                     time.sleep(.05)
             report['defaultDevices']['after'] = restored
-            report['defaultDevices']['restored'] = restored == previous_defaults
-            if restored != previous_defaults:
+            report['defaultDevices']['restored'] = default_names_match(
+                previous_defaults, restored, previous_configured_defaults, prefix) and configured_restored
+            if not report['defaultDevices']['restored']:
                 report['defaultDevicesRestoreFailed'] = True
                 report['defaultDevices']['restoreErrors'] = restore_errors
         if loop:

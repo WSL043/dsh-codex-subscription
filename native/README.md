@@ -69,7 +69,7 @@ speaker recordings, mute/resume, command interruption, stale-output rejection,
 default-device selection, level-cache expiry and stop/EOF/parent-death cleanup.
 
 The host integration was also verified in the actual v0.25.0 Tauri window on
-Arch/Hyprland with WebKitGTK 2.54.1, a real signed-in account, digital audio devices
+Arch/Hyprland with WebKitGTK 2.54.1 and DSH core 0.2.1-rc.4, a real signed-in account, digital audio devices
 and synthetic spoken requests. It covered permission denial, capture/playback,
 automatic speech-driven interruption, a fresh spoken answer, microphone/speaker
 controls and hangup. No manual interrupt command was used in that call. Physical
