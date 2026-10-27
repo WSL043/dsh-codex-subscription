@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import http from 'node:http'
 import { once } from 'node:events'
+import { Readable } from 'node:stream'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { transportError, transportResponseBody } from '../src/oauth-network.js'
 import { normalizeTransportEvent } from '../src/transport-failure.js'
@@ -62,6 +63,51 @@ test('user cancellation is not relabelled as a retryable network failure', { tim
   await assert.rejects(reader.read(), error => !error.message.includes('Network transport failure'))
   for (const error of [new Error('aborted'), Object.assign(new Error('cancel'), { name: 'AbortError' }), new Error('401 unauthorized')]) {
     assert.equal(transportError(error), error)
+  }
+})
+
+test('body backpressure stays bounded and consumer bytes cannot mutate the Node buffer pool', { timeout: 3000 }, async () => {
+  const pooled = Buffer.from('pooled-bytes')
+  let produced = 0, returned = false
+  const source = Readable.from((async function* () {
+    try { for (let n = 0; n < 128; n++) { produced++; yield pooled } }
+    finally { returned = true }
+  })(), { objectMode: false, highWaterMark: pooled.byteLength })
+  const closed = new Promise(resolve => source.once('close', resolve))
+  const reader = transportResponseBody(source).getReader()
+  await new Promise(setImmediate)
+  assert.ok(produced < 16, `producer ran ahead by ${produced} chunks`)
+  const first = await reader.read()
+  assert.equal(first.value.buffer.byteLength, first.value.byteLength)
+  first.value[0] = 0
+  assert.equal(pooled.toString(), 'pooled-bytes')
+  await reader.cancel(new Error('consumer left'))
+  await closed
+  assert.equal(source.destroyed, true)
+  assert.equal(returned, true)
+})
+
+test('an error immediately fails reader.closed even while unread bytes apply backpressure', { timeout: 3000 }, async () => {
+  const source = new Readable({ highWaterMark: 16, read() { this.push(Buffer.alloc(16, 65)) } })
+  const reader = transportResponseBody(source).getReader()
+  await new Promise(setImmediate)
+  const error = Object.assign(new Error('connection reset'), { code: 'ECONNRESET' })
+  const closed = assert.rejects(reader.closed, value => value.code === 'ECONNRESET' && value.cause === error)
+  source.destroy(error)
+  await closed
+  await assert.rejects(reader.read(), /Network transport failure/)
+})
+
+test('already aborted and pending body reads retain the caller abort reason', { timeout: 3000 }, async () => {
+  for (const alreadyAborted of [true, false]) {
+    const source = new Readable({ read() {} }), controller = new AbortController()
+    const reason = new Error('caller cancelled this request')
+    if (alreadyAborted) controller.abort(reason)
+    const reader = transportResponseBody(source, controller.signal).getReader()
+    const rejected = assert.rejects(reader.read(), error => error === reason)
+    if (!alreadyAborted) controller.abort(reason)
+    await rejected
+    assert.equal(source.destroyed, true)
   }
 })
 

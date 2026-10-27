@@ -3,7 +3,6 @@ import { createDiagnosticEvents } from './diagnostic-events.js'
 import { diagnosticLog } from './diagnostic-log.js'
 import { request as httpsRequest } from 'node:https'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { PassThrough, Readable } from 'node:stream'
 import { promisify } from 'node:util'
 
 import { HttpsProxyAgent } from 'https-proxy-agent'
@@ -128,13 +127,46 @@ export function transportError(error, signal) {
 }
 
 export function transportResponseBody(response, signal) {
-  const body = new PassThrough()
-  response.on('error', error => body.destroy(transportError(error, signal)))
-  // Cancelling the web reader must also release an idle underlying connection.
-  body.on('close', () => response.destroy())
-  const stream = Readable.toWeb(body)
-  response.pipe(body)
-  return stream
+  const iterator = response[Symbol.asyncIterator]()
+  let finished = false, controller
+  const cleanup = () => signal?.removeEventListener('abort', abort)
+  const fail = error => {
+    if (finished) return
+    finished = true
+    cleanup()
+    controller.error(transportError(error, signal))
+    response.destroy()
+  }
+  const abort = () => fail(signal.reason)
+  return new ReadableStream({
+    start(value) {
+      controller = value
+      // Keep the per-response guard for errors arriving after cancel or close.
+      response.on('error', fail)
+      response.once('close', () => {
+        if (!response.readableEnded) fail(Object.assign(new Error('Response body closed before completion'), { code: 'ERR_STREAM_PREMATURE_CLOSE' }))
+      })
+      signal?.addEventListener('abort', abort, { once: true })
+      if (signal?.aborted) abort()
+    },
+    async pull() {
+      try {
+        const { value, done } = await iterator.next()
+        if (finished) return
+        if (done) {
+          finished = true
+          cleanup()
+          controller.close()
+        } else controller.enqueue(new Uint8Array(value))
+      } catch (error) { fail(error) }
+    },
+    async cancel() {
+      finished = true
+      cleanup()
+      response.destroy()
+      try { await iterator.return() } catch { /* cancelled reads may already have failed */ }
+    },
+  })
 }
 
 export function fetchThroughProxy(input, init, proxyUrl) {
