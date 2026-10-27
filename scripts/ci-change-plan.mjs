@@ -43,10 +43,13 @@ const files = (explicitFiles === undefined ? git('diff', '--name-only', `${base}
   .split(',').flatMap(value => value.split(/\r?\n/u)).map(value => value.trim()).filter(Boolean)
 const matches = patterns => files.some(file => patterns.some(pattern => pattern.test(file)))
 
-const plannerChanged = matches([/^scripts\/(?:ci-change-plan|test-groups|run-tests)\.mjs$/u, /^\.github\/workflows\/ci\.yml$/u,
+// Manual CI is a validation-only way to rerun the complete acceptance matrix,
+// including after a test-only follow-up would otherwise select fewer gates.
+const fullAcceptance = process.env.GITHUB_EVENT_NAME === 'workflow_dispatch'
+const plannerChanged = fullAcceptance || matches([/^scripts\/(?:ci-change-plan|test-groups|run-tests)\.mjs$/u, /^\.github\/workflows\/ci\.yml$/u,
   /^\.github\/scripts\/(?:accept-official-release\.ps1|test-official-runtime\.mjs|prepare-official-test-dependencies\.mjs)$/u])
 const changedTest = group => files.some(file => testGroup(file) === group)
-const runtime = matches([
+const runtime = fullAcceptance || matches([
   /^src\//u,
   /^lib\//u,
   /^cordis\.patch\.yml$/u,

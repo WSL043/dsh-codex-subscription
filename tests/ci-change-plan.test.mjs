@@ -6,15 +6,22 @@ import { testFiles } from '../scripts/test-groups.mjs'
 
 const script = fileURLToPath(new URL('../scripts/ci-change-plan.mjs', import.meta.url))
 
-function plan(files, packageVersion = '1.10.0', publishedVersion = '1.10.0') {
+function plan(files, packageVersion = '1.10.0', publishedVersion = '1.10.0', event = 'push') {
   return spawnSync(process.execPath, [
     script,
     '--base', 'HEAD',
     '--files', files.join(','),
     '--package-version', packageVersion,
     '--published', publishedVersion,
-  ], { encoding: 'utf8' })
+  ], { encoding: 'utf8', env: { ...process.env, GITHUB_EVENT_NAME: event } })
 }
+
+test('manual validation runs every gate even when the last commit only changed a test', () => {
+  const result = plan(['tests/remote-history-source.test.mjs'], '1.10.0', '1.10.0', 'workflow_dispatch')
+  assert.equal(result.status, 0, result.stderr)
+  assert.deepEqual(JSON.parse(result.stdout).plan, { behavior: true, delivery: true, manager: true, official: true, runtime: true })
+  assert.notEqual(plan([], '1.9.0', '1.10.0', 'workflow_dispatch').status, 0)
+})
 
 test('documentation and marketplace screenshot changes run delivery checks without pretending runtime changed', () => {
   for (const file of ['README.md', 'README.en.md', 'CONTRIBUTING.md', 'screenshots.json']) {
