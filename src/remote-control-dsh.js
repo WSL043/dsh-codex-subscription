@@ -555,18 +555,21 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const id = params?.threadId
     if (params?.turnId != null && (typeof params.turnId !== 'string' || params.turnId === '')) throw invalidParams('turnId must be nonempty')
     const snapshot = await historySnapshot(id, signal)
-    const turns = params?.turnId ? snapshot.outline.filter(turn => turn.id === params.turnId) : snapshot.outline
-    if (params?.turnId && turns.length === 0) throw invalidParams('Turn not found')
+    const turns = snapshot.outline
+    if (params?.turnId && !turns.some(turn => turn.id === params.turnId)) throw invalidParams('Turn not found')
     let items = turns.flatMap(turn => turn.items.map(item => ({ id: JSON.stringify([turn.id, item.id]), turnId: turn.id, itemId: item.id })))
     let cursor = params?.cursor
     if (cursor && typeof cursor === 'object') {
       if (cursor.type !== 'item' || typeof cursor.itemId !== 'string' || !cursor.itemId || !params.turnId) throw invalidParams('An item anchor requires a turnId and itemId')
-      const at = items.findIndex(item => item.itemId === cursor.itemId)
+      const at = items.findIndex(item => item.itemId === cursor.itemId && item.turnId === params.turnId)
       if (at < 0) throw invalidParams('Item anchor not found in this turn')
       items = params?.sortDirection === 'desc' ? items.slice(0, at) : items.slice(at + 1)
       cursor = undefined
     }
-    const result = historyPage(items, { ...params, cursor }, JSON.stringify([id, 'items', params?.turnId ?? '']), 'asc')
+    phoneLog('history items page requested', { threadId: id, turnId: params?.turnId,
+      direction: ['asc', 'desc'].includes(params?.sortDirection) ? params.sortDirection : 'default',
+      type: params?.cursor && typeof params.cursor === 'object' ? 'itemAnchor' : params?.cursor ? 'opaqueCursor' : 'firstPage' })
+    const result = historyPage(items, { ...params, cursor }, JSON.stringify([id, 'items']), 'asc', item => !params?.turnId || item.turnId === params.turnId)
     const wanted = new Set(result.data.map(item => item.turnId))
     const rendered = await renderHistory(id, snapshot, turns.filter(turn => wanted.has(turn.id)), signal)
     const byTurn = new Map(rendered.map(turn => [turn.id, new Map(turn.items.map(item => [item.id, item]))]))
@@ -1048,7 +1051,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
         const itemAnchors = snapshot.outline.flatMap(turn => turn.items.map(item => ({ id: JSON.stringify([turn.id, item.id]) })))
         return { ...settings(agent, value.cwd), thread: value,
           turnsBackwardsCursor: initialHistoryCursor(snapshot.outline, JSON.stringify([params.threadId, 'turns'])),
-          itemsBackwardsCursor: initialHistoryCursor(itemAnchors, JSON.stringify([params.threadId, 'items', ''])),
+          itemsBackwardsCursor: initialHistoryCursor(itemAnchors, JSON.stringify([params.threadId, 'items'])),
         }
       }
       const { agent, thread: value } = await openThread(params?.threadId, notify, signal)

@@ -4,6 +4,7 @@ import { diagnosticLog } from './diagnostic-log.js'
 // Protocol metadata only. Never serialize request bodies, results, URLs or image data.
 const IDS = new Set(['requestId', 'clientId', 'threadId', 'turnId', 'itemId', 'attachmentId'])
 const FIELDS = new Set(['method', 'status', 'type', 'code', 'ms', 'bytes', 'items', 'turns', 'images', 'segments', 'sequence', 'chunks', 'hasClientId', 'matched', 'pending', 'event', 'error'])
+for (const name of ['direction', 'cursorDirection', 'requestedView', 'cursorView', 'cursorThreadMatches', 'cursorTurnScoped', 'requestedTurnScoped', 'cursorTurnMatches']) FIELDS.add(name)
 export function phoneLog(event, details = {}, level = 'info') {
   const fields = {}
   for (const [name, value] of Object.entries(details)) {

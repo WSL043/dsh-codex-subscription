@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createDshRemoteControl } from '../src/remote-control-dsh.js'
-import { historyPage } from '../src/remote-history-page.js'
+import { historyPage, initialHistoryCursor } from '../src/remote-history-page.js'
 
 const user = n => ({ role: 'user', id: `u${n}`, content: [{ type: 'text', text: `message ${n}` }, { type: 'image', attachment: { attachmentId: `image-${n}`, mediaType: 'image/png' } }] })
 const assistant = n => ({ role: 'assistant', id: `a${n}`, content: [{ type: 'text', text: `answer ${n}` }] })
@@ -57,9 +57,10 @@ test('item pages and exclusive item anchors are scoped to the requested turn', a
   assert.equal(next.data[0].item.id, 'a4:0')
   const after = await method({ threadId: 's', turnId: 'u4', cursor: { type: 'item', itemId: 'u4' } }, {})
   assert.deepEqual(after.data.map(x => x.item.id), ['a4:0'])
-  await assert.rejects(method({ threadId: 's', turnId: 'u5', cursor: first.nextCursor }, {}), /another view/)
+  const filtered = await method({ threadId: 's', turnId: 'u5', cursor: first.nextCursor }, {})
+  assert.deepEqual(filtered.data.map(x => x.item.id), ['u5', 'a5:0'])
   await assert.rejects(method({ threadId: 's', turnId: 'u4', cursor: { type: 'item', itemId: 'u5' } }, {}), /anchor/)
-  assert.ok(f.files.every(id => id === 'image-4'))
+  assert.deepEqual([...new Set(f.files)].sort(), ['image-4', 'image-5'])
 })
 
 test('history validation and cancellation never publish a partial image response', async () => {
@@ -78,6 +79,36 @@ test('stable paging handles both directions, scope mismatch and history replacem
   assert.deepEqual(first.data.map(i => i.id), ['i0', 'i1'])
   assert.deepEqual(historyPage([...items, { id: 'i5' }], { limit: 3, cursor: first.nextCursor }, 's').data.map(i => i.id), ['i2', 'i3', 'i4'])
   assert.throws(() => historyPage(items, { cursor: first.nextCursor }, 'other'), /another view/)
-  assert.throws(() => historyPage(items.slice(0, 2), { cursor: first.nextCursor }, 's'), /History changed/)
+  assert.throws(() => historyPage(items.filter(i => i.id !== 'i1'), { cursor: first.nextCursor }, 's'), /no longer available/)
   assert.deepEqual(historyPage(items, { cursor: '1', limit: 1 }, 's').data.map(i => i.id), ['i3'])
+})
+
+test('resume item cursor supports native phone turn filters and either direction', async () => {
+  const f = fixture(), list = f.bridge.methods['thread/items/list']
+  const cursor = initialHistoryCursor([{ id: JSON.stringify(['u59', 'a59:0']) }], JSON.stringify(['s', 'items', '']))
+  const olderTurn = await list({ threadId: 's', turnId: 'u58', cursor, sortDirection: 'desc', limit: 50 }, {})
+  assert.deepEqual(olderTurn.data.map(v => v.item.id), ['a58:0', 'u58'])
+  const forward = await list({ threadId: 's', turnId: 'u59', cursor, sortDirection: 'asc', limit: 50 }, {})
+  assert.deepEqual(forward.data.map(v => v.item.id), ['a59:0'])
+})
+
+test('the first page reverse cursor includes its anchor and sees newly appended turns', async () => {
+  const f = fixture(), list = f.bridge.methods['thread/turns/list']
+  const first = await list({ threadId: 's', limit: 2, sortDirection: 'desc', itemsView: 'notLoaded' }, {})
+  assert(first.backwardsCursor)
+  f.messages.push(user(60), assistant(60))
+  const newer = await list({ threadId: 's', cursor: first.backwardsCursor, limit: 50, sortDirection: 'asc', itemsView: 'notLoaded' }, {})
+  assert.deepEqual(newer.data.map(v => v.id), ['u59', 'u60'])
+  await assert.rejects(f.bridge.methods['thread/items/list']({ threadId: 's', cursor: first.backwardsCursor }, {}), /another view/)
+})
+
+test('already-issued v1 phone cursors survive a turn filter without crossing thread or view', async () => {
+  const f = fixture(), list = f.bridge.methods['thread/items/list']
+  const oldCursor = (thread, view) => 'history1:' + Buffer.from(JSON.stringify({ v: 1, s: JSON.stringify([thread, view, 'u59']),
+    d: 'desc', c: JSON.stringify(['u59', 'a59:0']), a: JSON.stringify(['u59', 'a59:0']) })).toString('base64url')
+  const page = await list({ threadId: 's', turnId: 'u58', cursor: oldCursor('s', 'items'), sortDirection: 'desc' }, {})
+  assert.deepEqual(page.data.map(v => v.item.id), ['a58:0', 'u58'])
+  for (const cursor of [oldCursor('other-thread', 'items'), oldCursor('s', 'turns')]) {
+    await assert.rejects(list({ threadId: 's', turnId: 'u58', cursor }, {}), /another view/)
+  }
 })
