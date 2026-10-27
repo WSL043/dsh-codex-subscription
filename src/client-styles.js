@@ -479,4 +479,11 @@ a.codexVoiceCall{display:flex;align-items:center;justify-content:center;box-sizi
 .codexFlat :is(button,summary,a):focus-visible,.codexFlat label:has(:focus-visible){outline-color:var(--dsw-alias-brand-primary,#3964fe)}
 .codexSubscriptionPace{color:var(--dsw-alias-state-warn-label,#b45309)}
 .codexSubscriptionAccountQuota{color:var(--dsw-alias-label-secondary)}
+.codexFeatureLoadStatus{display:inline-flex;align-items:center;color:var(--dsw-alias-label-secondary);flex:none}
+.codexFeatureLoadStatus svg{width:16px;height:16px}
+.codexFeatureRetryIcon{color:var(--dsw-alias-label-secondary)}
+.codexFeatureLoadingIcon{animation:codexFeatureLoading 1s linear infinite}
+.codexFeatureLoadNotice{position:fixed;z-index:1000;bottom:32px;left:50%;transform:translateX(-50%);padding:4px 8px;border:1px solid var(--dsw-alias-line-base,rgba(128,128,128,.2));border-radius:12px;background:var(--dsw-alias-bg-layer-1,#fff);box-shadow:0 4px 16px rgba(0,0,0,.08)}
+@keyframes codexFeatureLoading{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.codexFeatureLoadingIcon{animation:none}}
 `

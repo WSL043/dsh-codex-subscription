@@ -3,6 +3,7 @@ import { USER_AGENT } from './version.js'
 import { creditExpiry } from './credit-expiry.js'
 import { highestUsed, quotaRefreshMs } from './quota-cadence.js'
 import { authFailureMessage } from './http-failure.js'
+import { createSharedRequests } from './shared-request.js'
 
 export const CODEX_USAGE_URL = 'https://chatgpt.com/backend-api/wham/usage'
 const DEFAULT_TTL_MS = 60_000
@@ -230,8 +231,8 @@ export function createCodexUsageReader(options) {
   const maxRetryAfterMs = options.maxRetryAfterMs ?? DEFAULT_MAX_RETRY_AFTER_MS
   let cached
   let failed
-  let inFlight
   let generation = 0
+  const requests = createSharedRequests()
 
   const load = async signal => {
     const { access, accountId } = await readSubscriptionCredentials(getAuth, readCredential, signal)
@@ -269,40 +270,38 @@ export function createCodexUsageReader(options) {
 
   return Object.freeze({
     read({ force = false, signal } = {}) {
+      if (signal?.aborted) return Promise.reject(signal.reason)
       if (failed !== undefined && now() < failed.retryAt) {
         return Promise.reject(new Error(failed.message))
       }
       if (!force && cached !== undefined && now() - cached.fetchedAt < ttlFor(cached)) {
         return Promise.resolve(structuredClone(cached))
       }
-      if (inFlight !== undefined) return inFlight.then(structuredClone)
-      const currentGeneration = generation
-      const current = load(signal)
-        .then(value => {
+      return requests.run('read', async sharedSignal => {
+        const currentGeneration = generation
+        try {
+          const value = await load(sharedSignal)
+          sharedSignal.throwIfAborted()
           if (generation === currentGeneration) {
             cached = structuredClone(value)
             failed = undefined
           }
-          return structuredClone(value)
-        })
-        .catch(error => {
+          return value
+        } catch (error) {
+          sharedSignal.throwIfAborted()
           if (generation === currentGeneration && error?.name !== 'AbortError') {
             const delay = Number.isFinite(error?.retryAfterMs) ? error.retryAfterMs : failureTtlMs
             failed = { message: error instanceof Error ? error.message : 'ChatGPT usage request failed', retryAt: now() + delay }
           }
           throw error
-        })
-        .finally(() => {
-          if (inFlight === current) inFlight = undefined
-        })
-      inFlight = current
-      return current
+        }
+      }, signal).then(structuredClone)
     },
     clear() {
       generation += 1
       cached = undefined
       failed = undefined
-      inFlight = undefined
+      requests.clear()
     },
   })
 }

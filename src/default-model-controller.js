@@ -32,10 +32,15 @@ export function createDefaultModelController(rpc) {
   let generation = 0
   const listeners = new Set()
   const publish = next => {
+    if (disposed) return
     snapshot = Object.freeze({ ...snapshot, ...next })
-    for (const listener of listeners) listener()
+    for (const listener of [...listeners]) {
+      if (disposed) break
+      listener()
+    }
   }
   const load = async () => {
+    if (disposed) return
     const current = ++generation
     try {
       const value = unwrap(await rpc.call(CHANNEL, 'default-model/status', {}))
@@ -50,6 +55,7 @@ export function createDefaultModelController(rpc) {
     if (disposed) return false
     const current = ++generation
     publish({ saving: true, error: false })
+    if (disposed || current !== generation) return false
     try {
       const value = unwrap(await rpc.call(CHANNEL, 'default-model/select', { model }))
       if (disposed || current !== generation) return false
@@ -64,12 +70,14 @@ export function createDefaultModelController(rpc) {
   return Object.freeze({
     getSnapshot: () => snapshot,
     subscribe: listener => {
+      if (disposed) return () => {}
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
     load,
     select,
     dispose: () => {
+      if (disposed) return
       disposed = true
       generation += 1
       listeners.clear()

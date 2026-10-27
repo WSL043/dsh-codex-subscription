@@ -1,6 +1,7 @@
 import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { USER_AGENT } from './version.js'
 import { isBlockedByNetwork, REQUEST_BLOCKED, SIGN_IN_RENEW } from './http-failure.js'
+import { createSharedRequests } from './shared-request.js'
 
 // The seven-day allowance history the official Codex /usage dashboard reads: one row per allowance period
 // with how much of that period's allowance was used and what the use was spent on.
@@ -58,7 +59,8 @@ export function parsePlanHistory(value) {
 
 /** Reads one authenticated report through the same credentials as the quota reader; a 404 means the account has no such report. */
 export function createReportReader({ url, parse, label, getAuth, readCredential, fetch: fetchReport = fetch, now = Date.now, ttlMs = TTL_MS }) {
-  let cached, failed, inFlight, generation = 0
+  let cached, failed, generation = 0
+  const requests = createSharedRequests()
   const load = async signal => {
     const { access, accountId } = await readSubscriptionCredentials(getAuth, readCredential, signal)
     if (typeof access !== 'string' || access.length === 0 || typeof accountId !== 'string' || accountId.length === 0) {
@@ -82,21 +84,24 @@ export function createReportReader({ url, parse, label, getAuth, readCredential,
   }
   return Object.freeze({
     read({ force = false, signal } = {}) {
+      if (signal?.aborted) return Promise.reject(signal.reason)
       if (failed !== undefined && now() < failed.retryAt) return Promise.reject(new Error(failed.message))
-      if (inFlight !== undefined) return inFlight.then(structuredClone)
-      if (!force && cached !== undefined && now() - cached.fetchedAt < ttlMs) return Promise.resolve(structuredClone(cached))
-      const current = generation
-      const run = load(signal)
-        .then(value => { if (generation === current) { cached = structuredClone(value); failed = undefined } return structuredClone(value) })
-        .catch(error => {
+      if (!requests.has('read') && !force && cached !== undefined && now() - cached.fetchedAt < ttlMs) return Promise.resolve(structuredClone(cached))
+      return requests.run('read', async sharedSignal => {
+        const current = generation
+        try {
+          const value = await load(sharedSignal)
+          sharedSignal.throwIfAborted()
+          if (generation === current) { cached = structuredClone(value); failed = undefined }
+          return value
+        } catch (error) {
+          sharedSignal.throwIfAborted()
           if (generation === current && error?.name !== 'AbortError') failed = { message: error instanceof Error ? error.message : `ChatGPT ${label} request failed`, retryAt: now() + FAILURE_TTL_MS }
           throw error
-        })
-        .finally(() => { if (inFlight === run) inFlight = undefined })
-      inFlight = run
-      return run
+        }
+      }, signal).then(structuredClone)
     },
-    clear() { generation += 1; cached = undefined; failed = undefined; inFlight = undefined },
+    clear() { generation += 1; cached = undefined; failed = undefined; requests.clear() },
   })
 }
 

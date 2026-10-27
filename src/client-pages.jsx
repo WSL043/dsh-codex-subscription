@@ -149,7 +149,7 @@ export function ModelsPage({ preference, t, defaultModel }) {
   </div>
 }
 
-export function ToolsPage({ preference, rpc, t }) {
+export function ToolsPage({ preference, rpc, t, active = true }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = ready(snapshot)
   const others = snapshot.otherModels !== 'off'
@@ -173,7 +173,7 @@ export function ToolsPage({ preference, rpc, t }) {
         <Radios snapshot={snapshot} preference={preference} field="subagentBackend" values={['dsh', 'codex']} name="codex-subagent-backend" label={t('subagentBackendTitle')} text={value => t(`subagentBackend_${value}`)}
           disabled={!snapshot.subagentBackendAvailable} disabledValues={codexReady || subagentsOn ? [] : ['codex']} />
       </div>
-      <RuntimeManagement rpc={rpc} preference={preference} t={t} />
+      <RuntimeManagement rpc={rpc} preference={preference} t={t} active={active} />
     </section>
   </div>
 }
@@ -211,10 +211,10 @@ export function CreatePage({ preference, t }) {
   </div>
 }
 
-export function MorePage({ preference, rpc, t, diagnostics }) {
+export function MorePage({ preference, rpc, t, diagnostics, active = true }) {
   const snapshot = usePreferenceSnapshot(preference)
   return <div className="codexSubscriptionAdvancedPreferences">
-    <RemoteControlCard rpc={rpc} preference={preference} snapshot={snapshot} t={t} />
+    <RemoteControlCard rpc={rpc} preference={preference} snapshot={snapshot} t={t} active={active} />
     <VoiceCallCard rpc={rpc} preference={preference} snapshot={snapshot} t={t} />
     <StorageCard rpc={rpc} t={t} />
     <DiagnosticsCard rpc={rpc} t={t} diagnostics={diagnostics} />

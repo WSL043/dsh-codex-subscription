@@ -76,6 +76,52 @@ test('dispose drops listeners and ignores late responses', async () => {
   assert.equal(await controller.select('gpt-5.6-terra'), false)
 })
 
+test('disposed default-model controllers reject new work and return harmless subscriptions', async () => {
+  let calls = 0
+  const controller = createDefaultModelController({ call: async () => { calls += 1; return status({ available: true }) } })
+  const before = controller.getSnapshot()
+  controller.dispose()
+  controller.dispose()
+  const unsubscribe = controller.subscribe(() => assert.fail('a disposed controller notified a new subscriber'))
+  await controller.load()
+  assert.equal(await controller.select('gpt-6.1-sol'), false)
+  unsubscribe()
+  unsubscribe()
+  assert.equal(calls, 0, 'disposed entry points must not issue RPC work')
+  assert.equal(controller.getSnapshot(), before)
+})
+
+test('late selection success and failure cannot publish after default-model disposal', async t => {
+  for (const fails of [false, true]) await t.test(fails ? 'rejected response' : 'successful response', async () => {
+    let resolve, reject, notifications = 0
+    const controller = createDefaultModelController({ call: () => new Promise((yes, no) => { resolve = yes; reject = no }) })
+    controller.subscribe(() => { notifications += 1 })
+    const pending = controller.select('gpt-6.1-sol')
+    const before = controller.getSnapshot()
+    assert.equal(before.saving, true)
+    assert.equal(notifications, 1)
+    controller.dispose()
+    controller.dispose()
+    if (fails) reject(new Error('late transport failure'))
+    else resolve(status({ available: true, managed: true, provider: 'openai-codex', model: 'gpt-6.1-sol' }))
+    assert.equal(await pending, false)
+    assert.equal(controller.getSnapshot(), before)
+    assert.equal(notifications, 1)
+  })
+})
+
+test('disposal from a default-model subscriber stops dispatch and remaining notifications', async () => {
+  let calls = 0, trailingNotifications = 0
+  const controller = createDefaultModelController({ call: async () => { calls += 1; return status({ available: true }) } })
+  controller.subscribe(() => controller.dispose())
+  controller.subscribe(() => { trailingNotifications += 1 })
+  assert.equal(await controller.select('gpt-6.1-sol'), false)
+  assert.equal(calls, 0)
+  assert.equal(trailingNotifications, 0)
+  await controller.load()
+  assert.equal(calls, 0)
+})
+
 test('the default-model control is one settings row over the two RPC endpoints', async () => {
   assert.ok(RPC_ENDPOINTS.includes('default-model/status'))
   assert.ok(RPC_ENDPOINTS.includes('default-model/select'))

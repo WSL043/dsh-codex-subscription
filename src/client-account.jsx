@@ -21,7 +21,7 @@ export function AccountEmail({ candidate, fallback, t, emailVisible, onClick }) 
 
 const signedInIds = account => account?.authenticated === true ? (account.accounts ?? []).map(candidate => candidate.id).filter(id => typeof id === 'string') : []
 
-export function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
+export function AccountCard({ rpc, t, account, setAccount, onSignedOut, active = true }) {
   const [flow, setFlow] = useState()
   const flowGeneration = useRef(0)
   const [manualCode, setManualCode] = useState('')
@@ -34,7 +34,7 @@ export function AccountCard({ rpc, t, account, setAccount, onSignedOut }) {
   const [emailVisibilityKey, setEmailVisibilityKey] = useState(accountVisibilityKey)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState()
-  const quotas = useAccountQuotas(rpc, signedInIds(account))
+  const quotas = useAccountQuotas(rpc, signedInIds(account), active)
   const call = (endpoint, payload = {}) => recoveryCall(rpc, endpoint, payload)
 
   useEffect(() => {

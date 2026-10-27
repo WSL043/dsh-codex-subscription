@@ -3,15 +3,13 @@ import { withComposerSession, openComposerSession, createSessionOpeners } from '
 import { ComposerImagePreviews, MessageImagePreviews, IMAGE_PREVIEWS_CSS } from './client-image-previews.jsx'
 import { imageConversationNode } from './image-conversation-node.js'
 import { CodexImageToolRow, CodexImageOutput } from './client-images.jsx'
-import { SKETCH_CSS } from './sketch-workspace.jsx'
 import { ImageWorkspace } from './image-workspace.jsx'
 import { attachImageFiles, appendImagePrompt } from './image-composer.js'
 import { createSketchTrigger, createImageTrigger } from './sketch-trigger.js'
 import { zh, en } from './client-locales.js'
 import { STYLE } from './client-styles.js'
 import { createAnnotatedImageReference } from './image-edit-reference.js'
-import { SubscriptionImageViewerOverlay } from './subscription-image-viewer.jsx'
-import { SUBSCRIPTION_IMAGE_VIEWER_CSS } from './subscription-image-viewer-styles.js'
+import { DeferredImageViewer } from './client-deferred-image-viewer.jsx'
 import { SubscriptionImageViewerService } from './subscription-image-viewer.js'
 import { createPreferenceController } from './preference-controller.js'
 import { createDefaultModelController } from './default-model-controller.js'
@@ -54,7 +52,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = 'dsh-codex-subscription'
-    tag.textContent = STYLE + SUBSCRIPTION_IMAGE_VIEWER_CSS + SKETCH_CSS + IMAGE_PREVIEWS_CSS
+    tag.textContent = STYLE + IMAGE_PREVIEWS_CSS
     document.head.append(tag)
     return () => tag.remove()
   }, 'codex-subscription: style')
@@ -93,7 +91,7 @@ export function apply(ctx) {
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'codex-subscription-image-viewer', order: 20,
     inject: () => ({ service: imageViewer, t }),
-  }, SubscriptionImageViewerOverlay))
+  }, DeferredImageViewer))
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section', id: 'codex-subscription', order: 15,
     label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: rpc, accountStatus, t, diagnostics, defaultModel }),

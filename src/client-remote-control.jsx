@@ -23,7 +23,7 @@ function Qr({ value, label }) {
 }
 
 /** Beta: show this DSH in the ChatGPT mobile app's Codex list (Remote Control). */
-export function RemoteControlCard({ rpc, preference, snapshot, t }) {
+export function RemoteControlCard({ rpc, preference, snapshot, t, active = true }) {
   const [state, setState] = useState()
   const [pairing, setPairing] = useState()
   const [busy, setBusy] = useState(false)
@@ -48,11 +48,12 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
   useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
   useEffect(() => {
     if (!on) { setClients(undefined); return undefined }
+    if (!active) return undefined
     let stopped = false, timer
     const poll = async () => { await readClients(); if (!stopped) timer = setTimeout(poll, 20000) }
     void poll()
     return () => { stopped = true; clearTimeout(timer) }
-  }, [on, rpc])
+  }, [on, rpc, active])
   const remove = async client => {
     if (removing) return
     setRemoving(client.clientId); setFailed(false)
@@ -64,16 +65,18 @@ export function RemoteControlCard({ rpc, preference, snapshot, t }) {
   }
   useEffect(() => {
     if (!on) { setState(undefined); setPairing(undefined); return undefined }
+    if (!active) return undefined
     let stopped = false, timer
     const poll = async () => { await read(); if (!stopped) timer = setTimeout(poll, 4000) }
     void poll()
     return () => { stopped = true; clearTimeout(timer) }
-  }, [on, rpc])
+  }, [on, rpc, active])
   useEffect(() => {
-    if (!pairing) return undefined
+    if (!pairing || !active) return undefined
+    setNow(Date.now())
     const timer = setInterval(() => setNow(Date.now()), 5000)
     return () => clearInterval(timer)
-  }, [pairing])
+  }, [pairing, active])
   const pair = async () => {
     if (busy) return
     setBusy(true); setFailed(false)

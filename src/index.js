@@ -777,6 +777,8 @@ export function apply(ctx, config = {}) {
     const unwatch = settings.watch(sync)
     return () => { unwatch(); close() }
   })
+  const voicePreview = createVoicePreview({ fetch: (input, init) => network.fetch('voice', input, init, { standardHttps: true }), credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal), userAgent: USER_AGENT })
+  ctx.effect(() => () => voicePreview.clear())
   const subscriptionHandler = createSubscriptionRpcHandler({
     authHandler: createCodexRpcHandler(coordinator, { openExternal: openCodexAuthUrl }),
     usageReader,
@@ -790,8 +792,8 @@ export function apply(ctx, config = {}) {
     remoteControl,
     desktopVoice,
     nativeVoice,
-    voicePreview: createVoicePreview({ fetch: (input, init) => network.fetch('voice', input, init, { standardHttps: true }), credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal), userAgent: USER_AGENT }),
-    onAccountChanged: () => { connectorsClient.clear(); usageProfileReader.clear(); quotaRetryHandler.notifyAccountChanged() },
+    voicePreview,
+    onAccountChanged: () => { connectorsClient.clear(); usageProfileReader.clear(); voicePreview.clear(); quotaRetryHandler.notifyAccountChanged() },
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, review: provider, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
     onCleanupFailure: () => diagnosticOperations.record('account/cleanup', 'failed'),
     modelCatalog,

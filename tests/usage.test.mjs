@@ -238,12 +238,13 @@ test('clearing usage invalidates an older in-flight account request', async () =
   })
 
   const stale = reader.read()
+  const staleCancelled = assert.rejects(stale, error => error.name === 'AbortError')
   await firstStarted
   reader.clear()
   const fresh = reader.read()
   releaseFirst()
   assert.equal((await fresh).rateLimits[0].windows[0].remainingPercent, 50)
-  assert.equal((await stale).rateLimits[0].windows[0].remainingPercent, 90)
+  await staleCancelled
   assert.equal((await reader.read()).rateLimits[0].windows[0].remainingPercent, 50)
   assert.equal(requests, 2)
 })

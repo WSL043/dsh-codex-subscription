@@ -211,12 +211,13 @@ test('the relay enrolls, pairs, frames messages and re-chunks large replies', as
 })
 
 test('the browser bundle stays free of Node built-ins (the QR encoder must not pull in fs)', async t => {
-  const { readFile } = await import('node:fs/promises')
+  const { readFile, readdir } = await import('node:fs/promises')
   // Acceptance runs the tests from a packaged copy without the build output or the UI source.
-  const bundle = await readFile(new URL('../lib/client.js', import.meta.url), 'utf8').catch(() => undefined)
+  const files = await readdir(new URL('../lib/', import.meta.url)).catch(() => [])
+  const bundles = await Promise.all(files.filter(name => /^client(?:\.[\w-]+)?\.js$/u.test(name)).map(name => readFile(new URL(`../lib/${name}`, import.meta.url), 'utf8')))
   const source = await readFile(new URL('../src/client-remote-control.jsx', import.meta.url), 'utf8').catch(() => undefined)
-  if (bundle === undefined || source === undefined) return t.skip('build output not present')
-  assert.doesNotMatch(bundle, /require\((["'])(?:node:)?(?:fs|path|os|zlib|stream|child_process|net|tls)\1\)/u)
+  if (!bundles.length || source === undefined) return t.skip('build output not present')
+  for (const bundle of bundles) assert.ok(!/require\((["'])(?:node:)?(?:fs|path|os|zlib|stream|child_process|net|tls)\1\)/u.test(bundle), 'client entry and every feature must remain browser-safe')
   assert.match(source, /from 'qrcode\/lib\/core\/qrcode\.js'/u)
 })
 

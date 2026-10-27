@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from './client-primitives.js'
 import { CHANNEL } from './rpc-contract.js'
 
-export function RuntimeManagement({ rpc, preference, t }) {
+export function RuntimeManagement({ rpc, preference, t, active = true }) {
   const [state, setState] = useState()
   const [error, setError] = useState(false)
   const [sending, setSending] = useState(false)
@@ -17,7 +17,8 @@ export function RuntimeManagement({ rpc, preference, t }) {
       setState(result.value); setError(false)
     } catch { if (alive.current) setError(true) }
   }
-  useEffect(() => { alive.current = true; void read(); return () => { alive.current = false } }, [rpc])
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [rpc])
+  useEffect(() => { if (active) void read() }, [active, rpc])
   useEffect(() => {
     if (!busy) return
     let stopped = false, timer

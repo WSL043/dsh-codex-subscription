@@ -5,29 +5,53 @@ import { fill, percent, uiLocale, windowLabel } from './client-shared.js'
 const when = seconds => new Date(seconds * 1000).toLocaleString(uiLocale(), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 /** Quota of every signed-in account (read-only; the active account does not change). */
-export function useAccountQuotas(rpc, ids) {
+export function useAccountQuotas(rpc, ids, active = true) {
   const [entries, setEntries] = useState({})
   const [busy, setBusy] = useState(false)
   const request = useRef(0)
+  const flight = useRef()
+  const activeRef = useRef(active)
+  activeRef.current = active
   const key = ids.join(',')
   const load = force => {
     if (ids.length < 2) { setEntries({}); return }
+    if (!activeRef.current || document.visibilityState === 'hidden') return
+    if (flight.current) {
+      const current = flight.current
+      if (force && !current.force) return current.promise.catch(() => {}).then(() => request.current === current.id ? load(true) : undefined)
+      return current.promise
+    }
     const id = ++request.current
     setBusy(true)
-    void recoveryCall(rpc, 'usage/accounts', { force })
+    const current = { id, force }
+    current.promise = recoveryCall(rpc, 'usage/accounts', { force })
       .then(value => { if (request.current === id) setEntries(Object.fromEntries((value?.accounts ?? []).map(entry => [entry.id, entry]))) })
       .catch(() => { if (request.current === id) setEntries(Object.fromEntries(ids.map(account => [account, { id: account, error: 'Could not read ChatGPT usage' }]))) })
-      .finally(() => { if (request.current === id) setBusy(false) })
+      .finally(() => { if (flight.current === current) flight.current = undefined; if (request.current === id) setBusy(false) })
+    flight.current = current
+    return current.promise
   }
-  useEffect(() => { load(false); return () => { request.current += 1 } }, [key])
-  // Stay current: when the usage card reloads, and once a minute while the page is open (the server caches, so this is cheap).
   useEffect(() => {
-    if (ids.length < 2) return undefined
+    if (ids.length < 2) { setEntries({}); setBusy(false) }
+    return () => { request.current += 1; flight.current = undefined }
+  }, [key, rpc])
+  // Retain the snapshot, but only poll the visible account panel in a visible tab.
+  useEffect(() => {
+    if (ids.length < 2 || !active) return undefined
+    let timer
+    const stop = () => { clearInterval(timer); timer = undefined }
     const again = () => load(false)
+    const wake = () => {
+      stop()
+      if (document.visibilityState === 'hidden') return
+      void again()
+      timer = setInterval(again, 60_000)
+    }
+    wake()
     window.addEventListener('codex-subscription:usage-loaded', again)
-    const timer = setInterval(again, 60_000)
-    return () => { window.removeEventListener('codex-subscription:usage-loaded', again); clearInterval(timer) }
-  }, [key])
+    document.addEventListener('visibilitychange', wake)
+    return () => { window.removeEventListener('codex-subscription:usage-loaded', again); document.removeEventListener('visibilitychange', wake); stop() }
+  }, [key, active, rpc])
   return { entries, busy, refresh: () => load(true) }
 }
 

@@ -136,8 +136,12 @@ export function createPreferenceController(rpc) {
   let snapshot = read()
   const listeners = new Set()
   const publish = () => {
+    if (disposed) return
     snapshot = read()
-    for (const listener of listeners) listener()
+    for (const listener of [...listeners]) {
+      if (disposed) break
+      listener()
+    }
   }
   const acceptFallback = value => {
     // Sticky until the page reloads: the host kept the written value on disk but not in the running settings.
@@ -193,12 +197,14 @@ export function createPreferenceController(rpc) {
     }
   }
   const load = async () => {
+    if (disposed) return
     const current = ++generation
     updating = false
     pendingPatch = undefined
     fallback = undefined
     error = false
     publish()
+    if (disposed || current !== generation) return
     try {
       const value = unwrap(await rpc.call(CHANNEL, 'preferences/status', {}))
       if (current !== generation || disposed) return
@@ -210,11 +216,13 @@ export function createPreferenceController(rpc) {
     }
   }
   const refreshModels = async () => {
+    if (disposed) return false
     const current = ++modelRefreshGeneration
     modelRefreshStarted = true
     modelError = false
     modelsLoading = true
     publish()
+    if (disposed || current !== modelRefreshGeneration) return false
     try {
       const value = unwrap(await rpc.call(CHANNEL, 'preferences/models', {}))
       if (disposed || current !== modelRefreshGeneration) return false
@@ -260,6 +268,7 @@ export function createPreferenceController(rpc) {
     error = false
     failedPatch = undefined
     publish()
+    if (disposed || current !== generation) return
     try {
       const value = unwrap(await rpc.call(CHANNEL, 'preferences/update', patch))
       if (current !== generation) return
@@ -282,6 +291,7 @@ export function createPreferenceController(rpc) {
   return {
     getSnapshot: () => snapshot,
     subscribe: listener => {
+      if (disposed) return () => {}
       listeners.add(listener)
       return () => listeners.delete(listener)
     },
@@ -290,9 +300,11 @@ export function createPreferenceController(rpc) {
     retry: () => failedPatch === undefined ? load() : set(failedPatch),
     refreshModels,
     dispose: () => {
+      if (disposed) return
       disposed = true
       generation += 1
       modelRefreshGeneration += 1
+      listeners.clear()
     },
   }
 }

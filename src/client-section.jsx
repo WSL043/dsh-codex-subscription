@@ -41,6 +41,12 @@ function Notices({ preference, t, tab, signedIn, go }) {
 
 export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, defaultModel }) {
   const [tab, setTab] = useState('start')
+  const [visited, setVisited] = useState(() => new Set(['start']))
+  // Defer unused panels, then retain their drafts and in-progress operations.
+  const selectTab = value => {
+    setVisited(current => current.has(value) ? current : new Set([...current, value]))
+    setTab(value)
+  }
   const tabsRef = useRef(null)
   useBackdropOf(tabsRef)
   const id = useId()
@@ -61,22 +67,22 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
     <div className="codexSubscriptionHead"><h2>{t('title')}</h2></div>
     <div className="codexSettingsTabs" ref={tabsRef} role="tablist" aria-label={t('title')}>
       {tabs.map((value, index) => <button key={value} type="button" role="tab" id={`${id}-${value}-tab`} aria-controls={`${id}-${value}`} aria-selected={tab === value} tabIndex={tab === value ? 0 : -1}
-        onClick={() => setTab(value)} onKeyDown={event => {
+        onClick={() => selectTab(value)} onKeyDown={event => {
           const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1
           if (next < 0) return
-          event.preventDefault(); setTab(tabs[next]); document.getElementById(`${id}-${tabs[next]}-tab`)?.focus()
+          event.preventDefault(); selectTab(tabs[next]); document.getElementById(`${id}-${tabs[next]}-tab`)?.focus()
         }}>{t(`settingsTab_${value}`)}</button>)}
     </div>
-    <Notices preference={preference} t={t} tab={tab} signedIn={account === undefined ? undefined : account.authenticated === true} go={setTab} />
+    <Notices preference={preference} t={t} tab={tab} signedIn={account === undefined ? undefined : account.authenticated === true} go={selectTab} />
     <div className="codexFlat" role="tabpanel" id={`${id}-start`} aria-labelledby={`${id}-start-tab`} hidden={tab !== 'start'}>
-    {accountSnapshot.status === 'error' ? <AccountFailureCard accountStatus={accountStatus} snapshot={accountSnapshot} t={t} rpc={rpc} onRecovered={accountChanged} /> : <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} />}
+    {accountSnapshot.status === 'error' ? <AccountFailureCard accountStatus={accountStatus} snapshot={accountSnapshot} t={t} rpc={rpc} onRecovered={accountChanged} /> : <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} active={tab === 'start'} />}
     {account === undefined ? null : <UsageCard key={resetKey} rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} preference={preference} />}
     <QuotaSettingsCard preference={preference} t={t} />
-    <FeatureOverview preference={preference} t={t} go={setTab} />
+    <FeatureOverview preference={preference} t={t} go={selectTab} />
     </div>
-    <div className="codexFlat" role="tabpanel" id={`${id}-models`} aria-labelledby={`${id}-models-tab`} hidden={tab !== 'models'}><ModelsPage preference={preference} t={t} defaultModel={defaultModel} /></div>
-    <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}><ToolsPage preference={preference} rpc={rpc} t={t} /></div>
-    <div className="codexFlat" role="tabpanel" id={`${id}-create`} aria-labelledby={`${id}-create-tab`} hidden={tab !== 'create'}><CreatePage preference={preference} t={t} /></div>
-    <div className="codexFlat" role="tabpanel" id={`${id}-more`} aria-labelledby={`${id}-more-tab`} hidden={tab !== 'more'}><MorePage preference={preference} rpc={rpc} t={t} diagnostics={diagnostics} /></div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-models`} aria-labelledby={`${id}-models-tab`} hidden={tab !== 'models'}>{visited.has('models') && <ModelsPage preference={preference} t={t} defaultModel={defaultModel} />}</div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}>{visited.has('tools') && <ToolsPage preference={preference} rpc={rpc} t={t} active={tab === 'tools'} />}</div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-create`} aria-labelledby={`${id}-create-tab`} hidden={tab !== 'create'}>{visited.has('create') && <CreatePage preference={preference} t={t} />}</div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-more`} aria-labelledby={`${id}-more-tab`} hidden={tab !== 'more'}>{visited.has('more') && <MorePage preference={preference} rpc={rpc} t={t} diagnostics={diagnostics} active={tab === 'more'} />}</div>
   </section>
 }

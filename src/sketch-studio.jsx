@@ -61,7 +61,10 @@ export function SketchStudio({
   incoming,
   sessionId,
   rpc,
-  sessionState
+  sessionState,
+  bridgeManaged = false,
+  onAgentReady,
+  onAgentError
 }) {
   const localSession = useRef(null)
   localSession.current ??= sessionState ?? createSketchSessionState()
@@ -266,6 +269,7 @@ export function SketchStudio({
         }
       })
       .catch((error) => {
+        if (live) onAgentError?.(error)
         if (live)
           setError(
             t(
@@ -278,7 +282,7 @@ export function SketchStudio({
     return () => {
       live = false
     }
-  }, [enabled, sessionId, restoreAttempt])
+  }, [enabled, sessionId, restoreAttempt, onAgentError])
   useEffect(() => {
     if (!hydrated || !enabled || !dirty.current || busy || agentLocked) return
     const timer = setTimeout(() => {
@@ -586,17 +590,21 @@ export function SketchStudio({
         exportFile: (value) => agentAdapter.current.export(value)
       })
     })
+    if (bridgeManaged) {
+      onAgentReady?.(api)
+      return () => onAgentReady?.(undefined)
+    }
     window.dshSketchAgent = api
     return () => {
       if (window.dshSketchAgent === api) delete window.dshSketchAgent
     }
-  }, [enabled, agentEnabled, rpc, sessionId, hydrated])
+  }, [enabled, agentEnabled, rpc, sessionId, hydrated, bridgeManaged, onAgentReady])
   useEffect(() => {
     if (!enabled || !agentEnabled) {
       if (agentRun.current.locked) agentRun.current.stop()
       return
     }
-    if (!rpc || !sessionId || !hydrated) return
+    if (bridgeManaged || !rpc || !sessionId || !hydrated) return
     let live = true
     const disconnect = connectSketchAgent(
       rpc,
@@ -615,7 +623,7 @@ export function SketchStudio({
       live = false
       disconnect()
     }
-  }, [enabled, agentEnabled, rpc, sessionId, hydrated])
+  }, [enabled, agentEnabled, rpc, sessionId, hydrated, bridgeManaged])
   const attach = () => {
     if (!enabled) return
     return runFile(async () => {
