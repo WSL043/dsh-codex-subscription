@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { Session, appendPluginRecord } from '@deepseek-ai/dsh-session'
+import * as nativeSessionSdk from '@deepseek-ai/dsh-session'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
@@ -9,6 +9,11 @@ import { createUltraExecutionPreset, ULTRA_POLICY_RECORD } from '../src/ultra-ex
 import { withDefaultReasoningEffort } from '../src/default-reasoning-effort.js'
 import { openaiCodexProvider, openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
 import { createReasoningBridge } from '../src/subscription-reasoning.js'
+
+const { Session, appendPluginRecord } = nativeSessionSdk
+const nativeUltraTest = (name, run) => test(name, {
+  skip: typeof appendPluginRecord !== 'function' && 'This SDK has no native ignorable plugin records; Ultra stays unavailable',
+}, run)
 
 const user = text => ({ role: 'user', content: [{ type: 'text', text }] })
 const info = id => ({ id, reasoning: { defaultEffort: 'medium', efforts: ['low','medium','high','max'].map(id => ({ id, name: id })) } })
@@ -93,7 +98,21 @@ test('global Ultra default falls back on unsupported models and presets without 
   h.dispose()
 })
 
-test('requested Ultra is durably distinct from real effort and activates only native delegation', async () => {
+test('the installed SDK capability controls whether Ultra can be advertised', async () => {
+  const h = fixture()
+  const supported = typeof appendPluginRecord === 'function'
+  assert.equal(h.ultra.available(), supported)
+  assert.equal((await h.adapter.resolveModel('openai-codex', 'fixture')).reasoning.efforts.some(e => e.id === 'ultra'), supported)
+  if (!supported) {
+    h.preference('ultra')
+    await h.run(undefined)
+    assert.equal(h.wires.at(-1).reasoning.effort, 'medium')
+    await assert.rejects(h.request('ultra'), /does not advertise/)
+  }
+  h.dispose()
+})
+
+nativeUltraTest('requested Ultra is durably distinct from real effort and activates only native delegation', async () => {
   const h = fixture(); await h.run('ultra')
   assert.deepEqual(h.ultra.snapshot(h.agent), { version: 1, provider: 'openai-codex', model: 'fixture', requestedEffort: 'ultra', effectiveEffort: 'max', delegationPolicy: 'proactive', tools: ['subagent'], turn: 1, active: true })
   assert.equal(h.wires[0].reasoning.effort, 'max')
@@ -106,7 +125,7 @@ test('requested Ultra is durably distinct from real effort and activates only na
   h.dispose(); assert.equal(h.guards.length, 0)
 })
 
-test('ordinary selection removes proactive policy; cancellation and turn completion deny late delegations', async () => {
+nativeUltraTest('ordinary selection removes proactive policy; cancellation and turn completion deny late delegations', async () => {
   const h = fixture(), abort = new AbortController()
   await h.run('ultra', undefined, { signal: abort.signal })
   abort.abort()
@@ -123,7 +142,7 @@ test('ordinary selection removes proactive policy; cancellation and turn complet
   h.dispose()
 })
 
-test('unbound direct requests cannot turn an effort alias into ungoverned proactive execution', async () => {
+nativeUltraTest('unbound direct requests cannot turn an effort alias into ungoverned proactive execution', async () => {
   const h = fixture()
   await assert.rejects(h.drain(h.adapter.stream({ provider: 'openai-codex', model: 'fixture', sessionId: h.session.id, reasoningEffort: 'ultra', messages: [user('fixture')] })), /matching live DSH request/)
   await h.run('ultra')
@@ -132,7 +151,7 @@ test('unbound direct requests cannot turn an effort alias into ungoverned proact
   h.dispose()
 })
 
-test('prepared calls preserve the resolved model snapshot; stale new preparation rejects safely', async () => {
+nativeUltraTest('prepared calls preserve the resolved model snapshot; stale new preparation rejects safely', async () => {
   const h = fixture(); await h.request('ultra')
   const call = await h.adapter.prepareCall('openai-codex', 'fixture')
   assert.match(call.model.reasoning.efforts.at(-1).name, /DSH parallel.*max/)
@@ -143,7 +162,7 @@ test('prepared calls preserve the resolved model snapshot; stale new preparation
   h.dispose()
 })
 
-test('cache-preserving reasoning records native effort when switching into and out of Ultra', async () => {
+nativeUltraTest('cache-preserving reasoning records native effort when switching into and out of Ultra', async () => {
   const h = fixture({ cache: true }), firstUser = user('first')
   const first = await h.run('high', [firstUser])
   const assistant = finish => ({ role: 'assistant', content: [fixtureBlock], source: { provider: 'openai-codex', model: 'fixture', kind: 'model', replayState: finish.replayState } })
@@ -157,7 +176,7 @@ test('cache-preserving reasoning records native effort when switching into and o
   h.dispose()
 })
 
-test('restart and committed native compaction revalidate Ultra instead of restoring live permissions', async () => {
+nativeUltraTest('restart and committed native compaction revalidate Ultra instead of restoring live permissions', async () => {
   const h = fixture()
   const config = await h.request('ultra')
   h.session.append('request/header', { header: { config }, reason: 'initial' })
@@ -181,7 +200,7 @@ test('restart and committed native compaction revalidate Ultra instead of restor
   next.dispose()
 })
 
-test('titles, native compaction and approval review receive native effort without the proactive policy', async () => {
+nativeUltraTest('titles, native compaction and approval review receive native effort without the proactive policy', async () => {
   const h = fixture(); await h.run('ultra')
   for (const options of [
     { purpose: 'session-title', messages: [user('title')] },
@@ -197,7 +216,7 @@ test('titles, native compaction and approval review receive native effort withou
   h.dispose()
 })
 
-test('the actual PiAiAdapter receives the resolved native effort, including prepared dispatch', async () => {
+nativeUltraTest('the actual PiAiAdapter receives the resolved native effort, including prepared dispatch', async () => {
   const h = fixture(), sent = []
   const base = openaiCodexProvider().getModels().find(model => model.reasoning && model.thinkingLevelMap?.max === 'max')
   assert.ok(base)
