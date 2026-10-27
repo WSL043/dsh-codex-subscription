@@ -15,7 +15,7 @@ catch (error) { if (runtime || !['MODULE_NOT_FOUND', 'ERR_PACKAGE_PATH_NOT_EXPOR
 const user = (id, text, source = { kind: 'user' }) => ({ id, role: 'user', source, content: [{ type: 'text', text }] })
 function fixture(projections = []) {
   const id = 'remote-history-fixture'
-  const session = native.Session.create(id, undefined, { ...native.Session.create(id).header, cwd: 'C:/history-fixture' }, undefined, projections)
+  const session = native.Session.create(id, undefined, { ...native.Session.create(id).header, cwd: resolve('history-fixture') }, undefined, projections)
   const events = []
   const append = (...args) => { const event = session.append(...args); events.push(event); return event }
   return { id, session, events, append }
