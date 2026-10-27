@@ -42,6 +42,21 @@ const remote = (overrides = {}) => ({
 const RETIREMENT_SECONDS = 1792004400
 const CATALOG_NOW = Date.UTC(2026, 8, 29)
 
+test('plain upgrade targets survive without retirement dates, but URL and Markdown destinations never do', () => {
+  for (const upgrade of ['gpt-replacement', { model: 'gpt-replacement' }]) {
+    const [model] = parseOfficialModelCatalog({ models: [remote({ upgrade })] }, CATALOG_NOW)
+    assert.equal(model.upgradeTo, 'gpt-replacement')
+    assert.equal(model.retirement, undefined)
+    assert.equal(model.id, 'gpt-next')
+    assert.equal(model.name, 'GPT Next')
+  }
+  for (const upgrade of ['https://example.invalid/model', '[Switch](gpt-replacement)', { model: '**gpt-replacement**' }]) {
+    const [model] = parseOfficialModelCatalog({ models: [remote({ upgrade })] }, CATALOG_NOW)
+    assert.equal(model.upgradeTo, undefined)
+    assert.equal(model.retirement, undefined)
+  }
+})
+
 test('snake_case retirement notices use directory display names without changing model identity or visibility', () => {
   const models = parseOfficialModelCatalog({ models: [
     remote({
@@ -180,13 +195,13 @@ test('unsupported catalog capabilities are diagnostic-only and follow catalog li
     getAuth: async () => ({ auth: { apiKey: 'test-token' } }),
     readCredential: async () => ({ type: 'oauth', access: 'test-token', accountId: 'test-account' }),
     fetch: async () => unchanged ? new Response(null, { status: 304 }) : Response.json({ models: [remote({
-      supported_reasoning_levels: [{ effort: 'max' }, { effort: 'ultra' }, { effort: 'private text' }],
+      supported_reasoning_levels: [{ effort: 'max' }, { effort: 'ultra' }, { effort: 'persistent' }, { effort: 'private text' }],
       input_modalities: ['text', 'image', 'audio', null],
       additional_speed_tiers: ['fast', 'burst', 'https://private.invalid'],
     })] }, { headers: { etag: 'revision-one' } }),
   })
   await catalog.refresh()
-  const expected = [{ model: 'gpt-next', reasoning: ['ultra'], inputs: ['audio'], speeds: ['burst'] }]
+  const expected = [{ model: 'gpt-next', reasoning: ['persistent'], inputs: ['audio'], speeds: ['burst'] }]
   assert.deepEqual(catalog.capabilityGaps(), expected)
   const [model] = catalog.getModels([])
   assert.deepEqual(model.input, ['text', 'image'])

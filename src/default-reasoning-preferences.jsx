@@ -5,9 +5,9 @@ import { DEFAULT_REASONING_EFFORT_FIELD, DEFAULT_REASONING_EFFORTS, normalizeDef
 export function DefaultReasoningEffortPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const value = normalizeDefaultReasoningEffortChoice(snapshot[DEFAULT_REASONING_EFFORT_FIELD])
-  return <ImageChoice t={t} label={t('defaultReasoningEffort')} hint={t('defaultReasoningEffortHint')}
+  return <ImageChoice t={t} label={t('defaultReasoningEffort')} hint={t('defaultReasoningEffortHint')} title={t('defaultUltraHint')}
     value={value} text={t(`defaultReasoningEffort_${value}`)}
-    items={DEFAULT_REASONING_EFFORTS.map(id => ({ id, label: t(`defaultReasoningEffort_${id}`) }))}
+    items={DEFAULT_REASONING_EFFORTS.filter(id => id !== 'ultra' || snapshot.ultraModels?.length > 0).map(id => ({ id, label: t(`defaultReasoningEffort_${id}`) }))}
     disabled={snapshot.status !== 'ready' || !snapshot.writable || snapshot.saving}
     onSelect={effort => { void preference.set({ [DEFAULT_REASONING_EFFORT_FIELD]: effort }) }} />
 }

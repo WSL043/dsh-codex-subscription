@@ -13,6 +13,8 @@ import { searchFiles } from './remote-control-files.js'
 import { createRealtimeVoice, createVoiceCall, desktopInstructions } from './remote-control-realtime.js'
 import { diagnosticLog } from './diagnostic-log.js'
 import { phoneLog } from './remote-control-log.js'
+import { phoneModelUpgrade, phoneRateLimits } from './remote-control-capabilities.js'
+import { historyIndex, historyPage, initialHistoryCursor } from './remote-history-page.js'
 import { rememberRemoteImage, withRemoteImageOutput } from './remote-control-image-output.js'
 
 /** A folder the phone named, only when it is an existing absolute folder on this machine. */
@@ -72,20 +74,6 @@ function page(list, params) {
 }
 
 /** Codex usage as the phone's rate-limit snapshot (primary and secondary windows of the main limit). */
-function rateLimits(read) {
-  const toWindow = entry => entry && ({ usedPercent: Math.round(entry.usedPercent), windowDurationMins: Math.round(entry.windowSeconds / 60), resetsAt: entry.resetsAt ?? null })
-  const snapshot = limit => ({
-    limitId: limit?.id ?? 'codex', limitName: limit?.name ?? null, normalModelSlug: null,
-    primary: toWindow(limit?.windows?.[0]) ?? null, secondary: toWindow(limit?.windows?.[1]) ?? null,
-    credits: null, individualLimit: null, spendControlReached: read?.spendControlReached ?? null, planType: read?.planType ?? null, rateLimitReachedType: read?.rateLimitReachedType ?? null,
-  })
-  const main = read?.rateLimits?.find(limit => limit.id === 'codex') ?? read?.rateLimits?.[0]
-  return {
-    ordinaryUsageAllowed: null, rateLimits: snapshot(main),
-    rateLimitsByLimitId: read ? Object.fromEntries((read.rateLimits ?? []).map(limit => [limit.id, snapshot(limit)])) : null,
-    rateLimitResetCredits: null, accountId: null, rateLimitUpsell: null,
-  }
-}
 
 /** First place `term` appears in `text`: a short passage around it and the match's UTF-16 range inside that passage. */
 export function occurrence(text, term, radius = 60) {
@@ -195,7 +183,7 @@ export const typedImages = message => message.role === 'user' && (message.source
   : []
 
 /** `imageUrls` maps an attachment id to a data URL the phone can show; images without one are left out. */
-export function projectTurns(messages, at = Date.now(), imageUrls = new Map(), cwd = undefined, imageAssets = new Map()) {
+export function projectTurns(messages, at = Date.now(), imageUrls = new Map(), cwd = undefined, imageAssets = new Map(), indexOnly = false) {
   const turns = []
   let turn
   const calls = new Map()
@@ -206,12 +194,12 @@ export function projectTurns(messages, at = Date.now(), imageUrls = new Map(), c
       // Keep the URL-shaped user-input representation consumed by older clients.
       // The durable file identity stays in the account-scoped asset cache.
       const pictures = typedImages(message).map(block => imageAssets.get(block.attachment.attachmentId)?.downloadUrl ?? imageUrls.get(block.attachment.attachmentId)).filter(Boolean)
-      if (text === '' && pictures.length === 0) continue
+      if (text === '' && pictures.length === 0 && !(indexOnly && typedImages(message).length)) continue
       close()
       turn = { ...emptyTurn(), id: message.id, startedAt: seconds(at) }
       turn.items.push({ type: 'userMessage', id: message.id, clientId: null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(url => ({ type: 'image', url }))] })
     } else if (message.role === 'assistant') {
-      turn ??= { ...emptyTurn(), startedAt: seconds(at) }
+      turn ??= { ...emptyTurn(), id: message.id, startedAt: seconds(at) }
       for (const [index, block] of message.content.entries()) {
         const id = `${message.id}:${index}`
         if (block.type === 'text') turn.items.push({ type: 'agentMessage', id, text: block.text, phase: null, memoryCitation: null, delivery: null })
@@ -284,7 +272,7 @@ export function createPhoneConfig(file) {
   }
 }
 
-export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, remoteImages = undefined, imagePublishMs = 20000, usage = () => undefined, usageProfile = () => undefined, projections = () => undefined, skills = () => undefined, commands = () => undefined, llm = () => undefined, speed = undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent, appServerUserAgent = userAgent, configFile = undefined, voice = undefined }) {
+export function createDshRemoteControl({ controller, agents, permissions = () => undefined, workspaces = () => undefined, attachments = () => undefined, remoteImages = undefined, imagePublishMs = 20000, usage = () => undefined, usageProfile = () => undefined, projections = () => undefined, skills = () => undefined, commands = () => undefined, llm = () => undefined, modelMetadata = () => undefined, historySource = undefined, speed = undefined, trace = () => {}, phoneReturnMs = PHONE_RETURN_MS, userAgent, appServerUserAgent = userAgent, configFile = undefined, voice = undefined }) {
   const subscribers = new Map() // threadId -> Set<notify>
   const threadSources = new Map() // threadId -> the source the phone named when it created the thread ("user", "realtime_voice", ...)
   const active = new Map() // threadId -> { turn }
@@ -434,7 +422,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     await Promise.all(wanted.map(async block => {
       const started = Date.now()
       try {
-        const stored = await store.readImage(block.attachment, AbortSignal.timeout(10_000))
+        const timeout = AbortSignal.timeout(10_000)
+        const stored = await store.readImage(block.attachment, parentSignal ? AbortSignal.any([parentSignal, timeout]) : timeout)
         urls.set(block.attachment.attachmentId, `data:${stored.ref.mediaType};base64,${Buffer.from(stored.data).toString('base64')}`)
         phoneLog('image read completed', { attachmentId: block.attachment.attachmentId, bytes: stored.data.byteLength, ms: Date.now() - started })
         // Publish only images read from DSH's attachment service, including the
@@ -512,6 +501,79 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     }
     phoneLog('history restore completed', { threadId: id, ms: Date.now() - started, items: messages.length, turns: result.thread.turns.length, images: imageUrls.size })
     return result
+  }
+  const historyIndexes = new WeakMap()
+  const historySnapshot = async (id, signal) => {
+    signal?.throwIfAborted()
+    let source
+    try { source = await historySource?.read(id, { signal }) }
+    catch (error) { if (error?.code === 'SESSION_QUERY_SESSION_NOT_FOUND') throw notFound(id); throw error }
+    const agent = source ? undefined : await agentFor(id)
+    const session = agent?.session
+    const messages = source?.messages ?? session.deriveMessages()
+    const meta = source?.meta ?? session.meta
+    const events = source?.events
+    const cwd = directoryOf(events ? { meta, snapshotEvents: () => events } : session)
+    const owner = events && Object.isFrozen(events) ? events : session ?? messages
+    const revision = source?.cursor ?? session?.seq ?? messages
+    let cached = historyIndexes.get(owner)
+    if (!cached || cached.revision !== revision) {
+      cached = { revision, ranges: historyIndex(messages, projectTurns(messages, meta?.createdAt, new Map(), cwd, new Map(), true)) }
+      historyIndexes.set(owner, cached)
+    }
+    const live = active.get(id)
+    if (live?.userItem) for (const message of messages) reconcileUser(id, live, message)
+    const outline = withLiveTurn(id, cached.ranges)
+    return { meta, messages, cwd, ranges: cached.ranges, outline }
+  }
+  const renderHistory = async (id, snapshot, selected, signal) => {
+    signal?.throwIfAborted()
+    const wanted = new Set(selected.map(turn => turn.id))
+    const ranges = snapshot.ranges.filter(range => wanted.has(turnAliases.get(`${id}\0${range.id}`) ?? range.id))
+    const messages = ranges.flatMap(range => snapshot.messages.slice(range.from, range.to))
+    const { urls, assets } = await imageUrlsOf(messages, signal)
+    signal?.throwIfAborted()
+    const turns = ranges.flatMap(range => projectTurns(snapshot.messages.slice(range.from, range.to), snapshot.meta?.createdAt, urls, snapshot.cwd, assets, true))
+    const visible = wanted.has(active.get(id)?.turn.id) ? withLiveTurn(id, turns) : withShownIds(id, turns)
+    const byId = new Map(visible.map(turn => [turn.id, turn]))
+    return selected.map(turn => byId.get(turn.id)).filter(Boolean)
+  }
+  const listHistoryTurns = async (params, signal) => {
+    if (params?.itemsView != null && !['full', 'summary', 'notLoaded'].includes(params.itemsView)) throw invalidParams('Invalid turn items view')
+    const id = params?.threadId
+    const snapshot = await historySnapshot(id, signal)
+    const result = historyPage(snapshot.outline, params, JSON.stringify([id, 'turns']))
+    // Legacy callers receive full turns. Explicit lightweight reads do not read
+    // attachments and say notLoaded so the client can request item pages.
+    const full = params?.itemsView == null || params.itemsView === 'full'
+    const turns = full ? await renderHistory(id, snapshot, result.data, signal) : result.data.map(turn => ({ ...turn, items: [], itemsView: 'notLoaded' }))
+    const data = turns.map(({ from, to, ...turn }) => turn)
+    phoneLog('history page completed', { threadId: id, type: full ? 'full' : 'notLoaded', turns: data.length })
+    return { ...result, data }
+  }
+  const listHistoryItems = async (params, signal) => {
+    const id = params?.threadId
+    if (params?.turnId != null && (typeof params.turnId !== 'string' || params.turnId === '')) throw invalidParams('turnId must be nonempty')
+    const snapshot = await historySnapshot(id, signal)
+    const turns = params?.turnId ? snapshot.outline.filter(turn => turn.id === params.turnId) : snapshot.outline
+    if (params?.turnId && turns.length === 0) throw invalidParams('Turn not found')
+    let items = turns.flatMap(turn => turn.items.map(item => ({ id: JSON.stringify([turn.id, item.id]), turnId: turn.id, itemId: item.id })))
+    let cursor = params?.cursor
+    if (cursor && typeof cursor === 'object') {
+      if (cursor.type !== 'item' || typeof cursor.itemId !== 'string' || !cursor.itemId || !params.turnId) throw invalidParams('An item anchor requires a turnId and itemId')
+      const at = items.findIndex(item => item.itemId === cursor.itemId)
+      if (at < 0) throw invalidParams('Item anchor not found in this turn')
+      items = params?.sortDirection === 'desc' ? items.slice(0, at) : items.slice(at + 1)
+      cursor = undefined
+    }
+    const result = historyPage(items, { ...params, cursor }, JSON.stringify([id, 'items', params?.turnId ?? '']), 'asc')
+    const wanted = new Set(result.data.map(item => item.turnId))
+    const rendered = await renderHistory(id, snapshot, turns.filter(turn => wanted.has(turn.id)), signal)
+    const byTurn = new Map(rendered.map(turn => [turn.id, new Map(turn.items.map(item => [item.id, item]))]))
+    return { ...result, data: result.data.flatMap(entry => {
+      const item = byTurn.get(entry.turnId)?.get(entry.itemId)
+      return item ? [{ turnId: entry.turnId, item, startedAt: null, completedAt: null }] : []
+    }) }
   }
   /** Apply a model or effort the phone picked; DSH validates it against its own catalog. */
   // Speed: the plugin keeps one speed setting (standard, fast, ultrafast); the phone's service tier is that setting.
@@ -731,6 +793,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       }))
     return { threads, snippets }
   }
+  const readThreadMetadata = async (id, signal) => {
+    const entry = (await service().list({}, signal)).items?.find(item => item.sessionId === id && item.origin !== 'subagent')
+    if (!entry) throw notFound(id)
+    return thread({ id, cwd: entry.cwd, createdAt: entry.createdAt ?? entry.updatedAt, updatedAt: entry.updatedAt,
+      running: entry.running, projectId: projectIdOf(id), title: entry.projections?.values?.title ?? null })
+  }
   const matches = (entry, term, snippets) => {
     const needle = typeof term === 'string' ? term.trim().toLocaleLowerCase() : ''
     return needle === '' || snippets.has(entry.id) || `${entry.name ?? ''} ${entry.preview}`.toLocaleLowerCase().includes(needle)
@@ -787,7 +855,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
           data.push({
             id: key, model: key, displayName: model.name ?? model.id, description: group.name ?? '', hidden: false, isDefault: key === defaultKey,
             supportedReasoningEfforts: supported, defaultReasoningEffort: model.reasoning?.defaultEffort ?? supported[0].reasoningEffort,
-            inputModalities: modalities.get(model.id)?.length ? modalities.get(model.id) : ['text'], supportsPersonality: false, additionalSpeedTiers: tiersOf(group.id, model.id).map(tier => tier.id), upgrade: null, upgradeInfo: null, availabilityNux: null, serviceTiers: tiersOf(group.id, model.id), defaultServiceTier: null,
+            inputModalities: modalities.get(model.id)?.length ? modalities.get(model.id) : ['text'], supportsPersonality: false, additionalSpeedTiers: tiersOf(group.id, model.id).map(tier => tier.id), ...phoneModelUpgrade(modelMetadata(group.id, model.id), target => modelKey({ provider: group.id, model: target })), availabilityNux: null, serviceTiers: tiersOf(group.id, model.id), defaultServiceTier: null,
           })
         }
       }
@@ -916,12 +984,9 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       }
     },
     'currentTime/read': () => ({ currentTimeAt: seconds(Date.now()) }),
-    'account/rateLimits/read': async () => rateLimits(await usage()?.read?.().catch(() => undefined)),
-    'thread/turns/list': async params => {
-      const { thread: value } = await openThread(params?.threadId)
-      const ordered = params?.sortDirection === 'asc' ? value.turns : value.turns.toReversed()
-      return { ...page(ordered, params), backwardsCursor: ordered.length ? String(0) : null }
-    },
+    'account/rateLimits/read': async () => phoneRateLimits(await usage()?.read?.().catch(() => undefined)),
+    'thread/turns/list': (params, { signal } = {}) => listHistoryTurns(params, signal),
+    'thread/items/list': (params, { signal } = {}) => listHistoryItems(params, signal),
     'thread/fork': async (params, { notify }) => {
       const forked = await service().fork({ sessionId: params?.threadId })
       const agent = await agentFor(forked.sessionId)
@@ -970,8 +1035,22 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       await registry.unarchiveSession(params?.threadId)
       return { thread: (await openThread(params?.threadId)).thread }
     },
-    'thread/read': async (params, { signal } = {}) => ({ thread: (await openThread(params?.threadId, undefined, signal)).thread }),
+    'thread/read': async (params, { signal } = {}) => ({ thread: params?.includeTurns === false
+      ? { ...await readThreadMetadata(params?.threadId, signal), historyMode: 'paginated' }
+      : (await openThread(params?.threadId, undefined, signal)).thread }),
     'thread/resume': async (params, { notify, signal }) => {
+      if (params?.excludeTurns === true) {
+        const value = { ...await readThreadMetadata(params?.threadId, signal), historyMode: 'paginated' }
+        const snapshot = await historySnapshot(params.threadId, signal)
+        const agent = await agentFor(params.threadId)
+        if (notify) subscribe(params.threadId, notify)
+        await (catalog ? undefined : loadCatalog().catch(() => undefined))
+        const itemAnchors = snapshot.outline.flatMap(turn => turn.items.map(item => ({ id: JSON.stringify([turn.id, item.id]) })))
+        return { ...settings(agent, value.cwd), thread: value,
+          turnsBackwardsCursor: initialHistoryCursor(snapshot.outline, JSON.stringify([params.threadId, 'turns'])),
+          itemsBackwardsCursor: initialHistoryCursor(itemAnchors, JSON.stringify([params.threadId, 'items', ''])),
+        }
+      }
       const { agent, thread: value } = await openThread(params?.threadId, notify, signal)
       return { ...settings(agent, value.cwd), thread: value }
     },

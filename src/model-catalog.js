@@ -1,6 +1,7 @@
 import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { loadModelCatalogCache, saveModelCatalogCache } from './model-catalog-cache.js'
 import { PACKAGE_VERSION, USER_AGENT } from './version.js'
+import { ultraCatalogPreset } from './ultra-effort.js'
 
 export const CODEX_MODELS_URL = `https://chatgpt.com/backend-api/codex/models?client_version=${encodeURIComponent(PACKAGE_VERSION)}`
 
@@ -11,12 +12,13 @@ const nonEmpty = value => typeof value === 'string' && value.trim().length > 0 ?
 const positiveInteger = value => Number.isSafeInteger(value) && value > 0 ? value : undefined
 
 function upgradeModelId(value) {
+  const modelId = value => typeof value === 'string' && /^[a-z][a-z0-9._-]{0,79}$/u.test(value) ? value : undefined
   const direct = typeof value.upgrade === 'string'
     ? nonEmpty(value.upgrade)
     : record(value.upgrade) ? nonEmpty(value.upgrade.model) : undefined
-  return direct
-    ?? (record(value.upgrade_info) ? nonEmpty(value.upgrade_info.model) : undefined)
-    ?? (record(value.upgradeInfo) ? nonEmpty(value.upgradeInfo.model) : undefined)
+  return modelId(direct)
+    ?? modelId(record(value.upgrade_info) ? nonEmpty(value.upgrade_info.model) : undefined)
+    ?? modelId(record(value.upgradeInfo) ? nonEmpty(value.upgradeInfo.model) : undefined)
 }
 
 // The HTTP catalog nests the notice as `upgrade: { model, retirement_at: '<ISO date>' }`;
@@ -85,7 +87,7 @@ function serviceTierEntries(value) {
 
 function unsupportedCapabilities(value) {
   const reasoning = capabilityNames((value.supported_reasoning_levels ?? []).map(item => item?.effort))
-    .filter(level => !['none', ...LEVELS.slice(1)].includes(level))
+    .filter(level => !['none', ...LEVELS.slice(1), ...(ultraCatalogPreset(value) ? ['ultra'] : [])].includes(level))
   const inputs = capabilityNames(Array.isArray(value.input_modalities) ? value.input_modalities : [])
     .filter(input => !['text', 'image'].includes(input))
   const speeds = capabilityNames([
@@ -126,12 +128,14 @@ function visibleModel(value, displayNames, now) {
     name: `${reserve ? 'GPT-Reserve (Experimental)' : nonEmpty(value.display_name) ?? id}${retirement === undefined ? '' : ` (retires ${retirement.dateText})`}`,
     description: notice === undefined ? description : description === undefined ? notice : `${description}\n${notice}`,
     ...(retirement === undefined ? {} : { retirement: { at: retirement.at, upgradeTo: retirement.upgradeTo } }),
+    ...(upgradeTo === undefined ? {} : { upgradeTo }),
     priority: Number.isFinite(value.priority) ? value.priority : 0,
     input: input.length > 0 ? input : ['text'],
     contextWindow: positiveInteger(value.context_window) ?? positiveInteger(value.max_context_window),
     ...(positiveInteger(value.max_context_window) === undefined ? {} : { maxContextWindow: value.max_context_window }),
     reasoning: supported.length > 0,
     supportsReasoningEffortUpdates: value.supports_reasoning_effort_updates === true,
+    ...(ultraCatalogPreset(value) === undefined ? {} : { ultra: ultraCatalogPreset(value) }),
     thinkingLevelMap,
     ...(defaultReasoningEffort === undefined ? {} : { defaultReasoningEffort }),
     supportVerbosity: value.support_verbosity === true,

@@ -42,7 +42,7 @@ export const normalizeVoiceCall = value => value === 'on' ? 'on' : 'off'
 export const normalizeVoiceVoice = value => VOICE_VOICES.includes(value) ? value : 'cove'
 export const normalizeVoiceLanguage = value => VOICE_LANGUAGES.includes(value) ? value : 'auto'
 export const DEFAULT_REASONING_EFFORT_FIELD = 'defaultReasoningEffort'
-export const DEFAULT_REASONING_EFFORTS = Object.freeze(['auto', 'off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'])
+export const DEFAULT_REASONING_EFFORTS = Object.freeze(['auto', 'off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'])
 export const DEFAULT_REASONING_EFFORT = 'auto'
 export const normalizeDefaultReasoningEffort = value => DEFAULT_REASONING_EFFORTS.includes(value) ? value : DEFAULT_REASONING_EFFORT
 export const normalizeDefaultReasoningEffortChoice = normalizeDefaultReasoningEffort

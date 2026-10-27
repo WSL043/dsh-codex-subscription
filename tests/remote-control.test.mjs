@@ -381,12 +381,18 @@ test('the optimistic phone message keeps one id while running, reopening and com
   session.deriveMessages = () => [...old, { role: 'user', id: 'committed-u', content: [{ type: 'text', text: 'again' }] }]
   const live = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify })
   assert.deepEqual(live.thread.turns.map(turn => turn.items.filter(item => item.type === 'userMessage').map(item => item.id)), [['old-u'], [user.id]])
+  const pagedLive = await bridge.methods['thread/turns/list']({ threadId: 's1', limit: 1 }, {})
+  assert.equal(pagedLive.data[0].id, turn.id)
+  assert.deepEqual(pagedLive.data[0].items.filter(item => item.type === 'userMessage').map(item => item.id), [user.id])
   finish(); await wait()
   const completed = notes.find(([method]) => method === 'turn/completed')[1].turn
   assert.equal(completed.items[0].id, user.id)
   const reopened = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify })
   assert.equal(reopened.thread.turns.at(-1).items[0].id, user.id)
   assert.equal(reopened.thread.turns.at(-1).items[0].clientId, clientId)
+  const pagedDone = await bridge.methods['thread/items/list']({ threadId: 's1', turnId: turn.id }, {})
+  assert.equal(pagedDone.data[0].item.id, user.id)
+  assert.equal(pagedDone.data[0].item.clientId, clientId)
 })
 
 test('a streamed attempt that never commits is closed instead of hanging on the phone', async () => {

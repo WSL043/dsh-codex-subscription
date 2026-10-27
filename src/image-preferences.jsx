@@ -4,7 +4,7 @@ import { Button, Menu, IconChevronDownOutline14 } from './client-primitives.js'
 import { IMAGE_MODELS } from './image-models.js'
 import { IMAGE_SETTING_GROUPS, imageGroupValue, imageGroupPatch } from './image-setting-groups.js'
 
-export function ImageChoice({ t, label, hint, value, text, items, disabled, onSelect }) {
+export function ImageChoice({ t, label, hint, title, value, text, items, disabled, onSelect }) {
   const [open, setOpen] = useState(false)
   const anchor = useRef(null)
   useEffect(() => {
@@ -29,7 +29,7 @@ export function ImageChoice({ t, label, hint, value, text, items, disabled, onSe
       onSelect={id => { setOpen(false); onSelect(id) }} onClose={() => setOpen(false)}
       align="end" side="bottom" portal compact anchor={
         <button ref={anchor} type="button" className="codexSubscriptionContextTrigger"
-          aria-label={label} aria-haspopup="menu" aria-expanded={open && !disabled}
+          aria-label={label} aria-haspopup="menu" aria-expanded={open && !disabled} title={title}
           disabled={disabled} onClick={() => setOpen(current => !current)}>
           <span>{text}</span><IconChevronDownOutline14 />
         </button>

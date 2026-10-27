@@ -59,6 +59,7 @@ export function createPreferenceController(rpc) {
   let verbosityModels = []
   let fastModels
   let ultrafastModels = []
+  let ultraModels = []
   let catalogStatus
   let modelsLoading = false
   let modelError = false
@@ -120,6 +121,7 @@ export function createPreferenceController(rpc) {
       verbosityModels,
       fastModels,
       ultrafastModels,
+      ultraModels,
       catalogStatus,
       modelsLoading,
       modelError,
@@ -149,6 +151,7 @@ export function createPreferenceController(rpc) {
       verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
       fastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
       ultrafastModels = Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : []
+      ultraModels = Array.isArray(value?.ultraModels) ? value.ultraModels : []
       catalogStatus = value?.catalogStatus
     }
     fallback = {
@@ -220,18 +223,21 @@ export function createPreferenceController(rpc) {
       const nextVerbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
       const nextFastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
       const nextUltrafastModels = Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : []
+      const nextUltraModels = Array.isArray(value?.ultraModels) ? value.ultraModels : []
       catalogStatus = value?.catalogStatus
       const changed = !sameModels(contextModels, nextContextModels)
         || !sameModels(availableModels, nextAvailableModels)
         || !sameModels(verbosityModels, nextVerbosityModels)
         || JSON.stringify(fastModels) !== JSON.stringify(nextFastModels)
         || JSON.stringify(ultrafastModels) !== JSON.stringify(nextUltrafastModels)
+        || JSON.stringify(ultraModels) !== JSON.stringify(nextUltraModels)
       if (changed) {
         contextModels = nextContextModels
         availableModels = nextAvailableModels
         verbosityModels = nextVerbosityModels
         fastModels = nextFastModels
         ultrafastModels = nextUltrafastModels
+        ultraModels = nextUltraModels
         publish()
       }
       return changed

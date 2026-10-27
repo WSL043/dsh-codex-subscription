@@ -37,6 +37,21 @@ function fixture(remoteImages, imagePublishMs = 20000, readImage = async () => (
   return { bridge, messages, notes, start, completed }
 }
 
+test('turn and item pages retain the completed tool picture in the final answer with the same ids', async () => {
+  const f = fixture({ publish: async () => asset })
+  const turnId = await f.start()
+  const completed = await f.completed()
+  const page = await f.bridge.methods['thread/turns/list']({ threadId: 'session', limit: 1 }, {})
+  assert.equal(page.data[0].id, turnId)
+  assert.equal(page.data[0].items.find(item => item.type === 'imageGeneration').fileId, asset.fileId)
+  assert.equal(page.data[0].items.at(-1).id, completed.items.at(-1).id)
+  assert.equal(page.data[0].items.at(-1).text, `done\n\n![Image](${asset.downloadUrl})`)
+  const items = await f.bridge.methods['thread/items/list']({ threadId: 'session', turnId, limit: 1, sortDirection: 'desc' }, {})
+  assert.equal(items.data[0].item.id, completed.items.at(-1).id)
+  assert.equal(items.data[0].item.text, page.data[0].items.at(-1).text)
+  assert.equal(items.data[0].item.text.match(/!\[Image\]/gu).length, 1)
+})
+
 test('live image publishes before completion and history restores the same IDs with a fresh single image', async () => {
   let release, requests = 0
   const f = fixture({ publish: async () => { requests++; if (requests === 1) await new Promise(resolve => { release = resolve }); return { ...asset, downloadUrl: asset.downloadUrl + requests } } })

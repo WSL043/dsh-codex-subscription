@@ -21,6 +21,8 @@ import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { USER_AGENT } from './version.js'
 import { createRemoteControl } from './remote-control.js'
 import { createDshRemoteControl } from './remote-control-dsh.js'
+import { createRemoteHistorySource } from './remote-history-source.js'
+import { createUltraExecutionPreset } from './ultra-execution.js'
 import { createRemoteImageAssets } from './remote-image-assets.js'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import * as dshLlm from '@deepseek-ai/dsh-llm'
@@ -183,6 +185,19 @@ export function apply(ctx, config = {}) {
     fetch: (input, init) => network.fetch('catalog', input, init),
     retryDelaysMs: [5_000, 15_000, 30_000, 60_000, 120_000, 300_000],
   })
+  let appendUltraPolicy
+  try { appendUltraPolicy = createRequire(import.meta.url)('@deepseek-ai/dsh-session').appendPluginRecord }
+  catch (error) {
+    const absent = error?.code === 'MODULE_NOT_FOUND' && error.message?.startsWith("Cannot find module '@deepseek-ai/dsh-session'")
+    if (!absent) throw error
+  }
+  const ultra = createUltraExecutionPreset({
+    catalog: modelCatalog,
+    resolveAgent: () => ctx.get?.('agents')?.currentInitiator?.(),
+    defaultEffort: () => settings.get()[DEFAULT_REASONING_EFFORT_FIELD],
+    record: appendUltraPolicy,
+  })
+  ctx.effect(() => ultra.install(ctx), 'codex-subscription: Ultra execution preset')
   const connection = createSubscriptionConnection({ resolveMode: () => settings.get().connectionMode })
   // The settings surface edits DSH's own default model instead of keeping a
   // second copy, so every new conversation opens on what the user selected.
@@ -210,6 +225,7 @@ export function apply(ctx, config = {}) {
   ctx.on('session/event', (session, event) => reasoning.sessionEvent(session, event))
   ctx.effect(() => () => connection.dispose())
   const provider = openaiCodexSubscriptionProvider({
+    ultra,
     connection,
     compaction,
     reasoning,
@@ -272,6 +288,7 @@ export function apply(ctx, config = {}) {
         catalogStatus: modelCatalog.status(),
         verbosityModels: provider.getModels().filter(model => modelCatalog.metadata(model.id)?.supportVerbosity ?? model.id !== 'gpt-5.3-codex-spark').map(model => model.id),
         ultrafastModels: provider.getModels().filter(model => modelCatalog.metadata(model.id)?.supportsUltrafast === true).map(model => model.id),
+        ultraModels: provider.getModels().filter(model => ultra.supported(model.id)).map(model => model.id),
         fastModels: provider.getModels().filter(model => modelCatalog.metadata(model.id)?.supportsFast ?? supportsCodexFastMode(model.id)).map(model => model.id),
         writable: ctx.settings.writable,
       }
@@ -453,7 +470,7 @@ export function apply(ctx, config = {}) {
   }), 'codex-subscription: default reasoning effort')
   ctx.effect(() => {
     const lifetime = new AbortController()
-    const defaults = withDefaultReasoningEffort(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(provider.wrapRetryAdapter(adapter))), provider), {
+    const defaults = withDefaultReasoningEffort(ultra.wrapAdapter(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(provider.wrapRetryAdapter(adapter))), provider)), {
       preference: () => settings.get()[DEFAULT_REASONING_EFFORT_FIELD],
       modelDefault: id => modelCatalog.metadata(id)?.defaultReasoningEffort,
     })
@@ -609,6 +626,8 @@ export function apply(ctx, config = {}) {
     skills: () => ctx.get?.('skills'),
     commands: () => ctx.get?.('commands'),
     llm: () => ctx.llm,
+    modelMetadata: (provider, model) => provider === PROVIDER ? modelCatalog.metadata(model) : undefined,
+    historySource: createRemoteHistorySource({ query: () => ctx.get?.('sessionQuery') }),
     speed: {
       tiers: (provider, model) => provider === PROVIDER ? (modelCatalog.metadata(model)?.serviceTiers ?? []) : [],
       current: () => settings.get()[SPEED_MODE_FIELD],
