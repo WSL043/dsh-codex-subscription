@@ -1,4 +1,4 @@
-import { readSubscriptionCredentials } from './subscription-credentials.js'
+import { readSubscriptionCredentials, subscriptionCredentialReady } from './subscription-credentials.js'
 import { randomUUID } from 'node:crypto'
 import { setTimeout as wait } from 'node:timers/promises'
 import { diagnosticLog } from './diagnostic-log.js'
@@ -77,6 +77,8 @@ export function createCodexSearchProvider(options) {
   return Object.freeze({
     id: CODEX_SEARCH_PROVIDER_ID,
     available: () => true,
+    ready: () => readCapabilitySettings(options.resolvePreferences?.()).searchMode === 'disabled'
+      ? false : subscriptionCredentialReady(options.readCredential),
     async search(request, signal) {
       signal?.throwIfAborted()
       const preferences = readCapabilitySettings(options.resolvePreferences?.())
@@ -189,6 +191,10 @@ export function createCodexAutoSearchProvider(options) {
   return Object.freeze({
     id: CODEX_AUTO_SEARCH_PROVIDER_ID,
     available: () => true,
+    async ready(llmProvider) {
+      if (await options.codex.ready?.(llmProvider) ?? true) return true
+      try { return await dsh().ready?.(llmProvider) ?? true } catch { return false }
+    },
     async search(request, signal) {
       const codexFirst = options.resolveModelProvider?.() === 'openai-codex'
       const [first, second] = codexFirst ? [viaCodex, viaDsh] : [viaDsh, viaCodex]

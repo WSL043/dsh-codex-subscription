@@ -64,7 +64,8 @@ test('disabled, other providers, nonempty drafts, attachments, references and in
     { input: { draft: 'mine', draftRev: 1, phase: 'plain' } },
     { input: { draft: '', draftRev: 1, phase: 'plain', attachmentIds: ['file'] } },
     { input: { draft: '', draftRev: 1, phase: 'plain', occurrences: [{}] } },
-    { input: { draft: '', draftRev: 1, phase: 'submitting' } }, { context: null },
+    { input: { draft: '', draftRev: 1, phase: 'submitting' } },
+    { input: { draft: '', draftRev: 1, phase: 'sending' } }, { context: null },
     { span: { start: 1, end: 1, draftRev: 1 } },
   ]
   let calls = 0

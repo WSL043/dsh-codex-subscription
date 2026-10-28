@@ -23,6 +23,7 @@ import { createRemoteControl } from './remote-control.js'
 import { createDshRemoteControl } from './remote-control-dsh.js'
 import { createRemoteHistorySource } from './remote-history-source.js'
 import { createUltraExecutionPreset } from './ultra-execution.js'
+import { loadHostSessionSdk } from './host-session-sdk.js'
 import { createRemoteImageAssets } from './remote-image-assets.js'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import * as dshLlm from '@deepseek-ai/dsh-llm'
@@ -186,12 +187,7 @@ export function apply(ctx, config = {}) {
     fetch: (input, init) => network.fetch('catalog', input, init),
     retryDelaysMs: [5_000, 15_000, 30_000, 60_000, 120_000, 300_000],
   })
-  let appendUltraPolicy
-  try { appendUltraPolicy = createRequire(import.meta.url)('@deepseek-ai/dsh-session').appendPluginRecord }
-  catch (error) {
-    const absent = error?.code === 'MODULE_NOT_FOUND' && error.message?.startsWith("Cannot find module '@deepseek-ai/dsh-session'")
-    if (!absent) throw error
-  }
+  const appendUltraPolicy = loadHostSessionSdk()?.appendPluginRecord
   const ultra = createUltraExecutionPreset({
     catalog: modelCatalog,
     resolveAgent: () => ctx.get?.('agents')?.currentInitiator?.(),
@@ -489,7 +485,7 @@ export function apply(ctx, config = {}) {
   }, 'codex-subscription: official model catalog')
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
   const codexFetch = createCodexFetchProvider({
-    allowed: () => fetchRouted && (settings.get().otherModels !== 'off' || currentAgent()?.session.requestContext?.()?.provider === PROVIDER),
+    allowed: llmProvider => fetchRouted && (settings.get().otherModels !== 'off' || (llmProvider ?? currentAgent()?.session.requestContext?.()?.provider) === PROVIDER),
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     resolveModel: () => {
@@ -529,7 +525,7 @@ export function apply(ctx, config = {}) {
   const realSearchProviders = ctx.web.searchProviders
   const resolveDshSearch = () => realSearchProviders?.get(searchProvider.dshProviderId())
   const gateSearch = provider => gateSearchProvider(provider, {
-    allowed: () => settings.get().otherModels !== 'off' || currentAgent()?.session.requestContext?.()?.provider === PROVIDER,
+    allowed: llmProvider => settings.get().otherModels !== 'off' || (llmProvider ?? currentAgent()?.session.requestContext?.()?.provider) === PROVIDER,
     resolveDshProvider: resolveDshSearch,
   })
   const codexSearch = createCodexSearchProvider({
@@ -547,6 +543,7 @@ export function apply(ctx, config = {}) {
   const tracedCodexSearch = gateSearch({
     id: codexSearch.id,
     available: () => codexSearch.available(),
+    ready: llmProvider => codexSearch.ready(llmProvider),
     async search(request, signal) {
       const result = await codexSearch.search(request, signal)
       searchTrace('answered by Codex subscription')

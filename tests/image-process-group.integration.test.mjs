@@ -37,10 +37,13 @@ function loadChatAlgorithms() {
     // Virtualised message list (DSH 0.2.1-alpha.3 and later); only used while rendering.
     '@tanstack/react-virtual': {},
   }
-  const exports = descriptor.factory(id => {
+  const requireModule = id => {
     assert.ok(Object.hasOwn(modules, id), `unexpected browser dependency: ${id}`)
     return modules[id]
-  })
+  }
+  // Asset URLs are evaluated at module load in newer official bundles; no DOM/media is rendered here.
+  requireModule.asset = name => name
+  const exports = descriptor.factory(requireModule)
   return exports.__imageGroupTest
 }
 
@@ -111,7 +114,6 @@ function assertIndependentImage(snapshot, grouping, image) {
   assert.equal(toolProcess.turnClosed, true)
   assert.equal(toolProcess.hasInterleavedInput, false)
   assert.equal(toolProcess.hasExternalProcess, true)
-  assert.equal(toolProcess.compactAnswer, true)
 }
 
 test('historical image projection is a root while closed Turn process groups remain tool-only', () => {

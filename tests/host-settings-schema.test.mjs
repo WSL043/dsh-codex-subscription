@@ -34,6 +34,8 @@ test('Config uses the settings host schema and later status reads see volatile w
   let notifications = 0
   const fiber = {
     config,
+    get effectiveConfig() { return this.config },
+    resolveConfig(raw) { return resolveConfig(this.runtime, raw) },
     runtime: { Config: plugin.Config },
     ctx: {
       waterfall: (_fiber, _event, raw) => raw,

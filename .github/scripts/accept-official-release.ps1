@@ -67,6 +67,11 @@ function Initialize-Runner {
 function Invoke-Dsh {
     param([Parameter(Mandatory = $true)][string[]] $Arguments)
 
+    # These official SDK dependencies are also approved for the runner above;
+    # newer DSH cohorts may materialize them in the plugin profile instead.
+    if ($Arguments[0] -eq 'plugin' -and $Arguments -contains 'add') {
+        $Arguments += @('--allow-build=@google/genai', '--allow-build=protobufjs')
+    }
     Write-Host "Official DSH: $($Arguments -join ' ')"
     & node (Join-Path $PSScriptRoot 'run-official-cli.mjs') $runner.Source @runnerPrefix @Arguments
     if ($LASTEXITCODE -ne 0) {

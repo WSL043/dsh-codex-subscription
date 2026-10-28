@@ -49,6 +49,8 @@ Web search and webpage reading sources, ChatGPT connectors and official Codex in
 
 Verified against DSH `0.2.1-rc.4` (the `next` channel), with `0.2.1-rc.3` and `0.2.1-rc.2` still supported; the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
 
+The main branch also supports the preview host `0.2.2-alpha.2`; this work has not been released as a new plugin version. See the [compatibility notes](docs/dsh-022-alpha2-compatibility.md) for scope and validation limits.
+
 This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 
 <details>

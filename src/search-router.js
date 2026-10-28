@@ -7,8 +7,8 @@ const OWN_IDS = new Set([CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID
 
 /** Guard the provider itself, including direct/cached handles and hosts without the registry proxy. */
 export function gateSearchProvider(provider, { allowed, resolveDshProvider }) {
-  const selected = () => {
-    if (allowed()) return provider
+  const selected = llmProvider => {
+    if (allowed(llmProvider)) return provider
     const dsh = resolveDshProvider()
     if (!dsh || OWN_IDS.has(dsh.id) || dsh.available() !== true) {
       throw new WebError('DSH default search is unavailable', 'WEB_PROVIDER_UNAVAILABLE')
@@ -18,6 +18,7 @@ export function gateSearchProvider(provider, { allowed, resolveDshProvider }) {
   return Object.freeze({
     id: provider.id,
     available: () => { try { return selected().available() } catch { return false } },
+    async ready(llmProvider) { try { return await selected(llmProvider).ready?.(llmProvider) ?? true } catch { return false } },
     async search(request, signal) { return selected().search(request, signal) },
   })
 }
@@ -33,6 +34,10 @@ export function gateSearchProvider(provider, { allowed, resolveDshProvider }) {
  */
 export function createSearchRouter({ registry, configuredId, mode, providers }) {
   if (!(registry instanceof Map)) return undefined
+  const selected = () => {
+    const source = mode()
+    return source === SEARCH_PROVIDER_CODEX ? providers.codex : source === SEARCH_PROVIDER_AUTO ? providers.auto : providers.dsh
+  }
   const wrappers = new Map()
   const routerFor = id => {
     let router = wrappers.get(id)
@@ -40,10 +45,9 @@ export function createSearchRouter({ registry, configuredId, mode, providers }) 
       router = Object.freeze({
         id,
         available: () => true,
+        ready: llmProvider => selected().ready?.(llmProvider) ?? true,
         search(request, signal) {
-          const selected = mode()
-          const provider = selected === SEARCH_PROVIDER_CODEX ? providers.codex : selected === SEARCH_PROVIDER_AUTO ? providers.auto : providers.dsh
-          return provider.search(request, signal)
+          return selected().search(request, signal)
         },
       })
       wrappers.set(id, router)

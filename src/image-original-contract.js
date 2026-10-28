@@ -46,8 +46,10 @@ export function originalImageRefsEqual(left, right) {
 /** Resolve only an exact original reference copied into a DSH fork prefix. */
 export function inheritedOriginalImageRef(session, assetId) {
   const parentSession = session?.header?.parentSession
+  // Newer native forks mark their inherited prefix with isSeeded rather than a parent id.
+  const forked = typeof parentSession === 'string' && parentSession.length > 0 || session?.header?.isSeeded === true
   const seedLength = session?.inheritedEventCount
-  if (typeof parentSession !== 'string' || parentSession.length === 0
+  if (!forked
     || !Number.isSafeInteger(seedLength) || seedLength < 0
     || !ORIGINAL_IMAGE_ID_PATTERN.test(assetId)) return undefined
   if (typeof session?.snapshotEvents !== 'function') return undefined

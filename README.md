@@ -49,6 +49,8 @@
 
 已验证兼容 DSH `0.2.1-rc.4`（`next` 通道），继续支持 `0.2.1-rc.3` 和 `0.2.1-rc.2`，最低支持 `0.1.7-rc.2`；更早的 DSH 请先升级。
 
+main 另已适配预览宿主 `0.2.2-alpha.2`，尚未发布新的插件版本；范围与验收边界见[兼容性记录](docs/dsh-022-alpha2-compatibility.md)。
+
 本插件支持软件包元数据中记录的最新版 DeepSeek Harness，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
 
 <details>

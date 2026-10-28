@@ -143,7 +143,7 @@ function routing(configured = 'http') {
   const router = createCodexFetchRouter({ registry, configuredId: () => selected, mode: () => mode, codex })
   // Native fetch reads a constructor id on old cohorts and a volatile config on
   // new ones. Keep both fixture fields in sync while exercising its real method.
-  const host = { config: { fetchProvider: { get: () => selected } }, get fetchProviderId() { return selected }, fetchProviders: router }
+  const host = { __proto__: WebRuntime.prototype, config: { fetchProvider: { get: () => selected } }, get fetchProviderId() { return selected }, fetchProviders: router }
   const fetch = () => WebRuntime.prototype.fetch.call(host, { url: target })
   return { registry, router, host, fetch, setMode: value => { mode = value }, configure: value => { selected = value }, counts: () => ({ nativeCalls, codexCalls }) }
 }
@@ -187,7 +187,7 @@ test('explicit Codex errors never invoke a configured DeepSeek fetch provider', 
   const error = Object.assign(new Error('not signed in'), { code: 'WEB_PROVIDER_CREDENTIAL_MISSING' })
   const registry = new Map([['deepseek-fetch-api', { available: () => true, fetch: async () => { nativeCalls += 1 } }]])
   const router = createCodexFetchRouter({ registry, configuredId: () => 'deepseek-fetch-api', mode: () => 'codex', codex: { fetch: async () => { throw error } } })
-  await assert.rejects(WebRuntime.prototype.fetch.call({ fetchProviders: router, fetchProviderId: 'deepseek-fetch-api', config: { fetchProvider: { get: () => 'deepseek-fetch-api' } } }, { url: target }), value => value === error)
+  await assert.rejects(WebRuntime.prototype.fetch.call({ __proto__: WebRuntime.prototype, fetchProviders: router, fetchProviderId: 'deepseek-fetch-api', config: { fetchProvider: { get: () => 'deepseek-fetch-api' } } }, { url: target }), value => value === error)
   assert.equal(nativeCalls, 0)
 })
 
@@ -209,7 +209,7 @@ test('cached Codex route handles stop on selection change without using either p
 test('configured id honors the native constructor env snapshot and never resurrects a cleared raw setting', async () => {
   const native = { id: 'original-env', available: () => true, fetch: async () => { throw Error('must not fall back') } }
   const registry = new Map([['original-env', native]])
-  const host = { config: { fetchProvider: { get: () => undefined } }, fetchProviderEnv: 'original-env', get fetchProviderId() { return this.config.fetchProvider.get() ?? this.fetchProviderEnv } }
+  const host = { __proto__: WebRuntime.prototype, config: { fetchProvider: { get: () => undefined } }, fetchProviderEnv: 'original-env', get fetchProviderId() { return this.config.fetchProvider.get() ?? this.fetchProviderEnv } }
   const entries = [{ options: { id: 'web', config: { fetchProvider: 'stale-raw' } } }]
   const configuredId = () => configuredFetchProviderId(host, entries, 'later-env')
   assert.equal(configuredId(), 'original-env')
@@ -224,7 +224,7 @@ test('configured id honors the native constructor env snapshot and never resurre
 
 test('old native constructor id overrides later raw config and ambient env, including an absent id', async () => {
   const entries = [{ options: { id: 'web', config: { fetchProvider: 'stale-raw' } } }]
-  const host = { fetchProviderId: 'original-id', config: { fetchProvider: { get: () => 'later-volatile' } } }
+  const host = { __proto__: WebRuntime.prototype, fetchProviderId: 'original-id', config: { fetchProvider: { get: () => 'later-volatile' } } }
   const configuredId = () => configuredFetchProviderId(host, entries, 'later-env')
   assert.equal(configuredId(), 'original-id')
   // Mirror that effective selection for the actual runtime version under test.

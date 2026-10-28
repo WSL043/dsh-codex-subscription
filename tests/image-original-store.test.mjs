@@ -45,6 +45,10 @@ test('fork access requires an exact original reference in the inherited event pr
   assert.equal(await store.read('session-child', ref.assetId, { ...ref, sha256: '0'.repeat(64) }), undefined)
   assert.equal(inheritedOriginalImageRef({ ...child, inheritedEventCount: 1 }, ref.assetId), undefined)
   assert.equal(inheritedOriginalImageRef({ ...child, header: {} }, ref.assetId), undefined)
+  const seeded = { ...child, header: { isSeeded: true } }
+  assert.equal(originalImageRefsEqual(inheritedOriginalImageRef(seeded, ref.assetId), ref), true)
+  assert.equal(inheritedOriginalImageRef({ ...seeded, inheritedEventCount: 1 }, ref.assetId), undefined)
+  assert.equal(inheritedOriginalImageRef({ ...seeded, header: { isSeeded: false } }, ref.assetId), undefined)
 }))
 
 test('real DSH forks inherit only original references present before their fork boundary', async () => withStore(async store => {

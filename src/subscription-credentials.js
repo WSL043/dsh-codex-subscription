@@ -1,3 +1,12 @@
+/** Step-time capability checks read the vault only; refreshing belongs to execution. */
+export async function subscriptionCredentialReady(readCredential) {
+  try {
+    const value = await readCredential({})
+    return value?.type === 'oauth' && typeof value.access === 'string' && value.access.length > 0
+      && typeof value.accountId === 'string' && value.accountId.length > 0
+  } catch { return false }
+}
+
 // Refresh first, then take token and account ID from the same vault snapshot.
 // A switch between the awaits must never combine two different accounts.
 export async function readSubscriptionCredentials(getAuth, readCredential, signal) {

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { WebError } from '@deepseek-ai/dsh-web'
-import { readSubscriptionCredentials } from './subscription-credentials.js'
+import { readSubscriptionCredentials, subscriptionCredentialReady } from './subscription-credentials.js'
 import { CODEX_SEARCH_URL } from './codex-search.js'
 import { authFailureMessage, SIGN_IN_RENEW } from './http-failure.js'
 import { USER_AGENT } from './version.js'
@@ -23,6 +23,7 @@ export function createCodexFetchProvider(options) {
   return Object.freeze({
     id: CODEX_FETCH_PROVIDER_ID,
     available: () => true,
+    ready: llmProvider => options.allowed?.(llmProvider) === false ? false : subscriptionCredentialReady(options.readCredential),
     async fetch(request, signal) {
       signal?.throwIfAborted()
       if (options.allowed?.() === false) throw new WebError('Codex webpage reading is disabled for this model', 'WEB_PROVIDER_UNAVAILABLE')
@@ -113,7 +114,8 @@ export function createCodexFetchRouter({ registry, configuredId, mode, codex }) 
   if (!(registry instanceof Map)) return undefined
   const wrappers = new Map()
   const wrapper = id => {
-    if (!wrappers.has(id)) wrappers.set(id, Object.freeze({ id, available: () => mode() === 'codex', fetch(request, signal) {
+    if (!wrappers.has(id)) wrappers.set(id, Object.freeze({ id, available: () => mode() === 'codex',
+      ready: llmProvider => mode() === 'codex' && (codex.ready?.(llmProvider) ?? true), fetch(request, signal) {
       if (mode() !== 'codex') throw new WebError('Codex webpage reading is no longer selected', 'WEB_PROVIDER_UNAVAILABLE')
       return codex.fetch(request, signal)
     } }))

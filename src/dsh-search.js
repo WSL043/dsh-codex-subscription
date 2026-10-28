@@ -7,6 +7,12 @@ export function createDshSearchProvider({ resolveDshProvider, report }) {
   return Object.freeze({
     id: DSH_SEARCH_PROVIDER_ID,
     available: () => true,
+    async ready(llmProvider) {
+      const provider = resolveDshProvider?.()
+      // Preserve native selection errors; only a selected provider can report missing credentials.
+      if (!provider || provider.id === DSH_SEARCH_PROVIDER_ID) return true
+      return await provider?.ready?.(llmProvider) ?? true
+    },
     async search(request, signal) {
       const provider = resolveDshProvider?.()
       if (!provider || provider.id === DSH_SEARCH_PROVIDER_ID || provider.available() !== true) {
