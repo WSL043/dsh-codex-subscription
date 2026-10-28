@@ -1,6 +1,6 @@
 # DSH 0.2.2-alpha.2 compatibility
 
-2026-10-28. This is main-branch support for a preview host, not a new plugin release. The existing stable install instructions and rc support remain unchanged.
+2026-10-28. Preview-host support is included in plugin 3.2.0. Existing rc support and the stable development cohort remain unchanged.
 
 ## Changes
 

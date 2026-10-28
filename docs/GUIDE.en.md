@@ -101,7 +101,7 @@ The board supports editable shapes and text, native curves, and a side control f
 
 Flare / Sunburst request overrides remain experimental: successful generation does not confirm which image engine or quality the subscription backend used.
 
-### Input predictions
+### Input predictions (Beta)
 
 Enable **Input predictions** under **Settings → Codex subscription → Models**; it is off by default. GPT-6 Astra, GPT-6.1 Sol and GPT-6.1 Terra are supported, subject to the account's official prediction capability check.
 
@@ -109,7 +109,7 @@ After a completed reply, an empty draft can receive a suggested next message bas
 
 If you undo or clear an accepted draft without sending, the empty composer shows the same cached suggestion without another model request. Only one suggestion for the current context is retained, for up to five minutes; changing models, conversations, accounts or turns invalidates it.
 
-Predictions make additional requests; quota exemption for this third-party integration is unconfirmed. They neither retrieve other conversations nor run tools.
+[OpenAI states](https://learn.chatgpt.com/docs/features/composer-predictions) that generating predictions in official Codex does not count toward usage limits or consume credits; sending an accepted prediction is metered normally. DSH makes additional prediction requests, and the same exemption for this third-party integration is unconfirmed, so the plugin does not promise free predictions. Predictions neither retrieve other conversations nor run tools.
 
 ### Composer speed
 
