@@ -128,3 +128,48 @@ test('a partially emitted SSE response keeps its existing failure and is never r
   assert.ok(chunks.some(chunk => chunk.type === 'text-delta'))
   assert.equal(chunks.find(chunk => chunk.type === 'finish').reason.failure.providerRetryAfterMs, undefined)
 })
+
+const overloadMessage = 'Our servers are currently overloaded. Please try again later.'
+for (const status of [undefined, 200]) test(`known Codex overload without HTTP failure status (${status ?? 'WebSocket'}) is a server error, not a made-up HTTP 503`, () => {
+  const hint = createModelRetryHint()
+  if (status !== undefined) hint.onResponse({ status, headers: {} })
+  const failure = hint.failure({ code: 'PI_AI_ERROR', message: 'Codex error: ' + overloadMessage, requestId: 'retained' })
+  assert.equal(failure.code, 'SERVER')
+  assert.equal(failure.message, 'Codex error: ' + overloadMessage)
+  assert.equal(failure.requestId, 'retained')
+  assert.equal(failure.status, undefined)
+})
+
+test('overload classification never expands generic failures, rejection statuses, partial output or cancellation', () => {
+  const cases = [
+    { message: 'Codex error: Unsupported parameter: invented_setting' },
+    { message: 'Invalid request: ' + overloadMessage },
+    { message: 'overloaded' },
+    ...[400, 401, 403, 413, 429].map(status => ({ status })),
+    ...['AUTH', 'INVALID_REQUEST', 'QUOTA_EXCEEDED', 'ABORTED'].map(code => ({ code })),
+    { partial: true }, { abort: true },
+  ]
+  for (const sample of cases) {
+    const hint = createModelRetryHint()
+    hint.onResponse({ status: sample.status ?? 200, headers: {} })
+    if (sample.partial) hint.observe({ type: 'text_delta', delta: 'already emitted' })
+    const original = { code: sample.code ?? 'PI_AI_ERROR', message: sample.message ?? 'Codex error: ' + overloadMessage }
+    assert.equal(hint.failure(original, sample.abort ? AbortSignal.abort() : undefined), original, JSON.stringify(sample))
+  }
+})
+
+test('the actual adapter classifies the reported HTTP 200 SSE overload and preserves parameter failures', async t => {
+  for (const [message, code] of [[overloadMessage, 'SERVER'], ['Unsupported parameter: invented_setting', 'PI_AI_ERROR']]) {
+    let requests = 0
+    t.mock.method(globalThis, 'fetch', async () => { requests++; return new Response('data: ' + JSON.stringify({ type: 'error', message }) + '\n\n', { headers: { 'content-type': 'text/event-stream' } }) })
+    const provider = openaiCodexSubscriptionProvider()
+    const profile = { provider: 'openai-codex', piProvider: provider, configuredMaxTokens: new Map(), modelErrors: new Map(), transport: 'sse', streamIdleTimeoutMs: 3000 }
+    const adapter = provider.wrapRetryAdapter(new PiAiAdapter({ profiles: () => new Map([['openai-codex', profile]]), resolveApiKey: async () => jwt }))
+    let failure
+    for await (const event of adapter.stream({ provider: 'openai-codex', model: 'gpt-5.6-luna', messages: [{ role: 'user', content: [{ type: 'text', text: 'synthetic overload regression' }] }] })) if (event.reason?.failure) failure = event.reason.failure
+    assert.equal(failure.code, code)
+    assert.equal(failure.status, undefined)
+    assert.equal(requests, 1, 'the classification bridge must not add its own retry loop')
+    t.mock.restoreAll()
+  }
+})

@@ -1,6 +1,10 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import * as dshLlm from '@deepseek-ai/dsh-llm'
 
+// Codex can report overload inside a successful SSE/WebSocket transport. Match
+// the complete known refusal, not generic PI_AI_ERROR or an arbitrary substring.
+const CODEX_OVERLOADED = /^\s*(?:Codex error:\s*)?Our servers are currently overloaded\. Please try again later\.\s*$/u
+
 /** Keep the provider's wait as a fact; only DSH decides whether and when to retry. */
 export function providerRetryAfterMs(headers, at = Date.now()) {
   const read = key => typeof headers?.get === 'function' ? headers.get(key) : headers?.[key]
@@ -16,9 +20,10 @@ export function providerRetryAfterMs(headers, at = Date.now()) {
 }
 
 export function createModelRetryHint({ now = Date.now, ErrorClass = dshLlm.LlmError } = {}) {
-  let response, outputStarted = false
+  let response, responseStatus, outputStarted = false
   return {
     onResponse(info) {
+      responseStatus = info?.status
       response = [429, 503].includes(info?.status)
         ? { status: info.status, delay: providerRetryAfterMs(info.headers, now()) } : undefined
     },
@@ -26,17 +31,22 @@ export function createModelRetryHint({ now = Date.now, ErrorClass = dshLlm.LlmEr
       if (event && !['start', 'done', 'error'].includes(event.type)) outputStarted = true
     },
     failure(original, signal) {
-      if (signal?.aborted || outputStarted || !response || !original || typeof original.message !== 'string' || ['ABORTED', 'QUOTA', 'ACCOUNT_QUOTA', 'QUOTA_EXCEEDED'].includes(original.code) || (typeof dshLlm.isQuotaExceededError === 'function' && dshLlm.isQuotaExceededError(original.message))) return original
+      if (signal?.aborted || outputStarted || !original || typeof original.message !== 'string' || ['ABORTED', 'AUTH', 'INVALID_REQUEST', 'QUOTA', 'ACCOUNT_QUOTA', 'QUOTA_EXCEEDED'].includes(original.code) || (typeof dshLlm.isQuotaExceededError === 'function' && dshLlm.isQuotaExceededError(original.message))) return original
+      const status = responseStatus ?? original.status
+      const overloaded = original.code === 'PI_AI_ERROR' && CODEX_OVERLOADED.test(original.message)
+        && (status === undefined || status >= 200 && status < 300)
+      if (!response && !overloaded) return original
       // Codex pi-ai collapses JSON 429 quota and rate-limit codes into the same
       // usage-limit text. Do not guess that such a refusal is transient.
-      if (/You have hit your ChatGPT usage limit/iu.test(original.message) || response.status === 429 && original.code !== 'RATE_LIMIT') return original
+      if (/You have hit your ChatGPT usage limit/iu.test(original.message) || response?.status === 429 && original.code !== 'RATE_LIMIT') return original
+      const code = response?.status === 429 ? 'RATE_LIMIT' : 'SERVER'
       let error
-      try { error = new ErrorClass(original.message, response.status === 429 ? 'RATE_LIMIT' : 'SERVER', {
+      try { error = new ErrorClass(original.message, code, response ? {
         status: response.status,
         ...(response.delay === undefined ? {} : { providerRetryAfterMs: response.delay }),
-      }) } catch { return original }
+      } : {}) } catch { return original }
       // Older SDKs may accept options but not preserve their serializable facts.
-      return error.failure?.status === response.status && (response.delay === undefined || error.failure.providerRetryAfterMs === response.delay)
+      return error.failure?.code === code && (!response || error.failure.status === response.status && (response.delay === undefined || error.failure.providerRetryAfterMs === response.delay))
         ? { ...original, ...error.failure } : original
     },
   }
