@@ -36,6 +36,7 @@ export function DefaultModelPreference({ preference, defaultModel, t }) {
   return <div className="codexSubscriptionPreference">
     <div className="codexSubscriptionPreferenceCopy">
       <SettingsLabel description={snapshot.status === 'loading' ? undefined : [hint, snapshot.resetAvailable ? t('defaultModelResetHint') : undefined].filter(Boolean).join(' ')}>{t('defaultModelTitle')}</SettingsLabel>
+      {snapshot.status === 'ready' && snapshot.available && !snapshot.managed ? <Hint>{fill(t('defaultModelCurrent'), { value: snapshot.model ?? t('defaultModelUnknown') })}</Hint> : null}
       {snapshot.status === 'ready' && !snapshot.available ? <Hint>{hint}</Hint> : null}
       {snapshot.error ? <span className="codexSubscriptionError" role="alert">{t('defaultModelFailed')}</span> : null}
     </div>

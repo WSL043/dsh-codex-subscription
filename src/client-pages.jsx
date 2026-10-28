@@ -11,7 +11,7 @@ import { VoiceCallCard } from './client-voice-call.jsx'
 import { DiagnosticsCard } from './client-diagnostics.jsx'
 import { StorageCard } from './client-storage.jsx'
 import {
-  AutoQuotaRetryPreference, ConnectorsPreference, ContextWindowPreference, InputImageDetailPreference, ModelCatalogStatus,
+  AutoQuotaRetryPreference, CompactionPreference, ConnectorsPreference, ContextWindowPreference, InputImageDetailPreference, ModelCatalogStatus,
   PickerModelsPreference, QuickQuotaPreference, ReasoningCachePreference, ReasoningSummaryPreference, RetryPolicyPreference, SearchProviderPreference,
   StreamIdleTimeoutPreference,
 } from './client-preferences.jsx'
@@ -37,9 +37,9 @@ export function FeatureRow({ t, title, summary, beta, checked, onChange, disable
   </div>
 }
 
-function SwitchRow({ t, title, hint, state, beta, checked, disabled, reason, onChange }) {
+function SwitchRow({ t, title, hint, state, loaded, beta, checked, disabled, reason, onChange }) {
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={state ? t(`state_${state}_${checked ? 'on' : 'off'}`) : hint}>{title}{beta ? <> <small>Beta</small></> : null}</SettingsLabel>{reason ? <Hint>{reason}</Hint> : null}</div>
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={state ? t(state === 'otherModels' ? 'otherModelsHint' : `${state}RowHint`) : hint}>{title}{beta ? <> <small>Beta</small></> : null}</SettingsLabel>{loaded && (state || reason || hint) ? <Hint>{reason ?? (state ? t(`state_${state}_${checked ? 'on' : 'off'}`) : hint)}</Hint> : null}</div>
     <Switch checked={checked} label={title} disabled={disabled || Boolean(reason)} onChange={onChange} />
   </div>
 }
@@ -137,10 +137,7 @@ export function ModelsPage({ preference, t, defaultModel }) {
           <Radios snapshot={snapshot} preference={preference} field="connectionMode" values={['sse', 'websocket']} name="codex-connection-mode" label={t('connectionTitle')} text={value => t(`connection_${value}`)} />
         </div>
         <div className="codexSubscriptionDivider" />
-        <div className="codexSubscriptionPreference">
-          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('compactionHint')}>{t('compactionTitle')} <small>Beta</small></SettingsLabel></div>
-          <Radios snapshot={snapshot} preference={preference} field="compactionMode" values={['dsh', 'cloud']} name="codex-compaction-mode" label={t('compactionTitle')} text={value => t(`compaction_${value}`)} />
-        </div>
+        <CompactionPreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <div className="codexSubscriptionPreference">
           <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('reviewModelHint')}>{t('reviewModelTitle')} <small>Beta</small></SettingsLabel></div>
@@ -159,7 +156,7 @@ export function ToolsPage({ preference, rpc, t, active = true }) {
   const subagentsOn = snapshot.subagentBackend === 'codex'
   return <div className="codexSubscriptionAdvancedPreferences">
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('otherModelsTitle')}>
-      <SwitchRow t={t} title={t('otherModelsTitle')} state="otherModels" checked={others} disabled={!writable}
+      <SwitchRow loaded={snapshot.status === 'ready'} t={t} title={t('otherModelsTitle')} state="otherModels" checked={others} disabled={!writable}
         onChange={next => { void preference.set({ otherModels: next ? 'on' : 'off' }) }} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('searchSectionTitle')}>
@@ -189,10 +186,10 @@ export function CreatePage({ preference, t }) {
   return <div className="codexSubscriptionAdvancedPreferences">
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('imageSettings')}>
       <h3>{t('imageSettings')}</h3>
-      <SwitchRow t={t} title={t('imageGenerationRow')} state="imageGeneration" checked={snapshot.imageGeneration} disabled={disabled} onChange={next => set({ imageGeneration: next })} />
-      <SwitchRow t={t} title={t('imageEditingRow')} state="imageEditing" checked={snapshot.imageEditing} disabled={disabled} onChange={next => set({ imageEditing: next })} />
-      <SwitchRow t={t} title={t('imageShortcutRow')} state="imageShortcut" checked={snapshot.imageShortcut} disabled={disabled} reason={!imagesOn && !snapshot.imageShortcut ? t('imageShortcutNeedsImages') : undefined} onChange={next => set({ imageShortcut: next })} />
-      <SwitchRow t={t} title={t('imageViewerRow')} state="imageViewer" checked={snapshot.imageViewer && snapshot.imageAnnotations} disabled={disabled} onChange={next => set({ imageViewer: next, imageAnnotations: next })} />
+      <SwitchRow loaded={snapshot.status === 'ready'} t={t} title={t('imageGenerationRow')} state="imageGeneration" checked={snapshot.imageGeneration} disabled={disabled} onChange={next => set({ imageGeneration: next })} />
+      <SwitchRow loaded={snapshot.status === 'ready'} t={t} title={t('imageEditingRow')} state="imageEditing" checked={snapshot.imageEditing} disabled={disabled} onChange={next => set({ imageEditing: next })} />
+      <SwitchRow loaded={snapshot.status === 'ready'} t={t} title={t('imageShortcutRow')} state="imageShortcut" checked={snapshot.imageShortcut} disabled={disabled} reason={!imagesOn && !snapshot.imageShortcut ? t('imageShortcutNeedsImages') : undefined} onChange={next => set({ imageShortcut: next })} />
+      <SwitchRow loaded={snapshot.status === 'ready'} t={t} title={t('imageViewerRow')} state="imageViewer" checked={snapshot.imageViewer && snapshot.imageAnnotations} disabled={disabled} onChange={next => set({ imageViewer: next, imageAnnotations: next })} />
       <details className="codexAdvancedFold codexAdvancedInline">
         <summary>{t('imageAdvancedTitle')}<span>{imagesOn ? `${modelLabel(snapshot.imageModel)} · ${t(`imageQuality_${snapshot.imageQuality}`)}` : t('imageCapability_off')}</span></summary>
         <ImageChoice t={t} label={t('imageModel')} hint={snapshot.imageModel.includes('2.5') ? t('imageModelHint') : undefined} value={snapshot.imageModel} text={modelLabel(snapshot.imageModel)} disabled={disabled || !imagesOn}
@@ -203,10 +200,10 @@ export function CreatePage({ preference, t }) {
       </details>
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('creativeSketch')}>
-      <SwitchRow t={t} title={t('featureSketchTitle')} beta hint={!imagesOn ? t('featureSketchNeedsImages') : undefined} state={imagesOn ? 'sketchBoard' : undefined} checked={snapshot.imageSketch} disabled={disabled}
+      <SwitchRow loaded={snapshot.status === 'ready'} t={t} title={t('featureSketchTitle')} beta hint={!imagesOn ? t('featureSketchNeedsImages') : undefined} state={imagesOn ? 'sketchBoard' : undefined} checked={snapshot.imageSketch} disabled={disabled}
         reason={!imagesOn && !snapshot.imageSketch ? t('featureSketchNeedsImages') : undefined}
         onChange={next => set({ imageSketch: next })} />
-      <SwitchRow t={t} title={t('sketchAgentRow')} state="sketchAgent" checked={snapshot.imageSketchAgent} disabled={disabled}
+      <SwitchRow loaded={snapshot.status === 'ready'} t={t} title={t('sketchAgentRow')} state="sketchAgent" checked={snapshot.imageSketchAgent} disabled={disabled}
         reason={!snapshot.imageSketch ? t('sketchAgentNeedsBoard') : undefined} onChange={next => set({ imageSketchAgent: next })} />
     </section>
   </div>

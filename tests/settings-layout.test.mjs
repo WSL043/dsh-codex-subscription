@@ -52,7 +52,7 @@ test('settings are five task-based pages, and each feature has one place and one
   for (const piece of ['SearchProviderPreference', 'ConnectorsPreference', 'subagentBackendTitle']) assert.ok(tools.includes(piece), `${piece} is on the web and tools page`)
   assert.ok(more.includes('RemoteControlCard') && more.includes('VoiceCallCard') && more.includes('DiagnosticsCard') && more.includes('StorageCard'))
   assert.ok(create.includes('imageEditingRow') && create.includes('imageGenerationRow'), 'generation and editing are separate switches')
-  assert.ok(models.includes('advancedTitle') && models.includes('reviewModelTitle') && models.includes('StreamIdleTimeoutPreference') && models.includes('compactionMode'), 'rarely used runtime options sit in one folded Advanced')
+  assert.ok(models.includes('advancedTitle') && models.includes('reviewModelTitle') && models.includes('StreamIdleTimeoutPreference') && models.includes('CompactionPreference'), 'rarely used runtime options sit in one folded Advanced')
   assert.ok(!pages.includes('<ImageChoice t={t} label={t(\'imageGeneration'), 'on/off choices are switches, not dropdowns')
 })
 

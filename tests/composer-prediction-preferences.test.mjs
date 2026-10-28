@@ -28,10 +28,10 @@ test('input predictions default off and the existing settings RPC persists only 
   assert.equal(value, 'off')
 })
 
-async function renderPreference({ tooltip = true, locale = en } = {}) {
+async function renderPreference({ tooltip = true, locale = en, componentFile = 'composer-prediction-preferences.jsx', componentName = 'ComposerPredictionPreference' } = {}) {
   const require = createRequire(import.meta.resolve('tsdown'))
   const { rolldown } = await import(pathToFileURL(require.resolve('rolldown')).href)
-  const source = await readFile(new URL('../src/composer-prediction-preferences.jsx', import.meta.url), 'utf8') + "\nexport { SettingsLabel, Hint } from './client-hint.jsx'"
+  const source = await readFile(new URL('../src/' + componentFile, import.meta.url), 'utf8') + "\nexport { SettingsLabel, Hint } from './client-hint.jsx'"
   const helpSource = await readFile(new URL('../src/client-hint.jsx', import.meta.url), 'utf8')
   const bundle = await rolldown({ input: 'preference', transform: { jsx: { runtime: 'automatic' } }, plugins: [{
     name: 'input-prediction-preference-fixture',
@@ -47,16 +47,19 @@ async function renderPreference({ tooltip = true, locale = en } = {}) {
     'react/jsx-runtime': { jsx: element, jsxs: element },
     './client-primitives.js': { Switch, Tooltip },
     './client-shared.js': { usePreferenceSnapshot: () => snapshot },
+    './settings-contract.js': await import('../src/settings-contract.js'),
+    './image-models.js': await import('../src/image-models.js'),
   }
   const module = { exports: {} }, patches = [], preference = { set: patch => patches.push(patch) }
-  new vm.Script(code).runInNewContext({ module, exports: module.exports, require: id => dependencies[id] })
+  new vm.Script(code).runInNewContext({ module, exports: module.exports, require: id => dependencies[id] ?? new Proxy({}, { get: () => () => null }) })
   const render = patch => {
     snapshot = { ...snapshot, ...patch }
     const row = module.exports.ComposerPredictionPreference({ preference, t: key => locale[key] })
     const [help, hint] = row.props.children[0].props.children
     return { row, control: row.props.children.find(child => child.type === Switch), help, hint, label: Tooltip ? help.props.children : help }
   }
-  return { render, patches, label: props => module.exports.SettingsLabel(props), hint: props => module.exports.Hint(props) }
+  const renderTree = (patch, props = {}) => { snapshot = { ...snapshot, ...patch }; return module.exports[componentName]({ preference, t: key => locale[key], ...props }) }
+  return { render, renderTree, patches, Switch, Tooltip, label: props => module.exports.SettingsLabel(props), hint: props => module.exports.Hint(props) }
 }
 
 test('the compact prediction row uses the host switch and a keyboard-accessible host tooltip', async () => {
@@ -66,7 +69,7 @@ test('the compact prediction row uses the host switch and a keyboard-accessible 
   assert.equal(control.props.label, 'Input predictions')
   assert.equal(control.props.checked, false)
   assert.equal(control.props.disabled, false)
-  assert.equal(hint.props.children, en.composerPredictionsShortHint)
+  assert.equal(hint.props.children, en.state_predictions_off)
   assert.equal(help.props.label, en.composerPredictionsHint)
   assert.equal(help.props.portal, true)
   assert.equal(help.props.openOnClick, true)
@@ -78,7 +81,10 @@ test('the compact prediction row uses the host switch and a keyboard-accessible 
   assert.equal(label.props.children[2].type, 'small')
   assert.equal(label.props.children[2].props.children, 'Beta')
   control.props.onChange(true)
-  fixture.render({ composerPredictions: 'on' }).control.props.onChange(false)
+  const enabled = fixture.render({ composerPredictions: 'on' })
+  assert.equal(enabled.hint.props.children, en.state_predictions_on)
+  assert.equal(enabled.help.props.label, help.props.label, 'detailed help stays independent of on/off state')
+  enabled.control.props.onChange(false)
   assert.deepEqual(fixture.patches.map(patch => ({ ...patch })), [{ composerPredictions: 'on' }, { composerPredictions: 'off' }])
 })
 
@@ -89,7 +95,7 @@ test('old hosts retain the full explanation through a focusable title and access
   assert.equal(label.props.tabIndex, 0)
   assert.equal(label.props.title, zh.composerPredictionsHint)
   assert.equal(label.props['aria-description'], zh.composerPredictionsHint)
-  assert.equal(hint.props.children, 'Tab 填入草稿')
+  assert.equal(hint.props.children, zh.state_predictions_off)
 })
 
 test('the input prediction switch respects loading, read-only and pending-save settings states', async () => {
@@ -135,4 +141,78 @@ test('live errors and confirmations stay inline without layout observers or hidd
   assert.equal(message.type, 'p')
   assert.equal(message.props.children, 'Confirm clearing the local cache.')
   assert.equal(message.props.className, 'codexSubscriptionPreferenceHint')
+})
+
+
+const descendants = node => {
+  if (node == null || typeof node !== 'object') return []
+  const children = node.props?.children
+  return [node, ...(Array.isArray(children) ? children.flat(Infinity) : [children]).flatMap(descendants)]
+}
+const inlineText = (node, tooltip) => {
+  if (node == null || typeof node === 'boolean') return ''
+  if (typeof node !== 'object') return String(node)
+  if (node.type === tooltip) return ''
+  const children = node.props?.children
+  return (Array.isArray(children) ? children.flat(Infinity) : [children]).map(child => inlineText(child, tooltip)).join(' ')
+}
+
+test('creative switches show current state inline while detailed help stays in the host tooltip', async () => {
+  const fixture = await renderPreference({ componentFile: 'client-pages.jsx', componentName: 'CreatePage', locale: zh })
+  const base = { status: 'ready', writable: true, imageGeneration: true, imageEditing: true, imageShortcut: true, imageViewer: true, imageAnnotations: true, imageSketch: true, imageSketchAgent: true, imageModel: 'gpt-image-2', imageQuality: 'auto' }
+  for (const [field, state, title] of [['imageGeneration','imageGeneration','imageGenerationRow'],['imageEditing','imageEditing','imageEditingRow'],['imageShortcut','imageShortcut','imageShortcutRow'],['imageViewer','imageViewer','imageViewerRow'],['imageSketch','sketchBoard','featureSketchTitle'],['imageSketchAgent','sketchAgent','sketchAgentRow']]) {
+    for (const enabled of [true, false]) {
+      const tree = fixture.renderTree({ ...base, [field]: enabled, ...(field === 'imageViewer' ? { imageAnnotations: enabled } : {}) })
+      const row = descendants(tree).find(node => node.type === 'div' && node.props.className === 'codexSubscriptionPreference' && descendants(node).some(child => child.type === fixture.Switch && child.props.label === zh[title]))
+      assert.ok(row, title)
+      const text = inlineText(row, fixture.Tooltip)
+      assert.ok(text.includes(zh['state_'+state+'_'+(enabled ? 'on' : 'off')]), title+' has its actual state outside the tooltip')
+      const help = descendants(row).find(node => node.type === fixture.Tooltip)
+      assert.equal(help.props.label, zh[state+'RowHint'])
+      assert.ok(!text.includes(zh[state+'RowHint']), 'long detailed help is not expanded inline')
+    }
+  }
+  const imageToolsOff = fixture.renderTree({ ...base, imageGeneration: false, imageEditing: false, imageSketch: true })
+  assert.ok(inlineText(imageToolsOff, fixture.Tooltip).includes(zh.featureSketchNeedsImages), 'conditional capability guidance remains visible even with a saved-on board')
+  const blocked = fixture.renderTree({ ...base, imageSketch: false, imageSketchAgent: true })
+  const text = inlineText(blocked, fixture.Tooltip)
+  assert.ok(text.includes(zh.sketchAgentNeedsBoard))
+  assert.ok(!text.includes(zh.state_sketchAgent_on), 'a stored on flag must not claim availability while blocked')
+})
+
+test('reasoning cache uses the common switch and keeps a blocked saved choice reversible', async () => {
+  const fixture = await renderPreference({ componentFile: 'client-preferences.jsx', componentName: 'ReasoningCachePreference' })
+  const base = { status: 'ready', writable: true, saving: false, compactionMode: 'dsh', retryPolicy: 'normal', reasoningCache: 'on' }
+  let tree = fixture.renderTree(base), control = descendants(tree).find(node => node.type === fixture.Switch)
+  assert.equal(control.props.checked, true)
+  assert.equal(control.props.disabled, false)
+  assert.ok(inlineText(tree, fixture.Tooltip).includes(en.state_reasoningCache_on))
+  control.props.onChange(false)
+  assert.deepEqual({ ...fixture.patches.at(-1) }, { reasoningCache: 'off' })
+  tree = fixture.renderTree({ ...base, reasoningCache: 'off' })
+  assert.ok(inlineText(tree, fixture.Tooltip).includes(en.state_reasoningCache_off))
+  tree = fixture.renderTree({ ...base, compactionMode: 'cloud' })
+  control = descendants(tree).find(node => node.type === fixture.Switch)
+  assert.equal(control.props.checked, true)
+  assert.equal(control.props.disabled, false, 'the user can turn off a saved on choice even while blocked')
+  assert.ok(inlineText(tree, fixture.Tooltip).includes(en.reasoningCacheCloud))
+  assert.ok(!inlineText(tree, fixture.Tooltip).includes(en.state_reasoningCache_on))
+  tree = fixture.renderTree({ reasoningCache: 'off' })
+  assert.equal(descendants(tree).find(node => node.type === fixture.Switch).props.disabled, true)
+  tree = fixture.renderTree({ ...base, status: 'loading' })
+  assert.ok(!inlineText(tree, fixture.Tooltip).includes(en.state_reasoningCache_on), 'loading does not invent a current state')
+})
+
+
+test('cloud compaction uses the same switch while preserving native dsh/cloud settings', async () => {
+  const fixture = await renderPreference({ componentFile: 'client-preferences.jsx', componentName: 'CompactionPreference' })
+  const base = { status: 'ready', writable: true, saving: false, compactionMode: 'dsh' }
+  for (const enabled of [false, true]) {
+    const tree = fixture.renderTree({ ...base, compactionMode: enabled ? 'cloud' : 'dsh' })
+    const control = descendants(tree).find(node => node.type === fixture.Switch)
+    assert.equal(control.props.checked, enabled)
+    assert.ok(inlineText(tree, fixture.Tooltip).includes(en['state_compaction_'+(enabled?'on':'off')]))
+    control.props.onChange(!enabled)
+    assert.deepEqual({ ...fixture.patches.at(-1) }, { compactionMode: enabled ? 'dsh' : 'cloud' })
+  }
 })

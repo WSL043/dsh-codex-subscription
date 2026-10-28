@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { SettingsLabel } from './client-hint.jsx'
+import { Hint, SettingsLabel } from './client-hint.jsx'
 import { IconChevronDownOutline14, Menu, Switch } from './client-primitives.js'
 import { CHANNEL } from './rpc-contract.js'
 import { usePreferenceSnapshot } from './client-shared.js'
@@ -344,7 +344,7 @@ export function VoiceCallCard({ rpc, preference, snapshot, t }) {
   const languages = VOICE_LANGUAGES.map(value => ({ id: value, label: value === 'auto' ? t('voiceAuto') : t(`voiceLang_${value}`) }))
   return <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('voiceTitle')}>
     <div className="codexSubscriptionPreference">
-      <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={[t(on ? 'state_voice_on' : 'state_voice_off'), t('voicePreviewHint'), t('voiceMediaHint')].join(' ')}>{t('voiceTitle')} <small>Beta</small></SettingsLabel></div>
+      <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={[t('voiceHint'), t('voicePreviewHint'), t('voiceMediaHint')].join(' ')}>{t('voiceTitle')} <small>Beta</small></SettingsLabel>{snapshot.status === 'ready' ? <Hint>{t(on ? 'state_voice_on' : 'state_voice_off')}</Hint> : null}</div>
       <Switch checked={on} label={t('voiceTitle')} disabled={!snapshot.writable} onChange={next => { void preference.set({ [VOICE_CALL_FIELD]: next ? 'on' : 'off' }) }} />
     </div>
     {on ? <>

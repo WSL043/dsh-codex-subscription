@@ -7,7 +7,7 @@ export function ComposerPredictionPreference({ preference, t }) {
   return <div className="codexSubscriptionPreference">
     <div className="codexSubscriptionPreferenceCopy">
       <SettingsLabel description={t('composerPredictionsHint')}>{t('composerPredictions')} <small>Beta</small></SettingsLabel>
-      <span className="codexSubscriptionPreferenceHint">{t('composerPredictionsShortHint')}</span>
+      {snapshot.status === 'ready' ? <span className="codexSubscriptionPreferenceHint">{t(`state_predictions_${snapshot.composerPredictions === 'on' ? 'on' : 'off'}`)}</span> : null}
     </div>
     <Switch checked={snapshot.composerPredictions === 'on'} label={t('composerPredictions')}
       disabled={snapshot.status !== 'ready' || !snapshot.writable || snapshot.saving}
