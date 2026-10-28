@@ -199,3 +199,24 @@ test('network diagnostics keep actionable request failures without proxy address
   })
   assert.doesNotMatch(JSON.stringify(transport.snapshot()), /secret|127\.0\.0\.1|7890/u)
 })
+
+test('caller cancellation is not a transport timeout, while real timeout signals remain diagnosed', async () => {
+  const transport = createCodexNetworkTransport({
+    env: { HTTPS_PROXY: 'http://127.0.0.1:7890' },
+    fetchThroughProxy: async (_input, init) => new Promise((_resolve, reject) => {
+      if (init.signal.aborted) reject(init.signal.reason)
+      else init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true })
+    }),
+  })
+  const cancelled = new AbortController()
+  const request = transport.fetch('predictions', 'https://chatgpt.com/backend-api/codex/responses', { signal: cancelled.signal })
+  await new Promise(resolve => setImmediate(resolve))
+  cancelled.abort()
+  await assert.rejects(request, error => error.name === 'AbortError')
+  assert.equal(transport.snapshot().predictions, undefined)
+  const alive = setTimeout(() => {}, 1000)
+  try {
+    await assert.rejects(transport.fetch('predictions', 'https://chatgpt.com/backend-api/codex/responses', { signal: AbortSignal.timeout(10) }), error => error.name === 'TimeoutError')
+    assert.equal(transport.snapshot().predictions.code, 'timeout')
+  } finally { clearTimeout(alive) }
+})

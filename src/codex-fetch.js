@@ -4,9 +4,12 @@ import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { CODEX_SEARCH_URL } from './codex-search.js'
 import { authFailureMessage, SIGN_IN_RENEW } from './http-failure.js'
 import { USER_AGENT } from './version.js'
+import { setTimeout as wait } from 'node:timers/promises'
+import { diagnosticLog } from './diagnostic-log.js'
 
 export const CODEX_FETCH_PROVIDER_ID = 'codex-subscription-fetch'
 const MAX_CONTENT = 64_000
+const RETRYABLE = new Set([500, 502, 503, 504])
 const httpUrl = value => {
   try {
     const url = new URL(value)
@@ -36,42 +39,64 @@ export function createCodexFetchProvider(options) {
       const timeout = AbortSignal.timeout(options.timeoutMs ?? 30_000)
       const activeSignal = signal === undefined ? timeout : AbortSignal.any([signal, timeout])
       try {
-        const response = await fetchPage(CODEX_SEARCH_URL, {
-          method: 'POST', redirect: 'error',
-          headers: { authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, accept: 'application/json', 'content-type': 'application/json', originator: 'pi', 'user-agent': USER_AGENT },
-          body: JSON.stringify({
-            id: options.resolveSessionId?.() || randomUUID(), model: options.resolveModel?.() || 'gpt-5.6-luna', input: url,
-            commands: { open: [{ ref_id: url }], response_length: 'long' },
-            settings: { allowed_callers: ['direct'], external_web_access: true }, max_output_tokens: 4096,
-          }),
-          signal: activeSignal,
-        })
-        activeSignal.throwIfAborted()
-        if (!response.ok) {
-          const authFailure = await authFailureMessage(response)
-          throw new WebError(authFailure ?? `Codex webpage request failed (HTTP ${response.status})`, authFailure === SIGN_IN_RENEW ? 'WEB_PROVIDER_CREDENTIAL_MISSING' : 'WEB_PROVIDER_ERROR')
-        }
-        const value = await response.json()
-        activeSignal.throwIfAborted()
-        // SearchResponse.results is optional: real RFC opens return [] with readable
-        // output. The service's normal page heading carries the final URL instead.
-        // HTTP 200 "Internal Error ()" has neither a source nor that normal heading.
-        const source = Array.isArray(value?.results) ? value.results.find(item => httpUrl(item?.url) !== undefined && item?.type !== 'error' && item?.title !== 'Internal Error') : undefined
-        const output = typeof value?.output === 'string' ? value.output : ''
-        const heading = output.split(/\r?\n/u, 1)[0].trim()
-        const headingUrl = heading.endsWith(')') ? httpUrl(heading.slice(heading.lastIndexOf(' (') + 2, -1)) : undefined
-        const metadata = output.slice(0, 1024)
-        const pageUrl = source ? httpUrl(source.url) : headingUrl && /Content type:/u.test(metadata) && /Source: open\(/u.test(metadata) ? headingUrl : undefined
-        if (!pageUrl || output.trim() === '' || /^Internal Error(?:\s|\()/iu.test(heading)) throw new WebError('Codex could not read this webpage', 'WEB_PROVIDER_ERROR')
-        const lineCount = Number(metadata.match(/Total lines: (\d+)/u)?.[1])
-        const shownLines = new Set([...output.matchAll(/^L(\d+):/gmu)].map(match => Number(match[1]))).size
-        const partialPage = Number.isSafeInteger(lineCount) && lineCount > 0 && shownLines > 0 && shownLines < lineCount
-        // Like DSH's native Fetch API provider, 200 means this text retrieval succeeded;
-        // the remote extraction service does not expose the origin server's HTTP status.
-        return {
-          url: pageUrl, statusCode: 200,
-          body: { kind: 'text', content: output.slice(0, MAX_CONTENT) },
-          truncated: output.length > MAX_CONTENT || partialPage,
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          const response = await fetchPage(CODEX_SEARCH_URL, {
+            method: 'POST', redirect: 'error',
+            headers: { authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, accept: 'application/json', 'content-type': 'application/json', originator: 'pi', 'user-agent': USER_AGENT },
+            body: JSON.stringify({
+              id: options.resolveSessionId?.() || randomUUID(), model: options.resolveModel?.() || 'gpt-5.6-luna', input: url,
+              commands: { open: [{ ref_id: url }], response_length: 'long' },
+              settings: { allowed_callers: ['direct'], external_web_access: true }, max_output_tokens: 4096,
+            }),
+            signal: activeSignal,
+          })
+          activeSignal.throwIfAborted()
+          diagnosticLog.info('fetch', `Codex webpage HTTP ${response.status}`, `attempt=${attempt}`)
+          if (!response.ok) {
+            if (RETRYABLE.has(response.status) && attempt === 1) {
+              await response.body?.cancel()
+              await wait(options.retryDelayMs ?? 250, undefined, { signal: activeSignal })
+              continue
+            }
+            const authFailure = await authFailureMessage(response)
+            throw new WebError(authFailure ?? `Codex webpage request failed (HTTP ${response.status})`, authFailure === SIGN_IN_RENEW ? 'WEB_PROVIDER_CREDENTIAL_MISSING' : 'WEB_PROVIDER_ERROR')
+          }
+          const value = await response.json()
+          activeSignal.throwIfAborted()
+          // SearchResponse.results is optional: real RFC opens return [] with readable
+          // output. The service's normal page heading carries the final URL instead.
+          // HTTP 200 "Internal Error ()" has neither a source nor that normal heading.
+          const source = Array.isArray(value?.results) ? value.results.find(item => httpUrl(item?.url) !== undefined && item?.type !== 'error' && item?.title !== 'Internal Error') : undefined
+          const output = typeof value?.output === 'string' ? value.output : ''
+          const heading = output.split(/\r?\n/u, 1)[0].trim()
+          const headingUrl = heading.endsWith(')') ? httpUrl(heading.slice(heading.lastIndexOf(' (') + 2, -1)) : undefined
+          const metadata = output.slice(0, 1024)
+          const pageUrl = source ? httpUrl(source.url) : headingUrl && /Content type:/u.test(metadata) && /Source: open\(/u.test(metadata) ? headingUrl : undefined
+          const internalError = /^Internal Error(?:\s|\(|$)/iu.test(heading)
+          if (!pageUrl || output.trim() === '' || internalError) {
+            // Retry only the service's transient internal-error envelope, not
+            // blocked pages, malformed extraction, authentication, or another source.
+            if (attempt === 1 && !source && /^Internal Error(?:\s*\(\s*\))?\s*$/iu.test(heading)
+              && !/non-retryable|not accessible|not safe|blocked|robots|forbidden|access denied/iu.test(output)) {
+              diagnosticLog.warn('fetch', 'Codex webpage service returned an internal error; retrying once')
+              await wait(options.retryDelayMs ?? 250, undefined, { signal: activeSignal })
+              continue
+            }
+            const upstreamTimeout = internalError && /(?:^|\n)Failed to fetch [^\n]*:\s*\(\d+\)\s*Timeout fetching/iu.test(output)
+            diagnosticLog.warn('fetch', 'Codex webpage text unavailable', upstreamTimeout ? 'upstream-timeout' : internalError ? 'upstream-error' : !pageUrl ? 'missing-source' : 'empty-output')
+            if (upstreamTimeout) throw new WebError('Codex webpage service timed out fetching this page. Try another page, or change the webpage provider in settings.', 'WEB_FETCH_TIMEOUT')
+            throw new WebError('Codex could not read this webpage. Try another page, or change the webpage provider in settings.', 'WEB_PROVIDER_ERROR')
+          }
+          const lineCount = Number(metadata.match(/Total lines: (\d+)/u)?.[1])
+          const shownLines = new Set([...output.matchAll(/^L(\d+):/gmu)].map(match => Number(match[1]))).size
+          const partialPage = Number.isSafeInteger(lineCount) && lineCount > 0 && shownLines > 0 && shownLines < lineCount
+          // Like DSH's native Fetch API provider, 200 means this text retrieval succeeded;
+          // the remote extraction service does not expose the origin server's HTTP status.
+          return {
+            url: pageUrl, statusCode: 200,
+            body: { kind: 'text', content: output.slice(0, MAX_CONTENT) },
+            truncated: output.length > MAX_CONTENT || partialPage,
+          }
         }
       } catch (error) {
         if (signal?.aborted || error?.name === 'AbortError') throw new WebError('Codex webpage request aborted', 'WEB_ABORTED')

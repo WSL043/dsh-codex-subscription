@@ -101,6 +101,14 @@ The board supports editable shapes and text, native curves, and a side control f
 
 Flare / Sunburst request overrides remain experimental: successful generation does not confirm which image engine or quality the subscription backend used.
 
+### Input predictions
+
+Enable **Input predictions** under **Settings → Codex subscription → Models**; it is off by default. GPT-6 Astra, GPT-6.1 Sol and GPT-6.1 Terra are supported, subject to the account's official prediction capability check.
+
+After a completed reply, an empty draft can receive a suggested next message based on the current conversation text. Focus the composer to see the grey suggestion; Tab inserts it as an editable, undoable draft without sending. Briefly losing focus preserves the same request and result. Editing the draft, switching conversations or accounts, or disabling predictions invalidates the old suggestion. The model may return no suggestion.
+
+Predictions make additional requests; quota exemption for this third-party integration is unconfirmed. They neither retrieve other conversations nor run tools.
+
 ### Composer speed
 
 With a supported Codex model selected, open the composer's model menu to choose Standard or Fast.

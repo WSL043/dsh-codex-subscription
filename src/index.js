@@ -86,6 +86,7 @@ const REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 
 import { createSubscriptionRpcHandler } from './subscription-rpc.js'
 import { createVoicePreview } from './voice-preview.js'
+import { createComposerPredictions } from './composer-predictions.js'
 import { withEndCallTool } from './voice-tools.js'
 import { createNativeVoiceHost } from './voice-native-host.js'
 export { createSubscriptionRpcHandler } from './subscription-rpc.js'
@@ -258,6 +259,7 @@ export function apply(ctx, config = {}) {
         connectionMode: settings.get().connectionMode ?? 'sse',
         reviewModel: settings.get().reviewModel ?? 'session',
         remoteControl: settings.get().remoteControl ?? 'off',
+        composerPredictions: settings.get().composerPredictions === 'on' ? 'on' : 'off',
         otherModels: settings.get().otherModels === 'off' ? 'off' : 'on',
         subagentBackend: settings.get().subagentBackend ?? 'dsh',
         subagentBackendAvailable: subagentBackend !== undefined,
@@ -779,6 +781,13 @@ export function apply(ctx, config = {}) {
   })
   const voicePreview = createVoicePreview({ fetch: (input, init) => network.fetch('voice', input, init, { standardHttps: true }), credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal), userAgent: USER_AGENT })
   ctx.effect(() => () => voicePreview.clear())
+  const composerPredictions = createComposerPredictions({
+    fetch: (input, init) => network.fetch('predictions', input, init, { standardHttps: true }),
+    credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal),
+    enabled: () => settings.get().composerPredictions === 'on', userAgent: USER_AGENT,
+  })
+  ctx.effect(() => () => composerPredictions.clear())
+  ctx.effect(() => settings.watch(value => { if (value.composerPredictions !== 'on') composerPredictions.clear() }))
   const subscriptionHandler = createSubscriptionRpcHandler({
     authHandler: createCodexRpcHandler(coordinator, { openExternal: openCodexAuthUrl }),
     usageReader,
@@ -793,7 +802,8 @@ export function apply(ctx, config = {}) {
     desktopVoice,
     nativeVoice,
     voicePreview,
-    onAccountChanged: () => { connectorsClient.clear(); usageProfileReader.clear(); voicePreview.clear(); quotaRetryHandler.notifyAccountChanged() },
+    composerPredictions,
+    onAccountChanged: () => { connectorsClient.clear(); usageProfileReader.clear(); voicePreview.clear(); composerPredictions.clear(); quotaRetryHandler.notifyAccountChanged() },
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, review: provider, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
     onCleanupFailure: () => diagnosticOperations.record('account/cleanup', 'failed'),
     modelCatalog,

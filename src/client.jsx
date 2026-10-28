@@ -23,6 +23,7 @@ import { VoiceCallButton } from './client-voice-call.jsx'
 import { CodexSection } from './client-section.jsx'
 import { createHostDiagnostics } from './diagnostic-host.js'
 import { restoreVoiceConversation } from './voice-browser.js'
+import { ComposerPrediction, PREDICTION_CSS } from './client-predictions.jsx'
 
 export const inject = [
   'slots', 'locale', 'connection', 'remote', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
@@ -52,7 +53,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = 'dsh-codex-subscription'
-    tag.textContent = STYLE + IMAGE_PREVIEWS_CSS
+    tag.textContent = STYLE + IMAGE_PREVIEWS_CSS + PREDICTION_CSS
     document.head.append(tag)
     return () => tag.remove()
   }, 'codex-subscription: style')
@@ -114,6 +115,12 @@ export function apply(ctx) {
       directory: (scopedDirectories ?? rootDirectories).directoryFor(sessionId).store,
     }),
   }, ComposerRight))
+  ctx.slots.inject('conversation.input.overlay', () => ctx.slots.register({
+    name: 'conversation.input.overlay', id: 'codex-subscription-prediction', order: 20,
+    inject: sessionId => ({ sessionId, preference, rpc, t, accountStatus,
+      directory: (scopedDirectories ?? rootDirectories).directoryFor(sessionId).store,
+    }),
+  }, ComposerPrediction))
   const installDirectorySlots = scope => {
     scope.effect(() => diagnostics.register(scope.slots), 'codex-subscription: scoped host inspection')
     const modelDirectories = scope.get('modelDirectories')

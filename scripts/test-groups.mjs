@@ -5,6 +5,7 @@ const deliveryTests = new Set([
   'official-cohort', 'publish-idempotency', 'release-contract', 'release-notes',
   'subscription-image-viewer-contract', 'support-intake', 'issue-intake-behavior',
   'client-chunks', 'settings-panel-lifecycle', 'sketch-workspace-loading',
+  'composer-prediction-preferences',
 ])
 
 /** New tests default to behavior, so adding a suite cannot silently skip CI. */

@@ -64,7 +64,7 @@ test('HTTP, malformed JSON, network and timeout failures are sanitized and never
     let calls = 0
     await assert.rejects(setup({ fetch: async () => { calls += 1; return new Response('private-server-error', { status }) } }).fetch({ url: target }), error =>
       error.code === (status === 401 || status === 403 ? 'WEB_PROVIDER_CREDENTIAL_MISSING' : 'WEB_PROVIDER_ERROR') && !error.message.includes('private'))
-    assert.equal(calls, 1)
+    assert.equal(calls, status === 503 ? 2 : 1)
   }
   await assert.rejects(setup({ fetch: async () => new Response('{private') }).fetch({ url: target }), error => error.code === 'WEB_PROVIDER_ERROR' && !error.message.includes('private'))
   await assert.rejects(setup({ fetch: async () => { throw Error('private-token') } }).fetch({ url: target }), error => error.code === 'WEB_PROVIDER_ERROR' && !error.message.includes('private'))
@@ -72,6 +72,46 @@ test('HTTP, malformed JSON, network and timeout failures are sanitized and never
   // Keep the event loop alive while AbortSignal.timeout's unref timer is being exercised.
   const alive = setTimeout(() => {}, 1000)
   try { await assert.rejects(waiting.fetch({ url: target }), error => error.code === 'WEB_FETCH_TIMEOUT') } finally { clearTimeout(alive) }
+})
+
+test('transient webpage service failures retry once on the same provider within the original budget', async () => {
+  for (const first of [new Response('', { status: 500 }), Response.json({ output: 'Internal Error ()', results: [] })]) {
+    const calls = []
+    const result = await setup({ retryDelayMs: 0, fetch: async (url, init) => {
+      calls.push({ url, signal: init.signal, body: JSON.parse(init.body) })
+      return calls.length === 1 ? first : Response.json(success)
+    } }).fetch({ url: target })
+    assert.equal(result.body.content, success.output)
+    assert.equal(calls.length, 2)
+    assert.equal(calls[0].url, calls[1].url)
+    assert.equal(calls[0].signal, calls[1].signal)
+    assert.deepEqual(calls[0].body.commands, calls[1].body.commands)
+  }
+  for (const output of ['Blocked by site', 'Internal Error ()\nURL is not accessible via this tool.', 'Internal Error ()\nURL is not safe to open (non-retryable error)']) {
+    let calls = 0
+    await assert.rejects(setup({ retryDelayMs: 0, fetch: async () => { calls++; return Response.json({ output, results: [] }) } }).fetch({ url: target }))
+    assert.equal(calls, 1)
+  }
+})
+
+test('cancelling during the retry delay stops before a second webpage request', async () => {
+  const controller = new AbortController(); let calls = 0
+  const provider = setup({ retryDelayMs: 1000, fetch: async () => {
+    calls++
+    setTimeout(() => controller.abort(), 10)
+    return new Response('', { status: 503 })
+  } })
+  await assert.rejects(provider.fetch({ url: target }, controller.signal), error => error.code === 'WEB_ABORTED')
+  assert.equal(calls, 1)
+})
+
+test('real HTTP 200 upstream fetch timeouts remain errors after one retry, without leaking the raw page output', async () => {
+  let calls = 0
+  await assert.rejects(setup({ retryDelayMs: 0, fetch: async () => {
+    calls++
+    return Response.json({ output: `Internal Error ()\nFailed to fetch ${target}: (400) Timeout fetching`, results: [{ type: 'text_result', title: 'Internal Error' }] })
+  } }).fetch({ url: target }), error => error.code === 'WEB_FETCH_TIMEOUT' && !error.message.includes(target))
+  assert.equal(calls, 2)
 })
 
 test('signed-out, model-disabled and invalid URL calls make no network request', async () => {

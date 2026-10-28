@@ -16,6 +16,7 @@ export const PREFERENCE_FIELDS = Object.freeze({
   compactionMode: { choices: ['dsh', 'cloud'], default: 'dsh', error: 'Invalid compaction mode' },
   reasoningCache: { choices: ['off', 'on', 'sol'], default: 'on', error: 'Invalid reasoning cache preference' },
   [DEFAULT_REASONING_EFFORT_FIELD]: { choices: DEFAULT_REASONING_EFFORTS, default: DEFAULT_REASONING_EFFORT, error: 'Invalid default reasoning effort' },
+  composerPredictions: { choices: ['off', 'on'], default: 'off', error: 'Invalid input prediction setting' },
   connectionMode: { choices: ['sse', 'websocket'], default: 'sse', error: 'Invalid connection mode' },
   reviewModel: { choices: ['session', 'official'], default: 'session', error: 'Invalid review model' },
   remoteControl: { choices: ['off', 'on'], default: 'off', error: 'Invalid Remote Control setting' },

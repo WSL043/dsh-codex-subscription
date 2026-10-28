@@ -6,6 +6,7 @@ import { createDiagnosticOperations, safeOperations } from '../src/diagnostic-op
 import { capabilityCoverage } from '../src/diagnostic-capabilities.js'
 import { projectHostSlots, createHostDiagnostics } from '../src/diagnostic-host.js'
 import { diagnosticSummary } from '../src/diagnostic-summary.js'
+import { diagnosticLog } from '../src/diagnostic-log.js'
 
 test('cancellation and unrelated success cannot clear a failure, even with browser clock skew', () => {
   const report = { generatedAt: new Date(100).toISOString(), inspection: { checks: [], capabilities: [] }, operations: { dropped: 1, events: [
@@ -82,6 +83,19 @@ test('operation recording preserves failures and recovery without inputs or outp
   const rows = capabilityCoverage({ account: { status: 'signed-in' }, preference: {}, checks: [], operations: store.snapshot(), now: 101 })
   assert.equal(rows.find(x => x.id === 'settings').latest.status, 'completed')
   assert.equal(capabilityCoverage({ account: {}, preference: {}, checks: [], operations: store.snapshot(), now: 1_000_000 }).find(x => x.id === 'settings').execution, 'not-verified')
+})
+
+test('prediction diagnostics distinguish readiness, no suggestion and cancellation without retaining text', async () => {
+  diagnosticLog.clear()
+  const store = createDiagnosticOperations()
+  for (const value of [{ prediction: 'private suggestion' }, { prediction: null }, { prediction: null, reason: 'unavailable' }]) {
+    await store.wrap(async () => ({ ok: true, value }))('predictions/generate', { private: 'context' })
+  }
+  const controller = new AbortController(); controller.abort()
+  await assert.rejects(store.wrap(async () => { throw controller.signal.reason })('predictions/generate', {}, controller.signal))
+  const lines = diagnosticLog.snapshot().entries.filter(x => x.area === 'predictions')
+  assert.deepEqual(lines.map(x => x.message), ['suggestion ready', 'no suggestion', 'no suggestion: not available', 'predictions/generate cancelled'])
+  assert.doesNotMatch(JSON.stringify(lines), /private|context|timeout/)
 })
 
 test('host inspection uses official topology, excludes labels and degrades on unsupported hosts', async () => {

@@ -3,12 +3,13 @@ const actions = Object.freeze({
   'login/start': 'account', 'login/submit': 'account', 'login/cancel': 'account', logout: 'account',
   'account/select': 'accounts', 'account/remove': 'accounts', 'preferences/update': 'settings',
   'account/cleanup': 'accounts',
+  'predictions/generate': 'predictions',
   usage: 'quota', 'preferences/models': 'models', 'storage/status': 'storage', 'storage/clear-forecast': 'storage',
   'runtime/install': 'subagents', 'runtime/remove': 'subagents', 'runtime/cancel': 'subagents',
   codex_image_generate: 'images', codex_sketch: 'sketch',
 })
 import { diagnosticLog } from './diagnostic-log.js'
-const QUIET = new Set(['usage', 'storage/status', 'preferences/models'])
+const QUIET = new Set(['usage', 'storage/status', 'preferences/models', 'predictions/generate'])
 export function safeOperations(raw) {
   if (!Array.isArray(raw?.events)) return undefined
   return { scope: 'plugin-process', capacity: 32,
@@ -28,6 +29,7 @@ export function createDiagnosticOperations({ now = Date.now } = {}) {
     events.push({ sequence: ++sequence, capability: actions[action], action, source, status, observedAt: now() })
     if (status === 'failed') diagnosticLog.error(actions[action], `${action} failed`)
     else if (status === 'completed' && !QUIET.has(action)) diagnosticLog.info(actions[action], `${action} completed`)
+    else if (status === 'cancelled' && action === 'predictions/generate') diagnosticLog.info('predictions', 'predictions/generate cancelled')
     if (events.length > 32) { events.shift(); dropped++ }
   }
   return {
@@ -35,6 +37,10 @@ export function createDiagnosticOperations({ now = Date.now } = {}) {
     wrap: handler => async (endpoint, payload, signal) => {
       try {
         const result = await handler(endpoint, payload, signal)
+        if (endpoint === 'predictions/generate' && result?.ok === true) {
+          const reason = { disabled: 'disabled', authentication: 'not signed in', unavailable: 'not available' }[result.value?.reason]
+          diagnosticLog.info('predictions', result.value?.prediction ? 'suggestion ready' : `no suggestion${reason ? `: ${reason}` : ''}`)
+        }
         record(endpoint, result?.ok === true ? 'completed' : 'failed')
         return result
       } catch (error) { record(endpoint, signal?.aborted ? 'cancelled' : 'failed'); if (!signal?.aborted) diagnosticLog.error(actions[endpoint] ?? 'rpc', `${endpoint} threw`, error); throw error }

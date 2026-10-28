@@ -297,6 +297,7 @@ export function createCodexNetworkTransport(options = {}) {
     let routed = false
     try {
       const value = await withCodexNetwork(operation, { ...options, ...connection, onRoute: source => { route = source; routed = true } })
+      connection.signal?.throwIfAborted()
       if (value instanceof Response && !value.ok) {
         remember(area, { status: 'failed', stage: 'http', code: 'http-error', httpStatus: value.status, route, elapsed: elapsedBucket(now() - startedAt) })
       } else if (routed || value instanceof Response) {
@@ -304,6 +305,9 @@ export function createCodexNetworkTransport(options = {}) {
       }
       return value
     } catch (error) {
+      // A caller changing drafts or closing a view is not a network failure.
+      // Keep real AbortSignal.timeout failures visible in support diagnostics.
+      if (connection.signal?.aborted && connection.signal.reason?.name !== 'TimeoutError') throw error
       if (routed) remember(area, { status: 'failed', stage: 'transport', code: classifyTransportError(error), route, elapsed: elapsedBucket(now() - startedAt) })
       throw error
     }
@@ -311,7 +315,9 @@ export function createCodexNetworkTransport(options = {}) {
   return Object.freeze({
     run,
     history: evidence.snapshot,
-    fetch: (area, input, init, connection) => run(area, () => globalThis.fetch(input, init), connection),
+    fetch: (area, input, init, connection) => run(area, () => globalThis.fetch(input, init), {
+      ...connection, signal: init?.signal ?? (input instanceof Request ? input.signal : undefined) ?? connection?.signal,
+    }),
     snapshot: () => Object.fromEntries([...attempts].map(([area, value]) => [area, { ...value }])),
   })
 }

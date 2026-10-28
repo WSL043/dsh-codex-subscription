@@ -24,8 +24,17 @@ export async function settlesLive(preferences, patch, signal, { attempts = 8, de
   return live()
 }
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, accountUsageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, desktopVoice, nativeVoice, voicePreview, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, accountUsageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, desktopVoice, nativeVoice, voicePreview, composerPredictions, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
   return async (endpoint, payload, signal) => {
+    if (endpoint === 'predictions/generate') {
+      try {
+        signal?.throwIfAborted()
+        return { ok: true, value: composerPredictions ? await composerPredictions.generate(payload, signal) : { prediction: null } }
+      } catch (error) {
+        if (signal?.aborted) throw error
+        return publicError(error?.code === 'invalid-input' ? 'invalid-input' : 'operation-error', 'Could not generate an input prediction')
+      }
+    }
     if (endpoint.startsWith('voice/native/')) {
       try {
         signal.throwIfAborted()
