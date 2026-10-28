@@ -163,6 +163,37 @@ test('acceptance only inserts through the captured public span, persists once an
   controller.dispose()
 })
 
+test('undoing or clearing an unsent accepted draft restores the same cached suggestion without another RPC', async () => {
+  let calls = 0
+  const controller = createComposerPredictionController({ call: async () => { calls++; return result('Tomorrow?') } })
+  const current = state()
+  controller.update(current); await tick()
+  const actions = { captureInsertion: () => current.span, insertText: () => true, persistDraft: () => {}, submit: () => assert.fail('never send') }
+  assert.equal(controller.accept(actions, current), true)
+  controller.update(state({ input: { ...current.input, draft: 'Tomorrow?', draftRev: 2 }, span: { start: 9, end: 9, draftRev: 2 } }))
+  assert.equal(controller.getSnapshot().prediction, null)
+  const undone = state({ input: { ...current.input, draftRev: 3 }, span: { start: 0, end: 0, draftRev: 3 } })
+  controller.update(undone); await tick()
+  assert.equal(controller.getSnapshot().prediction, 'Tomorrow?')
+  assert.equal(calls, 1)
+  assert.equal(controller.accept({ ...actions, captureInsertion: () => undone.span }, undone), true)
+  controller.dispose()
+})
+
+test('cached suggestions expire without timers or new requests and are discarded on context changes', async () => {
+  let clock = 0, calls = 0
+  const controller = createComposerPredictionController({ call: async () => { calls++; return result('Next') } }, { now: () => clock })
+  controller.update(state()); await tick()
+  clock = 300001
+  controller.update(state()); await tick()
+  assert.equal(controller.getSnapshot().prediction, null)
+  assert.equal(calls, 1)
+  controller.update(state({ context: null }))
+  controller.update(state()); await tick()
+  assert.equal(controller.getSnapshot().prediction, null)
+  controller.dispose()
+})
+
 test('acceptance rejects a stale selection or revision and respects host CAS rejection', async () => {
   for (const span of [{ start: 0, end: 0, draftRev: 2 }, { start: 0, end: 1, draftRev: 1 }]) {
     const controller = createComposerPredictionController({ call: async () => result('Next') })

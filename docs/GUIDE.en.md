@@ -107,6 +107,8 @@ Enable **Input predictions** under **Settings → Codex subscription → Models*
 
 After a completed reply, an empty draft can receive a suggested next message based on the current conversation text. Focus the composer to see the grey suggestion; Tab inserts it as an editable, undoable draft without sending. Briefly losing focus preserves the same request and result. Editing the draft, switching conversations or accounts, or disabling predictions invalidates the old suggestion. The model may return no suggestion.
 
+If you undo or clear an accepted draft without sending, the empty composer shows the same cached suggestion without another model request. Only one suggestion for the current context is retained, for up to five minutes; changing models, conversations, accounts or turns invalidates it.
+
 Predictions make additional requests; quota exemption for this third-party integration is unconfirmed. They neither retrieve other conversations nor run tools.
 
 ### Composer speed

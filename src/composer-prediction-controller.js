@@ -61,12 +61,16 @@ const sameDraft = (a, b) => a?.sessionId === b?.sessionId && a?.model === b?.mod
   && a?.context?.turnId === b?.context?.turnId && a?.input?.draftRev === b?.input?.draftRev
   && a?.input?.draft === b?.input?.draft && a?.span?.start === b?.span?.start && a?.span?.end === b?.span?.end
 
+const contextKey = value => value?.enabled === true && value.accountKey && value.sessionId && value.context
+  ? JSON.stringify([value.accountKey, value.sessionId, value.provider, value.model, value.context.turnId]) : undefined
+
 /** One cancellable prediction per completed turn; late work cannot edit or revive a draft. */
-export function createComposerPredictionController(rpc) {
+export function createComposerPredictionController(rpc, { now = Date.now } = {}) {
   let snapshot = EMPTY
   let state
   let anchor
   let pending
+  let cached
   let generation = 0
   let disposed = false
   const attempted = new Set()
@@ -86,6 +90,11 @@ export function createComposerPredictionController(rpc) {
   const update = next => {
     if (disposed) return
     state = next
+    const key = contextKey(next)
+    if (cached && (cached.key !== key || now() - cached.at >= 300_000)) {
+      cached = undefined
+      clear()
+    }
     if (!eligibleDraft(next)) { clear(); return }
     // Focus controls presentation and acceptance, not the lifetime of one paid
     // inference. Keep the same request/result while reading the reply or returning
@@ -93,7 +102,13 @@ export function createComposerPredictionController(rpc) {
     if (anchor && sameDraft(anchor, next)) return
     clear()
     if (next.visible !== true) return
-    const key = JSON.stringify([next.accountKey, next.sessionId, next.context.turnId])
+    // Only the most recent context is retained. Emptying an unsent draft (for
+    // example one undo after Tab) reuses it with a fresh host insertion guard.
+    if (cached?.key === key) {
+      anchor = next
+      publish({ prediction: cached.prediction, status: 'ready' })
+      return
+    }
     if (attempted.has(key)) return
     anchor = next
     const request = ++generation
@@ -112,8 +127,10 @@ export function createComposerPredictionController(rpc) {
       if (disposed || generation !== request || abort.signal.aborted || !eligibleDraft(state) || !sameDraft(anchor, state)) return
       const value = unwrap(response)
       const prediction = typeof value?.prediction === 'string' ? value.prediction.trim() : ''
-      publish(prediction && prediction.length <= 4000
-        ? { prediction, status: 'ready' } : EMPTY)
+      if (prediction && prediction.length <= 4000) {
+        cached = { key, prediction, at: now() }
+        publish({ prediction, status: 'ready' })
+      } else publish(EMPTY)
     }).catch(() => {
       if (!disposed && generation === request) publish(EMPTY)
     }).finally(() => { if (generation === request) pending = undefined })
@@ -144,6 +161,7 @@ export function createComposerPredictionController(rpc) {
       pending?.abort()
       pending = undefined
       anchor = undefined
+      cached = undefined
       listeners.clear()
       attempted.clear()
     },
