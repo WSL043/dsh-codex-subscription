@@ -1,4 +1,4 @@
-import { Hint } from './client-hint.jsx'
+import { SettingsLabel } from './client-hint.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { create as createQr } from 'qrcode/lib/core/qrcode.js'
 import { Button, Switch } from './client-primitives.js'
@@ -93,7 +93,7 @@ export function RemoteControlCard({ rpc, preference, snapshot, t, active = true 
   const status = state?.status ?? 'connecting'
   return <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('remoteTitle')}>
     <div className="codexSubscriptionPreference">
-      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('remoteTitle')} <small>Beta</small></span><Hint t={t}>{t(on ? 'state_remote_on' : 'state_remote_off')}</Hint></div>
+      <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={[t(on ? 'state_remote_on' : 'state_remote_off'), t('remoteLimits')].join(' ')}>{t('remoteTitle')} <small>Beta</small></SettingsLabel></div>
       <Switch checked={on} label={t('remoteTitle')} disabled={!snapshot.writable} onChange={next => { void preference.set({ remoteControl: next ? 'on' : 'off' }) }} />
     </div>
     {on ? <>
@@ -120,7 +120,6 @@ export function RemoteControlCard({ rpc, preference, snapshot, t, active = true 
           <Button type="button" variant="outline" disabled={Boolean(removing)} onClick={() => { void remove(client) }}>{t('remoteRevoke')}</Button>
         </div>)}
       </div> : null}
-      <p className="codexSubscriptionHelp">{t('remoteLimits')}</p>
     </> : null}
   </section>
 }

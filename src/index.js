@@ -200,6 +200,7 @@ export function apply(ctx, config = {}) {
   // second copy, so every new conversation opens on what the user selected.
   const defaultModel = createDefaultModelController({
     resolveService: () => ctx.get?.('agentDefaultModel'),
+    resolveEditor: () => ctx.get?.('configEditor'),
     listModels: () => modelCatalog.getModels().map(model => model.id),
   })
   const accountScope = async () => {

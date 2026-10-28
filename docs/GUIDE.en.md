@@ -32,7 +32,9 @@ When the official model catalog exposes GPT-6 Astra, Standard preserves the cata
 
 ### Default model
 
-Choose the model a new conversation opens with under **Settings → Codex subscription → Models → Default model**. It writes DSH's own default-model setting, the same one a model switch inside a chat writes: every conversation created afterwards uses it, and switching to another model in a chat (including a non-subscription one) is reflected here as **Follow DSH default**. The control is unavailable for models the catalog does not offer, while signed out, or with an empty catalog.
+Choose the model a new conversation opens with under **Settings → Codex subscription → Models → Default model**. It writes DSH's own default-model setting, the same one a model switch inside a chat writes: every conversation created afterwards uses it, and switching to another model in a chat (including a non-subscription one) is reflected here as **Follow DSH default**.
+
+Choose **Restore DSH default** in the menu to clear the saved selection in this profile and use its inherited default. Existing conversations are unchanged; this does not recover a personal selection that was previously overwritten. Restoration remains available without a model catalog when the native DSH configuration editor supports it; unsupported hosts disable the action.
 
 ### Composer quota
 

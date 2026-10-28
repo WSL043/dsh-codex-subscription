@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module'
-import { readFileSync } from 'node:fs'
+import { readFileSync, realpathSync } from 'node:fs'
 import { dirname, resolve as resolvePath } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { execFile } from 'node:child_process'
@@ -13,10 +13,11 @@ const execute = promisify(execFile)
 
 /** The DSH release this plugin is loaded into, read from the host's own LLM package. */
 // A desktop build bundles DSH next to its host entry, not next to this plugin,
-// so also resolve from the host process's entry script.
+// so prefer the actual host entry over an auto-installed plugin peer copy.
 export function hostDshVersion(resolve = require.resolve, entry = process.argv[1]) {
-  const attempts = [() => resolve('@deepseek-ai/dsh-llm/package.json')]
-  if (typeof entry === 'string' && entry) attempts.push(() => require.resolve('@deepseek-ai/dsh-llm/package.json', { paths: [dirname(entry)] }))
+  const attempts = []
+  if (typeof entry === 'string' && entry) attempts.push(() => require.resolve('@deepseek-ai/dsh-llm/package.json', { paths: [dirname(realpathSync(entry))] }))
+  attempts.push(() => resolve('@deepseek-ai/dsh-llm/package.json'))
   for (const attempt of attempts) {
     try {
       const { version } = JSON.parse(readFileSync(attempt(), 'utf8'))

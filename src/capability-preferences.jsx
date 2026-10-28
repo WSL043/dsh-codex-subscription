@@ -1,4 +1,4 @@
-import { Hint } from './client-hint.jsx'
+import { SettingsLabel } from './client-hint.jsx'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { Input } from './client-primitives.js'
 import { SEARCH_MODES, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, validQuotaThreshold, normalizeSearchDomains } from './capability-settings.js'
@@ -10,7 +10,7 @@ export function CapabilityPreferences({ preference, t, section, disabled = false
   const saved = snapshot.searchDomains.join(', ')
   useEffect(() => { setDomains(saved); setInvalid(false) }, [saved])
   const choices = (field, values) => <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t(field)}>{values.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name={`codex-${field}`} checked={snapshot[field] === value} disabled={!snapshot.writable || disabled} onChange={() => { void preference.set({ [field]: value }) }} /><span>{t(`${field}_${value}`)}</span></label>)}</div>
-  if (section === 'quota') return <><div className="codexSubscriptionPreference"><div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('quotaAlerts')}</span><Hint t={t}>{t('quotaAlertsHint')}</Hint></div>{choices('quotaAlerts', QUOTA_ALERT_MODES)}</div>{snapshot.quotaAlerts === 'custom' ? <div className="codexQuotaThresholds">{QUOTA_THRESHOLD_FIELDS.map(field => <QuotaThreshold key={field} field={field} snapshot={snapshot} preference={preference} t={t} />)}</div> : null}</>
+  if (section === 'quota') return <><div className="codexSubscriptionPreference"><div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('quotaAlertsHint')}>{t('quotaAlerts')}</SettingsLabel></div>{choices('quotaAlerts', QUOTA_ALERT_MODES)}</div>{snapshot.quotaAlerts === 'custom' ? <div className="codexQuotaThresholds">{QUOTA_THRESHOLD_FIELDS.map(field => <QuotaThreshold key={field} field={field} snapshot={snapshot} preference={preference} t={t} />)}</div> : null}</>
   const save = () => {
     try {
       const next = normalizeSearchDomains(domains.trim() === '' ? [] : domains.split(/[,，\s]+/u).filter(Boolean))
@@ -21,9 +21,8 @@ export function CapabilityPreferences({ preference, t, section, disabled = false
   if (snapshot.searchProvider === 'dsh') return null
   return <details className="codexSubscriptionSearchOptions">
     <summary>{t('searchOptions')}<span>{t(`searchMode_${snapshot.searchMode}`)}{snapshot.searchDomains.length > 0 ? ` · ${snapshot.searchDomains.length} ${t('searchDomainCount')}` : ''}</span></summary>
-    <div className="codexSubscriptionPreference"><span className="codexSubscriptionPreferenceLabel">{t('searchMode')}</span>{choices('searchMode', SEARCH_MODES)}</div>
-    <Hint t={t} as="p">{t('searchModeHint')}</Hint>
-    <label className="codexSubscriptionPreferenceCopy"><span>{t('searchDomains')}</span><Input aria-label={t('searchDomains')} aria-invalid={invalid} value={domains} disabled={!snapshot.writable} placeholder="example.com, example.org" onChange={event => setDomains(event.currentTarget.value)} onBlur={save} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /><Hint t={t}>{t('searchDomainsHint')}</Hint></label>
+    <div className="codexSubscriptionPreference"><SettingsLabel description={t('searchModeHint')}>{t('searchMode')}</SettingsLabel>{choices('searchMode', SEARCH_MODES)}</div>
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('searchDomainsHint')}>{t('searchDomains')}</SettingsLabel><Input aria-label={t('searchDomains')} aria-invalid={invalid} value={domains} disabled={!snapshot.writable} placeholder="example.com, example.org" onChange={event => setDomains(event.currentTarget.value)} onBlur={save} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /></div>
     {invalid ? <p role="alert" className="codexSubscriptionError">{t('searchDomainsInvalid')}</p> : null}
   </details>
 }

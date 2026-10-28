@@ -37,13 +37,6 @@ export const STYLE = `
 .codexSubscriptionPreferenceLabel{display:flex;align-items:center;gap:6px}
 .codexSubscriptionPreference>.codexSubscriptionPreferenceCopy{flex:1 1 240px}
 .codexSubscriptionPreferenceHint{max-width:none;font-size:11px;line-height:17px;color:var(--dsw-alias-label-tertiary)}
-.codexSubscriptionHintText{display:block}
-.codexSubscriptionHintFold[data-fold=true] .codexSubscriptionHintText{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden}
-.codexSubscriptionHintToggle{display:inline-flex;align-items:center;gap:3px;margin-top:2px;padding:0;border:0;background:none;font:inherit;font-size:11px;line-height:17px;color:var(--dsw-alias-label-secondary);cursor:pointer}
-.codexSubscriptionHintToggle::after{content:"";width:5px;height:5px;margin-top:-2px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(45deg);transition:transform .15s}
-.codexSubscriptionHintFold[data-open=true] .codexSubscriptionHintToggle::after{margin-top:2px;transform:rotate(-135deg)}
-.codexSubscriptionHintToggle:hover{color:var(--dsw-alias-label-primary)}
-.codexSubscriptionHintToggle:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:1px;border-radius:3px}
 .codexSubscriptionPreferenceStack{margin-top:6px;padding-top:10px;border-top:1px solid var(--dsw-alias-border-l2)}
 .codexSubscriptionPreferenceStack>.codexSubscriptionQuotaModes{flex:1 1 100%;margin-left:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}
 .codexSubscriptionPreferenceStack .codexSubscriptionQuotaMode{min-height:30px;padding:4px 8px;text-align:center;white-space:normal;line-height:16px}
@@ -302,7 +295,7 @@ export const STYLE = `
 .codexSubscriptionSettingRows>.codexImagePreference+.codexImagePreference{border-top:1px solid var(--dsw-alias-border-l2)}
 .codexSubscriptionDiagnostics .codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column;gap:12px}
 .codexSubscriptionDiagnostics .codexSubscriptionSectionTitle{display:flex;flex-direction:column;gap:5px}
-.codexSubscriptionRemotePair{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:8px}.codexSubscriptionRemoteQr{width:168px;height:168px;flex:none;border-radius:12px;overflow:hidden;background:#fff}.codexSubscriptionRemoteQr svg{display:block;width:100%;height:100%}.codexSubscriptionRemoteCode{margin:6px 0;font:600 20px/28px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em;user-select:all}
+.codexSubscriptionRemotePair{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:8px}.codexSubscriptionRemotePair>div:not(.codexSubscriptionRemoteQr){flex:1 1 220px;min-width:0}.codexSubscriptionRemoteQr{width:168px;height:168px;flex:none;border-radius:12px;overflow:hidden;background:#fff}.codexSubscriptionRemoteQr svg{display:block;width:100%;height:100%}.codexSubscriptionRemoteCode{margin:6px 0;font:600 20px/28px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.08em;user-select:all}
 .codexSubscriptionStorageMeter{display:flex;flex-direction:column;gap:9px;padding:12px;border-radius:10px;background:var(--dsw-alias-bg-module-platform)}
 .codexSubscriptionStorageHead{display:flex;align-items:center;justify-content:space-between;gap:8px 16px;flex-wrap:wrap}
 .codexSubscriptionStorageTitle{display:flex;align-items:baseline;gap:6px 12px;flex-wrap:wrap;min-width:0}
@@ -372,9 +365,6 @@ a.codexVoiceCall{display:flex;align-items:center;justify-content:center;box-sizi
 .codexSubscriptionSearchOptions>summary>span{float:none;margin-left:auto;font-weight:400}
 .codexSubscriptionSearchOptions>summary::after{margin-left:6px}
 .codexSubscriptionRuntime summary{font-size:12px}
-.codexSubscriptionHintToggle{margin:2px 0 0 -6px;padding:1px 6px;border-radius:6px;font-size:12px;font-weight:500;color:var(--dsw-alias-label-primary);transition:background .12s}
-.codexSubscriptionHintToggle::after{width:6px;height:6px}
-.codexSubscriptionHintToggle:hover{background:var(--dsw-alias-interactive-bg-hover)}
 
 /* Feature overview: one row per feature, a sentence, a switch and optional options */
 .codexFeatureOverview{display:flex;flex-direction:column;gap:0}
@@ -417,7 +407,7 @@ a.codexVoiceCall{display:flex;align-items:center;justify-content:center;box-sizi
 .codexFlat section>.codexSubscriptionPreference:last-child,.codexFlat .codexSubscriptionCard>.codexSubscriptionPreference:last-child,.codexFlat section>.codexFeatureRow:last-of-type,.codexFlat section>div:last-child>.codexSubscriptionPreference:last-child,.codexFlat .codexAdvancedBody>.codexSubscriptionPreference:last-child{border-bottom:0}
 .codexFlat .codexSubscriptionPreferenceLabel,.codexFlat .codexFeatureTitle{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:400;line-height:20px;min-height:20px;color:var(--dsw-alias-label-primary)}
 .codexFlat .codexSubscriptionPreferenceLabel small,.codexFlat .codexFeatureTitle small{line-height:16px;height:16px;display:inline-flex;align-items:center}
-.codexFlat .codexSubscriptionPreferenceHint,.codexFlat .codexFeatureSummary,.codexFlat .codexSubscriptionHintText{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
+.codexFlat .codexSubscriptionPreferenceHint,.codexFlat .codexFeatureSummary{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
 .codexFlat .codexSubscriptionPreferenceCopy{gap:0}
 .codexFlat .codexSubscriptionDivider{display:none}
 .codexFlat .codexSubscriptionQuotaModes{background:var(--dsw-alias-bg-module-platform);border-radius:10px;padding:2px;gap:2px;min-height:32px;box-sizing:border-box}

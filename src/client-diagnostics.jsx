@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { SettingsLabel } from './client-hint.jsx'
 import { Button } from './client-primitives.js'
 import { SUPPORT_ISSUE_URL, uiLocale } from './client-shared.js'
 import { recoveryCall, clientDiagnostic } from './client-recovery.js'
@@ -40,7 +41,7 @@ export function DiagnosticsCard({ rpc, t, diagnostics }) {
   </li>
   return <div className="codexSubscriptionCard codexSubscriptionDiagnostics">
     <div className="codexSubscriptionPreference">
-      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('diagnostics')}</span><span className="codexSubscriptionPreferenceHint">{t('diagnosticsHint')}</span></div>
+      <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('diagnosticsHint')}>{t('diagnostics')}</SettingsLabel></div>
       <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{busy ? t('diagnosticsLoading') : t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={() => copy()}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}<a className="codexSubscriptionLink" href={SUPPORT_ISSUE_URL} target="_blank" rel="noreferrer">{t('feedbackOpen')}</a></div>
     </div>
     {report === undefined ? null : <>
@@ -51,19 +52,17 @@ export function DiagnosticsCard({ rpc, t, diagnostics }) {
       {attention.length ? <ul className="codexDiagFindings">{attention.map(finding)}</ul> : null}
       {notes.length ? <details className="codexAdvancedFold codexAdvancedInline"><summary>{t('diagnosticsNotes').replace('{count}', String(notes.length))}</summary><ul className="codexDiagFindings">{notes.map(finding)}</ul></details> : null}
       <details className="codexAdvancedFold codexAdvancedInline">
-        <summary>{t('diagnosticsLog')}<span>{lines.length}</span></summary>
+        <SettingsLabel as="summary" className="" openOnClick={false} description={t('diagnosticsLogHint')}>{t('diagnosticsLog')}<span>{lines.length}</span></SettingsLabel>
         <div className="codexSubscriptionLogHead">
           <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('diagnosticsLog')}>
             {Object.keys(LEVELS).map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-log-level" checked={level === value} onChange={() => { setLevel(value); setLogCopied(false) }} /><span>{t(`logLevel_${value}`)}</span></label>)}
           </div>
           <Button type="button" variant="outline" disabled={lines.length === 0} onClick={copyLog}>{logCopied ? t('logCopied') : t('logCopy')}</Button>
         </div>
-        <p className="codexSubscriptionHelp">{t('diagnosticsLogHint')}</p>
         {lines.length === 0 ? <p className="codexSubscriptionHelp">{t('logEmpty')}</p> : <pre className="codexSubscriptionLog" tabIndex={0}>{lines.slice().reverse().map(entry => <span key={entry.sequence} className={`codexSubscriptionLogLine codexSubscriptionLog_${entry.level}`}>{formatLogLine(entry)}{entry.earlier ? ` (${t('logEarlier')})` : ''}{String.fromCharCode(10)}</span>)}</pre>}
       </details>
-      <details className="codexAdvancedFold codexAdvancedInline"><summary>{t('diagnosticsAdvanced')}</summary>
+      <details className="codexAdvancedFold codexAdvancedInline"><SettingsLabel as="summary" className="" openOnClick={false} description={t('diagnosticsCoverageHint')}>{t('diagnosticsAdvanced')}</SettingsLabel>
         <p className="codexSubscriptionHelp">{report.client?.topology?.length ? t('diagnosticsHostCollected') : t('diagnosticsHostUnknown')}</p>
-        <p className="codexSubscriptionHelp">{t('diagnosticsCoverageHint')}</p>
         <table className="codexDiagTable">
           <thead><tr><th>{t('diagnosticsCapability')}</th><th>{t('diagnosticsReadiness')}</th><th>{t('diagnosticsEvidence')}</th></tr></thead>
           <tbody>{(report.inspection?.capabilities ?? []).map(item => <tr key={item.id}>

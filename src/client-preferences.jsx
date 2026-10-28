@@ -1,4 +1,4 @@
-import { Hint } from './client-hint.jsx'
+import { Hint, SettingsLabel } from './client-hint.jsx'
 import { CapabilityPreferences } from './capability-preferences.jsx'
 import { DefaultModelPreference } from './default-model-preferences.jsx'
 import { RuntimeManagement } from './client-runtime-management.jsx'
@@ -16,7 +16,7 @@ export function QuickQuotaPreference({ preference, t }) {
   const writable = snapshot.status === 'ready' && snapshot.writable === true
   const choice = (value, label) => <label className="codexSubscriptionQuotaMode"><input type="radio" name="codex-subscription-quota-mode" checked={snapshot.quickQuotaMode === value} disabled={!writable} onChange={() => { void preference.set({ [QUICK_QUOTA_MODE_FIELD]: value }) }} /><span>{label}</span></label>
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('quickQuotaSetting')}</span>{snapshot.quickQuotaMode === QUICK_QUOTA_MODE_FORECAST ? <Hint t={t}>{t('quickQuotaForecastHint')}</Hint> : null}</div>
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={snapshot.quickQuotaMode === QUICK_QUOTA_MODE_FORECAST ? t('quickQuotaForecastHint') : undefined}>{t('quickQuotaSetting')}</SettingsLabel></div>
     <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('quickQuotaSetting')}>
       {choice(QUICK_QUOTA_MODE_OFF, t('quickQuotaOff'))}
       {choice(QUICK_QUOTA_MODE_PERCENT, t('quickQuotaPercent'))}
@@ -30,7 +30,7 @@ export function AutoQuotaRetryPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = snapshot.status === 'ready' && snapshot.writable === true
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('autoQuotaRetry')}</span><Hint t={t}>{t('autoQuotaRetryHint')}</Hint></div>
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('autoQuotaRetryHint')}>{t('autoQuotaRetry')}</SettingsLabel></div>
     <Switch checked={snapshot.autoQuotaRetry} label={t('autoQuotaRetry')} disabled={!writable} onChange={next => { void preference.set({ [AUTO_QUOTA_RETRY_FIELD]: next }) }} />
   </div>
 }
@@ -42,7 +42,7 @@ export function SearchProviderPreference({ preference, t }) {
   const hint = snapshot.searchProvider === SEARCH_PROVIDER_DSH ? 'searchDshHint' : snapshot.searchProvider === SEARCH_PROVIDER_CODEX ? 'searchCodexHint' : 'searchAutoHint'
   return <div className="codexSubscriptionSearch">
     <div className="codexSubscriptionPreference">
-      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('searchTitle')}</span><Hint t={t}>{t(hint)}</Hint></div>
+      <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t(hint)}>{t('searchTitle')}</SettingsLabel></div>
     <div className="codexSubscriptionSearchChoices codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('searchTitle')}>
       {choice(SEARCH_PROVIDER_AUTO, t('searchAuto'))}
       {choice(SEARCH_PROVIDER_DSH, 'DSH')}
@@ -50,7 +50,7 @@ export function SearchProviderPreference({ preference, t }) {
     </div>
     </div>
     <div className="codexSubscriptionPreference">
-      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('fetchTitle')}</span><Hint t={t}>{t(!snapshot.fetchRoutingAvailable ? 'fetchUnavailableHint' : snapshot.fetchProvider === FETCH_PROVIDER_CODEX ? 'fetchCodexHint' : 'fetchDshHint')}</Hint></div>
+      <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t(snapshot.fetchProvider === FETCH_PROVIDER_CODEX ? 'fetchCodexHint' : 'fetchDshHint')}>{t('fetchTitle')}</SettingsLabel>{snapshot.status === 'ready' && !snapshot.fetchRoutingAvailable ? <Hint>{t('fetchUnavailableHint')}</Hint> : null}</div>
       <div className="codexSubscriptionSearchChoices codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('fetchTitle')}>
         {[FETCH_PROVIDER_DSH, FETCH_PROVIDER_CODEX].map(value => <label className="codexSubscriptionQuotaMode" key={value}><input type="radio" name="codex-subscription-fetch-provider" checked={snapshot.fetchProvider === value} disabled={!writable || value === FETCH_PROVIDER_CODEX && !snapshot.fetchRoutingAvailable} onChange={() => { void preference.set({ [FETCH_PROVIDER_FIELD]: value }) }} /><span>{value === FETCH_PROVIDER_CODEX ? 'Codex' : 'DSH'}</span></label>)}
       </div>
@@ -63,7 +63,7 @@ export function InputImageDetailPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = snapshot.status === 'ready' && snapshot.writable === true
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('inputImageDetail')}</span><Hint t={t}>{t('inputImageDetailHint')}</Hint></div>
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('inputImageDetailHint')}>{t('inputImageDetail')}</SettingsLabel></div>
     <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('inputImageDetail')}>
       {INPUT_IMAGE_DETAILS.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-input-image-detail" checked={snapshot.inputImageDetail === value} disabled={!writable} onChange={() => { void preference.set({ [INPUT_IMAGE_DETAIL_FIELD]: value }) }} /><span>{t(`inputImageDetail_${value}`)}</span></label>)}
     </div>
@@ -74,7 +74,7 @@ export function ReasoningSummaryPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = snapshot.status === 'ready' && snapshot.writable === true
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('reasoningSummary')}</span><Hint t={t}>{t('reasoningSummaryHint')}</Hint></div>
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('reasoningSummaryHint')}>{t('reasoningSummary')}</SettingsLabel></div>
     <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('reasoningSummary')}>
       {REASONING_SUMMARIES.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-reasoning-summary" checked={snapshot.reasoningSummary === value} disabled={!writable} onChange={() => { void preference.set({ [REASONING_SUMMARY_FIELD]: value }) }} /><span>{t(`reasoningSummary_${value}`)}</span></label>)}
     </div>
@@ -87,7 +87,7 @@ export function ReasoningCachePreference({ preference, t }) {
   const blocked = snapshot.compactionMode === 'cloud' || snapshot.retryPolicy === 'unlimited'
   const hint = snapshot.compactionMode === 'cloud' ? 'reasoningCacheCloud' : snapshot.retryPolicy === 'unlimited' ? 'reasoningCacheRetry' : 'reasoningCacheHint'
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('reasoningCache')}</span><Hint t={t}>{t(hint)}</Hint></div>
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('reasoningCacheHint')}>{t('reasoningCache')}</SettingsLabel>{blocked ? <Hint>{t(hint)}</Hint> : null}</div>
     <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('reasoningCache')} aria-busy={snapshot.saving || undefined}>
       {['off', 'on'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-reasoning-cache" checked={snapshot.reasoningCache === value} disabled={!writable || value === 'on' && blocked} onChange={() => { void preference.set({ reasoningCache: value }) }} /><span>{t(`reasoningCache_${value}`)}</span></label>)}
     </div>
@@ -98,7 +98,7 @@ export function RetryPolicyPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = snapshot.status === 'ready' && snapshot.writable === true
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('retryPolicy')}</span><Hint t={t}>{t('retryPolicyHint')}</Hint></div>
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('retryPolicyHint')}>{t('retryPolicy')}</SettingsLabel></div>
     <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('retryPolicy')}>
       {RETRY_POLICIES.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-retry-policy" checked={snapshot.retryPolicy === value} disabled={!writable} onChange={() => { void preference.set({ [RETRY_POLICY_FIELD]: value }) }} /><span>{t(`retryPolicy_${value}`)}</span></label>)}
     </div>
@@ -109,7 +109,7 @@ export function ConnectorsPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = snapshot.status === 'ready' && snapshot.writable === true
   return <div className="codexSubscriptionPreference codexSubscriptionConnectors">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('connectors')}</span><Hint t={t}>{t('connectorsHint')}</Hint></div>
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('connectorsHint')}>{t('connectors')}</SettingsLabel></div>
     <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('connectors')}>
       {CONNECTOR_MODES.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-connectors" checked={snapshot.connectors === value} disabled={!writable} onChange={() => { void preference.set({ [CONNECTORS_FIELD]: value }) }} /><span>{t(`connectors_${value}`)}</span></label>)}
     </div>
@@ -121,7 +121,7 @@ export function StreamIdleTimeoutPreference({ preference, t }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = snapshot.status === 'ready' && snapshot.writable === true
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('streamIdleTimeoutTitle')}</span><Hint t={t}>{t('streamIdleTimeoutHint')}</Hint></div>
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('streamIdleTimeoutHint')}>{t('streamIdleTimeoutTitle')}</SettingsLabel></div>
     <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('streamIdleTimeoutTitle')}>
       {STREAM_IDLE_TIMEOUT_MINUTES.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-stream-idle-timeout" checked={snapshot.streamIdleTimeoutMinutes === value} disabled={!writable} onChange={() => { void preference.set({ [STREAM_IDLE_TIMEOUT_MINUTES_FIELD]: value }) }} /><span>{t(`streamIdleTimeout_${value}`)}</span></label>)}
     </div>
@@ -154,7 +154,7 @@ export function PickerModelsPreference({ preference, t }) {
   if (snapshot.availableModels.length === 0) return null
   return <div className="codexSubscriptionPickerSetting">
     <div className="codexSubscriptionPreference">
-      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('pickerModelsTitle')}</span><Hint t={t}>{t('pickerModelsHint')}</Hint></div>
+      <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('pickerModelsHint')}>{t('pickerModelsTitle')}</SettingsLabel></div>
       <button className="codexSubscriptionContextTrigger" type="button" aria-expanded={open} onClick={() => setOpen(value => !value)}><span>{shown} / {snapshot.availableModels.length}</span><IconChevronDownOutline14 /></button>
     </div>
     {open ? <div className="codexSubscriptionPickerModels" role="group" aria-label={t('pickerModelsTitle')}>
@@ -210,7 +210,7 @@ export function ContextWindowPreference({ preference, t }) {
   if (snapshot.contextModels.length === 0) return null
   return <div className="codexSubscriptionContext">
     <div className="codexSubscriptionContextHead">
-      <div className="codexSubscriptionContextCopy"><span className="codexSubscriptionPreferenceLabel">{t('contextTitle')}</span><span className="codexSubscriptionContextHint">{hint}</span></div>
+      <div className="codexSubscriptionContextCopy"><SettingsLabel description={hint}>{t('contextTitle')}</SettingsLabel></div>
       <Menu open={menuOpen} items={contextModeItems} selectedId={snapshot.contextMode} onSelect={value => { setMenuOpen(false); void preference.set({ [CONTEXT_MODE_FIELD]: value }) }} onClose={() => setMenuOpen(false)} align="end" side="bottom" portal compact anchor={<button className="codexSubscriptionContextTrigger" type="button" aria-label={t('contextTitle')} aria-haspopup="menu" aria-expanded={menuOpen} disabled={!writable} onClick={() => setMenuOpen(value => !value)}><span>{selectedMode}</span><IconChevronDownOutline14 /></button>} />
     </div>
     {snapshot.contextMode === CONTEXT_MODE_CUSTOM ? <div className="codexSubscriptionContextModels">{modelRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextMaximum'), { minimum: String(Math.min(MIN_CUSTOM_CONTEXT_WINDOW, model.maximum)), value: String(model.maximum) })}</span></span><Input aria-label={`${model.label} ${t('contextTokens')}`} className="codexSubscriptionContextInput" type="number" inputMode="numeric" min={Math.min(MIN_CUSTOM_CONTEXT_WINDOW, model.maximum)} max={model.maximum} step={1} value={drafts[model.key] ?? ''} disabled={!writable} onChange={event => { const nextValue = event.currentTarget.value; setDrafts(current => ({ ...current, [model.key]: nextValue })) }} onBlur={() => commit(model.key)} onKeyDown={event => { if (event.key === 'Enter') event.currentTarget.blur() }} /></div>)}{fixedRows.map(model => <div className="codexSubscriptionContextModel" key={model.key}><span className="codexSubscriptionContextModelCopy"><strong>{model.label}</strong><span>{fill(t('contextFixed'), { value: formatContextWindow(model.maximum) })}</span></span><span className="codexSubscriptionContextHint">{formatContextWindow(model.maximum)}</span></div>)}</div> : null}
@@ -261,7 +261,7 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('connectionTitle')}>
         <div className="codexSubscriptionPreference">
-          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('connectionTitle')} <small>Beta</small></span><Hint t={t}>{t('connectionHint')}</Hint></div>
+          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('connectionHint')}>{t('connectionTitle')} <small>Beta</small></SettingsLabel></div>
           <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('connectionTitle')} aria-busy={snapshot.saving || undefined}>
             {['sse', 'websocket'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-connection-mode" checked={snapshot.connectionMode === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ connectionMode: value }) }} /><span>{value === 'sse' ? 'SSE' : 'WebSocket'}</span></label>)}
           </div>
@@ -271,7 +271,7 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('compactionTitle')}>
         <div className="codexSubscriptionPreference">
-          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('compactionTitle')} <small>Beta</small></span><Hint t={t}>{t('compactionHint')}</Hint></div>
+          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('compactionHint')}>{t('compactionTitle')} <small>Beta</small></SettingsLabel></div>
           <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('compactionTitle')} aria-busy={snapshot.saving || undefined}>
             {['dsh', 'cloud'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-compaction-mode" checked={snapshot.compactionMode === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ compactionMode: value }) }} /><span>{t(`compaction_${value}`)}</span></label>)}
           </div>
@@ -280,7 +280,7 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
     </> : section === 'interop' ? <>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('otherModelsTitle')}>
         <div className="codexSubscriptionPreference">
-          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('otherModelsTitle')}</span><Hint t={t}>{t('otherModelsHint')}</Hint></div>
+          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('otherModelsHint')}>{t('otherModelsTitle')}</SettingsLabel></div>
           <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('otherModelsTitle')} aria-busy={snapshot.saving || undefined}>
             {['on', 'off'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-other-models" checked={snapshot.otherModels === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ otherModels: value }) }} /><span>{t(`otherModels_${value}`)}</span></label>)}
           </div>
@@ -294,7 +294,7 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('reviewModelTitle')}>
         <div className="codexSubscriptionPreference">
-          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('reviewModelTitle')} <small>Beta</small></span><Hint t={t}>{t('reviewModelHint')}</Hint></div>
+          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('reviewModelHint')}>{t('reviewModelTitle')} <small>Beta</small></SettingsLabel></div>
           <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('reviewModelTitle')} aria-busy={snapshot.saving || undefined}>
             {['session', 'official'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-review-model" checked={snapshot.reviewModel === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ reviewModel: value }) }} /><span>{t(`reviewModel_${value}`)}</span></label>)}
           </div>
@@ -302,7 +302,7 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('subagentBackendTitle')}>
       <div className="codexSubscriptionPreference">
-        <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('subagentBackendTitle')} <small>Beta</small></span><Hint t={t}>{t(snapshot.subagentBackendAvailable ? 'subagentBackendHint' : 'subagentBackendUnavailable')}</Hint></div>
+        <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('subagentBackendHint')}>{t('subagentBackendTitle')} <small>Beta</small></SettingsLabel>{!snapshot.subagentBackendAvailable ? <Hint>{t('subagentBackendUnavailable')}</Hint> : null}</div>
         <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('subagentBackendTitle')} aria-busy={snapshot.saving || undefined}>
           {['dsh', 'codex'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-subagent-backend" checked={snapshot.subagentBackend === value} disabled={!snapshot.writable || !snapshot.subagentBackendAvailable || (value === 'codex' && !snapshot.subagentRuntimeInstalled)} onChange={() => { void preference.set({ subagentBackend: value }) }} /><span>{t(`subagentBackend_${value}`)}</span></label>)}
         </div>

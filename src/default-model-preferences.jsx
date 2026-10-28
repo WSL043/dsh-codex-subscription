@@ -1,4 +1,4 @@
-import { Hint } from './client-hint.jsx'
+import { Hint, SettingsLabel } from './client-hint.jsx'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { IconChevronDownOutline14, Menu } from './client-primitives.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
@@ -27,19 +27,23 @@ export function DefaultModelPreference({ preference, defaultModel, t }) {
         : snapshot.managed
           ? t('defaultModelHint')
           : fill(t('defaultModelFollowHint'), { value: current })
-  const items = models.map(model => ({ id: model.id, label: model.name }))
-  const disabled = snapshot.saving || snapshot.available !== true || models.length === 0
+  const resetId = '__dsh_default__'
+  const items = [
+    { id: resetId, label: t('defaultModelReset'), disabled: !snapshot.resetAvailable },
+    ...(models.length ? [{ type: 'separator', id: 'default-model-separator' }, ...models.map(model => ({ id: model.id, label: model.name }))] : []),
+  ]
+  const disabled = snapshot.saving || snapshot.available !== true || (models.length === 0 && !snapshot.resetAvailable)
   return <div className="codexSubscriptionPreference">
     <div className="codexSubscriptionPreferenceCopy">
-      <span className="codexSubscriptionPreferenceLabel">{t('defaultModelTitle')}</span>
-      <Hint t={t}>{hint}</Hint>
+      <SettingsLabel description={snapshot.status === 'loading' ? undefined : [hint, snapshot.resetAvailable ? t('defaultModelResetHint') : undefined].filter(Boolean).join(' ')}>{t('defaultModelTitle')}</SettingsLabel>
+      {snapshot.status === 'ready' && !snapshot.available ? <Hint>{hint}</Hint> : null}
       {snapshot.error ? <span className="codexSubscriptionError" role="alert">{t('defaultModelFailed')}</span> : null}
     </div>
     <Menu
       open={open}
       items={items}
       selectedId={snapshot.managed ? snapshot.model : undefined}
-      onSelect={value => { setOpen(false); void defaultModel.select(value) }}
+      onSelect={value => { setOpen(false); if (value === resetId) { if (snapshot.resetAvailable) void defaultModel.reset() } else void defaultModel.select(value) }}
       onClose={() => setOpen(false)}
       align="end"
       side="bottom"

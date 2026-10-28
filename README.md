@@ -117,6 +117,13 @@ dsh --profile headless "只回复：ok"
 </details>
 
 <details>
+<summary>模型设置：默认模型、输入预测与回答风格</summary>
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-models-zh-dark.png"><img src="docs/assets/ui-models-zh-light.png" width="640" alt="模型设置：可恢复 DSH 默认模型，详细说明在悬浮提示中查看"></picture></p>
+
+</details>
+
+<details>
 <summary>输入框：模型、速度、权限与额度</summary>
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-zh-dark.png"><img src="docs/assets/ui-composer-zh-light.png" width="760" alt="输入框：权限、草图、剩余额度、闪电标识的 Fast 模式和模型选择"></picture></p>

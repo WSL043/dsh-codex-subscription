@@ -3,6 +3,7 @@ import { CHANNEL, unwrap } from './rpc-contract.js'
 const INITIAL = Object.freeze({
   status: 'loading',
   available: false,
+  resetAvailable: false,
   managed: false,
   provider: undefined,
   model: undefined,
@@ -15,6 +16,7 @@ const adopt = value => ({
   status: 'ready',
   error: false,
   available: value?.available === true,
+  resetAvailable: value?.resetAvailable === true,
   managed: value?.managed === true,
   provider: value?.provider,
   model: value?.model,
@@ -51,13 +53,13 @@ export function createDefaultModelController(rpc) {
       publish({ status: 'error', error: true })
     }
   }
-  const select = async model => {
+  const save = async (endpoint, payload) => {
     if (disposed) return false
     const current = ++generation
     publish({ saving: true, error: false })
     if (disposed || current !== generation) return false
     try {
-      const value = unwrap(await rpc.call(CHANNEL, 'default-model/select', { model }))
+      const value = unwrap(await rpc.call(CHANNEL, endpoint, payload))
       if (disposed || current !== generation) return false
       publish({ ...adopt(value), saving: false })
       return true
@@ -75,7 +77,8 @@ export function createDefaultModelController(rpc) {
       return () => listeners.delete(listener)
     },
     load,
-    select,
+    select: model => save('default-model/select', { model }),
+    reset: () => save('default-model/reset', {}),
     dispose: () => {
       if (disposed) return
       disposed = true

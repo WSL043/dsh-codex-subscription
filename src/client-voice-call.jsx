@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Hint } from './client-hint.jsx'
+import { SettingsLabel } from './client-hint.jsx'
 import { IconChevronDownOutline14, Menu, Switch } from './client-primitives.js'
 import { CHANNEL } from './rpc-contract.js'
 import { usePreferenceSnapshot } from './client-shared.js'
@@ -344,7 +344,7 @@ export function VoiceCallCard({ rpc, preference, snapshot, t }) {
   const languages = VOICE_LANGUAGES.map(value => ({ id: value, label: value === 'auto' ? t('voiceAuto') : t(`voiceLang_${value}`) }))
   return <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('voiceTitle')}>
     <div className="codexSubscriptionPreference">
-      <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('voiceTitle')} <small>Beta</small></span><Hint t={t}>{t(on ? 'state_voice_on' : 'state_voice_off')}</Hint></div>
+      <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={[t(on ? 'state_voice_on' : 'state_voice_off'), t('voicePreviewHint'), t('voiceMediaHint')].join(' ')}>{t('voiceTitle')} <small>Beta</small></SettingsLabel></div>
       <Switch checked={on} label={t('voiceTitle')} disabled={!snapshot.writable} onChange={next => { void preference.set({ [VOICE_CALL_FIELD]: next ? 'on' : 'off' }) }} />
     </div>
     {on ? <>
@@ -355,7 +355,6 @@ export function VoiceCallCard({ rpc, preference, snapshot, t }) {
       {sample.state === 'playing' && sample.note ? <p className="codexSubscriptionHelp" role="status">{sample.note}</p> : null}
       {sample.state === 'error' ? <p className="codexSubscriptionHelp" role="status">{t(sample.code)}</p> : null}
       <ChoiceRow label={t('voiceLanguage')} disabled={!snapshot.writable} selectedId={snapshot.voiceLanguage} items={languages} onSelect={value => { void preference.set({ [VOICE_LANGUAGE_FIELD]: value }); void playVoice(snapshot.voiceVoice, value) }} />
-      <p className="codexSubscriptionHelp">{t('voicePreviewHint')} {t('voiceMediaHint')}</p>
     </> : null}
   </section>
 }

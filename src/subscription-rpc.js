@@ -62,13 +62,15 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
         return publicError(error?.code === 'voice-native-unavailable' ? 'voice-native-unavailable' : 'operation-error', 'Could not use native voice')
       }
     }
-    if (endpoint === 'default-model/status' || endpoint === 'default-model/select') {
+    if (endpoint === 'default-model/status' || endpoint === 'default-model/select' || endpoint === 'default-model/reset') {
       try {
         signal.throwIfAborted()
         if (!defaultModel) return publicError('unavailable', 'The default model is unavailable')
         const value = endpoint === 'default-model/status'
           ? defaultModel.status()
-          : await defaultModel.select({ model: payload?.model })
+          : endpoint === 'default-model/reset'
+            ? await defaultModel.reset()
+            : await defaultModel.select({ model: payload?.model })
         return { ok: true, value }
       } catch (error) {
         if (signal.aborted) throw error

@@ -117,6 +117,13 @@ Open **Settings → Codex** to manage accounts and preferences. Screenshots and 
 </details>
 
 <details>
+<summary>Model settings: defaults, input predictions and answer style</summary>
+
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-models-en-dark.png"><img src="docs/assets/ui-models-en-light.png" width="640" alt="Model settings with Restore DSH default and detailed help on hover"></picture></p>
+
+</details>
+
+<details>
 <summary>Composer: models, speed, permissions and quota</summary>
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="Composer: permission, sketch, remaining quota, the lightning mark for Fast mode and the model picker"></picture></p>

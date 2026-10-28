@@ -31,17 +31,18 @@ test('input predictions default off and the existing settings RPC persists only 
 async function renderPreference({ tooltip = true, locale = en } = {}) {
   const require = createRequire(import.meta.resolve('tsdown'))
   const { rolldown } = await import(pathToFileURL(require.resolve('rolldown')).href)
-  const source = await readFile(new URL('../src/composer-prediction-preferences.jsx', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../src/composer-prediction-preferences.jsx', import.meta.url), 'utf8') + "\nexport { SettingsLabel, Hint } from './client-hint.jsx'"
+  const helpSource = await readFile(new URL('../src/client-hint.jsx', import.meta.url), 'utf8')
   const bundle = await rolldown({ input: 'preference', transform: { jsx: { runtime: 'automatic' } }, plugins: [{
     name: 'input-prediction-preference-fixture',
-    resolveId(id, importer) { return importer ? { id, external: true } : '\0preference' },
-    load() { return { code: source, moduleType: 'jsx' } },
+    resolveId(id, importer) { return !importer ? '\0preference' : id === './client-hint.jsx' ? '\0help' : { id, external: true } },
+    load(id) { return { code: id === '\0help' ? helpSource : source, moduleType: 'jsx' } },
   }] })
   let code
   try { code = (await bundle.generate({ format: 'cjs' })).output[0].code }
   finally { await bundle.close() }
   let snapshot = { status: 'ready', writable: true, saving: false }
-  const Switch = () => null, Tooltip = tooltip ? () => null : undefined, element = (type, props) => ({ type, props })
+  const Switch = () => null, Tooltip = tooltip ? () => null : undefined, element = (type, props) => typeof type === 'function' && type !== Switch && type !== Tooltip ? type(props) : ({ type, props })
   const dependencies = {
     'react/jsx-runtime': { jsx: element, jsxs: element },
     './client-primitives.js': { Switch, Tooltip },
@@ -55,7 +56,7 @@ async function renderPreference({ tooltip = true, locale = en } = {}) {
     const [help, hint] = row.props.children[0].props.children
     return { row, control: row.props.children.find(child => child.type === Switch), help, hint, label: Tooltip ? help.props.children : help }
   }
-  return { render, patches }
+  return { render, patches, label: props => module.exports.SettingsLabel(props), hint: props => module.exports.Hint(props) }
 }
 
 test('the compact prediction row uses the host switch and a keyboard-accessible host tooltip', async () => {
@@ -112,4 +113,26 @@ test('both languages explain draft-only acceptance and unconfirmed quota exempti
 
 test('the compiled preference rendering suite belongs to the delivery group with build dependencies', () => {
   assert.equal(testGroup('tests/composer-prediction-preferences.test.mjs'), 'delivery')
+})
+
+
+test('shared help leaves empty labels unfocusable and preserves native disclosure semantics', async () => {
+  const fixture = await renderPreference()
+  const plain = fixture.label({ children: 'Title', description: '   ' })
+  assert.equal(plain.type, 'span')
+  assert.equal(plain.props.tabIndex, undefined)
+  assert.equal(plain.props.title, undefined)
+  const help = fixture.label({ children: 'Runtime management', description: 'Details', as: 'summary', className: '', openOnClick: false })
+  assert.equal(help.props.openOnClick, false, 'clicking a native disclosure must keep its original action')
+  assert.equal(help.props.children.type, 'summary')
+  assert.equal(help.props.children.props.className, undefined, 'headings retain their original host styling')
+  assert.equal(help.props.children.props.tabIndex, 0)
+})
+
+test('live errors and confirmations stay inline without layout observers or hidden text', async () => {
+  const fixture = await renderPreference()
+  const message = fixture.hint({ as: 'p', children: 'Confirm clearing the local cache.' })
+  assert.equal(message.type, 'p')
+  assert.equal(message.props.children, 'Confirm clearing the local cache.')
+  assert.equal(message.props.className, 'codexSubscriptionPreferenceHint')
 })

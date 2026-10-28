@@ -141,3 +141,63 @@ test('the RPC surface reads, writes, and maps every rejection without leaking de
   const aborting = createSubscriptionRpcHandler({ defaultModel: { status: () => ({ available: true }) } })
   await assert.rejects(aborting('default-model/status', {}, AbortSignal.abort()))
 })
+
+test('restore uses the inherited native configuration and clears only the default-model override', async () => {
+  const entry = { options: { name: '@deepseek-ai/dsh-agent-default-model', id: 'native-default' } }
+  const inherited = { provider: 'custom-parent-provider', model: 'parent-model', reasoningEffort: 'high' }
+  let override = { provider: DEFAULT_MODEL_PROVIDER, model: 'gpt-5.6-sol' }
+  let selection = { ...override }
+  const service = { currentSelection: () => selection, saveSelection: async next => { selection = { ...next }; override = { ...next } } }
+  const editor = {
+    entries: () => [entry],
+    configuration: () => [{ entry, override }],
+    edit: async (target, change) => {
+      assert.equal(target, entry)
+      const next = change(override, inherited)
+      assert.equal(next, inherited)
+      selection = structuredClone(next)
+      override = {}
+    },
+  }
+  const controller = createDefaultModelController({ resolveService: () => service, resolveEditor: () => editor, listModels: () => [] })
+  assert.equal(controller.status().resetAvailable, true)
+  assert.deepEqual(await controller.reset(), { available: true, managed: false, resetAvailable: true, ...inherited })
+  assert.deepEqual(override, {})
+  await controller.select({ model: 'gpt-5.6-sol' })
+  await controller.reset()
+  assert.deepEqual(selection, inherited)
+  const handler = createSubscriptionRpcHandler({ defaultModel: controller })
+  assert.equal((await handler('default-model/reset', {}, new AbortController().signal)).ok, true)
+})
+
+test('restore refuses ambiguous entries and detects an ignored native edit', async () => {
+  const service = fakeService({ selection: { provider: DEFAULT_MODEL_PROVIDER, model: 'gpt-5.6-sol' } })
+  const entry = { options: { name: '@deepseek-ai/dsh-agent-default-model' } }
+  const editor = { entries: () => [entry], configuration: () => [{ entry, override: { model: 'still-saved' } }], edit: async () => {} }
+  const controller = createDefaultModelController({ resolveService: () => service, resolveEditor: () => editor })
+  await assert.rejects(controller.reset(), error => error.code === 'unavailable')
+  editor.entries = () => [entry, { ...entry }]
+  assert.equal(controller.status().resetAvailable, undefined)
+  await assert.rejects(controller.reset(), error => error.code === 'unavailable')
+  const unsupported = createDefaultModelController({ resolveService: () => service })
+  await assert.rejects(unsupported.reset(), error => error.code === 'unavailable')
+})
+
+test('a pending selection and restoration apply in submission order', async () => {
+  const entry = { options: { name: '@deepseek-ai/dsh-agent-default-model' } }
+  const inherited = { provider: 'parent-provider', model: 'parent-model' }
+  let selection = { ...inherited }, override = {}, release, edited = false
+  const pending = new Promise(resolve => { release = resolve })
+  const service = { currentSelection: () => selection, saveSelection: async next => { await pending; selection = next; override = next } }
+  const editor = { entries: () => [entry], configuration: () => [{ entry, override }], edit: async (_entry, change) => { selection = change(selection, inherited); override = {}; edited = true } }
+  const controller = createDefaultModelController({ resolveService: () => service, resolveEditor: () => editor })
+  const choosing = controller.select({ model: 'gpt-5.6-sol' })
+  const restoring = controller.reset()
+  await new Promise(resolve => setImmediate(resolve))
+  assert.equal(edited, false, 'restoration must not overtake a pending native write')
+  release()
+  await choosing
+  await restoring
+  assert.deepEqual(selection, inherited)
+  assert.deepEqual(override, {})
+})

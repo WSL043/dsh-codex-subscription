@@ -1,4 +1,4 @@
-import { Hint } from './client-hint.jsx'
+import { Hint, SettingsLabel } from './client-hint.jsx'
 import { Switch, IconChevronRightOutline14 } from './client-primitives.js'
 import { usePreferenceSnapshot } from './client-shared.js'
 import { CapabilityPreferences } from './capability-preferences.jsx'
@@ -39,7 +39,7 @@ export function FeatureRow({ t, title, summary, beta, checked, onChange, disable
 
 function SwitchRow({ t, title, hint, state, beta, checked, disabled, reason, onChange }) {
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{title}{beta ? <> <small>Beta</small></> : null}</span><Hint t={t}>{reason ?? (state ? t(`state_${state}_${checked ? 'on' : 'off'}`) : hint)}</Hint></div>
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={state ? t(`state_${state}_${checked ? 'on' : 'off'}`) : hint}>{title}{beta ? <> <small>Beta</small></> : null}</SettingsLabel>{reason ? <Hint>{reason}</Hint> : null}</div>
     <Switch checked={checked} label={title} disabled={disabled || Boolean(reason)} onChange={onChange} />
   </div>
 }
@@ -90,7 +90,7 @@ function OutputVerbosityPreference({ preference, t }) {
   const values = [OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, OUTPUT_VERBOSITY_HIGH]
   const label = { [OUTPUT_VERBOSITY_DEFAULT]: 'verbosityDefault', [OUTPUT_VERBOSITY_LOW]: 'verbosityLow', [OUTPUT_VERBOSITY_MEDIUM]: 'verbosityMedium', [OUTPUT_VERBOSITY_HIGH]: 'verbosityHigh' }
   return <div className="codexSubscriptionPreference">
-    <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('verbosityTitle')}</span><Hint t={t}>{t('verbosityPageHint')}</Hint></div>
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('verbosityPageHint')}>{t('verbosityTitle')}</SettingsLabel></div>
     <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('verbosityTitle')} aria-busy={snapshot.saving || undefined}>
       {values.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-output-verbosity" checked={snapshot.outputVerbosity === value} disabled={!writable} onChange={() => { void preference.set({ [OUTPUT_VERBOSITY_FIELD]: value }) }} /><span>{t(label[value])}</span></label>)}
     </div>
@@ -133,17 +133,17 @@ export function ModelsPage({ preference, t, defaultModel }) {
         <StreamIdleTimeoutPreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <div className="codexSubscriptionPreference">
-          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('connectionTitle')} <small>Beta</small></span><Hint t={t}>{t('connectionHint')}</Hint></div>
+          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('connectionHint')}>{t('connectionTitle')} <small>Beta</small></SettingsLabel></div>
           <Radios snapshot={snapshot} preference={preference} field="connectionMode" values={['sse', 'websocket']} name="codex-connection-mode" label={t('connectionTitle')} text={value => t(`connection_${value}`)} />
         </div>
         <div className="codexSubscriptionDivider" />
         <div className="codexSubscriptionPreference">
-          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('compactionTitle')} <small>Beta</small></span><Hint t={t}>{t('compactionHint')}</Hint></div>
+          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('compactionHint')}>{t('compactionTitle')} <small>Beta</small></SettingsLabel></div>
           <Radios snapshot={snapshot} preference={preference} field="compactionMode" values={['dsh', 'cloud']} name="codex-compaction-mode" label={t('compactionTitle')} text={value => t(`compaction_${value}`)} />
         </div>
         <div className="codexSubscriptionDivider" />
         <div className="codexSubscriptionPreference">
-          <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('reviewModelTitle')} <small>Beta</small></span><Hint t={t}>{t('reviewModelHint')}</Hint></div>
+          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('reviewModelHint')}>{t('reviewModelTitle')} <small>Beta</small></SettingsLabel></div>
           <Radios snapshot={snapshot} preference={preference} field="reviewModel" values={['session', 'official']} name="codex-review-model" label={t('reviewModelTitle')} text={value => t(`reviewModel_${value}`)} />
         </div>
       </div>
@@ -171,7 +171,7 @@ export function ToolsPage({ preference, rpc, t, active = true }) {
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('subagentBackendTitle')}>
       
       <div className="codexSubscriptionPreference">
-        <div className="codexSubscriptionPreferenceCopy"><span className="codexSubscriptionPreferenceLabel">{t('subagentBackendTitle')} <small>Beta</small></span><Hint t={t}>{snapshot.subagentBackendAvailable ? t(codexReady || subagentsOn ? 'subagentBackendHint' : 'subagentBackendNeedsRuntime') : t('subagentBackendUnavailable')}</Hint></div>
+        <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('subagentBackendHint')}>{t('subagentBackendTitle')} <small>Beta</small></SettingsLabel>{!snapshot.subagentBackendAvailable || !(codexReady || subagentsOn) ? <Hint>{t(snapshot.subagentBackendAvailable ? 'subagentBackendNeedsRuntime' : 'subagentBackendUnavailable')}</Hint> : null}</div>
         <Radios snapshot={snapshot} preference={preference} field="subagentBackend" values={['dsh', 'codex']} name="codex-subagent-backend" label={t('subagentBackendTitle')} text={value => t(`subagentBackend_${value}`)}
           disabled={!snapshot.subagentBackendAvailable} disabledValues={codexReady || subagentsOn ? [] : ['codex']} />
       </div>
@@ -195,12 +195,11 @@ export function CreatePage({ preference, t }) {
       <SwitchRow t={t} title={t('imageViewerRow')} state="imageViewer" checked={snapshot.imageViewer && snapshot.imageAnnotations} disabled={disabled} onChange={next => set({ imageViewer: next, imageAnnotations: next })} />
       <details className="codexAdvancedFold codexAdvancedInline">
         <summary>{t('imageAdvancedTitle')}<span>{imagesOn ? `${modelLabel(snapshot.imageModel)} · ${t(`imageQuality_${snapshot.imageQuality}`)}` : t('imageCapability_off')}</span></summary>
-        <ImageChoice t={t} label={t('imageModel')} value={snapshot.imageModel} text={modelLabel(snapshot.imageModel)} disabled={disabled || !imagesOn}
+        <ImageChoice t={t} label={t('imageModel')} hint={snapshot.imageModel.includes('2.5') ? t('imageModelHint') : undefined} value={snapshot.imageModel} text={modelLabel(snapshot.imageModel)} disabled={disabled || !imagesOn}
           items={Object.keys(IMAGE_MODELS).map(id => ({ id, label: `${modelLabel(id)}${id.includes('2.5') ? ` · ${t('imageExperimental')}` : ''}` }))}
           onSelect={imageModel => set({ imageModel, imageQuality: 'auto' })} />
         <ImageChoice t={t} label={t('imageQuality')} value={snapshot.imageQuality} text={t(`imageQuality_${snapshot.imageQuality}`)} disabled={disabled || !imagesOn}
           items={IMAGE_MODELS[snapshot.imageModel].map(id => ({ id, label: t(`imageQuality_${id}`) }))} onSelect={imageQuality => set({ imageQuality })} />
-        {snapshot.imageModel.includes('2.5') ? <Hint t={t} as="p">{t('imageModelHint')}</Hint> : null}
       </details>
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('creativeSketch')}>

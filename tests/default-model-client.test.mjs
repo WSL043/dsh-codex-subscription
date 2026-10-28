@@ -20,7 +20,7 @@ test('the settings controller adopts the host default model', async () => {
   await controller.load()
   assert.deepEqual(controller.getSnapshot(), {
     status: 'ready', available: true, managed: true, provider: 'openai-codex', model: 'gpt-5.6-terra',
-    reasoningEffort: undefined, saving: false, error: false,
+    reasoningEffort: undefined, resetAvailable: false, saving: false, error: false,
   })
   assert.equal(notified, 1)
   unsubscribe()
@@ -33,7 +33,7 @@ test('a failed load reports an error without inventing a managed selection', asy
   await controller.load()
   assert.deepEqual(controller.getSnapshot(), {
     status: 'error', available: false, managed: false, provider: undefined, model: undefined,
-    reasoningEffort: undefined, saving: false, error: true,
+    reasoningEffort: undefined, resetAvailable: false, saving: false, error: true,
   })
   const rejected = createDefaultModelController({ call: async () => ({ ok: false, error: { message: 'Could not read the default model' } }) })
   await rejected.load()
@@ -151,4 +151,13 @@ test('both locales describe the default-model control with the follow-state plac
   }
   assert.ok(zh.defaultModelFollowHint.includes('{value}'))
   assert.ok(en.defaultModelFollowHint.includes('{value}'))
+})
+
+test('reset round trip uses the dedicated endpoint and adopts inherited defaults', async () => {
+ const calls=[];const controller=createDefaultModelController({call:async(_channel,endpoint,payload)=>{calls.push({endpoint,payload});return status({available:true,resetAvailable:true,managed:false,provider:'parent-provider',model:'parent-model'})}})
+ assert.equal(await controller.reset(),true)
+ assert.deepEqual(calls,[{endpoint:'default-model/reset',payload:{}}])
+ assert.equal(controller.getSnapshot().model,'parent-model')
+ assert.equal(controller.getSnapshot().managed,false)
+ controller.dispose();assert.equal(await controller.reset(),false)
 })

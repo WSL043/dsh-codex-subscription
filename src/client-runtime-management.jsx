@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Button } from './client-primitives.js'
+import { SettingsLabel } from './client-hint.jsx'
 import { CHANNEL } from './rpc-contract.js'
 
 export function RuntimeManagement({ rpc, preference, t, active = true }) {
@@ -53,14 +54,12 @@ export function RuntimeManagement({ rpc, preference, t, active = true }) {
     {error || state?.phase === 'failed' ? <p role="alert">{t(state?.error === 'build-blocked' ? 'runtimeBuildBlocked' : 'runtimeFailed')}</p> : null}
     {state?.phase === 'cancelled' ? <p role="status">{t('runtimeCancelled')}</p> : null}
     <details>
-      <summary>{t('subagentRuntimeManage')}</summary>
+      <SettingsLabel as="summary" className="" openOnClick={false} description={[state?.installable ? t('runtimeInstallHint') : undefined, t('subagentRuntimeCacheHint')].filter(Boolean).join(' ')}>{t('subagentRuntimeManage')}</SettingsLabel>
       {state?.present && state.available && !state.removable ? <p>{t('runtimeManagedElsewhere')}</p> : null}
       {!busy ? <Button type="button" variant="outline" disabled={sending} onClick={() => { void read(); void preference.load() }}>{t('runtimeRefresh')}</Button> : null}
       {state && !state.available ? <p>{t('runtimeUnavailable')}</p> : null}
       {state?.available && !state.installable && !state.present ? <p>{t('runtimeHostUnsupported')}</p> : null}
-      {state?.installable ? <p>{t('runtimeInstallHint')}</p> : null}
       {state?.componentVersion ? <code>@deepseek-ai/dsh-subagent-codex@{state.componentVersion}</code> : null}
-      <p>{t('subagentRuntimeCacheHint')}</p>
       <a href="https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md#codex-subtask-runtime" target="_blank" rel="noreferrer">{t('subagentRuntimePrepare')}</a>
     </details>
   </div>
