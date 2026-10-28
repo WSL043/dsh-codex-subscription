@@ -41,7 +41,7 @@ Let DeepSeek or any other DSH model use the apps you connected in ChatGPT: GitHu
 
 Web search and webpage reading sources, ChatGPT connectors and official Codex independent subtasks are on **Settings → Codex subscription → Web & tools**, with one master switch at the top: when off, conversations on DeepSeek and other non-Codex models no longer use subscription web search (DSH search is used instead), image generation or ChatGPT connectors; Codex subscription models are not affected. On by default.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-interop-en-dark.webp"><img src="docs/assets/ui-interop-en-light.webp" width="640" alt="Web & tools settings: separate search and webpage reading sources and connector permissions"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-interop-en-dark.webp"><img src="docs/assets/ui-interop-en-light.webp" width="640" alt="Web & tools settings: search and webpage reading sources, connector permissions and independent subtasks"></picture></p>
 
 </details>
 
@@ -126,7 +126,7 @@ Open **Settings → Codex** to manage accounts and preferences. Screenshots and 
 <details>
 <summary>Composer: models, speed, permissions and quota</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="Composer: permission, sketch, remaining quota, the lightning mark for Fast mode and the model picker"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="Composer: workspace permission, remaining quota and model selection"></picture></p>
 
 </details>
 
@@ -250,7 +250,7 @@ This is a third-party compatibility layer using OpenAI's remote connection servi
 <details>
 <summary>Pairing settings and paired phones</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Phone remote control in settings: the switch, pairing QR code and manual code, paired phones"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Phone remote control in settings: the switch, connection status, pairing QR code and manual code"></picture></p>
 
 </details>
 

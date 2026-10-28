@@ -126,7 +126,7 @@ dsh --profile headless "只回复：ok"
 <details>
 <summary>输入框：模型、速度、权限与额度</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-zh-dark.png"><img src="docs/assets/ui-composer-zh-light.png" width="760" alt="输入框：权限、草图、剩余额度、闪电标识的 Fast 模式和模型选择"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-zh-dark.png"><img src="docs/assets/ui-composer-zh-light.png" width="760" alt="输入框：工作区权限、剩余额度和模型选择"></picture></p>
 
 </details>
 
@@ -250,7 +250,7 @@ Agent 先在画板绘制可编辑草图，再以该草图为参考调用订阅�
 <details>
 <summary>配对设置与已配对手机</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-zh-dark.png"><img src="docs/assets/ui-remote-zh-light.png" width="560" alt="设置里的手机远程控制：开关、配对二维码和手动码、已配对的手机"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-zh-dark.png"><img src="docs/assets/ui-remote-zh-light.png" width="560" alt="设置里的手机远程控制：开关、连接状态、配对二维码和手动码"></picture></p>
 
 </details>
 
