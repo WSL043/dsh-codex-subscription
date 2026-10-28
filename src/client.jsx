@@ -24,8 +24,6 @@ import { CodexSection } from './client-section.jsx'
 import { createHostDiagnostics } from './diagnostic-host.js'
 import { restoreVoiceConversation } from './voice-browser.js'
 import { ComposerPrediction, PREDICTION_CSS } from './client-predictions.jsx'
-import { WebFetchWithBody, WEB_FETCH_PREVIEW_CSS } from './client-web-fetch.jsx'
-import { installWebFetchPreview } from './web-fetch-preview.js'
 
 export const inject = [
   'slots', 'locale', 'connection', 'remote', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
@@ -55,7 +53,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = 'dsh-codex-subscription'
-    tag.textContent = STYLE + IMAGE_PREVIEWS_CSS + PREDICTION_CSS + WEB_FETCH_PREVIEW_CSS
+    tag.textContent = STYLE + IMAGE_PREVIEWS_CSS + PREDICTION_CSS
     document.head.append(tag)
     return () => tag.remove()
   }, 'codex-subscription: style')
@@ -91,7 +89,6 @@ export function apply(ctx) {
     }
   }, 'codex-subscription: preferences and account status')
   const t = ctx.locale.bind(NS)
-  ctx.slots.inject('tool.call.toolview', () => installWebFetchPreview(ctx, WebFetchWithBody, NS))
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'codex-subscription-image-viewer', order: 20,
     inject: () => ({ service: imageViewer, t }),
