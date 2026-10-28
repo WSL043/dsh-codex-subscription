@@ -101,6 +101,10 @@ The board supports editable shapes and text, native curves, and a side control f
 
 Flare / Sunburst request overrides remain experimental: successful generation does not confirm which image engine or quality the subscription backend used.
 
+### Retrieved page text
+
+On hosts supporting the extension, native fetch cards include **View page text**. Expand it to read the returned text; **View retrieved partial text** means the entire page was not retrieved. It is collapsed by default and neither refetches the page nor changes model-facing content. HTTP 200 is the retrieval channel's success status, not a guarantee of complete or current origin content.
+
 ### Input predictions
 
 Enable **Input predictions** under **Settings → Codex subscription → Models**; it is off by default. GPT-6 Astra, GPT-6.1 Sol and GPT-6.1 Terra are supported, subject to the account's official prediction capability check.
