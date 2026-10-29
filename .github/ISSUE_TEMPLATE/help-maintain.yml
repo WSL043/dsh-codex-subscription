@@ -1,0 +1,47 @@
+name: Help maintain / 参与维护
+description: Share how you would like to help maintain this project. / 说明你希望参与维护的方向。
+body:
+  - type: markdown
+    attributes:
+      value: |
+        欢迎参与问题复现、兼容性验证、文档或代码维护。可以用中文或英文填写；普通 Issue 和 PR 不需要先申请。
+        这是一份公开的维护意向申请，不自动授予仓库写入、合并或发布权限。请勿填写凭据、授权链接或私人联系方式。
+
+        Help with issue reproduction, compatibility checks, documentation or code maintenance. English and Chinese are both welcome; ordinary issues and pull requests do not require an application.
+        This public form expresses maintenance interest and does not automatically grant repository write access, merge rights or release permissions. Do not include credentials, authorization links or private contact details.
+
+  - type: textarea
+    id: area
+    attributes:
+      label: 维护方向 / Area of interest
+      description: 希望协助哪些模块或工作？ / Which parts of the project or tasks would you like to help with?
+    validations:
+      required: true
+
+  - type: textarea
+    id: first_task
+    attributes:
+      label: 第一步 / First task
+      description: 想先复现、验证或改进哪个具体问题？可以附 Issue 链接。 / What concrete issue would you start by reproducing, verifying or improving? You may link an issue.
+    validations:
+      required: true
+
+  - type: textarea
+    id: contributions
+    attributes:
+      label: 已有贡献 / Previous contributions
+      description: 可选。相关 Issue、PR 或验收记录；尚无贡献可以留空。 / Optional. Related issues, pull requests or verification results; leave blank if you have none yet.
+
+  - type: input
+    id: availability
+    attributes:
+      label: 大致可投入时间 / Approximate availability
+      description: 可选，按自己的情况说明即可。 / Optional; describe what works for you.
+
+  - type: checkboxes
+    id: acknowledgement
+    attributes:
+      label: 申请说明 / Acknowledgement
+      options:
+        - label: 我理解申请不自动授予仓库写入、合并或发布权限。 / I understand that applying does not automatically grant repository write access, merge rights or release permissions.
+          required: true

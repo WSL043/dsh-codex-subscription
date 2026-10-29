@@ -56,3 +56,15 @@ request does not imply an immediate npm release.
 Main may retain the current stable package version while unreleased fixes
 accumulate; all runtime acceptance gates still apply. Version increments,
 release tags and publication belong to the separately approved release.
+
+<a id="help-maintain"></a>
+
+## 参与维护 / Help maintain
+
+希望长期参与问题复现、兼容性验证、文档或代码维护，可以提交[维护意向申请](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=help-maintain.yml)，用中文或英文说明希望负责的方向、想先处理的具体问题，以及已有贡献。已有贡献链接和大致可投入时间可选，不需要公开私人联系方式。
+
+可以先从一个聚焦的 Issue 或 PR 开始；普通贡献不需要先申请。项目负责人会结合实际贡献和验收记录沟通协作范围。申请不自动授予仓库写入、合并或发布权限，任何权限授予都需单独确认；main 合并和版本发布仍由项目负责人决定。
+
+To help with ongoing issue reproduction, compatibility checks, documentation or code maintenance, submit the [maintenance interest form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=help-maintain.yml) in English or Chinese. Describe the area you would like to help with and a concrete first task. Previous contribution links and approximate availability are optional; do not include private contact details.
+
+You can start with a focused issue or pull request; ordinary contributions do not require an application. The project owner will discuss a scope based on actual contributions and verification evidence. Applying does not automatically grant repository write access, merge rights or release permissions. Any access grant requires a separate decision; main merges and releases remain the project owner's decisions.

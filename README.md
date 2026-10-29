@@ -430,6 +430,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 - 本项目的问题反馈请使用[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)；
 - 明确的产品建议请使用[功能建议表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml)；
 - 欢迎提交聚焦的修复和兼容性改进，具体要求见 [CONTRIBUTING.md](CONTRIBUTING.md)；
+- 希望长期参与维护，可先阅读[参与维护说明](CONTRIBUTING.md#help-maintain)，再提交[维护意向申请](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=help-maintain.yml)。申请不自动授予仓库写入、合并或发布权限；
 - DSH 插件交流可前往 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)。
 - 敏感问题请先阅读 [SECURITY.md](SECURITY.md)。
 
