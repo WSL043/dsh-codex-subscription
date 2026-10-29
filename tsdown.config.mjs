@@ -133,7 +133,9 @@ function clientBundle(entry, fileName, chunk) {
     entry: { client: entry },
     outDir: 'lib', format: 'cjs', platform: 'browser', target: 'es2022',
     dts: false, sourcemap: true, clean: false,
-    deps: { neverBundle: clientExternal },
+    // This pure record reader is not a browser module-table seed. Inline it
+    // rather than requiring a server-only peer subpath at page boot.
+    deps: { neverBundle: clientExternal, alwaysBundle: ['@deepseek-ai/dsh-llm/assistant-stream'] },
     plugins: [...(chunk ? [featureRebuildNotice()] : [featureImports()]), portableSourcePaths()],
     define: { 'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production') },
     outputOptions: {

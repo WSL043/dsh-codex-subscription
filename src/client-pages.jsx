@@ -133,7 +133,7 @@ export function ModelsPage({ preference, t, defaultModel }) {
         <StreamIdleTimeoutPreference preference={preference} t={t} />
         <div className="codexSubscriptionDivider" />
         <div className="codexSubscriptionPreference">
-          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('connectionHint')}>{t('connectionTitle')} <small>Beta</small></SettingsLabel></div>
+          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('connectionHint')}>{t('connectionTitle')} <small>Beta</small></SettingsLabel>{snapshot.compactionMode === 'cloud' && snapshot.connectionMode === 'websocket' ? <Hint>{t('state_connection_cloud')}</Hint> : null}</div>
           <Radios snapshot={snapshot} preference={preference} field="connectionMode" values={['sse', 'websocket']} name="codex-connection-mode" label={t('connectionTitle')} text={value => t(`connection_${value}`)} />
         </div>
         <div className="codexSubscriptionDivider" />

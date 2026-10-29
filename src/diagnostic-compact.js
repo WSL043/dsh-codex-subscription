@@ -1,4 +1,5 @@
 import { formatLogLine } from './diagnostic-log-format.js'
+import { safeStreamHealth } from './model-stream-health.js'
 // The copied report is what a person pastes into an issue, so it carries the
 // conclusions and the facts needed to act on them, not every counter. The full
 // JSON stays available in the settings page's details section.
@@ -14,6 +15,7 @@ export function compactDiagnostic(report) {
     account: report.account?.status,
     catalog: report.catalog ? { source: report.catalog.source, refresh: report.catalog.refresh } : undefined,
     configuration: report.configuration,
+    ...(report.streamHealth ? { streamHealth: safeStreamHealth(report.streamHealth).slice(-5) } : {}),
     findings: summary.findings.map(item => ({
       code: item.code,
       severity: item.severity,

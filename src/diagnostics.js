@@ -5,6 +5,7 @@ import { collectChecks } from './diagnostic-checks.js'
 import { capabilityCoverage } from './diagnostic-capabilities.js'
 import { safeOperations } from './diagnostic-operations.js'
 import { diagnosticLog } from './diagnostic-log.js'
+import { safeStreamHealth } from './model-stream-health.js'
 
 const requestAreas = new Set(['login', 'model', 'catalog', 'quota', 'quota-reset', 'search', 'image', 'voice'])
 const statuses = new Set(['ok', 'failed'])
@@ -71,6 +72,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
       if (!Number.isSafeInteger(value?.count)) return undefined
       return { count: value.count, ...(['prepare', 'request', 'payload', 'stream'].includes(value.stage) ? { stage: value.stage } : {}), ...(typeof value.frame === 'string' && /^[\w.@/-]{1,120}:\d+:\d+$/u.test(value.frame) ? { frame: value.frame } : {}), ...(value.request && typeof value.request === 'object' && JSON.stringify(value.request).length <= 120_000 ? { request: value.request } : {}), ...(value.adapter && typeof value.adapter === 'object' && JSON.stringify(value.adapter).length <= 120_000 ? { adapter: value.adapter } : {}) }
     }],
+    ['streamHealth', 'transport', () => typeof review?.streamHealth === 'function' ? safeStreamHealth(review.streamHealth()) : undefined],
     ['operations', 'transport', () => safeOperations(operations?.snapshot?.())],
     ['runtime', 'subagents', async () => {
       const value = await runtimeManagement?.status?.()
@@ -130,6 +132,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     ...(collected.compaction ? { compaction: collected.compaction } : {}),
     ...(collected.review ? { review: collected.review } : {}),
     ...(collected.streamFailure ? { streamFailure: collected.streamFailure } : {}),
+    ...(collected.streamHealth?.length ? { streamHealth: collected.streamHealth } : {}),
     ...(catalog && ['unavailable', 'cached', 'online'].includes(catalog.source)
       && ['idle', 'refreshing', 'ok', 'failed'].includes(catalog.refresh)
       ? { catalog: { source: catalog.source, refresh: catalog.refresh, ...(gaps.length ? { unsupported: gaps } : {}) } } : {}),

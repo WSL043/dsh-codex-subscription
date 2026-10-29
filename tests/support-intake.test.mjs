@@ -47,8 +47,13 @@ test("issue intake acknowledges only recognized bug and feature reports", async 
   assert.match(workflow, /types:\s*\[opened, edited\]/);
   assert.match(workflow, /dsh-maintenance-ack/);
   assert.match(workflow, /dsh-feature-ack/);
-  assert.match(workflow, /context\.payload\.action === 'opened' && isBug/);
-  assert.match(workflow, /context\.payload\.action === 'opened' && isFeature/);
+  assert.match(workflow, /context\.payload\.action === 'opened' && !acknowledged/);
+  assert.match(workflow, /if \(isReport\) \{/);
+  assert.match(workflow, /if \(!isReport\) return/);
+  assert.match(workflow, /group: issue-intake-\$\{\{ github\.event\.issue\.number \}\}/);
+  assert.match(workflow, /cancel-in-progress: false/);
+  assert.match(workflow, /Related suggestions can stay in this issue/);
+  assert.doesNotMatch(workflow, /Please open a Bug report instead|template=install-problem|不兼容\|装不上/);
   assert.doesNotMatch(workflow, /context\.payload\.action === 'opened'\) \{\s*await commentOnce\(\s*'<!-- dsh-maintenance-ack -->'/u);
   assert.match(workflow, /we\\?'ll reproduce it[\s\S]*follow up here/i);
   assert.match(workflow, /感谢反馈[\s\S]*同步核查结果/u);

@@ -8,6 +8,7 @@ import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-work
 import { normalizeTransportEvent } from './transport-failure.js'
 import { createModelRetryBridge } from './model-retry-hint.js'
 import { effectiveContextWindow } from './context-budget.js'
+import { createModelStreamHealth } from './model-stream-health.js'
 import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
@@ -114,6 +115,7 @@ export function openaiCodexSubscriptionProvider({
   runNetwork = (_area, operation) => operation(),
 } = {}) {
   const provider = createOpenAICodexProvider()
+  const streamHealth = createModelStreamHealth({ log: (level, message) => diagnosticLog.log(level, 'model-stream', message) })
   const retryBridge = createModelRetryBridge()
   const requestToken = Object.freeze({
     name: 'DSH-managed Codex OAuth request token',
@@ -268,6 +270,7 @@ export function openaiCodexSubscriptionProvider({
   }
   const networkIterable = (factory, options, direct = false, source) => {
     let iterator
+    let health
     let prepared
     let stage = 'prepare'
     const retryHint = direct ? undefined : retryBridge.current()
@@ -277,16 +280,26 @@ export function openaiCodexSubscriptionProvider({
       if (stage === 'prepare') stage = 'request'
       const result = await runNetwork('model', () => {
         const next = direct ? request.options : compaction?.requestOptions(request.options) ?? request.options
-        iterator ??= factory({ ...next, async onResponse(info, requestModel) { retryHint?.onResponse(info); return next.onResponse?.(info, requestModel) }, async onPayload(payload, requestModel) { stage = 'payload'; return next.onPayload?.(payload, requestModel) } })[Symbol.asyncIterator]()
+        health ??= streamHealth.begin({ sessionId: direct ? undefined : options?.sessionId, configured: request.options?.transport, selected: next.transport })
+        iterator ??= factory({ ...next,
+          async onResponse(info, requestModel) { health.response(info); retryHint?.onResponse(info); return next.onResponse?.(info, requestModel) },
+          onProviderStreamEvent(event) { health.providerEvent(); return next.onProviderStreamEvent?.(event) },
+          async onPayload(payload, requestModel) { stage = 'payload'; return next.onPayload?.(payload, requestModel) },
+        })[Symbol.asyncIterator]()
         return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
       }, direct ? request.network : compaction?.networkOptions(request.network) ?? request.network)
       if (!result.done) {
+        health?.observe(result.value)
+        if (result.value?.type === 'error') health?.finish(request.options?.signal?.aborted ? 'cancelled' : 'failed', result.value.error)
+        else if (result.value?.type === 'done') health?.finish('completed')
         retryHint?.observe(result.value, request.options?.signal)
         if (result.value?.type === 'error' && !request.options?.signal?.aborted) noteStreamFailure(stage, undefined, source)
         else if (stage === 'payload') stage = 'stream'
       }
+      if (method === 'return') health?.finish('cancelled')
+      else if (result.done) health?.finish(request.options?.signal?.aborted ? 'cancelled' : 'completed')
       return result.done ? result : { ...result, value: normalizeTransportEvent(result.value, request.options?.signal) }
-    } catch (error) { noteStreamFailure(stage, error, source); throw error } }
+    } catch (error) { health?.finish(options?.signal?.aborted ? 'cancelled' : 'failed', error); noteStreamFailure(stage, error, source); throw error } }
     return {
       [Symbol.asyncIterator]() { return this },
       next: value => step('next', value),
@@ -312,6 +325,7 @@ export function openaiCodexSubscriptionProvider({
     streamSimple: (model, context, options) => routed('streamSimple', model, context, options),
     reviewCounters: () => ({ ...review }),
     streamFailure: () => ({ ...streamFailure }),
+    streamHealth: streamHealth.snapshot,
     noteAdapterFailure,
     wrapRetryAdapter: adapter => retryBridge.wrapAdapter(adapter),
   })

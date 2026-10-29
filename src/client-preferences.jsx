@@ -268,7 +268,7 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('connectionTitle')}>
         <div className="codexSubscriptionPreference">
-          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('connectionHint')}>{t('connectionTitle')} <small>Beta</small></SettingsLabel></div>
+          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('connectionHint')}>{t('connectionTitle')} <small>Beta</small></SettingsLabel>{snapshot.compactionMode === 'cloud' && snapshot.connectionMode === 'websocket' ? <Hint>{t('state_connection_cloud')}</Hint> : null}</div>
           <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('connectionTitle')} aria-busy={snapshot.saving || undefined}>
             {['sse', 'websocket'].map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-connection-mode" checked={snapshot.connectionMode === value} disabled={!snapshot.writable} onChange={() => { void preference.set({ connectionMode: value }) }} /><span>{value === 'sse' ? 'SSE' : 'WebSocket'}</span></label>)}
           </div>

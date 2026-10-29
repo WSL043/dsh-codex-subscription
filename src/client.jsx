@@ -24,6 +24,8 @@ import { CodexSection } from './client-section.jsx'
 import { createHostDiagnostics } from './diagnostic-host.js'
 import { restoreVoiceConversation } from './voice-browser.js'
 import { ComposerPrediction, PREDICTION_CSS } from './client-predictions.jsx'
+import { requestSourceNode, interruptedOutputNode } from './interrupted-output.js'
+import { InterruptedOutput, INTERRUPTED_OUTPUT_CSS } from './client-interrupted-output.jsx'
 
 export const inject = [
   'slots', 'locale', 'connection', 'remote', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
@@ -53,7 +55,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = 'dsh-codex-subscription'
-    tag.textContent = STYLE + IMAGE_PREVIEWS_CSS + PREDICTION_CSS
+    tag.textContent = STYLE + IMAGE_PREVIEWS_CSS + PREDICTION_CSS + INTERRUPTED_OUTPUT_CSS
     document.head.append(tag)
     return () => tag.remove()
   }, 'codex-subscription: style')
@@ -269,6 +271,11 @@ export function apply(ctx) {
       attachForEdit: attachForEdit(sessionId),
   })
   ctx.effect(() => uiConversation.events.register(imageConversationNode), 'codex-subscription: image results in chat')
+  ctx.effect(() => uiConversation.events.register(requestSourceNode), 'codex-subscription: request source')
+  ctx.effect(() => uiConversation.events.register(interruptedOutputNode), 'codex-subscription: interrupted output')
+  ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
+    name: 'conversation.chat.node', key: 'codex-interrupted-output', inject: () => ({ t }),
+  }, InterruptedOutput))
   ctx.slots.inject('conversation.chat.node', () => ctx.slots.register({
     name: 'conversation.chat.node', key: 'codex-image-output', inject: imageProps,
   }, CodexImageOutput))

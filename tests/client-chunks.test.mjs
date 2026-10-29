@@ -75,6 +75,7 @@ test('emitted feature artifacts register lazily under one plugin owner with usab
     assert.equal(/\brequire\(['"]\.\/client\.[^'"]+['"]\)/u.test(source), false, `${fileName} contains an unsupported synchronous relative chunk require`)
     assert.equal(/\bimport\(['"]\.\/client\.[^'"]+['"]\)/u.test(source), false, `${fileName} bypasses the host chunk loader with native import()`)
     if (fileName === 'client.js') {
+      assert.doesNotMatch(source, /require\(["']@deepseek-ai\/dsh-llm\/assistant-stream["']\)/u, 'the browser module table does not seed this server subpath; bundle the pure record reader')
       for (const featureName of featureNames) assert.ok(source.includes(`require.async("./${featureName}")`), `initial client must use host async loading for ${featureName}`)
     }
     const map = JSON.parse(await readFile(new URL(`../lib/${fileName}.map`, import.meta.url), 'utf8'))

@@ -8,6 +8,10 @@ permissions:
   contents: read
   issues: write
 
+concurrency:
+  group: issue-intake-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
 jobs:
   intake:
     if: github.event.issue.user.type != 'Bot'
@@ -23,6 +27,10 @@ jobs:
             const isBug = labelNames.has('bug')
             const isFeature = labelNames.has('enhancement')
             if (!isBug && !isFeature) return
+            const body = context.payload.issue.body ?? ''
+            // A suggestion can include a complete failure report. Keep it here;
+            // error words alone do not make a feature request incomplete.
+            const isReport = isBug || /^### (?:Plugin|DSH) version\s*$/imu.test(body)
 
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner,
@@ -38,60 +46,56 @@ jobs:
                 issue_number: context.issue.number,
                 body: `${marker}\n${body}`,
               })
+              comments.push({ body: `${marker}\n${body}` })
             }
 
-            if (context.payload.action === 'opened' && isBug) {
-              await commentOnce(
-                '<!-- dsh-maintenance-ack -->',
-                'Thanks for the report. We\'ll reproduce it on the reported plugin and DSH versions, then follow up here with what we find.\n\n感谢反馈。我们会按你提供的插件和 DSH 版本复现，并在这里同步核查结果。',
-              )
+            const acknowledged = comments.some(comment => /<!-- dsh-(?:maintenance-ack|feature-ack|misfiled) -->/u.test(comment.body ?? ''))
+            if (context.payload.action === 'opened' && !acknowledged) {
+              if (isReport) {
+                await commentOnce(
+                  '<!-- dsh-maintenance-ack -->',
+                  'Thanks for the report. We\'ll reproduce it on the reported plugin and DSH versions, then follow up here with what we find. Related suggestions can stay in this issue.\n\n感谢反馈。我们会按你提供的插件和 DSH 版本复现，并在这里同步核查结果；相关建议也在这条 issue 里继续讨论，无需重新提交。',
+                )
+              } else {
+                await commentOnce(
+                  '<!-- dsh-feature-ack -->',
+                  'Thanks for the suggestion. We\'ll first check whether DSH already provides this capability and whether it fits this plugin\'s scope, then follow up here.\n\n感谢建议。我们会先确认 DSH 是否已有对应能力，以及它是否适合由本插件负责，再在这里回复。',
+                )
+              }
             }
 
-            const needInfo = () => github.rest.issues.addLabels({
+            const needInfo = () => labelNames.has('waiting-for-reporter') ? undefined : github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
               labels: ['waiting-for-reporter'],
             })
 
-            if (context.payload.action === 'opened' && isFeature) {
-              const text = context.payload.issue.body ?? ''
-              if (/不兼容|装不上|无法安装|安装失败|报错|崩溃|失败|incompatible|(?:can'?t|cannot|unable to|fails? to) install|error|crash|not working|doesn'?t work/iu.test(text)) {
-                await commentOnce(
-                  '<!-- dsh-misfiled -->',
-                  'This reads like something that is not working rather than a new idea. Please open a Bug report instead (or edit this issue to include the plugin version, the DSH version, and the exact message), so we can reproduce it: https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml\n\n这看起来是遇到了故障，而不是新功能建议。请改用 Bug 表单提交，或在本 issue 里补充插件版本、DSH 版本和完整提示，方便我们复现：https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml',
-                )
-                await needInfo()
-              }
-              await commentOnce(
-                '<!-- dsh-feature-ack -->',
-                'Thanks for the suggestion. We\'ll first check whether DSH already provides this capability and whether it fits this plugin\'s scope, then follow up here.\n\n感谢建议。我们会先确认 DSH 是否已有对应能力，以及它是否适合由本插件负责，再在这里回复。',
-              )
-            }
-
-            if (!isBug) return
-            const body = context.payload.issue.body ?? ''
+            if (!isReport) return
             const value = /^### Plugin version\s*\n+([^\n]+)/imu.exec(body)?.[1]?.trim()
             if (value?.toLowerCase() === 'not installed') return
             const version = /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?=\s|$)/u.exec(value ?? '')?.[0]
-            if (!version) {
-              await commentOnce(
-                '<!-- dsh-version-check:missing -->',
-                'Please edit the report and provide the exact plugin version from Settings or `dsh plugin --profile web list dsh-codex-subscription --depth 0`. If installation never completed, enter `not installed`.',
-              )
-              await needInfo()
-              return
-            }
-
             const dshValue = /^### DSH version\s*\n+([^\n]+)/imu.exec(body)?.[1]?.trim() ?? ''
             const dshVersion = /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?=\s|$)/u.exec(dshValue)?.[0]
+            const missing = []
+            if (!version) {
+              missing.push([
+                '<!-- dsh-version-check:missing -->',
+                'Please edit this issue and provide the exact plugin version from Settings or `dsh plugin --profile web list dsh-codex-subscription --depth 0`. If installation never completed, enter `not installed`.\n\n请编辑这条 issue，补充设置页中的准确插件版本；如果未安装成功，请填 `not installed`。',
+              ])
+            }
             if (!dshVersion) {
-              await commentOnce(
+              missing.push([
                 '<!-- dsh-version-check:dsh-missing -->',
-                'Please edit the report and give the exact DSH version (About, or startup output), for example `0.2.0-rc.2`, and how you run DSH (official desktop app, web, or DSH-Portable).\n\n请编辑 issue，补充准确的 DSH 版本号（关于页或启动输出，例如 `0.2.0-rc.2`）以及运行方式（官方桌面版 / 网页版 / DSH-Portable）。',
-              )
+                'Please edit this issue and give the exact DSH version from About or startup output, for example `0.2.0-rc.2`.\n\n请编辑这条 issue，补充准确的 DSH 版本号（关于页或启动输出，例如 `0.2.0-rc.2`）。',
+              ])
+            }
+            if (missing.length) {
+              const unanswered = missing.filter(([marker]) => !comments.some(comment => comment.body?.includes(marker)))
+              if (unanswered.length) await commentOnce(unanswered.map(([marker]) => marker).join('\n'), unanswered.map(([, text]) => text).join('\n\n'))
               await needInfo()
             }
+            if (!version) return
             const packageAt = async tag => {
               const response = await fetch(`https://registry.npmjs.org/dsh-codex-subscription/${tag}`)
               return response.ok ? response.json() : undefined
