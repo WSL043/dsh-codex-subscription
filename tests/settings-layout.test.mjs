@@ -23,6 +23,12 @@ test('the connectors row keeps its choices on one line beside the label and show
   assert.match(STYLE, /\.codexSubscriptionPreferenceStack>\.codexSubscriptionQuotaModes\{[^}]*grid-auto-columns:minmax\(0,1fr\)/u)
 })
 
+test('the account row keeps its action buttons on one line beside the email', () => {
+  // Cover every width above the <=480px narrow layout, including fractional widths.
+  assert.match(STYLE, /@container \(width > 480px\)\{\.codexSubscriptionAccount>\.codexSubscriptionActions\{flex-wrap:nowrap;flex:0 0 auto\}\}/u)
+  assert.ok(STYLE.includes('.codexSubscriptionActions{width:100%}'), 'the <=480px band still gives the actions the full row')
+})
+
 test('every fold-out row in the settings is a pressable row with a chevron that turns when it opens', () => {
   for (const name of ['codexSubscriptionHistory>summary', 'codexSubscriptionSearchOptions>summary', 'codexSubscriptionRuntime summary', 'codexImageDetails summary']) {
     assert.ok(STYLE.includes(`.${name}::after`), `${name} has a chevron`)
