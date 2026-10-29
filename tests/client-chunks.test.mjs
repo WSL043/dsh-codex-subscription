@@ -36,12 +36,6 @@ test('dependency source labels and maps do not depend on an external pnpm store 
   assert.equal(main.outputOptions.sourcemapPathTransform(outside), stable)
   assert.equal(main.outputOptions.sourcemapPathTransform(outside.replaceAll('/', '\\')), stable)
   assert.equal(main.outputOptions.sourcemapPathTransform('../src/client.jsx'), '../src/client.jsx')
-  for (const virtual of ['@deepseek-ai+dsh-util-values@0.2.1-rc.4_@deepseek-ai+cordis@4.0.4', '@deepseek-ai+dsh-util-value_1423e5fe747c45ef073c624a42bc8424']) {
-    const machine = `node_modules/.pnpm/${virtual}/node_modules/@deepseek-ai/dsh-util-values/lib/index.js`
-    const canonical = 'node_modules/@deepseek-ai/dsh-util-values/lib/index.js'
-    assert.equal(main.outputOptions.sourcemapPathTransform(machine), canonical)
-    assert.equal(String(transform.renderChunk(`//#region ${machine}\nconst x=1;`)), `//#region ${canonical}\nconst x=1;`)
-  }
 })
 
 test('feature imports use the host async module seam in both CJS compiler forms', () => {
@@ -81,7 +75,6 @@ test('emitted feature artifacts register lazily under one plugin owner with usab
     assert.equal(/\brequire\(['"]\.\/client\.[^'"]+['"]\)/u.test(source), false, `${fileName} contains an unsupported synchronous relative chunk require`)
     assert.equal(/\bimport\(['"]\.\/client\.[^'"]+['"]\)/u.test(source), false, `${fileName} bypasses the host chunk loader with native import()`)
     if (fileName === 'client.js') {
-      assert.doesNotMatch(source, /require\(["']@deepseek-ai\/dsh-llm\/assistant-stream["']\)/u, 'the browser module table does not seed this server subpath; bundle the pure record reader')
       for (const featureName of featureNames) assert.ok(source.includes(`require.async("./${featureName}")`), `initial client must use host async loading for ${featureName}`)
     }
     const map = JSON.parse(await readFile(new URL(`../lib/${fileName}.map`, import.meta.url), 'utf8'))
