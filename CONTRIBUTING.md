@@ -59,12 +59,12 @@ release tags and publication belong to the separately approved release.
 
 <a id="help-maintain"></a>
 
-## 参与维护 / Help maintain
+## 共同维护与开发 / Help maintain and develop
 
-希望长期参与问题复现、兼容性验证、文档或代码维护，可以提交[维护意向申请](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=help-maintain.yml)，用中文或英文说明希望负责的方向、想先处理的具体问题，以及已有贡献。已有贡献链接和大致可投入时间可选，不需要公开私人联系方式。
+希望长期负责某个模块或开发方向，可以[开个 Issue 聊聊](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=help-maintain.yml)。共同维护包括主动跟进相关问题、修复回归、开发改进、维护测试，以及审查该模块的 PR。日常工作按模块分工，具体改动通过 PR 协作。
 
-可以先从一个聚焦的 Issue 或 PR 开始；普通贡献不需要先申请。项目负责人会结合实际贡献和验收记录沟通协作范围。申请不自动授予仓库写入、合并或发布权限，任何权限授予都需单独确认；main 合并和版本发布仍由项目负责人决定。
+欢迎先一起完成一项改进，再逐步确定分工。普通贡献可以直接提 Issue 或 PR，无需登记。项目方向、main 合并和版本发布仍由项目负责人统筹，仓库权限另行商定。
 
-To help with ongoing issue reproduction, compatibility checks, documentation or code maintenance, submit the [maintenance interest form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=help-maintain.yml) in English or Chinese. Describe the area you would like to help with and a concrete first task. Previous contribution links and approximate availability are optional; do not include private contact details.
+To take ongoing responsibility for a module or development area, [open an issue](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=help-maintain.yml). Maintainers follow up on related issues, fix regressions, develop improvements, maintain tests and review pull requests for their area. Work is divided by module, with changes developed through pull requests.
 
-You can start with a focused issue or pull request; ordinary contributions do not require an application. The project owner will discuss a scope based on actual contributions and verification evidence. Applying does not automatically grant repository write access, merge rights or release permissions. Any access grant requires a separate decision; main merges and releases remain the project owner's decisions.
+We can start with one improvement and agree on responsibilities as we work together. Ordinary contributions can go straight to an issue or pull request without signing up. The project owner coordinates project direction, main merges and releases; repository access is agreed separately.

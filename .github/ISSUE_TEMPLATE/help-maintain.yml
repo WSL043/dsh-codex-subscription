@@ -1,47 +1,23 @@
-name: Help maintain / 参与维护
-description: Share how you would like to help maintain this project. / 说明你希望参与维护的方向。
+name: Help maintain and develop / 共同维护与开发
+description: Discuss a module or development area you would like to help maintain. / 商量希望长期负责的模块或开发方向。
 body:
   - type: markdown
     attributes:
       value: |
-        欢迎参与问题复现、兼容性验证、文档或代码维护。可以用中文或英文填写；普通 Issue 和 PR 不需要先申请。
-        这是一份公开的维护意向申请，不自动授予仓库写入、合并或发布权限。请勿填写凭据、授权链接或私人联系方式。
+        欢迎一起维护和开发这个项目，长期负责某个模块或方向，主动跟进问题、开发改进，并参与测试和代码审查。可以用中文或英文交流；单次修复可直接提 PR。
 
-        Help with issue reproduction, compatibility checks, documentation or code maintenance. English and Chinese are both welcome; ordinary issues and pull requests do not require an application.
-        This public form expresses maintenance interest and does not automatically grant repository write access, merge rights or release permissions. Do not include credentials, authorization links or private contact details.
-
-  - type: textarea
-    id: area
-    attributes:
-      label: 维护方向 / Area of interest
-      description: 希望协助哪些模块或工作？ / Which parts of the project or tasks would you like to help with?
-    validations:
-      required: true
-
-  - type: textarea
-    id: first_task
-    attributes:
-      label: 第一步 / First task
-      description: 想先复现、验证或改进哪个具体问题？可以附 Issue 链接。 / What concrete issue would you start by reproducing, verifying or improving? You may link an issue.
-    validations:
-      required: true
-
-  - type: textarea
-    id: contributions
-    attributes:
-      label: 已有贡献 / Previous contributions
-      description: 可选。相关 Issue、PR 或验收记录；尚无贡献可以留空。 / Optional. Related issues, pull requests or verification results; leave blank if you have none yet.
+        Help maintain and develop the project by taking ongoing responsibility for a module or area: follow up on issues, develop improvements, and help with tests and code reviews. English and Chinese are both welcome; one-off fixes can go straight to a pull request.
 
   - type: input
-    id: availability
+    id: area
     attributes:
-      label: 大致可投入时间 / Approximate availability
-      description: 可选，按自己的情况说明即可。 / Optional; describe what works for you.
+      label: 希望负责的模块或方向 / Module or area
+      description: 例如模型接入、搜索、生图、手机远程、Linux 兼容，或其他模块。 / For example models, search, images, phone remote control, Linux compatibility or another area.
+    validations:
+      required: true
 
-  - type: checkboxes
-    id: acknowledgement
+  - type: textarea
+    id: ideas
     attributes:
-      label: 申请说明 / Acknowledgement
-      options:
-        - label: 我理解申请不自动授予仓库写入、合并或发布权限。 / I understand that applying does not automatically grant repository write access, merge rights or release permissions.
-          required: true
+      label: 维护或开发思路 / Maintenance or development ideas
+      description: 可选。希望如何维护这部分，有哪些改进或开发计划？暂无具体方案也可以先讨论。 / Optional. How would you maintain this area, and what would you improve or build? A detailed plan is not required.

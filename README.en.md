@@ -430,7 +430,7 @@ This community project is not affiliated with or endorsed by DeepSeek or OpenAI.
 - Use the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml) for project feedback.
 - Use the [feature request form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml) for focused product suggestions.
 - Focused fixes and compatibility improvements are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
-- For ongoing maintenance, read [Help maintain](CONTRIBUTING.md#help-maintain) and submit a [maintenance interest form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=help-maintain.yml). Applying does not automatically grant repository write access, merge rights or release permissions.
+- Help [maintain and develop the project](CONTRIBUTING.md#help-maintain): take ongoing responsibility for a module, follow up on related issues or review code. [Open an issue](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=help-maintain.yml) to discuss.
 - For DSH plugin discussion, visit [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
 - Read [SECURITY.md](SECURITY.md) before reporting sensitive issues.
 
