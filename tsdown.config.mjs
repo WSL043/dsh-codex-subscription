@@ -35,7 +35,10 @@ const clientFeatures = [
 function portableSourcePath(source) {
   const normalized = source.replaceAll('\\', '/')
   const dependency = normalized.indexOf('node_modules/')
-  return dependency < 0 ? normalized : normalized.slice(dependency)
+  const local = dependency < 0 ? normalized : normalized.slice(dependency)
+  // pnpm hashes long peer-qualified paths on Windows. The inlined record
+  // reader and its pure value helpers need the same labels on Linux too.
+  return local.replace(/node_modules\/\.pnpm\/[^/]+\/node_modules\/(@deepseek-ai\/(?:dsh-llm|dsh-util-values))\//gu, 'node_modules/$1/')
 }
 
 function portableSourcePaths() {
