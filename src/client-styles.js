@@ -280,6 +280,12 @@ export const STYLE = `
 @container (max-width:480px){.codexSubscriptionAccountRow,.codexSubscriptionSectionHead{align-items:flex-start;flex-direction:column}
 .codexSubscriptionActions{width:100%}
 .codexSubscriptionSearchChoices{grid-template-columns:1fr}}
+/* The account row keeps its two buttons on one line: between 481px and roughly 600px the
+   action column is squeezed to min-content and the switch/remove buttons stack under each
+   other. Let the email and quota column shrink instead, and keep the buttons at their
+   natural size; below 481px the action row above goes full width, which keeps both buttons
+   on one line as well. */
+@container (min-width:481px){.codexSubscriptionAccount>.codexSubscriptionActions{flex-wrap:nowrap;flex:0 0 auto}}
 .codexSubscriptionRuntime{font-size:12px;line-height:1.6;margin-top:12px;color:var(--dsw-alias-label-secondary)}
 .codexSubscriptionRuntime summary{cursor:pointer;width:fit-content;color:var(--dsw-alias-label-primary);border-radius:6px}
 .codexSubscriptionRuntime summary:focus-visible{outline:2px solid currentColor;outline-offset:4px}
