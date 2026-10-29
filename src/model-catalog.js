@@ -2,6 +2,7 @@ import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { loadModelCatalogCache, saveModelCatalogCache } from './model-catalog-cache.js'
 import { PACKAGE_VERSION, USER_AGENT } from './version.js'
 import { ultraCatalogPreset } from './ultra-effort.js'
+import { effectiveContextPercent } from './context-budget.js'
 
 export const CODEX_MODELS_URL = `https://chatgpt.com/backend-api/codex/models?client_version=${encodeURIComponent(PACKAGE_VERSION)}`
 
@@ -132,6 +133,7 @@ function visibleModel(value, displayNames, now) {
     priority: Number.isFinite(value.priority) ? value.priority : 0,
     input: input.length > 0 ? input : ['text'],
     contextWindow: positiveInteger(value.context_window) ?? positiveInteger(value.max_context_window),
+    effectiveContextWindowPercent: effectiveContextPercent(value.effective_context_window_percent),
     ...(positiveInteger(value.max_context_window) === undefined ? {} : { maxContextWindow: value.max_context_window }),
     reasoning: supported.length > 0,
     supportsReasoningEffortUpdates: value.supports_reasoning_effort_updates === true,

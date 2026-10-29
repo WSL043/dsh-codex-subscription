@@ -7,7 +7,7 @@ const item={type:'compaction',encrypted_content:'SYNTHETIC_ONLY'}
 function fixture({enabled=true,complete=true,reason='stop',block={type:'text',text:'READY'},contextWindow}={}){
  const wires=[];let bridge
  const adapter={async *stream(options){
-  const payload=bridge.preparePayload({input:options.messages.map(m=>({role:m.role,content:m.content})),model:options.model},contextWindow);wires.push(payload)
+  const payload=bridge.preparePayload({input:options.messages.map(m=>({role:m.role,content:m.content})),model:options.model},contextWindow,options.maxTokens);wires.push(payload)
   const toolItems=block.type==='tool-call'?[{type:'response.output_item.done',item:{type:'function_call',call_id:block.id,name:block.name,arguments:block.arguments}}]:[]
   const events=[{type:'response.output_item.done',item},...toolItems,{type:'response.completed',response:{status:complete?'completed':'incomplete'}}]
   const bytes=new TextEncoder().encode(events.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''))
@@ -92,8 +92,8 @@ test('expired or future imported checkpoints retain the full current history', a
 })
 
 test('small context caps the trigger and disabling cloud restores original history', async () => {
- const f=fixture({contextWindow:4000}), first=await run(f.adapter,[user('history')])
- assert.equal(f.wires[0].context_management[0].compact_threshold,2000)
+ const f=fixture({contextWindow:128000}), first=await run(f.adapter,[user('history')],{maxTokens:60000})
+ assert.equal(f.wires[0].context_management[0].compact_threshold,2464)
  f.setEnabled(false)
  await run(f.adapter,[user('history'),message(first),user('next')])
  assert.equal(f.wires.at(-1).context_management,undefined)

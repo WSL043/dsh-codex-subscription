@@ -1,6 +1,7 @@
 /** Experimental SSE bridge; callers must explicitly opt in. */
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { createHash } from 'node:crypto'
+import { compactionThreshold } from './context-budget.js'
 const clone = value => JSON.parse(JSON.stringify(value))
 const hash = value => createHash('sha256').update(JSON.stringify(value)).digest('hex')
 const key = 'codexCompactionV1'
@@ -11,11 +12,12 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 export function createCompactionBridge({ enabled = () => false, threshold, accountScope, diagnostic = () => {}, now = Date.now }) {
  const scope = new AsyncLocalStorage()
  const stats = { requests: 0, checkpointsSaved: 0, checkpointsReused: 0 }
- const wrapStream = (factory, options) => (async function* () {
+ const wrapStream = (factory, options, modelInfo) => (async function* () {
   if (!enabled() || options.provider !== 'openai-codex') { yield* factory(options); return }
   const identity = await accountScope(options)
   if (!identity) throw new Error('Compaction requires a stable account identity')
-  const state = { identity: hash([identity, options.model]), original: options.messages, blocks: [], suffix: undefined, completed: false }
+  const state = { identity: hash([identity, options.model]), original: options.messages, blocks: [], suffix: undefined, completed: false,
+   outputReserve: options.maxTokens ?? modelInfo?.defaultMaxTokens }
   let messages = options.messages
   for (let i = messages.length - 1; i >= 0; i--) {
    const candidate = messages[i].source?.replayState?.response?.[key]
@@ -51,13 +53,19 @@ export function createCompactionBridge({ enabled = () => false, threshold, accou
   snapshot: () => ({ ...stats }),
   wrapAdapter(adapter) {
    return new Proxy(adapter, { get(target, property) {
-    if (property === 'stream') return options => wrapStream(o => target.stream(o), options)
-    if (property === 'prepareCall') return async (...args) => { const call = await target.prepareCall(...args); return { ...call, stream: options => wrapStream(o => call.stream(o), options) } }
+    if (property === 'stream') return options => (async function* () {
+     if (!enabled() || options.provider !== 'openai-codex') { yield* target.stream(options); return }
+     // Freeze the same descriptor as the host, including a configured output reservation.
+     const call = typeof target.prepareCall === 'function' ? await target.prepareCall(options.provider, options.model, options.signal)
+      : { model: await target.resolveModel?.(options.provider, options.model), stream: o => target.stream(o) }
+     yield* wrapStream(o => call.stream(o), options, call.model)
+    })()
+    if (property === 'prepareCall') return async (...args) => { const call = await target.prepareCall(...args); return { ...call, stream: options => wrapStream(o => call.stream(o), options, call.model) } }
     const value = Reflect.get(target, property, target)
     return typeof value === 'function' ? value.bind(target) : value
    } })
   },
-  preparePayload(payload, contextWindow) {
+  preparePayload(payload, contextWindow, maxTokens) {
    const state = scope.getStore()
    if (!state) return payload
    if (!state.counted) {
@@ -65,15 +73,7 @@ export function createCompactionBridge({ enabled = () => false, threshold, accou
     stats.requests = Math.min(Number.MAX_SAFE_INTEGER, stats.requests + 1)
     if (state.suffix) stats.checkpointsReused = Math.min(Number.MAX_SAFE_INTEGER, stats.checkpointsReused + 1)
    }
-   const windowKnown = Number.isFinite(contextWindow) && contextWindow >= 2000
-   // Without an explicit threshold the request compacts late, like DSH's own compaction: at 80% of the window,
-   // or when only the output reserve (at most 64Ki) is left. A larger window therefore compacts later, which keeps
-   // the cached prefix intact for longer. An explicit threshold can only lower that point.
-   const configured = threshold?.()
-   if (configured !== undefined && (!Number.isSafeInteger(configured) || configured < 1000)) throw new Error('Invalid compaction threshold')
-   const byWindow = windowKnown ? Math.floor(Math.min(contextWindow * 0.8, contextWindow - Math.min(65536, contextWindow / 4))) : 100000
-   const limit = configured === undefined ? byWindow : windowKnown ? Math.min(configured, Math.floor(contextWindow / 2)) : configured
-   if (!Number.isSafeInteger(limit) || limit < 1000) throw new Error('Invalid compaction threshold')
+   const limit = compactionThreshold(contextWindow, maxTokens ?? state.outputReserve, threshold?.())
    return { ...payload, input: [...(state.suffix ?? []), ...payload.input], context_management: [{ type: 'compaction', compact_threshold: limit }] }
   },
   requestOptions(options) { return scope.getStore() ? { ...options, transport: 'sse' } : options },

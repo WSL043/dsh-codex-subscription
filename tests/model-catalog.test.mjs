@@ -225,7 +225,7 @@ test('official model catalog filters hidden entries and preserves advertised cap
   assert.equal(models.length, 1)
   assert.deepEqual(models[0], {
     id: 'gpt-next', name: 'GPT Next', description: 'Current account model', priority: 10,
-    input: ['text', 'image'], contextWindow: 400_000, reasoning: true, supportsReasoningEffortUpdates: false,
+    input: ['text', 'image'], contextWindow: 400_000, effectiveContextWindowPercent: 95, reasoning: true, supportsReasoningEffortUpdates: false,
     thinkingLevelMap: { off: null, minimal: null, low: 'low', medium: null, high: null, xhigh: null, max: 'max' },
     supportVerbosity: true, defaultVerbosity: 'medium', serviceTiers: [{ id: 'priority', name: 'Fast', description: 'Priority' }], supportsFast: true, supportsUltrafast: false,
   })
@@ -305,23 +305,27 @@ test('Astra from the official catalog reaches DSH with the selected context wind
     resolveApiKey: async () => { throw new Error('context resolution must not send a model request') },
   })
   const contextWindow = async () => (await adapter.resolveModel('openai-codex', 'gpt-6-astra')).context.contextWindow
-  assert.equal(await contextWindow(), 272_000)
+  assert.equal(await contextWindow(), 258_400)
   contextMode = 'extended'
-  assert.equal(await contextWindow(), 872_000)
+  assert.equal(await contextWindow(), 828_400)
   contextMode = 'custom'
-  assert.equal(await contextWindow(), 272_000, 'an unset custom budget keeps the safe default')
-  for (const [requested, expected] of [[500_000, 500_000], [1_000_000, 872_000], [99, 128_000]]) {
+  assert.equal(await contextWindow(), 258_400, 'an unset custom budget keeps the safe default with official headroom')
+  for (const [requested, expected] of [[500_000, 475_000], [1_000_000, 828_400], [99, 121_600]]) {
     customWindows['gpt-6-astra'] = requested
     assert.equal(await contextWindow(), expected)
   }
   contextMode = 'standard'
-  assert.equal(await contextWindow(), 272_000, 'switching back must restore the unmodified catalog window')
+  assert.equal(await contextWindow(), 258_400, 'switching back must apply headroom once to the unmodified catalog window')
+  assert.equal(await contextWindow(), 258_400, 'repeated reads must not shrink the budget')
   assert.equal(catalog.getModels([])[0].contextWindow, 272_000)
   Object.assign(astraContext, { context_window: 1_000_000, max_context_window: 1_000_000 })
   await catalog.refresh()
-  assert.equal(await contextWindow(), 1_000_000, 'Standard must preserve even a newer catalog window')
+  assert.equal(await contextWindow(), 950_000, 'Standard must apply headroom to the newer catalog window')
   contextMode = 'extended'
-  assert.equal(await contextWindow(), 1_000_000, 'Extended follows the new explicit official catalog maximum')
+  assert.equal(await contextWindow(), 950_000, 'Extended applies headroom to the new official catalog maximum')
+  Object.assign(astraContext, { effective_context_window_percent: 100 })
+  await catalog.refresh()
+  assert.equal(await contextWindow(), 1_000_000, 'a newer explicit official percentage replaces the default')
 })
 
 test('new Codex models appear from the account catalog with supported reasoning and context', async () => {
@@ -345,7 +349,7 @@ test('new Codex models appear from the account catalog with supported reasoning 
   await catalog.refresh()
   const provider = openaiCodexSubscriptionProvider({ catalog, resolveContextMode: () => 'extended' })
   assert.deepEqual(provider.getModels().map(model => [model.id, model.contextWindow]), [
-    ['gpt-6-sol', 872_000], ['gpt-6-luna', 872_000],
+    ['gpt-6-sol', 828_400], ['gpt-6-luna', 828_400],
   ])
   assert.deepEqual(contextModelGroups(catalog.getModels([])).map(row => row.key), ['gpt-6-sol', 'gpt-6-luna'])
   assert.equal(catalog.metadata('gpt-6-luna').thinkingLevelMap.max, 'max')
@@ -402,7 +406,7 @@ test('a restored catalog resolves gpt-6-luna while its background refresh remain
   const pendingRefresh = restarted.refresh()
   await new Promise(resolve => setImmediate(resolve))
   assert.equal(fetchStarted, true)
-  assert.equal((await adapter.resolveModel('openai-codex', 'gpt-6-luna')).context.contextWindow, 400_000)
+  assert.equal((await adapter.resolveModel('openai-codex', 'gpt-6-luna')).context.contextWindow, 380_000)
   assert.equal(restarted.metadata('gpt-6-luna').thinkingLevelMap.max, 'max')
   restarted.clear()
   await assert.rejects(pendingRefresh)

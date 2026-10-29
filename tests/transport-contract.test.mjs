@@ -552,7 +552,7 @@ test('context presets preserve catalog defaults and cap every supported model in
   const expectContexts = (actual, expected) => {
     const shipped = Object.fromEntries(Object.entries(expected).filter(([id]) => id in actual))
     assert.ok(Object.keys(shipped).length >= 3, 'the installed pi-ai still ships at least three audited models')
-    assert.partialDeepStrictEqual(actual, shipped)
+    assert.partialDeepStrictEqual(actual, Object.fromEntries(Object.entries(shipped).map(([id, raw]) => [id, Math.floor(raw * 0.95)])))
   }
 
   expectContexts(contexts(), {
@@ -565,7 +565,7 @@ test('context presets preserve catalog defaults and cap every supported model in
     'gpt-5.6-terra': 272_000,
   })
 
-  if ('gpt-6-astra' in contexts()) assert.equal(contexts()['gpt-6-astra'], 272_000)
+  if ('gpt-6-astra' in contexts()) assert.equal(contexts()['gpt-6-astra'], 258_400)
   contextMode = CONTEXT_MODE_EXTENDED
   expectContexts(contexts(), {
     'gpt-5.3-codex-spark': 128_000,
@@ -577,7 +577,7 @@ test('context presets preserve catalog defaults and cap every supported model in
     'gpt-5.6-terra': 872_000,
   })
 
-  if ('gpt-6-astra' in contexts()) assert.equal(contexts()['gpt-6-astra'], 872_000)
+  if ('gpt-6-astra' in contexts()) assert.equal(contexts()['gpt-6-astra'], 828_400)
   contextMode = CONTEXT_MODE_CUSTOM
   perModel.set('gpt-5.4-mini', 300_000)
   perModel.set('gpt-5.6', 750_000)
@@ -591,14 +591,14 @@ test('context presets preserve catalog defaults and cap every supported model in
     'gpt-5.6-terra': 750_000,
   })
 
-  if ('gpt-6-astra' in contexts()) assert.equal(contexts()['gpt-6-astra'], 500_000)
+  if ('gpt-6-astra' in contexts()) assert.equal(contexts()['gpt-6-astra'], 475_000)
   const floorModel = 'gpt-5.5' in contexts() ? 'gpt-5.5' : 'gpt-5.6-sol'
   const floorKey = customContextModelKey(floorModel)
   perModel.delete(floorKey)
   customContextWindow = 64_000
-  assert.equal(contexts()[floorModel], 128_000)
+  assert.equal(contexts()[floorModel], 121_600)
   perModel.set(floorKey, 200_000)
-  assert.equal(contexts()[floorModel], 200_000)
+  assert.equal(contexts()[floorModel], 190_000)
 })
 
 test('the Ultrafast tier reaches the wire only for a model the account catalog lists it for', async () => {

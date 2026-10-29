@@ -7,6 +7,7 @@ import { hoistLeadingSystem, runtimeVersions, understandsSystemMessages } from '
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 import { normalizeTransportEvent } from './transport-failure.js'
 import { createModelRetryBridge } from './model-retry-hint.js'
+import { effectiveContextWindow } from './context-budget.js'
 import {
   CONTEXT_MODE_CUSTOM,
   CONTEXT_MODE_EXTENDED,
@@ -122,7 +123,7 @@ export function openaiCodexSubscriptionProvider({
       return { auth: { apiKey: token }, source: 'DSH-managed OAuth request' }
     },
   })
-  const modelMetadata = model => catalog?.metadata(model?.id)
+  const modelMetadata = model => catalog?.metadata?.(model?.id)
   const supportsVerbosity = model => modelMetadata(model)?.supportVerbosity ?? model?.id !== 'gpt-5.3-codex-spark'
   const withPreferences = (model, options = {}) => {
     const metadata = modelMetadata(model)
@@ -155,7 +156,7 @@ export function openaiCodexSubscriptionProvider({
           ...(textVerbosity === undefined ? {} : { text: { ...(payload.text ?? {}), verbosity: textVerbosity } }),
           ...(serviceTier === undefined ? {} : { service_tier: serviceTier }),
         }
-        const managed = compaction?.preparePayload(preferred, model?.contextWindow) ?? preferred
+        const managed = compaction?.preparePayload(preferred, model?.contextWindow, options.maxTokens) ?? preferred
         const next = await onPayload?.(managed, requestModel)
         const detailed = inputImageDetail === 'auto'
           ? next ?? managed
@@ -174,14 +175,14 @@ export function openaiCodexSubscriptionProvider({
   const getModels = () => (catalog?.getModels() ?? provider.getModels()).map(model => {
     const maximum = modelContextMaximum(model)
     const mode = resolveContextMode()
-    if (model.id === 'gpt-5.3-codex-spark' || ![CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM].includes(mode)) return model
-    if (mode === CONTEXT_MODE_EXTENDED) {
-      // Prefer the explicit catalog maximum; known offline models keep audited presets.
-      const contextWindow = maximum
-      return { ...model, contextWindow }
+    let window = model.contextWindow
+    if (model.id !== 'gpt-5.3-codex-spark') {
+      if (mode === CONTEXT_MODE_EXTENDED) window = maximum
+      else if (mode === CONTEXT_MODE_CUSTOM) window = clampModelContext(resolveCustomContextWindow(customContextModelKey(model.id)), maximum, window)
     }
-    const requested = clampModelContext(resolveCustomContextWindow(customContextModelKey(model.id)), maximum, model.contextWindow)
-    return { ...model, contextWindow: requested }
+    // Do not add an undefined capacity to provider-native descriptors: older
+    // runtimes distinguish an omitted field from an explicitly invalid one.
+    return window === undefined ? model : { ...model, contextWindow: effectiveContextWindow(window, modelMetadata(model)?.effectiveContextWindowPercent) }
   })
   const review = { requests: 0, routed: 0, sessionModel: 0, retries: 0 }
   // pi-ai turns an exception raised while it builds or sends a request into an
