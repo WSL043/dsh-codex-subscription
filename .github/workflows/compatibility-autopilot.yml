@@ -3,6 +3,9 @@ name: DSH compatibility autopilot
 on:
   schedule:
     - cron: '2-59/5 * * * *'
+  workflow_run:
+    workflows: [Stale reporter follow-up, Risk-based CI]
+    types: [completed]
   repository_dispatch:
     types: [dsh-upstream-release]
   workflow_dispatch:
@@ -31,6 +34,7 @@ concurrency:
 
 jobs:
   detect:
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
