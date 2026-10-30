@@ -1,0 +1,23 @@
+name: Temporary schedule diagnostic
+
+# Temporary control: same cron as the autopilot, no checkout, secrets or writes.
+# Remove after natural schedule delivery has been diagnosed.
+on:
+  schedule:
+    - cron: '2-59/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Record delivered event
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SCHEDULE: ${{ github.event.schedule }}
+        run: |
+          printf 'Event: %s\nSchedule: %s\n' "$EVENT_NAME" "$EVENT_SCHEDULE"
+          date -u '+Observed: %Y-%m-%dT%H:%M:%SZ'
