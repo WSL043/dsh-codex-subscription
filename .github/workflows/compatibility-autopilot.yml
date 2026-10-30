@@ -2,7 +2,7 @@ name: DSH compatibility autopilot
 
 on:
   schedule:
-    - cron: '2-59/5 * * * *'
+    - cron: '23 * * * *'
   workflow_run:
     workflows: [Stale reporter follow-up, Risk-based CI]
     types: [completed]
