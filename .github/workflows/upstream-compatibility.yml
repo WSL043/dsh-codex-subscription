@@ -2,7 +2,7 @@ name: DSH compatibility autopilot
 
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '2-59/5 * * * *'
   repository_dispatch:
     types: [dsh-upstream-release]
   workflow_dispatch:
@@ -50,6 +50,15 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run }}
           REQUESTED_VERSION: ${{ inputs.dsh_version || github.event.client_payload.dsh_version }}
         run: node scripts/upstream-compatibility.mjs detect
+      - name: Record the natural trigger and detection result
+        if: always()
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          CHANGED: ${{ steps.detect.outputs.changed }}
+          BLOCKED: ${{ steps.detect.outputs.blocked }}
+        run: |
+          printf 'Event: %s\nSchedule: %s\nChanged: %s\nBlocked: %s\n' "$EVENT_NAME" "$SCHEDULE" "$CHANGED" "$BLOCKED" >> "$GITHUB_STEP_SUMMARY"
 
   prepare:
     needs: detect

@@ -316,7 +316,7 @@ test('release-age exceptions are pinned to the audited DeepSeek preview graph', 
 
 test('official DSH compatibility updates are detected, accepted, and then dispatched to the trusted publisher', () => {
   const workflow = text('.github/workflows/upstream-compatibility.yml')
-  assert.match(workflow, /cron:\s*'\*\/5 \* \* \* \*'/u)
+  assert.match(workflow, /cron:\s*'2-59\/5 \* \* \* \*'/u)
   const detector = text('scripts/upstream-compatibility.mjs')
   assert.match(detector, /\['latest', 'next', 'alpha'\]/u)
   assert.match(detector, /manifest\.dist\?\.integrity/u)

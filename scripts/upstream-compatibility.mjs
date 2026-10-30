@@ -14,6 +14,7 @@ export function selectChannelCandidate(tags, published, compatibility, { request
     if (!exact(requested)) throw new Error('Invalid requested DSH version')
     const entry = entries.find(x => x.version === requested)
     if (!entry) throw new Error('Requested DSH version is not on an official npm channel')
+    if (!dryRun && declared(published).has(entry.version)) return undefined
     return { ...entry, stable: !preview(entry.version), recheck: dryRun }
   }
   const supported = declared(published)
@@ -26,9 +27,18 @@ export function selectChannelCandidate(tags, published, compatibility, { request
   return entry && { ...entry, stable: !preview(entry.version), recheck: false }
 }
 
+// These files are excluded from the npm package. Runtime, install instructions,
+// dependency metadata and unknown paths must still wait for a manual release.
+const automationOnly = new Set([
+  '.github/workflows/upstream-compatibility.yml',
+  'scripts/upstream-compatibility.mjs',
+  'tests/upstream-compatibility.test.mjs',
+  'tests/release-contract.test.mjs',
+])
+
 export function baselineHold(published, current, changedFiles) {
   if (published.version !== current.version) return 'A manually prepared plugin release is not yet on npm'
-  if (changedFiles.length) return 'Main contains unreleased changes; automatic compatibility publication would include them'
+  if (changedFiles.some(file => !automationOnly.has(file))) return 'Main contains unreleased changes; automatic compatibility publication would include them'
 }
 
 export async function registryJson(url, fetcher = fetch, pause = ms => new Promise(done => setTimeout(done, ms))) {

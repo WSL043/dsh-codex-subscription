@@ -9,14 +9,22 @@ const compat = { latestTested: '0.2.1-rc.5', supported: ['0.2.1-rc.5'], previews
 test('official RC channels deduplicate and take priority over alpha; known channels do nothing', () => {
   const result = selectChannelCandidate({ latest: '0.2.1-rc.6', next: '0.2.1-rc.6', alpha: '0.2.2-alpha.3' }, published, compat)
   assert.equal(result.version, '0.2.1-rc.6'); assert.equal(result.stable, true)
+  assert.equal(selectChannelCandidate({ next: '0.2.1-rc.5' }, published, compat, { requested: '0.2.1-rc.5' }), undefined)
   assert.equal(selectChannelCandidate({ latest: '0.2.1-rc.5', next: '0.2.1-rc.5', alpha: '0.2.2-alpha.2' }, published, compat), undefined)
 })
-test('main-only compatibility never disguises an unpublished fix as an available npm version', () => {
+test('main-only compatibility never disguises an unpublished fix as an available npm version', async () => {
   const main = { ...compat, latestTested: '0.2.1-rc.6', supported: [...compat.supported, '0.2.1-rc.6'] }
   assert.equal(selectChannelCandidate({ next: '0.2.1-rc.6' }, published, main).version, '0.2.1-rc.6')
   assert.match(baselineHold(published, { version: '3.2.3' }, []), /not yet on npm/u)
   assert.match(baselineHold(published, published, ['src/business.js']), /unreleased/u)
   assert.equal(baselineHold(published, published, []), undefined)
+  const automation = ['.github/workflows/upstream-compatibility.yml', 'scripts/upstream-compatibility.mjs', 'tests/upstream-compatibility.test.mjs', 'tests/release-contract.test.mjs']
+  assert.equal(baselineHold(published, published, automation), undefined)
+  for (const file of ['src/new-feature.js', 'lib/index.js', 'README.md', 'package.json', 'pnpm-lock.yaml', 'compatibility.json', 'dsh-codex.ps1', 'new-unknown.txt']) {
+    assert.match(baselineHold(published, published, [...automation, file]), /unreleased/u)
+  }
+  const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
+  for (const file of automation) assert.ok(!manifest.files.some(entry => file === entry || file.startsWith(entry + '/')))
 })
 test('channel rollback is ignored and alpha is never automatically classified stable', () => {
   assert.equal(selectChannelCandidate({ next: '0.2.1-rc.3' }, published, compat), undefined)
@@ -41,7 +49,7 @@ test('dry-run and failed gates cannot reach main/tag/npm publication', async () 
   const require = createRequire(import.meta.url)
   const { parse } = createRequire(require.resolve('@deepseek-ai/dsh-settings/package.json'))('yaml')
   const workflow = parse(source)
-  assert.equal(workflow.on.schedule[0].cron, '*/5 * * * *')
+  assert.equal(workflow.on.schedule[0].cron, '2-59/5 * * * *')
   assert.deepEqual(workflow.on.repository_dispatch.types, ['dsh-upstream-release'])
   const jobs = workflow.jobs
   assert.equal(jobs.detect.permissions, undefined)
