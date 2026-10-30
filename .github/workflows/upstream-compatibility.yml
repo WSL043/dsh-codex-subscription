@@ -2,18 +2,25 @@ name: DSH compatibility autopilot
 
 on:
   schedule:
-    - cron: '29 */3 * * *'
+    - cron: '*/5 * * * *'
+  repository_dispatch:
+    types: [dsh-upstream-release]
   workflow_dispatch:
     inputs:
       dsh_version:
         description: Exact official DSH version; empty selects the newest untested version
         required: false
         type: string
-      publish_compatibility:
-        description: Publish an accepted compatibility update only when adaptation is required
+      dry_run:
+        description: Exercise candidate and publisher verification without committing or publishing
         required: false
         type: boolean
         default: false
+      publish_compatibility:
+        description: Publish a verified stable-channel compatibility patch
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -23,18 +30,41 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.detect.outputs.changed }}
+      blocked: ${{ steps.detect.outputs.blocked }}
+      reason: ${{ steps.detect.outputs.reason }}
+      stable: ${{ steps.detect.outputs.stable }}
+      dsh_version: ${{ steps.detect.outputs.dsh_version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+      - name: Inspect official npm channels and the published plugin
+        id: detect
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          REQUESTED_VERSION: ${{ inputs.dsh_version || github.event.client_payload.dsh_version }}
+        run: node scripts/upstream-compatibility.mjs detect
+
   prepare:
+    needs: detect
+    if: needs.detect.outputs.changed == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     outputs:
-      changed: ${{ steps.candidate.outputs.changed }}
-      dsh_version: ${{ steps.candidate.outputs.dsh_version }}
+      changed: ${{ needs.detect.outputs.changed }}
+      dsh_version: ${{ needs.detect.outputs.dsh_version }}
       plugin_version: ${{ steps.update.outputs.plugin_version }}
       patch_sha256: ${{ steps.patch.outputs.sha256 }}
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ github.sha }}
       - uses: pnpm/action-setup@v5
         with:
           version: 11.26.0
@@ -44,74 +74,24 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Select and authenticate the next official DSH release
-        id: candidate
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REQUESTED_VERSION: ${{ inputs.dsh_version }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          current="$(node -p "require('./compatibility.json').latestTested")"
-          if [ -n "${REQUESTED_VERSION:-}" ]; then
-            candidate="$REQUESTED_VERSION"
-          else
-            pnpm view @deepseek-ai/dsh versions --json > "$RUNNER_TEMP/dsh-versions.json"
-            mapfile -t candidates < <(node --input-type=module -e '
-              import { readFileSync } from "node:fs";
-              import { compareVersions } from "./scripts/prepare-compat-release.mjs";
-              const compatibility = JSON.parse(readFileSync(process.argv[2], "utf8"));
-              const current = compatibility.latestTested;
-              const tested = new Set([...(compatibility.supported ?? []), ...(compatibility.previews ?? [])]);
-              const previewFloor = [...(compatibility.previews ?? [])].sort(compareVersions).at(-1) ?? current;
-              const versions = [...new Set(JSON.parse(readFileSync(process.argv[1], "utf8")))]
-                .filter(version => {
-                  const preview = /-(?:alpha|beta)(?:\.|$)/u.test(version);
-                  return typeof version === "string" && !tested.has(version)
-                    && compareVersions(version, preview ? previewFloor : current) > 0;
-                })
-                .sort(compareVersions).reverse();
-              process.stdout.write(versions.join("\n"));
-            ' "$RUNNER_TEMP/dsh-versions.json" compatibility.json)
-            candidate=''
-            for version in "${candidates[@]}"; do
-              if test "$(pnpm view "@deepseek-ai/dsh@$version" version 2>/dev/null || true)" = "$version" &&
-                gh api "repos/deepseek-ai/deepseek-harness/releases/tags/dsh-v${version}" 2>/dev/null \
-                  | jq -e '.draft == false and .immutable == true and (.published_at | type == "string")' >/dev/null; then
-                candidate="$version"
-                break
-              fi
-            done
-          fi
-          if [ -z "$candidate" ]; then
-            echo "No untested DSH release is available."
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "dsh_version=$current" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          [[ "$candidate" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]
-          test "$(pnpm view "@deepseek-ai/dsh@$candidate" version)" = "$candidate"
-          gh api "repos/deepseek-ai/deepseek-harness/releases/tags/dsh-v${candidate}" \
-            | jq -e '.draft == false and .immutable == true and (.published_at | type == "string")' >/dev/null
-          echo "changed=true" >> "$GITHUB_OUTPUT"
-          echo "dsh_version=$candidate" >> "$GITHUB_OUTPUT"
-
       - name: Prepare the bounded compatibility patch
-        if: steps.candidate.outputs.changed == 'true'
+        if: needs.detect.outputs.changed == 'true'
         id: update
         env:
-          DSH_VERSION: ${{ steps.candidate.outputs.dsh_version }}
+          DSH_VERSION: ${{ needs.detect.outputs.dsh_version }}
+          DRY_RUN: ${{ inputs.dry_run }}
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/prepare-compat-release.mjs --dsh-version "$DSH_VERSION" > "$RUNNER_TEMP/update.json"
+          extra=(); [[ "$DRY_RUN" != true ]] || extra+=(--recheck)
+          node scripts/prepare-compat-release.mjs --dsh-version "$DSH_VERSION" "${extra[@]}" > "$RUNNER_TEMP/update.json"
           echo "plugin_version=$(jq -r '.pluginVersion' "$RUNNER_TEMP/update.json")" >> "$GITHUB_OUTPUT"
           pnpm --config.minimum-release-age=0 install --lockfile-only
           node scripts/prepare-compat-release.mjs --refresh-release-age
           pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Verify source, build, and package
-        if: steps.candidate.outputs.changed == 'true'
+        if: needs.detect.outputs.changed == 'true'
         run: |
           pnpm test
           pnpm run build
@@ -124,7 +104,7 @@ jobs:
           test -s "$package"
 
       - name: Fingerprint the accepted source patch
-        if: steps.candidate.outputs.changed == 'true'
+        if: needs.detect.outputs.changed == 'true'
         id: patch
         shell: bash
         run: echo "sha256=$(git diff --binary | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
@@ -137,7 +117,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ github.sha }}
       - uses: pnpm/action-setup@v5
         with:
           version: 11.26.0
@@ -147,9 +127,12 @@ jobs:
           node-version: 24
           package-manager-cache: false
       - name: Recreate candidate
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
         shell: powershell
         run: |
-          node scripts/prepare-compat-release.mjs --dsh-version '${{ needs.prepare.outputs.dsh_version }}'
+          $extra = if ($env:DRY_RUN -eq 'true') { @('--recheck') } else { @() }
+          node scripts/prepare-compat-release.mjs --dsh-version '${{ needs.prepare.outputs.dsh_version }}' @extra
           pnpm --config.minimum-release-age=0 install --lockfile-only
           node scripts/prepare-compat-release.mjs --refresh-release-age
           pnpm install --frozen-lockfile --ignore-scripts
@@ -173,8 +156,8 @@ jobs:
             -StartupTimeoutSeconds 90
 
   promote:
-    needs: [prepare, windows-acceptance]
-    if: github.event_name == 'workflow_dispatch' && inputs.publish_compatibility == true && needs.prepare.outputs.changed == 'true' && needs.windows-acceptance.result == 'success'
+    needs: [detect, prepare, windows-acceptance]
+    if: needs.prepare.outputs.changed == 'true' && needs.windows-acceptance.result == 'success' && (inputs.dry_run == true || (needs.detect.outputs.stable == 'true' && ((github.event_name == 'workflow_dispatch' && inputs.publish_compatibility == true) || (github.event_name != 'workflow_dispatch' && vars.DSH_COMPAT_AUTO_PUBLISH == 'true'))))
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -183,7 +166,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
       - uses: pnpm/action-setup@v5
         with:
@@ -197,10 +180,12 @@ jobs:
         env:
           DSH_VERSION: ${{ needs.prepare.outputs.dsh_version }}
           EXPECTED_PATCH: ${{ needs.prepare.outputs.patch_sha256 }}
+          DRY_RUN: ${{ inputs.dry_run }}
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/prepare-compat-release.mjs --dsh-version "$DSH_VERSION"
+          extra=(); [[ "$DRY_RUN" != true ]] || extra+=(--recheck)
+          node scripts/prepare-compat-release.mjs --dsh-version "$DSH_VERSION" "${extra[@]}"
           pnpm --config.minimum-release-age=0 install --lockfile-only
           node scripts/prepare-compat-release.mjs --refresh-release-age
           pnpm install --frozen-lockfile --ignore-scripts
@@ -210,6 +195,7 @@ jobs:
           test "$actual" = "$EXPECTED_PATCH"
           test "$(node -p "require('./package.json').version")" = '${{ needs.prepare.outputs.plugin_version }}'
       - name: Refuse races and immutable release replacement
+        if: inputs.dry_run != true
         env:
           GH_TOKEN: ${{ github.token }}
           PLUGIN_VERSION: ${{ needs.prepare.outputs.plugin_version }}
@@ -223,6 +209,7 @@ jobs:
             exit 1
           fi
       - name: Commit accepted compatibility update to main
+        if: inputs.dry_run != true
         env:
           DSH_VERSION: ${{ needs.prepare.outputs.dsh_version }}
         shell: bash
@@ -237,17 +224,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DSH_VERSION: ${{ needs.prepare.outputs.dsh_version }}
+          DRY_RUN: ${{ inputs.dry_run }}
         shell: bash
         run: |
           set -euo pipefail
           request_id="compat-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           title="Release $request_id"
-          gh workflow run publish.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            --ref main \
-            -f request_id="$request_id" \
-            -f release_kind=compatibility \
-            -f dsh_version="$DSH_VERSION"
+          if [[ "$DRY_RUN" == 'true' ]]; then
+            echo 'DRY RUN: no main push, tag, Release or npm publication.'
+            gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref main -f request_id="$request_id" -f verify_only=true
+          else
+            gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref main -f request_id="$request_id" -f release_kind=compatibility -f dsh_version="$DSH_VERSION"
+          fi
           release_run=""
           for attempt in $(seq 1 90); do
             sleep 2
@@ -259,3 +247,20 @@ jobs:
           done
           test -n "$release_run"
           gh run watch "$release_run" --repo "$GITHUB_REPOSITORY" --exit-status
+
+  report:
+    needs: [detect, prepare, windows-acceptance, promote]
+    if: always() && inputs.dry_run != true && needs.detect.outputs.dsh_version != '' && (needs.detect.outputs.blocked == 'true' || needs.prepare.result == 'failure' || needs.windows-acceptance.result == 'failure' || needs.promote.result == 'failure' || (needs.detect.outputs.stable == 'false' && needs.windows-acceptance.result == 'success'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+      - name: Leave one actionable record instead of rebuilding a blocked version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DSH_VERSION: ${{ needs.detect.outputs.dsh_version }}
+          BLOCK_REASON: ${{ needs.detect.outputs.reason || (needs.detect.outputs.stable == 'false' && 'Alpha-channel verification needs separate review; it is not promoted to the stable plugin channel') || '' }}
+        run: node scripts/upstream-compatibility.mjs report

@@ -76,7 +76,9 @@ jobs:
             if (value?.toLowerCase() === 'not installed') return
             const version = /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?=\s|$)/u.exec(value ?? '')?.[0]
             const dshValue = /^### DSH version\s*\n+([^\n]+)/imu.exec(body)?.[1]?.trim() ?? ''
+            const diagnostics = /^### Support diagnostics\s*\n+([\s\S]*?)(?=\n### |$)/imu.exec(body)?.[1] ?? ''
             const dshVersion = /^v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?=\s|$)/u.exec(dshValue)?.[0]
+              ?? /\bDSH\s+(v?\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)(?=[^0-9A-Za-z.+-]|$)/iu.exec(diagnostics)?.[1]
             const missing = []
             if (!version) {
               missing.push([

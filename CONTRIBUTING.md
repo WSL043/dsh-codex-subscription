@@ -39,9 +39,14 @@ copy of the acceptance home and never calls the model; see
 [docs/ui-smoke.md](docs/ui-smoke.md). When a new DSH version renames or adds
 slots, refresh the slot snapshot described there.
 
-Scheduled upstream checks do not publish automatically. Enable compatibility
-publication only for a reviewed update that needs adaptation; an upstream
-version change alone is not a reason to release.
+Upstream checks inspect npm latest/next/alpha every five minutes and can also
+receive repository_dispatch events. New latest/next RC releases are eligible for
+an automatic stable compatibility patch after source/build and official Windows
+lifecycle acceptance. Alpha previews stay separate. An unpublished main change
+or a failed gate leaves one tracking issue and holds publication. dry_run exercises
+the candidate and publisher verification without pushing, tagging or publishing.
+Scheduled publication is enabled by the repository variable DSH_COMPAT_AUTO_PUBLISH
+only after the dry-run has passed. Manual verification can always use dry_run=true.
 
 ## Pull requests
 

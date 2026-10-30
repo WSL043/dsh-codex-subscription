@@ -126,6 +126,14 @@ test('a bug without a DSH version asks for it and waits for the reporter', async
   assert.deepEqual(added, ['waiting-for-reporter'])
 })
 
+test('issue #222 uses the exact DSH version in diagnostics when the header only says RC5', async () => {
+  const body = bugBody('3.2.1', 'RC5') + '\n### Support diagnostics\n\n插件 3.2.1 与 DSH 0.2.1-rc.5 不兼容\n'
+  const { comments, added } = await run({ labels: ['bug'], body, latest: '3.2.1' })
+  assert.equal(comments.some(text => text.includes('dsh-missing')), false)
+  assert.ok(comments.some(text => text.includes('dsh-untested') && text.includes('0.2.1-rc.5')))
+  assert.deepEqual(added, [])
+})
+
 test('a bug without a plugin version asks for it and waits for the reporter', async () => {
   const { comments, added } = await run({ labels: ['bug'], body: bugBody('latest', '0.2.0-rc.2') })
   assert.ok(comments.some(text => text.includes('dsh-version-check:missing')))

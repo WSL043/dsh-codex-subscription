@@ -263,7 +263,16 @@ export async function hostOf(candidate, fetchManifest = registryManifest) {
   return { cordis: cordisHostOf(dsh), ...(subagent?.version === candidate ? { subagentRuntime: candidate } : {}) }
 }
 
-async function prepare(root, candidate) {
+export function planCompatibilityRecheck(state, candidate) {
+  if (![...state.compatibility.supported, ...(state.compatibility.previews ?? [])].includes(candidate)) {
+    throw new Error('A recheck cannot declare an untested DSH version')
+  }
+  return { changed: true, recheck: true, dshVersion: candidate,
+    previousPluginVersion: state.manifest.version, previousDocumentedPluginVersion: state.manifest.version,
+    pluginVersion: nextStableVersion(state.manifest.version), updateStableReferences: false }
+}
+
+async function prepare(root, candidate, recheck = false) {
   const compatibilityPath = resolve(root, 'compatibility.json')
   const manifestPath = resolve(root, 'package.json')
   const [compatibility, manifest] = await Promise.all([
@@ -271,7 +280,17 @@ async function prepare(root, candidate) {
     readFile(manifestPath, 'utf8').then(JSON.parse),
   ])
   const update = planCompatibilityUpdate({ compatibility, manifest, host: await hostOf(candidate), documentedVersion: (await readFile(resolve(root, 'README.md'), 'utf8')).match(/dsh-codex-subscription@(\d+\.\d+\.\d+)/u)?.[1] }, candidate)
-  if (update === null) return { changed: false, dshVersion: candidate, pluginVersion: manifest.version }
+  if (update === null) {
+    if (!recheck) return { changed: false, dshVersion: candidate, pluginVersion: manifest.version }
+    const planned = planCompatibilityRecheck({ manifest, compatibility }, candidate)
+    manifest.version = planned.pluginVersion
+    await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n')
+    for (const file of ['README.md', 'README.en.md', 'dsh-codex.ps1']) {
+      const path = resolve(root, file)
+      await writeFile(path, rewriteBoundedVersions(await readFile(path, 'utf8'), planned, file))
+    }
+    return planned
+  }
 
   const runtimePath = resolve(root, 'src/subagent-runtime.js')
   const runtimeSource = await readFile(runtimePath, 'utf8')
@@ -318,7 +337,7 @@ async function main() {
   const versionIndex = process.argv.indexOf('--dsh-version')
   const candidate = versionIndex === -1 ? undefined : process.argv[versionIndex + 1]
   if (candidate === undefined) throw new Error('--dsh-version is required')
-  return prepare(root, candidate)
+  return prepare(root, candidate, process.argv.includes('--recheck'))
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

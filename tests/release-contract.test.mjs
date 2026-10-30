@@ -52,12 +52,14 @@ test('normal installation does not pull the optional Codex executable runtime', 
   assert.deepEqual(new Set(SUPPORTED_RUNTIME_VERSIONS), new Set(manifest.peerDependencies[runtime].split(' || ')))
 })
 
-test('scheduled compatibility checks cannot commit or release merely because upstream changed', () => {
+test('scheduled compatibility publication requires stable channels, accepted gates and a non-dry run', () => {
   const workflow = text('.github/workflows/upstream-compatibility.yml')
-  assert.match(workflow, /publish_compatibility:\s*\n\s*description:[^\n]*\n\s*required: false\s*\n\s*type: boolean\s*\n\s*default: false/u)
+  assert.match(workflow, /publish_compatibility:\s*\n\s*description:[^\n]*\n\s*required: false\s*\n\s*type: boolean\s*\n\s*default: true/u)
   const promote = workflow.slice(workflow.indexOf('\n  promote:'))
-  assert.match(promote, /if: github\.event_name == 'workflow_dispatch' && inputs\.publish_compatibility == true && needs\.prepare\.outputs\.changed == 'true' && needs\.windows-acceptance\.result == 'success'/u)
-  assert.match(workflow, /\.sort\(compareVersions\)\.reverse\(\)/u, 'read-only checks must follow the newest release without requiring metadata commits')
+  assert.match(promote, /windows-acceptance\.result == 'success'/u)
+  assert.match(promote, /needs\.detect\.outputs\.stable == 'true'/u)
+  assert.match(promote, /if: inputs\.dry_run != true/u)
+  assert.match(workflow, /node scripts\/upstream-compatibility\.mjs detect/u)
   assert.doesNotMatch(workflow.slice(0, workflow.indexOf('\n  promote:')), /contents: write|actions: write|git push|gh workflow run/u)
   const staged = workflow.match(/git add -- ([^\n]+)/u)?.[1]?.trim().split(/\s+/u)
   assert.ok(staged)
@@ -314,10 +316,11 @@ test('release-age exceptions are pinned to the audited DeepSeek preview graph', 
 
 test('official DSH compatibility updates are detected, accepted, and then dispatched to the trusted publisher', () => {
   const workflow = text('.github/workflows/upstream-compatibility.yml')
-  assert.match(workflow, /cron:\s*'29 \*\/3 \* \* \*'/u)
-  assert.match(workflow, /compareVersions[\s\S]*for version in "\$\{candidates\[@\]\}"/u)
-  assert.match(workflow, /repos\/deepseek-ai\/deepseek-harness\/releases\/tags\/dsh-v/u)
-  assert.match(workflow, /\.draft == false and \.immutable == true/u)
+  assert.match(workflow, /cron:\s*'\*\/5 \* \* \* \*'/u)
+  const detector = text('scripts/upstream-compatibility.mjs')
+  assert.match(detector, /\['latest', 'next', 'alpha'\]/u)
+  assert.match(detector, /manifest\.dist\?\.integrity/u)
+  assert.match(detector, /manifest\.name !== '@deepseek-ai\/dsh'/u)
   assert.match(workflow, /prepare-compat-release\.mjs --refresh-release-age/u)
   assert.match(workflow, /git diff --check/u)
   assert.doesNotMatch(workflow, /git diff --exit-code --check/u)
