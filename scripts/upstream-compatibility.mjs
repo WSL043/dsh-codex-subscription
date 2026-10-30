@@ -30,7 +30,8 @@ export function selectChannelCandidate(tags, published, compatibility, { request
 // These files are excluded from the npm package. Runtime, install instructions,
 // dependency metadata and unknown paths must still wait for a manual release.
 const automationOnly = new Set([
-  '.github/workflows/upstream-compatibility.yml',
+  '.github/workflows/upstream-compatibility.yml', // retired workflow path
+  '.github/workflows/compatibility-autopilot.yml',
   'scripts/upstream-compatibility.mjs',
   'tests/upstream-compatibility.test.mjs',
   'tests/release-contract.test.mjs',

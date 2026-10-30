@@ -18,7 +18,7 @@ test('main-only compatibility never disguises an unpublished fix as an available
   assert.match(baselineHold(published, { version: '3.2.3' }, []), /not yet on npm/u)
   assert.match(baselineHold(published, published, ['src/business.js']), /unreleased/u)
   assert.equal(baselineHold(published, published, []), undefined)
-  const automation = ['.github/workflows/upstream-compatibility.yml', 'scripts/upstream-compatibility.mjs', 'tests/upstream-compatibility.test.mjs', 'tests/release-contract.test.mjs']
+  const automation = ['.github/workflows/upstream-compatibility.yml', '.github/workflows/compatibility-autopilot.yml', 'scripts/upstream-compatibility.mjs', 'tests/upstream-compatibility.test.mjs', 'tests/release-contract.test.mjs']
   assert.equal(baselineHold(published, published, automation), undefined)
   for (const file of ['src/new-feature.js', 'lib/index.js', 'README.md', 'package.json', 'pnpm-lock.yaml', 'compatibility.json', 'dsh-codex.ps1', 'new-unknown.txt']) {
     assert.match(baselineHold(published, published, [...automation, file]), /unreleased/u)
@@ -45,7 +45,7 @@ test('registry failures retry transient requests only and never become compatibi
   assert.equal(calls, 1)
 })
 test('dry-run and failed gates cannot reach main/tag/npm publication', async () => {
-  const source = await readFile(new URL('../.github/workflows/upstream-compatibility.yml', import.meta.url), 'utf8')
+  const source = await readFile(new URL('../.github/workflows/compatibility-autopilot.yml', import.meta.url), 'utf8')
   const require = createRequire(import.meta.url)
   const { parse } = createRequire(require.resolve('@deepseek-ai/dsh-settings/package.json'))('yaml')
   const workflow = parse(source)

@@ -53,7 +53,7 @@ test('normal installation does not pull the optional Codex executable runtime', 
 })
 
 test('scheduled compatibility publication requires stable channels, accepted gates and a non-dry run', () => {
-  const workflow = text('.github/workflows/upstream-compatibility.yml')
+  const workflow = text('.github/workflows/compatibility-autopilot.yml')
   assert.match(workflow, /publish_compatibility:\s*\n\s*description:[^\n]*\n\s*required: false\s*\n\s*type: boolean\s*\n\s*default: true/u)
   const promote = workflow.slice(workflow.indexOf('\n  promote:'))
   assert.match(promote, /windows-acceptance\.result == 'success'/u)
@@ -315,7 +315,7 @@ test('release-age exceptions are pinned to the audited DeepSeek preview graph', 
 })
 
 test('official DSH compatibility updates are detected, accepted, and then dispatched to the trusted publisher', () => {
-  const workflow = text('.github/workflows/upstream-compatibility.yml')
+  const workflow = text('.github/workflows/compatibility-autopilot.yml')
   assert.match(workflow, /cron:\s*'2-59\/5 \* \* \* \*'/u)
   const detector = text('scripts/upstream-compatibility.mjs')
   assert.match(detector, /\['latest', 'next', 'alpha'\]/u)
