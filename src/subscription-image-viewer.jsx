@@ -12,7 +12,7 @@ import { useImageTransform } from './subscription-image-transform.js'
 import { paintEraseMask, paintEraseStrokes } from './image-official-tools.js'
 import { createPortal } from 'react-dom'
 import { useImageSource } from './use-image-source.js'
-import { ArrowsPointingOutIcon, ChatBubbleLeftEllipsisIcon, PaintBrushIcon, PencilIcon, ScissorsIcon } from '@heroicons/react/24/outline'
+import { ArrowsPointingOutIcon, ChatBubbleLeftEllipsisIcon, EllipsisHorizontalIcon, PaintBrushIcon, PencilIcon, ScissorsIcon } from '@heroicons/react/24/outline'
 
 const TOOL_ICONS = { 'remove-background': ScissorsIcon, erase: PaintBrushIcon, resize: ArrowsPointingOutIcon, sketch: PencilIcon, annotate: ChatBubbleLeftEllipsisIcon }
 const ToolIcon = ({ id }) => { const Icon = TOOL_ICONS[id]; return Icon ? <Icon className="dcsiv-tool-icon" aria-hidden="true" /> : null }
@@ -34,61 +34,84 @@ const noteText = (annotations, t) => annotations.map((annotation, index) => {
   return `${label} (${Math.round(annotation.x * 100)}%, ${Math.round(annotation.y * 100)}%): ${annotation.note.trim()}`
 }).filter(line => !line.endsWith(': ')).join('\n')
 
-function ViewerAction({ action, annotations, item, service, revision, t, onStartMask }) {
-  const [state, setState] = useState('idle')
+const compactQuery = '(max-width: 600px)'
+const compactSnapshot = () => globalThis.matchMedia?.(compactQuery).matches ?? false
+const subscribeCompact = listener => {
+  const query = globalThis.matchMedia?.(compactQuery)
+  query?.addEventListener('change', listener)
+  return () => query?.removeEventListener('change', listener)
+}
+
+// Share positioning, keyboard ownership and focus restoration between both menus.
+function ViewerMenu({ label, children, icon, role, disabled, state }) {
   const [menu, setMenu] = useState()
-  const active = useRef(true)
   const menuRef = useRef(null)
   const menuButtonRef = useRef(null)
-  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
   useEffect(() => {
     if (menu === undefined) return undefined
     menuRef.current?.querySelector('[role="menuitem"]')?.focus()
-    // Capture on window so Escape closes only the menu, not the whole viewer.
     const onKeyDown = event => {
-      const items = [...(menuRef.current?.querySelectorAll('[role="menuitem"]') ?? [])]
+      // A nested resize menu owns its own keys; Escape never closes the viewer.
+      if (!menuRef.current?.contains(event.target) && event.target !== menuButtonRef.current) return
+      const items = [...(menuRef.current?.querySelectorAll('[role="menuitem"]:not(:disabled)') ?? [])]
       if (event.key === 'Escape') {
         event.preventDefault(); event.stopPropagation(); setMenu(undefined); menuButtonRef.current?.focus()
       } else if ((event.key === 'ArrowDown' || event.key === 'ArrowUp') && items.length > 0) {
         event.preventDefault(); event.stopPropagation()
         const step = event.key === 'ArrowDown' ? 1 : -1
         items[(items.indexOf(document.activeElement) + step + items.length) % items.length].focus()
-      } else if (event.key === 'Tab') setMenu(undefined)
+      } else if (event.key === 'Home' || event.key === 'End') {
+        event.preventDefault(); event.stopPropagation(); (event.key === 'Home' ? items[0] : items.at(-1))?.focus()
+      } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+        event.preventDefault(); event.stopPropagation()
+      } else if (event.key === 'Tab') { setMenu(undefined); menuButtonRef.current?.focus() }
     }
     const onPointerDown = event => {
-      if (!menuRef.current?.contains(event.target) && !menuButtonRef.current?.contains(event.target)) setMenu(undefined)
+      // Keep the parent menu mounted while interacting with a portalled submenu.
+      if (!menuRef.current?.contains(event.target) && !menuButtonRef.current?.contains(event.target) && !event.target.closest?.('.dcsiv-menu')) setMenu(undefined)
     }
+    const onResize = () => setMenu(undefined)
     window.addEventListener('keydown', onKeyDown, true)
     window.addEventListener('pointerdown', onPointerDown, true)
+    window.addEventListener('resize', onResize)
     return () => {
       window.removeEventListener('keydown', onKeyDown, true)
       window.removeEventListener('pointerdown', onPointerDown, true)
+      window.removeEventListener('resize', onResize)
     }
   }, [menu])
+  return <>
+    <button ref={menuButtonRef} type="button" role={role} aria-haspopup="menu" aria-expanded={menu !== undefined} data-state={state} disabled={disabled} onClick={event => {
+      const box = event.currentTarget.getBoundingClientRect()
+      const host = event.currentTarget.closest('.dcsiv-root')
+      setMenu(value => value === undefined && host ? { host, style: { right: Math.max(12, window.innerWidth - box.right), bottom: window.innerHeight - box.top + 8 } } : undefined)
+    }} className="dcsiv-button dcsiv-icon-button" title={label} aria-label={label}>{icon}</button>
+    {menu ? createPortal(<div ref={menuRef} className="dcsiv-menu" role="menu" aria-label={label} style={menu.style}>{typeof children === 'function' ? children(() => setMenu(undefined)) : children}</div>, menu.host) : null}
+  </>
+}
+
+function ViewerAction({ action, annotations, item, service, revision, t, onStartMask, inMenu = false }) {
+  const [state, setState] = useState('idle')
+  const active = useRef(true)
+  useEffect(() => { active.current = true; return () => { active.current = false } }, [])
   const invoke = async (extra = {}) => {
     if (state === 'pending') return
     setState('pending')
     try {
       await service.invoke(action, { annotations, item, src: item.src, ...extra }, revision)
-      if (!active.current || service.getSnapshot()?.revision !== revision) return
-      setState('idle')
+      if (service.getSnapshot()?.revision !== revision) return
+      if (active.current) setState('idle')
       if (action.closeOnSuccess) service.close()
     } catch (error) { if (active.current) setState(error?.name === 'AbortError' ? 'idle' : 'failed') }
   }
   const label = state === 'pending' ? action.pendingLabel : state === 'failed' ? action.errorLabel : action.label
-  if (action.kind === 'mask') return <button type="button" className="dcsiv-button dcsiv-icon-button" title={action.label} aria-label={action.label} onClick={() => onStartMask(action)}><ToolIcon id={action.id} /></button>
-  if (action.kind === 'tool') return <button type="button" className="dcsiv-button dcsiv-icon-button" title={label} aria-label={label} data-state={state} disabled={state === 'pending'} onClick={() => { void invoke() }}><ToolIcon id={action.id} /></button>
-  if (action.id === 'sketch' && state === 'idle') return <button type="button" className="dcsiv-button dcsiv-icon-button" title={action.label} aria-label={action.label} onClick={() => { void invoke() }}><ToolIcon id="sketch" /></button>
-  if (action.kind === 'choice') return <>
-    <button ref={menuButtonRef} type="button" aria-haspopup="menu" aria-expanded={menu !== undefined} data-state={state} disabled={state === 'pending'} onClick={event => {
-      // The toolbar scrolls and is transformed, so the menu renders in the overlay root.
-      const box = event.currentTarget.getBoundingClientRect()
-      const host = event.currentTarget.closest('.dcsiv-root')
-      setMenu(value => value === undefined && host ? { host, style: { left: box.left, bottom: window.innerHeight - box.top + 8 } } : undefined)
-    }} className="dcsiv-button dcsiv-icon-button" title={label} aria-label={label}><ToolIcon id={action.id} /></button>
-    {menu ? createPortal(<span ref={menuRef} className="dcsiv-menu" role="menu" aria-label={action.label} style={menu.style}>{action.options.map(option => <button type="button" role="menuitem" key={option.value} onClick={() => { setMenu(undefined); void invoke({ option: option.value }) }}>{option.label}</button>)}</span>, menu.host) : null}
-  </>
-  return <button type="button" className="dcsiv-button dcsiv-edit-action" aria-label={label ?? t('imageEdit')} disabled={state === 'pending'} onClick={() => { void invoke() }}><IconEditOutline16 /><span className="dcsiv-label">{label ?? t('imageEdit')}</span><span className="dcsiv-edit-short">{state === 'idle' ? (action.id === 'sketch' ? t('imageToSketch') : t('imageEditShort')) : label}</span></button>
+  const role = inMenu ? 'menuitem' : undefined
+  const tool = id => <><ToolIcon id={id} />{inMenu ? <span>{label}</span> : null}</>
+  if (action.kind === 'mask') return <button type="button" role={role} className="dcsiv-button dcsiv-icon-button" title={action.label} aria-label={action.label} onClick={() => onStartMask(action)}>{tool(action.id)}</button>
+  if (action.kind === 'tool') return <button type="button" role={role} className="dcsiv-button dcsiv-icon-button" title={label} aria-label={label} data-state={state} disabled={state === 'pending'} onClick={() => { void invoke() }}>{tool(action.id)}</button>
+  if (action.id === 'sketch' && state === 'idle') return <button type="button" role={role} className="dcsiv-button dcsiv-icon-button" title={action.label} aria-label={action.label} onClick={() => { void invoke() }}>{tool('sketch')}</button>
+  if (action.kind === 'choice') return <ViewerMenu label={label} role={role} state={state} disabled={state === 'pending'} icon={tool(action.id)}>{close => action.options.map(option => <button type="button" role="menuitem" key={option.value} onClick={() => { close(); void invoke({ option: option.value }) }}>{option.label}</button>)}</ViewerMenu>
+  return <button type="button" role={role} className="dcsiv-button dcsiv-edit-action" title={label ?? t('imageEdit')} aria-label={label ?? t('imageEdit')} data-state={state} disabled={state === 'pending'} onClick={() => { void invoke() }}><IconEditOutline16 /><span className="dcsiv-edit-short">{state === 'idle' ? (action.id === 'sketch' ? t('imageToSketch') : t('imageEditShort')) : label}</span></button>
 }
 
 function ViewerDownload({ download, item, t }) {
@@ -121,6 +144,7 @@ function ViewerDownload({ download, item, t }) {
 
 export function SubscriptionImageViewerOverlay({ service, t }) {
   const request = useSyncExternalStore(service.subscribe, service.getSnapshot)
+  const compact = useSyncExternalStore(subscribeCompact, compactSnapshot, () => false)
   const [cursor, setCursor] = useState({ revision: 0, index: 0 })
   const index = cursor.revision === request?.revision ? cursor.index : request?.index ?? 0
   const setIndex = update => setCursor(current => ({
@@ -216,7 +240,7 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
       } else if (!editing && event.key.toLowerCase() === 'f') {
         event.preventDefault(); fit()
       } else if (event.key === 'Tab') {
-        const controls = [...rootRef.current.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')]
+        const controls = [...rootRef.current.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')].filter(control => control.getClientRects().length > 0)
         const first = controls[0]
         const last = controls.at(-1)
         if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
@@ -336,6 +360,10 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
   if (request === undefined || item === undefined) return null
   const meta = [item.width && item.height ? `${item.width} × ${item.height}` : undefined, bytesLabel(item.bytes)].filter(Boolean).join(' · ')
   const showCounter = request.items.length > 1
+  const secondaryActions = item.actions.filter(action => action.kind === 'tool' || action.kind === 'mask' || action.kind === 'choice' || action.id === 'sketch')
+  const primaryActions = item.actions.filter(action => !secondaryActions.includes(action))
+  const renderAction = (action, inMenu = false, closeMenu) => <ViewerAction action={action} annotations={annotations} item={item} service={service} revision={request.revision} t={t} onStartMask={action => { closeMenu?.(); startMask(action) }} inMenu={inMenu} key={`${request.revision}:${index}:${action.id}`} />
+  const zoomControl = inMenu => <button type="button" role={inMenu ? 'menuitem' : undefined} className="dcsiv-button dcsiv-zoom" title={transform.zoom === 1 ? t('imageActual') : t('imageFit')} aria-label={transform.zoom === 1 ? t('imageActual') : t('imageFit')} onClick={() => { if (transform.zoom === 1) actual(); else fit() }}>{Math.round(transform.zoom * pixelScale * 100)}%{inMenu ? <span>{transform.zoom === 1 ? t('imageActual') : t('imageFit')}</span> : null}</button>
   const annotationPosition = annotation => {
     // Only the image is scaled. Notes stay in screen coordinates so their text
     // is not rasterized inside a scaled compositor layer and then enlarged.
@@ -351,17 +379,21 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
     <div className="dcsiv-title dcsiv-sr-only"><strong>{item.name}</strong>{meta !== '' ? <small>{meta}</small> : null}</div>
     <header className="dcsiv-topbar" role="toolbar" aria-label={t('imagePreview')}>
       <div className="dcsiv-actions">
-        {request.annotations ? <button type="button" className={annotating ? 'dcsiv-button' : 'dcsiv-button dcsiv-icon-button'} data-active={annotating} title={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-label={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-pressed={annotating} onClick={() => { resetGesture(); setAnnotating(value => !value) }}><ToolIcon id="annotate" />{annotating ? <span className="dcsiv-label">{t('imageAnnotateCancel')}</span> : null}</button> : null}
-        {annotations.length > 0 ? <button type="button" className="dcsiv-button" data-active={selected !== undefined} onClick={() => { const first = annotations[0]; setSelected(current => current === undefined ? first.id : undefined); if (selected === undefined) setFocusNote(first.id) }}>{annotations.length} <span className="dcsiv-label">{t('imageRegions')}</span></button> : null}
-        <button type="button" className="dcsiv-button dcsiv-zoom" title={transform.zoom === 1 ? t('imageActual') : t('imageFit')} aria-label={transform.zoom === 1 ? t('imageActual') : t('imageFit')} onClick={() => { if (transform.zoom === 1) actual(); else fit() }}>{Math.round(transform.zoom * pixelScale * 100)}%</button>
-        <span className="dcsiv-divider" aria-hidden="true" />
+        {showCounter ? <span className="dcsiv-counter" role="status" aria-live="polite" aria-atomic="true">{index + 1} / {request.items.length}</span> : null}
+        {!compact ? zoomControl(false) : null}
         {item.download === undefined
           ? <a className="dcsiv-download" data-compact="true" href={item.src} download={downloadName(item.name)} title={t('imageDownload')} aria-label={t('imageDownload')}><IconDownloadOutline16 /></a>
           : <ViewerDownload key={item.id} download={item.download} item={item} t={t} />}
-        {item.actions.map(action => <ViewerAction action={action} annotations={annotations} item={item} service={service} revision={request.revision} t={t} onStartMask={startMask} key={`${request.revision}:${index}:${action.id}`} />)}
+        {request.annotations || item.actions.length > 0 ? <span className="dcsiv-divider" aria-hidden="true" /> : null}
+        {request.annotations ? <button type="button" className="dcsiv-button dcsiv-icon-button" data-active={annotating} title={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-label={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-pressed={annotating} onClick={() => { resetGesture(); setAnnotating(value => !value) }}><ToolIcon id="annotate" /></button> : null}
+        {!compact && annotations.length > 0 ? <button type="button" className="dcsiv-button" data-active={selected !== undefined} onClick={() => { const first = annotations[0]; setSelected(current => current === undefined ? first.id : undefined); if (selected === undefined) setFocusNote(first.id) }}>{annotations.length} <span className="dcsiv-label">{t('imageRegions')}</span></button> : null}
+        {primaryActions.map(action => renderAction(action))}
+        {compact
+          ? <ViewerMenu key={`${request.revision}:${index}:more`} label={t('imageMore')} icon={<EllipsisHorizontalIcon className="dcsiv-tool-icon" aria-hidden="true" />}>{close => <>{zoomControl(true)}{secondaryActions.map(action => renderAction(action, true, close))}</>}</ViewerMenu>
+          : secondaryActions.map(action => renderAction(action))}
       </div>
     </header>
-    <button type="button" className="dcsiv-close-floating" aria-label={t('imageClosePreview')} onClick={() => service.close()}><IconCloseOutline16 /></button>
+    <button type="button" className="dcsiv-close-floating" title={t('imageClosePreview')} aria-label={t('imageClosePreview')} onClick={() => service.close()}><IconCloseOutline16 /></button>
     <div className="dcsiv-workspace">
       <main ref={stageRef} className="dcsiv-stage" data-dragging={dragging} data-annotating={annotating || erasing !== undefined} onClick={event => { if (event.target === event.currentTarget && !annotating && !erasing && transform.zoom === 1) service.close() }} {...(!annotating && !erasing ? pointerHandlers : {})} onDoubleClick={() => { if (transform.zoom === 1) actual(); else fit() }}>
         <div ref={surfaceRef} className="dcsiv-surface" onClick={addAnnotation} style={{ transform: `translate3d(${transform.x}px,${transform.y}px,0) scale(${transform.zoom})` }}>
@@ -385,9 +417,8 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
           </div> : null}
         </div>)}
         {showCounter ? <>
-          <button type="button" className="dcsiv-button dcsiv-icon-only dcsiv-nav dcsiv-prev" aria-label={t('imagePrevious')} onClick={event => { event.stopPropagation(); setIndex(value => (value - 1 + request.items.length) % request.items.length) }}><IconChevronLeftOutline14 /></button>
-          <button type="button" className="dcsiv-button dcsiv-icon-only dcsiv-nav dcsiv-next" aria-label={t('imageNext')} onClick={event => { event.stopPropagation(); setIndex(value => (value + 1) % request.items.length) }}><IconChevronRightOutline14 /></button>
-          <span className="dcsiv-counter">{index + 1} / {request.items.length}</span>
+          <button type="button" className="dcsiv-button dcsiv-icon-only dcsiv-nav dcsiv-prev" disabled={erasing !== undefined} title={t('imagePrevious')} aria-label={t('imagePrevious')} onClick={event => { event.stopPropagation(); setIndex(value => (value - 1 + request.items.length) % request.items.length) }}><IconChevronLeftOutline14 /></button>
+          <button type="button" className="dcsiv-button dcsiv-icon-only dcsiv-nav dcsiv-next" disabled={erasing !== undefined} title={t('imageNext')} aria-label={t('imageNext')} onClick={event => { event.stopPropagation(); setIndex(value => (value + 1) % request.items.length) }}><IconChevronRightOutline14 /></button>
         </> : annotating ? <span className="dcsiv-hint">{t('imageAnnotateHint')}</span> : transform.zoom === 1 ? <span className="dcsiv-hint">{t('imageZoomHint')}</span> : null}
       </main>
       {erasing ? <div className="dcsiv-erase-bar" role="toolbar" aria-label={t('imageErase')}>

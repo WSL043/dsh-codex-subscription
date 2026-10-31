@@ -39,7 +39,7 @@ test('subscription client preserves editing actions in its own local overlay', a
   assert.match(viewer, /navigator\.clipboard\.writeText/u)
   assert.match(viewer, /item\.download === undefined/u)
   assert.match(viewer, /service\.invoke\(action, \{ annotations, item, src: item\.src, \.\.\.extra \}, revision\)/u)
-  assert.match(styles, /\.dcsiv-topbar\{position:absolute;right:50%;bottom:22px/u)
+  assert.match(styles, /\.dcsiv-topbar\{position:absolute;right:50%;bottom:max\(22px,env\(safe-area-inset-bottom\)\)/u)
   assert.match(styles, /\.dcsiv-inline-note\{position:absolute;bottom:34px/u)
   assert.doesNotMatch(styles, /\.niv-|\.codexGeneratedImage/u)
 })
