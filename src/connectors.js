@@ -1,7 +1,7 @@
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { USER_AGENT } from './version.js'
-import { isBlockedByNetwork, REQUEST_BLOCKED, SIGN_IN_RENEW } from './http-failure.js'
+import { authFailureMessage, ACCESS_DENIED } from './http-failure.js'
 
 // ChatGPT connectors (GitHub, Gmail, Google Drive, Calendar, ...) as the Codex clients reach them: one hosted
 // MCP endpoint that lists and runs the tools of every app the account has connected in ChatGPT.
@@ -76,9 +76,11 @@ export function createConnectorsClient({ getAuth, readCredential, fetch: fetchRp
       body: JSON.stringify({ jsonrpc: '2.0', id: ++nextId, method, params }),
       signal: signal === undefined ? timeout : AbortSignal.any([signal, timeout]),
     })
-    if (response.status === 401) throw new Error(SIGN_IN_RENEW)
-    if (response.status === 403) throw new Error(await isBlockedByNetwork(response) ? REQUEST_BLOCKED : 'ChatGPT does not offer connectors to this account')
-    if (!response.ok) throw new Error(`ChatGPT connectors request failed (HTTP ${response.status})`)
+    if (!response.ok) {
+      const failure = await authFailureMessage(response)
+      throw new Error(failure === ACCESS_DENIED ? 'ChatGPT does not offer connectors to this account'
+        : failure ?? `ChatGPT connectors request failed (HTTP ${response.status})`)
+    }
     const message = await readRpc(response)
     if (record(message.error)) throw new Error(`Connector error: ${clip(oneLine(String(message.error.message ?? message.error.code ?? 'failed')), 200)}`)
     return { result: message.result, accountId }

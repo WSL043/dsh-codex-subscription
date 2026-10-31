@@ -1,6 +1,12 @@
 export { CHANNEL, unwrap } from './rpc-contract.js'
 import { useSyncExternalStore } from 'react'
 import { quotaForecastView, formatQuotaRunout } from './quota-forecast-view.js'
+import { ACCESS_DENIED, DEVICE_LIMIT, PURCHASE_LIMIT } from './http-failure.js'
+const ACCESS_FAILURE_KEYS = new Map([[ACCESS_DENIED, 'accessDenied'], [DEVICE_LIMIT, 'deviceLimit'], [PURCHASE_LIMIT, 'purchaseLimit']])
+export const accessFailureText = (message, t) => {
+  const key = ACCESS_FAILURE_KEYS.get(message)
+  return key === undefined ? message : t(key)
+}
 export const NS = 'settings.codexSubscription'
 export const SUPPORT_ISSUE_URL = 'https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml'
 export const QUICK_QUOTA_REFRESH_EVENT = 'dsh-codex-subscription:refresh-quick-quota'

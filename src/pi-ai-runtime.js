@@ -7,6 +7,7 @@ import { hoistLeadingSystem, runtimeVersions, understandsSystemMessages } from '
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 import { normalizeTransportEvent, safeFetchFailure } from './transport-failure.js'
 import { createModelRetryBridge } from './model-retry-hint.js'
+import { authFailureMessage } from './http-failure.js'
 import { createModelAttempt } from './model-attempt.js'
 import { effectiveContextWindow } from './context-budget.js'
 import { createModelStreamHealth } from './model-stream-health.js'
@@ -304,6 +305,11 @@ export function openaiCodexSubscriptionProvider({
         onRoute(route) { attempt.route(route); scopedNetwork?.onRoute?.(route) },
         onTransport(transport) { attempt.transport(transport); scopedNetwork?.onTransport?.(transport) },
         onFetchFailure(error) { networkFailure = safeFetchFailure(error); attempt.fetchFailure(error); scopedNetwork?.onFetchFailure?.(error) },
+        async transformResponse(response, target) {
+          const value = await (scopedNetwork?.transformResponse?.(response, target) ?? response)
+          if (retryHint) retryHint.onAccessFailure(value.ok ? undefined : await authFailureMessage(value))
+          return value
+        },
       } }
     }
     const step = async (method, value) => {

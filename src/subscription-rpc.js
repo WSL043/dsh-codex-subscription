@@ -1,4 +1,4 @@
-import { REQUEST_BLOCKED } from './http-failure.js'
+import { REQUEST_BLOCKED, isAccessFailureMessage } from './http-failure.js'
 import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { capabilityPatch } from './capability-settings.js'
 import { ORIGINAL_IMAGE_CHUNK_BYTES, ORIGINAL_IMAGE_ID_PATTERN } from './image-original-contract.js'
@@ -293,7 +293,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
           'ChatGPT sign-in needs to be renewed',
           REQUEST_BLOCKED,
         ])
-        const message = error instanceof Error && known.has(error.message)
+        const message = error instanceof Error && (known.has(error.message) || isAccessFailureMessage(error.message))
           ? error.message
           : 'Could not read ChatGPT usage'
         return publicError('internal', message)
@@ -306,7 +306,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
       } catch (error) {
         if (signal.aborted) throw error
         const known = new Set(['ChatGPT subscription is not signed in', 'ChatGPT sign-in needs to be renewed', REQUEST_BLOCKED])
-        return publicError('internal', error instanceof Error && known.has(error.message) ? error.message : 'Could not read ChatGPT usage profile')
+        return publicError('internal', error instanceof Error && (known.has(error.message) || isAccessFailureMessage(error.message)) ? error.message : 'Could not read ChatGPT usage profile')
       }
     }
     if (endpoint === 'usage/accounts') {
@@ -325,7 +325,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
       } catch (error) {
         if (signal.aborted) throw error
         const known = new Set(['ChatGPT subscription is not signed in', 'ChatGPT sign-in needs to be renewed', REQUEST_BLOCKED])
-        return publicError('internal', error instanceof Error && known.has(error.message) ? error.message : 'Could not read ChatGPT usage history')
+        return publicError('internal', error instanceof Error && (known.has(error.message) || isAccessFailureMessage(error.message)) ? error.message : 'Could not read ChatGPT usage history')
       }
     }
     if (endpoint === 'reset-credit/inspect' || endpoint === 'reset-credit/prepare' || endpoint === 'reset-credit/consume') {
@@ -361,7 +361,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
           : endpoint === 'reset-credit/prepare'
             ? 'Could not prepare a quota reset'
             : 'Could not use the quota reset'
-        const message = error instanceof Error && known.has(error.message) ? error.message : fallback
+        const message = error instanceof Error && (known.has(error.message) || isAccessFailureMessage(error.message)) ? error.message : fallback
         return publicError('internal', message)
       }
     }

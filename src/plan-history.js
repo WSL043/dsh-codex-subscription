@@ -1,6 +1,6 @@
 import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { USER_AGENT } from './version.js'
-import { isBlockedByNetwork, REQUEST_BLOCKED, SIGN_IN_RENEW } from './http-failure.js'
+import { authFailureMessage, ACCESS_DENIED } from './http-failure.js'
 import { createSharedRequests } from './shared-request.js'
 
 // The seven-day allowance history the official Codex /usage dashboard reads: one row per allowance period
@@ -74,9 +74,9 @@ export function createReportReader({ url, parse, label, getAuth, readCredential,
     })
     if (response.status === 404) return { available: false, fetchedAt: now() }
     if (!response.ok) {
-      throw new Error(response.status === 401 ? SIGN_IN_RENEW
-        : response.status === 403 ? (await isBlockedByNetwork(response) ? REQUEST_BLOCKED : `ChatGPT does not offer the ${label} to this account`)
-        : `ChatGPT ${label} request failed (HTTP ${response.status})`)
+      const failure = await authFailureMessage(response)
+      throw new Error(failure === ACCESS_DENIED ? `ChatGPT does not offer the ${label} to this account`
+        : failure ?? `ChatGPT ${label} request failed (HTTP ${response.status})`)
     }
     let body
     try { body = await response.json() } catch { throw new Error(`ChatGPT returned an unreadable ${label}`) }

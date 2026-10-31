@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { isRestrictionFailureMessage } from './http-failure.js'
 
 const DEFAULT_MAX_WAIT_MS = 6 * 60 * 60 * 1000
 const DEFAULT_RESET_MARGIN_MS = 10_000
@@ -199,6 +200,8 @@ export function createCodexQuotaRetryHandler({
     }
   }
   const handler = async ({ agent, turn, step, provider: requestProvider, failure, signal }, next) => {
+    // An explicit access restriction cannot recover through quota resets or an unlimited retry policy.
+    if (requestProvider === provider && isRestrictionFailureMessage(failure?.message)) return undefined
     if (requestProvider !== provider || !isCodexRateLimit(failure) || !enabled()) return next()
     if (signal?.aborted) return undefined
     let wakeRevision = wakeSignal.revision()

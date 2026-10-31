@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import * as dshLlm from '@deepseek-ai/dsh-llm'
+import { restrictionMessage, ACCESS_DENIED, SIGN_IN_RENEW } from './http-failure.js'
 
 // Codex can report overload inside a successful SSE/WebSocket transport. Match
 // the complete known refusal, not generic PI_AI_ERROR or an arbitrary substring.
@@ -20,8 +21,9 @@ export function providerRetryAfterMs(headers, at = Date.now()) {
 }
 
 export function createModelRetryHint({ now = Date.now, ErrorClass = dshLlm.LlmError } = {}) {
-  let response, responseStatus, outputStarted = false
+  let response, responseStatus, accessFailure, outputStarted = false
   return {
+    onAccessFailure(message) { accessFailure = message },
     onResponse(info) {
       responseStatus = info?.status
       response = [429, 503].includes(info?.status)
@@ -31,7 +33,14 @@ export function createModelRetryHint({ now = Date.now, ErrorClass = dshLlm.LlmEr
       if (event && !['start', 'done', 'error'].includes(event.type)) outputStarted = true
     },
     failure(original, signal) {
-      if (signal?.aborted || outputStarted || !original || typeof original.message !== 'string' || ['ABORTED', 'AUTH', 'INVALID_REQUEST', 'QUOTA', 'ACCOUNT_QUOTA', 'QUOTA_EXCEEDED'].includes(original.code) || (typeof dshLlm.isQuotaExceededError === 'function' && dshLlm.isQuotaExceededError(original.message))) return original
+      if (signal?.aborted || !original || original.code === 'ABORTED' || typeof original.message !== 'string') return original
+      const restriction = accessFailure ?? restrictionMessage(original.message)
+        ?? (responseStatus === 403 ? ACCESS_DENIED : responseStatus === 401 ? SIGN_IN_RENEW : undefined)
+      if (restriction !== undefined) {
+        const { providerRetryAfterMs: _delay, ...failure } = original
+        return { ...failure, message: restriction, code: 'AUTH', ...(responseStatus === undefined ? {} : { status: responseStatus }) }
+      }
+      if (outputStarted || ['ABORTED', 'AUTH', 'INVALID_REQUEST', 'QUOTA', 'ACCOUNT_QUOTA', 'QUOTA_EXCEEDED'].includes(original.code) || (typeof dshLlm.isQuotaExceededError === 'function' && dshLlm.isQuotaExceededError(original.message))) return original
       const status = responseStatus ?? original.status
       const overloaded = original.code === 'PI_AI_ERROR' && CODEX_OVERLOADED.test(original.message)
         && (status === undefined || status >= 200 && status < 300)

@@ -90,7 +90,7 @@ export function createCodexSearchProvider(options) {
       }
       const model = nonEmpty(options.resolveModel?.()) ?? DEFAULT_MODEL
       const id = nonEmpty(options.resolveSessionId?.()) ?? randomUUID()
-      let response
+      let response, authFailure
       try {
         const init = {
           method: 'POST',
@@ -122,9 +122,10 @@ export function createCodexSearchProvider(options) {
         for (let attempt = 0; attempt < 2; attempt++) {
           response = await fetchSearch(CODEX_SEARCH_URL, init)
           signal?.throwIfAborted()
+          authFailure = response.ok ? undefined : await authFailureMessage(response)
           const requestId = response.headers?.get?.('x-request-id') ?? response.headers?.get?.('cf-ray')
           const detail = `model=${model}, mode=${preferences.searchMode}, attempt=${attempt + 1}${typeof requestId === 'string' && /^[a-zA-Z0-9._:-]{1,128}$/u.test(requestId) ? `, requestId=${requestId}` : ''}`
-          const retry = attempt === 0 && RETRYABLE_STATUSES.has(response.status)
+          const retry = authFailure === undefined && attempt === 0 && RETRYABLE_STATUSES.has(response.status)
           diagnosticLog.log(response.ok ? 'info' : 'warn', 'search', `Codex search HTTP ${response.status}${retry ? '; retrying once on the same source' : ''}`, detail)
           if (!retry) break
           try { void response.body?.cancel().catch(() => {}) } catch { /* best-effort release of the failed response */ }
@@ -137,7 +138,6 @@ export function createCodexSearchProvider(options) {
         throw new WebError('Codex search request failed', 'WEB_PROVIDER_ERROR', { cause: error })
       }
       if (!response.ok) {
-        const authFailure = await authFailureMessage(response)
         if (signal?.aborted) throw new WebError('Codex search aborted', 'WEB_ABORTED', { cause: signal.reason })
         throw authFailure === SIGN_IN_RENEW
           ? new WebError(authFailure, 'WEB_PROVIDER_CREDENTIAL_MISSING')

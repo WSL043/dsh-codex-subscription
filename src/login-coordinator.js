@@ -1,5 +1,6 @@
 import { diagnosticLog } from './diagnostic-log.js'
 import { assertCodexAuthUrl } from './external-url.js'
+import { restrictionMessage } from './http-failure.js'
 
 const LOGIN_METHODS = new Set(['browser', 'device_code'])
 const TERMINAL_PHASES = new Set(['authenticated', 'failed', 'cancelled'])
@@ -205,6 +206,7 @@ export class CodexLoginCoordinator {
           return
         }
         try {
+          if (restrictionMessage(error?.message) !== undefined) throw error
           if (label !== undefined) throw error
           const status = await this.auth.status()
           if (status.authenticated === true) {
@@ -228,7 +230,7 @@ export class CodexLoginCoordinator {
           method,
           phase: 'failed',
           authenticated: false,
-          error: 'Codex login failed',
+          error: restrictionMessage(error?.message) ?? 'Codex login failed',
           // Only a fixed kind reaches the browser, so the sign-in page can say what to do next.
           failure: publicFailure(classifyLoginFailure(error)),
         }

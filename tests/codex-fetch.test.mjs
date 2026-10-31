@@ -63,7 +63,7 @@ test('HTTP, malformed JSON, network and timeout failures are sanitized and never
   for (const status of [401, 403, 404, 429, 503]) {
     let calls = 0
     await assert.rejects(setup({ fetch: async () => { calls += 1; return new Response('private-server-error', { status }) } }).fetch({ url: target }), error =>
-      error.code === (status === 401 || status === 403 ? 'WEB_PROVIDER_CREDENTIAL_MISSING' : 'WEB_PROVIDER_ERROR') && !error.message.includes('private'))
+      error.code === (status === 401 ? 'WEB_PROVIDER_CREDENTIAL_MISSING' : 'WEB_PROVIDER_ERROR') && !error.message.includes('private'))
     assert.equal(calls, status === 503 ? 2 : 1)
   }
   await assert.rejects(setup({ fetch: async () => new Response('{private') }).fetch({ url: target }), error => error.code === 'WEB_PROVIDER_ERROR' && !error.message.includes('private'))

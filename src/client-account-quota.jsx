@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { recoveryCall } from './client-recovery.js'
-import { fill, percent, uiLocale, windowLabel } from './client-shared.js'
+import { accessFailureText, fill, percent, uiLocale, windowLabel } from './client-shared.js'
 
 const when = seconds => new Date(seconds * 1000).toLocaleString(uiLocale(), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
@@ -57,7 +57,10 @@ export function useAccountQuotas(rpc, ids, active = true) {
 
 export function AccountQuota({ entry, loading, t }) {
   if (entry === undefined) return loading ? <small className="codexSubscriptionAccountQuota">{t('accountQuotaLoading')}</small> : null
-  if (entry.error !== undefined) return <small className="codexSubscriptionAccountQuota" data-state="error">{entry.error === 'ChatGPT sign-in needs to be renewed' ? t('resetRenewLogin') : t('accountQuotaError')}</small>
+  if (entry.error !== undefined) {
+    const message = accessFailureText(entry.error, t)
+    return <small className="codexSubscriptionAccountQuota" data-state="error">{entry.error === 'ChatGPT sign-in needs to be renewed' ? t('resetRenewLogin') : message !== entry.error ? message : t('accountQuotaError')}</small>
+  }
   const windows = entry.usage?.rateLimits?.find(limit => limit.id === 'codex')?.windows ?? []
   if (windows.length === 0) return <small className="codexSubscriptionAccountQuota">{t('accountQuotaNone')}</small>
   return <small className="codexSubscriptionAccountQuota">{windows.map(window => <span key={window.windowSeconds}>

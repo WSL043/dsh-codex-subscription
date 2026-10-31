@@ -728,7 +728,7 @@ export function apply(ctx, config = {}) {
     const tracked = operation.finally(() => activeQuotaRetries.delete(tracked))
     activeQuotaRetries.add(tracked)
     return tracked
-  })
+  }, true)
   ctx.effect(() => async () => {
     disposeQuotaRetry()
     quotaRetryLifetime.abort(new Error('codex-subscription quota retry disposed'))

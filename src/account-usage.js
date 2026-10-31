@@ -2,6 +2,7 @@
 // gets its own pi-ai OAuth store over the vault, so an expired token is refreshed and
 // written back to that account's own record, never to the active one.
 import { createCodexUsageReader } from './usage.js'
+import { isAccessFailureMessage } from './http-failure.js'
 
 const PROVIDER = 'openai-codex'
 const MAX_PARALLEL = 4
@@ -56,7 +57,7 @@ export function createAccountUsageReader({ vault, createModels, fetch, expirySke
   const summarize = (error, signal) => {
     if (signal?.aborted) throw error
     const message = error instanceof Error ? error.message : ''
-    return ['ChatGPT subscription is not signed in', 'ChatGPT sign-in needs to be renewed'].includes(message) || message.includes('blocked this request')
+    return isAccessFailureMessage(message) || ['ChatGPT subscription is not signed in', 'ChatGPT sign-in needs to be renewed'].includes(message) || message.includes('blocked this request')
       ? message
       : 'Could not read ChatGPT usage'
   }

@@ -1,7 +1,9 @@
 /** Reconcile a login flow with the credential store without exposing credentials. */
+import { isAccessFailureMessage } from './http-failure.js'
 export async function readLoginProgress({ flow, readFlow, readAccount }) {
   try {
     const nextFlow = await readFlow()
+    if (nextFlow.phase === 'failed' && isAccessFailureMessage(nextFlow.error)) return { flow: nextFlow }
     if (nextFlow.phase === 'failed') {
       try {
         const account = await readAccount()

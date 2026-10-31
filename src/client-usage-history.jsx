@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { recoveryCall } from './client-recovery.js'
-import { fill } from './client-shared.js'
+import { accessFailureText, fill } from './client-shared.js'
 import { historyPeriodKey, reportedHistoryPeriods, selectHistoryPeriod } from './history-pending.js'
 import { uiLocale } from './client-usage-overview.jsx'
 
@@ -58,7 +58,7 @@ export function UsageHistory({ rpc, t, signedIn, resetKey, refreshKey, forceRefr
     <button className="codexSubscriptionHistoryRefresh" type="button" disabled={state.status === 'loading'} onClick={() => load(true)}>{t('historyRefresh')}</button>
     <div aria-live="polite">
       {state.status === 'loading' ? <p className="codexSubscriptionEmpty" role="status">{t('historyLoading')}</p> : null}
-      {state.status === 'error' ? <p className="codexSubscriptionError" role="alert">{state.message}</p> : null}
+      {state.status === 'error' ? <p className="codexSubscriptionError" role="alert">{accessFailureText(state.message, t)}</p> : null}
     </div>
       <div className="codexSubscriptionHistoryPeriods" role="group" aria-label={t('historyPeriods')}>
         {periods.map(item => <button type="button" key={historyPeriodKey(item)} aria-pressed={item === period} onClick={() => setSelected(historyPeriodKey(item))}>{`${day(item.startsAt)}–${day(item.endsAt)}`}</button>)}

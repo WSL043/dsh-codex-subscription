@@ -5,7 +5,7 @@ import { ORIGINAL_IMAGE_SCHEMA_VERSION } from './image-original-contract.js'
 import { USER_AGENT } from './version.js'
 import { IMAGE_MODELS, resolveImageModel, validateImageQuality } from './image-models.js'
 import { assertImageOperation, readImageDefaults } from './image-features.js'
-import { authFailureMessage, SIGN_IN_RENEW } from './http-failure.js'
+import { authFailureMessage, ACCESS_DENIED } from './http-failure.js'
 
 export const CODEX_IMAGE_TOOL_NAME = 'codex_image_generate'
 export const CODEX_IMAGE_GENERATION_URL = 'https://chatgpt.com/backend-api/codex/images/generations'
@@ -498,7 +498,7 @@ export function createCodexImageTool(options) {
         const requestId = supportId(response)
         // A 403 the ChatGPT backend itself sends is a refusal for this account (plan, workspace or region), not an
         // expired sign-in: signing in again changes nothing, so say so instead of asking for it (#173).
-        if (response.status === 403 && authFailure === SIGN_IN_RENEW) throw new Error(`${await refusalMessage(response, editing)}${requestId}`)
+        if (response.status === 403 && authFailure === ACCESS_DENIED) throw new Error(`${await refusalMessage(response, editing)}${requestId}`)
         if (authFailure !== undefined) throw new Error(authFailure)
         if (response.status === 429) throw new Error(`${await limitMessage(response)}${requestId}`)
         throw new Error(`Codex image ${editing ? 'edit' : 'generation'} failed (HTTP ${response.status})${requestId}`)

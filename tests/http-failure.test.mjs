@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { authFailureMessage, isBlockedByNetwork, REQUEST_BLOCKED, SIGN_IN_RENEW } from '../src/http-failure.js'
+import { authFailureMessage, isBlockedByNetwork, REQUEST_BLOCKED, SIGN_IN_RENEW, ACCESS_DENIED } from '../src/http-failure.js'
 
 const html = (body, headers = {}) => new Response(body, { status: 403, headers: { 'content-type': 'text/html; charset=UTF-8', ...headers } })
 
@@ -8,9 +8,9 @@ test('a 401 means the sign-in must be renewed', async () => {
   assert.equal(await authFailureMessage(new Response('', { status: 401 })), SIGN_IN_RENEW)
 })
 
-test('a 403 from the ChatGPT backend still asks for a new sign-in', async () => {
-  assert.equal(await authFailureMessage(new Response('{"detail":"forbidden"}', { status: 403, headers: { 'content-type': 'application/json' } })), SIGN_IN_RENEW)
-  assert.equal(await authFailureMessage(new Response('x', { status: 403 })), SIGN_IN_RENEW)
+test('an unexplained backend 403 does not claim the sign-in expired', async () => {
+  assert.equal(await authFailureMessage(new Response('{"detail":"forbidden"}', { status: 403, headers: { 'content-type': 'application/json' } })), ACCESS_DENIED)
+  assert.equal(await authFailureMessage(new Response('x', { status: 403 })), ACCESS_DENIED)
 })
 
 test('a Cloudflare browser check is not a sign-in problem', async () => {

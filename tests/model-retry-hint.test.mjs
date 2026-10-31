@@ -145,7 +145,7 @@ test('overload classification never expands generic failures, rejection statuses
     { message: 'Codex error: Unsupported parameter: invented_setting' },
     { message: 'Invalid request: ' + overloadMessage },
     { message: 'overloaded' },
-    ...[400, 401, 403, 413, 429].map(status => ({ status })),
+    ...[400, 413, 429].map(status => ({ status })),
     ...['AUTH', 'INVALID_REQUEST', 'QUOTA_EXCEEDED', 'ABORTED'].map(code => ({ code })),
     { partial: true }, { abort: true },
   ]

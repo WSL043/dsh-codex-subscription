@@ -3,6 +3,7 @@ import { loadModelCatalogCache, saveModelCatalogCache } from './model-catalog-ca
 import { PACKAGE_VERSION, USER_AGENT } from './version.js'
 import { ultraCatalogPreset } from './ultra-effort.js'
 import { effectiveContextPercent } from './context-budget.js'
+import { authFailureMessage, isRestrictionFailureMessage } from './http-failure.js'
 
 export const CODEX_MODELS_URL = `https://chatgpt.com/backend-api/codex/models?client_version=${encodeURIComponent(PACKAGE_VERSION)}`
 
@@ -349,7 +350,7 @@ export function createOfficialModelCatalog(options = {}) {
         headers: { authorization: `Bearer ${credentials.access}`, 'chatgpt-account-id': id, accept: 'application/json', originator: 'pi', 'user-agent': USER_AGENT, ...(etag === undefined ? {} : { 'if-none-match': etag }) },
       })
       if (!current(flight) || accountId !== id) return false
-      if (response.status !== 304 && !response.ok) throw new Error(`Codex model catalog failed (HTTP ${response.status})`)
+      if (response.status !== 304 && !response.ok) throw new Error(await authFailureMessage(response) ?? `Codex model catalog failed (HTTP ${response.status})`)
       const raw = response.status === 304 ? rawCatalog : await response.json()
       if (!current(flight) || accountId !== id) return false
       if (raw === undefined) throw new Error('Codex returned HTTP 304 without a cached model catalog')
@@ -375,7 +376,7 @@ export function createOfficialModelCatalog(options = {}) {
     }, error => {
       if (flight.generation === generation) {
         refreshStatus = signal?.aborted ? 'idle' : 'failed'
-        if (!signal?.aborted) scheduleRetry(flight.generation)
+        if (!signal?.aborted && !isRestrictionFailureMessage(error?.message)) scheduleRetry(flight.generation)
       }
       throw error
     }).finally(() => { if (refreshing === flight) refreshing = undefined })

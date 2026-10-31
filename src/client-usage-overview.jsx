@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { recoveryCall } from './client-recovery.js'
-import { fill, uiLocale } from './client-shared.js'
+import { accessFailureText, fill, uiLocale } from './client-shared.js'
 import { heatmapCells, firstWeekday, formatDuration } from './usage-heatmap.js'
 
 // Numbers and dates follow the language DSH shows, not the browser's.
@@ -50,7 +50,7 @@ export function UsageOverview({ rpc, t, signedIn, resetKey }) {
     <summary>{t('overviewTitle')}</summary>
     <div aria-live="polite">
       {state.status === 'loading' ? <p className="codexSubscriptionEmpty" role="status">{t('overviewLoading')}</p> : null}
-      {state.status === 'error' ? <p className="codexSubscriptionError" role="alert">{state.message}</p> : null}
+      {state.status === 'error' ? <p className="codexSubscriptionError" role="alert">{accessFailureText(state.message, t)}</p> : null}
       {state.status === 'ready' && stats.length === 0 ? <p className="codexSubscriptionEmpty" role="status">{t('overviewUnavailable')}</p> : null}
     </div>
     {stats.length === 0 ? null : <>
