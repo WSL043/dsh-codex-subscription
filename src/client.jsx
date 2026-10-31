@@ -1,6 +1,7 @@
 import { createSketchSessionRegistry } from './sketch-session-state.js'
 import { withComposerSession, openComposerSession, createSessionOpeners } from './client-session-compat.js'
 import { ComposerImagePreviews, MessageImagePreviews, IMAGE_PREVIEWS_CSS } from './client-image-previews.jsx'
+import { nativeComposerAttachments } from './composer-attachment-native.js'
 import { imageConversationNode } from './image-conversation-node.js'
 import { CodexImageToolRow, CodexImageOutput } from './client-images.jsx'
 import { ImageWorkspace } from './image-workspace.jsx'
@@ -213,9 +214,7 @@ export function apply(ctx) {
       }
     })
   }
-  const nativeAttachments = () => ctx.slots.entries('conversation.input.attachments').find(entry =>
-    entry.component !== ComposerImagePreviews && entry.locale === 'conversation' &&
-    !entry.inject && !entry.store && !entry.children)
+  const nativeAttachments = () => nativeComposerAttachments(ctx.slots.entries('conversation.input.attachments'), ComposerImagePreviews)
   const watchNativeAttachments = callback => ctx.slots.subscribe('conversation.input.attachments',callback)
   const nativeTranslate = ctx.locale.bind('conversation')
   // Use the host's attachment presentation slots; restore its own renderer when
@@ -229,15 +228,16 @@ export function apply(ctx) {
   ]) ctx.slots.inject(name, () => {
     let dispose
     const sync = () => {
-      if (preference.getSnapshot().imageViewer) {
+      if (preference.getSnapshot().imageViewer && (component !== ComposerImagePreviews || nativeAttachments())) {
         dispose ??= ctx.slots.register({ name, priority: -10,
-          inject: sessionId => ({ preference, t, nativeAttachments, watchNativeAttachments, nativeTranslate, service: imageViewer, openSketchImage: openSketchImage(sessionId), attachForEdit: attachForEdit(sessionId) }),
+          inject: sessionId => ({ preference, t, sessionId, nativeAttachments, watchNativeAttachments, nativeTranslate, service: imageViewer, openSketchImage: openSketchImage(sessionId), attachForEdit: attachForEdit(sessionId) }),
         }, component)
       } else { dispose?.(); dispose = undefined }
     }
     sync()
     const unwatch = preference.subscribe(sync)
-    return () => { unwatch(); dispose?.() }
+    const unwatchNative = component === ComposerImagePreviews ? watchNativeAttachments(sync) : () => {}
+    return () => { unwatch(); unwatchNative(); dispose?.() }
   })
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
     name: 'conversation.input.left', id: 'codex-image-workspace', order: 30,

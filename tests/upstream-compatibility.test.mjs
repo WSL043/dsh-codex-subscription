@@ -49,7 +49,7 @@ test('dry-run and failed gates cannot reach main/tag/npm publication', async () 
   const require = createRequire(import.meta.url)
   const { parse } = createRequire(require.resolve('@deepseek-ai/dsh-settings/package.json'))('yaml')
   const workflow = parse(source)
-  assert.equal(workflow.on.schedule[0].cron, '2-59/5 * * * *')
+  assert.equal(workflow.on.schedule[0].cron, '23 * * * *')
   assert.deepEqual(workflow.on.repository_dispatch.types, ['dsh-upstream-release'])
   const jobs = workflow.jobs
   assert.deepEqual(workflow.on.workflow_run.workflows, ['Stale reporter follow-up', 'Risk-based CI'])

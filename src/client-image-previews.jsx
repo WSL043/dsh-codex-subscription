@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { buildImageEditDraft } from './image-edit.js'
 import { officialImageTools } from './image-official-tools.js'
+import { nativeComposerProps } from './composer-attachment-native.js'
 
 function openPreview(props, item, opener, sourceInDraft = false) {
   const { service, preference, t, attachForEdit } = props
@@ -43,7 +44,7 @@ export function ComposerImagePreviews(props) {
   }, [])
   if (!entry) return null
   const NativeAttachments = entry.component
-  return <div style={{display:'contents'}}><NativeAttachments {...props} t={nativeTranslate}/></div>
+  return <div style={{display:'contents'}}><NativeAttachments {...nativeComposerProps(entry, props, nativeTranslate)}/></div>
 }
 
 function MessageImagePreview({ image, ...props }) {
