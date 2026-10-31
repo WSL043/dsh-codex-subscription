@@ -242,6 +242,7 @@ export function apply(ctx, config = {}) {
     resolveReviewModel: () => settings.get().reviewModel,
     catalog: modelCatalog,
     runNetwork: network.run,
+    beginModelAttempt: network.beginModelAttempt,
   })
   let fetchRouted = false
   const preferences = {

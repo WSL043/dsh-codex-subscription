@@ -5,7 +5,7 @@ const areas = { catalog: 'models', quota: 'quota', search: 'search', image: 'ima
 export function diagnosticEvidence({ operations, history }, now) {
   return [
     ...(operations?.events ?? []).map(e => ({ capability: e.capability, action: e.action, source: e.source, status: e.status, observedAt: e.observedAt })),
-    ...(history?.events ?? []).map(e => ({ capability: areas[e.area], action: e.area, source: 'network', status: e.status === 'ok' ? 'completed' : 'failed', observedAt: e.observedAt })),
+    ...(history?.events ?? []).map(e => ({ capability: areas[e.area], action: e.area, source: 'network', status: e.status === 'ok' ? 'completed' : e.status, observedAt: e.observedAt })),
   ].filter(e => Number.isSafeInteger(e.observedAt) && now >= e.observedAt && now - e.observedAt <= EVIDENCE_WINDOW_MS)
     .sort((a, b) => a.observedAt - b.observedAt)
 }
