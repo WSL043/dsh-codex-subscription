@@ -1,6 +1,12 @@
 import { decodeOriginalImageRef, originalImageRefsEqual, ORIGINAL_IMAGE_CHUNK_BYTES } from './image-original-contract.js'
 import { CHANNEL } from './rpc-contract.js'
 
+export function imageEditSource(rpc, sessionId, original, preview) {
+  if (original === undefined) return preview
+  // An unavailable original is an error, never a silent lower-quality edit.
+  return async ({ signal } = {}) => new Blob([await readOriginalImage(rpc, sessionId, original, { signal })], { type: original.mediaType })
+}
+
 function decodeBase64Chunk(value) {
   if (typeof value !== 'string' || value.length === 0 || value.length > Math.ceil(ORIGINAL_IMAGE_CHUNK_BYTES / 3) * 4 + 8) throw new Error('Invalid original image chunk')
   let decoded

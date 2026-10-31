@@ -11,6 +11,7 @@ import { SUBSCRIPTION_IMAGE_VIEWER_CSS } from './subscription-image-viewer-style
 import { useImageTransform } from './subscription-image-transform.js'
 import { paintEraseMask, paintEraseStrokes } from './image-official-tools.js'
 import { createPortal } from 'react-dom'
+import { useImageSource } from './use-image-source.js'
 import { ArrowsPointingOutIcon, ChatBubbleLeftEllipsisIcon, PaintBrushIcon, PencilIcon, ScissorsIcon } from '@heroicons/react/24/outline'
 
 const TOOL_ICONS = { 'remove-background': ScissorsIcon, erase: PaintBrushIcon, resize: ArrowsPointingOutIcon, sketch: PencilIcon, annotate: ChatBubbleLeftEllipsisIcon }
@@ -68,11 +69,11 @@ function ViewerAction({ action, annotations, item, service, revision, t, onStart
     if (state === 'pending') return
     setState('pending')
     try {
-      await action.onInvoke({ annotations, item, src: item.src, ...extra })
+      await service.invoke(action, { annotations, item, src: item.src, ...extra }, revision)
       if (!active.current || service.getSnapshot()?.revision !== revision) return
       setState('idle')
       if (action.closeOnSuccess) service.close()
-    } catch { if (active.current) setState('failed') }
+    } catch (error) { if (active.current) setState(error?.name === 'AbortError' ? 'idle' : 'failed') }
   }
   const label = state === 'pending' ? action.pendingLabel : state === 'failed' ? action.errorLabel : action.label
   if (action.kind === 'mask') return <button type="button" className="dcsiv-button dcsiv-icon-button" title={action.label} aria-label={action.label} onClick={() => onStartMask(action)}><ToolIcon id={action.id} /></button>
@@ -137,6 +138,7 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
   const [brush, setBrush] = useState(0.05)
   const [sending, setSending] = useState(false)
   const [sendFailed, setSendFailed] = useState(false)
+  const maskOperation = useRef(0)
   const [brushCursor, setBrushCursor] = useState()
   const eraseRef = useRef({ erasing: undefined, sending: false })
   eraseRef.current = { erasing, sending }
@@ -150,9 +152,15 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
     setAnnotating(false)
     setSelected(undefined)
     setCopied(false)
+    const saved = service.getAnnotationsSnapshot()
+    annotationsByImageRef.current = saved
+    setAnnotationsByImage(saved)
   }, [request?.revision])
 
   const item = request?.items[index]
+  const reloadImage = useCallback(() => item?.reload ? item.reload() : item?.src, [item])
+  const imageSource = useImageSource(reloadImage, `${request?.revision}:${item?.id}`, item?.src)
+  useEffect(() => () => service.cancelPending(), [service, request?.revision, item?.id])
   const { transform, transformRef, dragging, pixelScale, geometry, stageRef, surfaceRef, imageRef, fit, actual, measure, setZoomAt, resetGesture, pointerHandlers } = useImageTransform(`${request?.revision}:${item?.id}:${item?.src}`)
   const annotations = item === undefined ? [] : annotationsByImage[item.id] ?? []
   const setAnnotations = useCallback((update) => {
@@ -234,6 +242,10 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
     setSelected(undefined)
     setErasing(undefined)
     setStrokes([])
+    maskOperation.current++
+    setSending(false)
+    setSendFailed(false)
+    return () => { maskOperation.current++ }
   }, [item?.id, item?.src, request?.revision])
 
   useEffect(() => {
@@ -275,21 +287,23 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
     const image = imageRef.current
     if (!erasing || strokes.length === 0 || image === null || sending) return
     setSending(true)
+    const operation = ++maskOperation.current
     setSendFailed(false)
     try {
       const canvas = document.createElement('canvas')
-      canvas.width = image.naturalWidth
-      canvas.height = image.naturalHeight
+      canvas.width = item.width ?? image.naturalWidth
+      canvas.height = item.height ?? image.naturalHeight
       paintEraseMask(canvas.getContext('2d'), strokes, canvas.width, canvas.height)
       const mask = await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Mask')), 'image/png'))
-      await erasing.onInvoke({ mask, item, src: item.src, annotations: [] })
+      await service.invoke(erasing, { mask, item, src: item.src, annotations: [] }, request.revision)
+      if (operation !== maskOperation.current) return
       setErasing(undefined)
       setStrokes([])
       if (erasing.closeOnSuccess) service.close()
     } catch {
       // Keep the strokes so the user can retry.
-      setSendFailed(true)
-    } finally { setSending(false) }
+      if (operation === maskOperation.current) setSendFailed(true)
+    } finally { if (operation === maskOperation.current) setSending(false) }
   }
 
   const addAnnotation = event => {
@@ -351,7 +365,8 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
     <div className="dcsiv-workspace">
       <main ref={stageRef} className="dcsiv-stage" data-dragging={dragging} data-annotating={annotating || erasing !== undefined} onClick={event => { if (event.target === event.currentTarget && !annotating && !erasing && transform.zoom === 1) service.close() }} {...(!annotating && !erasing ? pointerHandlers : {})} onDoubleClick={() => { if (transform.zoom === 1) actual(); else fit() }}>
         <div ref={surfaceRef} className="dcsiv-surface" onClick={addAnnotation} style={{ transform: `translate3d(${transform.x}px,${transform.y}px,0) scale(${transform.zoom})` }}>
-          <img key={`${request.revision}:${item.id}`} ref={imageRef} className="dcsiv-image" src={item.src} alt={item.name} draggable="false" onLoad={() => { measure() }} />
+          {imageSource.failed && !imageSource.usable ? null : <img key={`${request.revision}:${item.id}:${imageSource.attempt}`} ref={imageRef} className="dcsiv-image" src={imageSource.src} alt={item.name} draggable="false" onError={imageSource.fail} onLoad={() => { imageSource.loaded(); measure() }} />}
+          {imageSource.failed ? <button type="button" className="dcsiv-button" onClick={imageSource.retry}>{t('imageLoadFailed')}</button> : null}
           {erasing ? <canvas ref={maskRef} className="dcsiv-mask" width={imageRef.current?.naturalWidth || 1} height={imageRef.current?.naturalHeight || 1} aria-label={t('imageEraseHint')} {...maskHandlers} /> : null}
         </div>
         {annotations.map((annotation, position) => <div className="dcsiv-annotation" data-x={annotation.x < 0.38 ? 'right' : annotation.x > 0.62 ? 'left' : 'center'} data-y={annotation.y < 0.28 ? 'down' : 'up'} style={annotationPosition(annotation)} key={annotation.id}>

@@ -2,6 +2,31 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { normalizeSubscriptionViewerRequest, SubscriptionImageViewerService } from '../src/subscription-image-viewer.js'
 
+test('closing or replacing a preview cancels delayed edits before they can commit', async () => {
+  for (const stop of [service => service.close(), service => service.open({ items: [{ src: 'blob:other' }] }), service => service.cancelPending()]) {
+    const service = new SubscriptionImageViewerService()
+    service.open({ items: [{ src: 'blob:test' }] })
+    let release, committed = false
+    const wait = new Promise(resolve => { release = resolve })
+    const task = service.invoke({ onInvoke: async ({ signal }) => { await wait; signal.throwIfAborted(); committed = true } })
+    stop(service); release()
+    await assert.rejects(task, /abort/iu)
+    assert.equal(committed, false)
+  }
+})
+
+test('annotation cache is bounded and isolated between sessions', () => {
+  const service = new SubscriptionImageViewerService()
+  service.open({ scope: 'a', items: [{ id: 'same', src: 'blob:a' }] })
+  service.setAnnotations('same', [{ note: 'session a' }])
+  service.open({ scope: 'b', items: [{ id: 'same', src: 'blob:b' }] })
+  assert.equal(service.getAnnotationsSnapshot().same, undefined)
+  service.open({ scope: 'a', items: [{ id: 'same', src: 'blob:a' }] })
+  assert.equal(service.getAnnotationsSnapshot().same[0].note, 'session a')
+  for (let index = 0; index < 150; index++) service.setAnnotations(String(index), [{ note: 'cached' }])
+  assert.equal(Object.keys(service.getAnnotationsSnapshot()).length, 128)
+})
+
 test('normalizes an internal viewer request without importing optional plugins', () => {
   const invoke = async () => {}
   const value = normalizeSubscriptionViewerRequest({

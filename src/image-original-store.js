@@ -112,11 +112,35 @@ export class OriginalImageStore {
   }
 
   async chunk(sessionId, assetId, offset, inherited) {
-    if (!Number.isSafeInteger(offset) || offset < 0) return undefined
-    const stored = await this.read(sessionId, assetId, inherited)
-    if (stored === undefined || offset >= stored.data.byteLength || offset % ORIGINAL_IMAGE_CHUNK_BYTES !== 0) return undefined
-    const end = Math.min(stored.data.byteLength, offset + ORIGINAL_IMAGE_CHUNK_BYTES)
-    const chunk = Buffer.from(stored.data.buffer, stored.data.byteOffset + offset, end - offset)
-    return { ref: stored.ref, offset, encoded: chunk.toString('base64'), done: end === stored.data.byteLength }
+    if (!validSessionId(sessionId) || !ORIGINAL_IMAGE_ID_PATTERN.test(assetId)
+      || !Number.isSafeInteger(offset) || offset < 0 || offset % ORIGINAL_IMAGE_CHUNK_BYTES !== 0) return undefined
+    let handle
+    try {
+      const metadataFile = join(this.directory(assetId), 'metadata.json')
+      const originalFile = this.originalPath(assetId)
+      await Promise.all([assertPrivateFile(metadataFile), assertPrivateFile(originalFile)])
+      const metadata = parseMetadata(await readFile(metadataFile, 'utf8'))
+      if (!metadata || metadata.image.assetId !== assetId
+        || (metadata.sessionId !== sessionId && !originalImageRefsEqual(metadata.image, inherited))) return undefined
+      // Reauthorize every chunk; never cache an account/session authorization.
+      // The client checks the complete SHA-256 before download or editing.
+      handle = await open(originalFile, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0))
+      const stat = await handle.stat()
+      if (!stat.isFile() || stat.size !== metadata.image.bytes || offset >= stat.size
+        || process.platform !== 'win32' && (stat.mode & 0o077) !== 0) return undefined
+      const header = Buffer.alloc(24)
+      if ((await handle.read(header, 0, 24, 0)).bytesRead !== 24) return undefined
+      const dimensions = pngDimensions(header)
+      if (dimensions.width !== metadata.image.width || dimensions.height !== metadata.image.height) return undefined
+      const length = Math.min(ORIGINAL_IMAGE_CHUNK_BYTES, stat.size - offset)
+      const chunk = Buffer.alloc(length)
+      let read = 0
+      while (read < length) {
+        const result = await handle.read(chunk, read, length - read, offset + read)
+        if (!result.bytesRead) return undefined
+        read += result.bytesRead
+      }
+      return { ref: metadata.image, offset, encoded: chunk.toString('base64'), done: offset + length === stat.size }
+    } catch { return undefined } finally { await handle?.close() }
   }
 }

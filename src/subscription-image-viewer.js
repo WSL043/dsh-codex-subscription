@@ -34,6 +34,7 @@ export function normalizeSubscriptionViewerRequest(request) {
       height: boundedNumber(item.height, undefined),
       bytes: boundedNumber(item.bytes, undefined),
       download: downloadOf(item.download),
+      reload: typeof item.reload === 'function' ? item.reload : undefined,
       actions: actionsOf(item.actions),
     }]
   })
@@ -44,6 +45,7 @@ export function normalizeSubscriptionViewerRequest(request) {
     index: Math.max(0, Math.min(items.length - 1, requestedIndex)),
     opener: typeof HTMLElement !== 'undefined' && request?.opener instanceof HTMLElement ? request.opener : undefined,
     source: typeof request?.source === 'string' ? request.source : 'dsh-codex-subscription',
+    scope: typeof request?.scope === 'string' ? request.scope : '',
     annotations: request?.annotations !== false,
   }
 }
@@ -61,6 +63,26 @@ export class SubscriptionImageViewerService {
   #revision = 0
   #snapshot
   #annotationsByImage = new Map()
+  #operations = new Set()
+
+  async invoke(action, context = {}, revision = this.#snapshot?.revision) {
+    if (!this.#snapshot || this.#snapshot.revision !== revision) throw new Error('Image preview changed')
+    this.#cancelOperations()
+    const controller = new AbortController()
+    this.#operations.add(controller)
+    try {
+      const value = await action.onInvoke({ ...context, signal: controller.signal })
+      controller.signal.throwIfAborted()
+      return value
+    } finally { this.#operations.delete(controller) }
+  }
+
+  #cancelOperations() {
+    for (const controller of this.#operations) controller.abort()
+    this.#operations.clear()
+  }
+
+  cancelPending() { this.#cancelOperations() }
 
   constructor() {
     this.subscribe = listener => {
@@ -68,20 +90,28 @@ export class SubscriptionImageViewerService {
       return () => { this.#listeners.delete(listener) }
     }
     this.getSnapshot = () => this.#snapshot
-    this.getAnnotationsSnapshot = () => Object.fromEntries(
-      [...this.#annotationsByImage].map(([id, annotations]) => [id, copyAnnotations(annotations)]),
-    )
+    this.getAnnotationsSnapshot = () => {
+      const prefix = `${this.#snapshot?.scope ?? ''}\0`
+      return Object.fromEntries([...this.#annotationsByImage].filter(([id]) => id.startsWith(prefix))
+        .map(([id, annotations]) => [id.slice(prefix.length), copyAnnotations(annotations)]))
+    }
   }
 
   setAnnotations(imageId, annotations) {
     if (typeof imageId !== 'string' || imageId === '' || !Array.isArray(annotations)) return
+    imageId = `${this.#snapshot?.scope ?? ''}\0${imageId}`
     if (annotations.length === 0) this.#annotationsByImage.delete(imageId)
-    else this.#annotationsByImage.set(imageId, copyAnnotations(annotations))
+    else {
+      this.#annotationsByImage.delete(imageId)
+      this.#annotationsByImage.set(imageId, copyAnnotations(annotations))
+      while (this.#annotationsByImage.size > 128) this.#annotationsByImage.delete(this.#annotationsByImage.keys().next().value)
+    }
   }
 
   open(request) {
     const normalized = normalizeSubscriptionViewerRequest(request)
     if (normalized === undefined) return false
+    this.#cancelOperations()
     this.#revision += 1
     this.#snapshot = { ...normalized, revision: this.#revision }
     this.#emit()
@@ -90,6 +120,7 @@ export class SubscriptionImageViewerService {
 
   close() {
     if (this.#snapshot === undefined) return
+    this.#cancelOperations()
     const opener = this.#snapshot.opener
     this.#snapshot = undefined
     this.#emit()

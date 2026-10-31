@@ -1,9 +1,10 @@
 import { PhotoIcon, ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
 import { officialImageTools } from './image-official-tools.js'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
+import { useImageSource } from './use-image-source.js'
 import { buildImageEditDraft } from './image-edit.js'
 import { decodeImagePresentation } from './image-original-contract.js'
-import { readOriginalImage } from './original-image-download.js'
+import { readOriginalImage, imageEditSource } from './original-image-download.js'
 
 const imageDownloadName = attachment => {
   const fallback = 'codex-generated-image.png'
@@ -23,60 +24,53 @@ function triggerBlobDownload(data, mediaType, filename) {
   try { anchor.click() } finally { anchor.remove(); URL.revokeObjectURL(url) }
 }
 
-function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, openSketchImage, attachForEdit, getImageViewer, getInternalImageViewer, t, features }) {
-  const [attempt, setAttempt] = useState(0)
-  const [error, setError] = useState(false)
-  const [src, setSrc] = useState()
+function CodexGeneratedImage({ attachment, original, gallery, rpc, sessionId, loadImage, openSketchImage, attachForEdit, getImageViewer, getInternalImageViewer, t, features }) {
+  const reload = useCallback(() => loadImage(attachment), [attachment, loadImage])
+  const { src, failed: error, fail, retry, attempt, usable, loaded } = useImageSource(reload, attachment.attachmentId ?? attachment)
   const triggerRef = useRef(null)
-  useEffect(() => {
-    let live = true
-    setError(false)
-    setSrc(undefined)
-    void Promise.resolve().then(() => loadImage(attachment))
-      .then(value => { if (live) setSrc(value) })
-      .catch(() => { if (live) setError(true) })
-    return () => { live = false }
-  }, [attachment, loadImage, attempt])
+  const opening = useRef(0)
+  useEffect(() => () => { opening.current++ }, [attachment])
   const label = attachment.name ?? t('imageLabel')
-  const downloadName = imageDownloadName(attachment)
-  const downloadOriginal = async ({ signal, onProgress } = {}) => {
-    if (original === undefined) return
-    triggerBlobDownload(await readOriginalImage(rpc, sessionId, original, { signal, onProgress }), original.mediaType, original.name)
-  }
-  const openImage = () => {
-    if (src === undefined) return
-    const request = {
-      items: [{
+  const makeItem = (attachment, original, src) => {
+    const downloadName = imageDownloadName(attachment)
+    const editSource = imageEditSource(rpc, sessionId, original, src)
+    return {
         id: attachment.attachmentId ?? downloadName,
         src,
-        name: label,
-        width: attachment.width,
-        height: attachment.height,
-        bytes: attachment.bytes,
+        reload: () => loadImage(attachment),
+        name: attachment.name ?? t('imageLabel'),
+        width: original?.width ?? attachment.width,
+        height: original?.height ?? attachment.height,
+        bytes: original?.bytes ?? attachment.bytes,
         download: original === undefined ? undefined : {
-          pendingLabel: t('imageDownloadPreparing'),
-          errorLabel: t('imageDownloadFailed'),
-          onInvoke: downloadOriginal,
+          pendingLabel: t('imageDownloadPreparing'), errorLabel: t('imageDownloadFailed'),
+          onInvoke: async ({ signal, onProgress } = {}) => triggerBlobDownload(await readOriginalImage(rpc, sessionId, original, { signal, onProgress }), original.mediaType, original.name),
         },
         actions: !features.imageEditing ? [] : [{
-          id: 'continue-editing',
-          label: t('imageEdit'),
-          pendingLabel: t('imageEditPreparing'),
-          errorLabel: t('imageEditFailed'),
-          closeOnSuccess: true,
-          onInvoke: ({ annotations = [] }) => {
+          id: 'continue-editing', label: t('imageEdit'), pendingLabel: t('imageEditPreparing'), errorLabel: t('imageEditFailed'), closeOnSuccess: true,
+          onInvoke: ({ annotations = [], signal }) => {
             const imageKey = String(attachment.attachmentId ?? 'image').replace(/[^a-zA-Z0-9_-]/g, '_')
             const sourceName = annotations.length === 0 ? downloadName : `codex-edit-${imageKey}-source.png`
             const referenceName = `codex-edit-${imageKey}-annotations.png`
-            return attachForEdit(src, sourceName, buildImageEditDraft({
-              annotations, translate: t, width: attachment.width, height: attachment.height,
-              sourceName, referenceName,
-            }), annotations, referenceName)
+            return attachForEdit(editSource, sourceName, buildImageEditDraft({ annotations, translate: t,
+              width: original?.width ?? attachment.width, height: original?.height ?? attachment.height, sourceName, referenceName,
+            }), annotations, referenceName, false, undefined, { signal })
           },
-        }, ...officialImageTools({ src, name: downloadName, t, attachForEdit }), ...(features.imageSketch && openSketchImage ? [{id:'sketch',label:t('imageToSketch'),pendingLabel:t('imageEditPreparing'),errorLabel:t('imageEditFailed'),onInvoke:()=>openSketchImage(src,downloadName)}] : [])],
-      }],
+        }, ...officialImageTools({ src: editSource, name: downloadName, t, attachForEdit }), ...(features.imageSketch && openSketchImage ? [{id:'sketch',label:t('imageToSketch'),pendingLabel:t('imageEditPreparing'),errorLabel:t('imageEditFailed'),onInvoke:()=>openSketchImage(src,downloadName)}] : [])],
+    }
+  }
+  const openImage = async () => {
+    if (src === undefined) return
+    const revision = ++opening.current
+    const items = await Promise.all((gallery ?? [{ attachment, original }]).map(async image => makeItem(image.attachment, image.original,
+      image.attachment === attachment ? src : await loadImage(image.attachment).catch(() => 'about:blank'))))
+    if (revision !== opening.current) return
+    const request = {
+      items,
+      index: Math.max(0, items.findIndex(item => item.id === attachment.attachmentId)),
       opener: triggerRef.current,
       source: 'codex-generated',
+      scope: sessionId,
       annotations: features.imageViewer && features.imageAnnotations,
     }
     if (features.imageViewer && getInternalImageViewer?.()?.open?.(request) === true) return
@@ -85,15 +79,16 @@ function CodexGeneratedImage({ attachment, original, rpc, sessionId, loadImage, 
     if (features.imageViewer) getInternalImageViewer?.()?.open?.({ ...request, annotations: false })
     else window.open(src, '_blank', 'noopener,noreferrer')
   }
-  if (error) {
-    return <button type="button" className="codexGeneratedImageRetry" onClick={() => setAttempt(value => value + 1)}>{t('imageLoadFailed')}</button>
+  if (error && !usable) {
+    return <button type="button" className="codexGeneratedImageRetry" onClick={retry}>{t('imageLoadFailed')}</button>
   }
-  return <button ref={triggerRef} type="button" className="codexGeneratedImageFrame" title={t('imageOpen')} aria-label={t('imageOpenNamed').replace('{value}', String(label))} onClick={openImage}>
-    {src === undefined ? <span>{t('imageLoading')}</span> : <img src={src} alt={label} />}
+  return <button ref={triggerRef} type="button" className="codexGeneratedImageFrame" title={error ? t('imageLoadFailed') : t('imageOpen')} aria-label={t('imageOpenNamed').replace('{value}', String(label))} onClick={error ? retry : openImage}>
+    {src === undefined ? <span>{t('imageLoading')}</span> : <img key={attempt} src={src} onError={fail} onLoad={loaded} alt={label} />}
+    {error ? <span>{t('imageLoadFailed')}</span> : null}
   </button>
 }
 
-export function CodexImageToolRow({ presentation = 'tool', block, sessionId, rpc, loadImage, openSketchImage, attachForEdit, getImageViewer, getInternalImageViewer, t, preference }) {
+export function CodexImageToolRow({ presentation = 'tool', block, gallery, sessionId, rpc, loadImage, openSketchImage, attachForEdit, getImageViewer, getInternalImageViewer, t, preference }) {
   const features = useSyncExternalStore(preference.subscribe, preference.getSnapshot)
   const settled = block?.kind === 'tool-result'
   const image = settled
@@ -111,12 +106,13 @@ export function CodexImageToolRow({ presentation = 'tool', block, sessionId, rpc
   return <div className="codexImageTool" data-state={state}>
     {showOutput ? null : <div className="codexImageToolRow"><StateIcon className="codexImageToolIcon" aria-hidden="true" /><span className="codexImageToolTitle">{t('imageGenerate')}</span><span className="codexImageToolState">{status}</span></div>}
     {/* Retain the tool preview for inspection while the completed output renders independently. */}
-    {(!showOutput && !settled) || image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage features={features} attachment={image.attachment} original={original} rpc={rpc} sessionId={sessionId} loadImage={loadImage} openSketchImage={openSketchImage} attachForEdit={attachForEdit} getImageViewer={getImageViewer} getInternalImageViewer={getInternalImageViewer} t={t} /></div>}
+    {(!showOutput && !settled) || image === undefined ? null : <div className="codexImageToolGallery"><CodexGeneratedImage features={features} attachment={image.attachment} original={original} gallery={gallery} rpc={rpc} sessionId={sessionId} loadImage={loadImage} openSketchImage={openSketchImage} attachForEdit={attachForEdit} getImageViewer={getImageViewer} getInternalImageViewer={getInternalImageViewer} t={t} /></div>}
     {!showOutput && typeof block?.meta?.requestedModel === 'string' ? <details className="codexImageDetails"><summary>{t('imageDetails')}</summary><p>{t('imageRequestedModel')}: {block.meta.requestedModel.slice(0,100)}<br />{t('imageReportedModel')}: {typeof block.meta.reportedModel === 'string' ? block.meta.reportedModel.slice(0,100) : t('imageModelUnreported')}<br />{t('imageRequestedSize')}: {String(block.meta.requestedSize ?? 'auto').slice(0,40)} · {t('imageActualSize')}: {original?.width} × {original?.height}</p></details> : null}
     {error === undefined ? null : <p className="codexImageToolError">{error}</p>}
   </div>
 }
 
 export function CodexImageOutput({ node, ...props }) {
-  return <div className="codexImageOutput">{node.data.blocks.map(block => <CodexImageToolRow key={block.toolCallId} block={block} {...props} presentation="output" />)}</div>
+  const gallery = node.data.blocks.flatMap(block => block.content.filter(item => item?.type === 'image' && item.attachment).map(item => ({ attachment: item.attachment, original: decodeImagePresentation(block?.meta)?.original })))
+  return <div className="codexImageOutput">{node.data.blocks.map(block => <CodexImageToolRow key={block.toolCallId} block={block} gallery={gallery} {...props} presentation="output" />)}</div>
 }

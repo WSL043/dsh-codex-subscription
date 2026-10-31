@@ -186,23 +186,29 @@ export function apply(ctx) {
     imageViewer.close()
     liveOpen('sketch', document.activeElement, new File([blob], name || 'image.png', {type:blob.type || 'image/png'}))
   }
-  const attachForEdit = sessionId => async (src, filename, draft, annotations = [], referenceName, sourceInDraft = false, extraFiles) => {
+  const attachForEdit = sessionId => async (src, filename, draft, annotations = [], referenceName, sourceInDraft = false, extraFiles, operation = {}) => {
     // Official image tools pass their own files (possibly none) and always carry an instruction.
     const tool = Array.isArray(extraFiles)
     if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
     return withComposerSession(sessions, sessionId, async actx => {
-      const response = await fetch(src, { signal: lifetime.signal })
-      if (!response.ok) throw new Error('Could not read generated image')
-      const blob = await response.blob()
+      const signal = operation.signal ? AbortSignal.any([lifetime.signal, operation.signal]) : lifetime.signal
+      signal.throwIfAborted()
+      const blob = typeof src === 'function' ? await src({ signal }) : await fetch(src, { signal }).then(response => {
+        if (!response.ok) throw new Error('Could not read generated image')
+        return response.blob()
+      })
+      signal.throwIfAborted()
       const files = sourceInDraft ? [] : [new File([blob], filename, { type: blob.type || 'image/png' })]
       if (annotations.length > 0) {
         const reference = await createAnnotatedImageReference(blob, annotations)
         files.push(new File([reference], referenceName, { type: 'image/png' }))
       }
       if (tool) files.push(...extraFiles)
-      lifetime.signal.throwIfAborted()
+      signal.throwIfAborted()
       const input = conversation.input.for(actx)
       if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
+      const ids = input.state.getSnapshot().attachmentIds
+      if (operation.sourceId && Array.isArray(ids) && !ids.includes(operation.sourceId)) throw new Error('The source attachment was removed')
       if (files.length) attachImageFiles(conversation, input, files, sessionId)
       openComposerSession(sessions, ctx.get('uiWorkspace'), sessionId)
       // Preserve text typed while the asynchronous image preparation ran.

@@ -20,7 +20,7 @@ test('generated image loader uses the installed DSH UI conversation image API', 
   ])
   assert.ok(assembly.includes(`${method}(sessionId: SessionId, attachment: ImageAttachmentRef): Promise<string>`))
   assert.match(client, /uiConversation:\s*import\('\.\/conversation\/assembly\.ts'\)\.UiConversation/u)
-  assert.match(source, /Promise\.resolve\(\)\.then\(\(\) => loadImage\(attachment\)\)/u)
+  assert.match(source, /useCallback\(\(\) => loadImage\(attachment\)/u)
 })
 
 test('client is one removable DSH settings section, not a second application shell', async () => {
@@ -454,10 +454,10 @@ test('generated Codex images use a DSH-tokenized native viewer across supported 
   assert.match(source, /catch \{\s*return undefined\s*\}/u)
   assert.match(source, /viewer\?\.open\?\.\(/u)
   assert.match(source, /download: original === undefined \? undefined/u)
-  assert.match(source, /onInvoke: downloadOriginal/u)
+  assert.match(source, /onInvoke: async[\s\S]*?readOriginalImage\(rpc, sessionId, original/u)
   assert.doesNotMatch(source, /id: 'download-original'|imageDownloadOriginal|OriginalImageDownload/u)
   assert.match(source, /id: 'continue-editing'/u)
-  assert.match(source, /onInvoke:\s*\(\{ annotations = \[\] \}\)/u)
+  assert.match(source, /onInvoke:\s*\(\{ annotations = \[\], signal \}\)/u)
   assert.match(source, /closeOnSuccess: true/u)
   assert.doesNotMatch(source, /codexGeneratedImageEditDock|request\.editor|imageEditPrompt\}\s*onChange/u)
   const viewerOpen = source.indexOf('getInternalImageViewer?.()?.open?.(request)')

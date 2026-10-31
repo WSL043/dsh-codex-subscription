@@ -13,7 +13,7 @@ test('official image tools send the Codex instructions with the right files', as
   assert.deepEqual(tools.map(tool => [tool.id, tool.kind]), [['remove-background', 'tool'], ['erase', 'mask'], ['resize', 'choice']])
 
   await tools[0].onInvoke({})
-  assert.deepEqual(calls[0], ['blob:x', 'whale.png', '移除此图像的背景。保持所有前景主体不变且完整，边缘干净平滑。将背景设为透明。', [], undefined, true, []])
+  assert.deepEqual(calls[0], ['blob:x', 'whale.png', '移除此图像的背景。保持所有前景主体不变且完整，边缘干净平滑。将背景设为透明。', [], undefined, true, [], { signal: undefined }])
 
   await assert.rejects(tools[1].onInvoke({}), /Mark the area/u)
   await tools[1].onInvoke({ mask: new Blob(['m'], { type: 'image/png' }) })

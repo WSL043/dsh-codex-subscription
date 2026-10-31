@@ -13,20 +13,20 @@ export const IMAGE_ASPECT_RATIOS = Object.freeze([
  *   sourceInDraft?: boolean }} options
  */
 export function officialImageTools({ src, name, t, attachForEdit, sourceInDraft = false }) {
-  const send = (draft, extraFiles = []) => attachForEdit(src, name, draft, [], undefined, sourceInDraft, extraFiles)
+  const send = (draft, extraFiles = [], signal) => attachForEdit(src, name, draft, [], undefined, sourceInDraft, extraFiles, { signal })
   const base = { pendingLabel: t('imageEditPreparing'), errorLabel: t('imageEditFailed'), closeOnSuccess: true }
   return [
     { ...base, id: 'remove-background', kind: 'tool', label: t('imageRemoveBackground'),
-      onInvoke: () => send(t('imageRemoveBackgroundPrompt')) },
+      onInvoke: ({ signal } = {}) => send(t('imageRemoveBackgroundPrompt'), [], signal) },
     { ...base, id: 'erase', kind: 'mask', label: t('imageErase'),
-      onInvoke: async ({ mask }) => {
+      onInvoke: async ({ mask, signal }) => {
         if (!(mask instanceof Blob)) throw new Error('Mark the area to erase first')
         const maskName = `${String(name).replace(/\.[a-z0-9]+$/iu, '')}-erase-mask.png`
-        return send(t('imageErasePrompt'), [new File([mask], maskName, { type: 'image/png' })])
+        return send(t('imageErasePrompt'), [new File([mask], maskName, { type: 'image/png' })], signal)
       } },
     { ...base, id: 'resize', kind: 'choice', label: t('imageResize'),
       options: IMAGE_ASPECT_RATIOS.map(([id, ratio]) => ({ value: ratio, label: `${t(`imageRatio_${id}`)} ${ratio}` })),
-      onInvoke: ({ option }) => send(t('imageResizePrompt').replaceAll('{aspectRatio}', option)) },
+      onInvoke: ({ option, signal }) => send(t('imageResizePrompt').replaceAll('{aspectRatio}', option), [], signal) },
   ]
 }
 

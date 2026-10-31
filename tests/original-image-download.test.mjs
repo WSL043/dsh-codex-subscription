@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import test from 'node:test'
-import { readOriginalImage } from '../src/original-image-download.js'
+import { readOriginalImage, imageEditSource } from '../src/original-image-download.js'
 import { ORIGINAL_IMAGE_CHUNK_BYTES } from '../src/image-original-contract.js'
 
 function fixture(data = Buffer.from('exact original image bytes'), change = value => value) {
@@ -25,6 +25,16 @@ function fixture(data = Buffer.from('exact original image bytes'), change = valu
   } }
   return { original, rpc, calls }
 }
+
+test('editing selects exact original bytes and never falls back after original failure', async () => {
+  const bytes = Buffer.from('high resolution original')
+  const { rpc, original } = fixture(bytes)
+  const source = imageEditSource(rpc, 'session-1', original, 'blob:lower-resolution-preview')
+  assert.deepEqual(Buffer.from(await (await source()).arrayBuffer()), bytes)
+  assert.equal(imageEditSource(rpc, 'session-1', undefined, 'blob:legacy'), 'blob:legacy')
+  const broken = imageEditSource({ call: async () => ({ ok: false, error: { message: 'Original missing' } }) }, 'session-1', original, 'blob:preview')
+  await assert.rejects(broken(), /Original missing/u)
+})
 
 test('downloads exact bytes across chunk boundaries and preserves session routing', async () => {
   const data = Buffer.alloc(ORIGINAL_IMAGE_CHUNK_BYTES + 31, 0xa5)

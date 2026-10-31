@@ -42,6 +42,8 @@ test('fork access requires an exact original reference in the inherited event pr
   const inherited = inheritedOriginalImageRef(child, ref.assetId)
   assert.equal(originalImageRefsEqual(inherited, ref), true)
   assert.deepEqual((await store.read('session-child', ref.assetId, inherited))?.data, PNG)
+  assert.equal((await store.chunk('session-child', ref.assetId, 0, inherited))?.done, true)
+  assert.equal(await store.chunk('session-child', ref.assetId, 0, { ...ref, sha256: '0'.repeat(64) }), undefined)
   assert.equal(await store.read('session-child', ref.assetId, { ...ref, sha256: '0'.repeat(64) }), undefined)
   assert.equal(inheritedOriginalImageRef({ ...child, inheritedEventCount: 1 }, ref.assetId), undefined)
   assert.equal(inheritedOriginalImageRef({ ...child, header: {} }, ref.assetId), undefined)
@@ -87,6 +89,7 @@ test('original chunks are ordered, bounded, and repeat the authoritative referen
   data.set(PNG)
   // Keep one valid PNG while padding after IEND; exact bytes still round-trip.
   const ref = await store.save('session-chunks', data)
+  store.read = () => { throw new Error('Chunk downloads must not reread the full image') }
   const first = await store.chunk('session-chunks', ref.assetId, 0)
   const second = await store.chunk('session-chunks', ref.assetId, ORIGINAL_IMAGE_CHUNK_BYTES)
   assert.equal(Buffer.from(first.encoded, 'base64').byteLength, ORIGINAL_IMAGE_CHUNK_BYTES)
@@ -94,6 +97,7 @@ test('original chunks are ordered, bounded, and repeat the authoritative referen
   assert.equal(second.done, true)
   assert.deepEqual(second.ref, ref)
   assert.equal(await store.chunk('session-chunks', ref.assetId, 1), undefined)
+  assert.equal(await store.chunk('other-session', ref.assetId, 0), undefined)
 }))
 
 test('corrupt or over-permissive original assets fail closed', async () => withStore(async store => {
