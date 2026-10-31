@@ -47,7 +47,7 @@ test('an error event from the service is recorded as a failure after the payload
     for await (const event of provider.streamSimple(provider.getModels()[0], { messages: [{ role: 'user', content: 'SECRET-PROMPT-TEXT', timestamp: 1 }] }, { apiKey, transport: 'sse' })) events.push(event)
     assert.ok(events.some(event => event.type === 'error'))
     const failure = provider.streamFailure()
-    assert.deepEqual({ count: failure.count, stage: failure.stage, frame: failure.frame }, { count: 1, stage: 'payload', frame: undefined })
+    assert.deepEqual({ count: failure.count, stage: failure.stage, frame: failure.frame }, { count: 1, stage: 'request', frame: undefined })
     assert.equal(failure.request.method, 'streamSimple')
     assert.equal(JSON.stringify(failure.request).includes('SECRET'), false, 'no message text in the copy')
   } finally { globalThis.fetch = previous }

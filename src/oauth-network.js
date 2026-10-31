@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process'
 import { createDiagnosticEvents } from './diagnostic-events.js'
+import { createModelAttempt } from './model-attempt.js'
 import { diagnosticLog } from './diagnostic-log.js'
 import { request as httpsRequest } from 'node:https'
 import { AsyncLocalStorage } from 'node:async_hooks'
@@ -211,7 +212,16 @@ export async function withCodexNetwork(run, options = {}) {
         const url = new URL(String(args[0]))
         if (!scope?.options.websocket || url.protocol !== 'wss:' || url.hostname !== CODEX_SUBSCRIPTION_HOST) return Reflect.construct(target, args, newTarget)
         const proxy = scope.options.websocketProxy
-        return new WebSocket(args[0], { ...args[1], ...(proxy ? { agent: new HttpsProxyAgent(proxy) } : {}) })
+        const observe = () => {
+          const options = networkScope.getStore()?.options
+          try { options?.onTransport?.('websocket'); options?.onRoute?.(options.websocketProxy ? 'proxy' : 'direct') } catch {}
+        }
+        observe()
+        const Socket = scope.options.WebSocket ?? WebSocket
+        const socket = new Socket(args[0], { ...args[1], ...(proxy ? { agent: new HttpsProxyAgent(proxy) } : {}) })
+        const send = socket.send
+        socket.send = function (...values) { observe(); return Reflect.apply(send, this, values) }
+        return socket
       },
     })
     globalThis.WebSocket = scopedWebSocket
@@ -234,7 +244,16 @@ export async function withCodexNetwork(run, options = {}) {
       }
       const route = await proxy
       scopedOptions.onRoute?.(route.source)
-      const response = await (route.url === undefined && !scopedOptions.standardHttps ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url))
+      try { scopedOptions.onTransport?.('sse') } catch {}
+      let response
+      try {
+        response = await (route.url === undefined && !scopedOptions.standardHttps ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url))
+      } catch (error) {
+        // Observe before SDK normalization discards Error.cause; diagnostics must
+        // not change the original rejection or initiate another request.
+        try { scopedOptions.onFetchFailure?.(error) } catch {}
+        throw error
+      }
       return scopedOptions.transformResponse?.(response, target) ?? response
     }
     globalThis.fetch = scopedFetch
@@ -286,17 +305,20 @@ export function createCodexNetworkTransport(options = {}) {
   const remember = (area, value) => {
     const before = attempts.get(area)
     attempts.set(area, value); evidence.record(area, value)
+    if (area === 'model' && value.attemptId) return
     if (value.status === 'failed') {
       const what = value.stage === 'http' ? `HTTP ${value.httpStatus}` : `network ${value.code}`
       diagnosticLog.log(value.stage === 'http' && value.httpStatus < 500 && value.httpStatus !== 401 && value.httpStatus !== 403 ? 'warn' : 'error', area, `request failed: ${what} (${value.route}, ${value.elapsed})`)
-    } else if (before?.status === 'failed') diagnosticLog.info(area, 'request works again')
+    } else if (value.status === 'ok' && before?.status === 'failed') diagnosticLog.info(area, 'request works again')
   }
   const run = async (area, operation, connection = {}) => {
     const startedAt = now()
     let route = attempts.get(area)?.route ?? 'direct'
     let routed = false
     try {
-      const value = await withCodexNetwork(operation, { ...options, ...connection, onRoute: source => { route = source; routed = true } })
+      const value = await withCodexNetwork(operation, { ...options, ...connection, onRoute: source => { route = source; routed = true; connection.onRoute?.(source) } })
+      // The model wrapper owns the whole SDK attempt, including yielded error events.
+      if (connection.modelAttempt) return value
       connection.signal?.throwIfAborted()
       if (value instanceof Response && !value.ok) {
         remember(area, { status: 'failed', stage: 'http', code: 'http-error', httpStatus: value.status, route, elapsed: elapsedBucket(now() - startedAt) })
@@ -308,12 +330,13 @@ export function createCodexNetworkTransport(options = {}) {
       // A caller changing drafts or closing a view is not a network failure.
       // Keep real AbortSignal.timeout failures visible in support diagnostics.
       if (connection.signal?.aborted && connection.signal.reason?.name !== 'TimeoutError') throw error
-      if (routed) remember(area, { status: 'failed', stage: 'transport', code: classifyTransportError(error), route, elapsed: elapsedBucket(now() - startedAt) })
+      if (routed && !connection.modelAttempt) remember(area, { status: 'failed', stage: 'transport', code: classifyTransportError(error), route, elapsed: elapsedBucket(now() - startedAt) })
       throw error
     }
   }
   return Object.freeze({
     run,
+    beginModelAttempt: () => createModelAttempt({ now, publish: value => remember('model', { ...value, ...(value.status === 'failed' && value.networkFailure ? { code: classifyTransportError({ code: value.networkFailure.match(/\[([A-Z_]+)/)?.[1] }) } : {}) }) }),
     history: evidence.snapshot,
     fetch: (area, input, init, connection) => run(area, () => globalThis.fetch(input, init), {
       ...connection, signal: init?.signal ?? (input instanceof Request ? input.signal : undefined) ?? connection?.signal,

@@ -1,3 +1,5 @@
+import { MODEL_OUTCOMES, safeAttempt } from './model-attempt.js'
+
 const areas = new Set(['login', 'model', 'catalog', 'quota', 'quota-reset', 'search', 'image', 'voice'])
 const codes = new Set(['timeout', 'dns', 'tls', 'connection', 'network', 'http-error'])
 
@@ -8,8 +10,8 @@ export function createDiagnosticEvents({ limit = 32, now = Date.now } = {}) {
   let dropped = 0, sequence = 0
   return {
     record(area, value) {
-      if (!areas.has(area) || !['ok', 'failed'].includes(value?.status)) return
-      events.push({ sequence: ++sequence, area, status: value.status, observedAt: now(),
+      if (!areas.has(area) || !MODEL_OUTCOMES.has(value?.status)) return
+      events.push({ sequence: ++sequence, area, status: value.status, observedAt: now(), ...safeAttempt(value),
         ...(codes.has(value.code) ? { code: value.code } : {}),
         ...(Number.isInteger(value.httpStatus) && value.httpStatus >= 100 && value.httpStatus <= 599 ? { httpStatus: value.httpStatus } : {}),
       })
