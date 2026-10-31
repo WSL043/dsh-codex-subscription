@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSubagentTokens } from '../src/subagent-auth.js'
-import { createSubagentBackendSwitcher, presetEntries, SUBAGENT_PROVIDER, subagentThreadPolicy } from '../src/subagent-backend.js'
+import { createSubagentBackendSwitcher, presetEntries, subagentConfigListener, SUBAGENT_PROVIDER, subagentThreadPolicy } from '../src/subagent-backend.js'
+import { Context } from '@deepseek-ai/cordis'
 
 test('subscription subagent pins account and serializes concurrent token rotation', async () => {
   let current = { type: 'oauth', accountId: 'a', access: 'old' }
@@ -36,6 +37,32 @@ function entry(provider, extra = {}) {
     config: { provider, ...extra }, async update(value, transient) { assert.equal(transient, true); this.config = value },
   } }
 }
+
+for (const modern of [false, true]) test(`config waterfall preserves owner, next and restoration on ${modern ? 'new' : 'legacy'} Cordis events`, async () => {
+  const ctx = new Context()
+  const dormant = { options: { name: '@deepseek-ai/dsh-tool-subagent', config: { provider: 'spawn' } } }
+  const switcher = createSubagentBackendSwitcher({ entries: () => [dormant], prepare: async () => {} })
+  const off = ctx.on('internal/config', subagentConfigListener(switcher), { global: true })
+  let calls = 0
+  const resolve = (item, config) => {
+    const next = () => { calls++; return config }
+    return modern ? ctx.waterfall('internal/config', item.fiber, next) : ctx.waterfall(item.fiber, 'internal/config', config, next)
+  }
+  try {
+    const spawn = entry('spawn'), fork = entry('fork'), custom = entry('spawn', { persona: 'custom' }), unrelated = entry('spawn')
+    for (const item of [spawn, fork, custom]) item.fiber.entry = item
+    unrelated.fiber.entry = { options: { name: 'unrelated' } }
+    const original = spawn.fiber.config
+    assert.equal(resolve(spawn, original), original, 'default backend passes the original through')
+    await switcher.select('codex')
+    spawn.fiber.config = resolve(spawn, original)
+    assert.equal(spawn.fiber.config.provider, SUBAGENT_PROVIDER)
+    for (const item of [fork, custom, unrelated]) assert.equal(resolve(item, item.fiber.config), item.fiber.config)
+    assert.equal(calls, 5, 'each middleware continuation runs exactly once')
+    await switcher.select('dsh')
+    assert.deepEqual(spawn.fiber.config, original)
+  } finally { off(); await switcher.dispose() }
+})
 test('explicit child route overrides inheritance without silently changing effort or permissions', () => {
   const parent = { session: { requestHeader: () => ({config: {provider:'openai-codex',model:'gpt-6-astra',reasoningEffort:'ultra'}}) } }
   const policy = {mode:'read-only'}

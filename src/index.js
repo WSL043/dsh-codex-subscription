@@ -9,7 +9,7 @@ import { createSubscriptionConnection } from './subscription-connection.js'
 import { createCompactionBridge } from './subscription-compaction.js'
 import { createReasoningBridge } from './subscription-reasoning.js'
 import { registerSubscriptionTransport } from './subscription-transport.js'
-import { createSubagentBackendSwitcher, createSubscriptionSubagent, loadSubagentRuntime, presetEntries } from './subagent-backend.js'
+import { createSubagentBackendSwitcher, createSubscriptionSubagent, loadSubagentRuntime, presetEntries, subagentConfigListener } from './subagent-backend.js'
 import { inspectSubagentRuntime } from './subagent-runtime.js'
 import { createRuntimeManagement } from './runtime-management.js'
 import { createSketchAgentBridge } from './sketch-agent-bridge.js'
@@ -358,9 +358,7 @@ export function apply(ctx, config = {}) {
       persist: mode => settings.update({ subagentBackend: mode }),
     })
     // Web presets mount their scoped tool rows lazily, after the settings page.
-    const unconfigure = scoped.on('internal/config', function(_config, next) {
-      return switcher.configure(this, next())
-    }, { global: true })
+    const unconfigure = scoped.on('internal/config', subagentConfigListener(switcher), { global: true })
     let requested = 'dsh'
     const select = async mode => {
       requested = mode

@@ -100,6 +100,14 @@ export function presetEntries(ctx) {
   } catch { return [] }
 }
 
+// Cordis 4.0.6 passes Fiber as the first argument; older hosts bind it as this.
+// Resolve that owner explicitly rather than hiding a broken binding in configure.
+export function subagentConfigListener(switcher) {
+  return function (fiberOrConfig, next) {
+    return switcher.configure(this?.entry ? this : fiberOrConfig, next())
+  }
+}
+
 /** Change only standard independent spawn tools; leave fork/custom tools untouched. */
 export function createSubagentBackendSwitcher({ entries, prepare, persist }) {
   const originals = new Map()
