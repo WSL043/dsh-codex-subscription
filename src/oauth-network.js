@@ -211,7 +211,16 @@ export async function withCodexNetwork(run, options = {}) {
         const url = new URL(String(args[0]))
         if (!scope?.options.websocket || url.protocol !== 'wss:' || url.hostname !== CODEX_SUBSCRIPTION_HOST) return Reflect.construct(target, args, newTarget)
         const proxy = scope.options.websocketProxy
-        return new WebSocket(args[0], { ...args[1], ...(proxy ? { agent: new HttpsProxyAgent(proxy) } : {}) })
+        const observe = () => {
+          const options = networkScope.getStore()?.options
+          try { options?.onTransport?.('websocket'); options?.onRoute?.(options.websocketProxy ? 'proxy' : 'direct') } catch {}
+        }
+        observe()
+        const Socket = scope.options.WebSocket ?? WebSocket
+        const socket = new Socket(args[0], { ...args[1], ...(proxy ? { agent: new HttpsProxyAgent(proxy) } : {}) })
+        const send = socket.send
+        socket.send = function (...values) { observe(); return Reflect.apply(send, this, values) }
+        return socket
       },
     })
     globalThis.WebSocket = scopedWebSocket
@@ -234,6 +243,7 @@ export async function withCodexNetwork(run, options = {}) {
       }
       const route = await proxy
       scopedOptions.onRoute?.(route.source)
+      try { scopedOptions.onTransport?.('sse') } catch {}
       const response = await (route.url === undefined && !scopedOptions.standardHttps ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url))
       return scopedOptions.transformResponse?.(response, target) ?? response
     }

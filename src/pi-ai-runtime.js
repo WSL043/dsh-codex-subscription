@@ -113,8 +113,9 @@ export function openaiCodexSubscriptionProvider({
   reasoning,
   ultra,
   runNetwork = (_area, operation) => operation(),
+  providerFactory = createOpenAICodexProvider,
 } = {}) {
-  const provider = createOpenAICodexProvider()
+  const provider = providerFactory()
   const streamHealth = createModelStreamHealth({ log: (level, message) => diagnosticLog.log(level, 'model-stream', message) })
   const retryBridge = createModelRetryBridge()
   const requestToken = Object.freeze({
@@ -269,42 +270,82 @@ export function openaiCodexSubscriptionProvider({
     return { [Symbol.asyncIterator]: () => (replay ??= run()) }
   }
   const networkIterable = (factory, options, direct = false, source) => {
-    let iterator
-    let health
-    let prepared
+    const cancellation = new AbortController()
+    const signal = options?.signal ? AbortSignal.any([options.signal, cancellation.signal]) : cancellation.signal
+    const transports = []
+    let iterator, producer, prepared, request, health, outcome, stopped = false
     let stage = 'prepare'
     const retryHint = direct ? undefined : retryBridge.current()
-    const step = async (method, value) => { try {
-      // Review calls are one-shot: no WebSocket continuation or cloud compaction.
-      const request = await (prepared ??= (direct ? undefined : connection?.prepare(options)) ?? Promise.resolve({ options }))
-      if (stage === 'prepare') stage = 'request'
-      const result = await runNetwork('model', () => {
-        const next = direct ? request.options : compaction?.requestOptions(request.options) ?? request.options
-        health ??= streamHealth.begin({ sessionId: direct ? undefined : options?.sessionId, configured: request.options?.transport, selected: next.transport })
-        iterator ??= factory({ ...next,
-          async onResponse(info, requestModel) { health.response(info); retryHint?.onResponse(info); return next.onResponse?.(info, requestModel) },
-          onProviderStreamEvent(event) { health.providerEvent(); return next.onProviderStreamEvent?.(event) },
-          async onPayload(payload, requestModel) { stage = 'payload'; return next.onPayload?.(payload, requestModel) },
-        })[Symbol.asyncIterator]()
-        return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
-      }, direct ? request.network : compaction?.networkOptions(request.network) ?? request.network)
-      if (!result.done) {
-        health?.observe(result.value)
-        if (result.value?.type === 'error') health?.finish(request.options?.signal?.aborted ? 'cancelled' : 'failed', result.value.error)
-        else if (result.value?.type === 'done') health?.finish('completed')
-        retryHint?.observe(result.value, request.options?.signal)
-        if (result.value?.type === 'error' && !request.options?.signal?.aborted) noteStreamFailure(stage, undefined, source)
-        else if (stage === 'payload') stage = 'stream'
+    const cancelled = () => signal.aborted && signal.reason?.name !== 'TimeoutError'
+    const settle = (status, error, healthError = error) => {
+      if (outcome) return
+      outcome = status
+      health?.finish(status === 'ok' ? 'completed' : status === 'abandoned' ? 'cancelled' : status, healthError)
+      if (status === 'failed') noteStreamFailure(stage, error, source)
+    }
+    const finish = () => request?.finish?.({ status: outcome, transports: [...transports] })
+    const initialize = async () => {
+      // A forced SSE call must not reset an idle SDK session or reserve a probe.
+      const overrides = direct ? undefined : compaction?.networkOptions(undefined)
+      request = await (direct ? undefined : connection?.prepare({ ...options, signal }, { model: source?.model, allowWebSocket: overrides?.websocket !== false })) ?? { options }
+      const next = { ...(direct ? { ...request.options, transport: 'sse' } : compaction?.requestOptions(request.options) ?? request.options), signal }
+      health = streamHealth.begin({ sessionId: direct ? undefined : options?.sessionId, configured: request.options?.transport, selected: next.transport })
+      const scopedNetwork = direct ? request.network : overrides ?? request.network
+      stage = 'request'
+      return { next, network: { ...scopedNetwork,
+        onTransport(transport) {
+          if (transports.at(-1) !== transport && transports.length < 8) transports.push(transport)
+          scopedNetwork?.onTransport?.(transport)
+        },
+      } }
+    }
+    const step = async (method, value) => {
+      if (stopped) return { done: true, value: undefined }
+      try {
+        const { next, network } = await (prepared ??= initialize())
+        signal.throwIfAborted()
+        const result = await runNetwork('model', () => {
+          if (!iterator) {
+            producer = factory({ ...next,
+              async onResponse(info, requestModel) { health.response(info); retryHint?.onResponse(info); return next.onResponse?.(info, requestModel) },
+              onProviderStreamEvent(event) { health.providerEvent(); return next.onProviderStreamEvent?.(event) },
+              async onPayload(payload, requestModel) { stage = 'payload'; signal.throwIfAborted(); return next.onPayload?.(payload, requestModel) },
+            })
+            iterator = producer[Symbol.asyncIterator]()
+            // Consumer return is not proof that the SDK has released its socket.
+            // Release the policy lease only after the producer's terminal result.
+            producer.result().then(message => {
+              settle(cancelled() ? (stopped ? 'abandoned' : 'cancelled') : ['error', 'aborted'].includes(message?.stopReason) ? 'failed' : 'ok', undefined, message)
+              finish()
+            }, error => { settle(cancelled() ? 'cancelled' : 'failed', error); finish() })
+          }
+          return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
+        }, network)
+        if (!result.done) {
+          health?.observe(result.value)
+          retryHint?.observe(result.value, signal)
+          if (result.value?.type === 'error') settle(cancelled() ? 'cancelled' : 'failed', undefined, result.value.error)
+          else if (result.value?.type === 'done') settle('ok')
+          else if (stage === 'payload') stage = 'stream'
+        } else settle(cancelled() ? 'cancelled' : 'abandoned')
+        return result.done ? result : { ...result, value: normalizeTransportEvent(result.value, signal) }
+      } catch (error) {
+        settle(stopped ? 'abandoned' : cancelled() || error?.name === 'AbortError' ? 'cancelled' : 'failed', error)
+        if (!producer) finish()
+        throw error
       }
-      if (method === 'return') health?.finish('cancelled')
-      else if (result.done) health?.finish(request.options?.signal?.aborted ? 'cancelled' : 'completed')
-      return result.done ? result : { ...result, value: normalizeTransportEvent(result.value, request.options?.signal) }
-    } catch (error) { health?.finish(options?.signal?.aborted ? 'cancelled' : 'failed', error); noteStreamFailure(stage, error, source); throw error } }
+    }
     return {
       [Symbol.asyncIterator]() { return this },
       next: value => step('next', value),
-      return: value => iterator ? step('return', value) : Promise.resolve({ done: true, value }),
-      throw: error => iterator ? step('throw', error) : Promise.reject(error),
+      async return(value) {
+        const status = options?.signal?.aborted ? options.signal.reason?.name === 'TimeoutError' ? 'failed' : 'cancelled' : 'abandoned'
+        stopped = true; cancellation.abort(); settle(status)
+        if (prepared) await prepared.catch(() => {})
+        if (!producer) finish()
+        return iterator?.return?.(value) ?? { done: true, value }
+      },
+      throw: error => step('throw', error),
     }
   }
   const routed = (method, model, transcript, options) => {
@@ -313,7 +354,7 @@ export function openaiCodexSubscriptionProvider({
     const route = reviewRoute(model, context)
     const source = { method, model, context, options }
     const create = () => route === undefined
-      ? networkIterable(prepared => provider[method](model, context, prepared), withPreferences(model, options), false, source)
+      ? networkIterable(prepared => provider[method](model, context, prepared), withPreferences(model, options), isDshAutoReview(context), source)
       : networkIterable(prepared => provider[method](model, context, prepared), withReview(route, options), true, source)
     return isDshAutoReview(context) ? reviewIterable(create) : create()
   }

@@ -64,7 +64,16 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     ['gaps', 'models', () => modelCatalog?.capabilityGaps?.()],
     ['requests', 'transport', () => network?.snapshot ? safeRequests(network) : undefined],
     ['history', 'transport', () => safeHistory(network?.history?.())],
-    ['websocket', 'transport', () => connection ? safeCounters(connection, ['requests', 'connectionsCreated', 'connectionsReused', 'deltaRequests', 'websocketFailures', 'sseFallbacks']) : undefined],
+    ['websocket', 'transport', () => connection ? safeCounters(connection, ['requests', 'connectionsCreated', 'connectionsReused', 'deltaRequests', 'websocketFailures', 'sseFallbacks', 'recoveryAttempts', 'recoverySuccesses', 'recoveryDeferrals', 'cooldownRequests']) : undefined],
+    ['transportRecovery', 'transport', () => {
+      const value = connection?.recoverySnapshot?.()
+      if (!Array.isArray(value?.sessions)) return undefined
+      return { scope: 'plugin-process', capacity: 32, dropped: Math.max(0, value.sessions.length - 32), sessions: value.sessions.slice(-32).flatMap(item => {
+        if (!/^dsh-[a-f0-9]{56}$/.test(item?.scope) || !['preferred', 'probing', 'cooldown'].includes(item.state)) return []
+        if (!Number.isSafeInteger(item.active) || item.active < 0 || !Number.isSafeInteger(item.cooldownMs) || item.cooldownMs < 0 || item.cooldownMs > 360000) return []
+        return [{ scope: item.scope, state: item.state, active: item.active, cooldownMs: item.cooldownMs }]
+      }) }
+    }],
     ['compaction', 'compaction', () => compaction ? safeCounters(compaction, ['requests', 'checkpointsSaved', 'checkpointsReused']) : undefined],
     ['review', 'transport', () => typeof review?.reviewCounters === 'function' ? safeCounters({ snapshot: () => review.reviewCounters() }, ['requests', 'routed', 'sessionModel', 'retries']) : undefined],
     ['streamFailure', 'transport', () => {
@@ -129,6 +138,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
     ...(collected.history ? { requestHistory: collected.history } : {}),
     ...(collected.operations ? { operations: collected.operations } : {}),
     ...(collected.websocket ? { websocket: collected.websocket } : {}),
+    ...(collected.transportRecovery ? { transportRecovery: collected.transportRecovery } : {}),
     ...(collected.compaction ? { compaction: collected.compaction } : {}),
     ...(collected.review ? { review: collected.review } : {}),
     ...(collected.streamFailure ? { streamFailure: collected.streamFailure } : {}),
