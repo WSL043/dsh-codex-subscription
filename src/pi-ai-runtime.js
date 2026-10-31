@@ -286,11 +286,15 @@ export function openaiCodexSubscriptionProvider({
       if (status === 'failed') noteStreamFailure(stage, error, effectiveSource, networkFailure, attempt.snapshot().attemptId)
       attempt.finish(status, stage)
     }
+    const finish = () => {
+      const { status, transports } = attempt.snapshot()
+      request?.finish?.({ status, transports })
+    }
     const initialize = async () => {
       const overrides = direct ? undefined : compaction?.networkOptions(undefined)
-      request = await (direct ? undefined : connection?.prepare({ ...options, signal })) ?? { options }
+      request = await (direct ? undefined : connection?.prepare({ ...options, signal }, { model: source?.model, allowWebSocket: overrides?.websocket !== false })) ?? { options }
       const next = { ...(direct ? { ...request.options, transport: 'sse' } : compaction?.requestOptions(request.options) ?? request.options), signal }
-      attempt.configure({ preference: request.options?.transport ?? 'auto', requestedTransport: next.transport ?? 'auto' })
+      attempt.configure({ preference: request.diagnostic?.preference ?? request.options?.transport ?? 'auto', requestedTransport: next.transport ?? 'auto' })
       effectiveSource = { ...source, options: next }
       health = streamHealth.begin({ sessionId: direct ? undefined : options?.sessionId, configured: request.options?.transport, selected: next.transport })
       const scopedNetwork = direct ? request.network : overrides ?? request.network
@@ -323,7 +327,8 @@ export function openaiCodexSubscriptionProvider({
             producer.result().then(message => {
               const status = cancelled() ? (stopped ? 'abandoned' : 'cancelled') : ['error', 'aborted'].includes(message?.stopReason) ? 'failed' : 'ok'
               settle(status, undefined, message)
-            }, error => { settle(cancelled() ? 'cancelled' : 'failed', error) })
+              finish()
+            }, error => { settle(cancelled() ? 'cancelled' : 'failed', error); finish() })
           }
           return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
         }, network)
@@ -338,6 +343,7 @@ export function openaiCodexSubscriptionProvider({
         return result.done ? result : { ...result, value: normalizeTransportEvent(result.value, signal) }
       } catch (error) {
         settle(stopped ? 'abandoned' : cancelled() || error?.name === 'AbortError' ? 'cancelled' : 'failed', error)
+        if (!producer) finish()
         throw error
       }
     }
@@ -348,6 +354,7 @@ export function openaiCodexSubscriptionProvider({
         const status = options?.signal?.aborted ? options.signal.reason?.name === 'TimeoutError' ? 'failed' : 'cancelled' : 'abandoned'
         stopped = true; cancellation.abort(); settle(status)
         if (prepared) await prepared.catch(() => {})
+        if (!producer) finish()
         return iterator?.return?.(value) ?? { done: true, value }
       },
       throw: error => step('throw', error),
