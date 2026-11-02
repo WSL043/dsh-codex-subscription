@@ -48,6 +48,8 @@ test('previously omitted suites and future behavior tests reach their CI gate', 
   const viewerContract = plan(['tests/subscription-image-viewer-contract.test.mjs'])
   assert.equal(JSON.parse(viewerContract.stdout).plan.delivery, true)
   assert.ok(testFiles('delivery').includes('tests/subscription-image-viewer-contract.test.mjs'))
+  assert.ok(testFiles('delivery').includes('tests/subscription-settings-entry.test.mjs'))
+  assert.equal(testFiles('behavior').includes('tests/subscription-settings-entry.test.mjs'), false)
 })
 
 test('test dispatch changes exercise all CI gates', () => {
