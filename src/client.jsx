@@ -21,7 +21,8 @@ import { CodexComposerQuota } from './client-composer-quota.jsx'
 import { quotaUsageController } from './client-quota.jsx'
 import { CodexModelSelect } from './client-model-select.jsx'
 import { VoiceCallButton } from './client-voice-call.jsx'
-import { CodexSection } from './client-section.jsx'
+import { CodexSection, ProjectAction } from './client-section.jsx'
+import { registerSubscriptionSettings, subscriptionSettingsOpener } from './subscription-settings-entry.js'
 import { createHostDiagnostics } from './diagnostic-host.js'
 import { restoreVoiceConversation } from './voice-browser.js'
 import { ComposerPrediction, PREDICTION_CSS } from './client-predictions.jsx'
@@ -94,10 +95,7 @@ export function apply(ctx) {
     name: 'shell.overlay', id: 'codex-subscription-image-viewer', order: 20,
     inject: () => ({ service: imageViewer, t }),
   }, DeferredImageViewer))
-  ctx.slots.inject('settings.section', () => ctx.slots.register({
-    name: 'settings.section', id: 'codex-subscription', order: 15,
-    label: () => t('nav'), locale: NS, inject: () => ({ preference, rpc: rpc, accountStatus, t, diagnostics, defaultModel }),
-  }, CodexSection))
+  registerSubscriptionSettings(ctx, { preference, rpc, accountStatus, t, diagnostics, defaultModel }, CodexSection, ProjectAction)
   const sessions = ctx.get('sessions')
   // The quota readout and the voice button sit in the composer's right slot. They register on the root context, like the
   // composer's other entries, so DSH's composer always finds them (a session scope can be a different slot registry).
@@ -113,6 +111,7 @@ export function apply(ctx) {
       preference,
       rpc: rpc,
       t,
+      openSettings: subscriptionSettingsOpener(ctx),
       directory: (scopedDirectories ?? rootDirectories).directoryFor(sessionId).store,
     }),
   }, ComposerRight))

@@ -1,4 +1,6 @@
 export const zh = {
+  openSubscriptionSettings: '订阅设置',
+  projectHomepage: 'GitHub 项目主页',
   voiceNativeCaptureConfirm: '允许本次通话使用此电脑的麦克风和扬声器？挂断或离开会话后会停止收音。',
   voiceMediaHint: '窗口不支持 WebRTC 时，可在浏览器中继续同一会话。音色试听不受影响，仍使用当前订阅，无需 API Key。',
   voiceBrowserContinue: '在浏览器继续此会话', voiceBrowserCall: '在浏览器继续语音通话', voiceBrowserCopy: '复制会话链接', voiceBrowserCopied: '已复制', voiceBrowserCopyFailed: '复制失败，请手动复制链接',
@@ -323,6 +325,8 @@ export const zh = {
 }
 
 export const en = {
+  openSubscriptionSettings: 'Subscription settings',
+  projectHomepage: 'GitHub project',
   voiceNativeCaptureConfirm: 'Use this computer’s microphone and speakers for this call? Capture stops when you hang up or leave the conversation.',
   voiceMediaHint: 'If this window does not support WebRTC, continue the same conversation in a browser. Voice samples remain available. Your existing subscription is used; no API key is needed.',
   voiceBrowserContinue: 'Continue this conversation in a browser', voiceBrowserCall: 'Continue voice in a browser', voiceBrowserCopy: 'Copy conversation link', voiceBrowserCopied: 'Copied', voiceBrowserCopyFailed: 'Copy failed; copy the link manually',

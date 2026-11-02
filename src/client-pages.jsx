@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { Hint, SettingsLabel } from './client-hint.jsx'
 import { Switch, IconChevronRightOutline14 } from './client-primitives.js'
 import { usePreferenceSnapshot } from './client-shared.js'
@@ -85,6 +86,7 @@ export function QuotaSettingsCard({ preference, t }) {
 }
 
 function OutputVerbosityPreference({ preference, t }) {
+  const radioId = useId()
   const snapshot = usePreferenceSnapshot(preference)
   const writable = ready(snapshot)
   const values = [OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, OUTPUT_VERBOSITY_HIGH]
@@ -92,14 +94,15 @@ function OutputVerbosityPreference({ preference, t }) {
   return <div className="codexSubscriptionPreference">
     <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('verbosityPageHint')}>{t('verbosityTitle')}</SettingsLabel></div>
     <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('verbosityTitle')} aria-busy={snapshot.saving || undefined}>
-      {values.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-output-verbosity" checked={snapshot.outputVerbosity === value} disabled={!writable} onChange={() => { void preference.set({ [OUTPUT_VERBOSITY_FIELD]: value }) }} /><span>{t(label[value])}</span></label>)}
+      {values.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name={`${radioId}-codex-output-verbosity`} checked={snapshot.outputVerbosity === value} disabled={!writable} onChange={() => { void preference.set({ [OUTPUT_VERBOSITY_FIELD]: value }) }} /><span>{t(label[value])}</span></label>)}
     </div>
   </div>
 }
 
 function Radios({ snapshot, preference, field, values, label, name, text, disabled, disabledValues = [] }) {
+  const radioId = useId()
   return <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={label} aria-busy={snapshot.saving || undefined}>
-    {values.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name={name} checked={snapshot[field] === value} disabled={disabled || !snapshot.writable || disabledValues.includes(value)} onChange={() => { void preference.set({ [field]: value }) }} /><span>{text(value)}</span></label>)}
+    {values.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name={`${radioId}-${name}`} checked={snapshot[field] === value} disabled={disabled || !snapshot.writable || disabledValues.includes(value)} onChange={() => { void preference.set({ [field]: value }) }} /><span>{text(value)}</span></label>)}
   </div>
 }
 

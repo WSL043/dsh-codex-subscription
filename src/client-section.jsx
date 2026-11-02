@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
-import { useAccountStatusSnapshot, usePreferenceSnapshot } from './client-shared.js'
+import { PROJECT_URL, useAccountStatusSnapshot, usePreferenceSnapshot } from './client-shared.js'
+import { Button } from './client-primitives.js'
 import { CreatePage, FeatureOverview, ModelsPage, MorePage, QuotaSettingsCard, ToolsPage } from './client-pages.jsx'
 import { AccountCard, AccountFailureCard } from './client-account.jsx'
 import { UsageCard } from './client-usage.jsx'
@@ -39,7 +40,16 @@ function Notices({ preference, t, tab, signedIn, go }) {
   return items.length === 0 ? null : <div className="codexSubscriptionNotices">{items}</div>
 }
 
-export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, defaultModel }) {
+export function ProjectLink({ t }) {
+  return <Button variant="outline" size="sm" title={t('projectHomepage')} onClick={() => window.open(PROJECT_URL, '_blank', 'noopener,noreferrer')}>GitHub</Button>
+}
+
+/** The host owns the header and its layout; contribute only to our bundle. */
+export function ProjectAction({ subject, t }) {
+  return subject?.kind === 'bundle' && subject.pkg.name === 'dsh-codex-subscription' ? <ProjectLink t={t} /> : null
+}
+
+export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, defaultModel, embedded = false }) {
   const [tab, setTab] = useState('start')
   const [visited, setVisited] = useState(() => new Set(['start']))
   // Defer unused panels, then retain their drafts and in-progress operations.
@@ -63,8 +73,8 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
     void accountStatus.load()
     void preference.refreshModels()
   }, [accountStatus, preference])
-  return <section className="codexSubscription">
-    <div className="codexSubscriptionHead"><h2>{t('title')}</h2></div>
+  return <section className="codexSubscription" data-embedded={embedded || undefined}>
+    {embedded ? null : <div className="codexSubscriptionHead"><h2>{t('title')}</h2><ProjectLink t={t} /></div>}
     <div className="codexSettingsTabs" ref={tabsRef} role="tablist" aria-label={t('title')}>
       {tabs.map((value, index) => <button key={value} type="button" role="tab" id={`${id}-${value}-tab`} aria-controls={`${id}-${value}`} aria-selected={tab === value} tabIndex={tab === value ? 0 : -1}
         onClick={() => selectTab(value)} onKeyDown={event => {

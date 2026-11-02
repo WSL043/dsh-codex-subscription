@@ -6,12 +6,14 @@ import test from 'node:test'
 // This checks interactions, not JSX appearance or native browser event delivery.
 function harness() {
   const source = readFileSync(new URL('../src/client-composer-quota.jsx', import.meta.url), 'utf8')
-  const body = source.split('export function CodexComposerQuota({ preference, rpc, t, directory }) {')[1]
+  const body = source.split(/export function CodexComposerQuota\([^)]*\) \{/u)[1]
     .split('  if (!quotaEnabled || !quotas?.length) return null')[0]
   const click = source.match(/onClick=\{\(\) => \{([^\n]+)\}\}>/u)?.[1]
   assert.ok(click, 'use the actual authored click handler')
+  const shortcut = source.match(/className="codexQuotaSettingsLink" onClick=\{\(\) => \{([^\n]+)\}\}/u)?.[1]
+  assert.ok(shortcut, 'use the actual authored shortcut handler')
   const states = [], refs = [], effects = [], timers = new Map(), listeners = new Map()
-  let stateIndex, refIndex, effectIndex, dirty, serial = 0
+  let stateIndex, refIndex, effectIndex, dirty, serial = 0, opened = 0
   let model = 'model-a', enabled = true, outside
   const hooks = {
     usePreferenceSnapshot: () => ({ status: 'ready', quickQuotaMode: enabled ? 'forecast' : 'off' }),
@@ -41,13 +43,13 @@ function harness() {
       removeEventListener(type, callback) { if (listeners.get(type) === callback) listeners.delete(type) },
     },
   }
-  const component = new Function(...Object.keys(hooks), 'preference', 'rpc', 't', 'directory',
-    `${body}\nreturn {open,pinned,enter,leave,click:()=>{${click}}}`)
+  const component = new Function(...Object.keys(hooks), 'preference', 'rpc', 't', 'directory', 'openSettings',
+    `${body}\nreturn {open,pinned,enter,leave,click:()=>{${click}},shortcut:()=>{${shortcut}}}`)
   let view
   const render = () => {
     do {
       dirty = false; stateIndex = refIndex = effectIndex = 0
-      view = component(...Object.values(hooks), {}, {}, key => key, {})
+      view = component(...Object.values(hooks), {}, {}, key => key, {}, () => { opened++ })
       for (const effect of effects) if (effect.pending) {
         effect.pending = false; effect.cleanup?.(); effect.cleanup = effect.callback()
       }
@@ -60,6 +62,8 @@ function harness() {
     enter() { view.enter(); return render() },
     leave() { view.leave(); return render() },
     click() { view.click(); return render() },
+    shortcut() { view.shortcut(); return render() },
+    opened: () => opened,
     changeModel(value) { model = value; return render() },
     enable(value) { enabled = value; return render() },
     wait() { const pending = [...timers.values()]; timers.clear(); pending.forEach(callback => callback()); return render() },
@@ -68,6 +72,14 @@ function harness() {
     dispose() { effects.forEach(effect => effect.cleanup?.()); return timers.size },
   }
 }
+
+test('settings shortcut closes the pinned popover and opens the host page once', () => {
+  const h = harness()
+  h.click()
+  assert.deepEqual(h.shortcut(), { open: false, pinned: false, timers: 0 })
+  assert.equal(h.opened(), 1)
+  h.dispose()
+})
 
 test('changing the model resets the quota pin and restores hover then click behavior', () => {
   const h = harness()

@@ -4,6 +4,8 @@ import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import vm from 'node:vm'
 import test from 'node:test'
+import * as settingsContract from '../src/settings-contract.js'
+import { PROJECT_URL } from '../src/client-shared.js'
 
 // Compile the actual components in memory. The hook/clock host below exercises
 // their effects and retained state, without pretending to be browser acceptance.
@@ -34,7 +36,9 @@ function nodes(tree, predicate) {
   return [...(predicate(tree) ? [tree] : []), ...nodes(tree.props?.children, predicate)]
 }
 const named = name => Object.assign(() => null, { displayName: name })
+let fixtureCounter = 0
 async function component(file, name, props, additions = {}, invoke = (fn, value) => fn(value)) {
+  const fixtureId = `settings-fixture-${++fixtureCounter}`
   const cells = [], pending = [], window = new EventTarget(), document = new EventTarget()
   document.visibilityState = 'visible'
   document.getElementById = () => ({ focus() {} })
@@ -54,7 +58,7 @@ async function component(file, name, props, additions = {}, invoke = (fn, value)
     pending.push(() => { cells[index].cleanup?.(); cells[index].cleanup = run() })
   }
   const hooks = { useState: state, useRef(initial) { const index = cursor++; return cells[index] ??= { current: initial } },
-    useEffect: effect, useLayoutEffect: effect, useId: () => 'settings-fixture' }
+    useEffect: effect, useLayoutEffect: effect, useId: () => fixtureId }
   const shared = { useAccountStatusSnapshot: () => ({ status: 'ready', account: { authenticated: true } }),
     usePreferenceSnapshot: () => ({}), uiLocale: () => 'en-US', fill: value => value, percent: String, windowLabel: String }
   const dependencies = { react: hooks, 'react/jsx-runtime': { jsx: element, jsxs: element },
@@ -82,6 +86,48 @@ async function component(file, name, props, additions = {}, invoke = (fn, value)
   return { render, get tree() { return tree }, get props() { return currentProps }, window, document,
     dispose() { for (const cell of cells) cell?.cleanup?.() } }
 }
+
+test('project action belongs only to this bundle and the native button opens its declared homepage', async () => {
+  const t = key => key
+  for (const subject of [undefined, { kind: 'item', id: 'other' }, { kind: 'row', pkg: { name: 'dsh-codex-subscription' } }, { kind: 'bundle', pkg: { name: 'other' } }]) {
+    const host = await component('client-section.jsx', 'ProjectAction', { subject, t })
+    assert.equal(host.tree, null)
+    host.dispose()
+  }
+  const action = await component('client-section.jsx', 'ProjectAction', { subject: { kind: 'bundle', pkg: { name: 'dsh-codex-subscription' } }, t })
+  assert.ok(action.tree)
+  action.dispose()
+  const host = await component('client-section.jsx', 'ProjectLink', { t }, { './client-shared.js': { PROJECT_URL } })
+  try {
+    const calls = []
+    host.window.open = (...args) => calls.push(args)
+    host.tree.props.onClick()
+    assert.deepEqual(calls, [[PROJECT_URL, '_blank', 'noopener,noreferrer']])
+  } finally { host.dispose() }
+})
+
+test('both settings entries keep independent HTML radio groups and the same selected preference', async () => {
+  const additions = {
+    './settings-contract.js': settingsContract,
+    './client-shared.js': { usePreferenceSnapshot: () => ({ status: 'ready', writable: true, quickQuotaMode: settingsContract.QUICK_QUOTA_MODE_FORECAST }) },
+  }
+  const props = { preference: {}, t: key => key }
+  const first = await component('client-preferences.jsx', 'QuickQuotaPreference', props, additions)
+  const second = await component('client-preferences.jsx', 'QuickQuotaPreference', props, additions)
+  const radios = host => nodes(host.tree, node => node.type === 'input' && node.props.type === 'radio')
+  try {
+    const firstName = radios(first)[0].props.name
+    const secondName = radios(second)[0].props.name
+    assert.notEqual(firstName, secondName)
+    for (const host of [first, second]) {
+      assert.equal(new Set(radios(host).map(node => node.props.name)).size, 1)
+      assert.equal(radios(host).filter(node => node.props.checked).length, 1)
+    }
+    first.render(); second.render()
+    assert.equal(radios(first)[0].props.name, firstName)
+    assert.equal(radios(second)[0].props.name, secondName)
+  } finally { first.dispose(); second.dispose() }
+})
 
 test('unused settings panels do not mount; visited panels and accessible targets survive navigation', async () => {
   const pages = Object.fromEntries(['CreatePage','FeatureOverview','ModelsPage','MorePage','QuotaSettingsCard','ToolsPage'].map(name => [name, named(name)]))

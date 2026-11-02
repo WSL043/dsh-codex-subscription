@@ -23,6 +23,20 @@ test('plugin card translations are exported and included in the published packag
 })
 const compatibility = JSON.parse(text('compatibility.json'))
 
+test('native plugin detail documents are brief, translated and explicitly packaged', () => {
+  assert.ok(manifest.files.includes('docs/plugin/*.md'))
+  for (const language of ['en', 'zh']) {
+    const { meta } = JSON.parse(text(`locale/${language}.json`))
+    const expected = language === 'zh' ? 'docs/plugin/DETAIL.zh.md' : 'docs/plugin/DETAIL.md'
+    assert.equal(meta.detail, expected)
+    const body = text(meta.detail)
+    assert.ok(Buffer.byteLength(body) < 1024, 'detail remains a short introduction')
+    assert.equal(body.includes('!['), false, 'no screenshots or duplicate README gallery')
+    assert.ok(body.includes(`README${language === 'zh' ? '' : '.en'}.md`))
+    assert.ok(body.includes('https://github.com/WSL043/dsh-codex-subscription/issues'))
+  }
+})
+
 test('verify-only release runs the acceptance layout while disabling every publication job', () => {
   const workflow = text('.github/workflows/publish.yml')
   assert.match(workflow, /verify_only:\s*\n\s*description:[^\n]+\n\s*required: false\n\s*type: boolean\n\s*default: false/u)

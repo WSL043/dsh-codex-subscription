@@ -5,7 +5,7 @@ import test from 'node:test'
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 // These contracts cover the client entry and its authored copy, styles and download helper.
 const text = path => path === 'src/client.jsx'
-  ? Promise.all([path, 'src/rpc-contract.js', 'src/client-shared.js', 'src/client-account.jsx', 'src/client-composer-quota.jsx', 'src/client-diagnostics.jsx', 'src/client-model-select.jsx', 'src/client-preferences.jsx', 'src/default-model-preferences.jsx', 'src/default-model-controller.js', 'src/client-runtime-management.jsx', 'src/client-quota.jsx', 'src/client-section.jsx', 'src/client-usage.jsx', 'src/client-locales.js', 'src/client-styles.js', 'src/client-images.jsx', 'src/original-image-download.js'].map(read)).then(parts => parts.join('\n'))
+  ? Promise.all([path, 'src/subscription-settings-entry.js', 'src/rpc-contract.js', 'src/client-shared.js', 'src/client-account.jsx', 'src/client-composer-quota.jsx', 'src/client-diagnostics.jsx', 'src/client-model-select.jsx', 'src/client-preferences.jsx', 'src/default-model-preferences.jsx', 'src/default-model-controller.js', 'src/client-runtime-management.jsx', 'src/client-quota.jsx', 'src/client-section.jsx', 'src/client-usage.jsx', 'src/client-locales.js', 'src/client-styles.js', 'src/client-images.jsx', 'src/original-image-download.js'].map(read)).then(parts => parts.join('\n'))
   : path === 'src/index.js' ? Promise.all([path, 'src/subscription-rpc.js', 'src/default-model.js'].map(read)).then(parts => parts.join('\n')) : read(path)
 
 test('generated image loader uses the installed DSH UI conversation image API', async () => {
@@ -28,7 +28,7 @@ test('client is one removable DSH settings section, not a second application she
   assert.match(source, /slots\.inject\(['"]settings\.section['"]/)
   assert.match(source, /id:\s*['"]codex-subscription['"]/)
   assert.match(source, /['"]\/codex-subscription['"]/) // RPC channel
-  const withoutRepositorySupportLink = source.replace('https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml', '').replace('https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md#codex-subtask-runtime', '')
+  const withoutRepositorySupportLink = source.replaceAll('https://github.com/WSL043/dsh-codex-subscription', '')
   assert.doesNotMatch(withoutRepositorySupportLink, /wsl043/iu)
   assert.match(source, /login\/start/)
   assert.match(source, /login\/status/)
@@ -151,7 +151,6 @@ test('settings offer automatic and explicit search plus formal composer quota di
   assert.match(source, /Auto follows the current session model/u)
   assert.match(source, /role=['"]radiogroup['"]/u)
   assert.match(source, /type=['"]radio['"]/u)
-  assert.match(source, /name=['"]codex-subscription-search-provider['"]/u)
   assert.match(source, /codexSubscriptionSearchChoices codexSubscriptionQuotaModes/u)
   assert.doesNotMatch(source, /role=['"]radio['"]/u)
   assert.match(source, /preferenceFailed/u)

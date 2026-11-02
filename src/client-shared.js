@@ -8,7 +8,8 @@ export const accessFailureText = (message, t) => {
   return key === undefined ? message : t(key)
 }
 export const NS = 'settings.codexSubscription'
-export const SUPPORT_ISSUE_URL = 'https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml'
+export const PROJECT_URL = 'https://github.com/WSL043/dsh-codex-subscription'
+export const SUPPORT_ISSUE_URL = `${PROJECT_URL}/issues/new?template=install-problem.yml`
 export const QUICK_QUOTA_REFRESH_EVENT = 'dsh-codex-subscription:refresh-quick-quota'
 
 export const accountStatusErrorText = (error, t) => {

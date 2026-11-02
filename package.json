@@ -16,6 +16,7 @@
     "lib/*.js",
     "native/linux-voice-helper.py",
     "locale/*.json",
+    "docs/plugin/*.md",
     "cordis.patch.yml",
     "README.md",
     "README.en.md",

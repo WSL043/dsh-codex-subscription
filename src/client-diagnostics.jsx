@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { SettingsLabel } from './client-hint.jsx'
 import { Button } from './client-primitives.js'
 import { SUPPORT_ISSUE_URL, uiLocale } from './client-shared.js'
@@ -8,6 +8,7 @@ import { compactDiagnostic } from './diagnostic-compact.js'
 import { formatLogLine } from './diagnostic-log-format.js'
 const LEVELS = { all: ['info', 'warn', 'error'], warn: ['warn', 'error'], error: ['error'] }
 export function DiagnosticsCard({ rpc, t, diagnostics }) {
+  const radioId = useId()
   const [report, setReport] = useState()
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -55,7 +56,7 @@ export function DiagnosticsCard({ rpc, t, diagnostics }) {
         <SettingsLabel as="summary" className="" openOnClick={false} description={t('diagnosticsLogHint')}>{t('diagnosticsLog')}<span>{lines.length}</span></SettingsLabel>
         <div className="codexSubscriptionLogHead">
           <div className="codexSubscriptionQuotaModes" role="radiogroup" aria-label={t('diagnosticsLog')}>
-            {Object.keys(LEVELS).map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name="codex-log-level" checked={level === value} onChange={() => { setLevel(value); setLogCopied(false) }} /><span>{t(`logLevel_${value}`)}</span></label>)}
+            {Object.keys(LEVELS).map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name={`${radioId}-codex-log-level`} checked={level === value} onChange={() => { setLevel(value); setLogCopied(false) }} /><span>{t(`logLevel_${value}`)}</span></label>)}
           </div>
           <Button type="button" variant="outline" disabled={lines.length === 0} onClick={copyLog}>{logCopied ? t('logCopied') : t('logCopy')}</Button>
         </div>

@@ -6,7 +6,7 @@ import { fill, percent, uiLocale, windowLabel, usePreferenceSnapshot, formatQuot
 import { useQuickQuota } from './client-quota.jsx'
 import { quotaWarning } from './capability-settings.js'
 
-export function CodexComposerQuota({ preference, rpc, t, directory }) {
+export function CodexComposerQuota({ preference, rpc, t, directory, openSettings }) {
   const preferenceSnapshot = usePreferenceSnapshot(preference)
   const modelState = useSyncExternalStore(listener => directory.subscribe(listener), () => directory.getSnapshot())
   const current = modelState.current
@@ -61,6 +61,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory }) {
         <div><span>{windowLabel(quota.windowSeconds, t)}</span><strong>{fill(t('remaining'), { value: percent(quota.remainingPercent) })}</strong><span className="codexQuotaReset">{shortReset(quota, t)}</span></div>
         {forecastMode ? <p>{formatQuotaForecast(quota.forecast, t, quota)}</p> : null}
       </div>)}
+      {openSettings ? <button type="button" className="codexQuotaSettingsLink" onClick={() => { dismiss(); openSettings() }}>{t('openSubscriptionSettings')}</button> : null}
     </section>, document.body) : null}
   </>
 }

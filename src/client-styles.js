@@ -1,4 +1,8 @@
 export const STYLE = `
+.codexSubscription[data-embedded=true]{max-width:960px}
+.codexQuotaSettingsLink{display:block;width:100%;margin-top:8px;padding:8px 0 0;border:0;border-top:1px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-link,var(--dsw-alias-label-primary));font:inherit;text-align:start;cursor:pointer}
+.codexQuotaSettingsLink:hover{text-decoration:underline}
+.codexQuotaSettingsLink:focus-visible{outline:2px solid var(--dsw-alias-border-l3);outline-offset:3px;border-radius:2px}
 .codexSubscriptionAdvancedPreferences{display:flex;flex-direction:column;gap:10px}
 .codexSubscriptionAdvancedPreferences[data-others-off=true]>[data-governed=true]{opacity:.55;transition:opacity .15s}
 .codexSubscriptionSearchChoices.codexSubscriptionQuotaModes{display:flex;flex:0 0 auto;gap:0;grid-template-columns:none}
