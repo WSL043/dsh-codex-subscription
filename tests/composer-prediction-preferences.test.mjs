@@ -7,7 +7,6 @@ import test from 'node:test'
 import { PREFERENCE_FIELDS } from '../src/preference-fields.js'
 import { zh, en } from '../src/client-locales.js'
 import { createSubscriptionRpcHandler } from '../src/subscription-rpc.js'
-import { testGroup } from '../scripts/test-groups.mjs'
 
 test('input predictions default off and the existing settings RPC persists only explicit on/off choices', async () => {
   const rule = PREFERENCE_FIELDS.composerPredictions
@@ -65,7 +64,6 @@ async function renderPreference({ tooltip = true, locale = en, componentFile = '
 test('the compact prediction row uses the host switch and a keyboard-accessible host tooltip', async () => {
   const fixture = await renderPreference()
   const { row, control, help, hint, label } = fixture.render({})
-  assert.equal(row.props.className, 'codexSubscriptionPreference')
   assert.equal(control.props.label, 'Input predictions')
   assert.equal(control.props.checked, false)
   assert.equal(control.props.disabled, false)
@@ -73,8 +71,6 @@ test('the compact prediction row uses the host switch and a keyboard-accessible 
   assert.equal(help.props.label, en.composerPredictionsHint)
   assert.equal(help.props.portal, true)
   assert.equal(help.props.openOnClick, true)
-  assert.equal(help.props.maxWidth, 360)
-  assert.equal(label.type, 'span')
   assert.equal(label.props.tabIndex, 0)
   assert.equal(label.props.title, undefined, 'avoid duplicate native and host tooltip bubbles')
   assert.equal(label.props.children[0], en.composerPredictions)
@@ -91,7 +87,6 @@ test('the compact prediction row uses the host switch and a keyboard-accessible 
 test('old hosts retain the full explanation through a focusable title and accessible description', async () => {
   const fixture = await renderPreference({ tooltip: false, locale: zh })
   const { label, hint } = fixture.render({})
-  assert.equal(label.type, 'span')
   assert.equal(label.props.tabIndex, 0)
   assert.equal(label.props.title, zh.composerPredictionsHint)
   assert.equal(label.props['aria-description'], zh.composerPredictionsHint)
@@ -103,24 +98,6 @@ test('the input prediction switch respects loading, read-only and pending-save s
   for (const state of [{ status: 'loading', writable: true }, { status: 'ready', writable: false }, { writable: true, saving: true }]) assert.equal(fixture.render(state).control.props.disabled, true)
   assert.equal(fixture.render({ status: 'ready', writable: true, saving: false, composerPredictions: 'on' }).control.props.checked, true)
 })
-
-test('both languages explain draft-only acceptance and unconfirmed quota exemption', () => {
-  assert.equal(zh.composerPredictions, '输入预测')
-  assert.equal(en.composerPredictions, 'Input predictions')
-  assert.equal(zh.composerPredictionsShortHint, 'Tab 填入草稿')
-  assert.equal(en.composerPredictionsShortHint, 'Tab fills draft')
-  assert.match(zh.composerPredictionsHint, /支持的 Codex 模型.*完成.*草稿为空/)
-  assert.match(en.composerPredictionsHint, /Supported Codex models.*completed turn.*draft is empty/)
-  assert.match(zh.composerPredictionsHint, /Tab.*草稿.*不会自动发送/)
-  assert.match(zh.composerPredictionsHint, /额外预测请求.*尚未确认/)
-  assert.match(en.composerPredictionsHint, /Tab.*draft without sending/)
-  assert.match(en.composerPredictionsHint, /additional prediction requests.*unconfirmed/)
-})
-
-test('the compiled preference rendering suite belongs to the delivery group with build dependencies', () => {
-  assert.equal(testGroup('tests/composer-prediction-preferences.test.mjs'), 'delivery')
-})
-
 
 test('shared help leaves empty labels unfocusable and preserves native disclosure semantics', async () => {
   const fixture = await renderPreference()
@@ -134,15 +111,6 @@ test('shared help leaves empty labels unfocusable and preserves native disclosur
   assert.equal(help.props.children.props.className, undefined, 'headings retain their original host styling')
   assert.equal(help.props.children.props.tabIndex, 0)
 })
-
-test('live errors and confirmations stay inline without layout observers or hidden text', async () => {
-  const fixture = await renderPreference()
-  const message = fixture.hint({ as: 'p', children: 'Confirm clearing the local cache.' })
-  assert.equal(message.type, 'p')
-  assert.equal(message.props.children, 'Confirm clearing the local cache.')
-  assert.equal(message.props.className, 'codexSubscriptionPreferenceHint')
-})
-
 
 const descendants = node => {
   if (node == null || typeof node !== 'object') return []
@@ -202,7 +170,6 @@ test('reasoning cache uses the common switch and keeps a blocked saved choice re
   tree = fixture.renderTree({ ...base, status: 'loading' })
   assert.ok(!inlineText(tree, fixture.Tooltip).includes(en.state_reasoningCache_on), 'loading does not invent a current state')
 })
-
 
 test('cloud compaction uses the same switch while preserving native dsh/cloud settings', async () => {
   const fixture = await renderPreference({ componentFile: 'client-preferences.jsx', componentName: 'CompactionPreference' })

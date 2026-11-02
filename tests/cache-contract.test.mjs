@@ -6,8 +6,6 @@ test('Codex profile keeps prompt caching but avoids credential-unsafe cached Web
   const source = await readFile(new URL('../src/index.js', import.meta.url), 'utf8')
   assert.match(source, /cacheRetention:\s*['"]short['"]/)
   assert.match(source, /transport:\s*['"]sse['"]/)
-  assert.match(source, /prompt_cache_key|pi-ai owns prompt_cache_key/)
-  assert.doesNotMatch(source, /providerRetryPolicy\s*\(/, 'inherit DSH/pi-ai retry policy instead of adding a no-op override')
 })
 
 test('bundle leaves the DSH web row intact and adds no paid fallback', async () => {

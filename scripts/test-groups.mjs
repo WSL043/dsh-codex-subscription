@@ -1,9 +1,9 @@
 import { readdirSync } from 'node:fs'
 
 const deliveryTests = new Set([
-  'ci-change-plan', 'client-contract', 'data-correctness', 'ui-smoke-contract', 'prepare-compat-release',
+  'ci-change-plan', 'data-correctness', 'ui-smoke-contract', 'prepare-compat-release',
   'official-cohort', 'publish-idempotency', 'release-contract', 'release-notes',
-  'subscription-image-viewer-contract', 'support-intake', 'issue-intake-behavior',
+  'support-intake', 'issue-intake-behavior',
   'client-chunks', 'settings-panel-lifecycle', 'subscription-settings-entry', 'sketch-workspace-loading',
   'composer-prediction-preferences', 'upstream-compatibility',
 ])

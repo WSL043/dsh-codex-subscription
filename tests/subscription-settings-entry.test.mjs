@@ -1,47 +1,30 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { registerSubscriptionSettings, subscriptionSettingsOpener } from '../src/subscription-settings-entry.js'
-import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots'
+import { subscriptionSettingsOpener } from '../src/subscription-settings-entry.js'
+import { registerClient } from './helpers/client-registration.mjs'
 
-test('both settings entries share every controller and render one component with host-specific chrome', () => {
-  const entries = [], surfaces = []
-  const shared = { t: key => key, preference: {}, rpc: {}, accountStatus: {}, diagnostics: {}, defaultModel: {} }
-  const Section = () => {}
-  const ProjectAction = () => {}
-  const ctx = { slots: {
-    inject(name, ready) { surfaces.push(name); ready() },
-    register(entry, component) { entries.push({ entry, component }) },
-  } }
-  registerSubscriptionSettings(ctx, shared, Section, ProjectAction)
-  assert.deepEqual(surfaces, ['settings.section', 'plugins.bundle.config', 'plugins.detail.actions'])
-  assert.equal(entries[0].entry.id, 'codex-subscription')
-  assert.equal(entries[1].entry.key, 'dsh-codex-subscription')
-  assert.equal(entries[0].entry.label(), 'nav')
-  assert.equal(entries[0].component, entries[1].component)
-  assert.equal(entries[0].entry.inject(), shared)
-  const embedded = entries[1].entry.inject()
-  for (const key of Object.keys(shared)) assert.equal(embedded[key], shared[key], key)
-  assert.equal(embedded.embedded, true)
-  assert.equal(shared.embedded, undefined)
-  assert.equal(entries[2].component, ProjectAction)
-  assert.deepEqual(entries[2].entry.inject(), { t: shared.t })
-})
-
-test('both registrations satisfy the actual DSH list/keyed slot contract', () => {
-  const core = new SlotCore()
-  core.register({ name: 'root', children: {
-    'settings.section': { kind: 'list', scope: 'root' },
-    'plugins.bundle.config': { kind: 'keyed', scope: 'root' },
-    'plugins.detail.actions': { kind: 'list', scope: 'root' },
-  } }, () => null)
-  const ctx = { slots: {
-    inject(name, ready) { if (core.spec(name)) ready() },
-    register: (entry, component) => core.register(entry, component),
-  } }
-  registerSubscriptionSettings(ctx, { t: key => key }, () => null, () => null)
-  assert.equal(core.entries('settings.section').length, 1)
-  assert.equal(core.entries('plugins.bundle.config')[0].options.key, 'dsh-codex-subscription')
-  assert.equal(core.entries('plugins.detail.actions')[0].options.id, 'codex-subscription-project')
+test('the complete client registers native slots on desktop and scoped hosts without duplicating host slots', async () => {
+  for (const remote of [false, true]) {
+    const host = registerClient(remote)
+    const find = name => host.entries.find(entry => entry.options.name === name)
+    const quota = find('conversation.input.right')
+    assert.equal(quota.scope, 'root', 'quota and voice remain available before a session scope mounts')
+    assert.equal(quota.options.inject('session-a').directory, remote ? host.stores.scoped : host.stores.root)
+    const picker = find('conversation.input.model')
+    assert.equal(picker.scope, remote ? 'scoped' : 'root')
+    assert.equal(picker.options.inject('child').available, false)
+    assert.equal(await picker.options.inject('child').select({}), false)
+    const oldSettings = find('settings.section').options.inject()
+    const pluginEntry = find('plugins.bundle.config')
+    assert.equal(pluginEntry.options.key, 'dsh-codex-subscription')
+    const pluginSettings = pluginEntry.options.inject()
+    for (const key of ['preference','rpc','accountStatus','diagnostics','defaultModel','t']) assert.equal(pluginSettings[key], oldSettings[key], key)
+    assert.equal(pluginSettings.embedded, true)
+    assert.equal(pluginSettings.rpc, quota.options.inject('session-a').rpc)
+    const image = { id: 'original' }
+    assert.equal(await find('conversation.chat.node').options.inject('session-a').loadImage(image), 'blob:native-image')
+    assert.deepEqual(host.images, [{ sessionId: 'session-a', image }])
+  }
 })
 
 test('quota shortcut uses the host public navigation without touching the active session', () => {

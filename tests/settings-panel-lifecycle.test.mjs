@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url'
 import vm from 'node:vm'
 import test from 'node:test'
 import * as settingsContract from '../src/settings-contract.js'
-import { PROJECT_URL } from '../src/client-shared.js'
+import { PROJECT_URL, maskEmail, unwrap } from '../src/client-shared.js'
 
 // Compile the actual components in memory. The hook/clock host below exercises
 // their effects and retained state, without pretending to be browser acceptance.
@@ -40,6 +40,8 @@ let fixtureCounter = 0
 async function component(file, name, props, additions = {}, invoke = (fn, value) => fn(value)) {
   const fixtureId = `settings-fixture-${++fixtureCounter}`
   const cells = [], pending = [], window = new EventTarget(), document = new EventTarget()
+  window.setInterval = (...args) => setInterval(...args)
+  window.clearInterval = id => clearInterval(id)
   document.visibilityState = 'visible'
   document.getElementById = () => ({ focus() {} })
   let cursor = 0, dirty = false, currentProps = props, tree
@@ -104,6 +106,56 @@ test('project action belongs only to this bundle and the native button opens its
     host.tree.props.onClick()
     assert.deepEqual(calls, [[PROJECT_URL, '_blank', 'noopener,noreferrer']])
   } finally { host.dispose() }
+})
+
+test('account changes re-mask email and signing out requires a separate confirmation', async () => {
+  const calls = []
+  const account = id => ({ authenticated: true, accounts: [{ id, active: true, email: `${id}@example.test` }] })
+  const h = await component('client-account.jsx', 'AccountCard', {
+    account: account('first'), t: key => key, setAccount() {}, onSignedOut() {},
+    rpc: { async call(_channel, endpoint) { calls.push(endpoint); return { authenticated: false } } },
+  }, {
+    './client-shared.js': { maskEmail, notifyQuickQuota() {} },
+    './client-account-quota.jsx': { useAccountQuotas: () => ({ entries: {} }) },
+  })
+  const email = () => {
+    const item = nodes(h.tree, node => node.props.candidate?.email)[0]
+    return item.type(item.props)
+  }
+  const click = label => { nodes(h.tree, node => node.props.children === label)[0].props.onClick(); h.render() }
+  try {
+    assert.notEqual(email().props.children, 'first@example.test')
+    email().props.onClick(); h.render()
+    assert.equal(email().props.children, 'first@example.test')
+    h.render({ account: account('second') })
+    assert.notEqual(email().props.children, 'second@example.test')
+    click('signOutAll'); assert.deepEqual(calls, [])
+    click('removeCancel'); assert.deepEqual(calls, [])
+    click('signOutAll'); click('signOutConfirm')
+    await flush(); h.render()
+    assert.deepEqual(calls, ['logout'])
+  } finally { h.dispose() }
+})
+
+test('quota reset cancellation sends no consume request and acceptance requires acknowledgement', async () => {
+  const calls = []; let consumed = 0
+  const h = await component('client-usage.jsx', 'ResetCreditControl', {
+    credit: { ref: 'credit-ref' }, hasExhaustedQuota: true, onConsumed() { consumed++ }, t: key => key,
+    rpc: { async call(_channel, endpoint) { calls.push(endpoint); return { ok: true, value: endpoint === 'reset-credit/prepare' ? { challengeId: 'challenge', readyAt: 0 } : { code: 'reset' } } } },
+  }, { './client-shared.js': { unwrap, fill: value => value } })
+  const button = label => nodes(h.tree, node => node.props.children === label)[0]
+  try {
+    button('resetUse').props.onClick(); await flush(); h.render()
+    assert.equal(button('resetFinal').props.disabled, true)
+    button('cancel').props.onClick(); h.render()
+    assert.deepEqual(calls, ['reset-credit/prepare'])
+    button('resetUse').props.onClick(); await flush(); h.render()
+    nodes(h.tree, node => node.type === 'input' && node.props.type === 'checkbox')[0].props.onChange({ target: { checked: true } }); h.render()
+    assert.equal(button('resetFinal').props.disabled, false)
+    button('resetFinal').props.onClick(); await flush(); h.render()
+    assert.deepEqual(calls, ['reset-credit/prepare','reset-credit/prepare','reset-credit/consume'])
+    assert.equal(consumed, 1)
+  } finally { h.dispose() }
 })
 
 test('both settings entries keep independent HTML radio groups and the same selected preference', async () => {

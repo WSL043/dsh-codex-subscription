@@ -45,11 +45,12 @@ test('previously omitted suites and future behavior tests reach their CI gate', 
     assert.equal(JSON.parse(result.stdout).plan.behavior, true, file)
     if (file !== 'future-behavior') assert.ok(testFiles('behavior').includes(`tests/${file}.test.mjs`), file)
   }
-  const viewerContract = plan(['tests/subscription-image-viewer-contract.test.mjs'])
-  assert.equal(JSON.parse(viewerContract.stdout).plan.delivery, true)
-  assert.ok(testFiles('delivery').includes('tests/subscription-image-viewer-contract.test.mjs'))
-  assert.ok(testFiles('delivery').includes('tests/subscription-settings-entry.test.mjs'))
-  assert.equal(testFiles('behavior').includes('tests/subscription-settings-entry.test.mjs'), false)
+  for (const file of ['subscription-settings-entry', 'composer-prediction-preferences', 'settings-panel-lifecycle']) {
+    const path = `tests/${file}.test.mjs`
+    assert.equal(JSON.parse(plan([path]).stdout).plan.delivery, true)
+    assert.ok(testFiles('delivery').includes(path))
+    assert.equal(testFiles('behavior').includes(path), false)
+  }
 })
 
 test('test dispatch changes exercise all CI gates', () => {

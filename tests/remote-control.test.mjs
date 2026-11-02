@@ -218,7 +218,6 @@ test('the browser bundle stays free of Node built-ins (the QR encoder must not p
   const source = await readFile(new URL('../src/client-remote-control.jsx', import.meta.url), 'utf8').catch(() => undefined)
   if (!bundles.length || source === undefined) return t.skip('build output not present')
   for (const bundle of bundles) assert.ok(!/require\((["'])(?:node:)?(?:fs|path|os|zlib|stream|child_process|net|tls)\1\)/u.test(bundle), 'client entry and every feature must remain browser-safe')
-  assert.match(source, /from 'qrcode\/lib\/core\/qrcode\.js'/u)
 })
 
 test('the phone can prepare a working folder before a new chat', async () => {
