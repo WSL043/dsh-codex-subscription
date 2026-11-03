@@ -274,7 +274,7 @@ export function createCodexUsageReader(options) {
       if (failed !== undefined && now() < failed.retryAt) {
         return Promise.reject(new Error(failed.message))
       }
-      if (!force && cached !== undefined && now() - cached.fetchedAt < ttlFor(cached)) {
+      if (!force && failed === undefined && cached !== undefined && now() - cached.fetchedAt < ttlFor(cached)) {
         return Promise.resolve(structuredClone(cached))
       }
       return requests.run('read', async sharedSignal => {

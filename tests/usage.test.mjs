@@ -309,6 +309,29 @@ test('usage reader briefly negative-caches transport failures and clear removes 
   assert.equal(requests, 2)
 })
 
+test('a rejected sign-in cannot revert to a cached success after the retry delay', async () => {
+  let now = Date.now()
+  let status = 200
+  let requests = 0
+  const reader = createCodexUsageReader({
+    now: () => now,
+    ttlMs: 60_000,
+    failureTtlMs: 5_000,
+    async getAuth() { return { auth: { apiKey: 'account-token' } } },
+    async readCredential() { return { type: 'oauth', access: 'account-token', accountId: 'account-id' } },
+    async fetch() {
+      requests++
+      return Response.json({}, { status })
+    },
+  })
+  await reader.read()
+  status = 401
+  await assert.rejects(reader.read({ force: true }), /sign-in needs to be renewed/)
+  now += 5_001
+  await assert.rejects(reader.read(), /sign-in needs to be renewed/)
+  assert.equal(requests, 3)
+})
+
 test('usage reader fails closed with bounded public errors', async () => {
   const signedOut = createCodexUsageReader({
     async getAuth() { return { auth: {} } },

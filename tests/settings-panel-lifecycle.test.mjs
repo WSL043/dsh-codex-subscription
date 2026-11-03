@@ -6,6 +6,7 @@ import vm from 'node:vm'
 import test from 'node:test'
 import * as settingsContract from '../src/settings-contract.js'
 import { PROJECT_URL, maskEmail, unwrap } from '../src/client-shared.js'
+import { SIGN_IN_RENEW } from '../src/http-failure.js'
 
 // Compile the actual components in memory. The hook/clock host below exercises
 // their effects and retained state, without pretending to be browser acceptance.
@@ -290,4 +291,35 @@ test('a late multi-account response cannot overwrite another account list', asyn
     await flush(); h.render()
     assert.ok(h.tree.entries.c); assert.equal(h.tree.entries.a, undefined)
   } finally { h.dispose() }
+})
+
+test('opening settings verifies a single saved account and displays the server result', async () => {
+  const calls = []
+  let entry = { id: 'a', error: SIGN_IN_RENEW }
+  const rpc = { async call(_channel, endpoint, payload) {
+    calls.push([endpoint, payload.force])
+    return { accounts: [entry] }
+  } }
+  const h = await component('client-account-quota.jsx', 'useAccountQuotas', { rpc, ids: ['a'], active: false },
+    {}, (hook, value) => hook(value.rpc, value.ids, value.active))
+  const badge = await component('client-account-quota.jsx', 'AccountQuota', { showQuota: false, t: key => key },
+    { './http-failure.js': { SIGN_IN_RENEW }, './client-shared.js': { accessFailureText: message => message } })
+  const state = () => nodes(badge.tree, item => item.props['data-state'])[0].props['data-state']
+  try {
+    assert.deepEqual(calls, [])
+    h.render({ active: true })
+    badge.render({ entry: h.tree.entries.a, loading: h.tree.busy })
+    assert.equal(state(), 'loading')
+    await flush(); h.render()
+    assert.deepEqual(calls, [['usage/accounts', true]])
+    badge.render({ entry: h.tree.entries.a, loading: h.tree.busy })
+    assert.equal(state(), 'disconnected')
+    h.render({ active: false })
+    entry = { id: 'a', usage: { rateLimits: [] } }
+    h.render({ active: true }); await flush(); h.render()
+    badge.render({ entry: h.tree.entries.a, loading: h.tree.busy })
+    assert.equal(state(), 'connected')
+    badge.render({ entry: { id: 'a', error: 'Could not read ChatGPT usage' } })
+    assert.equal(state(), 'unknown')
+  } finally { h.dispose(); badge.dispose() }
 })

@@ -46,7 +46,7 @@ export function DiagnosticsCard({ rpc, t, diagnostics }) {
       <div className="codexSubscriptionActions"><Button type="button" variant="outline" disabled={busy} onClick={load}>{busy ? t('diagnosticsLoading') : t('diagnosticsLoad')}</Button>{report === undefined ? null : <Button type="button" variant="outline" onClick={() => copy()}>{copied ? t('diagnosticsCopied') : t('diagnosticsCopy')}</Button>}<a className="codexSubscriptionLink" href={SUPPORT_ISSUE_URL} target="_blank" rel="noreferrer">{t('feedbackOpen')}</a></div>
     </div>
     {report === undefined ? null : <>
-      <div className="codexDiagResult" role="status" data-state={attention.length ? 'attention' : 'ok'}>
+      <div className="codexDiagResult" role="status" data-state={attention.length ? 'attention' : undefined}>
         <span className="codexDiagBadge">{attention.length ? t('diagnosticsAttention').replace('{count}', String(attention.length)) : t('diagnosticsNoRecordedFailure')}</span>
         {report.generatedAt ? <span className="codexDiagTime">{new Date(report.generatedAt).toLocaleString(uiLocale())}</span> : null}
       </div>

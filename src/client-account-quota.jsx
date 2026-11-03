@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { recoveryCall } from './client-recovery.js'
+import { SIGN_IN_RENEW } from './http-failure.js'
 import { accessFailureText, fill, percent, uiLocale, windowLabel } from './client-shared.js'
 
 const when = seconds => new Date(seconds * 1000).toLocaleString(uiLocale(), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 /** Quota of every signed-in account (read-only; the active account does not change). */
-export function useAccountQuotas(rpc, ids, active = true) {
+export function useAccountQuotas(rpc, ids, active = true, revision = 0) {
   const [entries, setEntries] = useState({})
   const [busy, setBusy] = useState(false)
   const request = useRef(0)
@@ -14,7 +15,7 @@ export function useAccountQuotas(rpc, ids, active = true) {
   activeRef.current = active
   const key = ids.join(',')
   const load = force => {
-    if (ids.length < 2) { setEntries({}); return }
+    if (ids.length === 0) return
     if (!activeRef.current || document.visibilityState === 'hidden') return
     if (flight.current) {
       const current = flight.current
@@ -22,6 +23,7 @@ export function useAccountQuotas(rpc, ids, active = true) {
       return current.promise
     }
     const id = ++request.current
+    if (force) setEntries({})
     setBusy(true)
     const current = { id, force }
     current.promise = recoveryCall(rpc, 'usage/accounts', { force })
@@ -32,38 +34,45 @@ export function useAccountQuotas(rpc, ids, active = true) {
     return current.promise
   }
   useEffect(() => {
-    if (ids.length < 2) { setEntries({}); setBusy(false) }
+    setEntries({})
+    setBusy(false)
     return () => { request.current += 1; flight.current = undefined }
-  }, [key, rpc])
+  }, [key, revision, rpc])
   // Retain the snapshot, but only poll the visible account panel in a visible tab.
   useEffect(() => {
-    if (ids.length < 2 || !active) return undefined
+    if (ids.length === 0 || !active) return undefined
     let timer
     const stop = () => { clearInterval(timer); timer = undefined }
     const again = () => load(false)
     const wake = () => {
       stop()
       if (document.visibilityState === 'hidden') return
-      void again()
+      void load(true)
       timer = setInterval(again, 60_000)
     }
     wake()
     window.addEventListener('codex-subscription:usage-loaded', again)
     document.addEventListener('visibilitychange', wake)
     return () => { window.removeEventListener('codex-subscription:usage-loaded', again); document.removeEventListener('visibilitychange', wake); stop() }
-  }, [key, active, rpc])
+  }, [key, revision, active, rpc])
   return { entries, busy, refresh: () => load(true) }
 }
 
-export function AccountQuota({ entry, loading, t }) {
-  if (entry === undefined) return loading ? <small className="codexSubscriptionAccountQuota">{t('accountQuotaLoading')}</small> : null
-  if (entry.error !== undefined) {
+export function AccountQuota({ entry, loading, showQuota, t }) {
+  const state = entry === undefined ? loading ? 'loading' : 'unknown'
+    : entry.error === SIGN_IN_RENEW ? 'disconnected' : entry.error !== undefined || entry.usage === undefined ? 'unknown' : 'connected'
+  const label = {
+    connected: 'accountVerified', disconnected: 'accountRenewSignIn',
+    loading: 'accountVerifying', unknown: 'accountUnverified',
+  }[state]
+  const status = <span className="codexSubscriptionStatus"><span className="codexSubscriptionDot" data-state={state} aria-hidden="true" />{t(label)}</span>
+  if (entry?.error !== undefined) {
     const message = accessFailureText(entry.error, t)
-    return <small className="codexSubscriptionAccountQuota" data-state="error">{entry.error === 'ChatGPT sign-in needs to be renewed' ? t('resetRenewLogin') : message !== entry.error ? message : t('accountQuotaError')}</small>
+    return <small className="codexSubscriptionAccountQuota" role="status">{status}{message !== entry.error ? message : null}</small>
   }
+  if (state !== 'connected' || !showQuota) return <small className="codexSubscriptionAccountQuota" role="status">{status}</small>
   const windows = entry.usage?.rateLimits?.find(limit => limit.id === 'codex')?.windows ?? []
-  if (windows.length === 0) return <small className="codexSubscriptionAccountQuota">{t('accountQuotaNone')}</small>
-  return <small className="codexSubscriptionAccountQuota">{windows.map(window => <span key={window.windowSeconds}>
+  return <small className="codexSubscriptionAccountQuota" role="status">{status}{windows.length === 0 ? t('accountQuotaNone') : windows.map(window => <span key={window.windowSeconds}>
     {fill(t('accountQuotaLeft'), { label: windowLabel(window.windowSeconds, t), value: percent(window.remainingPercent) })}
     {window.resetsAt === undefined ? '' : ` · ${fill(t('accountQuotaResets'), { value: when(window.resetsAt) })}`}
   </span>)}</small>

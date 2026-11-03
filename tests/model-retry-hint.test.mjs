@@ -116,9 +116,11 @@ test('a legacy adapter without prepareCall keeps that method absent', () => {
   assert.equal(bridge.wrapAdapter(adapter).prepareCall, undefined)
 })
 
+const retryableRequestFailure = 'An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_abc-123 in your message.'
+
 test('a partially emitted SSE response keeps its existing failure and is never replayed by the hint bridge', async t => {
   let requests = 0
-  const events = [{ type: 'response.created', response: { id: 'partial' } }, { type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: 'm', role: 'assistant', content: [] } }, { type: 'response.output_text.delta', output_index: 0, content_index: 0, delta: 'partial output' }, { type: 'error', message: '503 overloaded during stream' }]
+  const events = [{ type: 'response.created', response: { id: 'partial' } }, { type: 'response.output_item.added', output_index: 0, item: { type: 'message', id: 'm', role: 'assistant', content: [] } }, { type: 'response.output_text.delta', output_index: 0, content_index: 0, delta: 'partial output' }, { type: 'error', message: retryableRequestFailure }]
   t.mock.method(globalThis, 'fetch', async () => { requests++; return new Response(events.map(e => 'data: ' + JSON.stringify(e) + '\n\n').join(''), { headers: { 'content-type': 'text/event-stream', 'retry-after-ms': '120' } }) })
   const provider = openaiCodexSubscriptionProvider(), profiles = new Map([['openai-codex', { provider: 'openai-codex', piProvider: provider, configuredMaxTokens: new Map(), modelErrors: new Map(), transport: 'sse', streamIdleTimeoutMs: 3000 }]])
   const adapter = provider.wrapRetryAdapter(new PiAiAdapter({ profiles: () => profiles, resolveApiKey: async () => jwt }))
@@ -126,7 +128,7 @@ test('a partially emitted SSE response keeps its existing failure and is never r
   for await (const event of adapter.stream({ provider: 'openai-codex', model: 'gpt-5.6-luna', messages: [{ role: 'user', content: [{ type: 'text', text: 'synthetic fixture' }] }] })) chunks.push(event)
   assert.equal(requests, 1)
   assert.ok(chunks.some(chunk => chunk.type === 'text-delta'))
-  assert.equal(chunks.find(chunk => chunk.type === 'finish').reason.failure.providerRetryAfterMs, undefined)
+  assert.equal(chunks.find(chunk => chunk.type === 'finish').reason.failure.code, 'PI_AI_ERROR')
 })
 
 const overloadMessage = 'Our servers are currently overloaded. Please try again later.'
@@ -158,8 +160,19 @@ test('overload classification never expands generic failures, rejection statuses
   }
 })
 
-test('the actual adapter classifies the reported HTTP 200 SSE overload and preserves parameter failures', async t => {
-  for (const [message, code] of [[overloadMessage, 'SERVER'], ['Unsupported parameter: invented_setting', 'PI_AI_ERROR']]) {
+test('a known WebSocket request failure delegates retry to DSH without inventing HTTP status', () => {
+  const original = { code: 'PI_AI_ERROR', message: 'Codex error: ' + retryableRequestFailure }
+  const hint = createModelRetryHint()
+  const failure = hint.failure(original)
+  assert.equal(failure.code, 'SERVER')
+  assert.equal(failure.status, undefined)
+  assert.equal(failure.message, original.message)
+  hint.onResponse({ status: 400 })
+  assert.equal(hint.failure(original), original)
+})
+
+test('the actual adapter classifies known HTTP 200 SSE failures and preserves parameter failures', async t => {
+  for (const [message, code] of [[overloadMessage, 'SERVER'], [retryableRequestFailure, 'SERVER'], ['Unsupported parameter: invented_setting', 'PI_AI_ERROR']]) {
     let requests = 0
     t.mock.method(globalThis, 'fetch', async () => { requests++; return new Response('data: ' + JSON.stringify({ type: 'error', message }) + '\n\n', { headers: { 'content-type': 'text/event-stream' } }) })
     const provider = openaiCodexSubscriptionProvider()

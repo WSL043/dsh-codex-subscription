@@ -3,8 +3,9 @@ import * as dshLlm from '@deepseek-ai/dsh-llm'
 import { restrictionMessage, ACCESS_DENIED, SIGN_IN_RENEW } from './http-failure.js'
 
 // Codex can report overload inside a successful SSE/WebSocket transport. Match
-// the complete known refusal, not generic PI_AI_ERROR or an arbitrary substring.
+// complete messages that explicitly invite a retry.
 const CODEX_OVERLOADED = /^\s*(?:Codex error:\s*)?Our servers are currently overloaded\. Please try again later\.\s*$/u
+const CODEX_REQUEST_FAILED = /^\s*(?:Codex error:\s*)?An error occurred while processing your request\. You can retry your request, or contact us through our help center at help\.openai\.com if the error persists\. Please include the request ID [\w-]+ in your message\.?\s*$/u
 
 /** Keep the provider's wait as a fact; only DSH decides whether and when to retry. */
 export function providerRetryAfterMs(headers, at = Date.now()) {
@@ -42,9 +43,10 @@ export function createModelRetryHint({ now = Date.now, ErrorClass = dshLlm.LlmEr
       }
       if (outputStarted || ['ABORTED', 'AUTH', 'INVALID_REQUEST', 'QUOTA', 'ACCOUNT_QUOTA', 'QUOTA_EXCEEDED'].includes(original.code) || (typeof dshLlm.isQuotaExceededError === 'function' && dshLlm.isQuotaExceededError(original.message))) return original
       const status = responseStatus ?? original.status
-      const overloaded = original.code === 'PI_AI_ERROR' && CODEX_OVERLOADED.test(original.message)
+      const transientStreamFailure = original.code === 'PI_AI_ERROR'
+        && (CODEX_OVERLOADED.test(original.message) || CODEX_REQUEST_FAILED.test(original.message))
         && (status === undefined || status >= 200 && status < 300)
-      if (!response && !overloaded) return original
+      if (!response && !transientStreamFailure) return original
       // Codex pi-ai collapses JSON 429 quota and rate-limit codes into the same
       // usage-limit text. Do not guess that such a refusal is transient.
       if (/You have hit your ChatGPT usage limit/iu.test(original.message) || response?.status === 429 && original.code !== 'RATE_LIMIT') return original

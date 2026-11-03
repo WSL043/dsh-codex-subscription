@@ -84,7 +84,6 @@ export const STYLE = `
 .codexSubscriptionAccount:last-child{border-bottom:0}
 .codexSubscriptionAccountMain{display:flex;flex-direction:column;gap:2px;padding:6px 0;min-width:0}
 .codexSubscriptionAccountQuota{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:12px;color:var(--dsw-alias-text-l2)}
-.codexSubscriptionAccountQuota[data-state=error]{color:var(--dsw-alias-text-danger,#c0392b)}
 .codexSubscriptionAccount[data-active=true] .codexSubscriptionEmail,.codexSubscriptionAccount[data-active=true]>span{font-weight:600}
 .codexSubscriptionEmail{max-width:100%;overflow:hidden;padding:2px 4px;border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;text-align:left;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
 .codexSubscriptionEmail:hover{background:var(--dsw-alias-interactive-bg-hover)}
@@ -453,8 +452,7 @@ a.codexVoiceCall{display:flex;align-items:center;justify-content:center;box-sizi
 .codexSubscriptionLimit[data-pace=true] progress::-moz-progress-bar{background:var(--dsw-alias-state-warning-primary,#f5a300)}
 .codexDiagResult{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--dsw-alias-border-l2)}
 .codexDiagBadge{font-size:13px;line-height:20px;font-weight:500;color:var(--dsw-alias-label-primary)}
-.codexDiagResult[data-state=ok] .codexDiagBadge::before,.codexDiagResult[data-state=attention] .codexDiagBadge::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:var(--dsw-alias-state-success-primary,#1a9d58)}
-.codexDiagResult[data-state=attention] .codexDiagBadge::before{background:var(--dsw-alias-state-warning-primary,#f5a300)}
+.codexDiagResult[data-state=attention] .codexDiagBadge::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;background:var(--dsw-alias-state-warning-primary,#f5a300)}
 .codexDiagTime{font-size:12px;color:var(--dsw-alias-label-tertiary)}
 .codexDiagFindings{list-style:none;margin:0;padding:0 0 6px;display:flex;flex-direction:column;gap:8px}
 .codexDiagFindings>li{display:flex;flex-direction:column;gap:2px;font-size:13px;line-height:20px}
