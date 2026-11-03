@@ -6,6 +6,7 @@ import {
   PI_AI_RUNTIME_VERSIONS,
   createModels,
   openaiCodexProvider,
+  openaiCodexSubscriptionProvider,
 } from '../src/pi-ai-runtime.js'
 
 test('Codex transport is resolved from the DSH pi-ai adapter at the audited version', () => {
@@ -20,6 +21,35 @@ test('Codex requests keep their own user-agent when the host sends one', async (
   const { withoutUserAgent } = await import('../src/pi-ai-runtime.js')
   assert.deepEqual(withoutUserAgent({ 'User-Agent': 'DSH/1', 'x-other': 'kept' }), { 'x-other': 'kept' })
   assert.equal(withoutUserAgent(undefined), undefined)
+})
+
+test('Codex tool arguments are assembled once, and an interrupted tool is never finalized', async t => {
+  const apiKey = 'e30.' + Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture' } })).toString('base64url') + '.fake'
+  const provider = openaiCodexSubscriptionProvider()
+  const item = { type: 'function_call', id: 'fc_fixture', call_id: 'call_fixture', name: 'read', arguments: '' }
+  const prefix = [
+    { type: 'response.output_item.added', output_index: 0, item },
+    { type: 'response.function_call_arguments.delta', output_index: 0, delta: '{"path":"notes' },
+  ]
+  const complete = [
+    { type: 'response.function_call_arguments.delta', output_index: 0, delta: '.txt"}' },
+    { type: 'response.output_item.done', output_index: 0, item: { ...item, arguments: '{"path":"notes.txt"}' } },
+    { type: 'response.completed', response: { id: 'fixture', status: 'completed', usage: { input_tokens: 1, output_tokens: 1, total_tokens: 2 } } },
+  ]
+  for (const finished of [true, false]) {
+    const frames = [...prefix, ...(finished ? complete : [{ type: 'error', message: 'fixture interrupted' }])]
+    t.mock.method(globalThis, 'fetch', async () => new Response(frames.map(event => 'data: ' + JSON.stringify(event) + '\n\n').join(''),
+      { headers: { 'content-type': 'text/event-stream' } }))
+    const events = []
+    for await (const event of provider.streamSimple(provider.getModels()[0], {
+      messages: [{ role: 'user', content: 'fixture', timestamp: 1 }],
+    }, { apiKey, transport: 'sse' })) events.push(event)
+    const toolEnds = events.filter(event => event.type === 'toolcall_end')
+    assert.equal(toolEnds.length, finished ? 1 : 0)
+    if (finished) assert.deepEqual(toolEnds[0].toolCall.arguments, { path: 'notes.txt' })
+    assert.equal(events.at(-1).type, finished ? 'done' : 'error')
+    t.mock.restoreAll()
+  }
 })
 
 test('an exception while a request is prepared leaves only a count and a source location', async () => {
