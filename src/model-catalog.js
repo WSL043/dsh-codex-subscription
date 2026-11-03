@@ -216,6 +216,9 @@ function mergeModel(baseModels, remote) {
  * @returns {object} 可初始化、刷新、查询和清除的模型目录
  */
 export function createOfficialModelCatalog(options = {}) {
+  const nativeVersion = options.nativeVersion
+  const endpoint = nativeVersion === undefined ? CODEX_MODELS_URL
+    : `https://chatgpt.com/backend-api/codex/models?client_version=${encodeURIComponent(nativeVersion)}`
   const fetchCatalog = options.fetch ?? fetch
   const getNow = options.now ?? Date.now
   const schedule = options.setTimeout ?? setTimeout
@@ -345,16 +348,19 @@ export function createOfficialModelCatalog(options = {}) {
         initialized = true
       }
       const id = credentials.accountId
-      const response = await fetchCatalog(CODEX_MODELS_URL, {
+      const response = await fetchCatalog(endpoint, {
         method: 'GET', redirect: 'error', signal: requestSignal,
-        headers: { authorization: `Bearer ${credentials.access}`, 'chatgpt-account-id': id, accept: 'application/json', originator: 'pi', 'user-agent': USER_AGENT, ...(etag === undefined ? {} : { 'if-none-match': etag }) },
+        headers: { authorization: `Bearer ${credentials.access}`, 'chatgpt-account-id': id, accept: 'application/json', originator: nativeVersion === undefined ? 'pi' : 'codex_cli_rs', 'user-agent': USER_AGENT, ...(etag === undefined ? {} : { 'if-none-match': etag }) },
       })
       if (!current(flight) || accountId !== id) return false
       if (response.status !== 304 && !response.ok) throw new Error(await authFailureMessage(response) ?? `Codex model catalog failed (HTTP ${response.status})`)
       const raw = response.status === 304 ? rawCatalog : await response.json()
       if (!current(flight) || accountId !== id) return false
       if (raw === undefined) throw new Error('Codex returned HTTP 304 without a cached model catalog')
-      const remote = parseOfficialModelCatalog(raw, getNow())
+      const catalog = nativeVersion !== undefined && Array.isArray(raw?.models)
+        ? { ...raw, models: raw.models.filter(model => model?.visibility === 'list' && model.supported_in_api !== false) }
+        : raw
+      const remote = parseOfficialModelCatalog(catalog, getNow())
       const next = remote.map(model => mergeModel(options.baseModels(), model)).filter(Boolean)
       if (!next.length) throw new Error('Codex returned an empty or incompatible model catalog')
       const changed = response.status !== 304 || JSON.stringify(next) !== JSON.stringify(models)

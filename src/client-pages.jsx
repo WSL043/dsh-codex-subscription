@@ -151,6 +151,30 @@ export function ModelsPage({ preference, t, defaultModel }) {
   </div>
 }
 
+function SubagentDefaultPreferences({ preference, snapshot, t }) {
+  const models = snapshot.subagentModels ?? []
+  const model = snapshot.subagentDefaultModel ?? ''
+  const effort = snapshot.subagentDefaultEffort ?? 'auto'
+  const selected = models.find(candidate => candidate.id === model)
+  const efforts = model === '' ? [...new Set(models.flatMap(candidate => candidate.efforts))] : selected?.efforts ?? []
+  const inherit = '__follow_parent__'
+  const modelItems = [{ id: inherit, label: t('subagentFollowParent') }, ...models.map(candidate => ({ id: candidate.id, label: candidate.name ?? candidate.id }))]
+  const effortText = id => id === 'auto' ? t(model === '' ? 'subagentFollowParent' : 'subagentModelEffort') : t(`defaultReasoningEffort_${id}`)
+  const disabled = !ready(snapshot)
+  return <>
+    <ImageChoice t={t} label={t('subagentDefaultModel')} hint={t('subagentDefaultHint')}
+      value={model || inherit} text={model === '' ? t('subagentFollowParent') : selected?.name ?? model}
+      items={modelItems} disabled={disabled} onSelect={id => {
+        const target = models.find(candidate => candidate.id === id)
+        void preference.set({ subagentDefaultModel: id === inherit ? '' : id, ...(target && !target.efforts.includes(effort) ? { subagentDefaultEffort: 'auto' } : {}) })
+      }} />
+    <ImageChoice t={t} label={t('subagentDefaultEffort')} value={effort} text={effortText(effort)}
+      items={['auto', ...efforts].map(id => ({ id, label: effortText(id) }))}
+      disabled={disabled} onSelect={id => { void preference.set({ subagentDefaultEffort: id }) }} />
+    {model !== '' && !selected ? <Hint>{t('subagentDefaultUnavailable')}</Hint> : null}
+  </>
+}
+
 export function ToolsPage({ preference, rpc, t, active = true }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = ready(snapshot)
@@ -175,6 +199,7 @@ export function ToolsPage({ preference, rpc, t, active = true }) {
         <Radios snapshot={snapshot} preference={preference} field="subagentBackend" values={['dsh', 'codex']} name="codex-subagent-backend" label={t('subagentBackendTitle')} text={value => t(`subagentBackend_${value}`)}
           disabled={!snapshot.subagentBackendAvailable} disabledValues={codexReady || subagentsOn ? [] : ['codex']} />
       </div>
+      {subagentsOn ? <SubagentDefaultPreferences preference={preference} snapshot={snapshot} t={t} /> : null}
       <RuntimeManagement rpc={rpc} preference={preference} t={t} active={active} />
     </section>
   </div>

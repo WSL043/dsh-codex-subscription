@@ -1,5 +1,6 @@
 import { CHANNEL, unwrap } from './rpc-contract.js'
 import { normalizeReasoningCache } from './preference-fields.js'
+import { normalizeSubagentModel, normalizeSubagentEffort } from './subagent-defaults.js'
 import {
   AUTO_QUOTA_RETRY_FIELD,
   DEFAULT_REASONING_EFFORT_FIELD,
@@ -68,6 +69,7 @@ export function createPreferenceController(rpc) {
   let disposed = false
   let subagentBackendAvailable = false
   let subagentRuntimeInstalled = false
+  let subagentModels = []
   let fetchRoutingAvailable = false
   let restartRequired = false
 
@@ -91,6 +93,9 @@ export function createPreferenceController(rpc) {
       reasoningCache: normalizeReasoningCache(value?.reasoningCache),
       defaultReasoningEffort: normalizeDefaultReasoningEffort(value?.[DEFAULT_REASONING_EFFORT_FIELD]),
       subagentBackend: value?.subagentBackend === 'codex' ? 'codex' : 'dsh',
+      subagentDefaultModel: normalizeSubagentModel(value?.subagentDefaultModel),
+      subagentDefaultEffort: normalizeSubagentEffort(value?.subagentDefaultEffort),
+      subagentModels,
       subagentBackendAvailable,
       subagentRuntimeInstalled,
       quickQuotaMode: normalizeQuickQuotaMode(
@@ -153,6 +158,7 @@ export function createPreferenceController(rpc) {
     if (!modelRefreshStarted) {
       contextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
       availableModels = Array.isArray(value?.availableModels) ? value.availableModels : []
+      subagentModels = Array.isArray(value?.subagentModels) ? value.subagentModels : []
       verbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
       fastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
       ultrafastModels = Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : []
@@ -174,6 +180,8 @@ export function createPreferenceController(rpc) {
         reasoningCache: normalizeReasoningCache(value?.reasoningCache),
         [DEFAULT_REASONING_EFFORT_FIELD]: normalizeDefaultReasoningEffort(value?.[DEFAULT_REASONING_EFFORT_FIELD]),
         subagentBackend: value?.subagentBackend === 'codex' ? 'codex' : 'dsh',
+        subagentDefaultModel: normalizeSubagentModel(value?.subagentDefaultModel),
+        subagentDefaultEffort: normalizeSubagentEffort(value?.subagentDefaultEffort),
         ...readCapabilitySettings(value),
         [QUICK_QUOTA_MODE_FIELD]: normalizeQuickQuotaMode(
           value?.[QUICK_QUOTA_MODE_FIELD],
@@ -230,6 +238,7 @@ export function createPreferenceController(rpc) {
       if (disposed || current !== modelRefreshGeneration) return false
       const nextContextModels = Array.isArray(value?.contextModels) ? value.contextModels : []
       const nextAvailableModels = Array.isArray(value?.availableModels) ? value.availableModels : []
+      const nextSubagentModels = Array.isArray(value?.subagentModels) ? value.subagentModels : []
       const nextVerbosityModels = Array.isArray(value?.verbosityModels) ? value.verbosityModels : []
       const nextFastModels = Array.isArray(value?.fastModels) ? value.fastModels : undefined
       const nextUltrafastModels = Array.isArray(value?.ultrafastModels) ? value.ultrafastModels : []
@@ -237,6 +246,7 @@ export function createPreferenceController(rpc) {
       catalogStatus = value?.catalogStatus
       const changed = !sameModels(contextModels, nextContextModels)
         || !sameModels(availableModels, nextAvailableModels)
+        || !sameModels(subagentModels, nextSubagentModels)
         || !sameModels(verbosityModels, nextVerbosityModels)
         || JSON.stringify(fastModels) !== JSON.stringify(nextFastModels)
         || JSON.stringify(ultrafastModels) !== JSON.stringify(nextUltrafastModels)
@@ -244,6 +254,7 @@ export function createPreferenceController(rpc) {
       if (changed) {
         contextModels = nextContextModels
         availableModels = nextAvailableModels
+        subagentModels = nextSubagentModels
         verbosityModels = nextVerbosityModels
         fastModels = nextFastModels
         ultrafastModels = nextUltrafastModels

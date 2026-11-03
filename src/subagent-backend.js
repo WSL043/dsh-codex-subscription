@@ -36,7 +36,7 @@ const CHILD_FEATURES_OFF = Object.freeze({
 })
 
 /** Reuse the official DSH process/turn provider; keep only subscription auth here. */
-export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store, refresh, loadRuntime, maintenance = () => false }) {
+export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store, refresh, loadRuntime, maintenance = () => false, defaults }) {
   let runtime
   const load = () => runtime ??= loadRuntime().catch(error => { runtime = undefined; throw error })
   const active = new Set()
@@ -53,7 +53,10 @@ export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store
       const signal = AbortSignal.any([request.signal, controller.signal])
       let run
       try {
-        const thread = subagentThreadPolicy(request.parent, ctx.sandboxPolicy.resolve({ session: request.parent.session }), request.agentOptions)
+        await defaults?.ready(request.agentOptions, signal)
+        signal.throwIfAborted()
+        const options = defaults?.resolve(request.parent, request.agentOptions) ?? request.agentOptions
+        const thread = subagentThreadPolicy(request.parent, ctx.sandboxPolicy.resolve({ session: request.parent.session }), options)
         const getTokens = await createSubagentTokens({ resolveAuth, store, refresh, signal })
         const { official, Transport } = await load()
         const proxy = await resolveCodexOAuthProxy({ target: new URL('https://chatgpt.com/') })

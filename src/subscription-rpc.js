@@ -1,5 +1,6 @@
 import { REQUEST_BLOCKED, isAccessFailureMessage } from './http-failure.js'
 import { PREFERENCE_FIELDS } from './preference-fields.js'
+import { normalizeSubagentModel } from './subagent-defaults.js'
 import { capabilityPatch } from './capability-settings.js'
 import { ORIGINAL_IMAGE_CHUNK_BYTES, ORIGINAL_IMAGE_ID_PATTERN } from './image-original-contract.js'
 import { AUTO_QUOTA_RETRY_FIELD, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DISABLED_MODELS_FIELD, normalizeCustomContextWindow, normalizeDisabledModels } from './settings-contract.js'
@@ -24,7 +25,7 @@ export async function settlesLive(preferences, patch, signal, { attempts = 8, de
   return live()
 }
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, accountUsageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, desktopVoice, nativeVoice, voicePreview, composerPredictions, diagnosticsReader, modelCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, accountUsageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, desktopVoice, nativeVoice, voicePreview, composerPredictions, diagnosticsReader, modelCatalog, subagentCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
   return async (endpoint, payload, signal) => {
     if (endpoint === 'predictions/generate') {
       try {
@@ -207,12 +208,16 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
         if (typeof modelCatalog?.refresh !== 'function' || typeof preferences?.status !== 'function') {
           return publicError('internal', 'Could not refresh Codex model catalog')
         }
-        await modelCatalog.refresh({ signal })
+        const native = subagentCatalog && preferences.status()?.subagentBackend === 'codex'
+          ? subagentCatalog.refresh({ signal }).catch(() => {}) : undefined
+        await Promise.all([modelCatalog.refresh({ signal }), native])
+        signal.throwIfAborted()
         const value = preferences.status()
         return {
           ok: true,
           value: {
             availableModels: Array.isArray(value?.availableModels) ? value.availableModels : [],
+            subagentModels: Array.isArray(value?.subagentModels) ? value.subagentModels : [],
             contextModels: Array.isArray(value?.contextModels) ? value.contextModels : [],
             verbosityModels: Array.isArray(value?.verbosityModels) ? value.verbosityModels : [],
             fastModels: Array.isArray(value?.fastModels) ? value.fastModels : [],
@@ -250,6 +255,10 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
             if (!Object.hasOwn(payload ?? {}, field)) continue
             if (!rule.choices.includes(payload[field])) return publicError('internal', rule.error)
             patch[field] = payload[field]
+          }
+          if (Object.hasOwn(payload ?? {}, 'subagentDefaultModel')) {
+            if (normalizeSubagentModel(payload.subagentDefaultModel) !== payload.subagentDefaultModel) return publicError('internal', 'Invalid subtask model')
+            patch.subagentDefaultModel = payload.subagentDefaultModel
           }
           if (Object.hasOwn(payload ?? {}, CUSTOM_CONTEXT_WINDOW_FIELD)) {
             if (normalizeCustomContextWindow(payload[CUSTOM_CONTEXT_WINDOW_FIELD]) !== payload[CUSTOM_CONTEXT_WINDOW_FIELD]) {

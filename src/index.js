@@ -10,7 +10,8 @@ import { createCompactionBridge } from './subscription-compaction.js'
 import { createReasoningBridge } from './subscription-reasoning.js'
 import { registerSubscriptionTransport } from './subscription-transport.js'
 import { createSubagentBackendSwitcher, createSubscriptionSubagent, loadSubagentRuntime, presetEntries, subagentConfigListener } from './subagent-backend.js'
-import { inspectSubagentRuntime } from './subagent-runtime.js'
+import { createSubagentDefaults, normalizeSubagentModel, normalizeSubagentEffort } from './subagent-defaults.js'
+import { inspectSubagentRuntime, SUBAGENT_CODEX_VERSION } from './subagent-runtime.js'
 import { createRuntimeManagement } from './runtime-management.js'
 import { createSketchAgentBridge } from './sketch-agent-bridge.js'
 import { createSketchAgentTool } from './sketch-agent-tool.js'
@@ -132,6 +133,7 @@ export function createSearchProviderSwitcher(loader) {
 const settingsFields = {
   [DISABLED_MODELS_FIELD]: z.transform(z.array(z.string()).max(100), normalizeDisabledModels).default([]),
   [AUTO_QUOTA_RETRY_FIELD]: z.boolean().default(DEFAULT_AUTO_QUOTA_RETRY),
+  subagentDefaultModel: z.transform(z.string().max(80), normalizeSubagentModel).default(''),
   ...Object.fromEntries(Object.entries(PREFERENCE_FIELDS).map(([field, rule]) => [field, rule.default === undefined ? z.union(rule.choices) : z.union(rule.choices).default(rule.default)])),
   imageModel: z.union(Object.keys(IMAGE_MODELS)).default(DEFAULT_IMAGE_MODEL),
   imageQuality: z.union(['auto','low','medium','high','xhigh','max']).default('auto'),
@@ -188,6 +190,19 @@ export function apply(ctx, config = {}) {
     retryDelaysMs: [5_000, 15_000, 30_000, 60_000, 120_000, 300_000],
   })
   const appendUltraPolicy = loadHostSessionSdk()?.appendPluginRecord
+  const subagentCatalog = createOfficialModelCatalog({
+    nativeVersion: SUBAGENT_CODEX_VERSION,
+    getAuth: options => resolveAuth(options),
+    readCredential: options => store.read(PROVIDER, options),
+    baseModels: () => baseProvider.getModels(),
+    fetch: (input, init) => network.fetch('catalog', input, init),
+  })
+  ctx.effect(() => () => subagentCatalog.clear())
+  const subagentDefaults = createSubagentDefaults({
+    readSettings: settings.get, catalog: subagentCatalog,
+    modelSelection: () => ctx.get?.('subagentModelSelection')?.current(),
+    projections: () => ctx.get?.('sessionProjections'),
+  })
   const ultra = createUltraExecutionPreset({
     catalog: modelCatalog,
     resolveAgent: () => ctx.get?.('agents')?.currentInitiator?.(),
@@ -260,6 +275,9 @@ export function apply(ctx, config = {}) {
         composerPredictions: settings.get().composerPredictions === 'on' ? 'on' : 'off',
         otherModels: settings.get().otherModels === 'off' ? 'off' : 'on',
         subagentBackend: settings.get().subagentBackend ?? 'dsh',
+        subagentDefaultModel: normalizeSubagentModel(settings.get().subagentDefaultModel),
+        subagentDefaultEffort: normalizeSubagentEffort(settings.get().subagentDefaultEffort),
+        subagentModels: subagentDefaults.list(),
         subagentBackendAvailable: subagentBackend !== undefined,
         subagentRuntimeInstalled: inspectSubagentRuntime().installed,
         ...readCapabilitySettings(settings.get()),
@@ -294,10 +312,14 @@ export function apply(ctx, config = {}) {
       }
     },
     update: async patch => {
+      if (patch.subagentDefaultModel && !subagentDefaults.list().some(model => model.id === patch.subagentDefaultModel)) {
+        throw new Error('Codex subtask model is unavailable or disallowed')
+      }
       if (patch[FETCH_PROVIDER_FIELD] === FETCH_PROVIDER_CODEX && !fetchRouted) throw new Error('This DSH version does not support Codex webpage reading')
       if (Object.hasOwn(patch, 'subagentBackend')) {
         if (!subagentBackend) throw new Error('DSH subagent services are unavailable')
         await subagentBackend.select(patch.subagentBackend)
+        if (patch.subagentBackend === 'codex') await subagentCatalog.refresh().catch(() => {})
       }
       const rest = { ...patch }
       delete rest.subagentBackend
@@ -352,6 +374,7 @@ export function apply(ctx, config = {}) {
       refresh: credential => network.run('oauth', () => baseProvider.auth.oauth.refresh(credential)),
       loadRuntime: loadSubagentRuntime,
       maintenance: runtimeManagement.blocked,
+      defaults: subagentDefaults,
     })
     scoped.subagents.registerProvider(instance.provider)
     const switcher = createSubagentBackendSwitcher({
@@ -800,10 +823,11 @@ export function apply(ctx, config = {}) {
     nativeVoice,
     voicePreview,
     composerPredictions,
-    onAccountChanged: () => { connectorsClient.clear(); usageProfileReader.clear(); voicePreview.clear(); composerPredictions.clear(); quotaRetryHandler.notifyAccountChanged() },
+    onAccountChanged: () => { subagentCatalog.clear(); connectorsClient.clear(); usageProfileReader.clear(); voicePreview.clear(); composerPredictions.clear(); quotaRetryHandler.notifyAccountChanged() },
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, review: provider, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
     onCleanupFailure: () => diagnosticOperations.record('account/cleanup', 'failed'),
     modelCatalog,
+    subagentCatalog,
     closeConnections: () => connection.dispose(),
     originalImages,
     resolveInheritedOriginal: (sessionId, assetId) => inheritedOriginalImageRef(

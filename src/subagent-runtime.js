@@ -7,6 +7,7 @@ import { promisify } from 'node:util'
 
 export const SUBAGENT_RUNTIME_PACKAGE = '@deepseek-ai/dsh-subagent-codex'
 export const SUBAGENT_RUNTIME_VERSION = '0.2.1-rc.5'
+export const SUBAGENT_CODEX_VERSION = '0.153.4'
 export const SUPPORTED_RUNTIME_VERSIONS = Object.freeze(['0.1.7-rc.2', '0.2.0-rc.1', '0.2.0-rc.2', '0.2.1-alpha.1', '0.2.1-alpha.2', '0.2.1-alpha.3', '0.2.1-alpha.4', '0.2.1-alpha.5', '0.2.1-rc.1', '0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.4', SUBAGENT_RUNTIME_VERSION, '0.2.2-alpha.2'])
 const require = createRequire(import.meta.url)
 const execute = promisify(execFile)
@@ -51,11 +52,11 @@ export async function loadSubagentRuntime({ resolve = require.resolve, run = exe
   const providerRequire = createRequire(entry)
   const codexManifestPath = providerRequire.resolve('@openai/codex/package.json')
   const codex = JSON.parse(readFileSync(codexManifestPath, 'utf8'))
-  if (codex.version !== '0.153.4' || typeof codex.bin?.codex !== 'string') throw new Error('Codex subtask runtime version is unsupported')
+  if (codex.version !== SUBAGENT_CODEX_VERSION || typeof codex.bin?.codex !== 'string') throw new Error('Codex subtask runtime version is unsupported')
   const wrapper = resolvePath(dirname(codexManifestPath), codex.bin.codex)
   try {
     const { stdout } = await run(process.execPath, [wrapper, '--version'], { timeout: 10000, maxBuffer: 4096, windowsHide: true })
-    if (stdout.trim() !== 'codex-cli 0.153.4') throw new Error('Unexpected CLI version')
+    if (stdout.trim() !== `codex-cli ${SUBAGENT_CODEX_VERSION}`) throw new Error('Unexpected CLI version')
   } catch { throw new Error('Codex subtask runtime is incomplete; prepare it for this platform') }
   const [official, { JsonRpcLineTransport: Transport }] = await Promise.all([
     importModule(pathToFileURL(entry).href),

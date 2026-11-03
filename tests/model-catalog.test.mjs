@@ -42,6 +42,28 @@ const remote = (overrides = {}) => ({
 const RETIREMENT_SECONDS = 1792004400
 const CATALOG_NOW = Date.UTC(2026, 8, 29)
 
+test('the native subtask catalog uses its own client version and excludes hidden or unsupported routes', async () => {
+  let request
+  const catalog = createOfficialModelCatalog({
+    nativeVersion: '0.153.4',
+    baseModels: () => base,
+    async getAuth() { return { auth: { apiKey: 'fixture' } } },
+    async readCredential() { return { type: 'oauth', access: 'fixture', accountId: 'test-account' } },
+    async fetch(url, init) {
+      request = { url, originator: init.headers.originator }
+      return Response.json({ models: [
+        remote({ slug: 'gpt-5.6-luna' }),
+        remote({ slug: 'gpt-reserve', visibility: 'hide' }),
+        remote({ slug: 'gpt-unavailable', supported_in_api: false }),
+      ] })
+    },
+  })
+  await catalog.refresh()
+  assert.equal(new URL(request.url).searchParams.get('client_version'), '0.153.4')
+  assert.equal(request.originator, 'codex_cli_rs')
+  assert.deepEqual(catalog.getModels().map(model => model.id), ['gpt-5.6-luna'])
+})
+
 test('plain upgrade targets survive without retirement dates, but URL and Markdown destinations never do', () => {
   for (const upgrade of ['gpt-replacement', { model: 'gpt-replacement' }]) {
     const [model] = parseOfficialModelCatalog({ models: [remote({ upgrade })] }, CATALOG_NOW)

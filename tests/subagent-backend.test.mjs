@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { createSubagentTokens } from '../src/subagent-auth.js'
 import { createSubagentBackendSwitcher, presetEntries, subagentConfigListener, SUBAGENT_PROVIDER, subagentThreadPolicy } from '../src/subagent-backend.js'
 import { Context } from '@deepseek-ai/cordis'
+import { createSubagentDefaults } from '../src/subagent-defaults.js'
 
 test('subscription subagent pins account and serializes concurrent token rotation', async () => {
   let current = { type: 'oauth', accountId: 'a', access: 'old' }
@@ -76,6 +77,40 @@ test('explicit child route overrides inheritance without silently changing effor
   assert.equal(subagentThreadPolicy(other,policy,{provider:'openai-codex',model:'gpt-5.6-luna'}).model,'gpt-5.6-luna')
   assert.throws(()=>subagentThreadPolicy(parent,policy,{provider:'deepseek',model:'deepseek'}), /require the openai-codex/)
   assert.throws(()=>subagentThreadPolicy(parent,policy,{sandbox:'danger-full-access'}), /Unsupported Codex child option/)
+})
+
+test('saved Codex subtask defaults honor explicit requests and both allowlists', () => {
+  const parent = { session: { requestHeader: () => ({ config: { provider: 'openai-codex', model: 'gpt-6.1-sol', reasoningEffort: 'high' } }) } }
+  const settings = { subagentDefaultModel: 'gpt-6-luna', subagentDefaultEffort: 'low' }
+  const route = model => ({ provider: 'openai-codex', model })
+  let host = { enabled: true, allowedModels: [route('gpt-6-luna')] }
+  let savedRoutes = [route('gpt-6-luna')]
+  const defaults = createSubagentDefaults({
+    readSettings: () => settings, modelSelection: () => host,
+    projections: () => ({ stateOf: () => savedRoutes }),
+    catalog: { getModels: () => [{ id: 'gpt-6-luna' }, { id: 'gpt-6.1-sol' }],
+      metadata: () => ({ thinkingLevelMap: { low: 'low' } }) },
+  })
+  const resolve = requested => subagentThreadPolicy(parent, { mode: 'read-only' }, defaults.resolve(parent, requested))
+  assert.deepEqual(defaults.list().map(x => x.id), ['gpt-6-luna'])
+  assert.deepEqual([resolve().model, resolve().config.model_reasoning_effort], ['gpt-6-luna', 'low'])
+  assert.deepEqual([resolve({ reasoningEffort: 'xhigh' }).model, resolve({ reasoningEffort: 'xhigh' }).config.model_reasoning_effort], ['gpt-6.1-sol', 'xhigh'])
+  assert.equal(resolve({ model: 'gpt-6.1-sol' }).config.model_reasoning_effort, undefined)
+  settings.subagentDefaultEffort = 'max'
+  assert.equal(resolve().model, 'gpt-6-luna')
+  assert.equal(resolve().config.model_reasoning_effort, undefined)
+  savedRoutes = [route('gpt-6.1-sol')]
+  assert.deepEqual([resolve().model, resolve().config.model_reasoning_effort], ['gpt-6.1-sol', 'high'])
+  savedRoutes = [route('gpt-6-luna')]
+  host = { enabled: true, allowedModels: [route('gpt-6.1-sol')] }
+  assert.equal(resolve().model, 'gpt-6.1-sol')
+  host = { enabled: false }
+  settings.disabledModels = ['gpt-6-luna']
+  assert.equal(resolve().model, 'gpt-6.1-sol')
+  settings.subagentDefaultModel = ''
+  settings.subagentDefaultEffort = 'low'
+  savedRoutes = undefined
+  assert.deepEqual([resolve().model, resolve().config.model_reasoning_effort], ['gpt-6.1-sol', 'low'])
 })
 test('backend switches independent tool and restores it without changing fork or custom tools', async () => {
   const spawn = entry('spawn'), fork = entry('fork'), custom = entry('spawn', { persona: 'custom' })
