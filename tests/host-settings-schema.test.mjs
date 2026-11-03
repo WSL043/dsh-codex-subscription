@@ -48,6 +48,7 @@ test('Config uses the settings host schema and later status reads see volatile w
     ctx: { logger: { warn(error) { throw error } } },
   }
   fiber.entry = entry
+  fiber.ctx.fiber = fiber
   const adapter = createSettingsAdapter({
     fiber,
     effect(fn) { fn() },
