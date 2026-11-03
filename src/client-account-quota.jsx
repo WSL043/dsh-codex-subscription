@@ -66,7 +66,7 @@ export function AccountQuota({ entry, loading, showQuota, t }) {
     loading: 'accountVerifying', unknown: 'accountUnverified',
   }[state]
   const status = <span className="codexSubscriptionStatus"><span className="codexSubscriptionDot" data-state={state} aria-hidden="true" />{t(label)}</span>
-  if (entry?.error !== undefined) {
+  if (entry?.error !== undefined && state !== 'disconnected') {
     const message = accessFailureText(entry.error, t)
     return <small className="codexSubscriptionAccountQuota" role="status">{status}{message !== entry.error ? message : null}</small>
   }

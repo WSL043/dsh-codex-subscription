@@ -373,6 +373,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
       const tasks = [() => closeConnections?.(), () => usageReader.clearCache(), () => planHistoryReader?.clear(), () => usageProfileReader?.clear(),
         () => resetCreditService.clear(), () => modelCatalog?.clear(), () => onAccountChanged?.()]
       if (endpoint === 'logout') tasks.push(() => usageReader.clear(), () => accountUsageReader?.clear())
+      if (endpoint === 'login/status') tasks.push(() => accountUsageReader?.clear())
       if (endpoint === 'account/remove' && typeof payload?.id === 'string') tasks.push(() => usageReader.clearScope(payload.id))
       const outcomes = await Promise.allSettled(tasks.map(task => Promise.resolve().then(task)))
       const catalogOutcomes = endpoint === 'logout'

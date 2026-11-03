@@ -169,7 +169,7 @@ export function createCodexAuthService(models, store, options = {}) {
       }
     },
     login(interaction, input = {}) {
-      if (input.label !== undefined) {
+      if (input.label !== undefined || input.renewId !== undefined) {
         if (accountVault === undefined || createLoginModels === undefined) throw new Error('Codex multi-account is unavailable')
         return runLogin(async () => {
           const pending = createPendingStore()
@@ -177,7 +177,9 @@ export function createCodexAuthService(models, store, options = {}) {
           await loginModels.login(PROVIDER, 'oauth', interaction)
           const credential = pending.credential()
           if (credential === undefined) throw new Error('Codex login did not return credentials')
-          await accountVault.add(input.label, credential)
+          interaction.signal?.throwIfAborted()
+          if (input.renewId !== undefined) await accountVault.renew(input.renewId, credential, interaction.signal)
+          else await accountVault.add(input.label, credential)
         })
       }
       return runLogin(() => models.login(PROVIDER, 'oauth', interaction))

@@ -1,8 +1,8 @@
 export { CHANNEL, unwrap } from './rpc-contract.js'
 import { useSyncExternalStore } from 'react'
 import { quotaForecastView, formatQuotaRunout } from './quota-forecast-view.js'
-import { ACCESS_DENIED, DEVICE_LIMIT, PURCHASE_LIMIT } from './http-failure.js'
-const ACCESS_FAILURE_KEYS = new Map([[ACCESS_DENIED, 'accessDenied'], [DEVICE_LIMIT, 'deviceLimit'], [PURCHASE_LIMIT, 'purchaseLimit']])
+import { ACCESS_DENIED, DEVICE_LIMIT, PURCHASE_LIMIT, SIGN_IN_RENEW } from './http-failure.js'
+const ACCESS_FAILURE_KEYS = new Map([[ACCESS_DENIED, 'accessDenied'], [DEVICE_LIMIT, 'deviceLimit'], [PURCHASE_LIMIT, 'purchaseLimit'], [SIGN_IN_RENEW, 'resetRenewLogin']])
 export const accessFailureText = (message, t) => {
   const key = ACCESS_FAILURE_KEYS.get(message)
   return key === undefined ? message : t(key)

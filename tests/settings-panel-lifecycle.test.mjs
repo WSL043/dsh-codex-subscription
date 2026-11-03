@@ -130,9 +130,9 @@ test('account changes re-mask email and signing out requires a separate confirma
     assert.equal(email().props.children, 'first@example.test')
     h.render({ account: account('second') })
     assert.notEqual(email().props.children, 'second@example.test')
-    click('signOutAll'); assert.deepEqual(calls, [])
+    click('logout'); assert.deepEqual(calls, [])
     click('removeCancel'); assert.deepEqual(calls, [])
-    click('signOutAll'); click('signOutConfirm')
+    click('logout'); click('signOutConfirm')
     await flush(); h.render()
     assert.deepEqual(calls, ['logout'])
   } finally { h.dispose() }
@@ -322,4 +322,28 @@ test('opening settings verifies a single saved account and displays the server r
     badge.render({ entry: { id: 'a', error: 'Could not read ChatGPT usage' } })
     assert.equal(state(), 'unknown')
   } finally { h.dispose(); badge.dispose() }
+})
+
+test('the expired account action starts browser renewal directly and keeps the device fallback on the same account', async () => {
+  const calls = []
+  const h = await component('client-account.jsx', 'AccountCard', {
+    account: { authenticated: true, accounts: [{ id: 'expired', active: true }] },
+    t: key => key, setAccount() {}, onSignedOut() {},
+    rpc: { async call(_channel, endpoint, payload) {
+      calls.push({ endpoint, ...payload })
+      return { id: 'flow', phase: payload.method === 'browser' ? 'waiting_browser' : 'waiting_device' }
+    } },
+  }, {
+    './http-failure.js': { SIGN_IN_RENEW },
+    './client-account-quota.jsx': { useAccountQuotas: () => ({ entries: { expired: { error: SIGN_IN_RENEW } } }) },
+  })
+  const click = key => { nodes(h.tree, node => node.props.children === key)[0].props.onClick(); h.render() }
+  try {
+    click('renewAccount')
+    await flush(); h.render()
+    assert.deepEqual(calls, [{ endpoint: 'login/start', method: 'browser', openExternal: true, renewId: 'expired' }])
+    click('deviceLogin')
+    await flush(); h.render()
+    assert.deepEqual(calls.at(-1), { endpoint: 'login/start', method: 'device_code', openExternal: true, renewId: 'expired' })
+  } finally { h.dispose() }
 })

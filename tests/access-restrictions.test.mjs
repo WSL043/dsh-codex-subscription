@@ -159,6 +159,6 @@ test('login and client reconciliation cannot hide an explicit restriction behind
 })
 
 test('all public access messages have a fixed localization key while unknown messages stay unchanged', () => {
-  for (const [message, key] of [[DEVICE_LIMIT, 'deviceLimit'], [PURCHASE_LIMIT, 'purchaseLimit'], [ACCESS_DENIED, 'accessDenied']]) assert.equal(accessFailureText(message, value => value), key)
+  for (const [message, key] of [[DEVICE_LIMIT, 'deviceLimit'], [PURCHASE_LIMIT, 'purchaseLimit'], [ACCESS_DENIED, 'accessDenied'], [SIGN_IN_RENEW, 'resetRenewLogin']]) assert.equal(accessFailureText(message, value => value), key)
   assert.equal(accessFailureText('other', () => { throw Error('not a restriction') }), 'other')
 })

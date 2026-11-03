@@ -33,6 +33,16 @@ function emailFromAccessToken(access) {
   )
 }
 
+function sameOAuthAccount(previous, next) {
+  if (typeof previous.accountId !== 'string' || previous.accountId.length === 0 || previous.accountId !== next.accountId) return false
+  const old = decodeJwtPayload(previous.access)
+  const fresh = decodeJwtPayload(next.access)
+  const oldUser = old?.['https://api.openai.com/auth']?.chatgpt_user_id
+  const freshUser = fresh?.['https://api.openai.com/auth']?.chatgpt_user_id
+  if (typeof oldUser === 'string' && oldUser && typeof freshUser === 'string' && freshUser) return oldUser === freshUser
+  return typeof old?.sub === 'string' && old.sub.length > 0 && old.sub === fresh?.sub
+}
+
 /** Normalize the one non-secret account attribute that may cross the UI boundary. */
 export function sanitizeOAuthCredential(value) {
   const credential = assertOAuthCredential(value)
@@ -268,6 +278,19 @@ export class DshOAuthAccountVault {
 
   activeId() {
     return this.#enqueue(async () => (await this.#ensurePayload())?.activeId)
+  }
+
+  renew(id, credential, signal) {
+    const next = sanitizeOAuthCredential(credential)
+    return this.modifyAccount(id, current => {
+      signal?.throwIfAborted()
+      if (!sameOAuthAccount(current, next)) {
+        const error = new Error('Codex login did not match the saved account')
+        error.code = 'account-mismatch'
+        throw error
+      }
+      return next
+    })
   }
 
   add(label, credential) {

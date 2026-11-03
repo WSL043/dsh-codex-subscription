@@ -3,6 +3,7 @@ import test from 'node:test'
 
 import { DshOAuthAccountVault } from '../src/account-vault.js'
 import { createCodexAuthService, DshOAuthCredentialStore } from '../src/credential-store.js'
+import { CodexLoginCoordinator } from '../src/login-coordinator.js'
 
 const oauth = suffix => ({
   type: 'oauth',
@@ -250,4 +251,36 @@ test('a read-only legacy source cannot turn a committed account switch into a fa
   await vault.select('local-1')
   assert.equal((await vault.list()).find(account => account.active).id, 'local-1')
   assert.equal(syncFailures, 0)
+})
+
+test('renewal updates the selected saved identity and a different user in the same workspace cannot replace it', async () => {
+  const credential = (token, user) => ({
+    ...oauth(token), accountId: 'shared-workspace',
+    access: 'e30.' + Buffer.from(JSON.stringify({
+      'https://api.openai.com/auth': { chatgpt_user_id: user }, jti: token,
+    })).toString('base64url') + '.fixture',
+  })
+  const backend = memoryCredentials({ refs: { CODEX_OAUTH: JSON.stringify(credential('old', 'original-user')) } })
+  const ids = ['original', 'active']
+  const vault = new DshOAuthAccountVault(backend, { key: 'accounts', legacyRef: 'CODEX_OAUTH', createId: () => ids.shift() })
+  await vault.add('Other', oauth('other'))
+  let returned = credential('new', 'different-user')
+  const store = new DshOAuthCredentialStore(backend, 'CODEX_OAUTH', [], { vault })
+  const auth = createCodexAuthService({}, store, {
+    accountVault: vault,
+    createLoginModels: pending => ({ login: () => pending.modify('openai-codex', () => returned) }),
+  })
+  const coordinator = new CodexLoginCoordinator(auth)
+  const refused = await coordinator.start({ method: 'browser', renewId: 'original' })
+  assert.equal(refused.phase, 'failed')
+  assert.equal(refused.failure, 'account-mismatch')
+  assert.deepEqual(await vault.readAccount('original'), credential('old', 'original-user'))
+  returned = credential('new', 'original-user')
+  const renewed = await coordinator.start({ method: 'browser', renewId: 'original' })
+  assert.equal(renewed.phase, 'authenticated')
+  assert.deepEqual(await vault.readAccount('original'), returned)
+  assert.deepEqual((await vault.list()).map(({ id, label, active }) => ({ id, label, active })), [
+    { id: 'original', label: 'Account 1', active: false }, { id: 'active', label: 'Other', active: true },
+  ])
+  assert.deepEqual(await vault.readActive(), oauth('other'))
 })
