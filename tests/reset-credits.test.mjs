@@ -116,6 +116,9 @@ test('inspect exposes each available credit through an opaque handle and prepare
 
   const prepared = await service.prepare({ creditRef: inspected.credits[1].ref, signal })
   assert.equal(prepared.creditExpiresAt, 1_800_007_200_000)
+  const refreshed = await service.inspect({ signal })
+  assert.deepEqual(refreshed.credits.map(credit => credit.ref), inspected.credits.map(credit => credit.ref))
+  assert.equal((await service.prepare({ creditRef: refreshed.credits[1].ref, signal })).challengeId, prepared.challengeId)
   advance(5_000)
   await service.consume({ challengeId: prepared.challengeId, acknowledged: true, signal })
   const post = requests.find(request => request.init.method === 'POST')

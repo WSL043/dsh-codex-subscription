@@ -159,6 +159,29 @@ test('quota reset cancellation sends no consume request and acceptance requires 
   } finally { h.dispose() }
 })
 
+test('refreshing the reset cards leaves the current card mounted until its replacement arrives', async () => {
+  const next = deferred()
+  const credit = { ref: 'stable-card', name: 'Full reset' }
+  let inspections = 0
+  const h = await component('client-usage.jsx', 'ResetCreditList', {
+    count: 1, refreshKey: 'first', t: key => key,
+    rpc: { async call() {
+      inspections++
+      return inspections === 1 ? { ok: true, value: { credits: [credit] } } : next.promise
+    } },
+  }, { './client-shared.js': { unwrap } })
+  const visibleRefs = () => nodes(h.tree, node => node.props.credit).map(node => node.key)
+  try {
+    await flush(); h.render()
+    assert.deepEqual(visibleRefs(), [credit.ref])
+    h.render({ refreshKey: 'next' })
+    assert.deepEqual(visibleRefs(), [credit.ref])
+    next.resolve({ ok: true, value: { credits: [credit] } })
+    await flush(); h.render()
+    assert.deepEqual(visibleRefs(), [credit.ref])
+  } finally { h.dispose() }
+})
+
 test('both settings entries keep independent HTML radio groups and the same selected preference', async () => {
   const additions = {
     './settings-contract.js': settingsContract,

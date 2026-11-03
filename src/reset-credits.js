@@ -63,12 +63,11 @@ function parseDetails(value, now) {
   if (available.length === 0) throw new Error('No usable quota reset is available')
   return {
     availableCount: value.available_count,
-    credits: available.map(({ credit, expiresAt }, index) => ({
+    credits: available.map(({ credit, expiresAt }) => ({
       creditId: credit.id,
       title: safeCopy(credit.title),
       description: safeCopy(credit.description),
       creditExpiresAt: expiresAt,
-      index,
     })),
   }
 }
@@ -107,11 +106,16 @@ export function createCodexResetCreditService(options) {
   let creditRefSequence = 0
 
   const rememberCreditRef = (accountId, credit) => {
+    for (const [ref, stored] of creditRefs) {
+      if (stored.accountId !== accountId || stored.creditId !== credit.creditId) continue
+      creditRefs.delete(ref)
+      creditRefs.set(ref, stored)
+      return ref
+    }
     const ref = `${randomUUID()}-${++creditRefSequence}`
     creditRefs.set(ref, {
       accountId,
       creditId: credit.creditId,
-      index: credit.index,
     })
     while (creditRefs.size > 64) creditRefs.delete(creditRefs.keys().next().value)
     return ref
@@ -199,8 +203,7 @@ export function createCodexResetCreditService(options) {
         if (reference === undefined || reference.accountId !== accountId) {
           throw new Error('This quota reset confirmation is no longer valid')
         }
-        selected = details.credits.find(credit => credit.creditId === reference.creditId
-          && credit.index === reference.index)
+        selected = details.credits.find(credit => credit.creditId === reference.creditId)
         if (selected === undefined) throw new Error('This quota reset confirmation is no longer valid')
       }
       if (selected === undefined) throw new Error('No usable quota reset is available')

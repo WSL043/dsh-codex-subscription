@@ -43,13 +43,14 @@ export function ResetCreditList({ rpc, t, count, nextExpiresAt, initialCredits, 
   useEffect(() => {
     let live = true
     setState('loading')
-    setCredits([])
     void rpc.call(CHANNEL, 'reset-credit/inspect', {}).then(unwrap).then(value => {
       if (!live) return
       setCredits(Array.isArray(value.credits) ? value.credits : [])
       setState('ready')
-    }).catch(() => {
-      if (live) setState('error')
+    }).catch(error => {
+      if (!live) return
+      if (['No quota reset is available', 'No usable quota reset is available'].includes(error?.message)) setCredits([])
+      setState('error')
     })
     return () => { live = false }
   }, [rpc, count, refreshKey])
