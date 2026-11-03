@@ -8,18 +8,24 @@ const exact = value => typeof value === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-
 const preview = version => /-(?:alpha|beta|dev|nightly|canary)(?:\.|$)/iu.test(version)
 const declared = manifest => new Set(String(manifest.peerDependencies?.['@deepseek-ai/dsh-llm'] ?? '').split('||').map(x => x.trim()).filter(exact))
 
-export function selectChannelCandidate(tags, published, compatibility, { requested, dryRun = false } = {}) {
+function testedVersions(compatibility, manifest) {
+  const supported = declared(manifest)
+  return new Set([...compatibility.supported, ...(compatibility.previews ?? [])].filter(version => supported.has(version)))
+}
+
+export function selectChannelCandidate(tags, published, compatibility, { requested, dryRun = false, current } = {}) {
   const entries = ['latest', 'next', 'alpha'].flatMap(channel => exact(tags[channel]) ? [{ channel, version: tags[channel] }] : [])
+  const tested = !dryRun && current ? testedVersions(compatibility, current) : new Set()
   if (requested) {
     if (!exact(requested)) throw new Error('Invalid requested DSH version')
     const entry = entries.find(x => x.version === requested)
     if (!entry) throw new Error('Requested DSH version is not on an official npm channel')
-    if (!dryRun && declared(published).has(entry.version)) return undefined
+    if (!dryRun && (declared(published).has(entry.version) || tested.has(entry.version))) return undefined
     return { ...entry, stable: !preview(entry.version), recheck: dryRun }
   }
   const supported = declared(published)
   const floors = [...supported].filter(v => !preview(v)).sort(compareVersions)
-  const candidates = entries.filter(({ version }) => !supported.has(version)
+  const candidates = entries.filter(({ version }) => !supported.has(version) && !tested.has(version)
     && (preview(version) ? !(compatibility.previews ?? []).includes(version)
       : floors.length === 0 || compareVersions(version, floors.at(-1)) > 0))
   candidates.sort((a, b) => Number(preview(a.version)) - Number(preview(b.version)) || compareVersions(b.version, a.version))
@@ -69,13 +75,28 @@ async function github(path, init = {}) {
   return response.status === 204 ? undefined : response.json()
 }
 const marker = version => `<!-- dsh-compatibility:${version} -->`
-async function openReports() {
+async function openReports(request = github) {
   const issues = []
   for (let page = 1; ; page++) {
-    const batch = await github(`issues?state=open&per_page=100&page=${page}`)
+    const batch = await request(`issues?state=open&per_page=100&page=${page}`)
     issues.push(...batch.filter(x => !x.pull_request))
     if (batch.length < 100) return issues
   }
+}
+
+export async function closeResolvedReports(compatibility, manifest, request = github) {
+  const tested = testedVersions(compatibility, manifest)
+  const closed = []
+  for (const issue of await openReports(request)) {
+    if (issue.user?.type !== 'Bot' || issue.user.login !== 'github-actions[bot]') continue
+    const version = /^<!-- dsh-compatibility:([^\s]+) -->/u.exec(issue.body ?? '')?.[1]
+    if (!tested.has(version) || issue.title !== `DSH ${version} 自动兼容检查需要处理`) continue
+    await request(`issues/${issue.number}`, { method: 'PATCH', body: JSON.stringify({
+      state: 'closed', state_reason: 'completed',
+    }) })
+    closed.push(issue.number)
+  }
+  return closed
 }
 async function output(values) {
   if (process.env.GITHUB_OUTPUT) await appendFile(process.env.GITHUB_OUTPUT,
@@ -91,7 +112,7 @@ async function detect() {
   ])
   if (published.name !== current.name || !exact(published.version)) throw new Error('Invalid published plugin identity')
   const dryRun = process.env.DRY_RUN === 'true'
-  const candidate = selectChannelCandidate(tags, published, compatibility, { requested: process.env.REQUESTED_VERSION, dryRun })
+  const candidate = selectChannelCandidate(tags, published, compatibility, { requested: process.env.REQUESTED_VERSION, dryRun, current })
   if (!candidate) return output({ changed: false, blocked: false })
   const manifest = await registryJson(`https://registry.npmjs.org/@deepseek-ai%2Fdsh/${candidate.version}`)
   if (manifest.name !== '@deepseek-ai/dsh' || manifest.version !== candidate.version
@@ -127,5 +148,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
   const mode = process.argv[2]
   if (mode === 'detect') await detect()
   else if (mode === 'report') await report()
-  else throw new Error('Expected detect or report')
+  else if (mode === 'close-resolved') {
+    const [compatibility, manifest] = await Promise.all([
+      readFile('compatibility.json', 'utf8').then(JSON.parse), readFile('package.json', 'utf8').then(JSON.parse),
+    ])
+    await output({ closed: await closeResolvedReports(compatibility, manifest) })
+  } else throw new Error('Expected detect, report, or close-resolved')
 }

@@ -33,6 +33,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  close-resolved:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.name == 'Risk-based CI' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.head_sha == github.sha
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Close bot reports covered by validated main
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          current=$(git ls-remote --exit-code origin refs/heads/main | cut -f1)
+          if [[ "$current" == "$VALIDATED_SHA" ]]; then
+            node scripts/upstream-compatibility.mjs close-resolved
+          fi
+
   detect:
     if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest

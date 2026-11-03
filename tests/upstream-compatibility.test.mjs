@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { selectChannelCandidate, baselineHold, registryJson } from '../scripts/upstream-compatibility.mjs'
+import { selectChannelCandidate, baselineHold, closeResolvedReports, registryJson } from '../scripts/upstream-compatibility.mjs'
 import { planCompatibilityRecheck } from '../scripts/prepare-compat-release.mjs'
 const published = { version: '3.2.2', peerDependencies: { '@deepseek-ai/dsh-llm': '0.2.1-rc.4 || 0.2.1-rc.5 || 0.2.2-alpha.2' } }
 const compat = { latestTested: '0.2.1-rc.5', supported: ['0.2.1-rc.5'], previews: ['0.2.2-alpha.2'] }
@@ -15,6 +15,10 @@ test('official RC channels deduplicate and take priority over alpha; known chann
 test('main-only compatibility never disguises an unpublished fix as an available npm version', async () => {
   const main = { ...compat, latestTested: '0.2.1-rc.6', supported: [...compat.supported, '0.2.1-rc.6'] }
   assert.equal(selectChannelCandidate({ next: '0.2.1-rc.6' }, published, main).version, '0.2.1-rc.6')
+  const current = { peerDependencies: { '@deepseek-ai/dsh-llm': '0.2.1-rc.6' } }
+  assert.equal(selectChannelCandidate({ next: '0.2.1-rc.6' }, published, main, { current }), undefined)
+  assert.equal(selectChannelCandidate({ next: '0.2.1-rc.6' }, published, main, { current, requested: '0.2.1-rc.6' }), undefined)
+  assert.equal(selectChannelCandidate({ next: '0.2.1-rc.6' }, published, main, { current, requested: '0.2.1-rc.6', dryRun: true }).recheck, true)
   assert.match(baselineHold(published, { version: '3.2.3' }, []), /not yet on npm/u)
   assert.match(baselineHold(published, published, ['src/business.js']), /unreleased/u)
   assert.equal(baselineHold(published, published, []), undefined)
@@ -25,6 +29,31 @@ test('main-only compatibility never disguises an unpublished fix as an available
   }
   const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
   for (const file of automation) assert.ok(!manifest.files.some(entry => file === entry || file.startsWith(entry + '/')))
+})
+test('validated main closes only matching compatibility reports opened by GitHub Actions', async () => {
+  const report = (number, version, overrides = {}) => ({
+    number, title: `DSH ${version} 自动兼容检查需要处理`, body: `<!-- dsh-compatibility:${version} -->\n\nReport`,
+    user: { login: 'github-actions[bot]', type: 'Bot' }, ...overrides,
+  })
+  const reports = [
+    report(229, '0.2.2-alpha.2'),
+    report(230, '0.2.1-rc.5'),
+    report(231, '0.2.2-alpha.3'),
+    report(232, '0.2.2-alpha.2', { user: { login: 'contributor', type: 'User' } }),
+    report(233, '0.2.2-alpha.2', { title: 'Other bot report' }),
+    report(234, '0.2.2-alpha.2', { pull_request: {} }),
+    report(235, '0.2.1-rc.4'),
+    report(236, '0.2.2-alpha.2', { user: { login: 'another[bot]', type: 'Bot' } }),
+  ]
+  const calls = []
+  const request = async (path, init) => {
+    if (path.startsWith('issues?')) return reports
+    calls.push({ path, method: init.method, body: JSON.parse(init.body) })
+  }
+  assert.deepEqual(await closeResolvedReports(compat, published, request), [229, 230])
+  assert.deepEqual(calls, [229, 230].map(number => ({
+    path: `issues/${number}`, method: 'PATCH', body: { state: 'closed', state_reason: 'completed' },
+  })))
 })
 test('channel rollback is ignored and alpha is never automatically classified stable', () => {
   assert.equal(selectChannelCandidate({ next: '0.2.1-rc.3' }, published, compat), undefined)
@@ -57,6 +86,13 @@ test('dry-run and failed gates cannot reach main/tag/npm publication', async () 
   assert.match(jobs.detect.if, /conclusion == 'success'/u)
   assert.match(jobs.detect.if, /head_branch == 'main'/u)
   assert.match(jobs.detect.if, /head_repository.full_name == github.repository/u)
+  const close = jobs['close-resolved']
+  for (const gate of [
+    "name == 'Risk-based CI'", "conclusion == 'success'", "head_branch == 'main'",
+    'head_repository.full_name == github.repository', 'head_sha == github.sha',
+  ]) assert.ok(close.if.includes(gate))
+  assert.deepEqual(close.permissions, { contents: 'read', issues: 'write' })
+  assert.equal(close.steps[0].with.ref, '${{ github.event.workflow_run.head_sha }}')
   assert.equal(jobs.detect.permissions, undefined)
   assert.equal(jobs.promote.permissions['contents'], 'write')
   for (const step of jobs.promote.steps.filter(s => /Refuse races|Commit accepted/u.test(s.name ?? ''))) assert.equal(step.if, 'inputs.dry_run != true')
