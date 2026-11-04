@@ -279,7 +279,8 @@ async function prepare(root, candidate, recheck = false) {
     readFile(compatibilityPath, 'utf8').then(JSON.parse),
     readFile(manifestPath, 'utf8').then(JSON.parse),
   ])
-  const update = planCompatibilityUpdate({ compatibility, manifest, host: await hostOf(candidate), documentedVersion: (await readFile(resolve(root, 'README.md'), 'utf8')).match(/dsh-codex-subscription@(\d+\.\d+\.\d+)/u)?.[1] }, candidate)
+  const known = [...compatibility.supported, ...(compatibility.previews ?? [])].includes(candidate)
+  const update = recheck && known ? null : planCompatibilityUpdate({ compatibility, manifest, host: await hostOf(candidate), documentedVersion: (await readFile(resolve(root, 'README.md'), 'utf8')).match(/dsh-codex-subscription@(\d+\.\d+\.\d+)/u)?.[1] }, candidate)
   if (update === null) {
     if (!recheck) return { changed: false, dshVersion: candidate, pluginVersion: manifest.version }
     const planned = planCompatibilityRecheck({ manifest, compatibility }, candidate)
@@ -332,7 +333,8 @@ async function refreshReleaseAge(root) {
 const UNSYNCED_DEV_PACKAGES = new Set(['@deepseek-ai/dsh-invariants'])
 
 async function main() {
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+  const rootIndex = process.argv.indexOf('--root')
+  const root = rootIndex < 0 ? resolve(dirname(fileURLToPath(import.meta.url)), '..') : resolve(process.argv[rootIndex + 1])
   if (process.argv.includes('--refresh-release-age')) return refreshReleaseAge(root)
   const versionIndex = process.argv.indexOf('--dsh-version')
   const candidate = versionIndex === -1 ? undefined : process.argv[versionIndex + 1]

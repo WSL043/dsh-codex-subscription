@@ -43,6 +43,12 @@ test('the DSH selection goes through the account wrapper', async () => {
   assert.equal(switcher.current(), 'codex-subscription-dsh')
 })
 
+test('Cordis 4.1 active selection takes precedence over raw config', () => {
+  const { entry, loader } = loaderWith({ searchProvider: 'stale-raw' })
+  entry.fiber.effectiveConfig = { searchProvider: { get: () => 'active-provider' } }
+  assert.equal(createSearchProviderSwitcher(loader).current(), 'active-provider')
+})
+
 test('a missing web runtime is reported', async () => {
   const switcher = createSearchProviderSwitcher({ entries: () => [] })
   await assert.rejects(switcher.select('auto'), /unavailable/)

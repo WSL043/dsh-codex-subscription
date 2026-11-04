@@ -85,9 +85,7 @@ const official = plannerChanged || runtime || matches([
 // Main can accumulate accepted fixes before a release. Equal versions still
 // run every runtime gate; publication and immutable assets have their own gates.
 if (runtime && publishedVersion && compareVersions(packageVersion, publishedVersion) < 0) {
-  console.error(`Runtime-bearing files changed, but package.json ${packageVersion} is behind published ${publishedVersion}.`)
-  console.error('Synchronize the package metadata with the current stable release before merging.')
-  process.exit(1)
+  console.warn(`Main ${packageVersion} is behind published ${publishedVersion}; compatibility releases can advance independently. Publication still requires a new immutable version.`)
 }
 
 const plan = { behavior, delivery, manager, official, runtime }

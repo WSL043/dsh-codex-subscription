@@ -10,7 +10,7 @@ export function createSettingsAdapter(ctx, config) {
   // live config when it is readable and shaped like a config object.
   const liveConfig = () => {
     try {
-      const current = ctx.fiber?.config ?? ctx.config
+      const current = ctx.fiber?.effectiveConfig ?? ctx.fiber?.config ?? ctx.config
       return current !== null && typeof current === 'object' ? current : config
     } catch {
       return config

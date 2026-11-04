@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
-import { selectChannelCandidate, baselineHold, closeResolvedReports, registryJson } from '../scripts/upstream-compatibility.mjs'
+import { selectChannelCandidate, closeResolvedReports, registryJson } from '../scripts/upstream-compatibility.mjs'
 import { planCompatibilityRecheck } from '../scripts/prepare-compat-release.mjs'
 const published = { version: '3.2.2', peerDependencies: { '@deepseek-ai/dsh-llm': '0.2.1-rc.4 || 0.2.1-rc.5 || 0.2.2-alpha.2' } }
 const compat = { latestTested: '0.2.1-rc.5', supported: ['0.2.1-rc.5'], previews: ['0.2.2-alpha.2'] }
@@ -16,19 +16,9 @@ test('main-only compatibility never disguises an unpublished fix as an available
   const main = { ...compat, latestTested: '0.2.1-rc.6', supported: [...compat.supported, '0.2.1-rc.6'] }
   assert.equal(selectChannelCandidate({ next: '0.2.1-rc.6' }, published, main).version, '0.2.1-rc.6')
   const current = { peerDependencies: { '@deepseek-ai/dsh-llm': '0.2.1-rc.6' } }
-  assert.equal(selectChannelCandidate({ next: '0.2.1-rc.6' }, published, main, { current }), undefined)
-  assert.equal(selectChannelCandidate({ next: '0.2.1-rc.6' }, published, main, { current, requested: '0.2.1-rc.6' }), undefined)
+  assert.equal(selectChannelCandidate({ next: '0.2.1-rc.6' }, published, main, { current }).version, '0.2.1-rc.6')
+  assert.equal(selectChannelCandidate({ next: '0.2.1-rc.6' }, published, main, { current, requested: '0.2.1-rc.6' }).version, '0.2.1-rc.6')
   assert.equal(selectChannelCandidate({ next: '0.2.1-rc.6' }, published, main, { current, requested: '0.2.1-rc.6', dryRun: true }).recheck, true)
-  assert.match(baselineHold(published, { version: '3.2.3' }, []), /not yet on npm/u)
-  assert.match(baselineHold(published, published, ['src/business.js']), /unreleased/u)
-  assert.equal(baselineHold(published, published, []), undefined)
-  const automation = ['.github/workflows/upstream-compatibility.yml', '.github/workflows/compatibility-autopilot.yml', 'scripts/upstream-compatibility.mjs', 'tests/upstream-compatibility.test.mjs', 'tests/release-contract.test.mjs']
-  assert.equal(baselineHold(published, published, automation), undefined)
-  for (const file of ['src/new-feature.js', 'lib/index.js', 'README.md', 'package.json', 'pnpm-lock.yaml', 'compatibility.json', 'dsh-codex.ps1', 'new-unknown.txt']) {
-    assert.match(baselineHold(published, published, [...automation, file]), /unreleased/u)
-  }
-  const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'))
-  for (const file of automation) assert.ok(!manifest.files.some(entry => file === entry || file.startsWith(entry + '/')))
 })
 test('validated main closes only matching compatibility reports opened by GitHub Actions', async () => {
   const report = (number, version, overrides = {}) => ({
@@ -95,11 +85,11 @@ test('dry-run and failed gates cannot reach main/tag/npm publication', async () 
   assert.equal(close.steps[0].with.ref, '${{ github.event.workflow_run.head_sha }}')
   assert.equal(jobs.detect.permissions, undefined)
   assert.equal(jobs.promote.permissions['contents'], 'write')
-  for (const step of jobs.promote.steps.filter(s => /Refuse races|Commit accepted/u.test(s.name ?? ''))) assert.equal(step.if, 'inputs.dry_run != true')
+  for (const step of jobs.promote.steps.filter(s => /Refuse races|Commit the isolated/u.test(s.name ?? ''))) assert.equal(step.if, 'inputs.dry_run != true')
   const dispatch = jobs.promote.steps.find(s => /Dispatch and await/u.test(s.name ?? ''))
   assert.equal(dispatch.env.DRY_RUN, '${{ inputs.dry_run }}')
   const dryBranch = dispatch.run.slice(dispatch.run.indexOf('if [['), dispatch.run.indexOf('\nelse\n'))
-  assert.match(dryBranch, /verify_only=true/u); assert.doesNotMatch(dryBranch, /release_kind=compatibility|git push/u)
+  assert.match(dryBranch, /exit 0/u); assert.doesNotMatch(dryBranch, /gh workflow run|release_kind=compatibility|git push/u)
   assert.match(jobs.promote.if, /windows-acceptance.result == 'success'/u)
   assert.match(jobs.promote.if, /stable == 'true'/u)
   assert.match(jobs.report.if, /dry_run != true/u)

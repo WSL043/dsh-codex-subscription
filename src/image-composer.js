@@ -1,7 +1,7 @@
 // Shared admission and cleanup for sketches and existing-image edits.
-export function attachImageFiles(conversation, input, files, sessionId) {
+export function attachImageFiles(conversation, input, files, sessionId, { uploadImages = false } = {}) {
   if (typeof conversation.createDrafts !== 'function' || typeof input.addAttachments !== 'function' || !sessionId) throw new Error('Image composer is unavailable')
-  const created = conversation.createDrafts(sessionId, files)
+  const created = conversation.createDrafts(sessionId, files, uploadImages)
   try {
     if (!input.addAttachments(created.map(item => item.id))) throw new Error('The composer is busy')
   } catch (error) {

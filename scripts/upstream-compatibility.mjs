@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { compareVersions } from './prepare-compat-release.mjs'
+import { publishedBaseline } from './compatibility-baseline.mjs'
 
 const exact = value => typeof value === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(value)
 const preview = version => /-(?:alpha|beta|dev|nightly|canary)(?:\.|$)/iu.test(version)
@@ -13,39 +14,23 @@ function testedVersions(compatibility, manifest) {
   return new Set([...compatibility.supported, ...(compatibility.previews ?? [])].filter(version => supported.has(version)))
 }
 
-export function selectChannelCandidate(tags, published, compatibility, { requested, dryRun = false, current } = {}) {
+export function selectChannelCandidate(tags, published, compatibility, { requested, dryRun = false } = {}) {
   const entries = ['latest', 'next', 'alpha'].flatMap(channel => exact(tags[channel]) ? [{ channel, version: tags[channel] }] : [])
-  const tested = !dryRun && current ? testedVersions(compatibility, current) : new Set()
   if (requested) {
     if (!exact(requested)) throw new Error('Invalid requested DSH version')
     const entry = entries.find(x => x.version === requested)
     if (!entry) throw new Error('Requested DSH version is not on an official npm channel')
-    if (!dryRun && (declared(published).has(entry.version) || tested.has(entry.version))) return undefined
+    if (!dryRun && declared(published).has(entry.version)) return undefined
     return { ...entry, stable: !preview(entry.version), recheck: dryRun }
   }
   const supported = declared(published)
   const floors = [...supported].filter(v => !preview(v)).sort(compareVersions)
-  const candidates = entries.filter(({ version }) => !supported.has(version) && !tested.has(version)
+  const candidates = entries.filter(({ version }) => !supported.has(version)
     && (preview(version) ? !(compatibility.previews ?? []).includes(version)
       : floors.length === 0 || compareVersions(version, floors.at(-1)) > 0))
   candidates.sort((a, b) => Number(preview(a.version)) - Number(preview(b.version)) || compareVersions(b.version, a.version))
   const entry = candidates[0]
   return entry && { ...entry, stable: !preview(entry.version), recheck: false }
-}
-
-// These files are excluded from the npm package. Runtime, install instructions,
-// dependency metadata and unknown paths must still wait for a manual release.
-const automationOnly = new Set([
-  '.github/workflows/upstream-compatibility.yml', // retired workflow path
-  '.github/workflows/compatibility-autopilot.yml',
-  'scripts/upstream-compatibility.mjs',
-  'tests/upstream-compatibility.test.mjs',
-  'tests/release-contract.test.mjs',
-])
-
-export function baselineHold(published, current, changedFiles) {
-  if (published.version !== current.version) return 'A manually prepared plugin release is not yet on npm'
-  if (changedFiles.some(file => !automationOnly.has(file))) return 'Main contains unreleased changes; automatic compatibility publication would include them'
 }
 
 export async function registryJson(url, fetcher = fetch, pause = ms => new Promise(done => setTimeout(done, ms))) {
@@ -105,32 +90,27 @@ async function output(values) {
 }
 
 async function detect() {
-  const [tags, published, compatibility, current] = await Promise.all([
+  const [tags, published] = await Promise.all([
     registryJson('https://registry.npmjs.org/-/package/@deepseek-ai%2Fdsh/dist-tags'),
     registryJson('https://registry.npmjs.org/dsh-codex-subscription/latest'),
-    readFile('compatibility.json', 'utf8').then(JSON.parse), readFile('package.json', 'utf8').then(JSON.parse),
   ])
-  if (published.name !== current.name || !exact(published.version)) throw new Error('Invalid published plugin identity')
+  const baseline = publishedBaseline(published)
+  const compatibility = JSON.parse(execFileSync('git', ['show', `${baseline.sha}:compatibility.json`], { encoding: 'utf8' }))
   const dryRun = process.env.DRY_RUN === 'true'
-  const candidate = selectChannelCandidate(tags, published, compatibility, { requested: process.env.REQUESTED_VERSION, dryRun, current })
+  const candidate = selectChannelCandidate(tags, published, compatibility, { requested: process.env.REQUESTED_VERSION, dryRun })
   if (!candidate) return output({ changed: false, blocked: false })
   const manifest = await registryJson(`https://registry.npmjs.org/@deepseek-ai%2Fdsh/${candidate.version}`)
   if (manifest.name !== '@deepseek-ai/dsh' || manifest.version !== candidate.version
     || !manifest.dist?.integrity || !manifest.dist?.tarball?.startsWith('https://registry.npmjs.org/')) {
     throw new Error('Official npm package identity or integrity is missing')
   }
-  let hold
   if (!dryRun) {
-    if (published.version !== current.version) return output({ changed: false, blocked: false, reason: 'Waiting for prepared manual release' })
-    execFileSync('git', ['fetch', '--no-tags', 'origin', `refs/tags/v${published.version}:refs/tags/v${published.version}`], { stdio: 'pipe' })
-    const files = execFileSync('git', ['diff', '--name-only', `v${published.version}`, 'HEAD'], { encoding: 'utf8' }).trim().split('\n').filter(Boolean)
-    hold = baselineHold(published, current, files)
     if ((await openReports()).some(issue => issue.body?.includes(marker(candidate.version)))) {
       return output({ changed: false, blocked: false, reason: 'An open compatibility report already tracks this version' })
     }
   }
-  await output({ changed: !hold, blocked: Boolean(hold), reason: hold ?? '', dsh_version: candidate.version,
-    stable: candidate.stable, recheck: candidate.recheck, published_version: published.version })
+  await output({ changed: true, blocked: false, reason: '', dsh_version: candidate.version,
+    stable: candidate.stable, recheck: candidate.recheck, published_version: published.version, baseline_sha: baseline.sha })
 }
 
 async function report() {

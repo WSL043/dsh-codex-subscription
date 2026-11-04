@@ -1,7 +1,7 @@
 import { createSketchSessionRegistry } from './sketch-session-state.js'
 import { withComposerSession, openComposerSession, createSessionOpeners } from './client-session-compat.js'
 import { ComposerImagePreviews, MessageImagePreviews, IMAGE_PREVIEWS_CSS } from './client-image-previews.jsx'
-import { nativeComposerAttachments } from './composer-attachment-native.js'
+import { nativeComposerAttachments, needsSubscriptionImageEnhancement } from './composer-attachment-native.js'
 import { imageConversationNode } from './image-conversation-node.js'
 import { CodexImageToolRow, CodexImageOutput } from './client-images.jsx'
 import { ImageWorkspace } from './image-workspace.jsx'
@@ -208,7 +208,7 @@ export function apply(ctx) {
       if (!preference.getSnapshot().imageEditing) throw new Error('Image editing is disabled')
       const ids = input.state.getSnapshot().attachmentIds
       if (operation.sourceId && Array.isArray(ids) && !ids.includes(operation.sourceId)) throw new Error('The source attachment was removed')
-      if (files.length) attachImageFiles(conversation, input, files, sessionId)
+      if (files.length) attachImageFiles(conversation, input, files, sessionId, { uploadImages: sessions.subagentAddress(sessionId) === undefined })
       openComposerSession(sessions, ctx.get('uiWorkspace'), sessionId)
       // Preserve text typed while the asynchronous image preparation ran.
       if (sourceInDraft && !annotations.length && !tool) return
@@ -233,7 +233,7 @@ export function apply(ctx) {
   ]) ctx.slots.inject(name, () => {
     let dispose
     const sync = () => {
-      if (preference.getSnapshot().imageViewer && (component !== ComposerImagePreviews || nativeAttachments())) {
+      if (needsSubscriptionImageEnhancement(preference.getSnapshot()) && (component !== ComposerImagePreviews || nativeAttachments())) {
         dispose ??= ctx.slots.register({ name, priority: -10,
           inject: sessionId => ({ preference, t, sessionId, nativeAttachments, watchNativeAttachments, nativeTranslate, service: imageViewer, openSketchImage: openSketchImage(sessionId), attachForEdit: attachForEdit(sessionId) }),
         }, component)
@@ -252,7 +252,7 @@ export function apply(ctx) {
       attachSketch: blob => {
         const current = preference.getSnapshot()
         if (!current.imageSketch || !current.imageEditing) throw new Error('Sketch editing is disabled')
-        attachImageFiles(conversation, sessionInput(sessionId), [new File([blob], 'sketch-reference.png', { type: 'image/png' })], sessionId)
+        attachImageFiles(conversation, sessionInput(sessionId), [new File([blob], 'sketch-reference.png', { type: 'image/png' })], sessionId, { uploadImages: sessions.subagentAddress(sessionId) === undefined })
       },
     }),
   }, ImageWorkspace))

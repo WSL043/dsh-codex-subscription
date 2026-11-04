@@ -4,6 +4,14 @@ run-name: Release ${{ inputs.request_id || github.sha }}
 on:
   workflow_dispatch:
     inputs:
+      source_ref:
+        description: Exact published-tag compatibility candidate commit; empty releases main
+        required: false
+        type: string
+      baseline_version:
+        description: Published npm version that the compatibility candidate directly extends
+        required: false
+        type: string
       request_id:
         description: Optional correlation id used by the compatibility autopilot
         required: false
@@ -41,13 +49,14 @@ permissions:
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   preflight:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
       version: ${{ steps.version.outputs.version }}
       tag: ${{ steps.version.outputs.tag }}
       prerelease: ${{ steps.version.outputs.prerelease }}
@@ -55,6 +64,30 @@ jobs:
       needed: ${{ steps.existing.outputs.needed }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_ref || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/checkout@v6
+        if: inputs.source_ref != ''
+        with:
+          ref: ${{ github.sha }}
+          path: .release-control
+
+      - name: Validate the isolated compatibility source
+        if: inputs.source_ref != ''
+        env:
+          SOURCE_SHA: ${{ inputs.source_ref }}
+          BASELINE_VERSION: ${{ inputs.baseline_version }}
+          DSH_VERSION: ${{ inputs.dsh_version }}
+          RELEASE_KIND: ${{ inputs.release_kind }}
+        run: |
+          test "$RELEASE_KIND" = compatibility
+          node .release-control/scripts/verify-compatibility-source.mjs
+
+      - name: Pin the accepted source
+        id: source
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Require the main branch
         shell: bash
@@ -89,6 +122,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
           VERIFY_ONLY: ${{ inputs.verify_only }}
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
         shell: bash
         run: |
           if [[ "$VERIFY_ONLY" == 'true' ]]; then
@@ -106,8 +140,8 @@ jobs:
             fi
           else
             if tag_sha="$(gh api "repos/$GITHUB_REPOSITORY/commits/$RELEASE_TAG" --jq '.sha' 2>/dev/null)"; then
-              if [[ "$tag_sha" != "$GITHUB_SHA" ]]; then
-                echo "$RELEASE_TAG already points to $tag_sha instead of $GITHUB_SHA." >&2
+              if [[ "$tag_sha" != "$SOURCE_SHA" ]]; then
+                echo "$RELEASE_TAG already points to $tag_sha instead of $SOURCE_SHA." >&2
                 exit 1
               fi
             fi
@@ -121,6 +155,13 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
+      - uses: actions/checkout@v6
+        if: inputs.source_ref != ''
+        with:
+          ref: ${{ github.sha }}
+          path: .release-control
       - uses: pnpm/action-setup@v5
         with:
           version: 11.26.0
@@ -130,7 +171,15 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm test
+      - name: Run candidate behavior tests
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          if [[ -n "$SOURCE_REF" ]]; then
+            node .release-control/scripts/run-compatibility-tests.mjs .
+          else
+            pnpm test
+          fi
       - run: pnpm run build
       - name: Verify committed build output
         run: git diff --exit-code -- lib
@@ -159,6 +208,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
       - uses: actions/setup-node@v6
         with:
           node-version: 24
@@ -181,6 +232,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
       - uses: pnpm/action-setup@v5
         with:
           version: 11.26.0
@@ -224,6 +277,8 @@ jobs:
       pull-requests: read
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.preflight.outputs.source_sha }}
       - uses: pnpm/action-setup@v5
         with:
           version: 11.26.0
@@ -542,7 +597,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.preflight.outputs.tag }}
-          TARGET_SHA: ${{ github.sha }}
+          TARGET_SHA: ${{ needs.preflight.outputs.source_sha }}
           IS_PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
         shell: bash
         run: |
@@ -628,6 +683,11 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ needs.preflight.outputs.tag }}
+      - uses: actions/checkout@v6
+        if: inputs.source_ref != ''
+        with:
+          ref: ${{ github.sha }}
+          path: .release-control
 
       - uses: pnpm/action-setup@v5
         with:
@@ -702,7 +762,15 @@ jobs:
           NODE
 
       - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: pnpm test
+      - name: Recheck the published source behavior
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          if [[ -n "$SOURCE_REF" ]]; then
+            node .release-control/scripts/run-compatibility-tests.mjs .
+          else
+            pnpm test
+          fi
       - run: pnpm run build
 
       - name: Verify committed build output
@@ -725,6 +793,23 @@ jobs:
         env:
           NPM_TAG: ${{ needs.preflight.outputs.npm_tag }}
         run: npm publish ./.release-artifact/dsh-codex-subscription.tgz --access public --tag "$NPM_TAG"
+
+  cleanup-compatibility:
+    needs: [preflight, publish-npm]
+    if: inputs.verify_only != true && inputs.source_ref != '' && needs.publish-npm.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Remove only the release ref just published
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ needs.preflight.outputs.source_sha }}
+        run: |
+          actual="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/compatibility-release" --jq '.object.sha' 2>/dev/null || true)"
+          if [[ "$actual" == "$EXPECTED_SHA" ]]; then
+            gh api --method DELETE "repos/$GITHUB_REPOSITORY/git/refs/heads/compatibility-release"
+          fi
 
   # npm can take many minutes to serve a new version and move its dist-tag.
   # Wait for that, then refresh the China mirror so users there see it too.

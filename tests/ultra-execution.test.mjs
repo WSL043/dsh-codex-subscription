@@ -24,7 +24,7 @@ function fixture({ cache = false, canDelegate = true, hasRecord = true, hasGuard
   const listeners = new Map(), guards = [], wires = []
   let preference = 'auto', current, delegateAvailable = canDelegate, effective = 'max', tool = { name: 'subagent' }
   const session = restored ?? new Session('ultra-fixture')
-  const tools = { guard(fn) { guards.push(fn); return () => { const index = guards.indexOf(fn); if (index >= 0) guards.splice(index, 1) } }, get: name => name === 'subagent' ? tool : undefined }
+  const tools = { guard(fn) { guards.push(fn); return () => { const index = guards.indexOf(fn); if (index >= 0) guards.splice(index, 1) } }, get: (name, agent, toolSet) => toolSet ? toolSet.view(agent).get(name) : name === 'subagent' ? tool : undefined }
   if (!hasGuard) delete tools.guard
   const agent = { session, ctx: { tools } }; current = agent
   const ctx = { get: name => name === 'tools' ? tools : undefined, on(name, fn) { listeners.set(name, fn); return () => listeners.delete(name) } }
@@ -120,6 +120,7 @@ nativeUltraTest('requested Ultra is durably distinct from real effort and activa
   const record = h.session.snapshotEvents().find(e => e.type === ULTRA_POLICY_RECORD)
   assert.equal(record.ignorable, true); assert.equal(record.data.requestedEffort, 'ultra')
   assert.equal(h.guards[0]({ name: 'subagent', agent: h.agent }), undefined)
+  assert.match(h.guards[0]({ name: 'subagent', agent: h.agent, toolSet: { view: () => new Map() } }), /changed after/, 'a registered tool excluded from this step is never admitted by Ultra')
   h.replaceTool()
   assert.match(h.guards[0]({ name: 'subagent', agent: h.agent }), /changed after/)
   h.dispose(); assert.equal(h.guards.length, 0)

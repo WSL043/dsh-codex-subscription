@@ -13,7 +13,7 @@ function nativeDelegations(ctx, agent) {
   const tools = scopedTools(agent) ?? ctx.get?.('tools')
   const subagents = ctx.get?.('subagents')
   return presetEntries(ctx).flatMap(entry => {
-    const config = entry.fiber?.config ?? entry.options?.config
+    const config = entry.fiber?.effectiveConfig ?? entry.fiber?.config ?? entry.options?.config
     if (entry.options?.name !== '@deepseek-ai/dsh-tool-subagent' ||
       !['spawn', SUBAGENT_PROVIDER].includes(config?.provider) || !subagents?.getProvider?.(config.provider)) return []
     const name = config.toolName ?? 'subagent'
@@ -55,7 +55,7 @@ export function createUltraExecutionPreset({ catalog, resolveAgent = () => undef
       if (!state || !state.tools.some(tool => tool.name === exec.name)) return
       if (!state.active || state.signal.aborted || exec.agent !== agent) return 'Ultra delegation belongs to an inactive or cancelled request'
       const tool = state.tools.find(tool => tool.name === exec.name)
-      if (tools.get(exec.name, agent) !== tool.definition) return 'Ultra delegation tool changed after request preparation; retry the request'
+      if (tools.get(exec.name, agent, exec.toolSet) !== tool.definition) return 'Ultra delegation tool changed after request preparation; retry the request'
       // Returning undefined cannot override another guard, approval or sandbox.
     })
     bindings.set(agent, binding)

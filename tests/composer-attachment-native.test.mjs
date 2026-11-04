@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { nativeComposerAttachments, nativeComposerProps } from '../src/composer-attachment-native.js'
+import { nativeComposerAttachments, nativeComposerProps, needsSubscriptionImageEnhancement } from '../src/composer-attachment-native.js'
+
+test('basic image browsing stays with DSH while annotation and subscription edits opt into the enhancement', () => {
+  assert.equal(needsSubscriptionImageEnhancement({imageViewer:true,imageEditing:false,imageAnnotations:false}),false)
+  assert.equal(needsSubscriptionImageEnhancement({imageViewer:true,imageEditing:true,imageAnnotations:false}),true)
+  assert.equal(needsSubscriptionImageEnhancement({imageViewer:true,imageEditing:false,imageAnnotations:true}),true)
+  assert.equal(needsSubscriptionImageEnhancement({imageViewer:false,imageEditing:true,imageAnnotations:true}),false)
+})
 
 test('host attachments remain selectable with old and alpha.2 injected registrations', () => {
   const own = () => {}, host = () => {}

@@ -53,6 +53,15 @@ test('modern DSH attachments carry the session and release refused drafts', () =
   assert.equal(released, created)
   assert.throws(() => attachImageFiles(conversation, input, files), /unavailable/)
 })
+
+test('image edits use native eager upload only when the session admits image uploads', () => {
+  const calls = []
+  const conversation = { createDrafts(session, files, upload) { calls.push({ session, upload }); return [{id:'a'}] } }
+  const input = { addAttachments: () => true }
+  attachImageFiles(conversation,input,[{}],'ordinary',{uploadImages:true})
+  attachImageFiles(conversation,input,[{}],'child',{uploadImages:false})
+  assert.deepEqual(calls,[{session:'ordinary',upload:true},{session:'child',upload:false}])
+})
 test('sketch coordinates remain relative across viewport sizes and paint taps', () => {
   assert.deepEqual(sketchPoint(100,50,{left:0,top:0,width:200,height:100}),{x:.5,y:.5})
   assert.deepEqual(sketchPoint(-5,200,{left:0,top:0,width:100,height:100}),{x:0,y:1})

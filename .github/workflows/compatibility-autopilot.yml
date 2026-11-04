@@ -15,7 +15,7 @@ on:
         required: false
         type: string
       dry_run:
-        description: Exercise candidate and publisher verification without committing or publishing
+        description: Exercise candidate and publisher verification without pushing refs or publishing
         required: false
         type: boolean
         default: false
@@ -64,6 +64,8 @@ jobs:
       reason: ${{ steps.detect.outputs.reason }}
       stable: ${{ steps.detect.outputs.stable }}
       dsh_version: ${{ steps.detect.outputs.dsh_version }}
+      baseline_sha: ${{ steps.detect.outputs.baseline_sha }}
+      published_version: ${{ steps.detect.outputs.published_version }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -93,8 +95,8 @@ jobs:
     outputs:
       changed: ${{ needs.detect.outputs.changed }}
       dsh_version: ${{ needs.detect.outputs.dsh_version }}
-      plugin_version: ${{ steps.update.outputs.plugin_version }}
-      patch_sha256: ${{ steps.patch.outputs.sha256 }}
+      plugin_version: ${{ steps.candidate.outputs.plugin_version }}
+      patch_sha256: ${{ steps.candidate.outputs.patch_sha256 }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -108,43 +110,15 @@ jobs:
           node-version: 24
           package-manager-cache: false
 
-      - name: Prepare the bounded compatibility patch
-        if: needs.detect.outputs.changed == 'true'
-        id: update
-        env:
-          DSH_VERSION: ${{ needs.detect.outputs.dsh_version }}
-          DRY_RUN: ${{ inputs.dry_run }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          extra=(); [[ "$DRY_RUN" != true ]] || extra+=(--recheck)
-          node scripts/prepare-compat-release.mjs --dsh-version "$DSH_VERSION" "${extra[@]}" > "$RUNNER_TEMP/update.json"
-          echo "plugin_version=$(jq -r '.pluginVersion' "$RUNNER_TEMP/update.json")" >> "$GITHUB_OUTPUT"
-          pnpm --config.minimum-release-age=0 install --lockfile-only
-          node scripts/prepare-compat-release.mjs --refresh-release-age
-          pnpm install --frozen-lockfile --ignore-scripts
-
-      - name: Verify source, build, and package
-        if: needs.detect.outputs.changed == 'true'
-        run: |
-          pnpm test
-          pnpm run build
-          git diff --check
-          rm -rf .candidate
-          mkdir .candidate
-          pnpm pack --pack-destination .candidate
-          package="$(find .candidate -maxdepth 1 -type f -name '*.tgz' -print -quit)"
-          test -n "$package"
-          test -s "$package"
-
-      - name: Fingerprint the accepted source patch
-        if: needs.detect.outputs.changed == 'true'
-        id: patch
-        shell: bash
-        run: echo "sha256=$(git diff --binary | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/compatibility-candidate
+        id: candidate
+        with:
+          baseline_sha: ${{ needs.detect.outputs.baseline_sha }}
+          recheck: ${{ inputs.dry_run == true }}
+          dsh_version: ${{ needs.detect.outputs.dsh_version }}
 
   windows-acceptance:
-    needs: prepare
+    needs: [detect, prepare]
     if: needs.prepare.outputs.changed == 'true'
     runs-on: windows-2025
     timeout-minutes: 25
@@ -160,28 +134,22 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - name: Recreate candidate
-        env:
-          DRY_RUN: ${{ inputs.dry_run }}
-        shell: powershell
-        run: |
-          $extra = if ($env:DRY_RUN -eq 'true') { @('--recheck') } else { @() }
-          node scripts/prepare-compat-release.mjs --dsh-version '${{ needs.prepare.outputs.dsh_version }}' @extra
-          pnpm --config.minimum-release-age=0 install --lockfile-only
-          node scripts/prepare-compat-release.mjs --refresh-release-age
-          pnpm install --frozen-lockfile --ignore-scripts
-          pnpm run build
-          New-Item -ItemType Directory -Path .candidate | Out-Null
-          pnpm pack --pack-destination .candidate
+      - uses: ./.github/actions/compatibility-candidate
+        with:
+          baseline_sha: ${{ needs.detect.outputs.baseline_sha }}
+          recheck: ${{ inputs.dry_run == true }}
+          dsh_version: ${{ needs.prepare.outputs.dsh_version }}
+          run_tests: 'false'
       - name: Verify Windows setup and manager behavior
         shell: powershell
+        working-directory: .compat-candidate
         env:
           DSH_CODEX_TEST_USER_PATH: '1'
         run: node --test tests/powershell-manager.test.mjs
       - name: Accept install, update, Web startup, and uninstall in official DSH
         shell: powershell
         run: |
-          $package = (Get-ChildItem -LiteralPath .candidate -Filter '*.tgz' -File | Select-Object -First 1).FullName
+          $package = (Get-ChildItem -LiteralPath .compat-candidate/.candidate -Filter '*.tgz' -File | Select-Object -First 1).FullName
           if (-not $package) { throw 'Candidate package was not built.' }
           .\.github\scripts\accept-official-release.ps1 `
             -PackagePath $package `
@@ -210,65 +178,73 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - name: Reproduce the accepted candidate
+      - uses: ./.github/actions/compatibility-candidate
+        id: candidate
+        with:
+          baseline_sha: ${{ needs.detect.outputs.baseline_sha }}
+          recheck: ${{ inputs.dry_run == true }}
+          dsh_version: ${{ needs.prepare.outputs.dsh_version }}
+      - name: Compare the accepted candidate
         env:
-          DSH_VERSION: ${{ needs.prepare.outputs.dsh_version }}
           EXPECTED_PATCH: ${{ needs.prepare.outputs.patch_sha256 }}
-          DRY_RUN: ${{ inputs.dry_run }}
+          ACTUAL_PATCH: ${{ steps.candidate.outputs.patch_sha256 }}
         shell: bash
         run: |
           set -euo pipefail
-          extra=(); [[ "$DRY_RUN" != true ]] || extra+=(--recheck)
-          node scripts/prepare-compat-release.mjs --dsh-version "$DSH_VERSION" "${extra[@]}"
-          pnpm --config.minimum-release-age=0 install --lockfile-only
-          node scripts/prepare-compat-release.mjs --refresh-release-age
-          pnpm install --frozen-lockfile --ignore-scripts
-          pnpm test
-          pnpm run build
-          actual="$(git diff --binary | sha256sum | cut -d' ' -f1)"
-          test "$actual" = "$EXPECTED_PATCH"
-          test "$(node -p "require('./package.json').version")" = '${{ needs.prepare.outputs.plugin_version }}'
+          test "$ACTUAL_PATCH" = "$EXPECTED_PATCH"
       - name: Refuse races and immutable release replacement
         if: inputs.dry_run != true
         env:
           GH_TOKEN: ${{ github.token }}
           PLUGIN_VERSION: ${{ needs.prepare.outputs.plugin_version }}
+          BASELINE_VERSION: ${{ needs.detect.outputs.published_version }}
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin main
-          test "$(git rev-parse origin/main)" = "$GITHUB_SHA"
+          test "$(npm view dsh-codex-subscription dist-tags.latest)" = "$BASELINE_VERSION"
           if gh release view "v$PLUGIN_VERSION" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             echo "v$PLUGIN_VERSION already exists; refusing replacement." >&2
             exit 1
           fi
-      - name: Commit accepted compatibility update to main
-        if: inputs.dry_run != true
+      - name: Commit and validate the local compatibility source
         env:
+          DRY_RUN: ${{ inputs.dry_run }}
           DSH_VERSION: ${{ needs.prepare.outputs.dsh_version }}
+          BASELINE_VERSION: ${{ needs.detect.outputs.published_version }}
         shell: bash
+        working-directory: .compat-candidate
         run: |
           set -euo pipefail
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -- .github/scripts/accept-official-release.ps1 src/subagent-runtime.js README.md README.en.md compatibility.json dsh-codex.ps1 lib package.json pnpm-lock.yaml pnpm-workspace.yaml
           git commit -m "chore: support DSH $DSH_VERSION"
-          git push origin HEAD:main
+          export SOURCE_SHA="$(git rev-parse HEAD)"
+          node ../scripts/verify-compatibility-source.mjs
+      - name: Push the isolated release ref
+        if: inputs.dry_run != true
+        shell: bash
+        working-directory: .compat-candidate
+        run: |
+          set -euo pipefail
+          git push --force-with-lease origin HEAD:refs/heads/compatibility-release
       - name: Dispatch and await the verified release workflow
         env:
           GH_TOKEN: ${{ github.token }}
           DSH_VERSION: ${{ needs.prepare.outputs.dsh_version }}
           DRY_RUN: ${{ inputs.dry_run }}
+          BASELINE_VERSION: ${{ needs.detect.outputs.published_version }}
         shell: bash
         run: |
           set -euo pipefail
           request_id="compat-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           title="Release $request_id"
           if [[ "$DRY_RUN" == 'true' ]]; then
-            echo 'DRY RUN: no main push, tag, Release or npm publication.'
-            gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref main -f request_id="$request_id" -f verify_only=true
+            echo 'DRY RUN: published-tag candidate and Windows acceptance passed; no ref, tag, Release or npm publication.'
+            exit 0
           else
-            gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref main -f request_id="$request_id" -f release_kind=compatibility -f dsh_version="$DSH_VERSION"
+            source_sha="$(git -C .compat-candidate rev-parse HEAD)"
+            gh workflow run publish.yml --repo "$GITHUB_REPOSITORY" --ref main -f request_id="$request_id" -f release_kind=compatibility -f dsh_version="$DSH_VERSION" -f source_ref="$source_sha" -f baseline_version="$BASELINE_VERSION"
           fi
           release_run=""
           for attempt in $(seq 1 90); do

@@ -220,6 +220,8 @@ test('configured id honors the native constructor env snapshot and never resurre
   assert.deepEqual(await WebRuntime.prototype.fetch.call(host, { url: target }), { codex: true })
   const old = { fiber: { config: { fetchProvider: { get: () => undefined } } }, options: { id: 'web', config: { fetchProvider: 'stale-raw' } } }
   assert.equal(configuredFetchProviderId({ fetchProviderEnv: 'original-env' }, [old], 'later-env'), 'original-env')
+  old.fiber.effectiveConfig = { fetchProvider: { get: () => 'active-provider' } }
+  assert.equal(configuredFetchProviderId({ fetchProviderEnv: 'original-env' }, [old]), 'active-provider')
 })
 
 test('old native constructor id overrides later raw config and ambient env, including an absent id', async () => {

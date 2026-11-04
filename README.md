@@ -47,7 +47,9 @@
 
 ## 准备 DSH
 
-已验证兼容 DSH `0.2.1-rc.5`，继续支持 `0.2.1-rc.3` 和 `0.2.1-rc.2`，最低支持 `0.1.7-rc.2`；更早的 DSH 请先升级。
+已验证兼容 DSH `0.2.2-rc.1`，继续支持 `0.2.1-rc.3` 和 `0.2.1-rc.2`，最低支持 `0.1.7-rc.2`；更早的 DSH 请先升级。
+
+DSH `0.2.2-rc.1` 的 CLI/Web 模式需要 Node.js **24.9 或更高版本**；官方桌面版使用自带的运行时。
 
 另支持预览宿主 `0.2.2-alpha.2`；范围与验收边界见[兼容性记录](docs/dsh-022-alpha2-compatibility.md)。
 
@@ -70,7 +72,7 @@
 2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
 
    ```text
-   dsh-codex-subscription@3.2.4
+   dsh-codex-subscription@3.2.5
    ```
 
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
@@ -87,7 +89,7 @@
 <summary>终端安装（已能运行 dsh 命令）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.4
+dsh plugin --profile web add dsh-codex-subscription@3.2.5
 ```
 
 安装完成后按提示重启 DSH，再到 **设置 → Codex 订阅** 登录。插件页面和终端均由 DSH 管理安装。
@@ -100,7 +102,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.2.4
 先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.4
+dsh plugin --profile headless add dsh-codex-subscription@3.2.5
 dsh --profile headless "只回复：ok"
 ```
 
@@ -365,7 +367,7 @@ Agent 先在画板绘制可编辑草图，再以该草图为参考调用订阅�
 <summary>终端方式</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.4
+dsh plugin --profile web update dsh-codex-subscription@3.2.5
 ```
 
 仅在需要卸载时运行：

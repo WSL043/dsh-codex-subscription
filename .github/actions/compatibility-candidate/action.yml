@@ -1,0 +1,51 @@
+name: Build a compatibility candidate from the published tag
+description: Keep workflow tooling separate from the released runtime source
+inputs:
+  baseline_sha:
+    required: true
+  dsh_version:
+    required: true
+  run_tests:
+    default: 'true'
+  recheck:
+    default: 'false'
+outputs:
+  plugin_version:
+    value: ${{ steps.candidate.outputs.plugin_version }}
+  patch_sha256:
+    value: ${{ steps.candidate.outputs.patch_sha256 }}
+runs:
+  using: composite
+  steps:
+    - name: Check out only the published source
+      shell: bash
+      env:
+        BASELINE_SHA: ${{ inputs.baseline_sha }}
+      run: |
+        set -euo pipefail
+        [[ "$BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]]
+        git fetch --no-tags origin "$BASELINE_SHA"
+        git worktree add --detach .compat-candidate "$BASELINE_SHA"
+    - name: Prepare and verify the bounded patch
+      id: candidate
+      shell: bash
+      working-directory: .compat-candidate
+      env:
+        DSH_VERSION: ${{ inputs.dsh_version }}
+        RUN_TESTS: ${{ inputs.run_tests }}
+        RECHECK: ${{ inputs.recheck }}
+      run: |
+        set -euo pipefail
+        args=()
+        if [[ "$RECHECK" == true ]]; then args+=(--recheck); fi
+        node ../scripts/prepare-compat-release.mjs --root . --dsh-version "$DSH_VERSION" "${args[@]}" > "$RUNNER_TEMP/compat-update.json"
+        pnpm --config.minimum-release-age=0 install --lockfile-only
+        node ../scripts/prepare-compat-release.mjs --root . --refresh-release-age
+        pnpm install --frozen-lockfile --ignore-scripts
+        if [[ "$RUN_TESTS" == true ]]; then node ../scripts/run-compatibility-tests.mjs .; fi
+        pnpm run build
+        git diff --check
+        mkdir .candidate
+        pnpm pack --pack-destination .candidate
+        echo "plugin_version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+        echo "patch_sha256=$(git diff --binary | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"

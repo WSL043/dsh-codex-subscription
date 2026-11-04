@@ -1,6 +1,18 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {createSettingsAdapter} from '../src/settings-adapter.js'
+
+test('Cordis 4.1 reads the effective validated config, including defaults and volatile references', () => {
+  let value = 'percent'
+  const ctx = {settings:{configure(){},update(){}},effect(){},fiber:{entry:{id:'p'},config:{},effectiveConfig:{quickQuotaMode:{get:()=>value},reasoningCache:true}}}
+  const adapter = createSettingsAdapter(ctx, {quickQuotaMode:'off'})
+  assert.equal(adapter.get().quickQuotaMode,'percent')
+  assert.equal(adapter.get().reasoningCache,true)
+  value='forecast'
+  assert.equal(adapter.get().quickQuotaMode,'forecast')
+  ctx.fiber.config={quickQuotaMode:'uncommitted-candidate'}
+  assert.equal(adapter.get().quickQuotaMode,'forecast')
+})
 test('new host writes by profile entry id and watches volatile values',async()=>{let value='off',notify,disposed=false;const writes=[];const ctx={fiber:{entry:{id:'internal-entry',options:{id:'codex-subscription'}}},effect:fn=>fn(),on:(event,fn)=>{assert.equal(event,'loader/volatile-update');notify=fn;return()=>{disposed=true}},settings:{configure:()=>()=>{},update:async(id,patch)=>{writes.push([id,patch]);value=patch.quickQuotaMode;notify?.()}}};const adapter=createSettingsAdapter(ctx,{quickQuotaMode:{get:()=>value}});let latest;const stop=adapter.watch(v=>{latest=v});await adapter.update({quickQuotaMode:'bar'});assert.deepEqual(writes,[['codex-subscription',{quickQuotaMode:'bar'}]]);assert.equal(latest.quickQuotaMode,'bar');assert.equal(adapter.get().quickQuotaMode,'bar');stop();assert.equal(disposed,true)})
 
 test('watchers receive the values from before the change', () => {

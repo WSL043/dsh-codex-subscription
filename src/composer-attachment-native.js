@@ -1,5 +1,7 @@
 // Reuse the host renderer, including its session-scoped business props. Entries
 // requiring a store or child-slot renderer must be left to the host machinery.
+export const needsSubscriptionImageEnhancement = settings => settings.imageViewer && (settings.imageEditing || settings.imageAnnotations)
+
 export function nativeComposerAttachments(entries, ownComponent) {
   return entries.find(entry => entry.component !== ownComponent
     && entry.locale === 'conversation' && !entry.store && !entry.children
