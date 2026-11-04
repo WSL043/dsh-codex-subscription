@@ -1,7 +1,7 @@
 import { recoveryCall } from './client-recovery.js'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from './client-primitives.js'
-import { CHANNEL, unwrap, accessFailureText, fill, uiLocale, percent, windowLabel, validDate, formatQuotaForecast, creditAmount, usePreferenceSnapshot } from './client-shared.js'
+import { CHANNEL, unwrap, accessFailureText, usageFailureText, fill, uiLocale, percent, windowLabel, validDate, formatQuotaForecast, creditAmount, usePreferenceSnapshot } from './client-shared.js'
 import { creditExpiryStatus, creditExpiryDateText } from './credit-expiry.js'
 import { REQUEST_BLOCKED, isAccessFailureMessage } from './http-failure.js'
 import { useQuotaUsage } from './client-quota.jsx'
@@ -172,7 +172,7 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
       {signedIn && busy && usage === undefined ? <p className="codexSubscriptionEmpty" role="status">{t('usageLoading')}</p> : null}
       {signedIn && !busy && error === undefined && usage !== undefined && !hasUsageDetails ? <p className="codexSubscriptionEmpty" role="status">{t('usageEmpty')}</p> : null}
     </div>
-    {error === undefined ? null : <p className="codexSubscriptionError" role="alert">{accessFailureText(error, t)}</p>}
+    {error === undefined ? null : <p className="codexSubscriptionError" role="alert">{usageFailureText(error, t)}</p>}
     {visibleUsage?.spendControlReached === true ? <p className="codexSubscriptionError" role="alert">{t('spendReached')}</p> : null}
     {limits.length === 0 ? null : <div className="codexSubscriptionLimits">{limits.flatMap(limit => limit.windows.map((window, index) => <div className="codexSubscriptionLimit" key={`${limit.id}-${window.windowSeconds}-${index}`}>
         <div className="codexSubscriptionLimitTop"><span className="codexSubscriptionLimitLabel">{limit.name ?? limit.id}</span><strong>{percent(window.remainingPercent)}%</strong></div>

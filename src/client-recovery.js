@@ -2,7 +2,9 @@ import { CHANNEL, unwrap } from './rpc-contract.js'
 import { classifyAccountStatusError } from './account-status-controller.js'
 import { PACKAGE_VERSION } from './version.js'
 
-export async function recoveryCall(rpc, endpoint, payload = {}, timeoutMs = 10_000) {
+// Usage reads have a 15-second host network deadline, plus credential refresh
+// and RPC overhead. Do not cancel a valid slow response at the generic 10s limit.
+export async function recoveryCall(rpc, endpoint, payload = {}, timeoutMs = endpoint === 'usage' || endpoint.startsWith('usage/') ? 30_000 : 10_000) {
   let timer
   const controller = new AbortController()
   try {

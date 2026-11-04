@@ -23,7 +23,8 @@ export function useAccountQuotas(rpc, ids, active = true, revision = 0) {
       return current.promise
     }
     const id = ++request.current
-    if (force) setEntries({})
+    // A refresh is not an account change. Retain the last result while pending;
+    // a completed failure still replaces it with unknown/expired as appropriate.
     setBusy(true)
     const current = { id, force }
     current.promise = recoveryCall(rpc, 'usage/accounts', { force })

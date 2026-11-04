@@ -3,6 +3,37 @@ import assert from 'node:assert/strict'
 import { recoveryCall, clientDiagnostic } from '../src/client-recovery.js'
 import { forecastUsage, observeQuotaForecast, estimateQuotaForecast } from '../src/quota-forecast.js'
 
+test('quota RPC waits beyond the host deadline while ordinary RPC keeps its shorter deadline', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  const pending = [], signals = []
+  const rpc = { call(...args) { signals.push(args[3]); return new Promise(resolve => pending.push(resolve)) } }
+  const usage = recoveryCall(rpc, 'usage')
+  const accounts = recoveryCall(rpc, 'usage/accounts')
+  const status = recoveryCall(rpc, 'status')
+  const rejected = assert.rejects(status, { code: 'timeout' })
+  await Promise.resolve()
+  t.mock.timers.tick(16_000)
+  await rejected
+  assert.equal(signals[0].aborted, false)
+  assert.equal(signals[1].aborted, false)
+  assert.equal(signals[2].aborted, true)
+  pending[0]({ ok: true, value: { quota: 77 } })
+  pending[1]({ ok: true, value: { accounts: [] } })
+  assert.deepEqual(await usage, { quota: 77 })
+  assert.deepEqual(await accounts, { accounts: [] })
+})
+
+test('a quota RPC that never returns still times out and cancels its work', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] })
+  let signal
+  const pending = recoveryCall({ call(...args) { signal = args[3]; return new Promise(() => {}) } }, 'usage')
+  const rejected = assert.rejects(pending, { code: 'timeout' })
+  await Promise.resolve()
+  t.mock.timers.tick(30_000)
+  await rejected
+  assert.equal(signal.aborted, true)
+})
+
 test('recovery requests time out and diagnostics omit raw secrets', async () => {
   let signal
   await assert.rejects(recoveryCall({ call(...args) { signal = args[3]; return new Promise(() => {}) } }, 'logout', {}, 5), { code: 'timeout' })

@@ -316,6 +316,29 @@ test('a late multi-account response cannot overwrite another account list', asyn
   } finally { h.dispose() }
 })
 
+test('account rechecks retain the last result while pending but never report success after a failed check', async () => {
+  let finish, fail = false
+  const rpc = { call() { return new Promise(resolve => { finish = () => resolve({ accounts: [{ id: 'a', ...(fail ? { error: 'Could not read ChatGPT usage' } : { usage: { rateLimits: [] } }) }] }) }) } }
+  const h = await component('client-account-quota.jsx', 'useAccountQuotas', { rpc, ids: ['a'], active: true },
+    {}, (hook, value) => hook(value.rpc, value.ids, value.active))
+  try {
+    finish(); await flush(); h.render()
+    assert.ok(h.tree.entries.a.usage)
+    const refreshing = h.tree.refresh(); h.render()
+    assert.ok(h.tree.entries.a.usage, 'refresh does not erase the previous reading')
+    assert.equal(h.tree.busy, true)
+    fail = true; finish(); await refreshing; h.render()
+    assert.equal(h.tree.entries.a.usage, undefined)
+    assert.equal(h.tree.entries.a.error, 'Could not read ChatGPT usage')
+    assert.equal(h.tree.busy, false)
+    const retry = h.tree.refresh(); h.render()
+    assert.equal(h.tree.entries.a.error, 'Could not read ChatGPT usage', 'retry retains unknown instead of showing initial verification again')
+    fail = false; finish(); await retry; h.render()
+    assert.ok(h.tree.entries.a.usage)
+    assert.equal(h.tree.entries.a.error, undefined)
+  } finally { h.dispose() }
+})
+
 test('opening settings verifies a single saved account and displays the server result', async () => {
   const calls = []
   let entry = { id: 'a', error: SIGN_IN_RENEW }
