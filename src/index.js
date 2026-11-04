@@ -25,6 +25,7 @@ import { createDshRemoteControl } from './remote-control-dsh.js'
 import { createRemoteHistorySource } from './remote-history-source.js'
 import { createUltraExecutionPreset } from './ultra-execution.js'
 import { loadHostSessionSdk } from './host-session-sdk.js'
+import { createImageBudgetGuard, wrapImageBudgetAdapter } from './image-budget-guard.js'
 import { createRemoteImageAssets } from './remote-image-assets.js'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import * as dshLlm from '@deepseek-ai/dsh-llm'
@@ -491,7 +492,29 @@ export function apply(ctx, config = {}) {
   }), 'codex-subscription: default reasoning effort')
   ctx.effect(() => {
     const lifetime = new AbortController()
-    const defaults = withDefaultReasoningEffort(ultra.wrapAdapter(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(provider.wrapRetryAdapter(adapter))), provider)), {
+    // Keep the inline image payload inside the provider's base64 bound before the
+    // host adapter has to refuse it: a long session that keeps collecting images
+    // otherwise pays a failed request plus a retry on every new turn.
+    const imageBudget = createImageBudgetGuard({
+      limit: MAX_REQUEST_IMAGE_BYTES,
+      messagesOf: () => {
+        const session = currentAgent()?.session
+        if (!session || typeof session.deriveMessages !== 'function') return undefined
+        const nodes = session.surface?.nodes
+        const messages = session.deriveMessages()
+        if (!Array.isArray(nodes) || nodes.length !== messages.length) return undefined
+        return messages.map((message, index) => ({ ...message, seq: nodes[index] }))
+      },
+      offload: targets => {
+        const session = currentAgent()?.session
+        if (!session || typeof session.append !== 'function') return false
+        session.append('image/offload', { targets })
+        return true
+      },
+      diagnostic: (area, message) => diagnosticLog.info(area, message),
+    })
+    const imageBudgetAdapter = wrapImageBudgetAdapter(provider.wrapRetryAdapter(adapter), imageBudget)
+    const defaults = withDefaultReasoningEffort(ultra.wrapAdapter(observeAdapter(reasoning.wrapAdapter(compaction.wrapAdapter(imageBudgetAdapter)), provider)), {
       preference: () => settings.get()[DEFAULT_REASONING_EFFORT_FIELD],
       modelDefault: id => modelCatalog.metadata(id)?.defaultReasoningEffort,
     })
