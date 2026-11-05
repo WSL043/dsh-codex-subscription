@@ -730,7 +730,7 @@ export default {
   "needSignIn": "Вы не вошли в аккаунт; для большинства функций сначала нужно войти в ChatGPT.",
   "needSignInGo": "Войти",
   "creditsFoldTitle": "Дополнительные кредиты и сбросы квоты",
-  "paceWarning": "При таком темпе лимит закончится до сброса: {runOut} (сброс: {reset}).",
+  "paceWarning": "При таком темпе лимит закончится до сброса: {runOut} ({reset}).",
   "paceWhen": "{day} — {part}",
   "paceResetOf": "сброс: {day}",
   "paceDay_today": "сегодня",

@@ -14,7 +14,7 @@ if (!existsSync(dependencies)) throw new Error('Official pnpm runtime dependenci
 // through a junction can break its relative package links on Windows runners.
 const probe = mkdtempSync(join(runner, 'node_modules', '.pnpm', 'subscription-tests-'))
 try {
-  for (const name of ['src', 'tests', 'scripts', 'package.json', 'cordis.patch.yml']) {
+  for (const name of ['src', 'tests', 'scripts', 'locale', 'docs/plugin', 'package.json', 'cordis.patch.yml']) {
     cpSync(join(source, name), join(probe, name), { recursive: true })
   }
   // Release checkouts intentionally have no node_modules. Only these test-owned
