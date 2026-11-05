@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Button } from './client-primitives.js'
 import { SettingsLabel } from './client-hint.jsx'
 import { CHANNEL, unwrap } from './rpc-contract.js'
+import { uiLocale } from './client-shared.js'
 
 export function StorageCard({ rpc, t }) {
   const [usage, setUsage] = useState()
@@ -23,7 +24,7 @@ export function StorageCard({ rpc, t }) {
   useEffect(() => { mounted.current = true; void read(false); return () => { mounted.current = false } }, [rpc])
   return <section className="codexSubscriptionCard codexSubscriptionStorage" aria-label={t('storageForecast')}>
     <div className="codexSubscriptionStorageHead">
-      <div className="codexSubscriptionStorageTitle"><SettingsLabel as="h3" className="" description={t('storageHint')}>{t('storageForecast')}</SettingsLabel><output role="status">{usage ? `${(usage.bytes / 1024).toFixed(1)} / ${(usage.limit / 1024).toFixed(0)} KiB` : t('storageLoading')}</output></div>
+      <div className="codexSubscriptionStorageTitle"><SettingsLabel as="h3" className="" description={t('storageHint')}>{t('storageForecast')}</SettingsLabel><output role="status">{usage ? `${(usage.bytes / 1024).toLocaleString(uiLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} / ${(usage.limit / 1024).toLocaleString(uiLocale())} KiB` : t('storageLoading')}</output></div>
       <div className="codexSubscriptionActions">
         <Button type="button" variant="outline" disabled={busy} onClick={() => void read(false)}>{t('runtimeRefresh')}</Button>
         <Button type="button" variant="outline" disabled={busy || !usage?.bytes} onClick={() => setConfirm(true)}>{t('storageClear')}</Button>

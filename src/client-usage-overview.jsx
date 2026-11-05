@@ -44,7 +44,7 @@ export function UsageOverview({ rpc, t, signedIn, resetKey }) {
     [t('overviewThreads'), value.totalThreads === undefined ? undefined : value.totalThreads.toLocaleString(uiLocale())],
     [t('overviewEffort'), value.mostUsedReasoningEffort === undefined ? undefined : `${value.mostUsedReasoningEffort}${value.mostUsedReasoningEffortPercent === undefined ? '' : ` · ${value.mostUsedReasoningEffortPercent}%`}`],
     [t('overviewFast'), value.fastModePercent === undefined ? undefined : `${value.fastModePercent}%`],
-    [t('overviewLongestTurn'), value.longestRunningTurnSeconds === undefined ? undefined : formatDuration(value.longestRunningTurnSeconds, t)],
+    [t('overviewLongestTurn'), value.longestRunningTurnSeconds === undefined ? undefined : formatDuration(value.longestRunningTurnSeconds, t, uiLocale())],
   ].filter(([, text]) => text !== undefined)
   return <details className="codexSubscriptionHistory" onToggle={event => setOpen(event.currentTarget.open)}>
     <summary>{t('overviewTitle')}</summary>

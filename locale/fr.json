@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Abonnement Codex",
+    "description": "Utilisez votre abonnement ChatGPT / Codex pour les modèles, le suivi d’utilisation, la recherche web et les images dans DSH. Aucune clé API requise. Appels vocaux et contrôle à distance depuis un téléphone inclus (Beta).",
+    "detail": "docs/plugin/DETAIL.fr.md"
+  }
+}

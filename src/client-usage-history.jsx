@@ -11,7 +11,7 @@ const LABELS = new Map([
   ['composer', 'historyComposer'], ['automation', 'historyAutomation'],
 ])
 const day = value => new Date(value).toLocaleDateString(uiLocale(), { month: 'numeric', day: 'numeric' })
-const amount = value => (value > 0 && value < 0.1 ? '<0.1' : (value >= 10 ? Math.round(value) : Math.round(value * 10) / 10).toLocaleString(uiLocale()))
+const amount = value => value > 0 && value < 0.1 ? `<${(0.1).toLocaleString(uiLocale())}` : (value >= 10 ? Math.round(value) : Math.round(value * 10) / 10).toLocaleString(uiLocale())
 const labelOf = (dimension, key, t) => (dimension === 'model' ? key : LABELS.has(key) ? t(LABELS.get(key)) : key.replaceAll('_', ' '))
 
 function Rows({ dimension, rows, total, t }) {

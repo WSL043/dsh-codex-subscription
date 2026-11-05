@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Assinatura Codex",
+    "description": "Use sua assinatura do ChatGPT / Codex para modelos, acompanhamento de uso, busca na web e imagens no DSH. Não precisa de chave de API. Inclui chamadas de voz e controle remoto pelo celular (Beta).",
+    "detail": "docs/plugin/DETAIL.pt.md"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Suscripción de Codex",
+    "description": "Usa tu suscripción de ChatGPT / Codex para modelos, uso, búsqueda web e imágenes en DSH. No requiere clave API. Incluye llamadas de voz y control remoto desde el móvil (Beta).",
+    "detail": "docs/plugin/DETAIL.es.md"
+  }
+}

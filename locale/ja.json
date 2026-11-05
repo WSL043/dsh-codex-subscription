@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Codex サブスクリプション",
+    "description": "ChatGPT / Codex のサブスクリプションで DSH のモデル、使用量、Web 検索、画像生成を利用できます。API キーは不要です。音声通話とスマートフォンからの遠隔操作（Beta）にも対応。",
+    "detail": "docs/plugin/DETAIL.ja.md"
+  }
+}

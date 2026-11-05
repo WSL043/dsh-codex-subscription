@@ -45,10 +45,10 @@ export const windowLabel = (seconds, t) => {
   if (isApproximateWindow(seconds, 2_592_000)) return t('windowMonthly')
   if (isApproximateWindow(seconds, 31_536_000)) return t('windowAnnual')
   return seconds >= 86_400 && seconds % 86_400 === 0
-    ? fill(t('windowDays'), { value: seconds / 86_400 })
+    ? fill(t('windowDays'), { value: (seconds / 86_400).toLocaleString(uiLocale()) })
     : seconds >= 172_800
-      ? fill(t('windowDays'), { value: Math.round(seconds / 8640) / 10 })
-      : fill(t('windowHours'), { value: hours(seconds) })
+      ? fill(t('windowDays'), { value: (Math.round(seconds / 8640) / 10).toLocaleString(uiLocale()) })
+      : fill(t('windowHours'), { value: hours(seconds).toLocaleString(uiLocale()) })
 }
 export const validDate = value => {
   const date = new Date(value)

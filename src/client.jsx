@@ -7,7 +7,7 @@ import { CodexImageToolRow, CodexImageOutput } from './client-images.jsx'
 import { ImageWorkspace } from './image-workspace.jsx'
 import { attachImageFiles, appendImagePrompt } from './image-composer.js'
 import { createSketchTrigger, createImageTrigger } from './sketch-trigger.js'
-import { zh, en } from './client-locales.js'
+import { dictionaries } from './client-languages.js'
 import { STYLE } from './client-styles.js'
 import { createAnnotatedImageReference } from './image-edit-reference.js'
 import { DeferredImageViewer } from './client-deferred-image-viewer.jsx'
@@ -51,7 +51,7 @@ export function apply(ctx) {
   const diagnostics = createHostDiagnostics()
   ctx.effect(() => diagnostics.register(ctx.slots), 'codex-subscription: host inspection')
   const imageViewer = new SubscriptionImageViewerService()
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'codex-subscription: copy')
+  ctx.effect(() => ctx.locale.register(NS, dictionaries), 'codex-subscription: copy')
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = 'dsh-codex-subscription'

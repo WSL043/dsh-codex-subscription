@@ -36,8 +36,8 @@ export function heatmapCells(days, { now = new Date(), weeks = 26, firstDay = 0 
 }
 
 /** "32.1 小时" / "5 分钟": the unit words come from the interface language. */
-export function formatDuration(seconds, t) {
+export function formatDuration(seconds, t, locale) {
   return seconds >= 3600
-    ? t('overviewHours').replace('{value}', String(Math.round(seconds / 360) / 10))
-    : t('overviewMinutes').replace('{value}', String(Math.max(1, Math.round(seconds / 60))))
+    ? t('overviewHours').replace('{value}', (Math.round(seconds / 360) / 10).toLocaleString(locale))
+    : t('overviewMinutes').replace('{value}', Math.max(1, Math.round(seconds / 60)).toLocaleString(locale))
 }
