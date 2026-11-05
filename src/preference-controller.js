@@ -262,10 +262,11 @@ export function createPreferenceController(rpc) {
         publish()
       }
       return changed
-    } catch {
+    } catch (error) {
       if (disposed || current !== modelRefreshGeneration) return false
-      if (!modelError) {
-        modelError = true
+      const failure = error?.message === 'Codex model catalog refresh timed out' ? 'timeout' : true
+      if (modelError !== failure) {
+        modelError = failure
         publish()
       }
       return false

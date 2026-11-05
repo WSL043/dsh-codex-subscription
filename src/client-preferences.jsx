@@ -240,7 +240,7 @@ export function ModelCatalogStatus({ preference, t, title }) {
   const { refresh: catalogRefresh } = snapshot.catalogStatus ?? {}
   const failed = snapshot.modelError || catalogRefresh === 'failed'
   const loading = snapshot.modelsLoading || catalogRefresh === 'refreshing'
-  const message = loading ? 'catalogLoading' : failed && cached ? 'catalogCachedFailed' : failed && !online ? 'catalogFailed' : online ? 'catalogOnline' : cached ? 'catalogCached' : 'catalogSignedOut'
+  const message = loading ? 'catalogLoading' : snapshot.modelError === 'timeout' ? cached || online ? 'catalogCachedTimeout' : 'catalogTimeout' : failed && cached ? 'catalogCachedFailed' : failed && !online ? 'catalogFailed' : online ? 'catalogOnline' : cached ? 'catalogCached' : 'catalogSignedOut'
   return <div className="codexModelsHead">
     <h3>{title}</h3>
     <span className={failed && !online ? 'codexSubscriptionError' : 'codexSubscriptionPreferenceHint'} role={failed && !online ? 'alert' : undefined}>{t(message)}</span>

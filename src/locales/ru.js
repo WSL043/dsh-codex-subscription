@@ -1,5 +1,7 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
 export default {
+  "catalogTimeout": "Время ожидания каталога моделей истекло. Проверьте сеть или прокси и повторите попытку.",
+  "catalogCachedTimeout": "Доступный каталог моделей сохранён; время онлайн-обновления истекло. Проверьте сеть или прокси и повторите попытку.",
   "openSubscriptionSettings": "Настройки подписки",
   "projectHomepage": "Проект на GitHub",
   "voiceNativeCaptureConfirm": "Использовать микрофон и динамики этого компьютера для звонка? Запись остановится, когда вы завершите звонок или покинете беседу.",

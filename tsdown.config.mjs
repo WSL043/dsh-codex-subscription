@@ -113,7 +113,10 @@ function featureRebuildNotice() {
           const current = await stat(entryPath)
           // Serialize features and allow the clock to tick if necessary; never
           // invent a future mtime merely to force a distinct generation.
-          if (Math.floor(current.mtimeMs) === Date.now()) await new Promise(done => setTimeout(done, 1))
+          const deadline = performance.now() + 100
+          while (Date.now() <= current.mtimeMs && performance.now() < deadline) {
+            await new Promise(done => setTimeout(done, 1))
+          }
           await utimes(entryPath, current.atime, new Date())
         } catch (error) {
           // A clean build may finish a feature before the entry is written.

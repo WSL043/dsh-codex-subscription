@@ -1,5 +1,7 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
 export default {
+  "catalogTimeout": "モデル一覧の取得がタイムアウトしました。ネットワークやプロキシを確認して再試行してください。",
+  "catalogCachedTimeout": "取得済みのモデル一覧を使用中です。オンライン更新がタイムアウトしました。ネットワークやプロキシを確認して再試行してください。",
   "openSubscriptionSettings": "サブスクリプション設定",
   "projectHomepage": "GitHub プロジェクト",
   "voiceNativeCaptureConfirm": "この通話で、このコンピューターのマイクとスピーカーを使用しますか？通話を切るか会話を終了すると、音声のキャプチャは停止します。",

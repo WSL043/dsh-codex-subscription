@@ -1,5 +1,7 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
 export default {
+  "catalogTimeout": "Die Anfrage für den Modellkatalog hat das Zeitlimit überschritten. Netzwerk oder Proxy prüfen und erneut versuchen.",
+  "catalogCachedTimeout": "Der vorhandene Modellkatalog bleibt verfügbar. Die Online-Aktualisierung hat das Zeitlimit überschritten. Netzwerk oder Proxy prüfen und erneut versuchen.",
   "openSubscriptionSettings": "Abo-Einstellungen",
   "projectHomepage": "GitHub-Projekt",
   "voiceNativeCaptureConfirm": "Mikrofon und Lautsprecher dieses Computers für diesen Anruf verwenden? Die Aufnahme endet, wenn du auflegst oder das Gespräch verlässt.",

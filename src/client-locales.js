@@ -1,4 +1,6 @@
 export const zh = {
+  catalogTimeout: "模型目录读取超时。请检查网络或代理后重试。",
+  catalogCachedTimeout: "继续使用已读取的模型目录；在线更新超时，请检查网络或代理后重试。",
   openSubscriptionSettings: '订阅设置',
   projectHomepage: 'GitHub 项目主页',
   voiceNativeCaptureConfirm: '允许本次通话使用此电脑的麦克风和扬声器？挂断或离开会话后会停止收音。',
@@ -333,6 +335,8 @@ export const zh = {
 }
 
 export const en = {
+  catalogTimeout: "The model catalog request timed out. Check your network or proxy and retry.",
+  catalogCachedTimeout: "Keeping the available model catalog; the online refresh timed out. Check your network or proxy and retry.",
   openSubscriptionSettings: 'Subscription settings',
   projectHomepage: 'GitHub project',
   voiceNativeCaptureConfirm: 'Use this computer’s microphone and speakers for this call? Capture stops when you hang up or leave the conversation.',

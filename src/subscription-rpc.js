@@ -228,6 +228,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
         }
       } catch (error) {
         if (signal.aborted) throw error
+        if (error?.name === 'TimeoutError') return publicError('internal', 'Codex model catalog refresh timed out')
         return publicError('internal', 'Could not refresh Codex model catalog')
       }
     }
@@ -392,7 +393,10 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
         try { onCleanupFailure?.() } catch { /* Diagnostics must not change account results. */ }
       }
       if (endpoint !== 'logout') void Promise.resolve().then(() => modelCatalog?.refresh({ signal: undefined })).catch(() => {})
-    } else if (result.ok === true && (endpoint === 'status' || result.value?.authenticated === true)) {
+    } else if (result.ok === true && result.value?.authenticated === true
+      && modelCatalog?.status?.().source === 'unavailable' && modelCatalog.status().refresh === 'idle') {
+      // Quota polling also reads sign-in status. Do not refresh the model catalog
+      // every five seconds; startup, account changes and explicit refresh own it.
       void modelCatalog?.refresh({ signal: undefined }).catch(() => {})
     }
     return result

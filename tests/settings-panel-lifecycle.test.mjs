@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url'
 import vm from 'node:vm'
 import test from 'node:test'
 import * as settingsContract from '../src/settings-contract.js'
-import { PROJECT_URL, maskEmail, unwrap } from '../src/client-shared.js'
+import { PROJECT_URL, maskEmail, unwrap, validDate } from '../src/client-shared.js'
 import { SIGN_IN_RENEW } from '../src/http-failure.js'
 
 // Compile the actual components in memory. The hook/clock host below exercises
@@ -63,7 +63,7 @@ async function component(file, name, props, additions = {}, invoke = (fn, value)
   const hooks = { useState: state, useRef(initial) { const index = cursor++; return cells[index] ??= { current: initial } },
     useEffect: effect, useLayoutEffect: effect, useId: () => fixtureId }
   const shared = { useAccountStatusSnapshot: () => ({ status: 'ready', account: { authenticated: true } }),
-    usePreferenceSnapshot: () => ({}), uiLocale: () => 'en-US', fill: value => value, percent: String, windowLabel: String }
+    usePreferenceSnapshot: () => ({}), uiLocale: () => 'en-US', fill: value => value, percent: String, windowLabel: String, validDate }
   const dependencies = { react: hooks, 'react/jsx-runtime': { jsx: element, jsxs: element },
     './client-shared.js': shared, './rpc-contract.js': { CHANNEL: 'fixture' },
     './client-recovery.js': { recoveryCall: (rpc, endpoint, payload) => rpc.call('fixture', endpoint, payload) },
@@ -180,6 +180,37 @@ test('refreshing the reset cards leaves the current card mounted until its repla
     await flush(); h.render()
     assert.deepEqual(visibleRefs(), [credit.ref])
   } finally { h.dispose() }
+})
+
+test('zero-quota polling does not reload reset cards, but an explicit refresh still does', async () => {
+  let quota = { usage: { fetchedAt: Date.now(), rateLimits: [{ id: 'codex', windows: [{ usedPercent: 100, remainingPercent: 0, windowSeconds: 18000 }] }], resetCredits: { availableCount: 1 } } }
+  const refreshes = []
+  const h = await component('client-usage.jsx', 'UsageCard', {
+    rpc: {}, t: key => key, signedIn: true, resetKey: 0, preference: {},
+  }, { './client-quota.jsx': { useQuotaUsage: () => ({ ...quota, refresh: async force => refreshes.push(force) }) } })
+  const cards = () => nodes(h.tree, node => node.props.hasExhaustedQuota === true && node.props.count === 1)[0]
+  try {
+    const initial = cards().props.refreshKey
+    for (let n = 0; n < 3; n++) {
+      quota = { usage: { ...quota.usage, fetchedAt: quota.usage.fetchedAt + 5000 } }
+      h.render()
+      assert.equal(cards().props.refreshKey, initial)
+    }
+    nodes(h.tree, node => node.props.className === 'codexSubscriptionRefresh')[0].props.onClick()
+    h.render()
+    assert.notEqual(cards().props.refreshKey, initial)
+    assert.deepEqual(refreshes, [true])
+  } finally { h.dispose() }
+})
+
+test('catalog timeouts explain the failure while retaining an available directory', async () => {
+  for (const source of ['unavailable', 'cached', 'online']) {
+    const h = await component('client-preferences.jsx', 'ModelCatalogStatus', { t: key => key, preference: {} }, {
+      './client-shared.js': { usePreferenceSnapshot: () => ({ modelError: 'timeout', catalogStatus: { source, refresh: 'failed' } }) },
+    })
+    try { assert.ok(nodes(h.tree, node => node.props.children === (source === 'unavailable' ? 'catalogTimeout' : 'catalogCachedTimeout')).length) }
+    finally { h.dispose() }
+  }
 })
 
 test('both settings entries keep independent HTML radio groups and the same selected preference', async () => {

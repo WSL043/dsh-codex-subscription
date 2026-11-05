@@ -17,6 +17,28 @@ const options = extra => ({
 })
 const alive = t => { const timer = setInterval(() => {}, 1000); t.after(() => clearInterval(timer)) }
 
+test('a slow first catalog response survives the former ten-second deadline', async () => {
+  let clock = 0, sequence = 0
+  const timers = new Map(), gate = deferred()
+  const catalog = createOfficialModelCatalog(options({
+    now: () => clock,
+    setTimeout(fn, delay) { const id = ++sequence; timers.set(id, { fn, due: clock + delay }); return id },
+    clearTimeout: id => timers.delete(id),
+    fetch: () => gate.promise,
+  }))
+  const pending = catalog.refresh()
+  const outcome = pending.catch(error => error)
+  await tick()
+  clock = 12_000
+  for (const [id, task] of timers) if (task.due <= clock) { timers.delete(id); task.fn() }
+  await tick()
+  assert.equal(catalog.status().refresh, 'refreshing')
+  gate.resolve(Response.json(raw('slow-model')))
+  assert.equal(await outcome, true)
+  assert.deepEqual(catalog.getModels().map(model => model.id), ['slow-model'])
+  catalog.clear()
+})
+
 test('initialization has a deadline even when a credential resolver ignores cancellation', async t => {
   alive(t)
   const gate = deferred()

@@ -3,6 +3,28 @@ import { runtimeVersions } from '../src/pi-ai-compat.js'
 import { RPC_ENDPOINTS } from '../src/rpc-contract.js'
 import { IMAGE_FEATURE_DEFAULTS } from '../src/image-features.js'
 import test from 'node:test'
+
+test('quota sign-in polling does not repeatedly fetch an available catalog, and explicit refresh still works', async () => {
+  const { createSubscriptionRpcHandler } = await import('../src/subscription-rpc.js')
+  let state = { source: 'online', refresh: 'ok' }, reads = 0
+  const catalog = { status: () => state, async refresh() { reads++; state = { ...state, refresh: 'refreshing' } } }
+  const handler = createSubscriptionRpcHandler({
+    authHandler: async () => ({ ok: true, value: { authenticated: true } }),
+    modelCatalog: catalog, preferences: { status: () => ({}) },
+  })
+  const signal = new AbortController().signal
+  for (let n = 0; n < 3; n++) await handler('status', {}, signal)
+  assert.equal(reads, 0)
+  state = { source: 'unavailable', refresh: 'idle' }
+  await handler('status', {}, signal)
+  await handler('status', {}, signal)
+  assert.equal(reads, 1)
+  state = { source: 'cached', refresh: 'failed' }
+  await handler('status', {}, signal)
+  assert.equal(reads, 1)
+  assert.equal((await handler('preferences/models', {}, signal)).ok, true)
+  assert.equal(reads, 2)
+})
 import Schema from '@deepseek-ai/schemastery'
 
 test('settings schema survives the native browser JSON round trip', () => {

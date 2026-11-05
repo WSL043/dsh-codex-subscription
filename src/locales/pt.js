@@ -1,5 +1,7 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
 export default {
+  "catalogTimeout": "A solicitação do catálogo de modelos excedeu o tempo limite. Verifique a rede ou o proxy e tente novamente.",
+  "catalogCachedTimeout": "O catálogo disponível foi mantido; a atualização online excedeu o tempo limite. Verifique a rede ou o proxy e tente novamente.",
   "openSubscriptionSettings": "Configurações da assinatura",
   "projectHomepage": "Projeto no GitHub",
   "voiceNativeCaptureConfirm": "Usar o microfone e os alto-falantes deste computador nesta chamada? A captura será interrompida quando você desligar ou sair da conversa.",

@@ -8,7 +8,8 @@ import { authFailureMessage, isRestrictionFailureMessage } from './http-failure.
 export const CODEX_MODELS_URL = `https://chatgpt.com/backend-api/codex/models?client_version=${encodeURIComponent(PACKAGE_VERSION)}`
 
 const LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']
-const DEFAULT_REFRESH_TIMEOUT_MS = 10_000
+const DEFAULT_REFRESH_TIMEOUT_MS = 60_000
+const DEFAULT_LOCAL_TIMEOUT_MS = 10_000
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value)
 const nonEmpty = value => typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
 const positiveInteger = value => Number.isSafeInteger(value) && value > 0 ? value : undefined
@@ -223,7 +224,7 @@ export function createOfficialModelCatalog(options = {}) {
   const getNow = options.now ?? Date.now
   const schedule = options.setTimeout ?? setTimeout
   const cancelTimer = options.clearTimeout ?? clearTimeout
-  const timeoutMs = Number.isFinite(options.timeoutMs) && options.timeoutMs > 0 ? options.timeoutMs : DEFAULT_REFRESH_TIMEOUT_MS
+  const timeoutMs = Number.isFinite(options.timeoutMs) && options.timeoutMs > 0 ? options.timeoutMs : undefined
   const loadCache = options.loadCache ?? loadModelCatalogCache
   const saveCache = options.saveCache ?? saveModelCatalogCache
   const retryDelays = (options.retryDelaysMs ?? []).filter(delay => Number.isFinite(delay) && delay > 0)
@@ -252,7 +253,7 @@ export function createOfficialModelCatalog(options = {}) {
     signal?.addEventListener('abort', abort, { once: true })
     if (signal?.aborted) abort()
     const flight = { generation, controller }
-    const timer = schedule(() => controller.abort(new Error(`Codex model catalog ${label} timed out`)), timeoutMs)
+    const timer = schedule(() => controller.abort(Object.assign(new Error(`Codex model catalog ${label} timed out`), { name: 'TimeoutError' })), timeoutMs ?? (label === 'refresh' ? DEFAULT_REFRESH_TIMEOUT_MS : DEFAULT_LOCAL_TIMEOUT_MS))
     timer.unref?.()
     const task = Promise.resolve().then(() => { controller.signal.throwIfAborted(); return work(flight, controller.signal) })
     flight.promise = wait(task, controller.signal).finally(() => {
