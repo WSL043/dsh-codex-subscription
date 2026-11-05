@@ -165,17 +165,20 @@ Ultra 是 **DSH 主动分工预设**：使用账号模型目录解析出的实�
 
 在 **设置 → Codex 订阅 → 联网与工具 → 子任务** 点击 **安装组件**。DSH 负责安装，页面显示当前阶段，可取消尚未应用的安装；完成后重启，再选择 Codex。安装不会自动开启子任务。
 
-优先使用上面的 **安装组件** 按钮。插件会按当前 DSH 版本选择对应组件：DSH `0.2.0-rc.2` 安装组件 `0.2.0-rc.2`，DSH `0.1.5-rc.2` 安装组件 `0.1.5-rc.2`；已安装的 `0.1.5-rc.3` 组件仅在同版本宿主上识别。请不要省略组件版本号或自行改用 `@next`。
+优先使用上面的 **安装组件** 按钮。DSH 管理与宿主同版本的适配器，以及本插件专用的 Codex CLI。CLI 使用当前 profile 中的依赖别名 `dsh-codex-subtask-cli`，不替换宿主或其他应用的 Codex。已有适配器需要更新 CLI 时，也使用此按钮，完成后重启；原登录和子任务默认设置保留。
 
-### 旧版宿主手动安装与离线准备
+Windows 上，专用 CLI 优先使用设备和策略支持的 Codex MXC 沙箱；否则需要配置 Codex 的旧版 Windows 沙箱。子任务保留 DSH 会话的文件策略，沙箱不可用时不会退回无隔离执行。
 
-插件安装页面填写与当前 DSH 相同版本的组件，以下为固定版本示例：DSH `0.2.0-rc.2` 填写 `@deepseek-ai/dsh-subagent-codex@0.2.0-rc.2`。终端方式：
+### 手动安装与离线准备
+
+安装到订阅插件所在的同一 profile。以下命令适用于 DSH `0.2.2-rc.1`；使用其他受支持宿主时，只将适配器版本替换为宿主的对应版本，不要改用 `@next`。
 
 ```sh
-dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.0-rc.2
+dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.2-rc.1
+dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@0.166.0 --save-exact --ignore-scripts
 ```
 
-安装到订阅插件所在的同一个 profile，完成后重启。离线使用须提前在目标系统与架构上安装并验证完整运行时；只复制订阅插件或 Codex 启动脚本不够。模型请求仍需联网。
+CLI 别名是普通依赖，不需要作为插件启用。完成后重启。离线使用须提前在目标系统与架构上安装并验证完整运行时；只复制订阅插件或 Codex 启动脚本不够。模型请求仍需联网。
 
 ### 不再使用时
 
@@ -184,6 +187,7 @@ dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.0-rc.2
 要卸载：在同一位置点击 **卸载组件** 并确认。插件会检查正在运行的子任务，切回 DSH 后交给官方接口卸载；有任务运行时不能卸载。完成后重启。旧版宿主可在终端执行（将 `web` 替换为实际安装的 profile）：
 
 ```sh
+dsh plugin --profile web remove dsh-codex-subtask-cli
 dsh plugin --profile web remove @deepseek-ai/dsh-subagent-codex
 ```
 

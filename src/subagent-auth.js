@@ -93,7 +93,11 @@ export function authenticatedSubagentChild(child, { Transport, getTokens, thread
     if (method === 'thread/start') {
       if (!initialized) throw new Error('Codex initialization incomplete')
       await login()
-      return server.request(method, { ...params, ...thread }, signal)
+      const result = await server.request(method, { ...params, ...thread }, signal)
+      if (result.model !== thread.model) throw new Error('Codex did not apply the selected subtask model')
+      const effort = thread.config?.model_reasoning_effort
+      if (effort !== undefined && result.reasoningEffort !== effort) throw new Error('Codex did not apply the selected subtask reasoning effort')
+      return result
     }
     return server.request(method, params, signal)
   })

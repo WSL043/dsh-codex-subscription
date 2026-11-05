@@ -71,6 +71,17 @@ test('component maintenance prevents new subtasks and preparation before touchin
   assert.equal(instance.activeCount(), 0)
 })
 
+test('preparing again revalidates an optional CLI removed after an earlier successful preparation', async () => {
+  let installed = true
+  const instance = createSubscriptionSubagent({ loadRuntime: async () => {
+    if (!installed) throw Error('component removed')
+    return {}
+  } })
+  await instance.prepare()
+  installed = false
+  await assert.rejects(instance.prepare(), /component removed/)
+})
+
 test('incompatible managed component stays visible and removable', async () => {
   const {host,calls}=fixture()
   const service=createRuntimeManagement({manager:()=>host,inspect:()=>({installed:false,present:true}),active:()=>0,selectDsh:async()=>calls.push('dsh')})
@@ -85,4 +96,30 @@ test('host-owned incompatible component remains visible but cannot be removed', 
   const status=await service.status()
   assert.equal(status.present,true);assert.equal(status.removable,false)
   await service.start('remove');await tick();assert.deepEqual(calls,[])
+})
+
+test('an existing adapter can prepare the dedicated CLI and remove only owned components', async () => {
+  const calls = [], cli = { inspect: () => ({ available: true, owned: true }), change: async action => calls.push(action) }
+  const service = createRuntimeManagement({ manager: () => ({ listBundles: async () => [{ name, installed: true, readOnlyReason: 'host-owned' }], installBundle: () => assert.fail(), removeBundle: () => assert.fail(), cancelInstall() {} }),
+    inspect: () => ({ installed: false, present: true, adapterInstalled: true }), cli, active: () => 0, selectDsh: async () => calls.push('dsh'), componentVersion: () => '0.2.2-rc.1' })
+  assert.equal((await service.status()).installable, true)
+  await service.start('install'); await tick()
+  assert.deepEqual(calls, ['install']); assert.equal((await service.status()).restartRequired, true)
+  const removal = createRuntimeManagement({ manager: () => ({ listBundles: async () => [{ name, installed: true, readOnlyReason: 'host-owned' }], installBundle() {}, removeBundle: () => assert.fail(), cancelInstall() {} }),
+    inspect: () => ({ installed: true }), cli, active: () => 0, selectDsh: async () => calls.push('dsh') })
+  await removal.start('remove'); await tick()
+  assert.deepEqual(calls, ['install', 'dsh', 'remove'])
+})
+
+test('CLI installation can be cancelled without leaving a component operation running', async () => {
+  let entered
+  const started = new Promise(resolve => { entered = resolve })
+  const cli = { inspect: () => ({ available: true }), change: (_action, signal) => new Promise((_resolve, reject) => { entered(); signal.addEventListener('abort', () => reject(signal.reason), { once: true }) }) }
+  const {host} = fixture()
+  const service = createRuntimeManagement({ manager: () => host, inspect: () => ({ installed: false, adapterInstalled: true }), cli, active: () => 0, componentVersion: () => '0.2.2-rc.1' })
+  await service.start('install'); await started
+  assert.equal(service.blocked(), true)
+  await service.cancel()
+  assert.equal((await service.status()).phase, 'cancelled')
+  assert.equal(service.blocked(), false)
 })

@@ -1,13 +1,14 @@
 import { createRequire } from 'node:module'
 import { readFileSync, realpathSync } from 'node:fs'
-import { dirname, resolve as resolvePath } from 'node:path'
+import { dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import { SUBAGENT_CODEX_VERSION } from './subagent-cli.js'
+export { SUBAGENT_CODEX_VERSION } from './subagent-cli.js'
 
 export const SUBAGENT_RUNTIME_PACKAGE = '@deepseek-ai/dsh-subagent-codex'
 export const SUBAGENT_RUNTIME_VERSION = '0.2.2-rc.1'
-export const SUBAGENT_CODEX_VERSION = '0.153.4'
 export const SUPPORTED_RUNTIME_VERSIONS = Object.freeze(['0.1.7-rc.2', '0.2.0-rc.1', '0.2.0-rc.2', '0.2.1-alpha.1', '0.2.1-alpha.2', '0.2.1-alpha.3', '0.2.1-alpha.4', '0.2.1-alpha.5', '0.2.1-rc.1', '0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.4', '0.2.1-rc.5', '0.2.2-alpha.2', '0.2.2-alpha.3', SUBAGENT_RUNTIME_VERSION])
 const require = createRequire(import.meta.url)
 const execute = promisify(execFile)
@@ -35,25 +36,22 @@ export function matchingSubagentRuntimeVersion(resolve = require.resolve) {
   return SUPPORTED_RUNTIME_VERSIONS.includes(version) ? version : undefined
 }
 
-// Resolve from this plugin's dependency graph, then use the provider's own
-// protocol and CLI. Never search PATH or a desktop application's private files.
-export function inspectSubagentRuntime(resolve = require.resolve) {
+// Reuse the host-matching official provider and protocol with the dedicated CLI.
+// Never search PATH or a desktop application's private files.
+export function inspectSubagentRuntime(resolve = require.resolve, cli) {
   try {
     const manifestPath = resolve(`${SUBAGENT_RUNTIME_PACKAGE}/package.json`)
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
     if (!SUPPORTED_RUNTIME_VERSIONS.includes(manifest.version) || manifest.version !== matchingSubagentRuntimeVersion(resolve)) return { installed: false, present: true }
-    return { installed: true }
+    return { installed: cli?.inspect().installed === true, present: true, adapterInstalled: true }
   } catch { return { installed: false } }
 }
 
-export async function loadSubagentRuntime({ resolve = require.resolve, run = execute, importModule = url => import(url) } = {}) {
-  if (!inspectSubagentRuntime(resolve).installed) throw new Error('Codex subtask runtime is not prepared')
+export async function loadSubagentRuntime({ resolve = require.resolve, cli, run = execute, importModule = url => import(url), platform = process.platform } = {}) {
+  if (!inspectSubagentRuntime(resolve, cli).installed) throw new Error('Codex subtask runtime is not prepared')
   const entry = resolve(SUBAGENT_RUNTIME_PACKAGE)
   const providerRequire = createRequire(entry)
-  const codexManifestPath = providerRequire.resolve('@openai/codex/package.json')
-  const codex = JSON.parse(readFileSync(codexManifestPath, 'utf8'))
-  if (codex.version !== SUBAGENT_CODEX_VERSION || typeof codex.bin?.codex !== 'string') throw new Error('Codex subtask runtime version is unsupported')
-  const wrapper = resolvePath(dirname(codexManifestPath), codex.bin.codex)
+  const { wrapper } = cli.inspect()
   try {
     const { stdout } = await run(process.execPath, [wrapper, '--version'], { timeout: 10000, maxBuffer: 4096, windowsHide: true })
     if (stdout.trim() !== `codex-cli ${SUBAGENT_CODEX_VERSION}`) throw new Error('Unexpected CLI version')
@@ -62,5 +60,9 @@ export async function loadSubagentRuntime({ resolve = require.resolve, run = exe
     importModule(pathToFileURL(entry).href),
     importModule(pathToFileURL(providerRequire.resolve('@deepseek-ai/dsh-sdk-protocol')).href),
   ])
-  return { official, Transport }
+  // Standalone Codex does not enable a Windows sandbox by default. Prefer the
+  // official desktop's MXC isolation; unsupported machines retain Codex's own
+  // configured legacy sandbox or fail closed. Never disable confinement.
+  return { official, Transport, argv: [process.execPath, wrapper, 'app-server', '--listen', 'stdio://', '-c', 'features.apps=false', '-c', 'features.plugins=false',
+    ...(platform === 'win32' ? ['-c', 'features.prefer_mxc=true'] : [])] }
 }

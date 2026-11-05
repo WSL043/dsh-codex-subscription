@@ -11,7 +11,8 @@ import { createReasoningBridge } from './subscription-reasoning.js'
 import { registerSubscriptionTransport } from './subscription-transport.js'
 import { createSubagentBackendSwitcher, createSubscriptionSubagent, loadSubagentRuntime, presetEntries, subagentConfigListener } from './subagent-backend.js'
 import { createSubagentDefaults, normalizeSubagentModel, normalizeSubagentEffort } from './subagent-defaults.js'
-import { inspectSubagentRuntime, SUBAGENT_CODEX_VERSION } from './subagent-runtime.js'
+import { inspectSubagentRuntime } from './subagent-runtime.js'
+import { createSubagentCli } from './subagent-cli.js'
 import { createRuntimeManagement } from './runtime-management.js'
 import { createSketchAgentBridge } from './sketch-agent-bridge.js'
 import { createSketchAgentTool } from './sketch-agent-tool.js'
@@ -174,8 +175,9 @@ export function apply(ctx, config = {}) {
   const baseProvider = openaiCodexProvider()
   let resolveAuth = async () => undefined
   let subagentBackend
+  const subagentCli = createSubagentCli({ profile: () => ctx.get?.('profileContext') })
   const runtimeManagement = createRuntimeManagement({
-    manager: () => ctx.get?.('pluginManager'), inspect: inspectSubagentRuntime,
+    manager: () => ctx.get?.('pluginManager'), inspect: () => inspectSubagentRuntime(undefined, subagentCli), cli: subagentCli,
     active: () => subagentBackend?.activeCount() ?? 0,
     selectDsh: async () => { if (subagentBackend) await subagentBackend.select('dsh'); else await settings.update({ subagentBackend: 'dsh' }) },
   })
@@ -192,7 +194,7 @@ export function apply(ctx, config = {}) {
   })
   const appendUltraPolicy = loadHostSessionSdk()?.appendPluginRecord
   const subagentCatalog = createOfficialModelCatalog({
-    nativeVersion: SUBAGENT_CODEX_VERSION,
+    subagent: true,
     getAuth: options => resolveAuth(options),
     readCredential: options => store.read(PROVIDER, options),
     baseModels: () => baseProvider.getModels(),
@@ -280,7 +282,7 @@ export function apply(ctx, config = {}) {
         subagentDefaultEffort: normalizeSubagentEffort(settings.get().subagentDefaultEffort),
         subagentModels: subagentDefaults.list(),
         subagentBackendAvailable: subagentBackend !== undefined,
-        subagentRuntimeInstalled: inspectSubagentRuntime().installed,
+        subagentRuntimeInstalled: inspectSubagentRuntime(undefined, subagentCli).installed,
         ...readCapabilitySettings(settings.get()),
         [QUICK_QUOTA_MODE_FIELD]: normalizeQuickQuotaMode(
           settings.get()[QUICK_QUOTA_MODE_FIELD],
@@ -373,7 +375,7 @@ export function apply(ctx, config = {}) {
       ctx: scoped, nativeHome: dshHomePath('state', 'codex-subscription', 'native-subagent'),
       resolveAuth, store,
       refresh: credential => network.run('oauth', () => baseProvider.auth.oauth.refresh(credential)),
-      loadRuntime: loadSubagentRuntime,
+      loadRuntime: () => loadSubagentRuntime({ cli: subagentCli }),
       maintenance: runtimeManagement.blocked,
       defaults: subagentDefaults,
     })
@@ -385,14 +387,16 @@ export function apply(ctx, config = {}) {
     // Web presets mount their scoped tool rows lazily, after the settings page.
     const unconfigure = scoped.on('internal/config', subagentConfigListener(switcher), { global: true })
     let requested = 'dsh'
-    const select = async mode => {
+    const select = async (mode, options) => {
       requested = mode
-      try { await switcher.select(mode) } catch (error) { requested = settings.get().subagentBackend ?? 'dsh'; throw error }
+      try { await switcher.select(mode, options) } catch (error) { requested = settings.get().subagentBackend ?? 'dsh'; throw error }
     }
     subagentBackend = { select, activeCount: instance.activeCount }
     const sync = value => {
       const mode = value.subagentBackend ?? 'dsh'
-      if (mode !== requested) void select(mode).catch(() => scoped.logger.warn('Could not switch the subscription subagent backend'))
+      // A saved Codex choice must report a missing component on use, never
+      // silently run the task through DSH while an update is required.
+      if (mode !== requested) void select(mode, { validate: false }).catch(() => scoped.logger.warn('Could not switch the subscription subagent backend'))
     }
     void scoped.loader.await().then(() => sync(settings.get())).catch(() => scoped.logger.warn('Could not initialize the subscription subagent backend'))
     const unwatch = settings.watch(sync)

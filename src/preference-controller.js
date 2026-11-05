@@ -286,6 +286,9 @@ export function createPreferenceController(rpc) {
       const value = unwrap(await rpc.call(CHANNEL, 'preferences/update', patch))
       if (current !== generation) return
       acceptFallback(value)
+      // Enabling Codex refreshes its catalog before the host replies. Keep that
+      // authoritative child list even if the page already refreshed main models.
+      if (patch.subagentBackend === 'codex' && Array.isArray(value?.subagentModels)) subagentModels = value.subagentModels
       // The Host may normalize or reject a requested value; its response wins.
       pendingPatch = undefined
     } catch {

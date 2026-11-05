@@ -11,7 +11,7 @@ test('missing optional runtime never loads a module or launches a process', asyn
   await assert.rejects(loadSubagentRuntime({ resolve, run: () => assert.fail(), importModule: () => assert.fail() }), /not prepared/)
 })
 
-test('preparation checks the provider-local CLI without shell or PATH and supports retry', async () => {
+test('preparation checks the dedicated CLI without shell or PATH and supports retry', async () => {
   const root = await mkdtemp(join(tmpdir(), 'subscription-runtime-'))
   try {
     const provider = join(root, 'package.json'), host = join(root, 'host.json'), entry = join(root, 'index.js')
@@ -21,47 +21,55 @@ test('preparation checks the provider-local CLI without shell or PATH and suppor
       const dir = join(root,'node_modules',name); await mkdir(dir,{recursive:true}); await writeFile(join(dir,'package.json'),JSON.stringify(data)); await writeFile(join(dir,'index.js'),'')
     }
     const resolve = name => name === '@deepseek-ai/dsh-llm/package.json' ? host : name.endsWith('/package.json') ? provider : entry
+    const cli = { inspect: () => ({ installed: true, wrapper: join(root,'dedicated','bin','codex.js') }) }
     let fail = true, calls = 0
     const run = async (command, argv, options) => {
-      calls++; assert.equal(command,process.execPath); assert.equal(argv[0],join(root,'node_modules','@openai','codex','bin','codex.js')); assert.equal(argv[1],'--version')
+      calls++; assert.equal(command,process.execPath); assert.equal(argv[0],join(root,'dedicated','bin','codex.js')); assert.equal(argv[1],'--version')
       assert.equal(options.windowsHide,true); assert.equal(options.timeout,10000); assert.equal(options.shell,undefined)
       if (fail) throw Error('offline or missing binary')
-      return {stdout:'codex-cli 0.153.4\n'}
+      return {stdout:'codex-cli 0.166.0\n'}
     }
-    await assert.rejects(loadSubagentRuntime({resolve,run}),/incomplete/)
+    await assert.rejects(loadSubagentRuntime({resolve,run,cli}),/incomplete/)
     fail = false
-    const result = await loadSubagentRuntime({resolve,run,importModule:async url => url.endsWith('/index.js') ? {apply(){},JsonRpcLineTransport:class {}} : assert.fail()})
+    const result = await loadSubagentRuntime({resolve,run,cli,importModule:async url => url.endsWith('/index.js') ? {apply(){},JsonRpcLineTransport:class {}} : assert.fail()})
     assert.equal(typeof result.Transport,'function'); assert.equal(calls,2)
+    for (const platform of ['win32', 'linux', 'darwin']) {
+      const runtime = await loadSubagentRuntime({ resolve, run, cli, platform, importModule: async () => ({ JsonRpcLineTransport: class {} }) })
+      assert.equal(runtime.argv.includes('features.prefer_mxc=true'), platform === 'win32')
+      assert.ok(runtime.argv.includes('stdio://'))
+      assert.ok(!runtime.argv.includes('--stdio'), 'the current official CLI uses --listen stdio://')
+      assert.ok(!runtime.argv.some(value => /danger|bypass/u.test(value)), 'preparation never disables the sandbox')
+    }
     await writeFile(provider,JSON.stringify({version:'0.2.0-rc.1'}))
-    assert.deepEqual(inspectSubagentRuntime(resolve),{installed:false,present:true})
+    assert.deepEqual(inspectSubagentRuntime(resolve,cli),{installed:false,present:true})
     await writeFile(host,JSON.stringify({version:'0.2.0-rc.1'}))
-    assert.deepEqual(inspectSubagentRuntime(resolve),{installed:true})
-    await loadSubagentRuntime({resolve,run,importModule:async()=>({JsonRpcLineTransport:class {}})})
+    assert.deepEqual(inspectSubagentRuntime(resolve,cli),{installed:true,present:true,adapterInstalled:true})
+    await loadSubagentRuntime({resolve,run,cli,importModule:async()=>({JsonRpcLineTransport:class {}})})
     await writeFile(provider,JSON.stringify({version:'0.2.0-rc.2'}))
     await writeFile(host,JSON.stringify({version:'0.2.0-rc.2'}))
     assert.equal(matchingSubagentRuntimeVersion(resolve),'0.2.0-rc.2')
-    assert.deepEqual(inspectSubagentRuntime(resolve),{installed:true})
-    await loadSubagentRuntime({resolve,run,importModule:async()=>({JsonRpcLineTransport:class {}})})
+    assert.deepEqual(inspectSubagentRuntime(resolve,cli),{installed:true,present:true,adapterInstalled:true})
+    await loadSubagentRuntime({resolve,run,cli,importModule:async()=>({JsonRpcLineTransport:class {}})})
     await writeFile(provider,JSON.stringify({version:'0.1.7-rc.2'}))
     await writeFile(host,JSON.stringify({version:'0.1.7-rc.2'}))
     assert.equal(matchingSubagentRuntimeVersion(resolve),'0.1.7-rc.2')
-    assert.deepEqual(inspectSubagentRuntime(resolve),{installed:true})
-    await loadSubagentRuntime({resolve,run,importModule:async()=>({JsonRpcLineTransport:class {}})})
+    assert.deepEqual(inspectSubagentRuntime(resolve,cli),{installed:true,present:true,adapterInstalled:true})
+    await loadSubagentRuntime({resolve,run,cli,importModule:async()=>({JsonRpcLineTransport:class {}})})
     await writeFile(provider,JSON.stringify({version:'0.2.0-rc.1'}))
     await writeFile(host,JSON.stringify({version:'0.2.0-rc.1'}))
     assert.equal(matchingSubagentRuntimeVersion(resolve),'0.2.0-rc.1')
-    assert.deepEqual(inspectSubagentRuntime(resolve),{installed:true})
-    await loadSubagentRuntime({resolve,run,importModule:async()=>({JsonRpcLineTransport:class {}})})
+    assert.deepEqual(inspectSubagentRuntime(resolve,cli),{installed:true,present:true,adapterInstalled:true})
+    await loadSubagentRuntime({resolve,run,cli,importModule:async()=>({JsonRpcLineTransport:class {}})})
     for (const version of ['0.2.1-rc.3', '0.2.1-rc.4']) {
       await writeFile(host,JSON.stringify({version}))
-      assert.deepEqual(inspectSubagentRuntime(resolve),{installed:false,present:true}, 'a different cohort must not load')
+      assert.deepEqual(inspectSubagentRuntime(resolve,cli),{installed:false,present:true}, 'a different cohort must not load')
       await writeFile(provider,JSON.stringify({version}))
       assert.equal(matchingSubagentRuntimeVersion(resolve),version)
-      assert.deepEqual(inspectSubagentRuntime(resolve),{installed:true})
-      await loadSubagentRuntime({resolve,run,importModule:async()=>({JsonRpcLineTransport:class {}})})
+      assert.deepEqual(inspectSubagentRuntime(resolve,cli),{installed:true,present:true,adapterInstalled:true})
+      await loadSubagentRuntime({resolve,run,cli,importModule:async()=>({JsonRpcLineTransport:class {}})})
     }
     await writeFile(provider,JSON.stringify({version:'9.9.9'}))
-    assert.deepEqual(inspectSubagentRuntime(resolve),{installed:false,present:true})
+    assert.deepEqual(inspectSubagentRuntime(resolve,cli),{installed:false,present:true})
     await writeFile(host,JSON.stringify({version:'9.9.9'}))
     assert.equal(matchingSubagentRuntimeVersion(resolve),undefined)
   } finally { await rm(root,{recursive:true,force:true}) }

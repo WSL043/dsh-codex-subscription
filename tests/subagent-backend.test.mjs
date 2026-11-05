@@ -23,6 +23,7 @@ test('subscription subagent pins account and serializes concurrent token rotatio
 })
 
 const childFeatures = Object.fromEntries(['apps', 'plugins', 'plugin_sharing', 'remote_plugin', 'tool_suggest', 'browser_use', 'browser_use_external', 'browser_use_full_cdp_access', 'computer_use', 'in_app_browser'].map(name => [name, false]))
+if (process.platform === 'win32') childFeatures.prefer_mxc = true
 test('subagent policy takes parent model effort and sandbox, never user Codex defaults', () => {
   assert.deepEqual(subagentThreadPolicy({ session: { requestHeader: () => ({ config: {
     provider: 'openai-codex', model: 'gpt-5.6-luna', reasoningEffort: 'max',
@@ -132,6 +133,36 @@ test('failed persistence restores tool configuration', async () => {
   const switcher = createSubagentBackendSwitcher({ entries: () => [spawn], prepare: async () => {}, persist: async () => { throw Error('disk') } })
   await assert.rejects(switcher.select('codex'), /disk/)
   assert.deepEqual(spawn.fiber.config, { provider: 'spawn' })
+})
+
+test('a saved Codex selection stays on Codex when its component needs repair instead of silently using DSH', async () => {
+  const spawn = entry('spawn')
+  const switcher = createSubagentBackendSwitcher({ entries: () => [spawn], prepare: async () => { throw Error('update required') } })
+  await assert.rejects(switcher.select('codex'), /update required/)
+  assert.equal(spawn.fiber.config.provider, 'spawn', 'a new invalid choice is refused')
+  await switcher.select('codex', { validate: false })
+  assert.equal(spawn.fiber.config.provider, SUBAGENT_PROVIDER, 'restoring a saved choice preserves its backend; start still validates the CLI')
+  await switcher.dispose()
+})
+
+test('the external-auth bridge rejects a server that ignores the selected model or reasoning effort', async () => {
+  const { authenticatedSubagentChild } = await import('../src/subagent-auth.js')
+  const { PassThrough } = await import('node:stream')
+  for (const returned of [{ model: 'different', reasoningEffort: 'high' }, { model: 'selected', reasoningEffort: 'low' }, { model: 'selected', reasoningEffort: 'high' }]) {
+    const transports = []
+    class Transport {
+      constructor() { transports.push(this) }
+      onRequest(handler) { this.handler = handler } onNotification() {} start() {} close() {}
+      async request(method) { return method === 'thread/start' ? returned : {} }
+    }
+    const child = { stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), done: new Promise(() => {}) }
+    authenticatedSubagentChild(child, { Transport, getTokens: async () => ({}), thread: { model: 'selected', config: { model_reasoning_effort: 'high' } }, signal: new AbortController().signal })
+    await transports[0].handler('initialize', {})
+    const result = transports[0].handler('thread/start', {})
+    if (returned.model !== 'selected') await assert.rejects(result, /selected subtask model/)
+    else if (returned.reasoningEffort !== 'high') await assert.rejects(result, /selected subtask reasoning/)
+    else assert.deepEqual(await result, returned)
+  }
 })
 
 test('backend restoration preserves edits made while Codex is selected', async () => {

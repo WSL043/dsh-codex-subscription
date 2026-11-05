@@ -56,6 +56,18 @@ test('missing Codex runtime leaves ordinary preferences and the DSH backend usab
   assert.equal(controller.getSnapshot().subagentRuntimeInstalled, true)
   controller.dispose()
 })
+test('enabling Codex replaces an initially empty child catalog after main models refreshed', async () => {
+  let children = []
+  const h = harness({ extra: () => ({ subagentModels: children, subagentRuntimeInstalled: true }),
+    models: () => ({ ok: true, value: { subagentModels: [] } }) })
+  await h.ready()
+  await h.controller.refreshModels()
+  children = [{ id: 'gpt-6.1-sol', name: 'GPT-6.1-Sol', efforts: ['high'] }]
+  const pending = h.controller.set({ subagentBackend: 'codex' })
+  h.settle(); await pending
+  assert.deepEqual(h.controller.getSnapshot().subagentModels, children)
+  h.controller.dispose()
+})
 const astraModels = [...fallbackModels, { key: 'gpt-6-astra', label: 'GPT-6 Astra', maximum: 872_000 }]
 const fallbackValue = {
   contextMode: CONTEXT_MODE_STANDARD,

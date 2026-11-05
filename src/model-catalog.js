@@ -357,7 +357,7 @@ export function createOfficialModelCatalog(options = {}) {
       const raw = response.status === 304 ? rawCatalog : await response.json()
       if (!current(flight) || accountId !== id) return false
       if (raw === undefined) throw new Error('Codex returned HTTP 304 without a cached model catalog')
-      const catalog = nativeVersion !== undefined && Array.isArray(raw?.models)
+      const catalog = (options.subagent === true || nativeVersion !== undefined) && Array.isArray(raw?.models)
         ? { ...raw, models: raw.models.filter(model => model?.visibility === 'list' && model.supported_in_api !== false) }
         : raw
       const remote = parseOfficialModelCatalog(catalog, getNow())

@@ -168,17 +168,20 @@ Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only *
 
 In **Settings → Codex subscription → Web & tools → Subtasks**, click **Install component**. DSH handles installation; the page shows its stage and offers cancellation before applying. Restart after completion, then choose Codex. Installation does not enable subtasks automatically.
 
-Prefer **Install component** above. The plugin selects a component matching the current DSH version: DSH `0.2.0-rc.2` installs component `0.2.0-rc.2`, while DSH `0.1.5-rc.2` installs component `0.1.5-rc.2`. An existing `0.1.5-rc.3` component is recognized only on a matching host. Do not omit the component version or substitute `@next`.
+Prefer **Install component** above. DSH manages the adapter matching the host version and a dedicated Codex CLI for this plugin. The CLI uses the profile dependency alias `dsh-codex-subtask-cli` and does not replace the host's or another app's Codex. If an existing adapter needs the new CLI, use the same button to prepare it, then restart. Account login and saved child defaults are retained.
 
-### Manual installation on older hosts and offline preparation
+On Windows, the dedicated CLI prefers Codex's MXC sandbox when supported by the device and policy. Otherwise it needs Codex's configured legacy Windows sandbox. Subtasks retain the DSH session's file policy; the plugin does not fall back to unrestricted execution when sandbox setup is unavailable.
 
-Enter a component version matching the current DSH version in the plugin installer. As a pinned-version example, for DSH `0.2.0-rc.2`, enter `@deepseek-ai/dsh-subagent-codex@0.2.0-rc.2`, or run:
+### Manual installation and offline preparation
+
+Use the same profile as the subscription plugin. For DSH `0.2.2-rc.1`, the exact-version terminal commands are below. On another supported host, replace only the DSH adapter version with that host's version; do not substitute `@next`.
 
 ```sh
-dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.0-rc.2
+dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.2-rc.1
+dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@0.166.0 --save-exact --ignore-scripts
 ```
 
-Use the same profile as the subscription plugin and restart afterwards. Offline preparation requires a complete runtime installed and verified on the target OS and architecture; copying only the subscription plugin or Codex launcher is insufficient. Model requests still need connectivity.
+The CLI alias is a plain dependency, not a plugin to enable. Restart afterwards. Offline preparation requires a complete runtime installed and verified on the target OS and architecture; copying only the subscription plugin or Codex launcher is insufficient. Model requests still need connectivity.
 
 ### When you no longer need it
 
@@ -187,6 +190,7 @@ To disable it, switch back to **DSH** in Advanced settings. The component stays 
 To uninstall it, click **Uninstall component** in the same section and confirm. The plugin blocks removal while Codex subtasks are running, switches back to DSH, and uses the official uninstall interface. Restart after completion. On older hosts, run this in a terminal, replacing `web` with the profile where you installed it:
 
 ```sh
+dsh plugin --profile web remove dsh-codex-subtask-cli
 dsh plugin --profile web remove @deepseek-ai/dsh-subagent-codex
 ```
 

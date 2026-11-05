@@ -43,10 +43,11 @@ export function RuntimeManagement({ rpc, preference, t, active = true }) {
     if (state?.phase === 'done') void preference.load()
   }, [state?.phase])
   const locked = sending || busy || state?.restartRequired || state?.active > 0
+  const repair = state?.cliUpdateRequired && state.installable
   return <div className="codexSubscriptionRuntime">
     <div className="codexSubscriptionPreference">
-      <span role="status">{t(!state ? 'runtimeLoading' : state.restartRequired ? 'runtimeRestart' : busy ? `runtime_${state.phase}` : state.installed ? 'subagentRuntimeInstalled' : !state.componentVersion ? 'runtimeHostUnsupported' : state.present ? (state.removable ? 'runtimeIncompatible' : 'runtimeManagedElsewhere') : 'subagentRuntimeMissing')}</span>
-      {state?.available && (state.present ? state.removable : state.installable) ? <Button type="button" variant="outline" disabled={locked} onClick={() => state.present ? setConfirm(true) : void act('install')}>{t(state.present ? 'runtimeRemove' : 'runtimeInstall')}</Button> : null}
+      <span role="status">{t(!state ? 'runtimeLoading' : state.restartRequired ? 'runtimeRestart' : busy ? `runtime_${state.phase}` : state.installed ? 'subagentRuntimeInstalled' : !state.componentVersion ? 'runtimeHostUnsupported' : state.cliUpdateRequired ? 'runtimeUpdateRequired' : state.present ? (state.removable ? 'runtimeIncompatible' : 'runtimeManagedElsewhere') : 'subagentRuntimeMissing')}</span>
+      {state?.available && (state.present ? state.removable || repair : state.installable) ? <Button type="button" variant="outline" disabled={locked} onClick={() => state.present && !repair ? setConfirm(true) : void act('install')}>{t(state.present && !repair ? 'runtimeRemove' : 'runtimeInstall')}</Button> : null}
     </div>
     {state?.active > 0 ? <p>{t('runtimeActive')}</p> : null}
     {busy && state.phase === 'installing' ? <Button type="button" variant="outline" disabled={sending} onClick={() => { void act('cancel') }}>{t('runtimeCancel')}</Button> : null}
@@ -60,6 +61,8 @@ export function RuntimeManagement({ rpc, preference, t, active = true }) {
       {state && !state.available ? <p>{t('runtimeUnavailable')}</p> : null}
       {state?.available && !state.installable && !state.present ? <p>{t('runtimeHostUnsupported')}</p> : null}
       {state?.componentVersion ? <code>@deepseek-ai/dsh-subagent-codex@{state.componentVersion}</code> : null}
+      {state?.codexVersion ? <code>@openai/codex@{state.codexVersion}</code> : null}
+      {repair && state.removable && !busy ? <Button type="button" variant="outline" disabled={locked} onClick={() => setConfirm(true)}>{t('runtimeRemove')}</Button> : null}
       <a href="https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md#codex-subtask-runtime" target="_blank" rel="noreferrer">{t('subagentRuntimePrepare')}</a>
     </details>
   </div>

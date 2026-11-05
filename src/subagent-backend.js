@@ -6,7 +6,7 @@ export const SUBAGENT_BACKEND_FIELD = 'subagentBackend'
 export const SUBAGENT_PROVIDER = 'codex-subscription-subagent'
 const MODES = new Set(['read-only', 'workspace-write', 'danger-full-access'])
 
-export function subagentThreadPolicy(parent, policy, requested = {}) {
+export function subagentThreadPolicy(parent, policy, requested = {}, platform = process.platform) {
   if (!MODES.has(policy?.mode)) throw new Error('DSH subagent sandbox policy is unavailable')
   const selected = parent.session.requestHeader?.()?.config ?? parent.options ?? {}
   for (const key of Object.keys(requested)) {
@@ -22,7 +22,7 @@ export function subagentThreadPolicy(parent, policy, requested = {}) {
     modelProvider: 'openai',
     approvalPolicy: 'never',
     sandbox: policy.mode,
-    config: { ...CHILD_FEATURES_OFF, ...(effort === undefined ? {} : { model_reasoning_effort: effort }) },
+    config: { features: { ...CHILD_FEATURES_OFF.features, ...(platform === 'win32' ? { prefer_mxc: true } : {}) }, ...(effort === undefined ? {} : { model_reasoning_effort: effort }) },
   }
 }
 
@@ -37,8 +37,10 @@ const CHILD_FEATURES_OFF = Object.freeze({
 
 /** Reuse the official DSH process/turn provider; keep only subscription auth here. */
 export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store, refresh, loadRuntime, maintenance = () => false, defaults }) {
-  let runtime
-  const load = () => runtime ??= loadRuntime().catch(error => { runtime = undefined; throw error })
+  // Module imports are cached by Node. Recheck the optional executable before
+  // each child so a repair, cancelled update or manual removal cannot reuse
+  // stale preparation state.
+  const load = () => loadRuntime()
   const active = new Set()
   let disposed = false
   const provider = {
@@ -58,7 +60,7 @@ export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store
         const options = defaults?.resolve(request.parent, request.agentOptions) ?? request.agentOptions
         const thread = subagentThreadPolicy(request.parent, ctx.sandboxPolicy.resolve({ session: request.parent.session }), options)
         const getTokens = await createSubagentTokens({ resolveAuth, store, refresh, signal })
-        const { official, Transport } = await load()
+        const { official, Transport, argv } = await load()
         const proxy = await resolveCodexOAuthProxy({ target: new URL('https://chatgpt.com/') })
         signal.throwIfAborted()
         await mkdir(nativeHome, { recursive: true })
@@ -66,7 +68,7 @@ export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store
         let delegate
         official.apply({
           subagents: { registerProvider(value) { delegate = value } },
-          subprocess: { spawn: spec => authenticatedSubagentChild(ctx.subprocess.spawn({ ...spec, env: { ...spec.env, ...env } }), {
+          subprocess: { spawn: spec => authenticatedSubagentChild(ctx.subprocess.spawn({ ...spec, argv, env: { ...spec.env, ...env } }), {
             Transport, getTokens, thread, signal,
           }) },
           logger: { warn: () => ctx.logger?.warn?.('Codex subscription subtask failed') },
@@ -135,7 +137,7 @@ export function createSubagentBackendSwitcher({ entries, prepare, persist }) {
     if (!originals.has(fiber)) originals.set(fiber, { ...config })
     return selected === 'codex' ? convert(config) : config
   }
-  const select = mode => {
+  const select = (mode, { validate = true } = {}) => {
     if (!['dsh', 'codex'].includes(mode)) return Promise.reject(new Error('Invalid subagent backend'))
     const next = tail.catch(() => {}).then(async () => {
       if (disposed) throw new Error('Subagent backend is unavailable')
@@ -145,7 +147,7 @@ export function createSubagentBackendSwitcher({ entries, prepare, persist }) {
       }
       if (mode === 'codex') {
         if (!originals.size && !all.some(entry => standard(entry, entry.options?.config))) throw new Error('No standard DSH independent subagent tool is available')
-        await prepare()
+        if (validate) await prepare()
       }
       const changed = []
       const previous = selected
