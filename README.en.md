@@ -4,7 +4,7 @@
 
 # DSH Codex Subscription
 
-[简体中文](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md) · **English**
+**English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Português](README.pt.md)
 
 **Use your ChatGPT / Codex subscription directly in DeepSeek Harness**
 
@@ -21,6 +21,8 @@ Sign in with ChatGPT Plus / Pro to use GPT-6 and other Codex models, quota, web 
 </div>
 
 <p align="center"><img src="docs/assets/hero-en.webp" width="1100" alt="Your subscription, now in DSH: the whale-girl mascot and the Codex subscription account quota interface"></p>
+
+<a id="highlights"></a>
 
 ## Highlights
 
@@ -45,6 +47,8 @@ Web search and webpage reading sources, ChatGPT connectors and official Codex in
 
 </details>
 
+<a id="prepare-dsh"></a>
+
 ## Prepare DSH
 
 Verified against DSH `0.2.2-rc.1`, with `0.2.1-rc.3` and `0.2.1-rc.2` still supported; the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
@@ -64,7 +68,11 @@ This plugin supports the latest DeepSeek Harness release recorded in its package
 
 </details>
 
+<a id="install"></a>
+
 ## Install
+
+<a id="install-from-the-plugins-page-recommended"></a>
 
 ### Install from the Plugins page (recommended)
 
@@ -107,6 +115,8 @@ dsh --profile headless "Reply with only the word: ok"
 ```
 
 </details>
+
+<a id="interface-demo"></a>
 
 ## Interface demo
 
@@ -160,6 +170,8 @@ Subscription failures remain visible: no silent fallback to another paid route.
 
 </details>
 
+<a id="images-and-sketching"></a>
+
 ## Images and sketching
 
 Generate images with your subscription, view and download the originals, or mark a region and add notes to continue editing. Image generation and editing are controlled under **Settings → Codex → Create**.
@@ -179,6 +191,8 @@ Generate images with your subscription, view and download the originals, or mark
 Settings shown directly as cropped screenshots from the actual DSH interface, following the light or dark theme.
 
 </details>
+
+<a id="sketch-board-beta"></a>
 
 ### Sketch board (Beta)
 
@@ -228,6 +242,8 @@ The Agent first drew an editable sketch, then used that sketch as the reference 
 
 [Image editing and draft storage →](docs/GUIDE.en.md#image-generation-and-editing)
 
+<a id="phone-remote-control-beta"></a>
+
 ## Phone remote control (Beta)
 
 Pair the Codex section of the ChatGPT mobile app with the DSH on your computer. Start or continue conversations, use tools and handle approvals from your phone, with DeepSeek or any other DSH model.
@@ -255,6 +271,8 @@ This is a third-party compatibility layer using OpenAI's remote connection servi
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Phone remote control in settings: the switch, connection status, pairing QR code and manual code"></picture></p>
 
 </details>
+
+<a id="all-features"></a>
 
 ## All features
 
@@ -326,6 +344,8 @@ Model access and quota depend on your account.
 
 </details>
 
+<a id="codex-subtask-runtime"></a>
+
 <details>
 <summary><b>Advanced capabilities and maintenance</b> (9)</summary>
 <br>
@@ -344,6 +364,8 @@ Model access and quota depend on your account.
 
 </details>
 
+<a id="reuse-cache-when-changing-effort"></a>
+
 ### Reuse cache when changing effort
 
 **Reuse cache when changing effort** is under **Settings → Codex → Models → Advanced**. It is on by default and can be turned off; saved Off choices are preserved. It applies only to standard, single-agent models explicitly supported by the current account catalog; support is never inferred from model names. Ordinary prompt caching is automatic and still works when this switch is off.
@@ -358,6 +380,8 @@ The request-level `reasoning.effort` stays at the current context window's initi
 - The feature is bounded to 20,000 input items, 16 MiB of fingerprinted input/envelope data, 128 updates and 256 active/pending sessions. Boundary or history validation failures stop preservation, not your selected reasoning effort.
 
 This uses configuration updates documented in OpenAI's [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning); see [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching) for cache requirements. Support follows the current account catalog and actual responses. Backend parameter rejections are surfaced, never retried with an old effort or an API key.
+
+<a id="update-and-uninstall"></a>
 
 ## Update and uninstall
 
@@ -377,6 +401,8 @@ dsh plugin --profile web remove dsh-codex-subscription
 ```
 
 </details>
+
+<a id="troubleshooting"></a>
 
 ## Troubleshooting
 
@@ -420,6 +446,8 @@ Not for ordinary subscription chat. Only if you want **Codex independent subtask
 <a id="positioning-and-boundaries"></a>
 <a id="scope-and-support"></a>
 
+<a id="project-and-support"></a>
+
 ## Project and support
 
 - **ChatGPT / Codex subscription only**, done in depth: quota and forecasting, images and sketches, subtasks, diagnostics. Other subscriptions such as Claude or Grok are out of scope.
@@ -445,4 +473,4 @@ If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex
   </picture>
 </a>
 
-[简体中文](README.md) · [MIT](LICENSE)
+**English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Português](README.pt.md) · [MIT](LICENSE)

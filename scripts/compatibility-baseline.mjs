@@ -28,7 +28,7 @@ export function verifyCompatibilitySource({ source, baseline, dshVersion, host, 
     || (!/^\d+\.\d+\.\d+-rc\.\d+$/u.test(dshVersion) && !exact(dshVersion))) throw Error('Invalid compatibility source')
   if (run('rev-list', '--parents', '-n', '1', source) !== `${source} ${baseline.sha}`) throw Error('Compatibility source must be a direct child of the published tag')
   const changed = run('diff', '--name-only', baseline.sha, source).split(/\r?\n/u).filter(Boolean)
-  if (!changed.length || changed.some(path => !paths.has(path))) throw Error('Compatibility source contains changes outside the bounded compatibility patch')
+  if (!changed.length || changed.some(path => !paths.has(path) && !/^README\.(?:zh-CN|ja|es|fr|de|ru|pt)\.md$/u.test(path))) throw Error('Compatibility source contains changes outside the bounded compatibility patch')
   const manifest = JSON.parse(run('show', `${baseline.sha}:package.json`))
   const compatibility = JSON.parse(run('show', `${baseline.sha}:compatibility.json`))
   const known = [...compatibility.supported, ...(compatibility.previews ?? [])].includes(dshVersion)

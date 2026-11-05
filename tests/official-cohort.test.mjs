@@ -82,10 +82,12 @@ test('official runtime probe works with a release checkout that has no root node
   const root = await mkdtemp(join(tmpdir(), 'official-release-layout-'))
   try {
     const source = join(root, 'checkout'), runner = join(root, 'official'), deps = join(root, 'test-dependencies')
-    for (const path of ['.github/scripts', 'scripts', 'src', 'tests']) await mkdir(join(source, path), { recursive: true })
+    for (const path of ['.github/scripts', 'scripts', 'src', 'tests', 'locale', 'docs/plugin']) await mkdir(join(source, path), { recursive: true })
     const versions = Object.fromEntries(TEST_DEPENDENCIES.map(name => [name, '1.0.0']))
     await writeFile(join(source, 'package.json'), JSON.stringify({ type: 'module', dependencies: versions }))
     await writeFile(join(source, 'cordis.patch.yml'), '')
+    await writeFile(join(source, 'locale/en.json'), '{"meta":{"title":"Subscription"}}')
+    await writeFile(join(source, 'docs/plugin/DETAIL.md'), 'Subscription guide')
     await writeFile(join(source, 'scripts/test-groups.mjs'), `export const testFiles=()=>['tests/resolution.test.mjs']`)
     await writeFile(join(source, '.github/scripts/test-official-runtime.mjs'), await readFile(new URL('../.github/scripts/test-official-runtime.mjs', import.meta.url)))
     for (const name of TEST_DEPENDENCIES) {
@@ -98,7 +100,7 @@ test('official runtime probe works with a release checkout that has no root node
     await mkdir(official, { recursive: true })
     await writeFile(join(official, 'package.json'), JSON.stringify({ name: '@deepseek-ai/dsh-llm', type: 'module', exports: './index.js' }))
     await writeFile(join(official, 'index.js'), `export default 'official-cohort'`)
-    await writeFile(join(source, 'tests/resolution.test.mjs'), `import assert from 'node:assert/strict';\n${TEST_DEPENDENCIES.map((name, i) => `import dep${i} from '${name}';assert.equal(dep${i},'locked-test-${name}');`).join('\n')}\nimport official from '@deepseek-ai/dsh-llm';assert.equal(official,'official-cohort');`)
+    await writeFile(join(source, 'tests/resolution.test.mjs'), `import assert from 'node:assert/strict';import{readFileSync}from'node:fs';\n${TEST_DEPENDENCIES.map((name, i) => `import dep${i} from '${name}';assert.equal(dep${i},'locked-test-${name}');`).join('\n')}\nimport official from '@deepseek-ai/dsh-llm';assert.equal(official,'official-cohort');assert.equal(JSON.parse(readFileSync(new URL('../locale/en.json',import.meta.url))).meta.title,'Subscription');assert.equal(readFileSync(new URL('../docs/plugin/DETAIL.md',import.meta.url),'utf8'),'Subscription guide');`)
     await assert.rejects(access(join(source, 'node_modules')))
     const result = spawnSync(process.execPath, [join(source, '.github/scripts/test-official-runtime.mjs'), runner, deps], { encoding: 'utf8' })
     assert.equal(result.status, 0, result.stdout + result.stderr)

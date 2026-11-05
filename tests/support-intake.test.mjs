@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 const { parse } = createRequire(import.meta.resolve('@deepseek-ai/dsh-settings'))('yaml');
 
 const issueForm = new URL("../.github/ISSUE_TEMPLATE/install-problem.yml", import.meta.url);
-const chineseReadme = new URL("../README.md", import.meta.url);
+const chineseReadme = new URL("../README.zh-CN.md", import.meta.url);
 const englishReadme = new URL("../README.en.md", import.meta.url);
 
 test("bug intake accepts UI failures and requests secret-safe support evidence", async () => {

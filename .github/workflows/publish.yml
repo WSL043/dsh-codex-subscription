@@ -436,7 +436,7 @@ jobs:
 
           安装后手动重启 DSH。Beta 不会替换 npm 的稳定版标签。
 
-          这条精确版本命令同时用于安装和更新。完整的使用和卸载说明见[中文 README](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md)。
+          这条精确版本命令同时用于安装和更新。完整的使用和卸载说明见[中文 README](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.zh-CN.md)。
 
           ## 卸载
 
@@ -547,7 +547,7 @@ jobs:
           dsh plugin --profile web update dsh-codex-subscription@__PLUGIN_VERSION__
           ```
 
-          完整的使用和卸载说明见[中文 README](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md)。
+          完整的使用和卸载说明见[中文 README](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.zh-CN.md)。
 
           ### 卸载
 

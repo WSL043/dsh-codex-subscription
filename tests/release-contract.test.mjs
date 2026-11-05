@@ -32,7 +32,7 @@ test('native plugin detail documents are brief, translated and explicitly packag
     const body = text(meta.detail)
     assert.ok(Buffer.byteLength(body) < 1024, 'detail remains a short introduction')
     assert.equal(body.includes('!['), false, 'no screenshots or duplicate README gallery')
-    assert.ok(body.includes(`README${language === 'zh' ? '' : '.en'}.md`))
+    assert.ok(body.includes(`README${language === 'zh' ? '.zh-CN' : ''}.md`))
     assert.ok(body.includes('https://github.com/WSL043/dsh-codex-subscription/issues'))
   }
 })
@@ -77,7 +77,10 @@ test('scheduled compatibility publication requires stable channels, accepted gat
   assert.doesNotMatch(workflow.slice(0, workflow.indexOf('\n  promote:')), /contents: write|actions: write|git push|gh workflow run/u)
   const staged = workflow.match(/git add -- ([^\n]+)/u)?.[1]?.trim().split(/\s+/u)
   assert.ok(staged)
-  for (const path of staged) assert.equal(existsSync(new URL(`../${path}`, import.meta.url)), true, path)
+  for (const path of staged) {
+    if (path === "'README*.md'") assert.ok(existsSync(new URL('../README.md', import.meta.url)))
+    else assert.equal(existsSync(new URL(`../${path}`, import.meta.url)), true, path)
+  }
 })
 
 test('official DSH acceptance allows only the reviewed pnpm build dependencies', () => {
@@ -103,8 +106,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   for (const path of [
     'lib/*.js',
     'cordis.patch.yml',
-    'README.md',
-    'README.en.md',
+    'README*.md',
     'compatibility.json',
     'LICENSE',
     'SECURITY.md',
@@ -236,7 +238,7 @@ test('official DSH compatibility updates are detected, accepted, and then dispat
   assert.doesNotMatch(workflow, /git push[^\n]*HEAD:main/u)
   assert.match(workflow, /source_ref="\$source_sha"/u)
   assert.match(workflow, /release_kind=compatibility/u)
-  assert.match(workflow, /git add --[^\n]*README\.md[^\n]*README\.en\.md[^\n]*compatibility\.json/u)
+  assert.match(workflow, /git add --[^\n]*'README\*\.md'[^\n]*compatibility\.json/u)
   assert.doesNotMatch(workflow, /git add --[^\n]*AGENTS\.md/u)
   assert.doesNotMatch(workflow, /git add --[^\n]*\.github\/workflows\/publish\.yml/u)
   assert.match(workflow, /request_id="compat-\$\{GITHUB_RUN_ID\}-\$\{GITHUB_RUN_ATTEMPT\}"/u)
@@ -365,7 +367,7 @@ test('an alpha newer than the declared compatibility list is a notice, never a r
 })
 
 test('the README install step names the exact released version, so a new release installs on its first day', () => {
-  for (const [label, readme] of [['zh', text('README.md')], ['en', text('README.en.md')]]) {
+  for (const [label, readme] of [['zh', text('README.zh-CN.md')], ['en', text('README.md')]]) {
     const pinned = readme.match(/```text\s+dsh-codex-subscription@([\d.]+)\s+```/u)?.[1]
     if (manifest.version.includes('-')) {
       // A preview plugin beta is not advertised: the README keeps pinning the last stable release.

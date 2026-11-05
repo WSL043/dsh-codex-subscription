@@ -1,376 +1,400 @@
-<p align="center"><img src="icon-subscription.webp" width="128" height="128" alt="DSH Codex Subscription 图标"></p>
+<p align="center"><img src="icon-subscription.webp" width="128" height="128" alt="DSH Codex Subscription icon"></p>
 
 <div align="center">
 
 # DSH Codex Subscription
 
-**简体中文** · [English](https://github.com/WSL043/dsh-codex-subscription/blob/main/README.en.md)
+**English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Português](README.pt.md)
 
-**把 ChatGPT / Codex 订阅直接接入 DeepSeek Harness**
+**Use your ChatGPT / Codex subscription directly in DeepSeek Harness**
 
-用 ChatGPT Plus / Pro 订阅登录，即可在 DSH 中使用 GPT-6 等 Codex 模型、查额度、联网搜索和生图。无需 OpenAI API Key，也不依赖 Codex CLI。
+Sign in with ChatGPT Plus / Pro to use GPT-6 and other Codex models, quota, web search, and image generation inside DSH. No OpenAI API key or Codex CLI.
 
 [![CI](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml/badge.svg)](https://github.com/WSL043/dsh-codex-subscription/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/dsh-codex-subscription?logo=npm&label=npm)](https://www.npmjs.com/package/dsh-codex-subscription)
-[![npm 总下载量](https://img.shields.io/npm/dt/dsh-codex-subscription?logo=npm&label=%E6%80%BB%E4%B8%8B%E8%BD%BD%E9%87%8F)](https://www.npmjs.com/package/dsh-codex-subscription)
+[![total npm downloads](https://img.shields.io/npm/dt/dsh-codex-subscription?logo=npm&label=total%20downloads)](https://www.npmjs.com/package/dsh-codex-subscription)
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[核心功能](#核心功能) · [安装](#安装) · [图片与草图](#图片与草图) · [手机远程控制](#手机远程控制beta) · [全部功能](#全部功能) · [使用指南](docs/GUIDE.zh-CN.md) · [常见问题](#常见问题)
+[Highlights](#highlights) · [Install](#install) · [Images & sketching](#images-and-sketching) · [Phone remote control](#phone-remote-control-beta) · [All features](#all-features) · [User guide](docs/GUIDE.en.md) · [Troubleshooting](#troubleshooting)
 
 </div>
 
-<p align="center"><img src="docs/assets/hero-zh.webp" width="1100" alt="已有的订阅，在 DSH 接着用：鲸鱼少女吉祥物与 Codex 订阅账号额度界面"></p>
+<p align="center"><img src="docs/assets/hero-en.webp" width="1100" alt="Your subscription, now in DSH: the whale-girl mascot and the Codex subscription account quota interface"></p>
 
-## 核心功能
+<a id="highlights"></a>
 
-| 你想做什么 | 插件提供什么 |
+## Highlights
+
+| What you want to do | What the plugin provides |
 | --- | --- |
-| **聊天与搜索** | 用订阅登录，选择账号开放的 Codex 模型、推理档位和速度档位，使用订阅联网搜索。 |
-| **管理账号与额度** | 切换账号，查看短周期与每周额度、Credits 和重置时间；在输入框看额度、接收提醒，查看历史用量。 |
-| **生成与编辑图片** | 用订阅出图、圈选区域继续修改，或在可编辑草图画板上自己画、让 Agent 画。[查看实例 →](#图片与草图) |
-| **在手机上继续操作** | 用 ChatGPT 手机 App 配对电脑上的 DSH，DeepSeek 等其他模型也能用。[Beta，默认关闭 →](#手机远程控制beta) |
-| **使用已连接的应用** | 让 DSH 模型使用 ChatGPT 中已连接的 GitHub、Gmail、云端硬盘、日历等；写操作默认逐次询问。 |
+| **Chat and search** | Sign in with your subscription; pick account-provided Codex models, reasoning and speed levels; use subscription web search. |
+| **Manage accounts and quota** | Switch accounts, view short-window and weekly quota, Credits and resets; see usage history and optional quota alerts in the composer. |
+| **Create and edit images** | Generate images, mark regions for editing, or draw manually and with the Agent on an editable sketch board. [Examples →](#images-and-sketching) |
+| **Continue from your phone** | Pair the ChatGPT mobile app to control this computer's DSH. DeepSeek and other DSH models work too. [Beta, off by default →](#phone-remote-control-beta) |
+| **Use connected apps** | Let DSH models use apps connected in ChatGPT, including GitHub, Gmail, Drive and Calendar; changes ask for approval by default. |
 
-模型和额度以账号实际返回为准。[查看完整功能清单 →](#全部功能)
+Models and quota depend on what your account returns. [Complete feature list →](#all-features)
 
 <details>
-<summary>让 DeepSeek 等模型使用订阅能力</summary>
+<summary>Use subscription features with DeepSeek and other models</summary>
 
-让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等。模型先搜索再调用，写操作默认每次都要你批准，也可以在设置里改成不再询问。默认关闭，在“联网与工具”里开启。
+Let DeepSeek or any other DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more. Models search first, then call, and by default every change asks for your approval (you can switch that off in settings). Off by default; turn it on under Web & tools.
 
-联网搜索与网页读取来源、ChatGPT 连接器和官方 Codex 独立子任务在 **设置 → Codex 订阅 → 联网与工具**，页首一个总开关：关闭后，用 DeepSeek 等非 Codex 模型对话时不再使用订阅的联网搜索（改用 DSH 搜索）、图片生成和 ChatGPT 连接器，Codex 订阅模型不受影响。默认开启。
+Web search and webpage reading sources, ChatGPT connectors and official Codex independent subtasks are on **Settings → Codex subscription → Web & tools**, with one master switch at the top: when off, conversations on DeepSeek and other non-Codex models no longer use subscription web search (DSH search is used instead), image generation or ChatGPT connectors; Codex subscription models are not affected. On by default.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-interop-zh-dark.webp"><img src="docs/assets/ui-interop-zh-light.webp" width="640" alt="联网与工具设置页：分别选择搜索和网页读取来源、连接器权限与独立子任务"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-interop-en-dark.webp"><img src="docs/assets/ui-interop-en-light.webp" width="640" alt="Web & tools settings: search and webpage reading sources, connector permissions and independent subtasks"></picture></p>
 
 </details>
 
-## 准备 DSH
+<a id="prepare-dsh"></a>
 
-已验证兼容 DSH `0.2.2-rc.1`，继续支持 `0.2.1-rc.3` 和 `0.2.1-rc.2`，最低支持 `0.1.7-rc.2`；更早的 DSH 请先升级。
+## Prepare DSH
 
-DSH `0.2.2-rc.1` 的 CLI/Web 模式需要 Node.js **24.9 或更高版本**；官方桌面版使用自带的运行时。
+Verified against DSH `0.2.2-rc.1`, with `0.2.1-rc.3` and `0.2.1-rc.2` still supported; the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
 
-另支持预览宿主 `0.2.2-alpha.2`；范围与验收边界见[兼容性记录](docs/dsh-022-alpha2-compatibility.md)。
+DSH `0.2.2-rc.1` CLI/Web requires Node.js **24.9 or newer**; the official desktop app uses its bundled runtime.
 
-本插件支持软件包元数据中记录的最新版 DeepSeek Harness，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
+Also supports the preview host `0.2.2-alpha.2`. See the [compatibility notes](docs/dsh-022-alpha2-compatibility.md) for scope and validation limits.
+
+This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 
 <details>
-<summary>选择 DSH：官方桌面端、便携版或命令行</summary>
+<summary>Choose a DSH distribution</summary>
 
-- **推荐：官方桌面端**。DeepSeek 已发布 [DeepSeek Harness 桌面版](https://www.deepseek.com/harness/)（macOS Apple Silicon、Windows 64 位，预览版、开源），无需配置 Node.js，安装后按下文在插件页面添加本插件即可。桌面端与网页版、命令行使用同一套 DSH 插件系统；本插件的端到端验收主要在网页版上完成，桌面端遇到问题请[提交 issue](https://github.com/WSL043/dsh-codex-subscription/issues)；
-- 需要 Linux，或想要社区便携分发：使用 [DSH-Portable](https://github.com/WSL043/DSH-Portable)。这是面向 Windows、macOS 和 Linux 的社区便携桌面分发；
-- 想按官方方式运行：查看 [DeepSeek Harness 官方说明](https://github.com/deepseek-ai/deepseek-harness#run)。
+- **Recommended: the official desktop app.** DeepSeek now ships a [DeepSeek Harness desktop app](https://www.deepseek.com/harness/) (macOS on Apple Silicon and 64-bit Windows; preview, open source). It needs no Node.js setup: install it, then add this plugin from the Plugins page as described below. The desktop app, the web app and the CLI share one DSH plugin system; this plugin's end-to-end acceptance is mainly run on the web app, so please [open an issue](https://github.com/WSL043/dsh-codex-subscription/issues) if the desktop app misbehaves.
+- Need Linux, or prefer a community portable build? Use [DSH-Portable](https://github.com/WSL043/DSH-Portable), a community portable desktop distribution for Windows, macOS, and Linux.
+- Prefer the official route? Follow the [DeepSeek Harness run guide](https://github.com/deepseek-ai/deepseek-harness#run).
 
 </details>
 
-## 安装
+<a id="install"></a>
 
-### 在插件页面安装（推荐）
+## Install
 
-1. 打开 DSH 的 **插件 → 添加插件**。
-2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
+<a id="install-from-the-plugins-page-recommended"></a>
+
+### Install from the Plugins page (recommended)
+
+1. Open **Plugins → Add plugin** in DSH.
+2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
    dsh-codex-subscription@3.2.5
    ```
 
-3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
-4. 打开 **设置 → Codex 订阅**，登录 ChatGPT，然后在会话中选择 Codex 模型。
+3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
+4. Open **Settings → Codex**, sign in to ChatGPT, then select a Codex model in your conversation.
 
 <details>
-<summary>为什么包名里带版本号？</summary>
+<summary>Why is the version included?</summary>
 
-为什么要带版本号：DSH 的插件页只会安装发布满 24 小时的版本，只填包名时，新版本发布后的第一天可能装到更早的旧版，而旧版不一定兼容你的 DSH。带上版本号可以直接装到这一版；发布一天后只填 `dsh-codex-subscription` 也会装到最新正式版。其他版本号见[发布页](https://github.com/WSL043/dsh-codex-subscription/releases)。
+Why the version is included: DSH's plugin page only installs versions that are at least 24 hours old, so the bare package name can install an older release during the first day after a new one, and that older release may not support your DSH. With the version you get exactly this release; a day after release the bare `dsh-codex-subscription` also resolves to the latest stable release. Other version numbers are on the [releases page](https://github.com/WSL043/dsh-codex-subscription/releases).
 
 </details>
 
 <details>
-<summary>终端安装（已能运行 dsh 命令）</summary>
+<summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
 dsh plugin --profile web add dsh-codex-subscription@3.2.5
 ```
 
-安装完成后按提示重启 DSH，再到 **设置 → Codex 订阅** 登录。插件页面和终端均由 DSH 管理安装。
+Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
 
 </details>
 
 <details>
-<summary>Headless 任务</summary>
+<summary>Headless tasks</summary>
 
-先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
+After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
 dsh plugin --profile headless add dsh-codex-subscription@3.2.5
-dsh --profile headless "只回复：ok"
+dsh --profile headless "Reply with only the word: ok"
 ```
 
 </details>
 
-## 界面演示
+<a id="interface-demo"></a>
 
-在 **设置 → Codex 订阅** 中管理账号与偏好。下面按使用位置集中展示，截图与动图默认折叠。
+## Interface demo
+
+Open **Settings → Codex** to manage accounts and preferences. Screenshots and animation are collapsed below; choose the view you need.
 
 <details>
-<summary><b>界面演示（动图，点击展开）</b>：选模型、提问、出图、标注、草图、额度与重置</summary>
+<summary><b>Interface demo (animation, click to expand)</b>: models, prompts, images, annotation, sketch board, quota and resets</summary>
 <br>
-<p align="center"><img src="docs/assets/readme-demo.webp" width="1100" alt="演示：登录 ChatGPT 选订阅模型、提问、用订阅出图、查看与标注、进入草图、查看额度与重置"></p>
+<p align="center"><img src="docs/assets/readme-demo-en.webp" width="1100" alt="Demo: sign in with ChatGPT, pick a subscription model, ask, generate an image, view and annotate it, continue on the sketch board, and check quota and resets"></p>
 </details>
 
 <details>
-<summary>模型设置：默认模型、输入预测与回答风格</summary>
+<summary>Model settings: defaults, input predictions and answer style</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-models-zh-dark.png"><img src="docs/assets/ui-models-zh-light.png" width="640" alt="模型设置：可恢复 DSH 默认模型，详细说明在悬浮提示中查看"></picture></p>
-
-</details>
-
-<details>
-<summary>输入框：模型、速度、权限与额度</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-zh-dark.png"><img src="docs/assets/ui-composer-zh-light.png" width="760" alt="输入框：工作区权限、剩余额度和模型选择"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-models-en-dark.png"><img src="docs/assets/ui-models-en-light.png" width="640" alt="Model settings with Restore DSH default and detailed help on hover"></picture></p>
 
 </details>
 
 <details>
-<summary>额度与用量：剩余额度、使用概览和每周去向</summary>
+<summary>Composer: models, speed, permissions and quota</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-zh-dark.png"><img src="docs/assets/ui-quota-zh-light.png" width="560" alt="额度卡片：每周额度与重置时间，下方可展开使用概览和额度去向"></picture></p>
-
-<p align="center"><img src="docs/assets/usage-overview.png" width="460" alt="额度卡片里的使用概览与额度去向：累计 token、连续使用天数、最近半年每日用量热力图，以及每周额度按模型、入口、来源的拆分"></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="Composer: workspace permission, remaining quota and model selection"></picture></p>
 
 </details>
 
 <details>
-<summary>五个设置页分别做什么？</summary>
+<summary>Quota and usage: balances, history and weekly breakdown</summary>
 
-| 设置页 | 在这里做什么 |
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-en-dark.png"><img src="docs/assets/ui-quota-en-light.png" width="560" alt="Quota card: weekly quota and reset time, with usage overview and where the allowance went below"></picture></p>
+
+<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="Usage overview and where the allowance went in the quota card: lifetime tokens, streaks, a half-year daily heatmap and the weekly allowance split by model, surface and source"></p>
+
+</details>
+
+<details>
+<summary>What is in each settings tab?</summary>
+
+| Settings tab | What it controls |
 | --- | --- |
-| **开始** | 登录与切换账号、各功能开关一览、订阅额度、额度显示和提醒 |
-| **模型** | 默认模型、默认推理等级与模型列表、回答风格；折叠的“高级”里有上下文长度、重试、连接方式、云端压缩、审查模型 |
-| **联网与工具** | 其他模型能否用订阅功能的总开关，搜索来源、ChatGPT 连接器、官方 Codex 子任务 |
-| **创作** | 图片生成、编辑、输入框 @生图、图片查看器，草图画板和 Agent 绘图 |
-| **手机与更多** | 手机远程控制、语音对话（实验性）、本机缓存、支持诊断 |
+| **Start** | Sign-in and accounts, a switch for every feature, subscription quota, quota display and alerts |
+| **Models** | Default model, default reasoning effort and model list, answer style; the folded Advanced group has context length, retry, connection mode, cloud compaction and the review model |
+| **Web & tools** | The master switch for other models, search source, ChatGPT connectors, official Codex subtasks |
+| **Create** | Image generation, editing, @image in the composer, image viewer, sketch board and agent drawing |
+| **Phone & more** | Phone remote control, experimental voice calls, local cache, support diagnostics |
 
-语音对话默认关闭，在 **手机与更多** 开启后可从输入框发起。Linux 等原生窗口不支持 WebRTC 时，会提供在浏览器中继续同一会话的入口；音色试听仍可使用，继续使用现有订阅，无需 API Key。
+Voice conversation is off by default. Enable it under **Phone & more**, then start a call from the composer. If a native window, including Linux, does not support WebRTC, DSH offers to continue the same conversation in a browser. Voice samples remain available, and your existing subscription is used without an API key.
 
-**模型感知上下文**跟随账号模型目录，刷新不会覆盖未保存的草稿。设置显示原始窗口，对话预算按官方系数预留安全空间（目录未提供时为 5%），再由 DSH 管理输出预留和压缩，无需手动扣除。额度分组以服务端实际返回为准，包括 Spark 等独立额度。
+**Model-aware context** follows your account's model directory; refreshing preserves your unsaved draft. Settings show the raw window; conversation budgets reserve headroom using the official percentage (5% when omitted), then DSH manages output reservations and compaction. No manual subtraction is needed. Quota groups use backend-provided values, including separate buckets such as Spark.
 
-订阅请求失败时会明确报错，不会静默切换到其他付费路由。
-
-</details>
-
-## 图片与草图
-
-用订阅生成图片，查看和下载原图；也可以圈选区域、填写备注后继续修改。图片生成与编辑开关在 **设置 → Codex 订阅 → 创作**。
-
-<details>
-<summary>图片标注与继续编辑</summary>
-
-<p align="center"><img src="docs/assets/annotate-zh.webp" width="900" alt="图片预览：在烟囱上方圈出区域并写下备注，再带着备注继续编辑"></p>
+Subscription failures remain visible: no silent fallback to another paid route.
 
 </details>
 
+<a id="images-and-sketching"></a>
+
+## Images and sketching
+
+Generate images with your subscription, view and download the originals, or mark a region and add notes to continue editing. Image generation and editing are controlled under **Settings → Codex → Create**.
+
 <details>
-<summary>查看图片与草图设置</summary>
+<summary>Image annotation and continued editing</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-creative-zh-dark.png"><img src="docs/assets/ui-creative-zh-light.png" width="564" alt="图片与草图设置：图片生成与编辑、创作入口、请求型号与质量"></picture></p>
-
-DSH 实机设置截图，随浅色 / 深色主题切换。
+<p align="center"><img src="docs/assets/annotate-en.webp" width="900" alt="Image preview: a region above the chimney is marked with a note, then editing continues with the note"></p>
 
 </details>
 
-### 草图画板（Beta）
+<details>
+<summary>View Images & sketch settings</summary>
 
-草图画板和 Agent 绘图为 **Beta**，默认关闭，在“创作”页按需开启。手动画图点输入框的草图按钮；让 Agent 画发送 `@sketch` 加要求。
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-creative-en-dark.png"><img src="docs/assets/ui-creative-en-light.png" width="564" alt="Images and sketch settings: generation and editing, creative shortcuts, requested model and quality"></picture></p>
 
-画板支持图层、原生曲线、笔刷、渐变、模糊、混合、裁剪、撤销重做和快捷键，可保存多份草稿、导出 PNG 或可编辑草稿。Agent 可对照参考图、量颜色和位置、撤销重画；画稿还可回放并录成视频。
+Settings shown directly as cropped screenshots from the actual DSH interface, following the light or dark theme.
+
+</details>
+
+<a id="sketch-board-beta"></a>
+
+### Sketch board (Beta)
+
+The sketch board and Agent drawing are **Beta** and off by default; turn them on in the Create page. Draw by hand from the sketch button in the composer, or send `@sketch` with a request to have the Agent draw.
+
+The board supports layers, native curves, brushes, gradients, blur, blend modes, clipping, undo/redo and shortcuts. Save multiple drafts and export PNG or editable drafts. With a reference, the Agent can compare images, measure colours and positions, and undo. Finished drawings can be replayed and recorded as video.
 
 <details>
-<summary>Agent 绘图实例：鲸鱼娘</summary>
+<summary>Agent drawing example: whale girl</summary>
 
-以下实例由 Agent 在草图画板上使用原生可编辑笔画绘制，没有调用生图工具。三者使用相同参考图和绘图工具基线；档位、耗时不同，展示的是各一次实跑结果。
+The agents drew these examples on the sketch board using native editable strokes, without calling image generation. All three used the same reference and drawing-tool baseline. These are individual runs with different effort levels and durations.
 
-<p align="center"><b>原图</b><br><img src="docs/assets/sketch-niang-reference.webp" width="320" alt="鲸鱼娘原始参考图"></p>
+<p align="center"><b>Reference image</b><br><img src="docs/assets/sketch-niang-reference.webp" width="320" alt="Original whale-girl reference image"></p>
 
 <table>
 <tr><th width="33%">GPT-6-Astra</th><th width="33%">GPT-6.1-Sol</th><th width="33%">DeepSeek Flash</th></tr>
-<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="280" alt="GPT-6-Astra 在草图画板绘制的鲸鱼娘"></td><td><img src="docs/assets/sketch-niang-sol-6-1.png" width="280" alt="GPT-6.1-Sol 在草图画板绘制的鲸鱼娘"></td><td><img src="docs/assets/sketch-niang-deepseek-flash.png" width="280" alt="DeepSeek Flash 在草图画板绘制的鲸鱼娘"></td></tr>
-<tr><td>Medium · 20 分 57 秒<br>686 笔</td><td>High · 首轮 23 分钟<br>1,020 笔</td><td>High · 9 分 33 秒<br>623 笔</td></tr>
+<tr><td><img src="docs/assets/sketch-niang-astra-compare.webp" width="280" alt="Whale-girl drawing made by GPT-6-Astra on the sketch board"></td><td><img src="docs/assets/sketch-niang-sol-6-1.png" width="280" alt="Whale-girl drawing made by GPT-6.1-Sol on the sketch board"></td><td><img src="docs/assets/sketch-niang-deepseek-flash.png" width="280" alt="Whale-girl drawing made by DeepSeek Flash on the sketch board"></td></tr>
+<tr><td>Medium · 20 min 57 s<br>686 strokes</td><td>High · first turn: 23 min<br>1,020 strokes</td><td>High · 9 min 33 s<br>623 strokes</td></tr>
 </table>
 
-6.1 在连接中断后，以自动草稿和原始成功调用恢复全部笔画，再由模型确认预览并保存，未人工补画；这次结果不代表全程无故障完成。
+After a connection interruption, the 6.1 drawing was restored from its autosave and original successful calls. The model then checked the preview and saved it, with no manual drawing added. This was not an uninterrupted successful run.
 
 </details>
 
 <details>
-<summary>草图到生图：钟塔剖面图与千峰翠色</summary>
+<summary>Sketch to generated image: clocktower and blue-green landscape</summary>
 
-Agent 先在画板绘制可编辑草图，再以该草图为参考调用订阅生图工具生成成品。下方 Sol、Astra 指负责执行流程的对话模型，不是生图后端型号。
+The Agent first drew an editable sketch, then used that sketch as the reference for subscription image generation. Sol and Astra below name the conversation models directing the workflow, not the image-generation backend.
 
-**钟塔剖面图**
+**Clocktower cutaway**
 
 <table>
-<tr><th>对话模型</th><th width="43%">Agent 原生草图</th><th width="43%">以草图为参考的生图结果</th></tr>
-<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-clocktower-sol-sketch.webp" width="360" alt="钟塔剖面图：sol 绘制的原生草图"></td><td><img src="docs/assets/sketch-clocktower-sol-result.webp" width="360" alt="钟塔剖面图：以 sol 草图为参考生成的图片"></td></tr>
-<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-clocktower-astra-sketch.webp" width="360" alt="钟塔剖面图：astra 绘制的原生草图"></td><td><img src="docs/assets/sketch-clocktower-astra-result.webp" width="360" alt="钟塔剖面图：以 astra 草图为参考生成的图片"></td></tr>
+<tr><th>Conversation model</th><th width="43%">Agent sketch</th><th width="43%">Generated from the sketch</th></tr>
+<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-clocktower-sol-sketch.webp" width="360" alt="Clocktower cutaway: sol Agent sketch"></td><td><img src="docs/assets/sketch-clocktower-sol-result.webp" width="360" alt="Clocktower cutaway: subscription image generated from the sol sketch"></td></tr>
+<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-clocktower-astra-sketch.webp" width="360" alt="Clocktower cutaway: astra Agent sketch"></td><td><img src="docs/assets/sketch-clocktower-astra-result.webp" width="360" alt="Clocktower cutaway: subscription image generated from the astra sketch"></td></tr>
 </table>
 
-**千峰翠色**
+**Blue-green landscape**
 
 <table>
-<tr><th>对话模型</th><th width="43%">Agent 原生草图</th><th width="43%">以草图为参考的生图结果</th></tr>
-<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-shanshui-sol-sketch.webp" width="360" alt="千峰翠色：sol 绘制的原生草图"></td><td><img src="docs/assets/sketch-shanshui-sol-result.webp" width="360" alt="千峰翠色：以 sol 草图为参考生成的图片"></td></tr>
-<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-shanshui-astra-sketch.webp" width="360" alt="千峰翠色：astra 绘制的原生草图"></td><td><img src="docs/assets/sketch-shanshui-astra-result.webp" width="360" alt="千峰翠色：以 astra 草图为参考生成的图片"></td></tr>
+<tr><th>Conversation model</th><th width="43%">Agent sketch</th><th width="43%">Generated from the sketch</th></tr>
+<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-shanshui-sol-sketch.webp" width="360" alt="Blue-green landscape: sol Agent sketch"></td><td><img src="docs/assets/sketch-shanshui-sol-result.webp" width="360" alt="Blue-green landscape: subscription image generated from the sol sketch"></td></tr>
+<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-shanshui-astra-sketch.webp" width="360" alt="Blue-green landscape: astra Agent sketch"></td><td><img src="docs/assets/sketch-shanshui-astra-result.webp" width="360" alt="Blue-green landscape: subscription image generated from the astra sketch"></td></tr>
 </table>
 
 </details>
 
-[图片编辑与草稿保存 →](docs/GUIDE.zh-CN.md#图片生成与编辑)
+[Image editing and draft storage →](docs/GUIDE.en.md#image-generation-and-editing)
 
-## 手机远程控制（Beta）
+<a id="phone-remote-control-beta"></a>
 
-用 ChatGPT 手机 App 的 Codex 配对电脑上的 DSH，从手机新建或继续对话、调用工具、处理审批，DeepSeek 等任意 DSH 模型都能用。
+## Phone remote control (Beta)
 
-**默认关闭。** 在 **设置 → Codex 订阅 → 手机与更多 → 手机远程控制** 开启，扫码或输入手动码配对。电脑需要保持开机、联网并运行 DSH。
+Pair the Codex section of the ChatGPT mobile app with the DSH on your computer. Start or continue conversations, use tools and handle approvals from your phone, with DeepSeek or any other DSH model.
 
-本功能通过 OpenAI 的远程连接服务实现第三方主机兼容。Codex 已有官方远控实现，但 DSH 接入未获官方兼容性承诺，后续服务更新可能影响使用。可以随时移除配对设备或停用。
+**Off by default.** Enable it under **Settings → Codex → Phone & more → Phone remote control** and pair by QR or manual code. Your computer must stay on, online and running DSH.
+
+This is a third-party compatibility layer using OpenAI's remote connection service. Official Codex remote control exists, but DSH host compatibility is not explicitly guaranteed by OpenAI and may change with service updates. You can remove paired devices or disable it at any time.
 
 <details>
-<summary>手机上支持哪些操作？</summary>
+<summary>Supported phone operations</summary>
 
-- 查看、新建、续聊、中断、归档对话，搜索对话和对话内的关键词；
-- 切换模型、推理档位和权限（工作区内修改 / 完全访问）；
-- 批准工具调用或回答提问时手机直接弹出；手机掉线，重新打开会再弹一次，否则交回电脑处理；
-- 回复边生成边显示；命令、文件修改（带差异）、任务清单、联网搜索、连接器调用和生成的图片用手机原生视图显示；
-- 发图片，@ 搜电脑上的文件，/ 选 DSH 技能，只读 git 查看改动，用真实的文件夹选择器新建对话；
-- DSH 工作区对应手机上的项目；可以从手机分叉对话，看用量额度、累计用量和上下文用量；DSH 支持 `/compact` 时还能从手机压缩上下文；
-- 模型报错会显示在手机上；设置里能看到已配对的手机，随时移除。
+- follow, start, continue, interrupt and archive conversations; search conversations and keywords inside one;
+- switch model, reasoning level and permission (workspace write / full access);
+- approvals and questions pop up on the phone; if it drops, they pop up again when you reopen it, otherwise they go back to the computer;
+- replies appear as they are written; commands, file edits with diffs, the task list, web searches, connector calls and generated images use the phone's native views;
+- send photos, @ search files on the computer, / pick DSH skills, view changes with read-only git, and start chats in a real folder picker;
+- DSH workspaces appear as projects; fork a conversation, see usage limits, lifetime usage and context usage; where DSH supports `/compact`, compact the context from the phone;
+- model errors show on the phone; paired phones are listed in settings and can be removed.
 
 </details>
 
 <details>
-<summary>配对设置与已配对手机</summary>
+<summary>Pairing settings and paired phones</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-zh-dark.png"><img src="docs/assets/ui-remote-zh-light.png" width="560" alt="设置里的手机远程控制：开关、连接状态、配对二维码和手动码"></picture></p>
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Phone remote control in settings: the switch, connection status, pairing QR code and manual code"></picture></p>
 
 </details>
 
-## 全部功能
+<a id="all-features"></a>
 
-模型权限和额度以账号实际返回为准。
+## All features
+
+Model access and quota depend on your account.
 
 <details>
-<summary><b>模型与搜索</b>（14 项）</summary>
+<summary><b>Models and search</b> (14)</summary>
 <br>
 
-| 功能 | 你可以做什么 | 使用方式 / 条件 |
+| Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **订阅登录** | 直接登录 ChatGPT，使用 Codex 订阅模型，无需 API Key | 普通聊天无需 Codex CLI |
-| **模型目录同步** | 自动读取账号可用模型与推理档位，支持手动刷新；上次成功读取的目录会按账号保存在本地，重启时可在后台刷新期间继续使用，缓存有效期为 24 小时；目录标注退役的模型会在模型名称旁显示退役日期，不会自动切换你的选择 | 新型号以账号目录开放情况为准；模型只来自账号目录，未登录或读取失败且没有有效缓存时不显示任何模型，也不使用内置列表 |
-| **模型列表** | 在“模型”页中逐个显示或隐藏输入框中的模型；模型选择器沿用 DSH 官方的模型标识（如新模型徽章） | 仅影响列表显示；已选模型和请求不受影响 |
-| **默认模型** | 在“模型”页里选择每次新建会话默认使用的模型 | 写入 DSH 的默认模型设置，与在对话里切换模型是同一处；未设置时跟随 DSH 默认 |
-| **默认推理等级** | 在“模型”页统一选择订阅模型的默认档位；默认跟随各模型的官方目录推荐值 | 手动选档优先；模型不支持所选档位时使用该模型的合法默认值；不更改已有会话的手动选择 |
-| **推理等级** | 在输入框选择模型支持的推理档位 | 档位随模型变化 |
-| **速度档位** | 在支持的模型上切换标准 / Fast；账号目录提供时还有 Ultrafast（Beta），输入框显示闪电标识 | 默认标准；Fast 和 Ultrafast 会增加用量消耗，Ultrafast 目前仅 Pro 500 |
-| **输出详略** | 选择简短、适中或详细的回答偏好 | 默认跟随模型 |
-| **输入图片精度** | 为发送给聊天模型的图片选择低、高、原图或自动精度 | 影响输入 token 用量；默认自动 |
-| **订阅联网搜索** | 自动、DSH、Codex 三种来源 | 自动按会话模型优先选择来源，仅缺少凭据或服务不可用时尝试另一方；手动选择 DSH / Codex 则固定来源，失败直接报错。关闭“其他模型”后，非 Codex 会话只用 DSH 原生搜索。插件不改写 DSH 搜索设置，也不额外使用 DeepSeek 账号回退；原生搜索费用由所选服务决定 |
-| **其他模型总开关** | 一键让 DeepSeek 等非 Codex 模型的对话不再使用订阅的联网搜索、图片生成和 ChatGPT 连接器 | 设置 → Codex 订阅 → 联网与工具；默认开启，Codex 订阅模型不受影响；手机远程控制和语音由你主动开启或发起，不受它影响 |
-| **搜索范围** | 选择实时 / 缓存搜索、关闭搜索，或限定域名 | 在“联网与工具”的搜索来源下 |
-| **流无响应超时** | 设置连续没有收到流式数据时中断请求的时长 | 默认 10 分钟；不是整体回答时限 |
-| **上下文预算** | 按模型使用标准、扩展或自定义上下文预算 | 受模型目录上限约束 |
-| **GPT-Reserve** | 在账号开放时选择备用模型入口 | 实验性；不承诺独立备用额度 |
+| **Subscription sign-in** | Sign in to ChatGPT and use Codex subscription models without an API key | Normal chat needs no Codex CLI |
+| **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh; the last successful catalog is stored locally per account and remains available during the background refresh after restart, with a 24-hour lifetime; models marked for retirement show their retirement date next to the model name, without automatically switching your selection | New models appear when your account offers them; the account catalog is the only source, so no models are shown when signed out or when neither a remote read nor a valid cache is available |
+| **Model list** | Show or hide individual models in the composer picker on the Models page; the picker keeps DSH's own model labels (such as the new-model badge) | Display only; selected models and requests still work |
+| **Default model** | Choose the model a new conversation opens with on the Models page | Writes the DSH default model setting, the same one a model switch inside a chat writes; unset it to follow the DSH default |
+| **Default reasoning effort** | Choose a default level for subscription models on the Models page; Model default follows each model's official catalog recommendation | Manual choices take priority. Unsupported levels fall back to the model's valid default; existing manual conversation choices are preserved |
+| **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
+| **Speed tiers** | Switch supported models between Standard and Fast; Ultrafast (Beta) too when the account catalog offers it, with a lightning indicator | Standard by default; Fast and Ultrafast increase usage, and Ultrafast is Pro 500 only today |
+| **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
+| **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
+| **Subscription web search** | Auto, DSH, and Codex sources | Auto prefers the source matching the session model and tries the other only for missing credentials or an unavailable service. Explicit DSH / Codex choices fix the source and report failures directly. With Other models off, non-Codex chats use native DSH search only. The plugin neither rewrites DSH search settings nor adds a DeepSeek account fallback; native search charges depend on the selected service |
+| **Other-models switch** | One switch that stops conversations on DeepSeek and other non-Codex models from using subscription web search, image generation and ChatGPT connectors | Settings → Codex subscription → Web & tools; on by default, Codex subscription models are not affected; phone remote control and voice are started by you and are not affected |
+| **Search scope** | Choose live / cached search, disable search, or restrict domains | Configure under Web & tools, in the search source group |
+| **Stream inactivity timeout** | Set how long a request can receive no streamed data before it is aborted | 10 minutes by default; not an overall response deadline |
+| **Context budget** | Use standard, extended, or custom budgets per model | Limited by the model catalog |
+| **GPT-Reserve** | Select the reserve model when your account offers it | Experimental; no promise of a separate reserve quota |
 
 </details>
 
 <details>
-<summary><b>账号与额度</b>（10 项）</summary>
+<summary><b>Accounts and quota</b> (10)</summary>
 <br>
 
-| 功能 | 你可以做什么 | 使用方式 / 条件 |
+| Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **多账号管理** | 添加、切换、移除账号，或退出全部账号 | 设置 → Codex 订阅 → 开始 |
-| **额度详情** | 查看短周期 / 每周额度、重置时间及独立额度分组 | 仅展示服务端返回的窗口与分组 |
-| **额度去向** | 在额度卡片里按周查看额度花在哪：按模型、入口、来源和触发方式拆分 | 来自官方用量报告，近似值，有一两天延迟；账号没有该报告时不显示 |
-| **使用概览** | 在额度卡片里查看累计 token、单日最高、连续使用天数、最常用推理档，以及最近半年的每日用量热力图 | 来自官方使用统计；账号没有该统计时不显示 |
-| **Credits 与重置卡** | 查看额外 Credits、消费上限和可用重置卡 | 账号返回对应数据时显示 |
-| **输入框额度** | 不离开会话即可查看百分比或进度条 | 默认关闭，可选显示方式 |
-| **续航预测** | 悬浮或点击输入框额度，查看按最近用量估算的用完时间 | Beta；可选，不是保证值 |
-| **额度提醒** | 使用固定阈值、提前提醒，或分别设置短 / 长周期阈值 | 默认剩余 20% 提醒，可关闭 |
-| **使用重置卡** | 在确认后主动使用服务端提供的重置卡 | 二次确认与等待保护，由服务端判定结果 |
-| **重置后重试** | 等待已确认的短时额度重置，再继续请求 | 默认关闭；等待期间可停止 |
+| **Multiple accounts** | Add, switch, remove, or sign out of all accounts | Settings → Codex → Start |
+| **Quota details** | View short / weekly windows, reset times, and separate quota groups | Only backend-provided windows and groups are shown |
+| **Where the allowance went** | In the quota card, see each week's allowance split by model, surface, source and trigger | From the official usage report: approximate, may lag a day or two; hidden when the account has no report |
+| **Usage overview** | In the quota card, see lifetime tokens, busiest day, streaks, most used reasoning level and a half-year daily heatmap | From the official usage statistics; hidden when the account has none |
+| **Credits and reset cards** | View extra Credits, spending caps, and available reset cards | Shown when returned for your account |
+| **Composer quota** | See remaining quota as a percentage or progress bar while chatting | Off by default; choose your display mode |
+| **Runway estimate** | Hover over or click the composer quota to see when recent usage would exhaust it | Beta; optional estimate, not a guarantee |
+| **Quota alerts** | Use fixed, early, or custom short / long-window thresholds | 20% remaining by default; can be disabled |
+| **Redeem reset cards** | Use an available reset card after confirmation | Confirmation and waiting safeguards; server decides the result |
+| **Retry after reset** | Wait for a confirmed short-window reset before continuing | Off by default; waiting can be stopped |
 
 </details>
 
 <details>
-<summary><b>图片与草图</b>（14 项）</summary>
+<summary><b>Images and sketching</b> (14)</summary>
 <br>
 
-| 功能 | 你可以做什么 | 使用方式 / 条件 |
+| Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **图片生成** | 通过订阅生成图片，调整可用的请求型号与质量；需要时可生成透明背景 PNG | 默认开启，可关闭 |
-| **参考图编辑** | 带上参考图继续修改作品 | 默认开启，可关闭 |
-| **图片查看与下载** | 完成的出图结果直接显示在回答后，无需展开工具过程；可缩放、拖动、适合窗口、下载校验后的原图 | 内置查看器，无需另装；旧图可能只有预览 |
-| **区域标注编辑** | 在图上圈定区域、填写备注，带定位参考继续编辑 | 回填输入框后由你确认发送 |
-| **手绘画板** | 选择画布比例，使用钢笔、铅笔、荧光笔及橡皮 | Beta；画板默认关闭 |
-| **形状与文字** | 绘制直线、箭头、形状、原生曲线，选中修改对象和文字 | 在草图画板中使用 |
-| **渐变、模糊、混合与裁剪** | 填充可用线性 / 径向渐变；笔画可加模糊（发光、阴影、雾气）、混合模式（正片叠底、滤色、叠加等）和形状裁剪；图层也能设混合模式 | 都保留为可编辑属性，随移动缩放、草稿和导出保存；Agent 用 SVG 的渐变、`feGaussianBlur`、`mix-blend-mode`、`clip-path` 画出同样效果 |
-| **图层与图片导入** | 分层创作，将图片加入草图继续画 | 图片作为图层管理 |
-| **笔画平滑与导航** | 抬笔后平滑整条路径；拖动、缩放、撤销重做 | 快捷键可自定义和关闭 |
-| **多份草稿** | 保存并重新编辑最多 20 份本地草稿 | 保存在当前浏览器 |
-| **导入与导出** | 导出 PNG，或交换保留原生笔画的草稿文件 | 草稿文件可重新导入继续编辑 |
-| **Agent 绘图** | 用 `@sketch` 让 Agent 绘制，查看进度并随时停止；Agent 可用 SVG 整段作画，导入为可编辑原生笔画；有参考图时可并排对比、看差异热图、局部放大、量颜色与边缘位置、撤销重画，每批画完都会返回误差变化 | Beta；默认关闭，需同时开启画板。这些工具只测量和展示，不替模型作画 |
-| **绘制回放与视频** | 画板里的“回放”按钮把绘制过程一笔一笔重放（线条沿路径画出，填充先描边再自上而下铺色），可调速、拖动进度，并录成 WebM 视频 | 视频先在画板里预览，点“保存视频”才会保存，不会自动下载 |
-| **绘图结果回看** | 完成后向模型返回画布预览，帮助后续检查 | Beta；默认关闭，会增加图片输入用量 |
+| **Image generation** | Generate through your subscription and adjust available request model / quality options; ask for a transparent-background PNG when needed | On by default, can be disabled |
+| **Reference image editing** | Continue refining an image with references | On by default, can be disabled |
+| **Image viewing and download** | Completed images appear after the answer without expanding tool activity; zoom, pan, fit to window, and download verified originals | Built-in viewer; older images may only have previews |
+| **Region-based editing** | Mark regions, add notes, and continue editing with location references | Fills the composer for you to review and send |
+| **Manual canvas** | Choose an aspect ratio and draw with pen, pencil, marker, and erasers | Beta; canvas off by default |
+| **Shapes and text** | Draw lines, arrows, shapes, native curves, and editable text / objects | Available in the sketch canvas |
+| **Gradients, blur, blend and clip** | Fill with linear / radial gradients; add blur (glow, shadow, haze), blend modes (multiply, screen, overlay, …) and shape clipping to a stroke; layers can have a blend mode too | All stay editable properties and survive moving, scaling, drafts and export; the agent gets the same through SVG gradients, `feGaussianBlur`, `mix-blend-mode` and `clip-path` |
+| **Layers and image import** | Work in layers and bring images into the canvas | Images are managed as layers |
+| **Smoothing and navigation** | Smooth complete strokes after release; pan, zoom, undo, and redo | Shortcuts can be customized or disabled |
+| **Multiple drafts** | Save and reopen up to 20 local drafts | Stored in the current browser |
+| **Import and export** | Export PNG, or native drafts that preserve editable strokes | Drafts can be imported again to keep editing |
+| **Agent drawing** | Ask the agent to draw with `@sketch`, follow progress, and stop it; the agent can draw whole stages in SVG, imported as editable native strokes; with a reference it can compare side by side, read a difference heat map, zoom into a region, measure colours and edge positions, and undo, and every batch reports how the error changed | Beta; off by default, requires the canvas. The tools only measure and show; they never draw for the model |
+| **Replay and video** | The Replay button redraws the process stroke by stroke (lines along their path, fills outlined first and then filled top to bottom), with speed presets and a scrubber, and records it as a WebM video | The video is previewed in the board and only saved when you click Save video; nothing downloads automatically |
+| **Result preview for the model** | Return a canvas image after drawing for subsequent review | Beta; off by default, adds image input usage |
 
 </details>
 
+<a id="codex-subtask-runtime"></a>
+
 <details>
-<summary><b>进阶能力与维护</b>（9 项）</summary>
+<summary><b>Advanced capabilities and maintenance</b> (9)</summary>
 <br>
 
-| 功能 | 你可以做什么 | 使用方式 / 条件 |
+| Feature | What you can do | Availability / setup |
 | --- | --- | --- |
-| **手机远程控制** | 在 ChatGPT 手机 App 的 Codex 里直接指挥电脑上的 DSH：新建、续聊、归档对话，切换模型和权限，回答审批和提问，DeepSeek 等任意 DSH 模型都能用 | Beta；默认关闭，设置 → Codex 订阅 → 手机与更多 → 手机远程控制，扫码或输入手动码配对 |
-| **Codex 独立子任务** | 复用订阅登录和工作区权限执行独立任务，可指定允许的模型与推理档位 | Beta，可选，多数人用不到：默认用 DSH 自己的子智能体（同样能用订阅模型）；想让子任务由官方 Codex Agent 执行时，才安装可选组件（约 377 MB，Windows），并在“插件 → 子智能体”开启模型选择。用独立数据目录和订阅登录，不读你电脑上的 Codex 登录 |
-| **子任务组件管理** | 在设置里安装、停用或卸载官方 Codex 子任务组件 | 由支持的 DSH 宿主管理，无需额外登录 |
-| **云端上下文压缩** | 使用 Codex 云端压缩继续长对话，同时保留 DSH 历史与原生压缩 | Beta / 实验性；默认关闭，开启的请求使用 SSE |
-| **WebSocket 连接** | 实验性复用连接和上下文传输，连接失败可回退 SSE | Beta / 实验性；默认 SSE，不保证更快 |
-| **Auto review 官方审查模型** | DSH Auto review 改用 Codex 自带的审查模型判断工具调用，审查规则与放行流程仍由 DSH 负责 | Beta；默认关闭，账号目录提供该模型时生效 |
-| **ChatGPT 连接器** | 让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等；模型先搜索再调用，写操作默认每次都要你批准，可改成不再询问 | 默认关闭，设置 → Codex 订阅 → 联网与工具 → ChatGPT 连接器；需先在 ChatGPT 里连接应用 |
-| **支持诊断** | 查看功能前置条件和近期操作结果，一键复制约 1 KB 的精简报告（完整报告可另行复制）；不含凭据和会话正文 | 设置 → Codex 订阅 → 手机与更多；未验证不代表故障 |
-| **预测缓存清理** | 查看并清理本地额度预测历史 | 保留登录、草稿、原图和共享依赖 |
+| **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta; off by default; Settings → Codex → Phone & more → Phone remote control, pair by QR or manual code |
+| **Codex independent subtasks** | Reuse subscription sign-in and workspace permissions; select allowed models and reasoning levels | Beta, optional, most people do not need it: by default DSH runs its own subagents (they can use subscription models too); install the optional component (about 377 MB on Windows) and turn on model selection under Plugins → Subagents only if you want subtasks run by the official Codex agent. It uses its own data directory and your subscription sign-in, never the Codex login on this computer |
+| **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
+| **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
+| **WebSocket transport** | Experimentally reuse connections and context transfers, with SSE fallback on connection failure | Beta / experimental; SSE by default, no speed guarantee |
+| **Codex reviewer for Auto review** | DSH Auto review judges tool calls with Codex's own review model; DSH keeps its review policy and allow/deny flow | Beta; off by default, applies when your account catalog offers the model |
+| **ChatGPT connectors** | Let DeepSeek or any DSH model use the apps you connected in ChatGPT: GitHub, Gmail, Google Drive, Calendar and more; models search first, then call, and by default every change asks for your approval, switchable | Off by default, Settings → Codex → Web & tools → ChatGPT connectors; connect the apps in ChatGPT first |
+| **Support diagnostics** | Inspect prerequisites and recent operation results, and copy a short report (about 1 KB; the full one can be copied separately) without credentials or conversation text | Settings → Codex → Phone & more; unverified does not mean broken |
+| **Forecast cache cleanup** | Inspect and clear local quota forecast history | Keeps sign-in, drafts, originals, and shared dependencies |
 
 </details>
 
-### 切换推理强度时复用缓存
+<a id="reuse-cache-when-changing-effort"></a>
 
-**切换推理强度时复用缓存**位于**设置 → Codex 订阅 → 模型 → 高级**，默认开启，可随时关闭；已保存的关闭选择会保留。只对当前账号模型目录明确声明支持的标准、单智能体模型生效；不根据模型名称猜测支持情况。普通提示词缓存原本就是自动的，关闭这个开关仍有普通缓存。
+### Reuse cache when changing effort
 
-请求顶层 `reasoning.effort` 保持当前上下文窗口的初始值。在 DSH 调整强度后，插件在新增历史中记录 `configuration_update`，后续请求保留它的位置。这有助于减少切档导致的缓存失效，不保证每次命中、回复更快或额度节省；服务端响应的顶层 effort 仍可能显示初始值。
+**Reuse cache when changing effort** is under **Settings → Codex → Models → Advanced**. It is on by default and can be turned off; saved Off choices are preserved. It applies only to standard, single-agent models explicitly supported by the current account catalog; support is never inferred from model names. Ordinary prompt caching is automatic and still works when this switch is off.
 
-- **云端自动压缩和无限重试模式会禁用此功能。** 界面会说明冲突；不会自动修改压缩、重试、鉴权、连接或 cache key 设置。
-- 成功响应在 DSH 原有 replay metadata 中保存少量不含正文的状态，重启、恢复和分支可据此续用。本地压缩成功后，旧前缀不再相同，插件核对 DSH 已提交的历史替换并以当前强度建立新基线；失败的压缩不会清掉原状态。
-- 开启已有会话或切回支持的模型时，只有能与 DSH 原生会话历史完整核对，才建立新基线，第一条不保证复用旧缓存。无法验证的历史、不支持的模型、账户变化及资源上限会使用所选强度的普通请求。
-- 同一进程中的 pending 状态会固定已发送输入，即使该请求失败或取消。对完全相同的输入重试时选择不同强度会明确报错；请保留原强度重试，或发送新消息。失败请求没有成功响应的持久化检查点，因此进程重启或插件重载后，不保证保留失败请求的缓存前缀。
-- 关闭后恢复普通请求，不给旧日志补写 update。不向 `/responses/compact` 发送 update 历史，不支持 pro、多智能体、自动截断或自动压缩。
-- 上限为 20,000 个 input item、16 MiB 输入与外层字段指纹数据、128 个 update，以及 256 个活动或 pending 会话。历史校验或边界校验失败时停止保缓存，不忽略用户所选强度。
+The request-level `reasoning.effort` stays at the current context window's initial value. Changes are recorded as `configuration_update` items in new history and replayed in their original positions. This can reduce cache invalidation when switching effort; it does not guarantee cache hits, faster replies or quota savings. The response-level effort can still report the initial value.
 
-此机制使用 OpenAI [推理指南](https://developers.openai.com/api/docs/guides/reasoning)中的 configuration update；[提示词缓存文档](https://developers.openai.com/api/docs/guides/prompt-caching)解释缓存条件。支持情况以当前账号目录和实际响应为准；服务端拒绝参数时报告错误，不换成旧强度或 API key 重试。
+- **Cloud auto-compaction and Unlimited retries disable this feature.** The UI explains the conflict; your compaction, retry, authentication, connection and cache-key settings are never changed automatically.
+- Successful responses save small, text-free state alongside DSH's existing replay metadata for restart, resume and forks. Successful local compaction changes the prefix; after checking DSH's committed history replacement, the plugin establishes a fresh baseline at the selected effort. Failed compaction keeps the previous state.
+- Enabling an existing chat or returning to a supported model establishes a baseline only when the complete input matches DSH's native session history. The first request may lose the old cache. Unverifiable history, unsupported models, account changes and resource limits use ordinary requests with your selected effort.
+- The same-process pending state freezes an already dispatched input even if it fails or is cancelled. Selecting a different effort for that exact retry reports an error; keep its original effort or send a new message. Failed attempts have no durable successful-response checkpoint, so preserving their cache prefix across a process restart or plugin reload is not guaranteed.
+- Disabling restores ordinary requests without retrofitting updates into old logs. Update history is never sent to `/responses/compact`. Pro, multi-agent, automatic truncation and automatic compaction are not supported.
+- The feature is bounded to 20,000 input items, 16 MiB of fingerprinted input/envelope data, 128 updates and 256 active/pending sessions. Boundary or history validation failures stop preservation, not your selected reasoning effort.
 
-## 更新与卸载
+This uses configuration updates documented in OpenAI's [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning); see [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching) for cache requirements. Support follows the current account catalog and actual responses. Backend parameter rejections are surfaced, never retried with an old effort or an API key.
 
-在 DSH **插件** 页面找到本插件，使用更新或卸载操作，完成后按页面提示重启。卸载插件不会删除其他插件。
+<a id="update-and-uninstall"></a>
+
+## Update and uninstall
+
+Find this plugin on the DSH **Plugins** page and use its update or uninstall action. Follow any restart instructions. Uninstalling this plugin does not remove other plugins.
 
 <details>
-<summary>终端方式</summary>
+<summary>Terminal commands</summary>
 
 ```sh
 dsh plugin --profile web update dsh-codex-subscription@3.2.5
 ```
 
-仅在需要卸载时运行：
+Run only when you want to uninstall:
 
 ```sh
 dsh plugin --profile web remove dsh-codex-subscription
@@ -378,71 +402,75 @@ dsh plugin --profile web remove dsh-codex-subscription
 
 </details>
 
-## 常见问题
+<a id="troubleshooting"></a>
+
+## Troubleshooting
 
 <details>
-<summary>和官方插件列表里的 Codex 组合包（dsh-hooks-codex）是什么关系？</summary>
+<summary>How does this relate to the official Codex bundle (dsh-hooks-codex) in the plugin list?</summary>
 
-没有关系，可以同时安装。官方的 Codex / Claude Code 组合包让 DSH 运行 Codex 或 Claude Code 格式的 hooks 配置（工具调用前后自动执行的脚本）；本插件负责用 ChatGPT 订阅登录、使用 Codex 模型、查看额度、搜索、生图和手机远程控制。
+They are unrelated and can be installed together. The official Codex / Claude Code bundles let DSH run Codex or Claude Code style hooks configs (scripts that run before and after tool calls). This plugin signs in with your ChatGPT subscription and provides Codex models, quota, search, images and phone remote control.
 
 </details>
 
 <details>
-<summary>电脑没有 dsh 命令，怎么安装？</summary>
+<summary>No dsh command on your computer?</summary>
 
-直接使用 DSH 的 **插件 → 添加插件**，粘贴包名即可，无需配置终端命令。
-
-</details>
-
-<details>
-<summary>有多个 DSH，或安装后找不到插件？</summary>
-
-在你实际使用的 DSH 中安装。使用终端时，请从目标 DSH 环境运行命令，并确认对应的 profile；不要删除 profile 或修改系统 PATH 来强行安装。
+Use **Plugins → Add plugin** in DSH and paste the package name. No terminal setup is needed.
 
 </details>
 
 <details>
-<summary>如何反馈问题？</summary>
+<summary>Multiple DSH installations, or a missing plugin?</summary>
 
-在 **设置 → Codex 订阅 → 手机与更多** 生成“支持诊断”，粘贴到[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)的诊断栏，并补充触发步骤。
-
-诊断不含凭据、账号标识、原始响应或完整日志。请勿附上登录链接、授权码或浏览器回调地址。
+Install from the DSH you actually use. For terminal installation, run commands in the intended DSH environment and check its profile. Do not delete profiles or change your system PATH to force an install.
 
 </details>
 
 <details>
-<summary>需要装 Codex 命令行才能用吗？</summary>
+<summary>How do I report a problem?</summary>
 
-普通订阅聊天不需要。只有想用 **Codex 独立子任务** 时，才在“设置 → Codex 订阅 → 联网与工具”里点“安装组件”，停用和卸载也在同一处。其余实验选项按需开启。[可选组件、存储清理与完整说明 →](docs/GUIDE.zh-CN.md)
+Generate **Support diagnostics** under **Settings → Codex → Phone & more**, paste it into the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml), and include the steps that caused the problem.
+
+Diagnostics exclude credentials, account identifiers, raw responses, and full logs. Never attach sign-in URLs, authorization codes, or browser callback addresses.
 
 </details>
 
-<a id="定位与边界"></a>
-<a id="边界与支持"></a>
+<details>
+<summary>Do I need the Codex command line?</summary>
 
-## 项目与支持
+Not for ordinary subscription chat. Only if you want **Codex independent subtasks**: use "Install component" under Settings → Codex subscription → Web & tools; disabling and uninstalling are in the same place. Other experimental options are opt-in. [Optional components, storage cleanup and the full guide →](docs/GUIDE.en.md)
 
-- **只做 ChatGPT / Codex 订阅**，并把这一件事做深：额度与预测、图片与草图、子任务、诊断；不接入 Claude、Grok 等其他订阅。
-- **失败就明确报错**：不会静默切换到其他付费路由，也不会虚构账号没有返回的额度窗口。
-- **跟随官方 DSH 发布**：每次发版都用官方 DSH 的 latest、next 等通道做安装、启动、卸载、重装的端到端验收；已验证的版本见 [兼容性记录](docs/dsh-020-compatibility.md)。
-- 模型、额度和功能开放情况以你的账号实际返回为准；ChatGPT 后端与 DSH 可能独立变化。
+</details>
 
-本项目为社区项目，与 DeepSeek、OpenAI 无隶属或背书关系。
+<a id="positioning-and-boundaries"></a>
+<a id="scope-and-support"></a>
 
-- 本项目的问题反馈请使用[使用问题表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml)；
-- 明确的产品建议请使用[功能建议表单](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml)；
-- 欢迎提交聚焦的修复和兼容性改进，具体要求见 [CONTRIBUTING.md](CONTRIBUTING.md)；
-- 欢迎[共同维护与开发](CONTRIBUTING.md#help-maintain)：长期负责某个模块、跟进相关问题或参与代码审查，可以[开个 Issue 聊聊](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=help-maintain.yml)；
-- DSH 插件交流可前往 [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions)。
-- 敏感问题请先阅读 [SECURITY.md](SECURITY.md)。
+<a id="project-and-support"></a>
 
-如果这个项目对你有帮助，[点一下 Star](https://github.com/WSL043/dsh-codex-subscription/stargazers) 可以让更多 DSH 用户发现它。
+## Project and support
+
+- **ChatGPT / Codex subscription only**, done in depth: quota and forecasting, images and sketches, subtasks, diagnostics. Other subscriptions such as Claude or Grok are out of scope.
+- **Fail explicitly**: requests never silently fall back to another paid route, and quota windows the account does not return are never invented.
+- **Tracks official DSH releases**: every release is accepted end to end (install, start, remove, reinstall) against official DSH channels such as latest and next; verified versions are recorded in the [compatibility notes](docs/dsh-020-compatibility.md).
+- Models, quota and features depend on what your account actually returns; the ChatGPT backend and DSH can change independently.
+
+This community project is not affiliated with or endorsed by DeepSeek or OpenAI.
+
+- Use the [bug report form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml) for project feedback.
+- Use the [feature request form](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=feature-request.yml) for focused product suggestions.
+- Focused fixes and compatibility improvements are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+- Help [maintain and develop the project](CONTRIBUTING.md#help-maintain): take ongoing responsibility for a module, follow up on related issues or review code. [Open an issue](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=help-maintain.yml) to discuss.
+- For DSH plugin discussion, visit [DeepSeek Harness Discussions](https://github.com/deepseek-ai/deepseek-harness/discussions).
+- Read [SECURITY.md](SECURITY.md) before reporting sensitive issues.
+
+If this project is useful, the [Star button](https://github.com/WSL043/dsh-codex-subscription/stargazers) helps more DSH users find it.
 
 <a href="https://star-history.com/#WSL043/dsh-codex-subscription&Date">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date&theme=dark" />
-    <img alt="Star 趋势" src="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date" />
+    <img alt="Star history" src="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date" />
   </picture>
 </a>
 
-[MIT](LICENSE)
+**English** · [简体中文](README.zh-CN.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Português](README.pt.md) · [MIT](LICENSE)

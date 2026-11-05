@@ -24,7 +24,7 @@ test('manual validation runs every gate even when the last commit only changed a
 })
 
 test('documentation and marketplace screenshot changes run delivery checks without pretending runtime changed', () => {
-  for (const file of ['README.md', 'README.en.md', 'CONTRIBUTING.md', 'screenshots.json']) {
+  for (const file of ['README.md', 'README.en.md', 'README.zh-CN.md', 'README.ja.md', 'README.es.md', 'README.fr.md', 'README.de.md', 'README.ru.md', 'README.pt.md', 'CONTRIBUTING.md', 'screenshots.json']) {
     const result = plan([file])
     assert.equal(result.status, 0, result.stderr)
     const output = JSON.parse(result.stdout)
