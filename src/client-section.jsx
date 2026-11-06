@@ -9,12 +9,23 @@ function useBackdropOf(ref) {
   useLayoutEffect(() => {
     const node = ref.current
     if (!node) return undefined
+    // Let the browser decode computed CSS colors, including color(srgb …),
+    // rather than assuming their channels are 0–255 rgb() numbers.
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 1
+    const context = canvas.getContext('2d', { willReadFrequently: true })
+    if (!context) return undefined
     const paint = () => {
       let parent = node.parentElement
       while (parent) {
         const colour = getComputedStyle(parent).backgroundColor
-        const parts = colour.match(/[\d.]+/gu)
-        if (parts && parts.length >= 3 && (parts.length < 4 || Number(parts[3]) > 0)) { node.style.background = `rgb(${parts[0]}, ${parts[1]}, ${parts[2]})`; return }
+        context.clearRect(0, 0, 1, 1)
+        context.fillStyle = colour
+        context.fillRect(0, 0, 1, 1)
+        const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data
+        // Preserve the ancestor's color but make the sticky surface opaque so
+        // scrolling text cannot bleed through a translucent host background.
+        if (alpha > 0) { node.style.background = `rgb(${red}, ${green}, ${blue})`; return }
         parent = parent.parentElement
       }
       node.style.background = ''

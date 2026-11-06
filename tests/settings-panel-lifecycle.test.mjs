@@ -38,7 +38,7 @@ function nodes(tree, predicate) {
 }
 const named = name => Object.assign(() => null, { displayName: name })
 let fixtureCounter = 0
-async function component(file, name, props, additions = {}, invoke = (fn, value) => fn(value)) {
+async function component(file, name, props, additions = {}, invoke = (fn, value) => fn(value), globals = {}) {
   const fixtureId = `settings-fixture-${++fixtureCounter}`
   const cells = [], pending = [], window = new EventTarget(), document = new EventTarget()
   window.setInterval = (...args) => setInterval(...args)
@@ -74,6 +74,7 @@ async function component(file, name, props, additions = {}, invoke = (fn, value)
     setTimeout: (...args) => setTimeout(...args), clearTimeout: id => clearTimeout(id),
     setInterval: (...args) => setInterval(...args), clearInterval: id => clearInterval(id),
     require: id => dependencies[id] ?? new Proxy({}, { get: (_target, key) => named(String(key)) }),
+    ...globals,
   })
   const render = (patch = {}) => {
     currentProps = { ...currentProps, ...patch }
@@ -259,6 +260,44 @@ test('unused settings panels do not mount; visited panels and accessible targets
     assert.equal(tab('start').props['aria-selected'], true)
     assert.equal(panel('tools').props.children.props.active, false)
   } finally { h.dispose() }
+})
+
+test('sticky settings backdrop uses browser-decoded colors, skips transparency and repaints on theme changes', async () => {
+  // Pixel values are the browser boundary, not another CSS color parser.
+  // Actual Chromium color decoding is covered by the recorded UI acceptance.
+  const colors = new Map([
+    ['transparent', [0, 0, 0, 0]],
+    ['color(srgb 1 1 1 / 0.72)', [255, 255, 255, 184]],
+    ['rgb(44, 44, 46)', [44, 44, 46, 255]],
+  ])
+  const outer = { background: 'rgb(44, 44, 46)', parentElement: null }
+  const parent = { background: 'color(srgb 1 1 1 / 0.72)', parentElement: outer }
+  const node = { style: {}, parentElement: parent }
+  let paint, disconnected = false
+  const context = { clearRect() {}, fillRect() {}, getImageData() { return { data: colors.get(this.fillStyle) } } }
+  const h = await component('client-section.jsx', 'CodexSection', {
+    preference: { refreshModels() {} }, accountStatus: { load() {} }, t: key => key,
+  }, {}, (fn, props) => {
+    const tree = fn(props)
+    nodes(tree, value => value.props.role === 'tablist')[0].props.ref.current = node
+    return tree
+  }, {
+    document: { documentElement: {}, body: {}, createElement: () => ({ getContext: () => context }) },
+    getComputedStyle: value => ({ backgroundColor: value.background }),
+    MutationObserver: class {
+      constructor(callback) { paint = callback }
+      observe() {}
+      disconnect() { disconnected = true }
+    },
+  })
+  try {
+    assert.equal(node.style.background, 'rgb(255, 255, 255)')
+    parent.background = 'transparent'; paint()
+    assert.equal(node.style.background, 'rgb(44, 44, 46)', 'transparent wrappers do not hide the host surface')
+    outer.background = 'transparent'; paint()
+    assert.equal(node.style.background, '', 'CSS theme fallback remains available without a painted ancestor')
+  } finally { h.dispose() }
+  assert.equal(disconnected, true)
 })
 
 test('remote display polling pauses while hidden and returns without regenerating pairing', async t => {
