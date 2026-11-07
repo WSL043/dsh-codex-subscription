@@ -388,7 +388,6 @@ export default {
   "forecastCompactChanging": "再推定中",
   "forecastCompactStale": "古いデータ",
   "imageMore": "その他の操作",
-  "imageEditShort": "編集",
   "forecastResolution": "使用量の変化が少ないため、まだ利用ペースを推定できません",
   "forecastChanging": "使用状況が変化したため、再推定しています",
   "forecastStale": "利用枠情報が古いため、更新を待っています",
@@ -930,8 +929,8 @@ export default {
   "imageZoomHint": "ホイールで拡大・縮小 · ドラッグで移動 · ダブルクリックで 100%",
   "imageActual": "実際のサイズ",
   "imageEditDefault": "この画像を編集してください。",
-  "imageEdit": "作曲欄で編集を続ける",
-  "imageEditPreparing": "作曲欄に追加中…",
+  "imageEdit": "入力欄に追加",
+  "imageEditPreparing": "入力欄に追加中…",
   "imageEditFailed": "引き継ぎに失敗しました。各マーカーにメモを追加し、作曲欄で画像を受け付けられることを確認してから、もう一度お試しください。",
   "imageRemoveAnnotation": "メモを削除"
 }

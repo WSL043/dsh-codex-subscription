@@ -90,7 +90,7 @@ function ViewerMenu({ label, children, icon, role, disabled, state }) {
   </>
 }
 
-function ViewerAction({ action, finishDraft, item, service, revision, t, onStartMask, inMenu = false }) {
+function ViewerAction({ action, finishDraft, item, service, revision, onStartMask, inMenu = false }) {
   const [state, setState] = useState('idle')
   const active = useRef(true)
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
@@ -111,7 +111,7 @@ function ViewerAction({ action, finishDraft, item, service, revision, t, onStart
   if (action.kind === 'tool') return <button type="button" role={role} className="dcsiv-button dcsiv-icon-button" title={label} aria-label={label} data-state={state} disabled={state === 'pending'} onClick={() => { void invoke() }}>{tool(action.id)}</button>
   if (action.id === 'sketch' && state === 'idle') return <button type="button" role={role} className="dcsiv-button dcsiv-icon-button" title={action.label} aria-label={action.label} onClick={() => { void invoke() }}>{tool('sketch')}</button>
   if (action.kind === 'choice') return <ViewerMenu label={label} role={role} state={state} disabled={state === 'pending'} icon={tool(action.id)}>{close => action.options.map(option => <button type="button" role="menuitem" key={option.value} onClick={() => { close(); void invoke({ option: option.value }) }}>{option.label}</button>)}</ViewerMenu>
-  return <button type="button" role={role} className="dcsiv-button dcsiv-edit-action" title={label ?? t('imageEdit')} aria-label={label ?? t('imageEdit')} data-state={state} disabled={state === 'pending'} onClick={() => { void invoke() }}><IconEditOutline16 /><span className="dcsiv-edit-short">{state === 'idle' ? (action.id === 'sketch' ? t('imageToSketch') : t('imageEditShort')) : label}</span></button>
+  return <button type="button" role={role} className="dcsiv-button dcsiv-edit-action" title={label} aria-label={label} data-state={state} disabled={state === 'pending'} onClick={() => { void invoke() }}><IconEditOutline16 /><span className="dcsiv-edit-short">{label}</span></button>
 }
 
 function ViewerDownload({ download, item, t }) {
@@ -396,7 +396,7 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
   const primaryActions = item.actions.filter(action => !secondaryActions.includes(action))
   const hasNotes = Boolean(draft?.note.trim()) || annotations.some(annotation => annotation.note.trim() !== '')
   const showMore = compact || secondaryActions.length > 0 || hasNotes
-  const renderAction = (action, inMenu = false, closeMenu) => <ViewerAction action={action} finishDraft={finishDraft} item={item} service={service} revision={request.revision} t={t} onStartMask={action => { closeMenu?.(); startMask(action) }} inMenu={inMenu} key={`${request.revision}:${index}:${action.id}`} />
+  const renderAction = (action, inMenu = false, closeMenu) => <ViewerAction action={action} finishDraft={finishDraft} item={item} service={service} revision={request.revision} onStartMask={action => { closeMenu?.(); startMask(action) }} inMenu={inMenu} key={`${request.revision}:${index}:${action.id}`} />
   const zoomLabel = t(transform.zoom === 1 ? 'imageActual' : 'imageFit')
   const zoomControl = closeMenu => <button type="button" role={closeMenu ? 'menuitem' : undefined} className="dcsiv-button dcsiv-zoom" title={zoomLabel} aria-label={zoomLabel} aria-description={t('imageZoomHint')} onClick={() => { closeMenu?.(); if (transform.zoom === 1) actual(); else fit() }}>{Math.round(transform.zoom * pixelScale * 100)}%{closeMenu ? <span>{zoomLabel}</span> : null}</button>
   const annotationPosition = annotation => {

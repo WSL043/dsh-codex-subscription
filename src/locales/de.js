@@ -388,7 +388,6 @@ export default {
   "forecastCompactChanging": "Wird neu geschätzt",
   "forecastCompactStale": "Veraltet",
   "imageMore": "Weitere Aktionen",
-  "imageEditShort": "Bearbeiten",
   "forecastResolution": "Noch nicht genügend Änderungen, um die Nutzungsrate zu schätzen",
   "forecastChanging": "Nutzungsintensität geändert; Schätzung wird neu berechnet",
   "forecastStale": "Daten zum Nutzungskontingent sind veraltet; warte auf eine Aktualisierung",
@@ -930,7 +929,7 @@ export default {
   "imageZoomHint": "Mausrad: zoomen · ziehen: verschieben · Doppelklick: 100 %",
   "imageActual": "Originalgröße",
   "imageEditDefault": "Dieses Bild bearbeiten.",
-  "imageEdit": "Weiter im Composer bearbeiten",
+  "imageEdit": "Zur Eingabe hinzufügen",
   "imageEditPreparing": "Wird zum Composer hinzugefügt…",
   "imageEditFailed": "Übergabe fehlgeschlagen. Füge zu jeder Markierung eine Notiz hinzu und stelle sicher, dass der Composer Bilder akzeptiert. Versuche es dann erneut.",
   "imageRemoveAnnotation": "Notiz entfernen"

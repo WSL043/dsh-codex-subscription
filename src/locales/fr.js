@@ -388,7 +388,6 @@ export default {
   "forecastCompactChanging": "Nouvelle estimation en cours",
   "forecastCompactStale": "Obsolète",
   "imageMore": "Autres actions",
-  "imageEditShort": "Modifier",
   "forecastResolution": "Évolution insuffisante pour estimer le rythme",
   "forecastChanging": "L’intensité d’utilisation a changé ; nouvelle estimation en cours",
   "forecastStale": "Données de quota obsolètes ; en attente d’une mise à jour",
@@ -930,7 +929,7 @@ export default {
   "imageZoomHint": "Molette pour zoomer · faites glisser pour déplacer · double-clic pour afficher à 100 %",
   "imageActual": "Taille réelle",
   "imageEditDefault": "Retoucher cette image.",
-  "imageEdit": "Continuer la modification dans le compositeur",
+  "imageEdit": "Ajouter au champ de saisie",
   "imageEditPreparing": "Ajout au compositeur…",
   "imageEditFailed": "Le transfert a échoué. Ajoutez une note à chaque repère et vérifiez que le compositeur accepte les images, puis réessayez.",
   "imageRemoveAnnotation": "Supprimer la note"

@@ -388,7 +388,6 @@ export default {
   "forecastCompactChanging": "Recalculando",
   "forecastCompactStale": "Desactualizado",
   "imageMore": "Más acciones",
-  "imageEditShort": "Editar",
   "forecastResolution": "Aún no hay suficientes cambios para estimar la tasa",
   "forecastChanging": "Cambió la intensidad de uso; volviendo a estimar",
   "forecastStale": "Los datos de cuota están desactualizados; esperando una actualización",
@@ -930,7 +929,7 @@ export default {
   "imageZoomHint": "Rueda para ampliar · arrastra para desplazarte · doble clic para ver al 100%",
   "imageActual": "Tamaño real",
   "imageEditDefault": "Edita esta imagen.",
-  "imageEdit": "Continuar editando en el cuadro de entrada",
+  "imageEdit": "Añadir al cuadro de entrada",
   "imageEditPreparing": "Añadiendo al cuadro de entrada…",
   "imageEditFailed": "No se pudo transferir. Añade una nota a cada marcador y asegúrate de que el cuadro de entrada admita imágenes; luego inténtalo de nuevo.",
   "imageRemoveAnnotation": "Eliminar nota"

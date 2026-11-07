@@ -388,7 +388,6 @@ export default {
   "forecastCompactChanging": "Reestimando",
   "forecastCompactStale": "Desatualizado",
   "imageMore": "Mais ações",
-  "imageEditShort": "Editar",
   "forecastResolution": "Ainda não houve mudança suficiente para estimar o ritmo",
   "forecastChanging": "A intensidade de uso mudou; estimando novamente",
   "forecastStale": "Dados da cota de uso desatualizados; aguardando atualização",
@@ -930,7 +929,7 @@ export default {
   "imageZoomHint": "Role para ampliar · arraste para mover · clique duplo para 100%",
   "imageActual": "Tamanho real",
   "imageEditDefault": "Edite esta imagem.",
-  "imageEdit": "Continuar editando no composer",
+  "imageEdit": "Adicionar ao campo de entrada",
   "imageEditPreparing": "Adicionando ao composer…",
   "imageEditFailed": "Falha ao transferir. Adicione uma nota a cada marcador e confirme que o composer aceita imagens. Em seguida, tente novamente.",
   "imageRemoveAnnotation": "Remover nota"
