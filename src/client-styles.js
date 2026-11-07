@@ -228,42 +228,13 @@ export const STYLE = `
 .codexComposerQuotaBar::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}
 .codexComposerQuotaBar::-webkit-progress-value{background:var(--dsw-alias-label-secondary);border-radius:999px}
 .codexComposerQuotaBar::-moz-progress-bar{background:var(--dsw-alias-label-secondary);border-radius:999px}
-.codexModelSelect{position:relative;min-width:0}
-.codexModelSelectTrigger{display:flex;align-items:center;gap:4px;min-width:0;max-width:min(360px,45cqw);height:28px;padding:0 4px 0 8px;border:0;border-radius:var(--dsw-radius-sm);outline:0;background:transparent;color:var(--dsw-alias-label-secondary);font-size:13px;font-weight:500;line-height:20px;cursor:pointer}
-.codexModelSelectTrigger:hover:not(:disabled),.codexModelSelectTrigger[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover)}
-.codexModelSelectTrigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}
-.codexModelSelectTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
-.codexModelSelectBolt{display:block;flex:none;width:14px;height:14px;color:var(--dsw-alias-label-primary)}
-.codexModelSelectLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.codexModelSelectEffort{flex:none;color:var(--dsw-alias-label-caption)}
-.codexModelSelectChevron{flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms}
-.codexModelSelectTrigger[aria-expanded=true] .codexModelSelectChevron{transform:rotate(180deg)}
-/* The menu follows DSH's own model picker: one floating surface above the trigger, rows drill into the same surface. */
-.codexModelSelectMenu{z-index:1100;--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-sizing:border-box;position:fixed;display:flex;flex-direction:column;width:max-content;min-width:min(240px,100vw - 32px);max-width:min(420px,100vw - 32px);max-height:min(360px,100vh - 96px);padding:4px;border:0;box-shadow:var(--dsw-elevation-prominent);color:var(--dsw-alias-label-primary);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);overflow:hidden}
-.codexModelSelectCell{box-sizing:border-box;display:flex;align-items:center;gap:6px;width:auto;min-width:100%;height:34px;padding:0 8px;border:none;border-radius:var(--dsw-radius-md);outline:none;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-align:left;cursor:pointer}
-.codexModelSelectCell:hover,.codexModelSelectCell:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}
-.codexModelSelectCellLabel{flex:none;white-space:nowrap}
-.codexModelSelectCellValue{flex:auto;min-width:0;overflow:hidden;color:var(--dsw-alias-label-tertiary);text-align:right;text-overflow:ellipsis;white-space:nowrap}
-.codexModelSelectCellChevron{flex:none;width:12px;height:12px;color:var(--dsw-alias-menu-icon)}
-.codexModelSelectSearchRow{flex-shrink:0;position:relative;margin:2px 0 3px}
-.codexModelSelectSearchRow .codexModelSelectSearch{display:flex;height:auto;padding:5px 7px;border:0 solid transparent;border-radius:var(--dsw-radius-md);background:transparent}
-.codexModelSelectSearchRow .codexModelSelectSearch:focus-within{border-color:transparent}
-.codexModelSelectSearchRow .codexModelSelectSearch input{padding:0;font-size:12px;line-height:normal}
-.codexModelSelectSearchRow .codexModelSelectSearch input::placeholder{color:var(--dsw-alias-label-caption)}
-.codexModelSelectGroups{flex:1 1 auto;min-height:0;overflow-y:auto}
-.codexModelSelectGroupTitle{padding:5px 8px 3px;color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:500;line-height:18px}
-.codexModelSelectOption{box-sizing:border-box;display:flex;align-items:center;gap:6px;width:auto;min-width:100%;min-height:34px;padding:5px 7px;border:none;border-radius:var(--dsw-radius-md);outline:none;background:transparent;color:inherit;text-align:left;cursor:pointer}
-.codexModelSelectOption:hover:not(:disabled),.codexModelSelectOption:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}
-.codexModelSelectOption:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
-.codexModelSelectOptionCopy{display:flex;flex:1;flex-direction:column;min-width:0}
-.codexModelSelectOptionName{overflow:hidden;color:inherit;font-size:13px;font-weight:400;line-height:18px;text-overflow:ellipsis;white-space:nowrap}
-.codexModelSelectOptionDescription{overflow:hidden;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:16px;text-overflow:ellipsis;white-space:nowrap}
-.codexModelSelectCheck{display:grid;place-items:center;flex:0 0 14px;color:var(--dsw-alias-label-primary)}
-.codexModelSelectCheck svg{width:14px;height:14px}
-.codexModelSelectStatus,.codexModelSelectEmpty{padding:8px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
-.codexModelSelectError,.codexModelSelectWarning{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px;padding:6px 7px;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary);font-size:11px;line-height:16px}
-.codexModelSelectWarning{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-state-warn-label)}
-.codexModelSelectRetry{flex:none;padding:0;border:none;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}
+.codexComposerOptions{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
+.codexComposerOptions:hover:not(:disabled),.codexComposerOptions[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover)}
+.codexComposerOptions:focus-visible{outline:2px solid var(--dsw-alias-border-l3)}
+.codexComposerOptions:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
+.codexComposerOptions svg{width:16px;height:16px}
+.codexComposerOptionText{display:grid;gap:1px;white-space:normal}
+.codexComposerOptionText small{color:var(--dsw-alias-label-tertiary)}
 .codexImageTool{display:flex;flex-direction:column;gap:8px;margin:4px 0;color:var(--dsw-alias-label-primary)}
 .codexImageToolRow{display:flex;align-items:center;min-height:24px;gap:8px;font-size:13px;line-height:20px}
 .codexImageToolIcon{display:block;flex-shrink:0;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}
@@ -460,9 +431,6 @@ a.codexVoiceCall{display:flex;align-items:center;justify-content:center;box-sizi
 .codexDiagTable{width:100%;font-size:12px;text-align:left;border-spacing:0 6px}
 .codexFlat .codexSubscriptionDiagnostics details.codexAdvancedFold{margin:0;padding:0;border-top:1px solid var(--dsw-alias-border-l2)}.codexFlat .codexSubscriptionDiagnostics details>summary{margin:0}
 .codexDiagFindings>li{padding:0;margin:0}.codexDiagFindings{padding-left:0!important}
-/* The model search row stays put while the list scrolls under it: a hairline marks the edge so a partly scrolled group title reads as scrolled, not broken. */
-.codexModelSelectSearchRow{margin:2px 0 0;border-bottom:1px solid var(--dsw-alias-border-l2)}
-.codexModelSelectGroups{scroll-padding-block:30px;padding-top:2px}
 .codexModelsHead{display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;padding:8px 0 2px}.codexModelsHead h3{margin:0!important;flex:0 0 auto}
 .codexModelsHead>span{flex:1 1 auto;min-width:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
 .codexModelsHead>button{flex:0 0 auto;margin-left:auto;height:28px;min-height:28px;padding:0 10px;font-size:12px}
@@ -470,7 +438,6 @@ a.codexVoiceCall{display:flex;align-items:center;justify-content:center;box-sizi
 .codexFlat .codexAdvancedFold>summary{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0;box-sizing:border-box}
 .codexFlat .codexAdvancedInline>summary{min-height:44px}
 .codexFlat details.codexAdvancedFold{display:block}
-.codexModelSelectGroups [class*=_heading_]{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-module-platform))}
 .codexFlat :is(button,summary,a):focus-visible,.codexFlat label:has(:focus-visible){outline-color:var(--dsw-alias-brand-primary,#3964fe)}
 .codexSubscriptionPace{color:var(--dsw-alias-state-warn-label,#b45309)}
 .codexSubscriptionAccountQuota{color:var(--dsw-alias-label-secondary)}

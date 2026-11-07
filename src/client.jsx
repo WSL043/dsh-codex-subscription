@@ -19,7 +19,7 @@ import { NS, CHANNEL, unwrap } from './client-shared.js'
 import { createSubscriptionRpcClient } from './rpc-contract.js'
 import { CodexComposerQuota } from './client-composer-quota.jsx'
 import { quotaUsageController } from './client-quota.jsx'
-import { CodexModelSelect } from './client-model-select.jsx'
+import { CodexComposerOptions } from './client-composer-options.jsx'
 import { VoiceCallButton } from './client-voice-call.jsx'
 import { CodexSection, ProjectAction } from './client-section.jsx'
 import { registerSubscriptionSettings, subscriptionSettingsOpener } from './subscription-settings-entry.js'
@@ -31,9 +31,8 @@ export const inject = [
   'slots', 'locale', 'connection', 'remote', 'modelDirectories', 'conversation', 'uiConversation', 'sessions',
 ]
 
-// The composer's right-hand slot holds one component: the quota readout and the voice button share it, so DSH's own voice input
-// (which owns the activity slot) and this one never compete.
-const ComposerRight = props => <><CodexComposerQuota {...props} /><VoiceCallButton {...props} /></>
+// Keep DSH's model picker and its child label slot together. Subscription-only actions use the additive right slot.
+const ComposerRight = props => <><CodexComposerQuota {...props} /><CodexComposerOptions {...props} /><VoiceCallButton {...props} /></>
 
 export function apply(ctx) {
   if (new URL(window.location.href).searchParams.has('codexVoiceSession')) ctx.inject(['uiWorkspace', 'sessions'], scope => scope.effect(() => {
@@ -108,6 +107,7 @@ export function apply(ctx) {
     locale: NS,
     inject: sessionId => ({
       sessionId,
+      available: sessions.subagentAddress(sessionId) === undefined,
       preference,
       rpc: rpc,
       t,
@@ -126,21 +126,6 @@ export function apply(ctx) {
     const modelDirectories = scope.get('modelDirectories')
     scopedDirectories = modelDirectories
     scope.effect(() => () => { if (scopedDirectories === modelDirectories) scopedDirectories = undefined }, 'codex-subscription: scoped model directories')
-    scope.slots.inject('conversation.input.model', () => scope.slots.register({
-      name: 'conversation.input.model', priority: -10, locale: NS,
-      // The label slot is declared by DSH's own picker entry; declaring it again makes DSH refuse this registration (and the picker disappears).
-      inject: sessionId => {
-        const directory = modelDirectories.directoryFor(sessionId)
-        const available = sessions.subagentAddress(sessionId) === undefined
-        return {
-          available,
-          directory: directory.store,
-          load: () => { if (available) void directory.load() },
-          select: selection => available ? directory.select(selection).then(() => true, () => false) : Promise.resolve(false),
-          preference,
-        }
-      },
-    }, CodexModelSelect))
   }
   if (ctx.get('remote.session') === undefined) installDirectorySlots(ctx)
   else ctx.inject(['remote.session'], installDirectorySlots)
