@@ -52,6 +52,19 @@ test('normalizes an internal viewer request without importing optional plugins',
   }])
 })
 
+test('opens a gallery without requesting the source for an unselected image', async () => {
+  const service = new SubscriptionImageViewerService()
+  let loads = 0
+  const reload = async () => { loads++; return 'blob:later' }
+  assert.equal(service.open({ items: [{ id: 'lazy', reload }, { id: 'ready', src: 'blob:ready' }], index: 1 }), true)
+  const { items, index } = service.getSnapshot()
+  assert.equal(items[index].src, 'blob:ready')
+  assert.equal(items[0].src, undefined)
+  assert.equal(loads, 0)
+  assert.equal(await items[0].reload(), 'blob:later')
+  assert.equal(loads, 1)
+})
+
 test('keeps annotations by image across close and reopen', () => {
   const service = new SubscriptionImageViewerService()
   const opener = { focus() {} }

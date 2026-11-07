@@ -25,16 +25,18 @@ const actionsOf = value => Array.isArray(value) ? value.flatMap((action, positio
 export function normalizeSubscriptionViewerRequest(request) {
   const rawItems = Array.isArray(request?.items) ? request.items : []
   const items = rawItems.flatMap((item, position) => {
-    if (typeof item?.src !== 'string' || item.src === '') return []
+    const src = typeof item?.src === 'string' && item.src !== '' ? item.src : undefined
+    const reload = typeof item?.reload === 'function' ? item.reload : undefined
+    if (src === undefined && reload === undefined) return []
     return [{
-      id: typeof item.id === 'string' && item.id !== '' ? item.id : item.src,
-      src: item.src,
+      id: typeof item.id === 'string' && item.id !== '' ? item.id : src ?? `image-${position + 1}`,
+      src,
       name: typeof item.name === 'string' && item.name !== '' ? item.name : `Image ${position + 1}`,
       width: boundedNumber(item.width, undefined),
       height: boundedNumber(item.height, undefined),
       bytes: boundedNumber(item.bytes, undefined),
       download: downloadOf(item.download),
-      reload: typeof item.reload === 'function' ? item.reload : undefined,
+      reload,
       actions: actionsOf(item.actions),
     }]
   })

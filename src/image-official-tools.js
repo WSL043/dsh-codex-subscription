@@ -8,25 +8,26 @@ export const IMAGE_ASPECT_RATIOS = Object.freeze([
 
 /**
  * Build viewer actions for one image.
- * @param {{ src: string, name: string, t: (key: string) => string,
- *   attachForEdit: (src: string, name: string, draft: string, annotations?: unknown[], referenceName?: string, sourceInDraft?: boolean, extraFiles?: File[]) => Promise<unknown>,
+ * @param {{ src?: string | Function, name: string, t: (key: string) => string,
+ *   attachForEdit: (src: string | Function, name: string, draft: string, annotations?: unknown[], referenceName?: string, sourceInDraft?: boolean, extraFiles?: File[]) => Promise<unknown>,
  *   sourceInDraft?: boolean }} options
  */
 export function officialImageTools({ src, name, t, attachForEdit, sourceInDraft = false }) {
-  const send = (draft, extraFiles = [], signal) => attachForEdit(src, name, draft, [], undefined, sourceInDraft, extraFiles, { signal })
+  const send = (draft, extraFiles, { src: preview, signal }) => attachForEdit(src ?? preview, name, draft, [], undefined, sourceInDraft, extraFiles, { signal })
   const base = { pendingLabel: t('imageEditPreparing'), errorLabel: t('imageEditFailed'), closeOnSuccess: true }
   return [
     { ...base, id: 'remove-background', kind: 'tool', label: t('imageRemoveBackground'),
-      onInvoke: ({ signal } = {}) => send(t('imageRemoveBackgroundPrompt'), [], signal) },
+      onInvoke: (context = {}) => send(t('imageRemoveBackgroundPrompt'), [], context) },
     { ...base, id: 'erase', kind: 'mask', label: t('imageErase'),
-      onInvoke: async ({ mask, signal }) => {
+      onInvoke: async context => {
+        const { mask } = context
         if (!(mask instanceof Blob)) throw new Error('Mark the area to erase first')
         const maskName = `${String(name).replace(/\.[a-z0-9]+$/iu, '')}-erase-mask.png`
-        return send(t('imageErasePrompt'), [new File([mask], maskName, { type: 'image/png' })], signal)
+        return send(t('imageErasePrompt'), [new File([mask], maskName, { type: 'image/png' })], context)
       } },
     { ...base, id: 'resize', kind: 'choice', label: t('imageResize'),
       options: IMAGE_ASPECT_RATIOS.map(([id, ratio]) => ({ value: ratio, label: `${t(`imageRatio_${id}`)} ${ratio}` })),
-      onInvoke: ({ option, signal }) => send(t('imageResizePrompt').replaceAll('{aspectRatio}', option), [], signal) },
+      onInvoke: context => send(t('imageResizePrompt').replaceAll('{aspectRatio}', context.option), [], context) },
   ]
 }
 

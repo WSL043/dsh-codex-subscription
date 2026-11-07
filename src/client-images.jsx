@@ -50,35 +50,42 @@ function CodexGeneratedImage({ attachment, original, gallery, rpc, sessionId, lo
         },
         actions: !features.imageEditing ? [] : [{
           id: 'continue-editing', label: t('imageEdit'), pendingLabel: t('imageEditPreparing'), errorLabel: t('imageEditFailed'), closeOnSuccess: true,
-          onInvoke: ({ annotations = [], signal }) => {
+          onInvoke: ({ annotations = [], src: preview, signal }) => {
             const imageKey = String(attachment.attachmentId ?? 'image').replace(/^sha256:/u, '').slice(0, 12).replace(/[^a-zA-Z0-9_-]/gu, '_')
             const sourceName = annotations.length === 0 ? downloadName : `edit-${imageKey}.png`
             const referenceName = `pins-${imageKey}.png`
-            return attachForEdit(editSource, sourceName, buildImageEditDraft({ annotations, translate: t,
+            return attachForEdit(editSource ?? preview, sourceName, buildImageEditDraft({ annotations, translate: t,
               sourceName, referenceName,
             }), annotations, referenceName, false, undefined, { signal })
           },
-        }, ...officialImageTools({ src: editSource, name: downloadName, t, attachForEdit }), ...(features.imageSketch && openSketchImage ? [{id:'sketch',label:t('imageToSketch'),pendingLabel:t('imageEditPreparing'),errorLabel:t('imageEditFailed'),onInvoke:()=>openSketchImage(src,downloadName)}] : [])],
+        }, ...officialImageTools({ src: editSource, name: downloadName, t, attachForEdit }), ...(features.imageSketch && openSketchImage ? [{id:'sketch',label:t('imageToSketch'),pendingLabel:t('imageEditPreparing'),errorLabel:t('imageEditFailed'),onInvoke:({ src: preview = src })=>openSketchImage(preview,downloadName)}] : [])],
     }
   }
   const openImage = async () => {
     if (src === undefined) return
     const revision = ++opening.current
-    const items = await Promise.all((gallery ?? [{ attachment, original }]).map(async image => makeItem(image.attachment, image.original,
-      image.attachment === attachment ? src : await loadImage(image.attachment).catch(() => 'about:blank'))))
-    if (revision !== opening.current) return
+    const selectedIndex = gallery?.findIndex(image => image.attachment === attachment || (attachment.attachmentId && image.attachment.attachmentId === attachment.attachmentId)) ?? -1
+    const group = selectedIndex < 0 ? [...(gallery ?? []), { attachment, original }] : gallery
+    const index = selectedIndex < 0 ? group.length - 1 : selectedIndex
+    const items = group.map((image, position) => makeItem(image.attachment, image.original, position === index ? src : undefined))
     const request = {
       items,
-      index: Math.max(0, items.findIndex(item => item.id === attachment.attachmentId)),
+      index,
       opener: triggerRef.current,
       source: 'codex-generated',
       scope: sessionId,
       annotations: features.imageViewer && features.imageAnnotations,
     }
-    if (features.imageViewer && getInternalImageViewer?.()?.open?.(request) === true) return
+    const internalViewer = features.imageViewer ? getInternalImageViewer?.() : undefined
+    if (internalViewer?.open?.(request) === true) return
     const viewer = getImageViewer?.()
-    if (viewer?.open?.(request) === true) return
-    if (features.imageViewer) getInternalImageViewer?.()?.open?.({ ...request, annotations: false })
+    if (typeof viewer?.open === 'function') {
+      // Older external viewers require a URL for every image.
+      const resolved = await Promise.all(group.map(async (image, position) => position === index ? items[index] :
+        makeItem(image.attachment, image.original, await loadImage(image.attachment).catch(() => 'about:blank'))))
+      if (revision !== opening.current || viewer.open({ ...request, items: resolved }) === true) return
+    }
+    if (features.imageViewer) internalViewer?.open?.({ ...request, annotations: false })
     else if (ImageLightbox) setNativePreview({ attachment, src })
     else window.open(src, '_blank', 'noopener,noreferrer')
   }

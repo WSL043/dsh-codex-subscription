@@ -8,14 +8,14 @@ function openPreview(props, item, opener, sourceInDraft = false, group = [item])
   const { service, preference, t, attachForEdit } = props
   const settings = preference.getSnapshot()
   const items = group.map(item => {
-  const referenceName = `annotated-${String(item.name).replace(/\.[a-z0-9]+$/iu, '')}.png`
-  return { ...item, actions: settings.imageEditing ? [{
-    id: 'edit', label: t('imageEdit'), pendingLabel: t('imageEditPreparing'),
-    errorLabel: t('imageEditFailed'), closeOnSuccess: true,
-    onInvoke: ({ annotations, signal }) => attachForEdit(item.src, item.name,
-      buildImageEditDraft({ annotations, translate: t, sourceName: item.name, referenceName }),
-      annotations, referenceName, sourceInDraft, undefined, { signal, sourceId: sourceInDraft ? item.id : undefined }),
-  }, ...officialImageTools({ src: item.src, name: item.name, t, attachForEdit, sourceInDraft }), ...(settings.imageSketch && props.openSketchImage ? [{id:'sketch',label:t('imageToSketch'),pendingLabel:t('imageEditPreparing'),errorLabel:t('imageEditFailed'),onInvoke:()=>props.openSketchImage(item.src,item.name)}] : [])] : [] }
+    const referenceName = `annotated-${String(item.name).replace(/\.[a-z0-9]+$/iu, '')}.png`
+    return { ...item, actions: settings.imageEditing ? [{
+      id: 'edit', label: t('imageEdit'), pendingLabel: t('imageEditPreparing'),
+      errorLabel: t('imageEditFailed'), closeOnSuccess: true,
+      onInvoke: ({ annotations, src, signal }) => attachForEdit(src, item.name,
+        buildImageEditDraft({ annotations, translate: t, sourceName: item.name, referenceName }),
+        annotations, referenceName, sourceInDraft, undefined, { signal, sourceId: sourceInDraft ? item.id : undefined }),
+    }, ...officialImageTools({ name: item.name, t, attachForEdit, sourceInDraft }), ...(settings.imageSketch && props.openSketchImage ? [{id:'sketch',label:t('imageToSketch'),pendingLabel:t('imageEditPreparing'),errorLabel:t('imageEditFailed'),onInvoke:({ src })=>props.openSketchImage(src,item.name)}] : [])] : [] }
   })
   service.open({ items, index: Math.max(0, items.findIndex(candidate => candidate.id === item.id)), opener, scope: props.sessionId, source: sourceInDraft ? 'codex-draft' : 'codex-message',
   annotations: settings.imageAnnotations })
@@ -69,18 +69,15 @@ function MessageImagePreview({ image, onOpen, ...props }) {
 }
 
 export function MessageImagePreviews({ images, align, compact, thumbnail, ...props }) {
-  const opening = useRef(0)
-  useEffect(() => () => { opening.current++ }, [images])
-  const onOpen = async (selected, item, opener) => {
-    const revision = ++opening.current
-    const group = await Promise.all(images.map(async image => {
+  const onOpen = (selected, item, opener) => {
+    const group = images.map(image => {
       if (image === selected) return item
       const ref = image.attachment ?? image.preview
+      const src = image.preview?.url
       const reload = () => image.attachment ? props.loadImage(image.attachment) : image.preview?.url
-      const src = image.preview?.url ?? await reload().catch(() => 'about:blank')
       return { id: ref.attachmentId ?? src, src, reload, name: ref.name ?? 'image.png', width: ref.width, height: ref.height }
-    }))
-    if (revision === opening.current) openPreview(props, item, opener, false, group)
+    })
+    openPreview(props, item, opener, false, group)
   }
   return <div className="codexMessageImages" data-align={align} data-single={images.length === 1 && !compact && !thumbnail} data-thumbnail={thumbnail || undefined}>
     {images.map((image, index) => <MessageImagePreview key={image.attachment?.attachmentId ?? image.preview?.url ?? index} image={image} onOpen={onOpen} {...props} />)}

@@ -190,6 +190,7 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
   const item = request?.items[index]
   const reloadImage = useCallback(() => item?.reload ? item.reload() : item?.src, [item])
   const imageSource = useImageSource(reloadImage, `${request?.revision}:${item?.id}`, item?.src)
+  const resolvedItem = imageSource.src === item?.src ? item : { ...item, src: imageSource.src }
   useEffect(() => () => service.cancelPending(), [service, request?.revision, item?.id])
   const { transform, transformRef, dragging, pixelScale, geometry, stageRef, surfaceRef, imageRef, fit, actual, measure, setZoomAt, resetGesture, pointerHandlers } = useImageTransform(`${request?.revision}:${item?.id}:${item?.src}`)
   const annotations = item === undefined ? [] : annotationsByImage[item.id] ?? []
@@ -346,7 +347,7 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
       canvas.height = item.height ?? image.naturalHeight
       paintEraseMask(canvas.getContext('2d'), strokes, canvas.width, canvas.height)
       const mask = await new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Mask')), 'image/png'))
-      await service.invoke(erasing, { mask, item, src: item.src, annotations: [] }, request.revision)
+      await service.invoke(erasing, { mask, item: resolvedItem, src: resolvedItem.src, annotations: [] }, request.revision)
       if (operation !== maskOperation.current) return
       setErasing(undefined)
       setStrokes([])
@@ -392,11 +393,12 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
   if (request === undefined || item === undefined) return null
   const meta = [item.width && item.height ? `${item.width} × ${item.height}` : undefined, bytesLabel(item.bytes)].filter(Boolean).join(' · ')
   const showCounter = request.items.length > 1
-  const secondaryActions = item.actions.filter(action => action.kind === 'tool' || action.kind === 'mask' || action.kind === 'choice' || action.id === 'sketch')
-  const primaryActions = item.actions.filter(action => !secondaryActions.includes(action))
+  const actions = imageSource.usable ? item.actions : []
+  const secondaryActions = actions.filter(action => action.kind === 'tool' || action.kind === 'mask' || action.kind === 'choice' || action.id === 'sketch')
+  const primaryActions = actions.filter(action => !secondaryActions.includes(action))
   const hasNotes = Boolean(draft?.note.trim()) || annotations.some(annotation => annotation.note.trim() !== '')
-  const showMore = compact || secondaryActions.length > 0 || hasNotes
-  const renderAction = (action, inMenu = false, closeMenu) => <ViewerAction action={action} finishDraft={finishDraft} item={item} service={service} revision={request.revision} onStartMask={action => { closeMenu?.(); startMask(action) }} inMenu={inMenu} key={`${request.revision}:${index}:${action.id}`} />
+  const showMore = (compact && imageSource.usable) || secondaryActions.length > 0 || hasNotes
+  const renderAction = (action, inMenu = false, closeMenu) => <ViewerAction action={action} finishDraft={finishDraft} item={resolvedItem} service={service} revision={request.revision} onStartMask={action => { closeMenu?.(); startMask(action) }} inMenu={inMenu} key={`${request.revision}:${index}:${action.id}`} />
   const zoomLabel = t(transform.zoom === 1 ? 'imageActual' : 'imageFit')
   const zoomControl = closeMenu => <button type="button" role={closeMenu ? 'menuitem' : undefined} className="dcsiv-button dcsiv-zoom" title={zoomLabel} aria-label={zoomLabel} aria-description={t('imageZoomHint')} onClick={() => { closeMenu?.(); if (transform.zoom === 1) actual(); else fit() }}>{Math.round(transform.zoom * pixelScale * 100)}%{closeMenu ? <span>{zoomLabel}</span> : null}</button>
   const annotationPosition = annotation => {
@@ -430,15 +432,15 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
           <span className="dcsiv-counter" role="status" aria-live="polite" aria-atomic="true">{index + 1} / {request.items.length}</span>
           <button type="button" className="dcsiv-button dcsiv-nav dcsiv-next" disabled={erasing !== undefined} title={t('imageNext')} aria-label={t('imageNext')} onClick={() => move(1)}><IconChevronRightOutline14 /></button>
         </div> : null}
-        {!compact ? zoomControl() : null}
+        {!compact && imageSource.usable ? zoomControl() : null}
         {item.download === undefined
-          ? <a className="dcsiv-download" data-compact="true" href={item.src} download={downloadName(item.name)} title={t('imageDownload')} aria-label={t('imageDownload')}><IconDownloadOutline16 /></a>
-          : <ViewerDownload key={item.id} download={item.download} item={item} t={t} />}
-        {request.annotations || item.actions.length > 0 ? <span className="dcsiv-divider" aria-hidden="true" /> : null}
-        {request.annotations ? <button type="button" className="dcsiv-button dcsiv-icon-button" data-active={annotating} title={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-label={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-description={t('imageAnnotateHint')} aria-pressed={annotating} onClick={() => { resetGesture(); finishDraft(); setSelected(undefined); setAnnotating(value => !value) }}><ToolIcon id="annotate" /></button> : null}
+          ? imageSource.usable && <a className="dcsiv-download" data-compact="true" href={imageSource.src} download={downloadName(item.name)} title={t('imageDownload')} aria-label={t('imageDownload')}><IconDownloadOutline16 /></a>
+          : <ViewerDownload key={item.id} download={item.download} item={resolvedItem} t={t} />}
+        {imageSource.usable && (request.annotations || actions.length > 0) ? <span className="dcsiv-divider" aria-hidden="true" /> : null}
+        {request.annotations && imageSource.usable ? <button type="button" className="dcsiv-button dcsiv-icon-button" data-active={annotating} title={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-label={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-description={t('imageAnnotateHint')} aria-pressed={annotating} onClick={() => { resetGesture(); finishDraft(); setSelected(undefined); setAnnotating(value => !value) }}><ToolIcon id="annotate" /></button> : null}
         {primaryActions.map(action => renderAction(action))}
         {showMore ? <ViewerMenu key={`${request.revision}:${index}:more`} label={t('imageMore')} icon={<EllipsisHorizontalIcon className="dcsiv-tool-icon" aria-hidden="true" />}>{close => <>
-          {compact ? zoomControl(close) : null}
+          {compact && imageSource.usable ? zoomControl(close) : null}
           {secondaryActions.map(action => renderAction(action, true, close))}
           {hasNotes ? <button type="button" role="menuitem" onClick={() => { void copyNotes() }}><IconCopyOutline16 />{t(copied ? 'imageCopied' : 'imageCopyNotes')}</button> : null}
         </>}</ViewerMenu> : null}
@@ -448,7 +450,8 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
     <div className="dcsiv-workspace">
       <main ref={stageRef} className="dcsiv-stage" data-dragging={dragging} data-annotating={annotating || erasing !== undefined} onClick={event => { if (event.target === event.currentTarget && !annotating && !erasing && transform.zoom === 1) closeViewer() }} {...(!annotating && !erasing ? pointerHandlers : {})} onDoubleClick={() => { if (transform.zoom === 1) actual(); else fit() }}>
         <div ref={surfaceRef} className="dcsiv-surface" onClick={addAnnotation} style={{ transform: `translate3d(${transform.x}px,${transform.y}px,0) scale(${transform.zoom})` }}>
-          {imageSource.failed && !imageSource.usable ? null : <img key={`${request.revision}:${item.id}:${imageSource.attempt}`} ref={imageRef} className="dcsiv-image" src={imageSource.src} alt={item.name} draggable="false" onError={imageSource.fail} onLoad={() => { imageSource.loaded(); measure() }} />}
+          {imageSource.src && (!imageSource.failed || imageSource.usable) ? <img key={`${request.revision}:${item.id}:${imageSource.attempt}`} ref={imageRef} className="dcsiv-image" src={imageSource.src} alt={item.name} draggable="false" onError={imageSource.fail} onLoad={() => { imageSource.loaded(); measure() }} /> : null}
+          {!imageSource.src && !imageSource.failed ? <span role="status">{t('imageLoading')}</span> : null}
           {imageSource.failed ? <button type="button" className="dcsiv-button" onClick={imageSource.retry}>{t('imageLoadFailed')}</button> : null}
           {erasing ? <canvas ref={maskRef} className="dcsiv-mask" width={imageRef.current?.naturalWidth || 1} height={imageRef.current?.naturalHeight || 1} aria-label={t('imageEraseHint')} {...maskHandlers} /> : null}
         </div>

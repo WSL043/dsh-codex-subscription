@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 
 // Keep a usable preview during refresh; stale resolutions cannot replace a new image.
 export function useImageSource(load, identity, preview) {
-  const [attempt, setAttempt] = useState(0)
+  const [retryState, setRetryState] = useState()
+  const attempt = retryState?.identity === identity ? retryState.count : 0
   const [state, setState] = useState({ identity, src: preview, failed: false, usable: false })
   useEffect(() => {
     let live = true
@@ -20,7 +21,7 @@ export function useImageSource(load, identity, preview) {
     usable: state.identity === identity && state.usable,
     loaded: () => setState(previous => previous.identity === identity ? { ...previous, usable: true } : previous),
     fail: () => setState(previous => previous.identity === identity ? { ...previous, failed: true, usable: false } : previous),
-    retry: () => setAttempt(value => value + 1),
+    retry: () => setRetryState(previous => ({ identity, count: previous?.identity === identity ? previous.count + 1 : 1 })),
     attempt,
   }
 }
