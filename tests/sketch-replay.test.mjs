@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { partialStroke, planReplay, recordReplayState, replayFrame, replaySteps } from '../src/sketch-replay.js'
+import { applySketchCommands } from '../src/sketch-commands.js'
 
 const layer = strokes => ({ id: 1, name: 'L', visible: true, strokes })
 const doc = strokes => ({ width: 1000, height: 1000, active: 1, layers: [layer(strokes)] })
@@ -61,4 +62,21 @@ test('the replay plan fills the chosen duration and frames show the strokes draw
   assert.equal(mid.doc.layers[0].strokes.length, 2)
   assert.equal(mid.moving, 1)
   assert.equal(replayFrame(plan, 20_000).doc, steps.at(-1).after)
+})
+
+test('one agent batch replays interleaved layers in the order the strokes were drawn', () => {
+  const before = { ...doc([]), layers: [layer([]), { ...layer([]), id: 2 }] }
+  const after = applySketchCommands(before, [
+    { ...pen('background', .2), op: 'stroke', layer: 1 },
+    { ...pen('detail', .4), op: 'stroke', layer: 2 },
+    { ...pen('shadow', .6), op: 'stroke', layer: 1 },
+  ])
+  const steps = replaySteps([before, after])
+  assert.deepEqual(steps[0].added.map(entry => entry.stroke.id), ['background', 'detail', 'shadow'])
+  const plan = planReplay(steps, 12_000)
+  const { start, end } = plan[0].strokes[1]
+  const quarter = replayFrame(plan, start + (end - start) / 4)
+  assert.equal(quarter.moving, 2)
+  assert.deepEqual(quarter.doc.layers[0].strokes.map(stroke => stroke.id), ['background'])
+  assert.ok(quarter.doc.layers[1].strokes[0].points.at(-1).y < .3)
 })

@@ -37,57 +37,27 @@ const formatPercent = value => {
   return `${rounded}%`
 }
 
-const formatPixel = value => {
-  const rounded = Number(value.toFixed(2))
-  return String(rounded)
-}
-
 const withNames = (value, sourceName, referenceName) => String(value)
-  .replaceAll('{sourceName}', sourceName)
-  .replaceAll('{referenceName}', referenceName)
-
-const positiveImageDimension = value => Number.isSafeInteger(value) && value > 0
+  .replace(/\{sourceName\}|\{referenceName\}/gu, name => name === '{sourceName}' ? sourceName : referenceName)
 
 export function buildImageEditDraft({
   prompt = '',
   annotations = [],
   translate,
-  width,
-  height,
   sourceName = 'source.png',
   referenceName = 'annotated-reference.png',
 }) {
   if (typeof translate !== 'function') throw new TypeError('translate must be a function')
-  const base = typeof prompt === 'string' && prompt.trim() !== ''
-    ? prompt.trim()
-    : translate('imageEditDefault')
+  const base = cleanNote(prompt)
   if (!Array.isArray(annotations)) throw new TypeError('annotations must be an array')
-  if (annotations.length === 0) return base
-
-  const hasWidth = width !== undefined
-  const hasHeight = height !== undefined
-  if (hasWidth !== hasHeight || (hasWidth && (!positiveImageDimension(width) || !positiveImageDimension(height)))) {
-    throw new Error('width and height must be positive integers when provided')
-  }
+  if (annotations.length === 0) return base || translate('imageEditDefault')
   const normalized = normalizeImageEditAnnotations(annotations, { requireNotes: true })
   const source = typeof sourceName === 'string' && sourceName.trim() !== '' ? sourceName.trim() : 'source.png'
   const reference = typeof referenceName === 'string' && referenceName.trim() !== ''
     ? referenceName.trim()
     : 'annotated-reference.png'
   const guide = withNames(translate('imageEditReferenceGuide'), source, reference)
-  const location = translate('imageEditLocation')
-  const notes = normalized.map(({ number, x, y, note }) => {
-    const pixels = hasWidth
-      ? ` (pixel x=${formatPixel(x * Math.max(0, width - 1))} of ${width}, y=${formatPixel(y * Math.max(0, height - 1))} of ${height})`
-      : ''
-    return `${number}. ${location}: x=${formatPercent(x)} (normalized ${x}), y=${formatPercent(y)} (normalized ${y})${pixels}; ${note}`
-  })
-  return [
-    base,
-    '',
-    guide,
-    '',
-    translate('imageRegionNotes'),
-    ...notes,
-  ].join('\n')
+  const notes = normalized.map(({ number, x, y, note }) =>
+    `${number}. (x=${formatPercent(x)}, y=${formatPercent(y)}) ${note}`)
+  return [base, [guide, ...notes].join('\n')].filter(Boolean).join('\n\n')
 }

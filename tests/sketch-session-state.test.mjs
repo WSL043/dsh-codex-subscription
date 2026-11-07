@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {createSketchSessionRegistry} from '../src/sketch-session-state.js'
+import {createSketchSessionRegistry,createSketchWorkspaceRegistry} from '../src/sketch-session-state.js'
 import {createSketchCommandSession,applySketchCommands} from '../src/sketch-commands.js'
 import {createSketchAgentRun} from '../src/sketch-agent-run.js'
 import {createSketchLayers} from '../src/sketch-layers.js'
@@ -23,6 +23,27 @@ test('many blank visited sessions stay within the idle budget',()=>{
  for(let i=0;i<200;i++){const state=registry.get(String(i));state.retain()()}
  assert.equal(registry.stats().resident,4)
  registry.dispose()
+})
+
+test('switching views preserves both active drawing workspaces and only shows the selected one', async () => {
+ const registry=createSketchWorkspaceRegistry({maxIdle:0})
+ const leaveA=registry.attach('a')
+ let resolveA
+ const a=registry.run('a',()=>new Promise(resolve=>{resolveA=resolve}))
+ const leaveB=registry.attach('b')
+ leaveA()
+ assert.deepEqual(registry.getSnapshot(),[{id:'a',visible:false},{id:'b',visible:true}])
+ registry.setDrawing('a',true)
+ resolveA('finished loading a')
+ assert.equal(await a,'finished loading a')
+ registry.setDrawing('b',true)
+ leaveB()
+ assert.deepEqual(registry.getSnapshot(),[{id:'a',visible:false},{id:'b',visible:false}])
+ const returnA=registry.attach('a')
+ assert.deepEqual(registry.getSnapshot(),[{id:'b',visible:false},{id:'a',visible:true}])
+ registry.setDrawing('b',false)
+ assert.deepEqual(registry.getSnapshot(),[{id:'a',visible:true}])
+ returnA()
 })
 
 test('leaving before hydration preserves the archived document reference',()=>{

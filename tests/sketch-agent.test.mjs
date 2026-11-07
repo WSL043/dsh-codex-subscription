@@ -30,7 +30,7 @@ test('bridge isolates sessions, leases, cancellations and close; delivery occurs
   assert.equal((await bridge.rpc('sketch/connect',{sessionId:'a'})).ok,false)
   assert.ok(rpcErrorSchema.safeParse((await bridge.rpc('sketch/connect',{sessionId:''})).error).success)
   assert.equal((await bridge.rpc('sketch/poll',{sessionId:'a',token:'wrong'})).ok,false)
-  await assert.rejects(bridge.request('b',{}),/Switch/)
+  await assert.rejects(bridge.request('b',{}),/Sketch editor is not connected/)
   const request=bridge.request('a',{action:'inspect'})
   const {value:[task]}=await bridge.rpc('sketch/poll',{sessionId:'a',token})
   assert.deepEqual((await bridge.rpc('sketch/poll',{sessionId:'a',token})).value,[])

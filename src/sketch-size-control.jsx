@@ -7,7 +7,7 @@ export function SketchSizeControl({value,onChange,onStart,onEnd,label,disabled,m
   const end=()=>{if(active.current){active.current=false;onEnd?.()}}
   return <div className="codexSketchSizeControl" title={label}>
     {modes?<div className="codexSketchSizeModes">{modes.map(item=><button key={item.value} type="button" aria-pressed={mode===item.value} disabled={disabled} onClick={()=>{end();onModeChange(item.value)}}>{item.label}</button>)}</div>:<span>{label}</span>}
-    <input type="range" aria-label={label} aria-orientation="vertical" min={min} max={max} value={value} disabled={disabled}
+    <input type="range" aria-label={label} min={min} max={max} value={value} disabled={disabled}
       onPointerDown={start} onPointerUp={end} onPointerCancel={end} onBlur={end}
       onKeyDown={start} onKeyUp={end} onChange={event=>{start();onChange(Number(event.target.value))}} />
     <output>{Math.round(value)}{suffix}</output>

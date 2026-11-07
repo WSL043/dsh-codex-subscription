@@ -4,6 +4,11 @@ import { flattenSketchCurve } from './sketch-curves.js'
 // replay needs no extra recording: strokes that appear between two states are drawn one after another, like a hand would,
 // and anything else (an edit, a deletion, an undo) just snaps to the new state.
 export const MAX_REPLAY_STATES = 2000
+const strokeOrders = new WeakMap()
+
+export function recordReplayStrokeOrder(doc, strokes) {
+  if (strokes.length > 1 && strokes.some(item => item.layer !== strokes[0].layer)) strokeOrders.set(doc, strokes)
+}
 
 export function recordReplayState(states, doc) {
   if (states.at(-1) === doc) return
@@ -15,12 +20,18 @@ export function recordReplayState(states, doc) {
 function appendedStrokes(before, after) {
   for (const layer of before.layers) {
     const next = after.layers.find(item => item.id === layer.id)
-    if (!next || next.image !== layer.image || layer.strokes.length > next.strokes.length || layer.strokes.some((stroke, i) => stroke !== next.strokes[i])) return undefined
+    if (!next || next.image !== layer.image || layer.strokes.length > next.strokes.length ||
+      (layer.strokes !== next.strokes && layer.strokes.some((stroke, i) => stroke !== next.strokes[i]))) return undefined
   }
   const added = []
   for (const layer of after.layers) {
     const old = before.layers.find(item => item.id === layer.id)?.strokes.length ?? 0
     for (let i = old; i < layer.strokes.length; i++) added.push({ layer: layer.id, stroke: layer.strokes[i] })
+  }
+  const order = strokeOrders.get(after)
+  if (order?.length === added.length) {
+    const additions = new Map(added.map(({ stroke, layer }) => [stroke, layer]))
+    if (order.every(({ stroke, layer }) => additions.get(stroke) === layer)) return order
   }
   return added
 }
@@ -45,6 +56,7 @@ const lengthOf = (stroke, width, height) => {
 }
 
 const OUTLINE_SHARE = 0.3
+const paths = new WeakMap()
 
 // The path a stroke follows when it is drawn, as normalised points; undefined when it simply fades in.
 export function strokePath(stroke) {
@@ -73,11 +85,16 @@ export function partialStroke(stroke, fraction) {
     const stops = [{ offset: 0, color: stroke.color }, { offset: reveal, color: stroke.color }, { offset: Math.min(1, reveal + 0.002), color: stroke.color, opacity: 0 }, { offset: 1, color: stroke.color, opacity: 0 }]
     return { ...stroke, gradient: { type: 'linear', x1: 0, y1: 0, x2: 0, y2: 1, stops } }
   }
-  const path = strokePath(stroke)
+  let measured = paths.get(stroke)
+  if (!measured) {
+    const path = strokePath(stroke)
+    const lengths = path?.slice(1).map((point, i) => Math.hypot(point.x - path[i].x, point.y - path[i].y))
+    measured = { path, lengths, total: lengths?.reduce((sum, value) => sum + value, 0) }
+    paths.set(stroke, measured)
+  }
+  const { path, lengths, total } = measured
   if (!path || path.length < 2) return { ...stroke, opacity: (stroke.opacity ?? 1) * Math.max(0, fraction) }
   const share = filled ? fraction / OUTLINE_SHARE : fraction
-  const lengths = path.slice(1).map((point, i) => Math.hypot(point.x - path[i].x, point.y - path[i].y))
-  const total = lengths.reduce((sum, value) => sum + value, 0)
   let remaining = total * Math.max(0, share)
   const points = [path[0]]
   for (let i = 0; i < lengths.length; i++) {
@@ -101,16 +118,18 @@ export function strokeWeight(stroke, width = 1024, height = 1024) {
 
 // Lays the replay out on a timeline of `duration` milliseconds. Jumps take a moment to register.
 export function planReplay(steps, duration, width = 1024, height = 1024) {
-  const items = steps.map(step => ({ step, weight: step.type === 'jump' ? 6 : step.added.reduce((sum, item) => sum + strokeWeight(item.stroke, width, height), 0) + 6 }))
-  const total = items.reduce((sum, item) => sum + item.weight, 0) || 1
+  const items = steps.map(step => {
+    const weights = step.added.map(item => strokeWeight(item.stroke, width, height))
+    return { step, weights, weight: weights.reduce((sum, value) => sum + value, 0) }
+  })
+  const total = items.reduce((sum, item) => sum + item.weight + 6, 0) || 1
   let at = 0
-  return items.map(({ step, weight }) => {
-    const span = duration * weight / total
+  return items.map(({ step, weights, weight }) => {
+    const span = duration * (weight + 6) / total
     const gaps = Math.min(span * 0.12, 500), drawing = span - gaps
-    const drawWeight = step.added.reduce((sum, item) => sum + strokeWeight(item.stroke, width, height), 0) || 1
     let cursor = at
-    const strokes = step.added.map(item => {
-      const own = drawing * strokeWeight(item.stroke, width, height) / drawWeight
+    const strokes = step.added.map((item, index) => {
+      const own = drawing * weights[index] / weight
       const entry = { ...item, start: cursor, end: cursor + own }
       cursor += own
       return entry
@@ -121,20 +140,39 @@ export function planReplay(steps, duration, width = 1024, height = 1024) {
   })
 }
 
+function firstEndingAfter(items, time) {
+  let low = 0, high = items.length
+  while (low < high) {
+    const middle = (low + high) >>> 1
+    if (items[middle].end <= time) low = middle + 1
+    else high = middle
+  }
+  return low
+}
+
 // The document as it looks `time` milliseconds into the replay, plus the layer whose last stroke is still being drawn.
 export function replayFrame(plan, time) {
   if (!plan.length) return undefined
   const last = plan.at(-1)
   if (time >= last.end) return { doc: last.step.after }
-  const item = plan.find(entry => time < entry.end) ?? last
+  const item = plan[firstEndingAfter(plan, time)] ?? last
   if (item.step.type === 'jump' || !item.strokes.length) return { doc: time < item.start + (item.end - item.start) / 2 ? item.step.before : item.step.after }
-  const done = item.strokes.filter(entry => time >= entry.end)
-  const current = item.strokes.find(entry => time >= entry.start && time < entry.end)
+  const next = firstEndingAfter(item.strokes, time)
+  if (next === item.strokes.length) return { doc: item.step.after }
+  const current = item.strokes[next]
+  const fraction = Math.max(0, (time - current.start) / (current.end - current.start))
+  const eased = fraction * fraction * (3 - 2 * fraction)
+  const extras = new Map()
+  for (let index = 0; index <= next; index++) {
+    const { layer, stroke } = item.strokes[index]
+    const list = extras.get(layer) ?? []
+    list.push(index === next ? partialStroke(stroke, eased) : stroke)
+    extras.set(layer, list)
+  }
   const layers = item.step.after.layers.map(layer => {
     const base = item.step.before.layers.find(old => old.id === layer.id)?.strokes ?? []
-    const extra = [...done.filter(entry => entry.layer === layer.id).map(entry => entry.stroke)]
-    if (current?.layer === layer.id) extra.push(partialStroke(current.stroke, (time - current.start) / (current.end - current.start)))
-    return { ...layer, strokes: extra.length ? [...base, ...extra] : base }
+    const added = extras.get(layer.id)
+    return { ...layer, strokes: added ? [...base, ...added] : base }
   })
-  return { doc: { ...item.step.after, layers }, moving: current?.layer }
+  return { doc: { ...item.step.after, layers }, moving: current.layer }
 }

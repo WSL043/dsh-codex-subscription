@@ -1,10 +1,11 @@
-import { createSketchSessionRegistry } from './sketch-session-state.js'
+import { createSketchSessionRegistry, createSketchWorkspaceRegistry } from './sketch-session-state.js'
 import { withComposerSession, openComposerSession, createSessionOpeners } from './client-session-compat.js'
 import { ComposerImagePreviews, MessageImagePreviews, IMAGE_PREVIEWS_CSS } from './client-image-previews.jsx'
 import { nativeComposerAttachments, needsSubscriptionImageEnhancement } from './composer-attachment-native.js'
 import { imageConversationNode } from './image-conversation-node.js'
 import { CodexImageToolRow, CodexImageOutput } from './client-images.jsx'
 import { ImageWorkspace } from './image-workspace.jsx'
+import { SketchWorkspaceHost } from './sketch-workspace.jsx'
 import { attachImageFiles, appendImagePrompt } from './image-composer.js'
 import { createSketchTrigger, createImageTrigger } from './sketch-trigger.js'
 import { dictionaries } from './client-languages.js'
@@ -131,6 +132,7 @@ export function apply(ctx) {
   const uiConversation = ctx.get('uiConversation')
   const sketchOpeners = createSessionOpeners()
   const sketchSessions = createSketchSessionRegistry()
+  const sketchWorkspaces = createSketchWorkspaceRegistry()
   const lifetime = new AbortController()
   ctx.effect(() => () => { lifetime.abort(); imageViewer.close(); sketchOpeners.clear(); sketchSessions.dispose() }, 'codex-subscription: sketch sessions')
   ctx.inject(['inputTriggers'], triggerContext => triggerContext.effect(() => triggerContext.get('inputTriggers').registerSource(createSketchTrigger({
@@ -138,7 +140,7 @@ export function apply(ctx) {
     enabled: () => { const value = preference.getSnapshot(); return value.imageSketchAgent && value.imageSketch && value.imageEditing },
     consume: (sessionId, span) => {
       const actx = sessions.scope(sessionId)
-      return sketchOpeners.has(sessionId) && actx?.bail(actx, 'slash/input-insert-text', { text: '@sketch ', span }) === true
+      return sketchWorkspaces.visible(sessionId) && actx?.bail(actx, 'slash/input-insert-text', { text: '@sketch ', span }) === true
     },
   })), 'codex-subscription: Sketch trigger'))
   ctx.inject(['inputTriggers'], triggerContext => triggerContext.effect(() => triggerContext.get('inputTriggers').registerSource(createImageTrigger({
@@ -147,7 +149,7 @@ export function apply(ctx) {
     open: () => {},
     consume: (sessionId, span) => {
       const actx = sessions.scope(sessionId)
-      return sketchOpeners.has(sessionId) && actx?.bail(actx, 'slash/input-insert-text', { text: t('imageInlinePrompt'), span }) === true
+      return sketchWorkspaces.visible(sessionId) && actx?.bail(actx, 'slash/input-insert-text', { text: t('imageInlinePrompt'), span }) === true
     },
   })), 'codex-subscription: Image trigger'))
   const sessionInput = sessionId => {
@@ -157,14 +159,14 @@ export function apply(ctx) {
   }
   const openSketchImage = sessionId => async (src, name) => {
     const settings = preference.getSnapshot(), open = sketchOpeners.get(sessionId)
-    if (!settings.imageSketch || !settings.imageEditing || !open) throw Error('Sketch unavailable')
+    if (!settings.imageSketch || !settings.imageEditing || !open || !sketchWorkspaces.visible(sessionId)) throw Error('Sketch unavailable')
     const response = await fetch(src, { signal: lifetime.signal })
     if (!response.ok) throw Error('Image unavailable')
     const blob = await response.blob()
     if (blob.size > 20 * 1024 * 1024) throw Error('Image too large')
     lifetime.signal.throwIfAborted()
     const liveOpen = sketchOpeners.get(sessionId)
-    if (!liveOpen || !preference.getSnapshot().imageSketch || !preference.getSnapshot().imageEditing) throw Error('Sketch unavailable')
+    if (!liveOpen || !sketchWorkspaces.visible(sessionId) || !preference.getSnapshot().imageSketch || !preference.getSnapshot().imageEditing) throw Error('Sketch unavailable')
     imageViewer.close()
     liveOpen('sketch', document.activeElement, new File([blob], name || 'image.png', {type:blob.type || 'image/png'}))
   }
@@ -227,17 +229,19 @@ export function apply(ctx) {
     const unwatchNative = component === ComposerImagePreviews ? watchNativeAttachments(sync) : () => {}
     return () => { unwatch(); unwatchNative(); dispose?.() }
   })
+  const attachSketch = (sessionId, blob) => {
+    const current = preference.getSnapshot()
+    if (!current.imageSketch || !current.imageEditing) throw new Error('Sketch editing is disabled')
+    attachImageFiles(conversation, sessionInput(sessionId), [new File([blob], 'sketch-reference.png', { type: 'image/png' })], sessionId, { uploadImages: sessions.subagentAddress(sessionId) === undefined })
+  }
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay', id: 'codex-sketch-workspaces', order: 21,
+    inject: () => ({ preference, rpc, t, workspaces: sketchWorkspaces, sketchSessions, openers: sketchOpeners, attachSketch }),
+  }, SketchWorkspaceHost))
+  const openSketch = (id, source) => sketchOpeners.get(id)?.('sketch', source)
   ctx.slots.inject('conversation.input.left', () => ctx.slots.register({
     name: 'conversation.input.left', id: 'codex-image-workspace', order: 30,
-    inject: sessionId => ({
-      preference, t, sessionId, rpc, sessionState: sketchSessions.get(sessionId),
-      registerOpen: callback => sketchOpeners.register(sessionId, callback),
-      attachSketch: blob => {
-        const current = preference.getSnapshot()
-        if (!current.imageSketch || !current.imageEditing) throw new Error('Sketch editing is disabled')
-        attachImageFiles(conversation, sessionInput(sessionId), [new File([blob], 'sketch-reference.png', { type: 'image/png' })], sessionId, { uploadImages: sessions.subagentAddress(sessionId) === undefined })
-      },
-    }),
+    inject: sessionId => ({ preference, t, sessionId, workspaces: sketchWorkspaces, openSketch }),
   }, ImageWorkspace))
   const imageProps = sessionId => ({
       sessionId,

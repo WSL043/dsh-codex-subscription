@@ -36,3 +36,43 @@ export function createSketchSessionRegistry({ maxIdle = 8 } = {}) {
     dispose() { for(const value of sessions.values())value.agentRun.current?.dispose();sessions.clear();archived.clear() },
   }
 }
+
+// The shell owns each editor. Composer mounts select its UI without owning the connection.
+export function createSketchWorkspaceRegistry({ maxIdle = 8 } = {}) {
+  const entries = new Map(), listeners = new Set()
+  let snapshot = []
+  const publish = () => {
+    const idle = [...entries].filter(([, entry]) => !entry.views && !entry.pending && !entry.drawing)
+    for (const [id] of idle.slice(0, Math.max(0, idle.length - maxIdle))) entries.delete(id)
+    const selected = [...entries].findLast(([, entry]) => entry.views)?.[0]
+    snapshot = [...entries].map(([id]) => ({ id, visible: id === selected }))
+    for (const listener of listeners) listener()
+  }
+  const select = (id, entry) => { entries.delete(id); entries.set(id, entry); publish() }
+  return {
+    getSnapshot: () => snapshot,
+    subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener) },
+    attach(id) {
+      const entry = entries.get(id) ?? { views: 0, pending: 0, drawing: false }
+      entry.views++
+      select(id, entry)
+      return () => { entry.views--; publish() }
+    },
+    visible: id => Boolean(entries.get(id)?.views),
+    focus(id) {
+      const entry = entries.get(id)
+      if (entry?.views) select(id, entry)
+    },
+    async run(id, execute) {
+      const entry = entries.get(id)
+      if (!entry) throw Error('Sketch session disconnected')
+      entry.pending++
+      try { return await execute() }
+      finally { entry.pending--; publish() }
+    },
+    setDrawing(id, drawing) {
+      const entry = entries.get(id)
+      if (entry && entry.drawing !== drawing) { entry.drawing = drawing; publish() }
+    },
+  }
+}

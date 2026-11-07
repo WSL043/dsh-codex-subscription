@@ -4,7 +4,7 @@ import {
   useCallback, useEffect, useRef, useState, useSyncExternalStore,
 } from 'react'
 import {
-  IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseOutline16,
+  IconCheckOutline16, IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseOutline16,
   IconCopyOutline16, IconDownloadOutline16, IconEditOutline16,
 } from './client-primitives.js'
 import { SUBSCRIPTION_IMAGE_VIEWER_CSS } from './subscription-image-viewer-styles.js'
@@ -90,7 +90,7 @@ function ViewerMenu({ label, children, icon, role, disabled, state }) {
   </>
 }
 
-function ViewerAction({ action, annotations, item, service, revision, t, onStartMask, inMenu = false }) {
+function ViewerAction({ action, finishDraft, item, service, revision, t, onStartMask, inMenu = false }) {
   const [state, setState] = useState('idle')
   const active = useRef(true)
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
@@ -98,7 +98,7 @@ function ViewerAction({ action, annotations, item, service, revision, t, onStart
     if (state === 'pending') return
     setState('pending')
     try {
-      await service.invoke(action, { annotations, item, src: item.src, ...extra }, revision)
+      await service.invoke(action, { annotations: finishDraft(), item, src: item.src, ...extra }, revision)
       if (service.getSnapshot()?.revision !== revision) return
       if (active.current) setState('idle')
       if (action.closeOnSuccess) service.close()
@@ -147,14 +147,20 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
   const compact = useSyncExternalStore(subscribeCompact, compactSnapshot, () => false)
   const [cursor, setCursor] = useState({ revision: 0, index: 0 })
   const index = cursor.revision === request?.revision ? cursor.index : request?.index ?? 0
-  const setIndex = update => setCursor(current => ({
-    revision: request.revision,
-    index: typeof update === 'function' ? update(current.revision === request.revision ? current.index : request.index) : update,
-  }))
+  const move = offset => {
+    finishDraft()
+    setCursor(current => {
+      const activeIndex = current.revision === request.revision ? current.index : request.index
+      return { revision: request.revision, index: (activeIndex + offset + request.items.length) % request.items.length }
+    })
+  }
   const [annotating, setAnnotating] = useState(false)
   const [annotationsByImage, setAnnotationsByImage] = useState(service.getAnnotationsSnapshot)
   const annotationsByImageRef = useRef(annotationsByImage)
   const [selected, setSelected] = useState()
+  const [draft, setDraft] = useState()
+  const draftRef = useRef()
+  draftRef.current = draft
   const [focusNote, setFocusNote] = useState()
   const [copied, setCopied] = useState(false)
   const [erasing, setErasing] = useState()
@@ -188,14 +194,28 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
   const { transform, transformRef, dragging, pixelScale, geometry, stageRef, surfaceRef, imageRef, fit, actual, measure, setZoomAt, resetGesture, pointerHandlers } = useImageTransform(`${request?.revision}:${item?.id}:${item?.src}`)
   const annotations = item === undefined ? [] : annotationsByImage[item.id] ?? []
   const setAnnotations = useCallback((update) => {
-    if (item === undefined) return
+    if (item === undefined || service.getSnapshot()?.revision !== request?.revision) return []
     const previous = annotationsByImageRef.current[item.id] ?? []
     const next = typeof update === 'function' ? update(previous) : update
     const snapshot = { ...annotationsByImageRef.current, [item.id]: next }
     annotationsByImageRef.current = snapshot
     service.setAnnotations(item.id, next)
     setAnnotationsByImage(snapshot)
-  }, [item?.id, service])
+    return next
+  }, [item?.id, request?.revision, service])
+
+  const finishDraft = useCallback(() => {
+    const pending = draftRef.current
+    const note = pending?.note.trim()
+    if (pending) {
+      draftRef.current = undefined
+      setDraft(undefined)
+    }
+    return note
+      ? setAnnotations(current => [...current, { ...pending, note }])
+      : annotationsByImageRef.current[item?.id] ?? []
+  }, [item?.id, setAnnotations])
+  const closeViewer = () => { finishDraft(); service.close() }
 
   useEffect(() => {
     if (request === undefined) return undefined
@@ -223,16 +243,22 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
         event.preventDefault()
         if (event.target instanceof Element && event.target.closest('.dcsiv-inline-note') !== null) {
           setSelected(undefined)
+          setDraft(undefined)
           return
         }
-        service.close()
+        if (stageRef.current?.dataset.annotating === 'true') {
+          finishDraft()
+          setAnnotating(false)
+          return
+        }
+        closeViewer()
         return
       }
       const editing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement
       if (!editing && event.key === 'ArrowLeft' && request.items.length > 1) {
-        event.preventDefault(); setIndex(value => (value - 1 + request.items.length) % request.items.length)
+        event.preventDefault(); move(-1)
       } else if (!editing && event.key === 'ArrowRight' && request.items.length > 1) {
-        event.preventDefault(); setIndex(value => (value + 1) % request.items.length)
+        event.preventDefault(); move(1)
       } else if (!editing && (event.key === '+' || event.key === '=')) {
         event.preventDefault(); const box = stageRef.current?.getBoundingClientRect(); if (box) setZoomAt(transformRef.current.zoom * 1.2, box.left + box.width / 2, box.top + box.height / 2)
       } else if (!editing && event.key === '-') {
@@ -252,18 +278,19 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
       document.body.style.overflow = previousOverflow
       document.removeEventListener('keydown', onKeyDown)
     }
-  }, [request, service, fit, setZoomAt])
+  }, [request, service, fit, setZoomAt, finishDraft])
 
   useEffect(() => {
     if (focusNote === undefined) return
     const field = rootRef.current?.querySelector(`[data-note-id="${CSS.escape(focusNote)}"] textarea`)
     field?.focus()
     setFocusNote(undefined)
-  }, [focusNote, selected, annotations.length])
+  }, [focusNote])
 
   useEffect(() => {
     setAnnotating(false)
     setSelected(undefined)
+    setDraft(undefined)
     setErasing(undefined)
     setStrokes([])
     maskOperation.current++
@@ -306,7 +333,7 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
     onPointerCancel: () => { drawingRef.current = false },
     onPointerLeave: () => { setBrushCursor(undefined) },
   }
-  const startMask = action => { resetGesture(); setAnnotating(false); setStrokes([]); setSendFailed(false); setBrushCursor(undefined); setErasing(action) }
+  const startMask = action => { finishDraft(); resetGesture(); setAnnotating(false); setStrokes([]); setSendFailed(false); setBrushCursor(undefined); setErasing(action) }
   const sendMask = async () => {
     const image = imageRef.current
     if (!erasing || strokes.length === 0 || image === null || sending) return
@@ -331,7 +358,7 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
   }
 
   const addAnnotation = event => {
-    if (!annotating || event.target.closest('.dcsiv-annotation')) return
+    if (!annotating || !imageRef.current?.naturalWidth || event.target !== imageRef.current) return
     const bounds = surfaceRef.current?.getBoundingClientRect()
     if (bounds === undefined) return
     const annotation = {
@@ -340,13 +367,18 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
       y: clamp((event.clientY - bounds.top) / bounds.height, 0, 1),
       note: '',
     }
-    setAnnotations(current => [...current, annotation])
-    setAnnotating(false)
-    setSelected(annotation.id)
+    finishDraft()
+    setDraft(annotation)
+    setSelected(undefined)
     setFocusNote(annotation.id)
   }
+  const saveDraft = () => {
+    if (!draft?.note.trim()) return
+    finishDraft()
+    rootRef.current?.focus()
+  }
   const copyNotes = async () => {
-    const text = noteText(annotations, t)
+    const text = noteText(finishDraft(), t)
     if (text === '' || typeof navigator?.clipboard?.writeText !== 'function') return
     try {
       await navigator.clipboard.writeText(text)
@@ -362,64 +394,90 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
   const showCounter = request.items.length > 1
   const secondaryActions = item.actions.filter(action => action.kind === 'tool' || action.kind === 'mask' || action.kind === 'choice' || action.id === 'sketch')
   const primaryActions = item.actions.filter(action => !secondaryActions.includes(action))
-  const renderAction = (action, inMenu = false, closeMenu) => <ViewerAction action={action} annotations={annotations} item={item} service={service} revision={request.revision} t={t} onStartMask={action => { closeMenu?.(); startMask(action) }} inMenu={inMenu} key={`${request.revision}:${index}:${action.id}`} />
-  const zoomControl = inMenu => <button type="button" role={inMenu ? 'menuitem' : undefined} className="dcsiv-button dcsiv-zoom" title={transform.zoom === 1 ? t('imageActual') : t('imageFit')} aria-label={transform.zoom === 1 ? t('imageActual') : t('imageFit')} onClick={() => { if (transform.zoom === 1) actual(); else fit() }}>{Math.round(transform.zoom * pixelScale * 100)}%{inMenu ? <span>{transform.zoom === 1 ? t('imageActual') : t('imageFit')}</span> : null}</button>
+  const hasNotes = Boolean(draft?.note.trim()) || annotations.some(annotation => annotation.note.trim() !== '')
+  const showMore = compact || secondaryActions.length > 0 || hasNotes
+  const renderAction = (action, inMenu = false, closeMenu) => <ViewerAction action={action} finishDraft={finishDraft} item={item} service={service} revision={request.revision} t={t} onStartMask={action => { closeMenu?.(); startMask(action) }} inMenu={inMenu} key={`${request.revision}:${index}:${action.id}`} />
+  const zoomLabel = t(transform.zoom === 1 ? 'imageActual' : 'imageFit')
+  const zoomControl = closeMenu => <button type="button" role={closeMenu ? 'menuitem' : undefined} className="dcsiv-button dcsiv-zoom" title={zoomLabel} aria-label={zoomLabel} aria-description={t('imageZoomHint')} onClick={() => { closeMenu?.(); if (transform.zoom === 1) actual(); else fit() }}>{Math.round(transform.zoom * pixelScale * 100)}%{closeMenu ? <span>{zoomLabel}</span> : null}</button>
   const annotationPosition = annotation => {
     // Only the image is scaled. Notes stay in screen coordinates so their text
     // is not rasterized inside a scaled compositor layer and then enlarged.
     const ratio = globalThis.devicePixelRatio || 1
     const align = value => Math.round(value * ratio) / ratio
+    const x = align(geometry.stageWidth / 2 + transform.x + (annotation.x - 0.5) * geometry.width * transform.zoom)
+    const y = align(geometry.stageHeight / 2 + transform.y + (annotation.y - 0.5) * geometry.height * transform.zoom)
+    const width = Math.max(0, Math.min(300, geometry.stageWidth - 16))
+    const left = clamp(x - width / 2, 8, geometry.stageWidth - width - 8)
     return {
-      left: align(geometry.stageWidth / 2 + transform.x + (annotation.x - 0.5) * geometry.width * transform.zoom - 12),
-      top: align(geometry.stageHeight / 2 + transform.y + (annotation.y - 0.5) * geometry.height * transform.zoom - 12),
+      left: x - 12,
+      top: y - 12,
+      '--note-width': `${width}px`,
+      '--note-left': `${left - x + 12}px`,
+      '--note-arrow': `${clamp(x - left - 4, 12, width - 20)}px`,
+      '--note-top': y < 100 ? '34px' : 'auto',
+      '--note-bottom': y < 100 ? 'auto' : '34px',
+      '--note-arrow-y': y < 100 ? '-5px' : 'auto',
+      '--note-arrow-bottom': y < 100 ? 'auto' : '-5px',
       visibility: geometry.width > 0 ? 'visible' : 'hidden',
     }
   }
-  return <div ref={rootRef} className="dcsiv-root" role="dialog" aria-modal="true" aria-label={t('imagePreview')} tabIndex={-1}>
+  return createPortal(<div ref={rootRef} className="dcsiv-root" role="dialog" aria-modal="true" aria-label={t('imagePreview')} tabIndex={-1}>
     <div className="dcsiv-title dcsiv-sr-only"><strong>{item.name}</strong>{meta !== '' ? <small>{meta}</small> : null}</div>
     <header className="dcsiv-topbar" role="toolbar" aria-label={t('imagePreview')}>
       <div className="dcsiv-actions">
-        {showCounter ? <span className="dcsiv-counter" role="status" aria-live="polite" aria-atomic="true">{index + 1} / {request.items.length}</span> : null}
-        {!compact ? zoomControl(false) : null}
+        {showCounter ? <div className="dcsiv-gallery">
+          <button type="button" className="dcsiv-button dcsiv-nav dcsiv-prev" disabled={erasing !== undefined} title={t('imagePrevious')} aria-label={t('imagePrevious')} onClick={() => move(-1)}><IconChevronLeftOutline14 /></button>
+          <span className="dcsiv-counter" role="status" aria-live="polite" aria-atomic="true">{index + 1} / {request.items.length}</span>
+          <button type="button" className="dcsiv-button dcsiv-nav dcsiv-next" disabled={erasing !== undefined} title={t('imageNext')} aria-label={t('imageNext')} onClick={() => move(1)}><IconChevronRightOutline14 /></button>
+        </div> : null}
+        {!compact ? zoomControl() : null}
         {item.download === undefined
           ? <a className="dcsiv-download" data-compact="true" href={item.src} download={downloadName(item.name)} title={t('imageDownload')} aria-label={t('imageDownload')}><IconDownloadOutline16 /></a>
           : <ViewerDownload key={item.id} download={item.download} item={item} t={t} />}
         {request.annotations || item.actions.length > 0 ? <span className="dcsiv-divider" aria-hidden="true" /> : null}
-        {request.annotations ? <button type="button" className="dcsiv-button dcsiv-icon-button" data-active={annotating} title={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-label={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-pressed={annotating} onClick={() => { resetGesture(); setAnnotating(value => !value) }}><ToolIcon id="annotate" /></button> : null}
-        {!compact && annotations.length > 0 ? <button type="button" className="dcsiv-button" data-active={selected !== undefined} onClick={() => { const first = annotations[0]; setSelected(current => current === undefined ? first.id : undefined); if (selected === undefined) setFocusNote(first.id) }}>{annotations.length} <span className="dcsiv-label">{t('imageRegions')}</span></button> : null}
+        {request.annotations ? <button type="button" className="dcsiv-button dcsiv-icon-button" data-active={annotating} title={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-label={annotating ? t('imageAnnotateCancel') : t('imageAnnotate')} aria-description={t('imageAnnotateHint')} aria-pressed={annotating} onClick={() => { resetGesture(); finishDraft(); setSelected(undefined); setAnnotating(value => !value) }}><ToolIcon id="annotate" /></button> : null}
         {primaryActions.map(action => renderAction(action))}
-        {compact
-          ? <ViewerMenu key={`${request.revision}:${index}:more`} label={t('imageMore')} icon={<EllipsisHorizontalIcon className="dcsiv-tool-icon" aria-hidden="true" />}>{close => <>{zoomControl(true)}{secondaryActions.map(action => renderAction(action, true, close))}</>}</ViewerMenu>
-          : secondaryActions.map(action => renderAction(action))}
+        {showMore ? <ViewerMenu key={`${request.revision}:${index}:more`} label={t('imageMore')} icon={<EllipsisHorizontalIcon className="dcsiv-tool-icon" aria-hidden="true" />}>{close => <>
+          {compact ? zoomControl(close) : null}
+          {secondaryActions.map(action => renderAction(action, true, close))}
+          {hasNotes ? <button type="button" role="menuitem" onClick={() => { void copyNotes() }}><IconCopyOutline16 />{t(copied ? 'imageCopied' : 'imageCopyNotes')}</button> : null}
+        </>}</ViewerMenu> : null}
       </div>
     </header>
-    <button type="button" className="dcsiv-close-floating" title={t('imageClosePreview')} aria-label={t('imageClosePreview')} onClick={() => service.close()}><IconCloseOutline16 /></button>
+    <button type="button" className="dcsiv-close-floating" title={t('imageClosePreview')} aria-label={t('imageClosePreview')} onClick={closeViewer}><IconCloseOutline16 /></button>
     <div className="dcsiv-workspace">
-      <main ref={stageRef} className="dcsiv-stage" data-dragging={dragging} data-annotating={annotating || erasing !== undefined} onClick={event => { if (event.target === event.currentTarget && !annotating && !erasing && transform.zoom === 1) service.close() }} {...(!annotating && !erasing ? pointerHandlers : {})} onDoubleClick={() => { if (transform.zoom === 1) actual(); else fit() }}>
+      <main ref={stageRef} className="dcsiv-stage" data-dragging={dragging} data-annotating={annotating || erasing !== undefined} onClick={event => { if (event.target === event.currentTarget && !annotating && !erasing && transform.zoom === 1) closeViewer() }} {...(!annotating && !erasing ? pointerHandlers : {})} onDoubleClick={() => { if (transform.zoom === 1) actual(); else fit() }}>
         <div ref={surfaceRef} className="dcsiv-surface" onClick={addAnnotation} style={{ transform: `translate3d(${transform.x}px,${transform.y}px,0) scale(${transform.zoom})` }}>
           {imageSource.failed && !imageSource.usable ? null : <img key={`${request.revision}:${item.id}:${imageSource.attempt}`} ref={imageRef} className="dcsiv-image" src={imageSource.src} alt={item.name} draggable="false" onError={imageSource.fail} onLoad={() => { imageSource.loaded(); measure() }} />}
           {imageSource.failed ? <button type="button" className="dcsiv-button" onClick={imageSource.retry}>{t('imageLoadFailed')}</button> : null}
           {erasing ? <canvas ref={maskRef} className="dcsiv-mask" width={imageRef.current?.naturalWidth || 1} height={imageRef.current?.naturalHeight || 1} aria-label={t('imageEraseHint')} {...maskHandlers} /> : null}
         </div>
-        {annotations.map((annotation, position) => <div className="dcsiv-annotation" data-x={annotation.x < 0.38 ? 'right' : annotation.x > 0.62 ? 'left' : 'center'} data-y={annotation.y < 0.28 ? 'down' : 'up'} style={annotationPosition(annotation)} key={annotation.id}>
-          <button type="button" className="dcsiv-pin" data-active={selected === annotation.id} aria-label={fill(t('imageAnnotation'), { value: position + 1 })} onClick={event => { event.stopPropagation(); const opening = selected !== annotation.id; setSelected(opening ? annotation.id : undefined); if (opening) setFocusNote(annotation.id) }}>{position + 1}</button>
-          {selected === annotation.id ? <div className="dcsiv-inline-note" data-note-id={annotation.id} onClick={event => event.stopPropagation()}>
+        {(draft ? [...annotations, draft] : annotations).map((annotation, position) => <div className="dcsiv-annotation" style={annotationPosition(annotation)} key={annotation.id}>
+          <button type="button" className="dcsiv-pin" data-active={draft === annotation || selected === annotation.id} aria-label={fill(t('imageAnnotation'), { value: position + 1 })} onClick={() => { if (draft === annotation) { setFocusNote(annotation.id); return } const opening = selected !== annotation.id; finishDraft(); setSelected(opening ? annotation.id : undefined); if (opening) setFocusNote(annotation.id) }}>{position + 1}</button>
+          {draft === annotation || selected === annotation.id ? <div className="dcsiv-inline-note" data-note-id={annotation.id} data-draft={draft === annotation} onClick={event => event.stopPropagation()}>
             <span className="dcsiv-inline-index">{position + 1}</span>
-            <textarea value={annotation.note} rows={1} aria-label={fill(t('imageAnnotation'), { value: position + 1 })} placeholder={t('imageAnnotationPlaceholder')} onChange={event => { const note = event.target.value; setAnnotations(current => current.map(entry => entry.id === annotation.id ? { ...entry, note } : entry)) }} onKeyDown={event => {
-              if ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Escape') {
+            <textarea value={annotation.note} rows={1} aria-label={fill(t('imageAnnotation'), { value: position + 1 })} placeholder={t('imageAnnotationPlaceholder')} onChange={event => {
+              const note = event.target.value
+              if (draft === annotation) setDraft({ ...draft, note })
+              else setAnnotations(current => current.map(entry => entry.id === annotation.id ? { ...entry, note } : entry))
+            }} onKeyDown={event => {
+              if (!event.nativeEvent.isComposing && ((event.key === 'Enter' && !event.shiftKey) || event.key === 'Escape')) {
                 event.preventDefault()
                 event.stopPropagation()
                 event.nativeEvent?.stopImmediatePropagation?.()
-                setSelected(undefined)
+                if (draft === annotation && event.key === 'Enter') saveDraft()
+                else { setDraft(undefined); setSelected(undefined); rootRef.current?.focus() }
               }
             }} />
-            <button type="button" className="dcsiv-note-remove" aria-label={t('imageRemoveAnnotation')} onClick={event => { event.stopPropagation(); setAnnotations(current => current.filter(entry => entry.id !== annotation.id)); setSelected(undefined) }}><IconCloseOutline16 /></button>
+            {draft === annotation ? <button type="button" className="dcsiv-note-remove" aria-label={t('sketchTextDone')} title={t('sketchTextDone')} disabled={!draft.note.trim()} onClick={saveDraft}><IconCheckOutline16 /></button> : null}
+            <button type="button" className="dcsiv-note-remove" aria-label={t(draft === annotation ? 'cancel' : 'imageRemoveAnnotation')} onClick={() => {
+              if (draft === annotation) setDraft(undefined)
+              else setAnnotations(current => current.filter(entry => entry.id !== annotation.id))
+              setSelected(undefined)
+              rootRef.current?.focus()
+            }}><IconCloseOutline16 /></button>
           </div> : null}
         </div>)}
-        {showCounter ? <>
-          <button type="button" className="dcsiv-button dcsiv-icon-only dcsiv-nav dcsiv-prev" disabled={erasing !== undefined} title={t('imagePrevious')} aria-label={t('imagePrevious')} onClick={event => { event.stopPropagation(); setIndex(value => (value - 1 + request.items.length) % request.items.length) }}><IconChevronLeftOutline14 /></button>
-          <button type="button" className="dcsiv-button dcsiv-icon-only dcsiv-nav dcsiv-next" disabled={erasing !== undefined} title={t('imageNext')} aria-label={t('imageNext')} onClick={event => { event.stopPropagation(); setIndex(value => (value + 1) % request.items.length) }}><IconChevronRightOutline14 /></button>
-        </> : annotating ? <span className="dcsiv-hint">{t('imageAnnotateHint')}</span> : transform.zoom === 1 ? <span className="dcsiv-hint">{t('imageZoomHint')}</span> : null}
       </main>
       {erasing ? <div className="dcsiv-erase-bar" role="toolbar" aria-label={t('imageErase')}>
         <span>{t('imageEraseHint')}</span>
@@ -429,9 +487,8 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
         <button type="button" className="dcsiv-button dcsiv-primary" data-state={sendFailed ? 'failed' : undefined} disabled={strokes.length === 0 || sending} onClick={() => { void sendMask() }}>{sending ? t('imageEditPreparing') : sendFailed ? t('imageEditFailed') : t('imageSend')}</button>
       </div> : null}
       {erasing && brushCursor ? <span className="dcsiv-brush-cursor" aria-hidden="true" style={{ left: brushCursor.left, top: brushCursor.top, width: brush * brushCursor.span, height: brush * brushCursor.span }} /> : null}
-      {annotations.some(annotation => annotation.note.trim() !== '') ? <button type="button" className="dcsiv-copy-notes" onClick={() => { void copyNotes() }}><IconCopyOutline16 />{copied ? t('imageCopied') : t('imageCopyNotes')}</button> : null}
     </div>
-  </div>
+  </div>, document.body)
 }
 
 export { SUBSCRIPTION_IMAGE_VIEWER_CSS }

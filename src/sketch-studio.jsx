@@ -9,7 +9,6 @@ import { exportSketchAgentFile } from './sketch-agent-export.js'
 import { SketchRunStatus } from './sketch-run-status.jsx'
 import { switchSketchToolWidth, stepSketchWidth } from './sketch-tool-widths.js'
 import { sketchShortcutAction } from './sketch-shortcuts.js'
-import { createSketchSessionState } from './sketch-session-state.js'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -47,7 +46,6 @@ import {
   MAX_SKETCH_POINTS
 } from './sketch-commands.js'
 import { createSketchAgentRun } from './sketch-agent-run.js'
-import { connectSketchAgent } from './sketch-agent-client.js'
 import { encodeSketchDocument } from './sketch-formats.js'
 import { colorRegions, dominantColors, measureDifference, sampleColors, scanLine } from './sketch-measure.js'
 export function SketchStudio({
@@ -60,14 +58,12 @@ export function SketchStudio({
   t,
   incoming,
   sessionId,
-  rpc,
   sessionState,
-  bridgeManaged = false,
   onAgentReady,
-  onAgentError
+  onAgentError,
+  onAgentState,
+  visible = true
 }) {
-  const localSession = useRef(null)
-  localSession.current ??= sessionState ?? createSketchSessionState()
   const {
     doc,
     undo,
@@ -81,7 +77,7 @@ export function SketchStudio({
     agentAdapter,
     agentSession,
     agentRun
-  } = localSession.current
+  } = sessionState
   const dialog = useRef(null),
     canvas = useRef(null),
     cache = useRef(new Map())
@@ -205,7 +201,7 @@ export function SketchStudio({
     if (frame.current !== null) return
     frame.current = requestAnimationFrame(() => {
       frame.current = null
-      paint()
+      if (dialog.current?.open) paint()
       if (updateUi.current) {
         updateUi.current = false
         redraw((value) => value + 1)
@@ -235,7 +231,10 @@ export function SketchStudio({
       dialog.current.showModal()
       canvas.current.width = doc.current.width ?? SKETCH_SIZE
       paint()
-    } else dialog.current?.close()
+    } else {
+      dialog.current?.close()
+      setReplayOpen(false)
+    }
   }, [open])
   useEffect(
     () => () => {
@@ -245,7 +244,7 @@ export function SketchStudio({
     []
   )
   const { save, saveChanges, fresh, load, importImage, restore } =
-    createSketchDocumentLifecycle(localSession.current, {
+    createSketchDocumentLifecycle(sessionState, {
       sessionId,
       t,
       schedule,
@@ -255,7 +254,6 @@ export function SketchStudio({
       setTextEdit,
       setRecovered
     })
-  useEffect(() => localSession.current.retain?.(), [])
   useEffect(() => {
     let live = true
     setHydrated(false)
@@ -332,6 +330,7 @@ export function SketchStudio({
   }, [open, incoming, agentLocked, hydrated, busy])
   const keyDown = (event) => {
     if (
+      replayOpen ||
       event.target.closest('input,textarea,select,[contenteditable=true]') ||
       event.isComposing ||
       busy ||
@@ -454,6 +453,7 @@ export function SketchStudio({
     changed: (state) => {
       setAgentState(state)
       setNoticeHidden(false)
+      onAgentState?.(state)
     },
     available: () => enabled && agentEnabled,
     open: () => onOpen(),
@@ -590,40 +590,12 @@ export function SketchStudio({
         exportFile: (value) => agentAdapter.current.export(value)
       })
     })
-    if (bridgeManaged) {
-      onAgentReady?.(api)
-      return () => onAgentReady?.(undefined)
-    }
-    window.dshSketchAgent = api
-    return () => {
-      if (window.dshSketchAgent === api) delete window.dshSketchAgent
-    }
-  }, [enabled, agentEnabled, rpc, sessionId, hydrated, bridgeManaged, onAgentReady])
+    onAgentReady(api)
+    return () => onAgentReady(undefined)
+  }, [enabled, agentEnabled, sessionId, hydrated, onAgentReady])
   useEffect(() => {
-    if (!enabled || !agentEnabled) {
-      if (agentRun.current.locked) agentRun.current.stop()
-      return
-    }
-    if (bridgeManaged || !rpc || !sessionId || !hydrated) return
-    let live = true
-    const disconnect = connectSketchAgent(
-      rpc,
-      sessionId,
-      (request) => {
-        if (!live) throw Error('Sketch session disconnected')
-        return agentRun.current.execute(request)
-      },
-      (message) => {
-        agentRun.current.fail()
-        setError(message)
-      },
-      () => (agentRun.current.locked ? 350 : 2000)
-    )
-    return () => {
-      live = false
-      disconnect()
-    }
-  }, [enabled, agentEnabled, rpc, sessionId, hydrated, bridgeManaged])
+    if ((!enabled || !agentEnabled) && agentRun.current.locked) agentRun.current.stop()
+  }, [enabled, agentEnabled])
   const attach = () => {
     if (!enabled) return
     return runFile(async () => {
@@ -674,7 +646,7 @@ export function SketchStudio({
   }
   return (
     <>
-      {enabled && agentEnabled && !open && !noticeHidden ? (
+      {enabled && agentEnabled && visible && !open && !noticeHidden ? createPortal(
         <SketchRunStatus
           state={agentState}
           floating
@@ -686,7 +658,8 @@ export function SketchStudio({
             agentRun.current.resume()
           }}
           onDismiss={() => setNoticeHidden(true)}
-        />
+        />,
+        document.body
       ) : null}
       <dialog
         ref={dialog}
@@ -739,6 +712,10 @@ export function SketchStudio({
           >
             <WorkspaceIcon name="close" />
           </button>
+          <div className="codexSketchHeading">
+            <strong>{t('sketchTitle')}</strong>
+            <span>Beta</span>
+          </div>
           <SketchFiles
             save={save}
             load={load}
@@ -752,15 +729,12 @@ export function SketchStudio({
             t={t}
             runOperation={runFile}
             extra={
-              <button type="button" disabled={agentLocked || busy || !timeline.current.length} title={t('sketchReplayTitle')} onClick={() => setReplayOpen(true)}>
-                {t('sketchReplay')}
+              <button type="button" className="codexSketchReplayToggle" disabled={agentLocked || busy || !timeline.current.length} title={t('sketchReplayTitle')} aria-label={t('sketchReplayTitle')} onClick={() => setReplayOpen(true)}>
+                <WorkspaceIcon name="play" size={15} />
+                <span>{t('sketchReplay')}</span>
               </button>
             }
           />
-          <div className="codexSketchHeading">
-            <strong>{t('sketchTitle')}</strong>
-            <span>Beta</span>
-          </div>
           <div className="codexSketchUtility">
             <div className="codexSketchHistory">
               {['undo', 'redo'].map((name) => (
@@ -815,8 +789,8 @@ export function SketchStudio({
               onClick={() => setLayersOpen((v) => !v)}
             >
               <WorkspaceIcon name="layers" size={18} />
-              {t('sketchLayers')}
-              <span>{doc.current.layers.length}</span>
+              <span className="codexSketchLayersLabel">{t('sketchLayers')}</span>
+              <span className="codexSketchLayersCount">{doc.current.layers.length}</span>
             </button>
           </div>
           <button
@@ -861,7 +835,7 @@ export function SketchStudio({
             </button>
           </div>
         ) : null}
-        <div className={`codexLayerBody ${layersOpen ? 'withLayers' : ''}`}>
+        <div className="codexLayerBody">
           <canvas
             tabIndex={0}
             style={{
@@ -1082,59 +1056,6 @@ export function SketchStudio({
               />
             </svg>
           ) : null}
-          <SketchSizeControl
-            label={t(
-              opacityMode
-                ? 'sketchFlow'
-                : selected?.shape === 'text' || tool === 'text'
-                  ? 'sketchTextSize'
-                  : 'sketchWidth'
-            )}
-            mode={opacityMode ? 'opacity' : 'size'}
-            modes={
-              showOpacity
-                ? [
-                    {
-                      value: 'size',
-                      label: t(
-                        selected?.shape === 'text' || tool === 'text'
-                          ? 'sketchTextSize'
-                          : 'sketchSizeShort'
-                      )
-                    },
-                    { value: 'opacity', label: t('sketchFlow') }
-                  ]
-                : undefined
-            }
-            onModeChange={setSizeMode}
-            min={opacityMode ? 5 : 1}
-            max={opacityMode ? 100 : 256}
-            suffix={opacityMode ? '%' : ''}
-            value={
-              opacityMode
-                ? (selected?.opacity ?? flow / 100) * 100
-                : (selected?.width ?? width)
-            }
-            disabled={agentLocked || busy}
-            onStart={() => {
-              if (selected) {
-                checkpoint()
-                sizeGesture.current = true
-              }
-            }}
-            onEnd={() => {
-              sizeGesture.current = false
-            }}
-            onChange={(value) => {
-              if (opacityMode) {
-                if (selected) editObject({ opacity: value / 100 })
-                else setFlow(value)
-              } else {
-                if (selected) editObject({ width: value })
-                else setWidth(value)
-              }
-            }}
-          />
 
           {textEdit ? (
             <form
@@ -1205,7 +1126,7 @@ export function SketchStudio({
               t={t}
             />
           ) : null}
-          {replayOpen && dialog.current ? createPortal(
+          {open && replayOpen && dialog.current ? createPortal(
             <SketchReplay
               states={timeline.current}
               current={doc.current}
@@ -1249,6 +1170,61 @@ export function SketchStudio({
           setEraser={setEraser}
           color={color}
           pickColor={pickColor}
+          sizeControl={
+            <SketchSizeControl
+              label={t(
+                opacityMode
+                  ? 'sketchFlow'
+                  : selected?.shape === 'text' || tool === 'text'
+                    ? 'sketchTextSize'
+                    : 'sketchWidth'
+              )}
+              mode={opacityMode ? 'opacity' : 'size'}
+              modes={
+                showOpacity
+                  ? [
+                      {
+                        value: 'size',
+                        label: t(
+                          selected?.shape === 'text' || tool === 'text'
+                            ? 'sketchTextSize'
+                            : 'sketchSizeShort'
+                        )
+                      },
+                      { value: 'opacity', label: t('sketchFlow') }
+                    ]
+                  : undefined
+              }
+              onModeChange={setSizeMode}
+              min={opacityMode ? 5 : 1}
+              max={opacityMode ? 100 : 256}
+              suffix={opacityMode ? '%' : ''}
+              value={
+                opacityMode
+                  ? (selected?.opacity ?? flow / 100) * 100
+                  : (selected?.width ?? width)
+              }
+              disabled={agentLocked || busy}
+              onStart={() => {
+                if (selected) {
+                  checkpoint()
+                  sizeGesture.current = true
+                }
+              }}
+              onEnd={() => {
+                sizeGesture.current = false
+              }}
+              onChange={(value) => {
+                if (opacityMode) {
+                  if (selected) editObject({ opacity: value / 100 })
+                  else setFlow(value)
+                } else {
+                  if (selected) editObject({ width: value })
+                  else setWidth(value)
+                }
+              }}
+            />
+          }
         />
         {error ? (
           <p className="codexSketchHint" role="alert">

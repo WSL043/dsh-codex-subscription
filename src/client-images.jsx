@@ -51,11 +51,11 @@ function CodexGeneratedImage({ attachment, original, gallery, rpc, sessionId, lo
         actions: !features.imageEditing ? [] : [{
           id: 'continue-editing', label: t('imageEdit'), pendingLabel: t('imageEditPreparing'), errorLabel: t('imageEditFailed'), closeOnSuccess: true,
           onInvoke: ({ annotations = [], signal }) => {
-            const imageKey = String(attachment.attachmentId ?? 'image').replace(/[^a-zA-Z0-9_-]/g, '_')
-            const sourceName = annotations.length === 0 ? downloadName : `codex-edit-${imageKey}-source.png`
-            const referenceName = `codex-edit-${imageKey}-annotations.png`
+            const imageKey = String(attachment.attachmentId ?? 'image').replace(/^sha256:/u, '').slice(0, 12).replace(/[^a-zA-Z0-9_-]/gu, '_')
+            const sourceName = annotations.length === 0 ? downloadName : `edit-${imageKey}.png`
+            const referenceName = `pins-${imageKey}.png`
             return attachForEdit(editSource, sourceName, buildImageEditDraft({ annotations, translate: t,
-              width: original?.width ?? attachment.width, height: original?.height ?? attachment.height, sourceName, referenceName,
+              sourceName, referenceName,
             }), annotations, referenceName, false, undefined, { signal })
           },
         }, ...officialImageTools({ src: editSource, name: downloadName, t, attachForEdit }), ...(features.imageSketch && openSketchImage ? [{id:'sketch',label:t('imageToSketch'),pendingLabel:t('imageEditPreparing'),errorLabel:t('imageEditFailed'),onInvoke:()=>openSketchImage(src,downloadName)}] : [])],

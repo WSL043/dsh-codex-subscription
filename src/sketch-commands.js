@@ -4,6 +4,7 @@ import { MAX_SKETCH_STROKES, MAX_STROKE_POINTS } from './sketch-document.js'
 import { changeSketchLayer, strokeCount, resizeSketch } from './sketch-layers.js'
 import { expandSvgCommands, MAX_SVG_CHARACTERS } from './sketch-svg.js'
 import { normalizeBlur, normalizeBlend, normalizeClip, normalizeGradient, gradientFits } from './sketch-effects.js'
+import { recordReplayStrokeOrder } from './sketch-replay.js'
 
 export const MAX_SKETCH_POINTS = 200_000
 // A stale or missing revision is the caller's to correct; it must not end the drawing run.
@@ -32,6 +33,7 @@ export function applySketchCommands(source, commands, report) {
   if (!Array.isArray(commands) || !commands.length || commands.length > 256) throw Error('Expected 1–256 commands')
   let doc = identifyObjects(source)
   commands = expandSvgCommands(commands, doc, report)
+  const strokesInOrder = []
   for (let command of commands) {
     if (!command || typeof command !== 'object') throw Error('Invalid command')
     if (command.op === 'stroke') command = expandSketchPreset(command)
@@ -89,11 +91,13 @@ export function applySketchCommands(source, commands, report) {
     const gradient=normalizeGradient(command.gradient),blur=normalizeBlur(command.blur),blend=normalizeBlend(command.blend),clip=normalizeClip(command.clip)
     if(gradient&&!gradientFits(shape,fill))throw Error('A gradient needs fill:true on a rectangle, circle, polygon or bezier shape')
     const stroke = { id, ...(shape==='text'?{text:command.text}:{}), shape, color, width, opacity, fill, ...(gradient?{gradient}:{}), ...(blur?{blur}:{}), ...(blend?{blend}:{}), ...(clip?{clip}:{}), brush:'pen', points:points.map(p=>({x:p.x,y:p.y})) }
+    strokesInOrder.push({ layer: layer.id, stroke })
     doc = {...doc,layers:doc.layers.map(item=>item===layer?{...item,strokes:[...item.strokes,stroke]}:item)}
   }
   const strokes = strokeCount(doc), points = doc.layers.reduce((n,l)=>n+l.strokes.reduce((m,s)=>m+s.points.length,0),0)
   if (strokes > MAX_SKETCH_STROKES) throw Error(`Sketch would hold ${strokes} strokes; the limit is ${MAX_SKETCH_STROKES}. Merge shapes or drop small details, then send this batch again`)
   if (points > MAX_SKETCH_POINTS) throw Error(`Sketch would hold ${points} points; the limit is ${MAX_SKETCH_POINTS}. Use fewer or simpler paths, then send this batch again`)
+  recordReplayStrokeOrder(doc, strokesInOrder)
   return doc
 }
 

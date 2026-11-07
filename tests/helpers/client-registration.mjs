@@ -23,6 +23,7 @@ export function registerClient(remote = false) {
   const registry = new SlotCore(), entries = []
   const children = Object.fromEntries(catalog.slots.map(({ name, ...spec }) => [name, spec]))
   Object.assign(children, {
+    'settings.section.icon': { kind: 'list', scope: 'root', inline: true },
     'plugins.bundle.config': { kind: 'keyed', scope: 'root' },
     'plugins.detail.actions': { kind: 'list', scope: 'root' },
   })

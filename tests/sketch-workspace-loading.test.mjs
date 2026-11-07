@@ -46,7 +46,7 @@ function moduleArrival() {
 
 // Synthetic hook host, using the actual compiled Workspace and readiness gate.
 // This does not mount Canvas/IndexedDB and is not browser acceptance.
-function workspace(arrival, { sessionId = 'fixture', window = {} } = {}) {
+function workspace(arrival, { sessionId = 'fixture', window = {}, visible = true } = {}) {
   const cells = [], pending = [], connections = [], document = { activeElement: null }
   let settings = { imageSketch: true, imageEditing: true, imageSketchAgent: true }, cursor = 0, dirty = false, tree, opener
   const hooks = {
@@ -86,7 +86,7 @@ function workspace(arrival, { sessionId = 'fixture', window = {} } = {}) {
     exports, module: { exports }, window, document, Error, require: id => dependencies[id],
   })
   const sessionState = { agentRun: { current: null }, marker: `state:${sessionId}` }
-  const props = { sessionId, sessionState, rpc: {}, t: key => key,
+  const props = { sessionId, sessionState, visible, rpc: {}, t: key => key,
     preference: { subscribe: () => () => {}, getSnapshot: () => settings },
     registerOpen(callback) { opener = callback; return () => { if (opener === callback) opener = undefined } },
   }
@@ -104,6 +104,7 @@ function workspace(arrival, { sessionId = 'fixture', window = {} } = {}) {
     get studio() { return find(tree, node => node.type === arrival.Studio)?.props },
     get api() { return window.dshSketchAgent },
     open(file) { opener('sketch', { focus() {} }, file); render() },
+    show(value) { props.visible = value; render() },
     enable(value) { settings = { ...settings, imageSketchAgent: value }; render() },
     replayEffects() {
       for (const cell of cells) if (cell?.run) cell.cleanup?.()
@@ -132,7 +133,7 @@ test('the first Agent command imports the editor and waits for its restored API'
     const result = observe(h.api.execute({ action: 'inspect' }))
     await flush(); h.render(); assert.equal(arrival.imports, 1); assert.equal(executed, 0)
     arrival.arrive(); await flush(); h.render()
-    assert.ok(h.studio.bridgeManaged)
+    assert.equal(typeof h.studio.onAgentReady, 'function')
     assert.equal(executed, 0, 'module arrival alone cannot execute before restoration')
     h.studio.onAgentReady({ execute() { executed++; h.studio.onOpen(); return 'READY' } })
     assert.equal((await result).value, 'READY'); h.render()
@@ -241,6 +242,28 @@ test('two sessions share module arrival but never each other\'s editor readiness
     assert.equal((await resultA).value, 'a'); assert.equal((await resultB).value, 'b')
     assert.notEqual(a.studio.sessionState, b.studio.sessionState)
     a.dispose(); assert.equal(window.dshSketchAgent, apiB)
+  } finally { b.dispose(); a.dispose() }
+})
+
+test('a hidden workspace keeps its bridge and runs commands while a second board is visible', async () => {
+  const arrival = moduleArrival(), window = {}, a = workspace(arrival, { sessionId: 'a', window })
+  const pendingA = a.connections[0].execute({ action: 'inspect' })
+  a.show(false)
+  const b = workspace(arrival, { sessionId: 'b', window })
+  try {
+    const pendingB = b.connections[0].execute({ action: 'inspect' })
+    await flush(); arrival.arrive(); await flush(); a.render(); b.render()
+    a.studio.onAgentReady({ execute: request => `a:${request.action}` })
+    b.studio.onAgentReady({ execute: request => `b:${request.action}` })
+    assert.deepEqual(await Promise.all([pendingA, pendingB]), ['a:inspect', 'b:inspect'])
+    assert.equal(a.studio.open, false)
+    assert.equal(b.studio.open, true)
+    assert.equal(a.connections.length, 1)
+    assert.equal(a.connections[0].active, true)
+    assert.equal(await a.connections[0].execute({ action: 'apply' }), 'a:apply')
+    b.show(false); a.show(true)
+    assert.equal(window.dshSketchAgent.sessionId, 'a')
+    assert.equal(a.studio.open, true)
   } finally { b.dispose(); a.dispose() }
 })
 

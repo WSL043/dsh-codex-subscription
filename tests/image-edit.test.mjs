@@ -5,9 +5,7 @@ import { createAnnotatedImageReference } from '../src/image-edit-reference.js'
 
 const messages = {
   imageEditDefault: 'Edit this image.',
-  imageEditReferenceGuide: 'Use {sourceName} as the clean source and {referenceName} only as the numbered location reference. Coordinates use the top-left origin.',
-  imageEditLocation: 'Location',
-  imageRegionNotes: 'Region changes:',
+  imageEditReferenceGuide: 'Edit {sourceName}. Use {referenceName} to locate the edits and omit its markers.',
 }
 const translate = key => messages[key] ?? key
 
@@ -22,16 +20,17 @@ test('numbered region notes preserve coordinates, names, and visible pin numbers
       { x: 0.25, y: 0.5, note: 'Make the eyes larger.' },
       { x: 0.75, y: 0.125, note: 'Remove the cup.' },
     ],
-    width: 801,
-    height: 401,
     sourceName: 'edit-source.png',
     referenceName: 'edit-locations.png',
     translate,
   })
-  assert.match(draft, /edit-source\.png/u)
-  assert.match(draft, /edit-locations\.png/u)
-  assert.match(draft, /1\. Location: x=25% \(normalized 0\.25\), y=50% \(normalized 0\.5\) \(pixel x=200 of 801, y=200 of 401\); Make the eyes larger\./u)
-  assert.match(draft, /2\. Location: x=75% \(normalized 0\.75\), y=12\.5% \(normalized 0\.125\) \(pixel x=600 of 801, y=50 of 401\); Remove the cup\./u)
+  assert.equal(draft, [
+    'Adjust the character.',
+    '',
+    'Edit edit-source.png. Use edit-locations.png to locate the edits and omit its markers.',
+    '1. (x=25%, y=50%) Make the eyes larger.',
+    '2. (x=75%, y=12.5%) Remove the cup.',
+  ].join('\n'))
 })
 
 test('an empty note is rejected instead of being silently dropped', () => {

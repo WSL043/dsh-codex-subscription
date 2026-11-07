@@ -1,23 +1,15 @@
-import { useCallback, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { Button, Tooltip } from './client-primitives.js'
-import { SketchWorkspace } from './sketch-workspace.jsx'
 import { WorkspaceIcon } from './workspace-icons.jsx'
 
-export function ImageWorkspace(props) {
-  const { preference, t, registerOpen } = props
+export function ImageWorkspace({ preference, t, sessionId, workspaces, openSketch }) {
   const settings = useSyncExternalStore(preference.subscribe, preference.getSnapshot)
-  const workspace = useRef(null)
-  const registerWorkspace = useCallback(callback => {
-    workspace.current = callback
-    const dispose = registerOpen(callback)
-    return () => { workspace.current = null; dispose() }
-  }, [registerOpen])
-  return <>
-    {settings.imageSketch && settings.imageEditing ? <Tooltip label={t('sketch')}>
-      <Button variant="ghost" size="sm" aria-label={t('sketch')}
-        onClick={event => workspace.current?.('sketch', event.currentTarget)}
-        icon={<WorkspaceIcon name="pen" size={16} />} />
-    </Tooltip> : null}
-    <SketchWorkspace key={props.sessionId} {...props} registerOpen={registerWorkspace} />
-  </>
+  const enabled = settings.imageSketch && settings.imageEditing
+  useEffect(() => sessionId ? workspaces.attach(sessionId) : undefined, [sessionId, workspaces])
+  if (!enabled) return null
+  return <Tooltip label={t('sketch')} side="top" delayMs={350} portal>
+    <Button variant="ghost" size="sm" aria-label={t('sketch')}
+      onClick={event => openSketch(sessionId, event.currentTarget)}
+      icon={<WorkspaceIcon name="pen" size={16} />} />
+  </Tooltip>
 }
