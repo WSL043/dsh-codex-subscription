@@ -228,13 +228,6 @@ export const STYLE = `
 .codexComposerQuotaBar::-webkit-progress-bar{background:var(--dsw-alias-border-l3);border-radius:999px}
 .codexComposerQuotaBar::-webkit-progress-value{background:var(--dsw-alias-label-secondary);border-radius:999px}
 .codexComposerQuotaBar::-moz-progress-bar{background:var(--dsw-alias-label-secondary);border-radius:999px}
-.codexComposerOptions{display:grid;place-items:center;width:28px;height:28px;padding:0;border:0;border-radius:var(--dsw-radius-sm);background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
-.codexComposerOptions:hover:not(:disabled),.codexComposerOptions[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover)}
-.codexComposerOptions:focus-visible{outline:2px solid var(--dsw-alias-border-l3)}
-.codexComposerOptions:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
-.codexComposerOptions svg{width:16px;height:16px}
-.codexComposerOptionText{display:grid;gap:1px;white-space:normal}
-.codexComposerOptionText small{color:var(--dsw-alias-label-tertiary)}
 .codexImageTool{display:flex;flex-direction:column;gap:8px;margin:4px 0;color:var(--dsw-alias-label-primary)}
 .codexImageToolRow{display:flex;align-items:center;min-height:24px;gap:8px;font-size:13px;line-height:20px}
 .codexImageToolIcon{display:block;flex-shrink:0;width:16px;height:16px;color:var(--dsw-alias-label-secondary)}

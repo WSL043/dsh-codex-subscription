@@ -19,7 +19,6 @@ import { NS, CHANNEL, unwrap } from './client-shared.js'
 import { createSubscriptionRpcClient } from './rpc-contract.js'
 import { CodexComposerQuota } from './client-composer-quota.jsx'
 import { quotaUsageController } from './client-quota.jsx'
-import { CodexComposerOptions } from './client-composer-options.jsx'
 import { VoiceCallButton } from './client-voice-call.jsx'
 import { CodexSection, ProjectAction } from './client-section.jsx'
 import { registerSubscriptionSettings, subscriptionSettingsOpener } from './subscription-settings-entry.js'
@@ -32,7 +31,7 @@ export const inject = [
 ]
 
 // Keep DSH's model picker and its child label slot together. Subscription-only actions use the additive right slot.
-const ComposerRight = props => <><CodexComposerQuota {...props} /><CodexComposerOptions {...props} /><VoiceCallButton {...props} /></>
+const ComposerRight = props => <><CodexComposerQuota {...props} /><VoiceCallButton {...props} /></>
 
 export function apply(ctx) {
   if (new URL(window.location.href).searchParams.has('codexVoiceSession')) ctx.inject(['uiWorkspace', 'sessions'], scope => scope.effect(() => {
@@ -107,7 +106,6 @@ export function apply(ctx) {
     locale: NS,
     inject: sessionId => ({
       sessionId,
-      available: sessions.subagentAddress(sessionId) === undefined,
       preference,
       rpc: rpc,
       t,

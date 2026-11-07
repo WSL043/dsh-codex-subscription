@@ -113,11 +113,11 @@ If you undo or clear an accepted draft without sending, the empty composer shows
 
 [OpenAI states](https://learn.chatgpt.com/docs/features/composer-predictions) that generating predictions in official Codex does not count toward usage limits or consume credits; sending an accepted prediction is metered normally. DSH makes additional prediction requests, and the same exemption for this third-party integration is unconfirmed, so the plugin does not promise free predictions. Predictions neither retrieve other conversations nor run tools.
 
-### Composer speed
+### Codex speed
 
-With a supported Codex model selected, open the controls button next to the model selector to choose speed or output verbosity. The menu shows the choices available for that model. Fast mode increases speed and uses more Credits. For current rules, see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) for the current rules.
+Choose speed under **Settings → Codex subscription → Models**. Output verbosity is on the same page. Speed settings apply when the selected Codex model supports the tier. Fast mode increases speed and uses more Credits. For current rules, see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) for the current rules.
 
-**Ultrafast (Beta).** A model's speed menu gains "Ultrafast" only when the current account's catalog lists an `ultrafast` tier for that model (at the developer event: GPT-6 Astra on Pro 500 only). If you chose Ultrafast and switch to a model without it, requests go out on the standard tier; the plugin never substitutes Fast for you. It is the fastest tier and uses allowance and Credits faster. It stays Beta because it has not been run on a Pro 500 account yet.
+**Ultrafast (Beta).** The speed setting offers “Ultrafast” only when the current account's catalog lists an `ultrafast` tier for that model (at the developer event: GPT-6 Astra on Pro 500 only). If you chose Ultrafast and switch to a model without it, requests go out on the standard tier; the plugin never substitutes Fast for you. It is the fastest tier and uses allowance and Credits faster. It stays Beta because it has not been run on a Pro 500 account yet.
 
 ### Ultra proactive delegation
 

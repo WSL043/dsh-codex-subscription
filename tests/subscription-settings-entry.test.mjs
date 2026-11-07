@@ -11,8 +11,6 @@ test('the complete client registers native slots on desktop and scoped hosts wit
     assert.equal(quota.scope, 'root', 'quota and voice remain available before a session scope mounts')
     assert.equal(quota.options.inject('session-a').directory, remote ? host.stores.scoped : host.stores.root)
     assert.equal(find('conversation.input.model'), undefined, 'the native picker must retain its label contributions')
-    assert.equal(quota.options.inject('session-a').available, true)
-    assert.equal(quota.options.inject('child').available, false)
     const oldSettings = find('settings.section').options.inject()
     const pluginEntry = find('plugins.bundle.config')
     assert.equal(pluginEntry.options.key, 'dsh-codex-subscription')

@@ -16,7 +16,7 @@ import {
   PickerModelsPreference, QuickQuotaPreference, ReasoningCachePreference, ReasoningSummaryPreference, RetryPolicyPreference, SearchProviderPreference,
   StreamIdleTimeoutPreference,
 } from './client-preferences.jsx'
-import { OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
+import { OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF, SPEED_MODE_FIELD, SPEED_MODE_FAST, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST } from './settings-contract.js'
 import { IMAGE_MODELS } from './image-models.js'
 import { ImageChoice } from './image-preferences.jsx'
 
@@ -106,6 +106,20 @@ function Radios({ snapshot, preference, field, values, label, name, text, disabl
   </div>
 }
 
+function SpeedPreference({ snapshot, preference, t }) {
+  const ultrafast = snapshot.ultrafastModels.length > 0
+  const values = [SPEED_MODE_STANDARD, SPEED_MODE_FAST]
+  if (ultrafast || snapshot.speedMode === SPEED_MODE_ULTRAFAST) values.push(SPEED_MODE_ULTRAFAST)
+  const labels = { [SPEED_MODE_STANDARD]: 'speedStandard', [SPEED_MODE_FAST]: 'speedFast', [SPEED_MODE_ULTRAFAST]: 'speedUltrafast' }
+  return <div className="codexSubscriptionPreference">
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={ultrafast
+      ? `${t('speedFastHint')} · ${t('speedUltrafastHint')}` : t('speedFastHint')}>{t('speedTitle')}</SettingsLabel></div>
+    <Radios snapshot={snapshot} preference={preference} field={SPEED_MODE_FIELD} values={values}
+      name="codex-speed" label={t('speedTitle')} text={value => t(labels[value])}
+      disabledValues={ultrafast ? [] : [SPEED_MODE_ULTRAFAST]} />
+  </div>
+}
+
 export function ModelsPage({ preference, t, defaultModel }) {
   const snapshot = usePreferenceSnapshot(preference)
   return <div className="codexSubscriptionAdvancedPreferences">
@@ -113,6 +127,7 @@ export function ModelsPage({ preference, t, defaultModel }) {
       <ModelCatalogStatus preference={preference} t={t} title={t('modelsSectionTitle')} />
       {defaultModel === undefined ? null : <><DefaultModelPreference preference={preference} defaultModel={defaultModel} t={t} /><div className="codexSubscriptionDivider" /></>}
       <DefaultReasoningEffortPreference preference={preference} t={t} />
+      <SpeedPreference snapshot={snapshot} preference={preference} t={t} />
       <ComposerPredictionPreference preference={preference} t={t} />
       <PickerModelsPreference preference={preference} t={t} />
     </section>

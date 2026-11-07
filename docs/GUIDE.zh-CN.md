@@ -111,12 +111,12 @@ Tab 填入后，若未发送就撤销或清空草稿，空输入框会再次显�
 
 [OpenAI 的说明](https://learn.chatgpt.com/docs/features/composer-predictions)明确表示，官方 Codex 生成预测不计入使用额度，也不消耗 Credits；接受建议后发送消息仍正常计量。DSH 会额外发起预测请求，第三方接入是否享有同样豁免尚未确认，因此不承诺免费。预测不会读取其他会话，也不允许调用工具。
 
-### 输入框速度
+### Codex 速度
 
-选择支持的 Codex 模型后，点模型选择器旁的选项按钮，即可调整速度或输出详细度。菜单只显示当前模型支持的选项。高速模式会提高速度，也会消耗更多 Credits。具体规则见
+在 **设置 → Codex 订阅 → 模型** 中调整速度和输出详细度。速度设置只对支持所选档位的 Codex 模型生效。高速模式会提高速度，也会消耗更多 Credits。具体规则见
 [OpenAI Codex Speed 文档](https://learn.chatgpt.com/docs/agent-configuration/speed)。
 
-**极速 Ultrafast（Beta）**：只有当前账号的模型目录给某个模型列出 `ultrafast` 档位时（发布会上仅限 Pro 500 的 GPT-6 Astra），该模型的速度菜单才会多出“极速”。选了极速后，切到不支持它的模型会按标准档发送，不会替你改用 Fast。该档位速度最快，额度和 Credits 消耗也更快。因为还没有在 Pro 500 账号上实机验证，所以标为 Beta。
+**极速 Ultrafast（Beta）**：只有当前账号的模型目录给某个模型列出 `ultrafast` 档位时（发布会上仅限 Pro 500 的 GPT-6 Astra），速度设置才会提供“极速”。选了极速后，切到不支持它的模型会按标准档发送，不会替你改用 Fast。该档位速度最快，额度和 Credits 消耗也更快。因为还没有在 Pro 500 账号上实机验证，所以标为 Beta。
 
 ### Ultra 主动分工
 
