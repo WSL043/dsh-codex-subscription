@@ -120,34 +120,25 @@ dsh --profile headless "Reply with only the word: ok"
 
 ## Démonstration de l’interface
 
-Ouvrez **Paramètres → Codex** pour gérer les comptes et les préférences. Les captures d’écran et l’animation sont repliées ci-dessous ; choisissez la vue souhaitée.
+Connectez votre compte ChatGPT, choisissez un modèle Codex dans DSH et consultez le quota de votre abonnement dans les paramètres.
 
 <details>
-<summary><b>Démonstration de l’interface (animation, cliquez pour développer)</b> : modèles, invites, images, annotations, canevas de croquis, quota et réinitialisations</summary>
-<br>
-<p align="center"><img src="docs/assets/readme-demo-en.webp" width="1100" alt="Démo : connectez-vous avec ChatGPT, choisissez un modèle d’abonnement, posez une question, générez une image, affichez-la et annotez-la, poursuivez sur le tableau de croquis, puis vérifiez le quota et les réinitialisations"></p>
-</details>
+<summary>Se connecter et consulter le quota</summary>
 
-<details>
-<summary>Paramètres des modèles : valeurs par défaut, prédictions de saisie et style des réponses</summary>
+Ouvrez **Paramètres → Codex → Démarrage**, puis sélectionnez **Connexion par navigateur**. Vos comptes enregistrés et le quota indiqué par ChatGPT s’affichent après la connexion. Ouvrez l’aperçu ou la répartition de l’utilisation pour voir le détail.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-models-en-dark.png"><img src="docs/assets/ui-models-en-light.png" width="640" alt="Paramètres du modèle avec l’option Restaurer les paramètres par défaut de DSH et une aide détaillée au survol"></picture></p>
+<p align="center"><img src="docs/assets/interface-account-fr.png" width="584" alt="Se connecter et consulter le quota"></p>
 
-</details>
-
-<details>
-<summary>Zone de rédaction : modèles, vitesse, autorisations et quota</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="Champ de saisie : autorisations de l’espace de travail, quota restant et sélection du modèle"></picture></p>
+_Le compte et les valeurs de quota sont fictifs._
 
 </details>
 
 <details>
-<summary>Quota et utilisation : soldes, historique et répartition hebdomadaire</summary>
+<summary>Choisir un modèle Codex et envoyer un message</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-en-dark.png"><img src="docs/assets/ui-quota-en-light.png" width="560" alt="Carte de quota : quota hebdomadaire et heure de réinitialisation, avec le récapitulatif d’utilisation et le détail de la consommation ci-dessous"></picture></p>
+Dans **Paramètres → Codex → Modèles**, choisissez le modèle et le niveau de raisonnement par défaut. Pour une seule conversation, utilisez le sélecteur près du champ de saisie. Saisissez puis envoyez un message pour utiliser votre abonnement dans DSH.
 
-<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="Récapitulatif d’utilisation et détail de la consommation dans la carte de quota : jetons cumulés, séries, calendrier thermique quotidien sur six mois et répartition de l’allocation hebdomadaire par modèle, interface et source"></p>
+<p align="center"><img src="docs/assets/interface-models-fr.png" width="584" alt="Choisir un modèle Codex et envoyer un message"></p>
 
 </details>
 

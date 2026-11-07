@@ -120,34 +120,25 @@ dsh --profile headless "Reply with only the word: ok"
 
 ## インターフェースのデモ
 
-アカウントや設定を管理するには、**設定 → Codex**を開きます。スクリーンショットとアニメーションは以下に折りたたまれています。必要な表示を選んでください。
+ChatGPT アカウントを連携し、DSH で Codex モデルを選び、設定からサブスクリプションの利用枠を確認できます。
 
 <details>
-<summary><b>インターフェースのデモ（アニメーション、クリックして展開）</b>：モデル、プロンプト、画像、注釈、スケッチボード、利用枠とリセット</summary>
-<br>
-<p align="center"><img src="docs/assets/readme-demo-en.webp" width="1100" alt="デモ：ChatGPT でサインインし、サブスクリプションモデルを選び、質問し、画像を生成して表示・注釈を付け、スケッチボードで続きを作成し、利用枠とリセット時刻を確認"></p>
-</details>
+<summary>サインインして利用枠を確認</summary>
 
-<details>
-<summary>モデル設定：デフォルト、入力予測、回答スタイル</summary>
+**設定 → Codex → はじめに** を開き、**ブラウザーでサインイン** を選びます。連携後は、保存済みアカウントと ChatGPT から取得した利用枠が表示されます。詳しくは **使用状況の概要** や **利用枠の使用状況** を開きます。
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-models-en-dark.png"><img src="docs/assets/ui-models-en-light.png" width="640" alt="「DSH のデフォルトに戻す」と、ホバー時に表示される詳細なヘルプを備えたモデル設定"></picture></p>
+<p align="center"><img src="docs/assets/interface-account-ja.png" width="584" alt="サインインして利用枠を確認"></p>
 
-</details>
-
-<details>
-<summary>入力欄：モデル、速度、権限、利用枠</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="入力欄：ワークスペース権限、残りの利用枠、モデル選択"></picture></p>
+_画面のアカウントと利用枠はサンプルデータです。_
 
 </details>
 
 <details>
-<summary>利用枠と使用状況：残高、履歴、週間の内訳</summary>
+<summary>Codex モデルを選んでメッセージを送信</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-en-dark.png"><img src="docs/assets/ui-quota-en-light.png" width="560" alt="利用枠カード：週間利用枠とリセット時刻。下部に使用状況の概要と割り当ての内訳を表示"></picture></p>
+**設定 → Codex → モデル** でデフォルトのモデルと推論量を選べます。会話ごとに変える場合は、入力欄のモデル選択を使います。メッセージを送信すると、DSH からサブスクリプションのモデルを利用できます。
 
-<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="利用枠カードの使用状況の概要と割り当ての内訳：累計トークン数、連続利用日数、半年分の日別ヒートマップ、モデル・画面・ソース別の週間割り当て"></p>
+<p align="center"><img src="docs/assets/interface-models-ja.png" width="584" alt="Codex モデルを選んでメッセージを送信"></p>
 
 </details>
 

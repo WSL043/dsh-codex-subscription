@@ -120,34 +120,25 @@ dsh --profile headless "Reply with only the word: ok"
 
 ## Демонстрация интерфейса
 
-Откройте **Настройки → Codex**, чтобы управлять аккаунтами и предпочтениями. Скриншоты и анимация свёрнуты ниже; выберите нужный вариант просмотра.
+Подключите аккаунт ChatGPT, выберите модель Codex в DSH и проверяйте лимит подписки в настройках.
 
 <details>
-<summary><b>Демонстрация интерфейса (анимация, нажмите, чтобы развернуть)</b>: модели, запросы, изображения, пометки, холст для набросков, квота и сбросы</summary>
-<br>
-<p align="center"><img src="docs/assets/readme-demo-en.webp" width="1100" alt="Демонстрация: войдите через ChatGPT, выберите модель подписки, задайте вопрос, создайте изображение, просмотрите его и добавьте пометки, продолжите работу на холсте для набросков и проверьте квоту и её сброс"></p>
-</details>
+<summary>Вход в аккаунт и проверка лимита</summary>
 
-<details>
-<summary>Настройки моделей: значения по умолчанию, предсказания ввода и стиль ответов</summary>
+Откройте **Настройки → Codex → Начало** и выберите **Вход через браузер**. После входа здесь появятся сохранённые аккаунты и лимит, который передаёт ChatGPT. Подробности можно посмотреть в обзоре использования и разбивке расхода.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-models-en-dark.png"><img src="docs/assets/ui-models-en-light.png" width="640" alt="Настройки модели с параметром «Восстановить значение DSH по умолчанию» и подробной справкой при наведении курсора"></picture></p>
+<p align="center"><img src="docs/assets/interface-account-ru.png" width="584" alt="Вход в аккаунт и проверка лимита"></p>
 
-</details>
-
-<details>
-<summary>Поле ввода сообщения: модели, скорость, разрешения и квота</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="Поле ввода сообщения: разрешения рабочего пространства, остаток квоты и выбор модели"></picture></p>
+_Аккаунт и значения лимита приведены для примера._
 
 </details>
 
 <details>
-<summary>Квота и использование: остатки, история и разбивка по неделям</summary>
+<summary>Выбор модели Codex и отправка сообщения</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-en-dark.png"><img src="docs/assets/ui-quota-en-light.png" width="560" alt="Карточка квоты: недельная квота и время её сброса, ниже — обзор использования и распределение квоты"></picture></p>
+В разделе **Настройки → Codex → Модели** выберите модель и уровень рассуждения по умолчанию. Модель для отдельного чата можно сменить через меню рядом с полем ввода. Введите и отправьте сообщение, чтобы воспользоваться подпиской в DSH.
 
-<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="Обзор использования и распределение квоты в карточке: общее количество токенов, серии активности, ежедневная тепловая карта за полгода и распределение недельной квоты по моделям, интерфейсам и источникам"></p>
+<p align="center"><img src="docs/assets/interface-models-ru.png" width="584" alt="Выбор модели Codex и отправка сообщения"></p>
 
 </details>
 

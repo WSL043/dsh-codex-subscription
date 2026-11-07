@@ -120,34 +120,25 @@ dsh --profile headless "Reply with only the word: ok"
 
 ## Demonstração da interface
 
-Abra **Configurações → Codex** para gerenciar contas e preferências. As capturas de tela e a animação ficam recolhidas abaixo; escolha a visualização de que precisa.
+Conecte sua conta do ChatGPT, escolha um modelo do Codex no DSH e acompanhe a franquia da assinatura nas configurações.
 
 <details>
-<summary><b>Demonstração da interface (animação, clique para expandir)</b>: modelos, prompts, imagens, anotações, quadro de esboço, cota e redefinições</summary>
-<br>
-<p align="center"><img src="docs/assets/readme-demo-en.webp" width="1100" alt="Demonstração: inicie sessão com o ChatGPT, escolha um modelo de assinatura, faça uma pergunta, gere uma imagem, visualize e anote-a, continue no quadro de esboços e confira a cota e as redefinições"></p>
-</details>
+<summary>Fazer login e conferir a franquia</summary>
 
-<details>
-<summary>Configurações do modelo: padrões, previsões de entrada e estilo das respostas</summary>
+Abra **Configurações → Codex → Início** e selecione **Login pelo navegador**. Após entrar, você verá as contas salvas e a franquia informada pelo ChatGPT. Expanda a visão geral ou o detalhamento de uso para ver mais informações.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-models-en-dark.png"><img src="docs/assets/ui-models-en-light.png" width="640" alt="Configurações do modelo com a opção Restaurar padrão do DSH e ajuda detalhada ao passar o cursor"></picture></p>
+<p align="center"><img src="docs/assets/interface-account-pt.png" width="584" alt="Fazer login e conferir a franquia"></p>
 
-</details>
-
-<details>
-<summary>Campo de mensagem: modelos, velocidade, permissões e cota</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="Caixa de mensagem: permissão do espaço de trabalho, cota restante e seleção de modelo"></picture></p>
+_A conta e os valores de franquia são exemplos._
 
 </details>
 
 <details>
-<summary>Cota e uso: saldos, histórico e detalhamento semanal</summary>
+<summary>Escolher um modelo do Codex e enviar uma mensagem</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-en-dark.png"><img src="docs/assets/ui-quota-en-light.png" width="560" alt="Cartão de cota: cota semanal e horário de redefinição, com resumo do uso e detalhes sobre o destino da cota mais abaixo"></picture></p>
+Em **Configurações → Codex → Modelos**, escolha o modelo e o nível de raciocínio padrão. Para mudar de modelo em uma conversa, use o seletor ao lado do campo de entrada. Digite e envie uma mensagem para usar sua assinatura no DSH.
 
-<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="Resumo do uso e detalhes sobre o destino da cota no cartão de cota: tokens acumulados, sequências de uso, mapa de calor diário de meio ano e divisão da cota semanal por modelo, interface e origem"></p>
+<p align="center"><img src="docs/assets/interface-models-pt.png" width="584" alt="Escolher um modelo do Codex e enviar uma mensagem"></p>
 
 </details>
 

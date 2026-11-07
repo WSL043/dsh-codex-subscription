@@ -110,34 +110,25 @@ dsh --profile headless "只回复：ok"
 
 ## 界面演示
 
-在 **设置 → Codex 订阅** 中管理账号与偏好。下面按使用位置集中展示，截图与动图默认折叠。
+连接 ChatGPT 账号，在 DSH 里选择 Codex 模型，再回到订阅设置查看额度。
 
 <details>
-<summary><b>界面演示（动图，点击展开）</b>：选模型、提问、出图、标注、草图、额度与重置</summary>
-<br>
-<p align="center"><img src="docs/assets/readme-demo.webp" width="1100" alt="演示：登录 ChatGPT 选订阅模型、提问、用订阅出图、查看与标注、进入草图、查看额度与重置"></p>
-</details>
+<summary>登录账号并查看订阅额度</summary>
 
-<details>
-<summary>模型设置：默认模型、输入预测与回答风格</summary>
+打开 **设置 → Codex 订阅 → 开始**，点击 **浏览器登录**。登录后，这里会显示已登记的账号和 ChatGPT 返回的订阅额度。展开 **使用概览** 或 **额度去向** 可以查看更多信息。
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-models-zh-dark.png"><img src="docs/assets/ui-models-zh-light.png" width="640" alt="模型设置：可恢复 DSH 默认模型，详细说明在悬浮提示中查看"></picture></p>
+<p align="center"><img src="docs/assets/interface-account-zh.png" width="584" alt="登录账号并查看订阅额度"></p>
 
-</details>
-
-<details>
-<summary>输入框：模型、速度、权限与额度</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-zh-dark.png"><img src="docs/assets/ui-composer-zh-light.png" width="760" alt="输入框：工作区权限、剩余额度和模型选择"></picture></p>
+_截图中的账号和额度为示例数据。_
 
 </details>
 
 <details>
-<summary>额度与用量：剩余额度、使用概览和每周去向</summary>
+<summary>选择 Codex 模型并发送消息</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-zh-dark.png"><img src="docs/assets/ui-quota-zh-light.png" width="560" alt="额度卡片：每周额度与重置时间，下方可展开使用概览和额度去向"></picture></p>
+在 **设置 → Codex 订阅 → 模型** 中选择默认模型和推理等级。也可以在输入框旁的模型选择器里单独为当前会话切换模型。输入并发送消息，就能在 DSH 中使用订阅模型。
 
-<p align="center"><img src="docs/assets/usage-overview.png" width="460" alt="额度卡片里的使用概览与额度去向：累计 token、连续使用天数、最近半年每日用量热力图，以及每周额度按模型、入口、来源的拆分"></p>
+<p align="center"><img src="docs/assets/interface-models-zh.png" width="584" alt="选择 Codex 模型并发送消息"></p>
 
 </details>
 

@@ -120,34 +120,25 @@ dsh --profile headless "Reply with only the word: ok"
 
 ## Demostración de la interfaz
 
-Abre **Configuración → Codex** para gestionar cuentas y preferencias. Las capturas de pantalla y la animación están contraídas a continuación; elige la vista que necesites.
+Conecta tu cuenta de ChatGPT, elige un modelo de Codex en DSH y consulta la cuota de tu suscripción desde los ajustes.
 
 <details>
-<summary><b>Demostración de la interfaz (animación, haz clic para expandir)</b>: modelos, indicaciones, imágenes, anotaciones, tablero de bocetos, cuota y restablecimientos</summary>
-<br>
-<p align="center"><img src="docs/assets/readme-demo-en.webp" width="1100" alt="Demostración: inicia sesión con ChatGPT, elige un modelo de suscripción, pregunta, genera una imagen, mírala y anótala, continúa en el tablero de bocetos y comprueba la cuota y los restablecimientos"></p>
-</details>
+<summary>Iniciar sesión y consultar la cuota</summary>
 
-<details>
-<summary>Configuración de modelos: valores predeterminados, predicciones de entrada y estilo de respuesta</summary>
+Abre **Ajustes → Codex → Inicio** y selecciona **Iniciar sesión en el navegador**. Tras conectarte, se muestran las cuentas guardadas y la cuota que indica ChatGPT. Despliega el resumen o el desglose de uso para consultar más detalles.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-models-en-dark.png"><img src="docs/assets/ui-models-en-light.png" width="640" alt="Ajustes del modelo con la opción Restaurar el valor predeterminado de DSH y ayuda detallada al pasar el cursor"></picture></p>
+<p align="center"><img src="docs/assets/interface-account-es.png" width="584" alt="Iniciar sesión y consultar la cuota"></p>
 
-</details>
-
-<details>
-<summary>Cuadro de entrada: modelos, velocidad, permisos y cuota</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="Cuadro de entrada del mensaje: permiso del espacio de trabajo, cuota restante y selección del modelo"></picture></p>
+_La cuenta y los valores de cuota son ejemplos._
 
 </details>
 
 <details>
-<summary>Cuota y uso: saldos, historial y desglose semanal</summary>
+<summary>Elegir un modelo de Codex y enviar un mensaje</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-en-dark.png"><img src="docs/assets/ui-quota-en-light.png" width="560" alt="Tarjeta de cuota: cuota semanal y hora de restablecimiento, con un resumen del uso y el destino de la cuota más abajo"></picture></p>
+En **Ajustes → Codex → Modelos** puedes elegir el modelo y el nivel de razonamiento predeterminados. Usa el selector junto al campo de entrada para cambiar de modelo en una conversación. Escribe y envía un mensaje para usar tu suscripción en DSH.
 
-<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="Resumen del uso y destino de la cuota en la tarjeta de cuota: tokens acumulados, rachas, mapa de calor diario de medio año y distribución de la cuota semanal por modelo, superficie y fuente"></p>
+<p align="center"><img src="docs/assets/interface-models-es.png" width="584" alt="Elegir un modelo de Codex y enviar un mensaje"></p>
 
 </details>
 

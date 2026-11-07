@@ -11,6 +11,7 @@ const files = ['README.md', 'README.en.md', ...['zh-CN', 'ja', 'es', 'fr', 'de',
 const read = name => readFileSync(resolve(root, name), 'utf8').replaceAll('\r\n', '\n')
 const fences = text => [...text.matchAll(/^```[^\n]*\n[\s\S]*?^```/gmu)].map(match => match[0])
 const media = text => [...text.matchAll(/(?:src|srcset)="([^"]+)"/gu)].map(match => match[1]).sort()
+const interfaceAsset = /^docs\/assets\/interface-(?:account|models)-[a-z]+\.png$/u
 
 test('all README languages retain navigation, installation commands, media and stable section links', () => {
   const english = read('README.md')
@@ -26,9 +27,14 @@ test('all README languages retain navigation, installation commands, media and s
       if (path) assert.ok(existsSync(resolve(root, path)), `${file}: ${path}`)
       else assert.ok(body.includes(`id="${fragment}"`) || body.split('\n').some(line => line.startsWith('#') && line.replace(/^#+\s*/u, '').toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s/gu, '-') === fragment), `${file}: ${fragment}`)
     }
+    const locale = file === 'README.md' ? 'en' : file.split('.')[1].replace('zh-CN', 'zh')
+    const assets = media(body)
+    const localizedDemo = ['account', 'models'].map(view => `docs/assets/interface-${view}-${locale}.png`)
+    assert.deepEqual(assets.filter(path => interfaceAsset.test(path)), localizedDemo, `${file}: localized interface demo`)
+    for (const path of localizedDemo) assert.ok(existsSync(resolve(root, path)), `${file}: ${path}`)
     if (!['README.md', 'README.en.md', 'README.zh-CN.md'].includes(file)) {
       assert.deepEqual(fences(body), fences(english), `${file}: commands and data`)
-      assert.deepEqual(media(body), media(english), `${file}: demo assets`)
+      assert.deepEqual(assets.filter(path => !interfaceAsset.test(path)), media(english).filter(path => !interfaceAsset.test(path)), `${file}: shared demo assets`)
       assert.equal(body.split('\n').filter(line => /^#{1,6} /u.test(line)).length, english.split('\n').filter(line => /^#{1,6} /u.test(line)).length, `${file}: complete sections`)
       assert.equal(body.split('\n').filter(line => line.startsWith('|')).length, english.split('\n').filter(line => line.startsWith('|')).length, `${file}: complete feature tables`)
     }

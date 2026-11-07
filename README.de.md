@@ -120,34 +120,25 @@ dsh --profile headless "Reply with only the word: ok"
 
 ## Demo der Benutzeroberfläche
 
-Öffne **Einstellungen → Codex**, um Konten und Einstellungen zu verwalten. Screenshots und Animation sind unten eingeklappt; wähle die gewünschte Ansicht aus.
+Verbinde dein ChatGPT-Konto, wähle ein Codex-Modell in DSH und sieh das Kontingent deines Abos in den Einstellungen ein.
 
 <details>
-<summary><b>Demo der Benutzeroberfläche (Animation, zum Aufklappen anklicken)</b>: Modelle, Prompts, Bilder, Bildannotationen, Skizzenfläche, Kontingent und Zurücksetzungen</summary>
-<br>
-<p align="center"><img src="docs/assets/readme-demo-en.webp" width="1100" alt="Demo: Mit ChatGPT anmelden, ein Abo-Modell auswählen, eine Frage stellen, ein Bild generieren, es ansehen und kommentieren, auf der Skizzenfläche fortfahren und Kontingent und Zurücksetzungen prüfen"></p>
-</details>
+<summary>Anmelden und Abo-Kontingent prüfen</summary>
 
-<details>
-<summary>Modelleinstellungen: Standardwerte, Eingabevorhersagen und Antwortstil</summary>
+Öffne **Einstellungen → Codex → Start** und wähle **Im Browser anmelden**. Danach siehst du deine gespeicherten Konten und das von ChatGPT gemeldete Kontingent. Weitere Details findest du in der Nutzungsübersicht und der Aufschlüsselung des Verbrauchs.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-models-en-dark.png"><img src="docs/assets/ui-models-en-light.png" width="640" alt="Modelleinstellungen mit „DSH-Standard wiederherstellen“ und ausführlichen Hinweisen beim Darüberfahren"></picture></p>
+<p align="center"><img src="docs/assets/interface-account-de.png" width="584" alt="Anmelden und Abo-Kontingent prüfen"></p>
 
-</details>
-
-<details>
-<summary>Eingabefeld: Modelle, Geschwindigkeit, Berechtigungen und Kontingent</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="Nachrichtenfeld: Arbeitsbereichsberechtigung, verbleibendes Kontingent und Modellauswahl"></picture></p>
+_Konto und Kontingentwerte sind Beispieldaten._
 
 </details>
 
 <details>
-<summary>Kontingent und Nutzung: Guthaben, Verlauf und Wochenübersicht</summary>
+<summary>Ein Codex-Modell auswählen und eine Nachricht senden</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-en-dark.png"><img src="docs/assets/ui-quota-en-light.png" width="560" alt="Kontingentkarte: Wochenkontingent und Zurücksetzungszeit; darunter Nutzungsübersicht und Aufschlüsselung des Verbrauchs"></picture></p>
+Unter **Einstellungen → Codex → Modelle** kannst du das Standardmodell und die Standard-Denkstufe wählen. Für einen einzelnen Chat kannst du das Modell über die Auswahl am Eingabefeld wechseln. Schreibe und sende eine Nachricht, um dein Abo in DSH zu nutzen.
 
-<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="Nutzungsübersicht und Aufschlüsselung des Verbrauchs in der Kontingentkarte: Token insgesamt, Serien, tägliche Heatmap für ein halbes Jahr und Aufteilung des Wochenkontingents nach Modell, Oberfläche und Quelle"></p>
+<p align="center"><img src="docs/assets/interface-models-de.png" width="584" alt="Ein Codex-Modell auswählen und eine Nachricht senden"></p>
 
 </details>
 

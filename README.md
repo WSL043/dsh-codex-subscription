@@ -120,34 +120,25 @@ dsh --profile headless "Reply with only the word: ok"
 
 ## Interface demo
 
-Open **Settings → Codex** to manage accounts and preferences. Screenshots and animation are collapsed below; choose the view you need.
+Connect your ChatGPT account, choose a Codex model in DSH, and check your subscription quota from the same settings page.
 
 <details>
-<summary><b>Interface demo (animation, click to expand)</b>: models, prompts, images, annotation, sketch board, quota and resets</summary>
-<br>
-<p align="center"><img src="docs/assets/readme-demo-en.webp" width="1100" alt="Demo: sign in with ChatGPT, pick a subscription model, ask, generate an image, view and annotate it, continue on the sketch board, and check quota and resets"></p>
-</details>
+<summary>Sign in and check subscription quota</summary>
 
-<details>
-<summary>Model settings: defaults, input predictions and answer style</summary>
+Open **Settings → Codex → Start** and select **Browser sign-in**. Once connected, this page shows your saved accounts and the quota reported by ChatGPT. Expand **Usage overview** or **Where the allowance went** for more detail.
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-models-en-dark.png"><img src="docs/assets/ui-models-en-light.png" width="640" alt="Model settings with Restore DSH default and detailed help on hover"></picture></p>
+<p align="center"><img src="docs/assets/interface-account-en.png" width="584" alt="Sign in and check subscription quota"></p>
 
-</details>
-
-<details>
-<summary>Composer: models, speed, permissions and quota</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-composer-en-dark.png"><img src="docs/assets/ui-composer-en-light.png" width="760" alt="Composer: workspace permission, remaining quota and model selection"></picture></p>
+_Account and quota values are examples._
 
 </details>
 
 <details>
-<summary>Quota and usage: balances, history and weekly breakdown</summary>
+<summary>Choose a Codex model and send a message</summary>
 
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-quota-en-dark.png"><img src="docs/assets/ui-quota-en-light.png" width="560" alt="Quota card: weekly quota and reset time, with usage overview and where the allowance went below"></picture></p>
+Open **Settings → Codex → Models** to set a default model and reasoning effort. You can also choose a model for one conversation from the selector in the composer. Enter a prompt and send it to use your subscription in DSH.
 
-<p align="center"><img src="docs/assets/usage-overview-en.png" width="460" alt="Usage overview and where the allowance went in the quota card: lifetime tokens, streaks, a half-year daily heatmap and the weekly allowance split by model, surface and source"></p>
+<p align="center"><img src="docs/assets/interface-models-en.png" width="584" alt="Choose a Codex model and send a message"></p>
 
 </details>
 
