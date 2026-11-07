@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { randomUUID } from 'node:crypto'
 import { LlmError } from '@deepseek-ai/dsh-llm'
 import { isDshAutoReview } from './pi-ai-runtime.js'
 import { REASONING_STATE_KEY, isReasoningState, reasoningDigest, reasoningHash, rewriteReasoning, supportsReasoningUpdates } from './reasoning-updates.js'
@@ -6,9 +7,11 @@ import { REASONING_STATE_KEY, isReasoningState, reasoningDigest, reasoningHash, 
 const MAX_SESSIONS = 256
 const ownMessage = message => message.role === 'assistant' || message.source?.kind === 'model'
 /** Internal request scope, like the compaction bridge. No global patch or parallel session store. */
-export function createReasoningBridge({ enabled = () => false, cloud = () => false, unlimited = () => false, supportsModel = () => false, resolveSession, accountScope, diagnostic = () => {}, now = Date.now } = {}) {
-  const scope = new AsyncLocalStorage(), fresh = new Set(), pending = new Map(), busy = new Set()
-  const startedAt = now()
+export function createReasoningBridge({ enabled = () => false, cloud = () => false, unlimited = () => false, supportsModel = () => false, resolveSession, accountScope, diagnostic = () => {}, lockDiagnostic = () => {}, now = Date.now } = {}) {
+  const scope = new AsyncLocalStorage(), fresh = new Set(), pending = new Map(), busy = new Map()
+  const startedAt = now(), diagnosticSalt = randomUUID()
+  let requestId = 0
+  const traceLock = event => { try { lockDiagnostic(event) } catch { /* Diagnostics cannot disturb model calls. */ } }
   const report = reason => { try { diagnostic(reason) } catch { /* Diagnostics cannot disturb model calls. */ } }
   const keyOf = id => typeof id === 'string' && id.length ? reasoningHash(id) : undefined
   // A nested, ineligible request must not inherit an outer request's payload state.
@@ -21,10 +24,13 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
       throw: (...args) => scope.run(undefined, () => iterator.throw?.(...args) ?? Promise.reject(args[0])),
     }
   }
-  const wrapStream = (factory, options) => (async function* () {
+  const wrapStream = (factory, options, path) => (async function* () {
     // Auxiliary prompts share the session id, but do not own its conversation checkpoint.
-    // Clear the async scope as well: a nested title/review must not inherit its caller's state.
-    if (isDshAutoReview(options) || options.purpose === 'session-title') { yield* unscoped(factory, options); return }
+    // A native compaction summary replays history but only its committed replacement
+    // changes the conversation window. Do not let it read or write the live checkpoint.
+    if (isDshAutoReview(options) || options.purpose === 'session-title' || options.purpose === 'compaction') {
+      yield* unscoped(factory, options); return
+    }
     const key = keyOf(options.sessionId)
     const optedIn = enabled() === true, automatic = cloud() === true, alwaysRetry = unlimited() === true
     if (!optedIn || automatic || alwaysRetry || options.provider !== 'openai-codex' || supportsModel(options.model) !== true || !key) {
@@ -32,11 +38,18 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
       if (optedIn) report(automatic ? 'cloud-compaction' : alwaysRetry ? 'unlimited-retries' : 'unsupported-request')
       yield* unscoped(factory, options); return
     }
-    if (busy.has(key)) throw new LlmError('Cache-preserving reasoning does not allow concurrent requests in the same session', 'UNSUPPORTED_OPTION')
-    if (!pending.has(key) && new Set([...pending.keys(), ...busy]).size >= MAX_SESSIONS) {
+    const requestInfo = { id: ++requestId, path, purpose: options.purpose === undefined ? 'conversation' : 'other' }
+    const holder = busy.get(key)
+    if (holder) {
+      holder.session ??= reasoningHash(diagnosticSalt + ':' + key).slice(0, 12)
+      traceLock({ event: 'conflict', session: holder.session, request: requestInfo, holder: holder.request, startedAt: holder.startedAt, heldMs: Math.max(0, now() - holder.startedAt) })
+      throw new LlmError('Cache-preserving reasoning does not allow concurrent requests in the same session', 'UNSUPPORTED_OPTION')
+    }
+    if (!pending.has(key) && new Set([...pending.keys(), ...busy.keys()]).size >= MAX_SESSIONS) {
       fresh.delete(key); report('session-limit'); yield* unscoped(factory, options); return
     }
-    busy.add(key)
+    const lock = { request: requestInfo, startedAt: now(), session: undefined }
+    busy.set(key, lock)
     const born = fresh.delete(key)
     let iterator, request
     try {
@@ -83,8 +96,13 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
         yield event
       }
     } finally {
+      let cleanup = 'closed'
       try { if (iterator) await scope.run(request, () => iterator.return?.()) }
-      finally { busy.delete(key) }
+      catch (error) { cleanup = 'failed'; throw error }
+      finally {
+        busy.delete(key)
+        if (lock.session) traceLock({ event: 'release', session: lock.session, request: lock.request, heldMs: Math.max(0, now() - lock.startedAt), aborted: options.signal?.aborted === true, cleanup })
+      }
     }
   })()
   return {
@@ -105,10 +123,10 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
     },
     wrapAdapter(adapter) {
       return new Proxy(adapter, { get(target, property) {
-        if (property === 'stream') return options => wrapStream(o => target.stream(o), options)
+        if (property === 'stream') return options => wrapStream(o => target.stream(o), options, 'stream')
         if (property === 'prepareCall') return async (...args) => {
           const call = await target.prepareCall(...args)
-          return { ...call, stream: options => wrapStream(o => call.stream(o), options) }
+          return { ...call, stream: options => wrapStream(o => call.stream(o), options, 'prepared') }
         }
         const value = Reflect.get(target, property, target)
         return typeof value === 'function' ? value.bind(target) : value

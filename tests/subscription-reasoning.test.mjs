@@ -10,8 +10,8 @@ const block = { type: 'text', text: 'fixture answer' }
 const native = { response: { kind: 'pi-ai', version: 2, untouched: true }, blocks: [{ type: 'text', textSignature: 'fixture' }] }
 const assistant = finish => ({ role: 'assistant', source: { kind: 'model', provider: model.provider, model: model.id, replayState: structuredClone(finish.replayState) }, content: [block] })
 function fixture({ enabled = true, cloud = false, unlimited = false, account = 'synthetic-account', finish = true, fail = false, supported = true, resolveSession } = {}) {
-  const wires = [], reasons = []
-  const bridge = createReasoningBridge({ enabled: () => enabled, cloud: () => cloud, unlimited: () => unlimited, supportsModel: () => supported, resolveSession, accountScope: async () => account, diagnostic: reason => reasons.push(reason) })
+  const wires = [], reasons = [], lockEvents = []
+  const bridge = createReasoningBridge({ enabled: () => enabled, cloud: () => cloud, unlimited: () => unlimited, supportsModel: () => supported, resolveSession, accountScope: async () => account, diagnostic: reason => reasons.push(reason), lockDiagnostic: event => lockEvents.push(event) })
   const target = {
     marker: true,
     async *stream(options) {
@@ -32,7 +32,7 @@ function fixture({ enabled = true, cloud = false, unlimited = false, account = '
     return events.at(-1)
   }
   const created = (id = 'fixture-session') => bridge.sessionCreated(Session.create(id))
-  return { bridge, adapter, wires, reasons, run, created, setEnabled: value => { enabled = value }, setCloud: value => { cloud = value }, setAccount: value => { account = value }, setFail: value => { fail = value } }
+  return { bridge, adapter, wires, reasons, lockEvents, run, created, setEnabled: value => { enabled = value }, setCloud: value => { cloud = value }, setAccount: value => { account = value }, setFail: value => { fail = value } }
 }
 
 test('native creation proof is required, not input size; unknown existing histories remain unchanged', async () => {
@@ -236,7 +236,7 @@ test('an ineligible nested request cannot overwrite an outer request checkpoint'
   }
 })
 
-test('overlapping session titles bypass checkpoint writes without allowing concurrent conversation writers', async () => {
+test('titles and native compaction bypass the conversation lock in both directions', async () => {
   for (const prepared of [false, true]) {
     const f = fixture()
     f.created()
@@ -253,17 +253,84 @@ test('overlapping session titles bypass checkpoint writes without allowing concu
       assert.equal(titleFinish.replayState.response[REASONING_STATE_KEY], undefined)
       assert.equal(f.wires.at(-1).reasoning.effort, 'high')
       assert.equal(f.wires.at(-1).input.some(item => item.type === 'configuration_update'), false)
+      const summaryOptions = { ...options, purpose: 'compaction', messages: [user('summarize history')], reasoningEffort: 'low' }
+      let summaryFinish
+      for await (const event of call.stream(summaryOptions)) summaryFinish = event
+      assert.deepEqual(f.bridge.snapshot(), before)
+      assert.equal(summaryFinish.replayState.response[REASONING_STATE_KEY], undefined)
+      assert.equal(f.wires.at(-1).reasoning.effort, 'low')
+      assert.equal(f.wires.at(-1).input.some(item => item.type === 'configuration_update'), false)
       const conflicting = call.stream(options)
       await assert.rejects(conflicting.next(), error => error.code === 'UNSUPPORTED_OPTION' && /concurrent/.test(error.message))
       const mainFinish = (await main.next()).value
       assert.equal(mainFinish.replayState.response[REASONING_STATE_KEY].state.baseline, 'medium')
     } finally { await main.return() }
     assert.equal(f.bridge.snapshot().active, 0)
-    // A title that runs first must not consume the new-session proof either.
+    const [conflict, release] = f.lockEvents
+    assert.equal(conflict.event, 'conflict')
+    assert.equal(conflict.holder.path, prepared ? 'prepared' : 'stream')
+    assert.equal(conflict.holder.purpose, 'conversation')
+    assert.notEqual(conflict.request.id, conflict.holder.id)
+    assert.match(conflict.session, /^[a-f0-9]{12}$/u)
+    assert.equal(release.event, 'release')
+    assert.equal(release.session, conflict.session)
+    assert.deepEqual(release.request, conflict.holder)
+    assert.equal(release.cleanup, 'closed')
+    assert.equal(f.lockEvents.length, 2)
+    // Auxiliary requests that run first must not consume the new-session proof.
     const early = fixture(); early.created()
     await early.run([user('title only')], 'high', 'fixture-session', { purpose: 'session-title' })
-    assert.equal(early.bridge.snapshot().fresh, 1)
-    const finish = await early.run([user('actual first')], 'medium')
-    assert.equal(finish.replayState.response[REASONING_STATE_KEY].state.baseline, 'medium')
+    const earlySummary = early.adapter.stream({ ...options, purpose: 'compaction' })
+    try {
+      await earlySummary.next()
+      assert.equal(early.bridge.snapshot().fresh, 1)
+      assert.equal(early.bridge.snapshot().active, 0)
+      const finish = await early.run([user('actual first')], 'medium')
+      assert.equal(finish.replayState.response[REASONING_STATE_KEY].state.baseline, 'medium')
+      const summaryFinish = (await earlySummary.next()).value
+      assert.equal(summaryFinish.replayState.response[REASONING_STATE_KEY], undefined)
+    } finally { await earlySummary.return() }
+    assert.deepEqual(early.lockEvents, [])
   }
+})
+
+test('a contended writer keeps its lock through aborted and failed iterator cleanup', async () => {
+  const events = []
+  const closing = Promise.withResolvers()
+  const finishCleanup = Promise.withResolvers()
+  const abort = new AbortController()
+  const bridge = createReasoningBridge({
+    enabled: () => true, supportsModel: () => true, accountScope: async () => 'fixture-account',
+    lockDiagnostic: event => events.push(event),
+  })
+  const adapter = bridge.wrapAdapter({
+    stream: options => ({
+      [Symbol.asyncIterator]() { return this },
+      async next() { return { done: false, value: { type: 'block-end', index: 0, block } } },
+      async return() {
+        if (options.signal !== abort.signal) return { done: true }
+        closing.resolve()
+        await finishCleanup.promise
+        throw new Error('cleanup failed')
+      },
+    }),
+  })
+  const options = { provider: model.provider, model: model.id, sessionId: 'private-session', messages: [user('private prompt')] }
+  const first = adapter.stream({ ...options, signal: abort.signal })
+  await first.next()
+  abort.abort()
+  const closed = assert.rejects(first.return(), /cleanup failed/u)
+  await closing.promise
+  await assert.rejects(adapter.stream(options).next(), { code: 'UNSUPPORTED_OPTION' })
+  assert.equal(bridge.snapshot().active, 1)
+  finishCleanup.resolve()
+  await closed
+  assert.equal(bridge.snapshot().active, 0)
+  assert.equal(events[1].request.id, events[0].holder.id)
+  assert.equal(events[1].aborted, true)
+  assert.equal(events[1].cleanup, 'failed')
+  assert.doesNotMatch(JSON.stringify(events), /private-session|private prompt|fixture-account/u)
+  const next = adapter.stream(options)
+  try { assert.equal((await next.next()).done, false) }
+  finally { await next.return() }
 })

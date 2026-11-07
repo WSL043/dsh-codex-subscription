@@ -235,6 +235,7 @@ export function apply(ctx, config = {}) {
     unlimited: () => settings.get()[RETRY_POLICY_FIELD] === 'unlimited',
     accountScope,
     diagnostic: reason => diagnosticLog.info('model', `cache-preserving reasoning: ${reason}`),
+    lockDiagnostic: event => diagnosticLog[event.event === 'conflict' ? 'warn' : 'info']('model', 'reasoning checkpoint lock', JSON.stringify(event)),
   })
   ctx.on('session/created', session => reasoning.sessionCreated(session))
   ctx.on('session/disposed', session => reasoning.sessionDisposed(session))
