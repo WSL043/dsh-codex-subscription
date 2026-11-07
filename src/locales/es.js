@@ -1,4 +1,6 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
+import { composerPredictionModelNames } from '../composer-prediction-models.js'
+
 export default {
   "catalogTimeout": "La solicitud del catálogo de modelos agotó el tiempo de espera. Comprueba la red o el proxy y reinténtalo.",
   "catalogCachedTimeout": "Se conserva el catálogo disponible; la actualización en línea agotó el tiempo de espera. Comprueba la red o el proxy y reinténtalo.",
@@ -154,7 +156,7 @@ export default {
   "composerPredictions": "Predicciones de entrada",
   "composerPredictionAccept": "Aceptar sugerencia",
   "composerPredictionsShortHint": "Tab completa el borrador",
-  "composerPredictionsHint": "Después de completar un turno, los modelos de Codex compatibles sugieren el siguiente mensaje según la conversación actual, si el borrador está vacío. Pulsa Tab para completar el borrador sin enviarlo. Esto genera solicitudes de predicción adicionales. Las predicciones oficiales de Codex no cuentan para los límites de uso ni para los créditos; no se ha confirmado que la misma exención se aplique a esta integración de terceros. El envío de un borrador aceptado sí cuenta normalmente.",
+  "composerPredictionsHint": `Después de completar un turno, los modelos de Codex compatibles (${composerPredictionModelNames}) sugieren el siguiente mensaje según la conversación actual, si el borrador está vacío. Pulsa Tab para completar el borrador sin enviarlo. Esto genera solicitudes de predicción adicionales. Las predicciones oficiales de Codex no cuentan para los límites de uso ni para los créditos; no se ha confirmado que la misma exención se aplique a esta integración de terceros. El envío de un borrador aceptado sí cuenta normalmente.`,
   "featureLoading": "Cargando…",
   "featureLoadFailed": "No se pudo cargar. Haz clic para reintentar",
   "featureRetry": "Reintentar",

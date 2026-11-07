@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto'
 import { createSharedRequests } from './shared-request.js'
+import { supportsComposerPrediction } from './composer-prediction-models.js'
 
 const BASE = 'https://chatgpt.com/backend-api'
-const MODELS = new Set(['gpt-6-astra', 'gpt-6.1-sol', 'gpt-6.1-terra'])
 const invalid = () => Object.assign(new Error('Invalid prediction request'), { code: 'invalid-input' })
 const cancelled = () => new DOMException('Prediction scope changed', 'AbortError')
 
 export function predictionInput(value) {
-  if (!value || !MODELS.has(value.model) || typeof value.sessionId !== 'string' || !value.sessionId || value.sessionId.length > 512
+  if (!value || !supportsComposerPrediction(value.model) || typeof value.sessionId !== 'string' || !value.sessionId || value.sessionId.length > 512
     || typeof value.turnId !== 'string' || !value.turnId || value.turnId.length > 512
     || !Array.isArray(value.messages) || value.messages.length < 2 || value.messages.length > 12) throw invalid()
   let length = 0

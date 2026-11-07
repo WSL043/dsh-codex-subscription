@@ -1,4 +1,6 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
+import { composerPredictionModelNames } from '../composer-prediction-models.js'
+
 export default {
   "catalogTimeout": "モデル一覧の取得がタイムアウトしました。ネットワークやプロキシを確認して再試行してください。",
   "catalogCachedTimeout": "取得済みのモデル一覧を使用中です。オンライン更新がタイムアウトしました。ネットワークやプロキシを確認して再試行してください。",
@@ -154,7 +156,7 @@ export default {
   "composerPredictions": "入力予測",
   "composerPredictionAccept": "候補を採用",
   "composerPredictionsShortHint": "Tab で下書きを補完",
-  "composerPredictionsHint": "対応する Codex モデルは、ターン完了後、下書きが空の場合に現在の会話から次のメッセージを提案します。Tab で下書きを補完しますが、送信はされません。予測リクエストが追加で発生します。公式 Codex の予測は利用上限や利用クレジットに含まれませんが、このサードパーティ連携にも同じ免除が適用されるかは確認されていません。候補を採用した下書きを送信すると、通常どおり利用分に含まれます。",
+  "composerPredictionsHint": `対応する Codex モデル（${composerPredictionModelNames}）は、ターン完了後、下書きが空の場合に現在の会話から次のメッセージを提案します。Tab で下書きを補完しますが、送信はされません。予測リクエストが追加で発生します。公式 Codex の予測は利用上限や利用クレジットに含まれませんが、このサードパーティ連携にも同じ免除が適用されるかは確認されていません。候補を採用した下書きを送信すると、通常どおり利用分に含まれます。`,
   "featureLoading": "読み込み中…",
   "featureLoadFailed": "読み込めませんでした。クリックして再試行してください",
   "featureRetry": "再試行",

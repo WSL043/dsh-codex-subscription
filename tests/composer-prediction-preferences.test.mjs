@@ -69,6 +69,7 @@ test('the compact prediction row uses the host switch and a keyboard-accessible 
   assert.equal(control.props.disabled, false)
   assert.equal(hint.props.children, en.state_predictions_off)
   assert.equal(help.props.label, en.composerPredictionsHint)
+  assert.match(help.props.label, /GPT-6 Astra, GPT-6\.1 Sol, GPT-6\.1 Terra/u)
   assert.equal(help.props.portal, true)
   assert.equal(help.props.openOnClick, true)
   assert.equal(label.props.tabIndex, 0)

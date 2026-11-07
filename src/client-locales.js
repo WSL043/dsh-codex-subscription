@@ -1,3 +1,5 @@
+import { composerPredictionModelNames } from './composer-prediction-models.js'
+
 export const zh = {
   catalogTimeout: "模型目录读取超时。请检查网络或代理后重试。",
   catalogCachedTimeout: "继续使用已读取的模型目录；在线更新超时，请检查网络或代理后重试。",
@@ -107,7 +109,7 @@ export const zh = {
   connectorsMode_write: '写操作直接执行，不再弹出确认，误操作无法撤回，请谨慎使用。',
   connectors_off: '关闭', connectors_read: '只读', connectors_ask: '询问后写入', connectors_write: '直接写入',
   defaultReasoningEffort: '默认推理等级', defaultReasoningEffortHint: '未手动选档时使用；模型不支持时跟随该模型默认值。',
-  composerPredictions: '输入预测', composerPredictionAccept: '接受建议', composerPredictionsShortHint: 'Tab 填入草稿', composerPredictionsHint: '支持的 Codex 模型在一轮对话完成、草稿为空时，基于当前会话建议下一条消息。Tab 填入草稿，不会自动发送。会产生额外预测请求。官方 Codex 生成预测不计额度或 Credits；DSH 第三方接入是否享有相同豁免尚未确认。接受后发送消息仍正常计量。',
+  composerPredictions: '输入预测', composerPredictionAccept: '接受建议', composerPredictionsShortHint: 'Tab 填入草稿', composerPredictionsHint: `支持的 Codex 模型（${composerPredictionModelNames}）在一轮对话完成、草稿为空时，基于当前会话建议下一条消息。Tab 填入草稿，不会自动发送。会产生额外预测请求。官方 Codex 生成预测不计额度或 Credits；DSH 第三方接入是否享有相同豁免尚未确认。接受后发送消息仍正常计量。`,
   featureLoading: '正在加载…', featureLoadFailed: '加载失败，点击重试', featureRetry: '重试',
   defaultUltraHint: 'Ultra 是 DSH 主动分工预设，使用模型目录指定的实际推理档，不扩大权限；仅支持的模型显示。',
   defaultReasoningEffort_ultra: 'Ultra（主动分工）',
@@ -442,7 +444,7 @@ export const en = {
   connectorsMode_write: 'Changing actions run immediately without a prompt and cannot be undone, so use this carefully.',
   connectors_off: 'Off', connectors_read: 'Read-only', connectors_ask: 'Write after asking', connectors_write: 'Write directly',
   defaultReasoningEffort: 'Default reasoning effort', defaultReasoningEffortHint: 'Used when no effort is selected manually. Unsupported levels fall back to the model default.',
-  composerPredictions: 'Input predictions', composerPredictionAccept: 'Accept suggestion', composerPredictionsShortHint: 'Tab fills draft', composerPredictionsHint: 'Supported Codex models suggest your next message from the current conversation after a completed turn, when the draft is empty. Tab fills the draft without sending. Makes additional prediction requests. Official Codex predictions do not count toward usage limits or credits; the same exemption for this third-party integration is unconfirmed. Sending an accepted draft still counts normally.',
+  composerPredictions: 'Input predictions', composerPredictionAccept: 'Accept suggestion', composerPredictionsShortHint: 'Tab fills draft', composerPredictionsHint: `Supported Codex models (${composerPredictionModelNames}) suggest your next message from the current conversation after a completed turn, when the draft is empty. Tab fills the draft without sending. Makes additional prediction requests. Official Codex predictions do not count toward usage limits or credits; the same exemption for this third-party integration is unconfirmed. Sending an accepted draft still counts normally.`,
   featureLoading: 'Loading…', featureLoadFailed: 'Could not load. Click to retry', featureRetry: 'Retry',
   defaultUltraHint: 'Ultra is a DSH proactive delegation preset using the catalog-resolved model effort. It grants no additional permissions and appears only for supported models.',
   defaultReasoningEffort_ultra: 'Ultra (proactive delegation)',

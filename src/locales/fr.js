@@ -1,4 +1,6 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
+import { composerPredictionModelNames } from '../composer-prediction-models.js'
+
 export default {
   "catalogTimeout": "La demande du catalogue de modèles a expiré. Vérifiez le réseau ou le proxy et réessayez.",
   "catalogCachedTimeout": "Le catalogue disponible est conservé ; la mise à jour en ligne a expiré. Vérifiez le réseau ou le proxy et réessayez.",
@@ -154,7 +156,7 @@ export default {
   "composerPredictions": "Suggestions de saisie",
   "composerPredictionAccept": "Accepter la suggestion",
   "composerPredictionsShortHint": "Tab complète le brouillon",
-  "composerPredictionsHint": "Après un tour terminé, les modèles Codex compatibles suggèrent votre prochain message à partir de la conversation en cours, si le brouillon est vide. Tab complète le brouillon sans l’envoyer. Cela génère des requêtes de prédiction supplémentaires. Les prédictions officielles de Codex ne sont pas comptabilisées dans les limites d’utilisation ni les crédits ; l’exemption pour cette intégration tierce n’est pas confirmée. L’envoi d’un brouillon accepté est comptabilisé normalement.",
+  "composerPredictionsHint": `Après un tour terminé, les modèles Codex compatibles (${composerPredictionModelNames}) suggèrent votre prochain message à partir de la conversation en cours, si le brouillon est vide. Tab complète le brouillon sans l’envoyer. Cela génère des requêtes de prédiction supplémentaires. Les prédictions officielles de Codex ne sont pas comptabilisées dans les limites d’utilisation ni les crédits ; l’exemption pour cette intégration tierce n’est pas confirmée. L’envoi d’un brouillon accepté est comptabilisé normalement.`,
   "featureLoading": "Chargement…",
   "featureLoadFailed": "Échec du chargement. Cliquez pour réessayer",
   "featureRetry": "Réessayer",

@@ -1,4 +1,6 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
+import { composerPredictionModelNames } from '../composer-prediction-models.js'
+
 export default {
   "catalogTimeout": "Die Anfrage für den Modellkatalog hat das Zeitlimit überschritten. Netzwerk oder Proxy prüfen und erneut versuchen.",
   "catalogCachedTimeout": "Der vorhandene Modellkatalog bleibt verfügbar. Die Online-Aktualisierung hat das Zeitlimit überschritten. Netzwerk oder Proxy prüfen und erneut versuchen.",
@@ -154,7 +156,7 @@ export default {
   "composerPredictions": "Eingabevorschläge",
   "composerPredictionAccept": "Vorschlag übernehmen",
   "composerPredictionsShortHint": "Tab fügt den Entwurf ein",
-  "composerPredictionsHint": "Unterstützte Codex-Modelle schlagen nach einem abgeschlossenen Gesprächsschritt deine nächste Nachricht auf Grundlage des aktuellen Gesprächs vor, sofern der Entwurf leer ist. Tab fügt den Entwurf ein, ohne ihn zu senden. Dafür werden zusätzliche Vorhersageanfragen gestellt. Offizielle Codex-Vorhersagen werden nicht auf Nutzungslimits oder Nutzungsguthaben angerechnet; ob dieselbe Ausnahme für diese Drittanbieterintegration gilt, ist nicht bestätigt. Ein gesendeter übernommener Entwurf wird normal angerechnet.",
+  "composerPredictionsHint": `Unterstützte Codex-Modelle (${composerPredictionModelNames}) schlagen nach einem abgeschlossenen Gesprächsschritt deine nächste Nachricht auf Grundlage des aktuellen Gesprächs vor, sofern der Entwurf leer ist. Tab fügt den Entwurf ein, ohne ihn zu senden. Dafür werden zusätzliche Vorhersageanfragen gestellt. Offizielle Codex-Vorhersagen werden nicht auf Nutzungslimits oder Nutzungsguthaben angerechnet; ob dieselbe Ausnahme für diese Drittanbieterintegration gilt, ist nicht bestätigt. Ein gesendeter übernommener Entwurf wird normal angerechnet.`,
   "featureLoading": "Wird geladen…",
   "featureLoadFailed": "Laden fehlgeschlagen. Zum erneuten Versuchen klicken",
   "featureRetry": "Erneut versuchen",

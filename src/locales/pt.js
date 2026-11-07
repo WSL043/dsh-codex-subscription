@@ -1,4 +1,6 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
+import { composerPredictionModelNames } from '../composer-prediction-models.js'
+
 export default {
   "catalogTimeout": "A solicitação do catálogo de modelos excedeu o tempo limite. Verifique a rede ou o proxy e tente novamente.",
   "catalogCachedTimeout": "O catálogo disponível foi mantido; a atualização online excedeu o tempo limite. Verifique a rede ou o proxy e tente novamente.",
@@ -154,7 +156,7 @@ export default {
   "composerPredictions": "Previsões de texto",
   "composerPredictionAccept": "Aceitar sugestão",
   "composerPredictionsShortHint": "Tab completa o rascunho",
-  "composerPredictionsHint": "Modelos Codex compatíveis sugerem sua próxima mensagem com base na conversa atual após a conclusão de uma resposta, quando o rascunho está vazio. Tab completa o rascunho sem enviá-lo. Isso gera solicitações adicionais de previsão. As previsões oficiais do Codex não contam para os limites de uso nem consomem créditos de uso; não está confirmado se a mesma isenção vale para esta integração de terceiros. O envio de um rascunho aceito conta normalmente.",
+  "composerPredictionsHint": `Modelos Codex compatíveis (${composerPredictionModelNames}) sugerem sua próxima mensagem com base na conversa atual após a conclusão de uma resposta, quando o rascunho está vazio. Tab completa o rascunho sem enviá-lo. Isso gera solicitações adicionais de previsão. As previsões oficiais do Codex não contam para os limites de uso nem consomem créditos de uso; não está confirmado se a mesma isenção vale para esta integração de terceiros. O envio de um rascunho aceito conta normalmente.`,
   "featureLoading": "Carregando…",
   "featureLoadFailed": "Não foi possível carregar. Clique para tentar novamente",
   "featureRetry": "Tentar novamente",
