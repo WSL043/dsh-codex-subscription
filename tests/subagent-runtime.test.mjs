@@ -27,7 +27,7 @@ test('preparation checks the dedicated CLI without shell or PATH and supports re
       calls++; assert.equal(command,process.execPath); assert.equal(argv[0],join(root,'dedicated','bin','codex.js')); assert.equal(argv[1],'--version')
       assert.equal(options.windowsHide,true); assert.equal(options.timeout,10000); assert.equal(options.shell,undefined)
       if (fail) throw Error('offline or missing binary')
-      return {stdout:'codex-cli 0.166.0\n'}
+      return {stdout:'codex-cli 0.167.0\n'}
     }
     await assert.rejects(loadSubagentRuntime({resolve,run,cli}),/incomplete/)
     fail = false

@@ -178,7 +178,7 @@ Use the same profile as the subscription plugin. For DSH `0.2.2-rc.1`, the exact
 
 ```sh
 dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.2-rc.1
-dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@0.166.0 --save-exact --ignore-scripts
+dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@0.167.0 --save-exact --ignore-scripts
 ```
 
 The CLI alias is a plain dependency, not a plugin to enable. Restart afterwards. Offline preparation requires a complete runtime installed and verified on the target OS and architecture; copying only the subscription plugin or Codex launcher is insufficient. Model requests still need connectivity.

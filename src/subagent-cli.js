@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 export const SUBAGENT_CLI_ALIAS = 'dsh-codex-subtask-cli'
-export const SUBAGENT_CODEX_VERSION = '0.166.0'
+export const SUBAGENT_CODEX_VERSION = '0.167.0'
 export const SUBAGENT_CLI_SPEC = `${SUBAGENT_CLI_ALIAS}@npm:@openai/codex@${SUBAGENT_CODEX_VERSION}`
 const spec = `npm:@openai/codex@${SUBAGENT_CODEX_VERSION}`
 

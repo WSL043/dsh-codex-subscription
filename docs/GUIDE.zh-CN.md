@@ -175,7 +175,7 @@ Windows 上，专用 CLI 优先使用设备和策略支持的 Codex MXC 沙箱�
 
 ```sh
 dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.2-rc.1
-dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@0.166.0 --save-exact --ignore-scripts
+dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@0.167.0 --save-exact --ignore-scripts
 ```
 
 CLI 别名是普通依赖，不需要作为插件启用。完成后重启。离线使用须提前在目标系统与架构上安装并验证完整运行时；只复制订阅插件或 Codex 启动脚本不够。模型请求仍需联网。
