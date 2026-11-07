@@ -133,7 +133,7 @@ export function createSubagentBackendSwitcher({ entries, prepare, persist }) {
     return result
   }
   const configure = (fiber, config) => {
-    if (!standard(fiber.entry, config)) return config
+    if (!standard(fiber?.entry, config)) return config
     if (!originals.has(fiber)) originals.set(fiber, { ...config })
     return selected === 'codex' ? convert(config) : config
   }

@@ -40,6 +40,29 @@ function entry(provider, extra = {}) {
   } }
 }
 
+test('global config middleware preserves configless runtime plugins and delayed injections', async () => {
+  const ctx = new Context()
+  const switcher = createSubagentBackendSwitcher({ entries: () => [], prepare: async () => {} })
+  const off = ctx.on('internal/config', subagentConfigListener(switcher), { global: true })
+  let pluginApplied = 0, injectionApplied = 0
+  const runtime = ctx.plugin({ name: 'configless-runtime', apply() { pluginApplied++ } })
+  const injection = ctx.inject(['issue240Dependency'], () => { injectionApplied++ })
+  let unprovide
+  try {
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(pluginApplied, 1, 'runtime plugin must activate without a Loader entry or config')
+    assert.equal(injectionApplied, 0)
+    unprovide = ctx.provide('issue240Dependency', {})
+    await new Promise(resolve => setImmediate(resolve))
+    assert.equal(injectionApplied, 1, 'pending injection must activate when its dependency arrives')
+  } finally {
+    off()
+    await Promise.all([runtime.dispose(), injection.dispose()])
+    unprovide?.()
+    await switcher.dispose()
+  }
+})
+
 for (const modern of [false, true]) test(`config waterfall preserves owner, next and restoration on ${modern ? 'new' : 'legacy'} Cordis events`, async () => {
   const ctx = new Context()
   const dormant = { options: { name: '@deepseek-ai/dsh-tool-subagent', config: { provider: 'spawn' } } }
