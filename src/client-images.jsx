@@ -1,6 +1,7 @@
 import { PhotoIcon, ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
 import { officialImageTools } from './image-official-tools.js'
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { ImageLightbox } from './client-primitives.js'
 import { useImageSource } from './use-image-source.js'
 import { buildImageEditDraft } from './image-edit.js'
 import { decodeImagePresentation } from './image-original-contract.js'
@@ -27,6 +28,7 @@ function triggerBlobDownload(data, mediaType, filename) {
 function CodexGeneratedImage({ attachment, original, gallery, rpc, sessionId, loadImage, openSketchImage, attachForEdit, getImageViewer, getInternalImageViewer, t, features }) {
   const reload = useCallback(() => loadImage(attachment), [attachment, loadImage])
   const { src, failed: error, fail, retry, attempt, usable, loaded } = useImageSource(reload, attachment.attachmentId ?? attachment)
+  const [nativePreview, setNativePreview] = useState()
   const triggerRef = useRef(null)
   const opening = useRef(0)
   useEffect(() => () => { opening.current++ }, [attachment])
@@ -77,15 +79,21 @@ function CodexGeneratedImage({ attachment, original, gallery, rpc, sessionId, lo
     const viewer = getImageViewer?.()
     if (viewer?.open?.(request) === true) return
     if (features.imageViewer) getInternalImageViewer?.()?.open?.({ ...request, annotations: false })
+    else if (ImageLightbox) setNativePreview({ attachment, src })
     else window.open(src, '_blank', 'noopener,noreferrer')
   }
   if (error && !usable) {
     return <button type="button" className="codexGeneratedImageRetry" onClick={retry}>{t('imageLoadFailed')}</button>
   }
-  return <button ref={triggerRef} type="button" className="codexGeneratedImageFrame" title={error ? t('imageLoadFailed') : t('imageOpen')} aria-label={t('imageOpenNamed').replace('{value}', String(label))} onClick={error ? retry : openImage}>
-    {src === undefined ? <span>{t('imageLoading')}</span> : <img key={attempt} src={src} onError={fail} onLoad={loaded} alt={label} />}
-    {error ? <span>{t('imageLoadFailed')}</span> : null}
-  </button>
+  return <>
+    <button ref={triggerRef} type="button" className="codexGeneratedImageFrame" title={error ? t('imageLoadFailed') : t('imageOpen')} aria-label={t('imageOpenNamed').replace('{value}', String(label))} onClick={error ? retry : openImage}>
+      {src === undefined ? <span>{t('imageLoading')}</span> : <img key={attempt} src={src} onError={fail} onLoad={loaded} alt={label} />}
+      {error ? <span>{t('imageLoadFailed')}</span> : null}
+    </button>
+    {nativePreview?.attachment === attachment && !features.imageViewer && ImageLightbox ? <ImageLightbox
+      src={nativePreview.src} alt={label} labels={{ dialog: t('imagePreview'), close: t('imageClosePreview') }}
+      onClose={() => setNativePreview(undefined)} /> : null}
+  </>
 }
 
 export function CodexImageToolRow({ presentation = 'tool', block, gallery, sessionId, rpc, loadImage, openSketchImage, attachForEdit, getImageViewer, getInternalImageViewer, t, preference }) {

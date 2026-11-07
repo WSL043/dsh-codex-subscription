@@ -18,3 +18,4 @@ export const IconCopyOutline16 = primitives.IconCopyOutlineRegular
 export const IconDownloadOutline16 = primitives.IconDownloadOutlineRegular
 export const IconEditOutline16 = primitives.IconEditOutlineRegular
 export const IconFullscreenOutline16 = primitives.IconFullscreenOutlineRegular
+export const ImageLightbox = primitives.ImageLightbox
