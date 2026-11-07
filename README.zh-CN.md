@@ -37,7 +37,7 @@
 <details>
 <summary>让 DeepSeek 等模型使用订阅能力</summary>
 
-让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等。模型先搜索再调用，写操作默认每次都要你批准，也可以在设置里改成不再询问。默认关闭，在“联网与工具”里开启。
+让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等。模型先搜索再调用，写入审批取决于所选模式和当前 DSH 会话权限。默认关闭，在“联网与工具”里开启。
 
 联网搜索与网页读取来源、ChatGPT 连接器和官方 Codex 独立子任务在 **设置 → Codex 订阅 → 联网与工具**，页首一个总开关：关闭后，用 DeepSeek 等非 Codex 模型对话时不再使用订阅的联网搜索（改用 DSH 搜索）、图片生成和 ChatGPT 连接器，Codex 订阅模型不受影响。默认开启。
 
@@ -329,7 +329,7 @@ Agent 先在画板绘制可编辑草图，再以该草图为参考调用订阅�
 | **云端上下文压缩** | 使用 Codex 云端压缩继续长对话，同时保留 DSH 历史与原生压缩 | Beta / 实验性；默认关闭，开启的请求使用 SSE |
 | **WebSocket 连接** | 实验性复用连接和上下文传输，连接失败可回退 SSE | Beta / 实验性；默认 SSE，不保证更快 |
 | **Auto review 官方审查模型** | DSH Auto review 改用 Codex 自带的审查模型判断工具调用，审查规则与放行流程仍由 DSH 负责 | Beta；默认关闭，账号目录提供该模型时生效 |
-| **ChatGPT 连接器** | 让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等；模型先搜索再调用，写操作默认每次都要你批准，可改成不再询问 | 默认关闭，设置 → Codex 订阅 → 联网与工具 → ChatGPT 连接器；需先在 ChatGPT 里连接应用 |
+| **ChatGPT 连接器** | 让 DeepSeek 等任意 DSH 模型使用你在 ChatGPT 里连接的应用：GitHub、Gmail、Google 云端硬盘、日历等；模型先搜索再调用，写入审批取决于所选模式和当前 DSH 会话权限 | 默认关闭，设置 → Codex 订阅 → 联网与工具 → ChatGPT 连接器；需先在 ChatGPT 里连接应用 |
 | **支持诊断** | 查看功能前置条件和近期操作结果，一键复制约 1 KB 的精简报告（完整报告可另行复制）；不含凭据和会话正文 | 设置 → Codex 订阅 → 手机与更多；未验证不代表故障 |
 | **预测缓存清理** | 查看并清理本地额度预测历史 | 保留登录、草稿、原图和共享依赖 |
 

@@ -210,7 +210,7 @@ export function createConnectorTools({ client, getMode, getApproval, allowed }) 
   })
   const call = defineTool({
     name: 'chatgpt_connectors_call',
-    description: `Run one connector tool with the user's connected account. Call chatgpt_connectors_describe first to get the exact arguments. Tools that change data (send, create, edit, delete) ask the user to approve each call, or are unavailable when the setting is read-only. ${NOTE}`,
+    description: `Run one connector tool with the user's connected account. Call chatgpt_connectors_describe first to get the exact arguments. In Write after asking mode, changes require approval through the current DSH session. Read-only mode blocks changes. ${NOTE}`,
     parameters: {
       name: { type: 'string', required: true, description: 'Exact tool name.' },
       arguments: { type: 'object', additionalProperties: true, description: 'Arguments matching the tool schema.' },
@@ -226,9 +226,11 @@ export function createConnectorTools({ client, getMode, getApproval, allowed }) 
       if (!tool.readOnly && mode !== 'write') {
         if (mode !== 'ask') throw new Error(`${tool.name} changes data and connectors are set to read-only; ask the user to allow writes in the plugin settings`)
         const approval = getApproval?.()
-        if (typeof approval?.request !== 'function') throw new Error('Approval is unavailable, so this connector action was not run')
+        if (typeof approval?.request !== 'function') throw new Error('DSH approval is unavailable in this session. The connector did not write.')
         const outcome = await approval.request({ agent: exec.agent, toolName: tool.name, callId: exec.callId, reason: `${tool.connector}: ${clip(oneLine(tool.description), 160)} Arguments: ${clip(JSON.stringify(input), 400)}`, signal: exec.signal })
-        if (outcome !== 'allowed-once') throw new Error('The user did not approve this connector action')
+        if (outcome === 'cancelled') throw new Error('DSH cancelled the approval request. The connector did not write.')
+        if (outcome === 'unavailable') throw new Error('DSH approval is unavailable in this session. The connector did not write.')
+        if (outcome !== 'allowed-once') throw new Error('DSH did not grant approval. If no prompt appeared, check the current session’s permissions in the composer or with /permission. The connector did not write.')
       }
       return resultOf(await client.callTool(tool.name, input, exec.signal))
     },

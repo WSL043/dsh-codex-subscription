@@ -52,7 +52,7 @@ Spark keeps its independent quota. The plugin does not invent five-hour limits, 
 Set **ChatGPT connectors** under Web & tools to Read-only, Write after asking or Write directly, and every DSH model (DeepSeek included) gains three tools: `chatgpt_connectors_search` finds tools in the apps you connected in ChatGPT, `chatgpt_connectors_describe` shows their arguments, and `chatgpt_connectors_call` runs one. Apps such as GitHub, Gmail, Google Drive and Google Calendar work as far as your account has them connected.
 
 - **Read-only** runs only tools the app marks read-only (search mail, read files, look up pull requests).
-- **Write after asking** asks for your approval on every call that changes data (send mail, edit files, comment), showing the tool, arguments and description; with phone remote control on, the approval also appears on the phone. A refused call sends nothing.
+- **Write after asking** requires DSH approval before changing data. If no prompt appears, open the current session's permission menu in the composer or run `/permission`. On the standard DSH profile, **Workspace Write** allows prompts and **Full access** disables them. A change runs only after approval.
 - **Write directly** runs the same changing calls immediately with no approval; a mistake cannot be undone. Use it only when you trust the model and the task.
 - What an app returns is third-party content and models are told not to follow instructions inside it. Account, safety and plugin-management tools of ChatGPT are not exposed.
 - Connect the apps in ChatGPT first. Off by default; the tool list is cached for 10 minutes.

@@ -32,14 +32,14 @@ Entre com o ChatGPT Plus / Pro para usar GPT-6 e outros modelos Codex, a cota, a
 | **Gerenciar contas e cota** | Alterne entre contas, consulte a cota de períodos curtos e semanal, os créditos e as redefinições; veja o histórico de uso e alertas opcionais de cota no campo de mensagem. |
 | **Criar e editar imagens** | Gere imagens, marque regiões para edição ou desenhe manualmente e com o agente em um quadro de esboço editável. [Exemplos →](#images-and-sketching) |
 | **Continuar pelo celular** | Emparelhe o aplicativo móvel do ChatGPT para controlar o DSH deste computador. Os modelos DeepSeek e outros modelos do DSH também funcionam. [Beta, desativado por padrão →](#phone-remote-control-beta) |
-| **Usar aplicativos conectados** | Permita que os modelos do DSH usem aplicativos conectados no ChatGPT, incluindo GitHub, Gmail, Drive e Calendar; por padrão, as alterações pedem aprovação. |
+| **Usar aplicativos conectados** | Permita que os modelos do DSH usem aplicativos conectados no ChatGPT, incluindo GitHub, Gmail, Drive e Calendar; a aprovação de escrita segue as permissões da sessão do DSH. |
 
 Os modelos e a cota dependem do que sua conta disponibiliza. [Lista completa de recursos →](#all-features)
 
 <details>
 <summary>Use os recursos da assinatura com DeepSeek e outros modelos</summary>
 
-Permita que o DeepSeek ou qualquer outro modelo do DSH use os aplicativos que você conectou no ChatGPT: GitHub, Gmail, Google Drive, Calendar e outros. Os modelos primeiro pesquisam e depois fazem chamadas; por padrão, toda alteração pede sua aprovação (você pode desativar essa opção nas configurações). Desativado por padrão; ative em Web e ferramentas.
+Permita que o DeepSeek ou qualquer outro modelo do DSH use os aplicativos que você conectou no ChatGPT: GitHub, Gmail, Google Drive, Calendar e outros. Os modelos primeiro pesquisam e depois fazem chamadas; a aprovação de escrita segue o modo e as permissões da sessão do DSH. Desativado por padrão; ative em Web e ferramentas.
 
 As fontes de pesquisa na web e leitura de páginas, os conectores do ChatGPT e as subtarefas independentes oficiais do Codex ficam em **Configurações → Assinatura Codex → Web e ferramentas**, com um controle geral na parte superior: quando desativado, as conversas com DeepSeek e outros modelos que não sejam Codex deixam de usar a pesquisa na web da assinatura (a pesquisa do DSH é usada no lugar), a geração de imagens e os conectores do ChatGPT; os modelos da assinatura Codex não são afetados. Ativado por padrão.
 
@@ -349,7 +349,7 @@ O acesso a modelos e a cota dependem da sua conta.
 | **Compactação de contexto na nuvem** | Continue conversas longas usando a compactação do Codex, preservando o histórico do DSH e a compactação nativa | Beta / experimental; desativado por padrão, as solicitações com o recurso ativado usam SSE |
 | **Transporte por WebSocket** | Reutilize conexões e transferências de contexto de forma experimental, com uso de SSE como alternativa em caso de falha na conexão | Beta / experimental; SSE por padrão, sem garantia de velocidade |
 | **Revisor do Codex para revisão automática** | A revisão automática do DSH avalia chamadas de ferramentas com o modelo de revisão próprio do Codex; o DSH mantém sua política de revisão e o fluxo de permitir/negar | Beta; desativado por padrão, aplica-se quando o catálogo da sua conta oferece o modelo |
-| **Conectores do ChatGPT** | Permita que o DeepSeek ou qualquer modelo do DSH use os apps que você conectou ao ChatGPT: GitHub, Gmail, Google Drive, Calendar e outros; os modelos primeiro pesquisam e depois fazem chamadas, e, por padrão, cada alteração pede sua aprovação, mas essa exigência pode ser desativada | Desativado por padrão, Configurações → Codex → Web e ferramentas → Conectores do ChatGPT; conecte os apps primeiro no ChatGPT |
+| **Conectores do ChatGPT** | Permita que o DeepSeek ou qualquer modelo do DSH use os apps que você conectou ao ChatGPT: GitHub, Gmail, Google Drive, Calendar e outros; os modelos primeiro pesquisam e depois fazem chamadas, e a aprovação de escrita segue o modo e as permissões da sessão do DSH | Desativado por padrão, Configurações → Codex → Web e ferramentas → Conectores do ChatGPT; conecte os apps primeiro no ChatGPT |
 | **Diagnóstico de suporte** | Verifique os pré-requisitos e os resultados recentes das operações e copie um relatório breve (cerca de 1 KB; o relatório completo pode ser copiado separadamente) sem credenciais nem texto de conversas | Configurações → Codex → Celular e mais; não verificado não significa que esteja com defeito |
 | **Limpeza do cache de previsão** | Verifique e limpe o histórico local de previsão de cotas | Preserva o login, os rascunhos, os originais e as dependências compartilhadas |
 

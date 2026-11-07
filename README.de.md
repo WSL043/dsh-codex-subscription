@@ -32,14 +32,14 @@ Melde dich mit ChatGPT Plus / Pro an, um GPT-6 und andere Codex-Modelle, Konting
 | **Konten und Kontingent verwalten** | Wechsle zwischen Konten, sieh das Kontingent für kurze Zeitfenster und die Woche, Credits und Zurücksetzungen ein; sieh den Nutzungsverlauf und optionale Kontingentwarnungen im Eingabefeld. |
 | **Bilder erstellen und bearbeiten** | Generiere Bilder, markiere Bereiche zur Bearbeitung oder zeichne manuell und mit dem Agent auf einer bearbeitbaren Skizzentafel. [Beispiele →](#images-and-sketching) |
 | **Mit dem Smartphone fortfahren** | Kopple die ChatGPT-Mobil-App, um DSH auf diesem Computer zu steuern. DeepSeek und andere DSH-Modelle funktionieren ebenfalls. [Beta, standardmäßig deaktiviert →](#phone-remote-control-beta) |
-| **Verbundene Apps verwenden** | Lass DSH-Modelle Apps verwenden, die in ChatGPT verbunden sind, darunter GitHub, Gmail, Drive und Calendar; Änderungen erfordern standardmäßig eine Genehmigung. |
+| **Verbundene Apps verwenden** | Lass DSH-Modelle Apps verwenden, die in ChatGPT verbunden sind, darunter GitHub, Gmail, Drive und Calendar; Schreibfreigaben richten sich nach den Berechtigungen der aktuellen DSH-Sitzung. |
 
 Modelle und Kontingent hängen davon ab, was dein Konto zurückgibt. [Vollständige Funktionsliste →](#all-features)
 
 <details>
 <summary>Abonnementfunktionen mit DeepSeek und anderen Modellen nutzen</summary>
 
-Lass DeepSeek oder jedes andere DSH-Modell die Apps verwenden, die du in ChatGPT verbunden hast: GitHub, Gmail, Google Drive, Calendar und mehr. Modelle suchen zuerst und rufen dann die Apps auf; standardmäßig erfordern alle Änderungen deine Genehmigung (du kannst das in den Einstellungen deaktivieren). Standardmäßig deaktiviert; aktiviere die Funktion unter „Web & Tools“.
+Lass DeepSeek oder jedes andere DSH-Modell die Apps verwenden, die du in ChatGPT verbunden hast: GitHub, Gmail, Google Drive, Calendar und mehr. Modelle suchen zuerst und rufen dann die Apps auf; Schreibfreigaben richten sich nach dem gewählten Modus und den Berechtigungen der aktuellen DSH-Sitzung. Standardmäßig deaktiviert; aktiviere die Funktion unter „Web & Tools“.
 
 Websuche und Quellen zum Lesen von Webseiten, ChatGPT-Konnektoren und offizielle unabhängige Codex-Teilaufgaben findest du unter **Einstellungen → Codex-Abonnement → Web & Tools**; ganz oben befindet sich ein Hauptschalter: Ist er deaktiviert, nutzen Unterhaltungen mit DeepSeek und anderen Nicht-Codex-Modellen nicht mehr die Websuche des Abonnements (stattdessen wird die DSH-Suche verwendet), die Bildgenerierung oder ChatGPT-Konnektoren; Codex-Abonnementmodelle sind davon nicht betroffen. Standardmäßig aktiviert.
 
@@ -349,7 +349,7 @@ Der Modellzugriff und das Kontingent hängen von deinem Konto ab.
 | **Cloud-Kontextkomprimierung** | Lange Unterhaltungen mit der Codex-Komprimierung fortsetzen und dabei den DSH-Verlauf sowie die native Komprimierung beibehalten | Beta / experimentell; standardmäßig deaktiviert, aktivierte Anfragen verwenden SSE |
 | **WebSocket-Transport** | Verbindungen und Kontextübertragungen experimentell wiederverwenden, mit SSE als Rückfalloption bei Verbindungsfehlern | Beta / experimentell; standardmäßig SSE, keine Geschwindigkeitsgarantie |
 | **Codex-Prüfer für die automatische Prüfung** | Die automatische Prüfung von DSH bewertet Tool-Aufrufe mit Codex' eigenem Prüfmodell; DSH behält seine Prüfrichtlinie und den Ablauf zum Zulassen oder Ablehnen bei | Beta; standardmäßig deaktiviert, gilt, wenn der Modellkatalog deines Kontos das Modell anbietet |
-| **ChatGPT-Konnektoren** | DeepSeek oder jedes DSH-Modell die Apps nutzen lassen, die du in ChatGPT verbunden hast: GitHub, Gmail, Google Drive, Calendar und mehr; Modelle suchen zuerst und rufen dann auf, und standardmäßig erfordert jede Änderung deine Genehmigung; dies lässt sich umstellen | Standardmäßig deaktiviert, Einstellungen → Codex → Web & Tools → ChatGPT-Konnektoren; verbinde die Apps zuerst in ChatGPT |
+| **ChatGPT-Konnektoren** | DeepSeek oder jedes DSH-Modell die Apps nutzen lassen, die du in ChatGPT verbunden hast: GitHub, Gmail, Google Drive, Calendar und mehr; Modelle suchen zuerst und rufen dann auf, und Schreibfreigaben richten sich nach dem gewählten Modus und den Berechtigungen der aktuellen DSH-Sitzung | Standardmäßig deaktiviert, Einstellungen → Codex → Web & Tools → ChatGPT-Konnektoren; verbinde die Apps zuerst in ChatGPT |
 | **Supportdiagnose** | Voraussetzungen und Ergebnisse der letzten Vorgänge prüfen und einen kurzen Bericht kopieren (etwa 1 KB; der vollständige Bericht kann separat kopiert werden), der weder Anmeldedaten noch Unterhaltungstext enthält | Einstellungen → Codex → Telefon & mehr; „nicht verifiziert“ bedeutet nicht „defekt“ |
 | **Bereinigung des Prognose-Caches** | Den lokalen Verlauf der Kontingentprognose prüfen und löschen | Anmeldung, Entwürfe, Originale und gemeinsam genutzte Abhängigkeiten bleiben erhalten |
 

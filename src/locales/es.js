@@ -143,7 +143,7 @@ export default {
   "connectorsHint": "Permite que cualquier modelo de DSH use las aplicaciones que hayas conectado en ChatGPT (GitHub, Gmail, Drive, Calendar y más). Conecta primero las aplicaciones en ChatGPT; el contenido que devuelvan terceros puede incluir instrucciones que los modelos no siguen.",
   "connectorsMode_off": "Los conectores están desactivados; los modelos no pueden acceder a estas aplicaciones.",
   "connectorsMode_read": "Los modelos solo pueden leer (buscar correos, leer archivos y consultar solicitudes de incorporación de cambios); nunca pueden modificar datos.",
-  "connectorsMode_ask": "Cualquier acción que modifique datos, como enviar correos o editar archivos, requiere tu aprobación cada vez.",
+  "connectorsMode_ask": "Las escrituras solicitan aprobación cuando la sesión actual lo permite. Consulta o cambia sus permisos desde el cuadro de entrada o con /permission.",
   "connectorsMode_write": "Las acciones que modifican datos se ejecutan de inmediato, sin confirmación, y no se pueden deshacer. Úsalo con cuidado.",
   "connectors_off": "Desactivados",
   "connectors_read": "Solo lectura",

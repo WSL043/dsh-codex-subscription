@@ -103,7 +103,7 @@ test('structured results reach the model even when the text is only a confirmati
   assert.ok(big.structuredText.length <= 40_000 && big.structured === undefined)
 })
 
-test('write mode asks the user for every changing call and sends nothing when refused', async () => {
+test('write after asking sends changes only after DSH grants approval', async () => {
   const approvals = []
   const { by, calls } = tools('ask', [listing(), json({ jsonrpc: '2.0', id: 2, result: { content: [{ type: 'text', text: 'sent' }] } })], approvals)
   const sent = await by.chatgpt_connectors_call.execute({ name: 'gmail.send_email', arguments: { to: 'a@b.c' } }, exec)
@@ -112,9 +112,11 @@ test('write mode asks the user for every changing call and sends nothing when re
   assert.equal(approvals[0].toolName, 'gmail.send_email')
   assert.match(approvals[0].reason, /Gmail/)
   assert.equal(approvals[0].agent, exec.agent)
-  approvals.outcome = 'rejected'
-  await assert.rejects(by.chatgpt_connectors_call.execute({ name: 'gmail.send_email', arguments: {} }, exec), /did not approve/)
-  assert.equal(calls.length, 2)
+  for (const [outcome, message] of [['rejected', /DSH did not grant approval.*\/permission/], ['unavailable', /DSH approval is unavailable/], ['cancelled', /cancelled the approval request/]]) {
+    approvals.outcome = outcome
+    await assert.rejects(by.chatgpt_connectors_call.execute({ name: 'gmail.send_email', arguments: {} }, exec), message)
+    assert.equal(calls.length, 2, 'a non-approved change must not reach the connector')
+  }
 })
 
 test('the do-not-ask write mode runs a changing call without an approval request', async () => {

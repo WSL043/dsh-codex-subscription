@@ -143,7 +143,7 @@ export default {
   "connectorsHint": "DSH のすべてのモデルで、ChatGPT に接続したアプリ（GitHub、Gmail、Drive、Calendar など）を利用できるようにします。先に ChatGPT でアプリを接続してください。アプリが返す内容はサードパーティのコンテンツであり、モデルはその中の指示には従いません。",
   "connectorsMode_off": "コネクタはオフです。モデルはこれらのアプリを参照できません。",
   "connectorsMode_read": "モデルは読み取りのみ可能です（メールの検索、ファイルの読み取り、プルリクエストの確認など）。データを変更することはありません。",
-  "connectorsMode_ask": "メール送信やファイル編集など、データを変更する操作のたびに承認を求めます。",
+  "connectorsMode_ask": "現在のセッションで承認が許可されている場合、書き込み前に確認します。入力欄の権限メニューか /permission でセッションの権限を確認・変更できます。",
   "connectorsMode_write": "データを変更する操作を確認なしで直ちに実行します。元に戻せないため、慎重に使用してください。",
   "connectors_off": "オフ",
   "connectors_read": "読み取り専用",
