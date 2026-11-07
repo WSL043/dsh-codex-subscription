@@ -430,7 +430,7 @@ Diagnostics exclude credentials, account identifiers, raw responses, and full lo
 <details>
 <summary>Do I need the Codex command line?</summary>
 
-Not for ordinary subscription chat. Only if you want **Codex independent subtasks**: use "Install component" under Settings → Codex subscription → Web & tools; disabling and uninstalling are in the same place. Other experimental options are opt-in. [Optional components, storage cleanup and the full guide →](docs/GUIDE.en.md)
+For **Codex independent subtasks**, install **Codex Subagent** from DSH Plugins, then choose **Prepare CLI** in the subscription settings. [Setup, removal and the full guide →](docs/GUIDE.en.md#codex-subtask-runtime)
 
 </details>
 

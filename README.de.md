@@ -430,7 +430,7 @@ Die Diagnosedaten enthalten keine Anmeldedaten, Konto-IDs, Rohantworten oder vol
 <details>
 <summary>Benötige ich die Codex-Kommandozeile?</summary>
 
-Nicht für gewöhnliche Abo-Chats. Nur wenn du **unabhängige Codex-Teilaufgaben** ausführen möchtest: Verwende unter Einstellungen → Codex-Abonnement → Web & Tools die Option „Komponente installieren“; Deaktivieren und Deinstallieren findest du am selben Ort. Andere experimentelle Optionen müssen ausdrücklich aktiviert werden. [Optionale Komponenten, Speicherbereinigung und der vollständige Leitfaden →](docs/GUIDE.en.md) (auf Englisch)
+Für **unabhängige Codex-Teilaufgaben** installiere den **Codex-Subagenten** über DSH-Plugins und wähle in den Abo-Einstellungen **CLI vorbereiten**. [Anleitung zur Einrichtung und Deinstallation (Englisch) →](docs/GUIDE.en.md#codex-subtask-runtime)
 
 </details>
 

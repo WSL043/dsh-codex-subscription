@@ -430,7 +430,7 @@ Os diagnósticos não incluem credenciais, identificadores da conta, respostas b
 <details>
 <summary>Preciso da linha de comando do Codex?</summary>
 
-Não para conversas normais da assinatura. Somente se você quiser **subtarefas independentes do Codex**: use "Instalar componente" em Configurações → Assinatura Codex → Web e ferramentas; as opções de desativação e desinstalação ficam no mesmo lugar. As outras opções experimentais exigem ativação explícita. [Componentes opcionais, limpeza do armazenamento e guia completo (em inglês) →](docs/GUIDE.en.md)
+Para usar **subtarefas independentes do Codex**, instale o **subagente Codex** nos plugins do DSH e selecione **Preparar CLI** nas configurações da assinatura. [Guia de instalação e desinstalação (em inglês) →](docs/GUIDE.en.md#codex-subtask-runtime)
 
 </details>
 

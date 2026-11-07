@@ -430,7 +430,7 @@ Les diagnostics excluent les identifiants, les identifiants de compte, les répo
 <details>
 <summary>Ai-je besoin de la ligne de commande Codex ?</summary>
 
-Pas pour les conversations ordinaires avec l’abonnement. Uniquement si vous souhaitez utiliser les **sous-tâches Codex indépendantes** : utilisez « Installer le composant » sous Paramètres → Abonnement Codex → Web et outils ; la désactivation et la désinstallation se trouvent au même endroit. Les autres options expérimentales nécessitent une activation explicite. [Composants facultatifs, nettoyage du stockage et guide complet, en anglais →](docs/GUIDE.en.md)
+Pour les **sous-tâches indépendantes de Codex**, installez le **sous-agent Codex** dans les extensions DSH, puis choisissez **Préparer la CLI** dans les paramètres de l’abonnement. [Guide d’installation et de désinstallation (en anglais) →](docs/GUIDE.en.md#codex-subtask-runtime)
 
 </details>
 

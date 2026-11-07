@@ -154,7 +154,7 @@ Opt in under **Models → Advanced**. SSE and DSH subtasks remain the defaults:
 - Set **Input image detail** under **Settings → Codex subscription → Models**. It defaults to Auto; higher detail uses more input tokens.
 - Set **Stream inactivity timeout** in the same area (default: 10 minutes). It limits time without streamed data, not the overall response duration; lower values may interrupt slow but valid reasoning and hand the request to DSH retry handling.
 - **WebSocket** reuses connections and eligible context transfers. Failed handshakes can fall back to SSE; interrupted responses surface an error without automatic replay. Applies to the next request, does not expand context limits, and is not guaranteed to be faster.
-- **Codex independent subtasks** reuse your subscription login and the official DSH Codex runtime, without a separate login; install its optional component in settings. They inherit the current subscription model and workspace permissions by default. Turn on model selection under Plugins → Subagent, tick the allowed models and start a new session to specify the child model and reasoning effort in chat. Non-subscription sessions must explicitly select a subscription model. Shared-context subtasks remain with DSH. A Codex subtask gets the workspace tools only: the apps connected to your ChatGPT account (calendar, site deploys and so on), plugin installs and browser or computer control are switched off, because the subtask runs with automatic approval.
+- **Codex independent subtasks** reuse your subscription login and the official DSH Codex provider. Prepare the optional runtime as described below. Subtasks inherit the current subscription model and workspace permissions by default. Turn on model selection under Plugins → Subagent, tick the allowed models and start a new session to specify the child model and reasoning effort in chat. Non-subscription sessions must explicitly select a subscription model. Shared-context subtasks remain with DSH. A Codex subtask gets the workspace tools only: the apps connected to your ChatGPT account (calendar, site deploys and so on), plugin installs and browser or computer control are switched off, because the subtask runs with automatic approval.
 
 <a id="codex-subtask-runtime"></a>
 
@@ -164,9 +164,9 @@ Opt in under **Models → Advanced**. SSE and DSH subtasks remain the defaults:
 
 Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only **Codex independent subtasks (Beta)** require the optional official runtime. The plugin never downloads it in the background.
 
-In **Settings → Codex subscription → Web & tools → Subtasks**, click **Install component**. DSH handles installation; the page shows its stage and offers cancellation before applying. Restart after completion, then choose Codex. Installation does not enable subtasks automatically.
+Install **Codex Subagent** from the official entries in DSH's **Plugins** page. If you only use it with your subscription, switch the official entry off after installation to leave the package installed and its standalone tool disabled.
 
-Prefer **Install component** above. DSH manages the adapter matching the host version and a dedicated Codex CLI for this plugin. The CLI uses the profile dependency alias `dsh-codex-subtask-cli` and does not replace the host's or another app's Codex. If an existing adapter needs the new CLI, use the same button to prepare it, then restart. Account login and saved child defaults are retained.
+In **Settings → Codex subscription → Web & tools**, click **Prepare CLI** under **Independent subtasks**, restart DSH, then choose **Codex (subscription)**. The dedicated CLI uses the profile dependency alias `dsh-codex-subtask-cli` and keeps your subscription login and saved child defaults.
 
 On Windows, the dedicated CLI prefers Codex's MXC sandbox when supported by the device and policy. Otherwise it needs Codex's configured legacy Windows sandbox. Subtasks retain the DSH session's file policy; the plugin does not fall back to unrestricted execution when sandbox setup is unavailable.
 
@@ -183,16 +183,13 @@ The CLI alias is a plain dependency, not a plugin to enable. Restart afterwards.
 
 ### When you no longer need it
 
-To disable it, switch back to **DSH** in Advanced settings. The component stays installed so you can enable it again later.
-
-To uninstall it, click **Uninstall component** in the same section and confirm. The plugin blocks removal while Codex subtasks are running, switches back to DSH, and uses the official uninstall interface. Restart after completion. On older hosts, run this in a terminal, replacing `web` with the profile where you installed it:
+To stop using the subscription for subtasks, choose **DSH** under **Independent subtasks**. After any running child finishes, remove **Codex Subagent** from DSH's Plugins page if you no longer use it. To remove the subscription-only CLI as well, run the command below with the corresponding profile, then restart DSH.
 
 ```sh
 dsh plugin --profile web remove dsh-codex-subtask-cli
-dsh plugin --profile web remove @deepseek-ai/dsh-subagent-codex
 ```
 
-This removes the optional subtask component, not the subscription plugin. Subscription chat, image generation and native DSH subtasks are unaffected. The package manager may keep the component if another plugin still depends on it.
+Subscription chat, image generation and native DSH subtasks work without these optional components.
 
 ### Storage and cleanup
 

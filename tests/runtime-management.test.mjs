@@ -2,68 +2,58 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createRuntimeManagement } from '../src/runtime-management.js'
 import { createSubscriptionSubagent } from '../src/subagent-backend.js'
-const name = '@deepseek-ai/dsh-subagent-codex'
+
 const tick = () => new Promise(resolve => setImmediate(resolve))
-function fixture(overrides = {}) {
+
+function fixture({ runtime = { installed: false, adapterInstalled: true }, available = true, owned = false, active = 0, change } = {}) {
   const calls = []
-  const host = {
-    listBundles: async () => [{name, installed:true}],
-    installBundle: async (...args) => { calls.push(args); return {application:'applied'} },
-    removeBundle: async value => { calls.push(value); return {application:'applied'} },
-    cancelInstall: async () => ({status:'not-running'}),
-    ...overrides,
-  }
-  const service = createRuntimeManagement({manager:()=>host,inspect:()=>({installed:true}),active:()=>0,selectDsh:async()=>calls.push('dsh'),componentVersion:()=> '0.1.7-rc.1'})
-  return {service,host,calls}
+  const service = createRuntimeManagement({
+    inspect: () => runtime,
+    active: () => active,
+    componentVersion: () => '0.2.2-rc.1',
+    selectDsh: async () => calls.push('dsh'),
+    cli: { inspect: () => ({ available, owned }), change: change ?? (async action => calls.push(action)) },
+  })
+  return { service, calls }
 }
-test('uses only fixed official package, does not auto-enable and requires restart', async () => {
-  const {service,calls}=fixture()
-  await service.start('install'); await tick()
-  assert.equal(calls[0][0],name+'@0.1.7-rc.1')
-  assert.equal(calls[0][1].enabled,false)
-  assert.equal((await service.status()).restartRequired,true)
-  await assert.rejects(service.start('remove'),/restart-required/)
-})
-test('component installation follows the exact host cohort and leaves unsupported hosts unchanged', async () => {
-  const {host,calls}=fixture()
-  const older=createRuntimeManagement({manager:()=>host,inspect:()=>({installed:false}),active:()=>0,componentVersion:()=> '0.1.5-rc.2'})
-  await older.start('install');await tick()
-  assert.equal(calls.at(-1)[0],name+'@0.1.5-rc.2')
-  const unsupported=createRuntimeManagement({manager:()=>host,inspect:()=>({installed:false}),active:()=>0,componentVersion:()=>undefined})
-  assert.equal((await unsupported.status()).installable,false)
-  await assert.rejects(unsupported.start('install'),/unavailable/)
-  assert.equal(calls.length,1)
-})
-test('serializes changes, supports cancellation and permits retry after rollback', async () => {
-  let finish, id
-  const {service}=fixture({installBundle:(_spec,options)=>{id=options.requestId;return new Promise(resolve=>finish=resolve)},cancelInstall:async request=>{assert.equal(request,id);finish({application:'cancelled'});return {status:'cancelled'}}})
+
+test('only prepares the dedicated CLI after DSH supplies the matching official adapter', async () => {
+  const missing = fixture({ runtime: { installed: false } })
+  assert.equal(missing.service.status().adapterInstalled, false)
+  assert.equal(missing.service.status().installable, false)
+  await assert.rejects(missing.service.start('install'), /unavailable/)
+  assert.deepEqual(missing.calls, [])
+
+  const { service, calls } = fixture()
+  assert.equal(service.status().installable, true)
   await service.start('install')
-  assert.equal(service.blocked(),true)
-  await assert.rejects(service.start('remove'),/busy/)
-  service.progress({requestId:'someone-else',phase:'applying'})
-  assert.equal((await service.status()).phase,'installing')
-  await service.cancel()
-  assert.equal((await service.status()).phase,'cancelled')
-  assert.equal(service.blocked(),false)
-  await service.start('install');finish({application:'failed',packageResult:{kind:'network'}});await tick()
-  assert.equal((await service.status()).error,'network')
+  await tick()
+  assert.deepEqual(calls, ['install'])
+  assert.equal(service.status().restartRequired, true)
+  await assert.rejects(service.start('remove'), /restart-required/)
 })
-test('uninstall switches backend first and refuses non-owned or protected dependencies', async () => {
-  const {service,calls}=fixture();await service.start('remove');await tick()
-  assert.deepEqual(calls,['dsh',name])
-  const locked=fixture({listBundles:async()=>[{name,installed:true,readOnlyReason:'bundle-in-use'}]})
-  assert.equal((await locked.service.status()).removable,false)
-  await locked.service.start('remove');await tick();assert.deepEqual(locked.calls,[])
+
+test('removal only handles the owned CLI alias and switches away from it first', async () => {
+  const officialOnly = fixture()
+  assert.equal(officialOnly.service.status().removable, false)
+  await assert.rejects(officialOnly.service.start('remove'), /unavailable/)
+  assert.deepEqual(officialOnly.calls, [])
+
+  const { service, calls } = fixture({ owned: true })
+  await service.start('remove')
+  await tick()
+  assert.deepEqual(calls, ['dsh', 'remove'])
 })
-test('active tasks and old hosts refuse changes without side effects', async () => {
-  const {host,calls}=fixture()
-  const active=createRuntimeManagement({manager:()=>host,inspect:()=>({installed:true}),active:()=>1})
-  await assert.rejects(active.start('remove'),/active-tasks/);assert.deepEqual(calls,[])
-  const old=createRuntimeManagement({manager:()=>undefined,inspect:()=>({installed:false}),active:()=>0})
-  assert.equal((await old.status()).available,false)
-  await assert.rejects(old.start('install'),/unavailable/)
-  await assert.rejects(old.start('arbitrary-package'),/invalid-action/)
+
+test('active tasks and an unmanaged profile prevent CLI changes', async () => {
+  const busy = fixture({ active: 1 })
+  await assert.rejects(busy.service.start('install'), /active-tasks/)
+  const unmanaged = fixture({ available: false })
+  await assert.rejects(unmanaged.service.start('install'), /unavailable/)
+  await assert.rejects(unmanaged.service.start('arbitrary-package'), /invalid-action/)
+  assert.deepEqual([...busy.calls, ...unmanaged.calls], [])
 })
+
 test('component maintenance prevents new subtasks and preparation before touching credentials', async () => {
   const instance = createSubscriptionSubagent({ maintenance: () => true, loadRuntime: () => assert.fail('must not load during maintenance') })
   await assert.rejects(instance.provider.start({}), /component is being changed/)
@@ -82,44 +72,18 @@ test('preparing again revalidates an optional CLI removed after an earlier succe
   await assert.rejects(instance.prepare(), /component removed/)
 })
 
-test('incompatible managed component stays visible and removable', async () => {
-  const {host,calls}=fixture()
-  const service=createRuntimeManagement({manager:()=>host,inspect:()=>({installed:false,present:true}),active:()=>0,selectDsh:async()=>calls.push('dsh')})
-  const status=await service.status()
-  assert.equal(status.installed,false);assert.equal(status.present,true);assert.equal(status.removable,true)
-  await service.start('remove');await tick();assert.deepEqual(calls,['dsh',name])
-})
-
-test('host-owned incompatible component remains visible but cannot be removed', async () => {
-  const {host,calls}=fixture({listBundles:async()=>[{name,installed:true,readOnlyReason:'host-owned'}]})
-  const service=createRuntimeManagement({manager:()=>host,inspect:()=>({installed:false}),active:()=>0,selectDsh:async()=>assert.fail()})
-  const status=await service.status()
-  assert.equal(status.present,true);assert.equal(status.removable,false)
-  await service.start('remove');await tick();assert.deepEqual(calls,[])
-})
-
-test('an existing adapter can prepare the dedicated CLI and remove only owned components', async () => {
-  const calls = [], cli = { inspect: () => ({ available: true, owned: true }), change: async action => calls.push(action) }
-  const service = createRuntimeManagement({ manager: () => ({ listBundles: async () => [{ name, installed: true, readOnlyReason: 'host-owned' }], installBundle: () => assert.fail(), removeBundle: () => assert.fail(), cancelInstall() {} }),
-    inspect: () => ({ installed: false, present: true, adapterInstalled: true }), cli, active: () => 0, selectDsh: async () => calls.push('dsh'), componentVersion: () => '0.2.2-rc.1' })
-  assert.equal((await service.status()).installable, true)
-  await service.start('install'); await tick()
-  assert.deepEqual(calls, ['install']); assert.equal((await service.status()).restartRequired, true)
-  const removal = createRuntimeManagement({ manager: () => ({ listBundles: async () => [{ name, installed: true, readOnlyReason: 'host-owned' }], installBundle() {}, removeBundle: () => assert.fail(), cancelInstall() {} }),
-    inspect: () => ({ installed: true }), cli, active: () => 0, selectDsh: async () => calls.push('dsh') })
-  await removal.start('remove'); await tick()
-  assert.deepEqual(calls, ['install', 'dsh', 'remove'])
-})
-
-test('CLI installation can be cancelled without leaving a component operation running', async () => {
+test('CLI installation serializes changes and can be cancelled before it applies', async () => {
   let entered
   const started = new Promise(resolve => { entered = resolve })
-  const cli = { inspect: () => ({ available: true }), change: (_action, signal) => new Promise((_resolve, reject) => { entered(); signal.addEventListener('abort', () => reject(signal.reason), { once: true }) }) }
-  const {host} = fixture()
-  const service = createRuntimeManagement({ manager: () => host, inspect: () => ({ installed: false, adapterInstalled: true }), cli, active: () => 0, componentVersion: () => '0.2.2-rc.1' })
-  await service.start('install'); await started
+  const { service } = fixture({ change: (_action, signal) => new Promise((_resolve, reject) => {
+    entered()
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+  }) })
+  await service.start('install')
+  await started
+  await assert.rejects(service.start('install'), /busy/)
   assert.equal(service.blocked(), true)
   await service.cancel()
-  assert.equal((await service.status()).phase, 'cancelled')
+  assert.equal(service.status().phase, 'cancelled')
   assert.equal(service.blocked(), false)
 })

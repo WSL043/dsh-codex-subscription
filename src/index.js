@@ -177,11 +177,10 @@ export function apply(ctx, config = {}) {
   let subagentBackend
   const subagentCli = createSubagentCli({ profile: () => ctx.get?.('profileContext') })
   const runtimeManagement = createRuntimeManagement({
-    manager: () => ctx.get?.('pluginManager'), inspect: () => inspectSubagentRuntime(undefined, subagentCli), cli: subagentCli,
+    inspect: () => inspectSubagentRuntime(undefined, subagentCli), cli: subagentCli,
     active: () => subagentBackend?.activeCount() ?? 0,
     selectDsh: async () => { if (subagentBackend) await subagentBackend.select('dsh'); else await settings.update({ subagentBackend: 'dsh' }) },
   })
-  ctx.effect(() => ctx.on?.('plugin-manager/install-state', value => runtimeManagement.progress(value)))
   const modelCatalog = createOfficialModelCatalog({
     onUpdated: () => ctx.llm.emitAdaptersUpdated?.(),
     onCacheError: error => ctx.logger?.debug?.('could not access the Codex model catalog cache (%s)', error?.code ?? error?.name ?? 'unknown error'),

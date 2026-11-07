@@ -240,7 +240,7 @@ test('both settings entries keep independent HTML radio groups and the same sele
 test('unused settings panels do not mount; visited panels and accessible targets survive navigation', async () => {
   const pages = Object.fromEntries(['CreatePage','FeatureOverview','ModelsPage','MorePage','QuotaSettingsCard','ToolsPage'].map(name => [name, named(name)]))
   const h = await component('client-section.jsx', 'CodexSection', {
-    preference: { refreshModels() {} }, accountStatus: { load() {} }, t: key => key,
+    preference: { load() {}, refreshModels() {} }, accountStatus: { load() {} }, t: key => key,
   }, { './client-pages.jsx': pages })
   try {
     const panel = name => nodes(h.tree, node => node.props.role === 'tabpanel' && node.props.id.endsWith(`-${name}`))[0]
@@ -276,7 +276,7 @@ test('sticky settings backdrop uses browser-decoded colors, skips transparency a
   let paint, disconnected = false
   const context = { clearRect() {}, fillRect() {}, getImageData() { return { data: colors.get(this.fillStyle) } } }
   const h = await component('client-section.jsx', 'CodexSection', {
-    preference: { refreshModels() {} }, accountStatus: { load() {} }, t: key => key,
+    preference: { load() {}, refreshModels() {} }, accountStatus: { load() {} }, t: key => key,
   }, {}, (fn, props) => {
     const tree = fn(props)
     nodes(tree, value => value.props.role === 'tablist')[0].props.ref.current = node
@@ -327,7 +327,7 @@ test('remote display polling pauses while hidden and returns without regeneratin
 
 test('a started runtime installation keeps its progress and finishes across hidden tabs', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
-  let status = { phase: 'idle', available: true, installable: true, componentVersion: 'fixture' }, reads = 0, loads = 0
+  let status = { phase: 'idle', available: true, adapterInstalled: true, installable: true, componentVersion: 'fixture' }, reads = 0, loads = 0
   const rpc = { async call(_channel, endpoint) {
     if (endpoint === 'runtime/install') status = { ...status, phase: 'installing' }
     else reads++

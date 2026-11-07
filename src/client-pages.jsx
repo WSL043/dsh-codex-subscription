@@ -190,7 +190,7 @@ function SubagentDefaultPreferences({ preference, snapshot, t }) {
   </>
 }
 
-export function ToolsPage({ preference, rpc, t, active = true }) {
+export function ToolsPage({ preference, rpc, t, active = true, openSubagentBundle }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = ready(snapshot)
   const others = snapshot.otherModels !== 'off'
@@ -208,14 +208,13 @@ export function ToolsPage({ preference, rpc, t, active = true }) {
       <ConnectorsPreference preference={preference} t={t} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('subagentBackendTitle')}>
-      
       <div className="codexSubscriptionPreference">
-        <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('subagentBackendHint')}>{t('subagentBackendTitle')} <small>Beta</small></SettingsLabel>{!snapshot.subagentBackendAvailable || !(codexReady || subagentsOn) ? <Hint>{t(snapshot.subagentBackendAvailable ? 'subagentBackendNeedsRuntime' : 'subagentBackendUnavailable')}</Hint> : null}</div>
+        <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('subagentBackendHint')}>{t('subagentBackendTitle')} <small>Beta</small></SettingsLabel>{!snapshot.subagentBackendAvailable ? <Hint>{t('subagentBackendUnavailable')}</Hint> : null}</div>
         <Radios snapshot={snapshot} preference={preference} field="subagentBackend" values={['dsh', 'codex']} name="codex-subagent-backend" label={t('subagentBackendTitle')} text={value => t(`subagentBackend_${value}`)}
           disabled={!snapshot.subagentBackendAvailable} disabledValues={codexReady || subagentsOn ? [] : ['codex']} />
       </div>
       {subagentsOn ? <SubagentDefaultPreferences preference={preference} snapshot={snapshot} t={t} /> : null}
-      <RuntimeManagement rpc={rpc} preference={preference} t={t} active={active} />
+      {snapshot.subagentBackendAvailable ? <RuntimeManagement rpc={rpc} preference={preference} t={t} active={active} openSubagentBundle={openSubagentBundle} /> : null}
     </section>
   </div>
 }

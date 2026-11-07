@@ -60,7 +60,7 @@ export function ProjectAction({ subject, t }) {
   return subject?.kind === 'bundle' && subject.pkg.name === 'dsh-codex-subscription' ? <ProjectLink t={t} /> : null
 }
 
-export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, defaultModel, embedded = false }) {
+export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, defaultModel, embedded = false, close, openSubagentBundle }) {
   const [tab, setTab] = useState('start')
   const [visited, setVisited] = useState(() => new Set(['start']))
   // Defer unused panels, then retain their drafts and in-progress operations.
@@ -82,6 +82,7 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
   }
   useEffect(() => {
     void accountStatus.load()
+    void preference.load()
     void preference.refreshModels()
   }, [accountStatus, preference])
   return <section className="codexSubscription" data-embedded={embedded || undefined}>
@@ -102,7 +103,8 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
     <FeatureOverview preference={preference} t={t} go={selectTab} />
     </div>
     <div className="codexFlat" role="tabpanel" id={`${id}-models`} aria-labelledby={`${id}-models-tab`} hidden={tab !== 'models'}>{visited.has('models') && <ModelsPage preference={preference} t={t} defaultModel={defaultModel} />}</div>
-    <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}>{visited.has('tools') && <ToolsPage preference={preference} rpc={rpc} t={t} active={tab === 'tools'} />}</div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}>{visited.has('tools') && <ToolsPage preference={preference} rpc={rpc} t={t} active={tab === 'tools'}
+      openSubagentBundle={openSubagentBundle && (() => { openSubagentBundle(); if (!embedded) close?.() })} />}</div>
     <div className="codexFlat" role="tabpanel" id={`${id}-create`} aria-labelledby={`${id}-create-tab`} hidden={tab !== 'create'}>{visited.has('create') && <CreatePage preference={preference} t={t} />}</div>
     <div className="codexFlat" role="tabpanel" id={`${id}-more`} aria-labelledby={`${id}-more-tab`} hidden={tab !== 'more'}>{visited.has('more') && <MorePage preference={preference} rpc={rpc} t={t} diagnostics={diagnostics} active={tab === 'more'} />}</div>
   </section>

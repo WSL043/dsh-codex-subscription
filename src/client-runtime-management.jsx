@@ -1,69 +1,66 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from './client-primitives.js'
-import { SettingsLabel } from './client-hint.jsx'
 import { CHANNEL } from './rpc-contract.js'
 
-export function RuntimeManagement({ rpc, preference, t, active = true }) {
+export function RuntimeManagement({ rpc, preference, t, active = true, openSubagentBundle }) {
   const [state, setState] = useState()
   const [error, setError] = useState(false)
   const [sending, setSending] = useState(false)
-  const [confirm, setConfirm] = useState(false)
-  const alive = useRef(false)
-  const busy = ['installing', 'removing', 'applying'].includes(state?.phase)
-  const read = async () => {
-    try {
-      const result = await rpc.call(CHANNEL, 'runtime/status', {})
-      if (!alive.current) return
-      if (!result.ok) { setError(true); return }
-      setState(result.value); setError(false)
-    } catch { if (alive.current) setError(true) }
+  const busy = ['installing', 'removing'].includes(state?.phase)
+  const apply = result => {
+    if (!result.ok) throw Error('Runtime request failed')
+    setState(result.value)
+    setError(false)
   }
-  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [rpc])
-  useEffect(() => { if (active) void read() }, [active, rpc])
+  useEffect(() => {
+    if (!active) return
+    let stopped = false
+    rpc.call(CHANNEL, 'runtime/status', {}).then(result => {
+      if (!stopped) apply(result)
+    }).catch(() => { if (!stopped) setError(true) })
+    return () => { stopped = true }
+  }, [active, rpc])
   useEffect(() => {
     if (!busy) return
     let stopped = false, timer
-    const poll = async () => { await read(); if (!stopped) timer = setTimeout(poll, 1500) }
+    const poll = async () => {
+      try {
+        const result = await rpc.call(CHANNEL, 'runtime/status', {})
+        if (!stopped) apply(result)
+      } catch { if (!stopped) setError(true) }
+      if (!stopped) timer = setTimeout(poll, 1500)
+    }
     timer = setTimeout(poll, 1500)
     return () => { stopped = true; clearTimeout(timer) }
   }, [busy, rpc])
-  const act = async action => {
-    if (sending) return
-    setSending(true); setError(false); setConfirm(false)
-    try {
-      const result = await rpc.call(CHANNEL, `runtime/${action}`, {})
-      if (!alive.current) return
-      if (!result.ok) { await read(); if (alive.current) setError(true); return }
-      setState(result.value)
-      if (action === 'remove') void preference.load()
-    } catch { if (alive.current) setError(true) }
-    finally { if (alive.current) setSending(false) }
-  }
   useEffect(() => {
     if (state?.phase === 'done') void preference.load()
-  }, [state?.phase])
-  const locked = sending || busy || state?.restartRequired || state?.active > 0
-  const repair = state?.cliUpdateRequired && state.installable
-  return <div className="codexSubscriptionRuntime">
-    <div className="codexSubscriptionPreference">
-      <span role="status">{t(!state ? 'runtimeLoading' : state.restartRequired ? 'runtimeRestart' : busy ? `runtime_${state.phase}` : state.installed ? 'subagentRuntimeInstalled' : !state.componentVersion ? 'runtimeHostUnsupported' : state.cliUpdateRequired ? 'runtimeUpdateRequired' : state.present ? (state.removable ? 'runtimeIncompatible' : 'runtimeManagedElsewhere') : 'subagentRuntimeMissing')}</span>
-      {state?.available && (state.present ? state.removable || repair : state.installable) ? <Button type="button" variant="outline" disabled={locked} onClick={() => state.present && !repair ? setConfirm(true) : void act('install')}>{t(state.present && !repair ? 'runtimeRemove' : 'runtimeInstall')}</Button> : null}
-    </div>
-    {state?.active > 0 ? <p>{t('runtimeActive')}</p> : null}
-    {busy && state.phase === 'installing' ? <Button type="button" variant="outline" disabled={sending} onClick={() => { void act('cancel') }}>{t('runtimeCancel')}</Button> : null}
-    {confirm ? <div role="group" aria-label={t('runtimeRemove')}><p>{t('runtimeConfirm')}</p><Button type="button" variant="outline" onClick={() => setConfirm(false)}>{t('runtimeKeep')}</Button> <Button type="button" variant="outline" disabled={locked} onClick={() => { void act('remove') }}>{t('runtimeConfirmRemove')}</Button></div> : null}
-    {error || state?.phase === 'failed' ? <p role="alert">{t(state?.error === 'build-blocked' ? 'runtimeBuildBlocked' : 'runtimeFailed')}</p> : null}
-    {state?.phase === 'cancelled' ? <p role="status">{t('runtimeCancelled')}</p> : null}
-    <details>
-      <SettingsLabel as="summary" className="" openOnClick={false} description={[state?.installable ? t('runtimeInstallHint') : undefined, t('subagentRuntimeCacheHint')].filter(Boolean).join(' ')}>{t('subagentRuntimeManage')}</SettingsLabel>
-      {state?.present && state.available && !state.removable ? <p>{t('runtimeManagedElsewhere')}</p> : null}
-      {!busy ? <Button type="button" variant="outline" disabled={sending} onClick={() => { void read(); void preference.load() }}>{t('runtimeRefresh')}</Button> : null}
-      {state && !state.available ? <p>{t('runtimeUnavailable')}</p> : null}
-      {state?.available && !state.installable && !state.present ? <p>{t('runtimeHostUnsupported')}</p> : null}
-      {state?.componentVersion ? <code>@deepseek-ai/dsh-subagent-codex@{state.componentVersion}</code> : null}
-      {state?.codexVersion ? <code>@openai/codex@{state.codexVersion}</code> : null}
-      {repair && state.removable && !busy ? <Button type="button" variant="outline" disabled={locked} onClick={() => setConfirm(true)}>{t('runtimeRemove')}</Button> : null}
-      <a href="https://github.com/WSL043/dsh-codex-subscription/blob/main/README.md#codex-subtask-runtime" target="_blank" rel="noreferrer">{t('subagentRuntimePrepare')}</a>
-    </details>
+  }, [state?.phase, preference])
+
+  const act = async action => {
+    setSending(true)
+    setError(false)
+    try { apply(await rpc.call(CHANNEL, `runtime/${action}`, {})) }
+    catch { setError(true) }
+    finally { setSending(false) }
+  }
+  if (!state) return <p role={error ? 'alert' : 'status'}>{t(error ? 'runtimeFailed' : 'runtimeLoading')}</p>
+  if (state.restartRequired) return <p role="status">{t('runtimeRestart')}</p>
+  if (state.installed) return null
+  if (!state.componentVersion) return <p>{t('runtimeHostUnsupported')}</p>
+  if (!state.adapterInstalled) return <div className="codexSubscriptionPreference">
+    <span>{t('subagentBackendNeedsRuntime')}</span>
+    {openSubagentBundle ? <Button type="button" variant="outline" onClick={openSubagentBundle}>{t('runtimeOpenPlugins')}</Button> : null}
   </div>
+  return <>
+    <div className="codexSubscriptionPreference">
+      <span role="status">{t(busy ? `runtime_${state.phase}` : state.available ? 'runtimeUpdateRequired' : 'runtimeUnavailable')}</span>
+      {busy && state.phase === 'installing'
+        ? <Button type="button" variant="outline" disabled={sending} onClick={() => void act('cancel')}>{t('runtimeCancel')}</Button>
+        : !busy && state.installable
+          ? <Button type="button" variant="outline" disabled={sending || state.active > 0} onClick={() => void act('install')}>{t('runtimeInstall')}</Button>
+          : null}
+    </div>
+    {error || state.phase === 'failed' ? <p role="alert">{t('runtimeFailed')}</p> : null}
+  </>
 }

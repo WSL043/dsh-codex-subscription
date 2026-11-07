@@ -430,7 +430,7 @@ Los diagnósticos excluyen credenciales, identificadores de cuenta, respuestas s
 <details>
 <summary>¿Necesito la línea de comandos de Codex?</summary>
 
-No para el chat normal con la suscripción. Solo si quieres usar **subtareas independientes de Codex**: en Configuración → Suscripción de Codex → Web y herramientas, usa «Instalar componente»; las opciones para desactivar y desinstalar están en el mismo lugar. Las demás opciones experimentales son optativas. [Componentes opcionales, limpieza del almacenamiento y la guía completa (en inglés) →](docs/GUIDE.en.md)
+Para usar **subtareas independientes de Codex**, instala el **subagente de Codex** desde los complementos de DSH y selecciona **Preparar CLI** en los ajustes de la suscripción. [Guía de instalación y desinstalación (en inglés) →](docs/GUIDE.en.md#codex-subtask-runtime)
 
 </details>
 

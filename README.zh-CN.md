@@ -404,7 +404,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 <details>
 <summary>需要装 Codex 命令行才能用吗？</summary>
 
-普通订阅聊天不需要。只有想用 **Codex 独立子任务** 时，才在“设置 → Codex 订阅 → 联网与工具”里点“安装组件”，停用和卸载也在同一处。其余实验选项按需开启。[可选组件、存储清理与完整说明 →](docs/GUIDE.zh-CN.md)
+使用 **Codex 独立子任务** 时，在 DSH 插件页安装 **Codex 子智能体**，再到订阅设置中点击 **准备 CLI**。[安装、卸载与完整说明 →](docs/GUIDE.zh-CN.md#codex-subtask-runtime)
 
 </details>
 
