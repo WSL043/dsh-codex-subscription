@@ -123,15 +123,8 @@ export class SubscriptionImageViewerService {
   close() {
     if (this.#snapshot === undefined) return
     this.#cancelOperations()
-    const opener = this.#snapshot.opener
     this.#snapshot = undefined
     this.#emit()
-    if (typeof window === 'undefined') opener?.focus()
-    else {
-      const focus = () => { opener?.focus() }
-      if (typeof window.requestAnimationFrame === 'function') window.requestAnimationFrame(focus)
-      else focus()
-    }
   }
 
   #emit() {

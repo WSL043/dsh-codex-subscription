@@ -5,6 +5,7 @@ import { createDefaultModelController } from './default-model.js'
 import { withDefaultReasoningEffort } from './default-reasoning-effort.js'
 import { DEFAULT_REASONING_EFFORT_FIELD, normalizeDefaultReasoningEffort } from './settings-contract.js'
 import { PREFERENCE_FIELDS, normalizeReasoningCache } from './preference-fields.js'
+import { createSubscriptionPreferencesTool } from './subscription-preferences-tool.js'
 import { createSubscriptionConnection } from './subscription-connection.js'
 import { createCompactionBridge } from './subscription-compaction.js'
 import { createReasoningBridge } from './subscription-reasoning.js'
@@ -852,6 +853,9 @@ export function apply(ctx, config = {}) {
   })
 
   const handler=diagnosticOperations.wrap((endpoint,payload,signal)=>endpoint.startsWith('sketch/')?sketchBridge.rpc(endpoint,payload):subscriptionHandler(endpoint,payload,signal))
+
+  ctx.effect(() => ctx.tools.register(createSubscriptionPreferencesTool(handler, () => ctx.get?.('approval'))),
+    'codex-subscription: response preferences tool')
 
   ctx.inject(['connection'], connectionContext => connectionContext.effect(
     () => registerSubscriptionTransport(connectionContext.connection, handler),

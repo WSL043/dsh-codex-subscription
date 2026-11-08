@@ -1,7 +1,7 @@
 // Adapted from WSL043/dsh-image-viewer 0.1.0-beta.9 with 0.1.0 zoom and annotation fixes, MIT; see THIRD_PARTY_NOTICES.md.
 
 import {
-  useCallback, useEffect, useRef, useState, useSyncExternalStore,
+  useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore,
 } from 'react'
 import {
   IconCheckOutline16, IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseOutline16,
@@ -175,6 +175,8 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
   const drawingRef = useRef(false)
   const maskRef = useRef(null)
   const rootRef = useRef(null)
+  const openerRef = useRef()
+  if (request) openerRef.current = request.opener
   annotationsByImageRef.current = annotationsByImage
 
   useEffect(() => {
@@ -218,68 +220,92 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
   }, [item?.id, setAnnotations])
   const closeViewer = () => { finishDraft(); service.close() }
 
-  useEffect(() => {
-    if (request === undefined) return undefined
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    rootRef.current?.focus()
-    const onKeyDown = event => {
-      if (eraseRef.current.erasing !== undefined) {
-        // Erase mode owns Escape, undo and brush size, and keeps the image in place.
-        const key = event.key.toLowerCase()
-        if (event.key === 'Escape') {
-          event.preventDefault()
-          if (!eraseRef.current.sending) { setErasing(undefined); setStrokes([]) }
-          return
-        }
-        if ((event.ctrlKey || event.metaKey) && key === 'z') {
-          event.preventDefault(); if (!eraseRef.current.sending) setStrokes(current => current.slice(0, -1)); return
-        }
-        if (event.key === '[' || event.key === ']') {
-          event.preventDefault(); setBrush(value => Math.round(clamp(value + (event.key === ']' ? 0.01 : -0.01), 0.01, 0.15) * 100) / 100); return
-        }
-        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') return
-      }
-      if (event.key === 'Escape') {
-        event.preventDefault()
-        if (event.target instanceof Element && event.target.closest('.dcsiv-inline-note') !== null) {
-          setSelected(undefined)
-          setDraft(undefined)
-          return
-        }
-        if (stageRef.current?.dataset.annotating === 'true') {
-          finishDraft()
-          setAnnotating(false)
-          return
-        }
-        closeViewer()
+  const open = request !== undefined
+  useLayoutEffect(() => {
+    if (!open) return
+    const dialog = rootRef.current
+    dialog.showModal()
+    return () => {
+      dialog.close()
+      const document = dialog.ownerDocument
+      const selector = 'dialog:modal, [role="dialog"][aria-modal="true"]'
+      if (document.activeElement?.closest(selector)) return
+      // A DSH dialog opened behind us may have tried to take focus while the
+      // browser still made it inert. Give it focus once our layer is removed.
+      const other = Array.from(document.querySelectorAll(selector)).reverse()
+        .find(element => element !== dialog && element.getClientRects().length > 0 && !element.closest('[inert]'))
+      const opener = openerRef.current
+      const target = other && !other.contains(opener)
+        ? other.querySelector('[data-modal-autofocus]') ?? other
+        : opener
+      if (target?.isConnected) target.focus({ preventScroll: true })
+    }
+  }, [open])
+
+  const consumeKey = event => {
+    event.preventDefault()
+    event.stopPropagation()
+  }
+  const dismiss = event => {
+    consumeKey(event)
+    if (event.repeat) return
+    if (eraseRef.current.erasing !== undefined) {
+      if (!eraseRef.current.sending) { setErasing(undefined); setStrokes([]) }
+      return
+    }
+    if (rootRef.current.contains(event.target) && event.target.closest?.('.dcsiv-inline-note')) {
+      draftRef.current = undefined
+      setSelected(undefined)
+      setDraft(undefined)
+      return
+    }
+    if (annotating) {
+      finishDraft()
+      setAnnotating(false)
+      return
+    }
+    closeViewer()
+  }
+  const onKeyDown = event => {
+    if (event.defaultPrevented || event.nativeEvent.isComposing) return
+    if (event.key === 'Escape') { dismiss(event); return }
+    // The browser traps focus inside the modal. Prevent DSH's document-level
+    // Tab handler for a dialog behind us from taking that key.
+    if (event.key === 'Tab') { event.stopPropagation(); return }
+    if (eraseRef.current.erasing !== undefined) {
+      const key = event.key.toLowerCase()
+      if ((event.ctrlKey || event.metaKey) && key === 'z') {
+        consumeKey(event)
+        if (!eraseRef.current.sending) setStrokes(current => current.slice(0, -1))
         return
       }
-      const editing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement
-      if (!editing && event.key === 'ArrowLeft' && request.items.length > 1) {
-        event.preventDefault(); move(-1)
-      } else if (!editing && event.key === 'ArrowRight' && request.items.length > 1) {
-        event.preventDefault(); move(1)
-      } else if (!editing && (event.key === '+' || event.key === '=')) {
-        event.preventDefault(); const box = stageRef.current?.getBoundingClientRect(); if (box) setZoomAt(transformRef.current.zoom * 1.2, box.left + box.width / 2, box.top + box.height / 2)
-      } else if (!editing && event.key === '-') {
-        event.preventDefault(); const box = stageRef.current?.getBoundingClientRect(); if (box) setZoomAt(transformRef.current.zoom / 1.2, box.left + box.width / 2, box.top + box.height / 2)
-      } else if (!editing && event.key.toLowerCase() === 'f') {
-        event.preventDefault(); fit()
-      } else if (event.key === 'Tab') {
-        const controls = [...rootRef.current.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),textarea:not(:disabled),[tabindex]:not([tabindex="-1"])')].filter(control => control.getClientRects().length > 0)
-        const first = controls[0]
-        const last = controls.at(-1)
-        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
-        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+      if (event.key === '[' || event.key === ']') {
+        consumeKey(event)
+        setBrush(value => Math.round(clamp(value + (event.key === ']' ? 0.01 : -0.01), 0.01, 0.15) * 100) / 100)
+        return
       }
+      if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') return
     }
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', onKeyDown)
+    const editing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement
+    if (!editing && event.key === 'ArrowLeft' && request.items.length > 1) {
+      consumeKey(event)
+      move(-1)
+    } else if (!editing && event.key === 'ArrowRight' && request.items.length > 1) {
+      consumeKey(event)
+      move(1)
+    } else if (!editing && (event.key === '+' || event.key === '=')) {
+      consumeKey(event)
+      const box = stageRef.current?.getBoundingClientRect()
+      if (box) setZoomAt(transformRef.current.zoom * 1.2, box.left + box.width / 2, box.top + box.height / 2)
+    } else if (!editing && event.key === '-') {
+      consumeKey(event)
+      const box = stageRef.current?.getBoundingClientRect()
+      if (box) setZoomAt(transformRef.current.zoom / 1.2, box.left + box.width / 2, box.top + box.height / 2)
+    } else if (!editing && event.key.toLowerCase() === 'f') {
+      consumeKey(event)
+      fit()
     }
-  }, [request, service, fit, setZoomAt, finishDraft])
+  }
 
   useEffect(() => {
     if (focusNote === undefined) return
@@ -423,7 +449,7 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
       visibility: geometry.width > 0 ? 'visible' : 'hidden',
     }
   }
-  return createPortal(<div ref={rootRef} className="dcsiv-root" role="dialog" aria-modal="true" aria-label={t('imagePreview')} tabIndex={-1}>
+  return <dialog ref={rootRef} className="dcsiv-root" role="dialog" aria-modal="true" aria-label={t('imagePreview')} onKeyDown={onKeyDown} onCancel={dismiss}>
     <div className="dcsiv-title dcsiv-sr-only"><strong>{item.name}</strong>{meta !== '' ? <small>{meta}</small> : null}</div>
     <header className="dcsiv-topbar" role="toolbar" aria-label={t('imagePreview')}>
       <div className="dcsiv-actions">
@@ -491,7 +517,7 @@ export function SubscriptionImageViewerOverlay({ service, t }) {
       </div> : null}
       {erasing && brushCursor ? <span className="dcsiv-brush-cursor" aria-hidden="true" style={{ left: brushCursor.left, top: brushCursor.top, width: brush * brushCursor.span, height: brush * brushCursor.span }} /> : null}
     </div>
-  </div>, document.body)
+  </dialog>
 }
 
 export { SUBSCRIPTION_IMAGE_VIEWER_CSS }

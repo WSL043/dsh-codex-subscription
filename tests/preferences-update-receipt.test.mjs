@@ -2,9 +2,41 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as plugin from '../src/index.js'
 import { createSettingsAdapter } from '../src/settings-adapter.js'
+import { createSubscriptionPreferencesTool } from '../src/subscription-preferences-tool.js'
 import { DISABLED_MODELS_FIELD, SPEED_MODE_FAST, SPEED_MODE_FIELD, SPEED_MODE_STANDARD } from '../src/settings-contract.js'
 
 const { createSubscriptionRpcHandler } = plugin
+
+test('agent and settings UI share response preferences, and only an approved safe patch is written', async () => {
+  const settings = { outputVerbosity: 'default', reasoningSummary: 'auto', connectors: 'off', writable: true }
+  const writes = []
+  const handler = createSubscriptionRpcHandler({ preferences: {
+    status: () => ({ ...settings }),
+    update: async patch => { writes.push(patch); Object.assign(settings, patch) },
+  } })
+  const exec = { agent: {}, callId: 'preferences-call', signal: new AbortController().signal }
+  const approvals = []
+  let decision = 'rejected'
+  const tool = createSubscriptionPreferencesTool(handler, () => ({
+    request: async request => { approvals.push(request); return decision },
+  }))
+
+  const ui = await handler('preferences/update', { outputVerbosity: 'low' }, exec.signal)
+  assert.equal(ui.ok, true)
+  assert.deepEqual(await tool.execute({ action: 'read' }, exec), { outputVerbosity: 'low', reasoningSummary: 'auto', writable: true })
+  await assert.rejects(tool.execute({ action: 'update', connectors: 'write' }, exec), /Invalid/)
+  await assert.rejects(tool.execute({ action: 'update', outputVerbosity: 'bad' }, exec), /invalid/i)
+  assert.equal(approvals.length, 0)
+  await assert.rejects(tool.execute({ action: 'update', reasoningSummary: 'concise' }, exec), /did not approve/)
+  assert.equal(writes.length, 1)
+
+  decision = 'allowed-once'
+  assert.deepEqual(await tool.execute({ action: 'update', reasoningSummary: 'concise' }, exec),
+    { outputVerbosity: 'low', reasoningSummary: 'concise', writable: true })
+  assert.deepEqual(writes, [{ outputVerbosity: 'low' }, { reasoningSummary: 'concise' }])
+  assert.equal(approvals[1].callId, exec.callId)
+  assert.equal((await handler('preferences/status', {}, exec.signal)).value.reasoningSummary, 'concise')
+})
 
 test('preferences/update answers with the persisted state even while the fiber still sees the pre-write snapshot', async () => {
   // Real hosts swap the fiber's config to a new object on a volatile write, so the

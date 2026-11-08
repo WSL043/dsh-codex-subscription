@@ -309,7 +309,7 @@ test('account routes register without directly accessing the web server', () => 
   const host = fakeContext({ webServer: false })
   assert.doesNotThrow(() => applyPlugin(host.ctx, host.config))
   assert.equal(host.handled.length, RPC_ENDPOINTS.length)
-  assert.equal(host.tools.length, 1)
+  assert.deepEqual(host.tools.map(tool => tool.name).sort(), ['codex_image_generate', 'codex_subscription_preferences'])
 })
 
 test('optional Codex fetch reports live routing support, fails closed signed out, and unload restores the native registry', async () => {
@@ -441,7 +441,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.ok(profile.modelErrors instanceof Map, 'the host adapter reads model diagnostics from the profile on resolution')
   assert.equal(profile.modelErrors.get('gpt-5.5'), undefined, 'a serviceable model records no diagnostic')
   assert.deepEqual(host.searchProviders.map(provider => provider.id), ['codex-subscription', 'codex-subscription-dsh', 'codex-subscription-auto'])
-  assert.deepEqual(host.tools.map(tool => tool.name), ['codex_image_generate'])
+  assert.deepEqual(host.tools.map(tool => tool.name).sort(), ['codex_image_generate', 'codex_subscription_preferences'])
   assert.equal(host.listeners.filter(listener => listener.event === 'agent/request-error').length, 1)
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
   const models = await host.registered[0].adapter.listModels('openai-codex')
