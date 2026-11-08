@@ -9,8 +9,17 @@ export { formatLogLine, sanitizeLogText } from './diagnostic-log-format.js'
 const LEVELS = ['info', 'warn', 'error']
 const MAX_ENTRIES = 1000
 const FILE_LIMIT = 1024 * 1024
+const ARCHIVE_COUNT = 3
 
-export function createDiagnosticLog({ now = Date.now, limit = MAX_ENTRIES } = {}) {
+function rotate(file) {
+  for (let index = ARCHIVE_COUNT; index > 0; index--) {
+    const previous = index === 1 ? file : `${file}.${index - 1}`
+    try { renameSync(previous, `${file}.${index}`) }
+    catch (error) { if (error.code !== 'ENOENT') throw error }
+  }
+}
+
+export function createDiagnosticLog({ now = Date.now, limit = MAX_ENTRIES, fileLimit = FILE_LIMIT } = {}) {
   let entries = []
   let dropped = 0
   let sequence = 0
@@ -19,7 +28,9 @@ export function createDiagnosticLog({ now = Date.now, limit = MAX_ENTRIES } = {}
   const persist = entry => {
     if (file === undefined) return
     try {
-      try { if (statSync(file).size > FILE_LIMIT) renameSync(file, `${file}.1`) } catch { /* no file yet */ }
+      let size
+      try { size = statSync(file).size } catch (error) { if (error.code !== 'ENOENT') throw error }
+      if (size >= fileLimit) rotate(file)
       appendFileSync(file, `${JSON.stringify(entry)}\n`)
     } catch { /* the log must never break the plugin */ }
   }
@@ -54,7 +65,17 @@ export function createDiagnosticLog({ now = Date.now, limit = MAX_ENTRIES } = {}
       try {
         mkdirSync(dirname(path), { recursive: true })
         file = path
-        const earlier = readFileSync(path, 'utf8').trim().split('\n').slice(-Math.floor(limit / 2)).flatMap(line => {
+        const earlierLimit = Math.floor(limit / 2)
+        if (!earlierLimit) return
+        let lines = []
+        for (let index = 0; index <= ARCHIVE_COUNT && lines.length < earlierLimit; index++) {
+          const source = index === 0 ? path : `${path}.${index}`
+          try {
+            const recent = readFileSync(source, 'utf8').trim().split('\n').filter(Boolean)
+            lines = recent.slice(-(earlierLimit - lines.length)).concat(lines)
+          } catch { /* archive may not exist yet */ }
+        }
+        const earlier = lines.flatMap(line => {
           try {
             const value = JSON.parse(line)
             return LEVELS.includes(value?.level) && Number.isSafeInteger(value?.time) && typeof value?.message === 'string'

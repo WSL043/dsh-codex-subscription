@@ -47,6 +47,54 @@ test('desktop fallback checks stay passive and accept a restored constructor', (
   assert.equal(voiceCallCapability(surface), undefined)
 })
 
+test('browser voice keeps media open when both audio levels are high and still supports manual mute', async t => {
+  const track = { enabled: true, stop() {} }
+  const stream = { getTracks: () => [track], getAudioTracks: () => [track] }
+  const calls = []
+  let audio
+  class Sound extends EventTarget {
+    muted = false
+    constructor() { super(); audio = this }
+  }
+  class Peer extends EventTarget {
+    iceGatheringState = 'complete'
+    addTrack() {}
+    createDataChannel() {}
+    async createOffer() { return { sdp: 'v=0' } }
+    async setLocalDescription(offer) { this.localDescription = offer }
+    async setRemoteDescription() { this.ontrack({ streams: [stream] }) }
+    close() {}
+  }
+  class AudioContext {
+    async resume() {}
+    async close() {}
+    createAnalyser() { return { getByteTimeDomainData: buffer => buffer.fill(140) } }
+    createMediaStreamSource() { return { connect() {} } }
+  }
+  const globals = { isSecureContext: true, navigator: { mediaDevices: { getUserMedia: async () => stream } },
+    RTCPeerConnection: Peer, Audio: Sound, window: { AudioContext } }
+  for (const [key, value] of Object.entries(globals)) {
+    const prior = Object.getOwnPropertyDescriptor(globalThis, key)
+    t.after(() => { if (prior) Object.defineProperty(globalThis, key, prior); else delete globalThis[key] })
+    Object.defineProperty(globalThis, key, { configurable: true, value })
+  }
+  const call = await openVoiceCall({
+    sessionId: 'test',
+    rpc: { async call(_, method) { calls.push(method); return { ok: true, value: { answer: 'v=0' } } } },
+  })
+  try {
+    assert.ok(call.levels().mic > 0.12 && call.levels().assistant > 0.025)
+    await new Promise(resolve => setTimeout(resolve, 220))
+    assert.equal(audio.muted, false)
+    assert.deepEqual(calls, ['voice/start'])
+    call.setOutputMuted(true)
+    call.setMuted(true)
+    assert.equal(audio.muted, true)
+    assert.equal(track.enabled, false)
+    assert.equal(call.levels().mic, 0)
+  } finally { await call.stop() }
+})
+
 test('missing sample, catalog, authentication, download, playback and call errors stay distinct', () => {
   const codes = ['not-found','voice-catalog','voice-auth','voice-download','playback','unknown']
   assert.equal(new Set(codes.map(voicePreviewProblem)).size, codes.length)

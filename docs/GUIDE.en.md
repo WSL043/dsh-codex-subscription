@@ -10,9 +10,11 @@ Use DSH’s native message queue: messages sent during generation can wait for t
 
 ### Voice conversations (Beta)
 
-Enable voice conversations, then use the voice button while the composer is empty. Speaking during playback pauses the current speech so you can continue talking; it does not cancel the DSH task.
+Enable voice conversations, then use the voice button while the composer is empty. You can speak while the assistant is talking. The voice conversation can change direction while the DSH task keeps running.
 
-When DSH asks a question, the voice reads the question and numbered options. Say “the second option” or the full option label to submit. Questions in a batch are answered one at a time; questions without options accept spoken text. Unclear choices are read again. Ending voice returns unanswered questions to the DSH interface.
+When DSH needs you to choose or confirm, use the question card in the chat. Spoken numbers or labels do not submit a choice. If DSH replaces the composer with the question card, you can resume voice in the same chat after answering. Free-text questions can still be answered aloud.
+
+On Desktop, DSH posts background results in chat while the voice conversation continues. Ask about the result whenever you want to discuss it.
 
 Choosing a voice or changing the answer language plays a sample in that language. “Same as you speak” uses an English preview while the conversation still follows your spoken language. Voices without a sample are marked unavailable.
 

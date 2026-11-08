@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
 import test from 'node:test'
 import { appendChunks, callRecord, callNote, isGoodbye, channelOf, createRealtimeVoice, delegationText, parseEvent, promisesAction } from '../src/remote-control-realtime.js'
+import { createVoiceHangupClassifier } from '../src/voice-hangup.js'
 
 // A stand-in for the voice service's side channel: what the phone's call would give the host.
 class FakeSocket extends EventEmitter {
@@ -29,6 +30,32 @@ const setup = (overrides = {}) => {
 }
 const start = { threadId: 't1', transport: { type: 'existingCall', callId: 'rtc_abc' }, realtimeSessionId: 'S1', version: 'v3', realtimeStartInstructions: 'Use prefixes.' }
 const settle = () => new Promise(resolve => setTimeout(resolve, 20))
+
+test('voice diagnostics correlate background result delivery and playback without saving content', async () => {
+  const entries = []
+  const log = { info: (area, message, detail) => entries.push({ area, message, detail }), warn() {}, error() {} }
+  const { voice, notify } = setup({ options: { log } })
+  await voice.start({ ...start, liveFollowups: true }, notify, { desktop: true })
+  try {
+    const [socket] = FakeSocket.instances
+    socket.hear({ type: 'input_transcript.added', item: { text: 'private-user-speech' } })
+    socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'private-user-speech' } })
+    socket.hear({ type: 'session.output_audio.delta', delta: 'private-audio' })
+    socket.hear({ type: 'output_transcript.added', item: { text: 'private-assistant-speech' } })
+    voice.playback('t1', 'playing')
+    voice.playback('t1', 'playing')
+    voice.nativeMessage('t1', 'private-result')
+    socket.hear({ type: 'turn.done', turn: { role: 'assistant', transcript: 'private-assistant-speech' } })
+    const timeline = entries.filter(entry => entry.area === 'voice-flow')
+    assert.equal(new Set(timeline.map(entry => entry.detail.match(/call=[a-f0-9]{8}/u)?.[0])).size, 1)
+    assert.deepEqual(timeline.map(entry => entry.message), [
+      'call connected', 'user transcript started', 'voice transcript finished',
+      'service audio output began', 'voice reply transcript started', 'browser playback changed',
+      'background result shared as context', 'voice transcript finished',
+    ])
+    assert.doesNotMatch(JSON.stringify(timeline), /private-|rtc_abc/u)
+  } finally { voice.stop('t1') }
+})
 
 test('stopping a pending voice join cannot revive it after a later call has started', async () => {
   const {voice,notify}=setup()
@@ -85,11 +112,11 @@ test('input readiness requires a nonempty audio frame, stays private, and resets
   voice.stop('t1')
 })
 
-test('a spoken choice resolves the running DSH question without queuing behind that same turn', async () => {
+test('a spoken free-text answer resolves the running DSH question without queuing another turn', async () => {
   let answer, asked
   const ready = new Promise(resolve => { asked = resolve })
   const { voice, notify, delegated } = setup({ work: async () => {
-    const waiting = voice.askQuestion('t1', { questions: [{ id: 'pick', question: 'Pick a colour', options: [{ label: 'Red' }, { label: 'Blue' }] }] })
+    const waiting = voice.askQuestion('t1', { questions: [{ id: 'pick', question: 'Which city?' }] })
     asked()
     answer = await waiting
   } })
@@ -97,10 +124,12 @@ test('a spoken choice resolves the running DSH question without queuing behind t
   const [socket] = FakeSocket.instances
   socket.hear({ type: 'delegation.created', item: { id: 'task', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: 'Ask me to choose' }] } })
   await ready
-  socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: '第二个' } })
-  socket.hear({ type: 'delegation.created', item: { id: 'echo', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: '第二个' }] } })
+  assert.deepEqual(socket.sent.filter(event => event.channel === 'speakable').map(event => [event.type, event.delegation_item_id]), [['delegation.context.append', 'task']])
+  assert.match(socket.sent.at(-1).content[0].text, /Which city\?/u)
+  socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: '東京です' } })
+  socket.hear({ type: 'delegation.created', item: { id: 'echo', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: '東京です' }] } })
   await settle()
-  assert.deepEqual(answer, { answers: [{ id: 'pick', selected: ['Blue'] }] })
+  assert.deepEqual(answer, { answers: [{ id: 'pick', selected: [], custom: '東京です' }] })
   assert.equal(delegated.length, 1)
   assert.equal(voice.status('t1').working, false)
   voice.stop('t1')
@@ -112,8 +141,38 @@ test('interrupting speech redirects the voice without stopping the call or the D
   assert.equal(voice.interrupt('t1'), true)
   assert.equal(FakeSocket.instances[0].sent.at(-1).type, 'session.context.append')
   assert.equal(FakeSocket.instances[0].sent.at(-1).channel, 'developer')
+  const [socket] = FakeSocket.instances
+  socket.hear({ type: 'output_transcript.added', item: { text: 'an old response' } })
+  assert.equal(voice.replyEpoch('t1'), 0)
+  socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'Let me add something' } })
+  socket.hear({ type: 'output_transcript.added', item: { text: 'new reply' } })
+  socket.hear({ type: 'output_transcript.added', item: { text: 'more of the same reply' } })
+  assert.equal(voice.replyEpoch('t1'), 1)
   assert.equal(voice.active('t1'), true)
   voice.stop('t1')
+})
+
+test('desktop shares a background result during live speech without requesting playback', async () => {
+  const { voice, notify } = setup()
+  await voice.start({ ...start, liveFollowups: true }, notify, { desktop: true })
+  const [socket] = FakeSocket.instances
+  try {
+    socket.hear({ type: 'input_transcript.added', item: { text: '少し待って' } })
+    socket.hear({ type: 'session.output_audio.delta', delta: 'conversation audio' })
+    const lead = '最初に認証の問題が見つかりました。'
+    voice.nativeMessage('t1', lead + '次に設定とネットワークを確認しました。'.repeat(80))
+    const context = socket.sent.filter(event => event.channel === 'commentary').map(event => event.content[0].text).join('')
+    assert.match(context, /\[BACKGROUND_RESULT\]/u)
+    assert.ok(context.includes(lead))
+    assert.match(context, /See the written answer for remaining details/u)
+    assert.ok(Buffer.byteLength(context) < 2200)
+    const afterResult = socket.sent.length
+    socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: '少し待って' } })
+    socket.hear({ type: 'output_transcript.added', item: { text: 'もちろん。' } })
+    socket.hear({ type: 'turn.done', turn: { role: 'assistant', transcript: 'もちろん。' } })
+    assert.equal(socket.sent.length, afterResult, 'ending the voice reply does not trigger another handoff')
+    assert.ok(!socket.sent.some(event => event.channel === 'speakable'))
+  } finally { voice.stop('t1') }
 })
 
 test('transcripts reach the phone, a spoken request runs as a turn and its answer is spoken back', async () => {
@@ -248,6 +307,51 @@ test('when the voice model hands the goodbye over itself (even just before the f
   socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'bye' } })
   await new Promise(resolve => setTimeout(resolve, 2_800))
   assert.equal(delegated.length, 1)
+})
+
+test('a classified desktop hang-up closes the call while a previous queue admission is still pending', async () => {
+  const queued = []
+  const admitted = Promise.withResolvers()
+  const { voice, notify, notes } = setup({ options: {
+    queue: async (_id, text) => { queued.push(text); await admitted.promise },
+    classifyHangUp: async text => text === 'えーじゃあ今日はこの辺でね',
+  } })
+  await voice.start({ ...start, hangUpOnGoodbye: true, liveFollowups: true }, notify, { desktop: true })
+  const [socket] = FakeSocket.instances
+  const delegate = (id, text) => socket.hear({ type: 'delegation.created', item: { id, type: 'delegation', target: 'client', content: [{ type: 'input_text', text }] } })
+  try {
+    voice.nativeWork('t1', true)
+    delegate('d1', '「バイバイ」の意味を調べて')
+    await settle()
+    assert.deepEqual(queued, ['「バイバイ」の意味を調べて'])
+    const screenDone = voice.waitForScreenAnswer('t1')
+    delegate('d2', 'えーじゃあ今日はこの辺でね')
+    await settle()
+    assert.equal(voice.active('t1'), false)
+    assert.equal(socket.closed, true)
+    assert.ok(notes.some(note => note.method === 'thread/realtime/closed' && note.params.reason === 'spoken-hangup'))
+    screenDone()
+    admitted.resolve()
+    await settle()
+    assert.deepEqual(queued, ['「バイバイ」の意味を調べて'])
+  } finally { admitted.resolve(); voice.stop('t1') }
+})
+
+test('voice hang-up requires a complete affirmative classification and sends only a one-shot utterance', async () => {
+  let request, text = 'HANG_UP', reason = 'stop'
+  const classify = createVoiceHangupClassifier({ provider: 'openai-codex', model: () => 'test-model',
+    async *stream(options) { request = options; yield { type: 'text-delta', text }; yield { type: 'finish', reason: { kind: reason } } },
+  })
+  const signal = new AbortController().signal
+  assert.equal(await classify('えーじゃあ今日はこの辺でね', signal), true)
+  assert.deepEqual(request.messages, [{ role: 'user', content: [{ type: 'text', text: 'えーじゃあ今日はこの辺でね' }] }])
+  assert.deepEqual(request.tools, [])
+  assert.equal(request.sessionId, undefined)
+  assert.equal(request.signal, signal)
+  text = 'HANG_UP (maybe)'
+  assert.equal(await classify('通話は切らないで', signal), false)
+  text = 'HANG_UP'; reason = 'max-tokens'
+  await assert.rejects(classify('通話は切らないで', signal), /did not complete/)
 })
 
 test('a close request marks the call as closing and leaves the hanging up to the window', async () => {

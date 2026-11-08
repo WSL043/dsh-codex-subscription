@@ -23,6 +23,7 @@ import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { USER_AGENT } from './version.js'
 import { createRemoteControl } from './remote-control.js'
 import { createDshRemoteControl } from './remote-control-dsh.js'
+import { createVoiceHangupClassifier } from './voice-hangup.js'
 import { createRemoteHistorySource } from './remote-history-source.js'
 import { createUltraExecutionPreset } from './ultra-execution.js'
 import { loadHostSessionSdk } from './host-session-sdk.js'
@@ -663,7 +664,15 @@ export function apply(ctx, config = {}) {
     trace: entry => { try { remoteControl.host.note(entry) } catch { /* diagnostics only */ } },
     userAgent: USER_AGENT,
     configFile: dshHomePath('state', 'codex-subscription', 'remote-config.json'),
-    voice: { WebSocket, fetch: (input, init) => network.fetch('remote', input, init), credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal) },
+    voice: {
+      WebSocket,
+      fetch: (input, init) => network.fetch('remote', input, init),
+      credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal),
+      classifyHangUp: createVoiceHangupClassifier({
+        stream: request => ctx.llm.stream(request), provider: PROVIDER,
+        model: () => ['gpt-5.6-luna', 'gpt-5.4-mini'].find(id => modelCatalog.getModels().some(model => model.id === id)) ?? 'gpt-5.6-luna',
+      }),
+    },
   })
   ctx.effect(() => () => remoteBridge.close())
   const remoteControl = createRemoteControl({

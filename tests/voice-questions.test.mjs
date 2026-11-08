@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createVoiceQuestions, spokenChoice } from '../src/voice-questions.js'
+import { createVoiceQuestions } from '../src/voice-questions.js'
 import { createBargeInGate } from '../src/voice-barge-in.js'
 
 test('native barge-in covers brief pauses between spoken words without triggering while idle', () => {
@@ -19,38 +19,34 @@ test('native barge-in covers brief pauses between spoken words without triggerin
   assert.equal(interrupts, 1)
 })
 
-const question = { id: 'scope', question: 'Which change?', options: [{ label: 'Only report the time' }, { label: 'Change computer settings' }] }
+const question = { id: 'where', question: 'Which city?' }
 
-test('spoken ordinals and labels choose the offered option; uncertainty never submits', () => {
-  for (const text of ['第二个', '选第二个', '我选第二个', '第二項', 'second', 'option two', '2番目', '두번째']) {
-    assert.deepEqual(spokenChoice(text, question), { id: 'scope', selected: ['Change computer settings'] }, text)
-  }
-  assert.equal(spokenChoice('我还不确定第二个好不好', question), undefined)
-  assert.equal(spokenChoice('第三个', question), undefined)
-  assert.equal(spokenChoice('not the second', question), undefined)
-  assert.deepEqual(spokenChoice('Change computer settings', question), { id: 'scope', selected: ['Change computer settings'] })
-})
-
-test('multiple questions advance separately, free text is retained and repeated ordinals are allowed', async () => {
+test('free-text questions retain the final user transcript and ignore generated guesses', async () => {
   const spoken = []
-  const voice = createVoiceQuestions({ speak: text => spoken.push(text) })
-  const answer = voice.ask({ questions: [question, { ...question, id: 'second' }, { id: 'why', question: 'Why?' }] })
-  assert.match(spoken[0], /"number":2/)
-  assert.equal(voice.consume('不确定'), true)
-  assert.equal(voice.active, true)
-  voice.consume('第二个')
-  voice.consume('第二个', { delegation: true }) // echoed by the voice model, not another user answer
-  voice.consume('第二个')
-  voice.consume('Because I want to.')
+  const voice = createVoiceQuestions({ speak: question => spoken.push(question.id) })
+  const answer = voice.ask({ questions: [question, { id: 'why', question: 'Why?' }] })
+  assert.equal(voice.consume('a guessed city', { delegation: true }), true)
+  assert.deepEqual(spoken, ['where'])
+  voice.consume('東京都です。')
+  voice.consume('東京都です', { delegation: true })
+  assert.deepEqual(spoken, ['where', 'why'])
+  voice.consume('Parce que je connais la ville.')
   assert.deepEqual(await answer, { answers: [
-    { id: 'scope', selected: ['Change computer settings'] },
-    { id: 'second', selected: ['Change computer settings'] },
-    { id: 'why', selected: [], custom: 'Because I want to.' },
+    { id: 'where', selected: [], custom: '東京都です。' },
+    { id: 'why', selected: [], custom: 'Parce que je connais la ville.' },
   ] })
 })
 
-test('canceling or losing voice releases the outstanding question and does not keep its answer listener', async () => {
-  const voice = createVoiceQuestions({ speak() {} })
+test('choice and confirmation requests require the screen even when voice is available', async () => {
+  const voice = createVoiceQuestions({ speak: () => assert.fail('screen question was sent to the voice model') })
+  for (const request of [{ ...question, options: [{ label: 'Tokyo' }] }, { ...question, intent: { kind: 'approval' } }]) {
+    await assert.rejects(voice.ask({ questions: [request] }), /DSH answer form/u)
+    assert.equal(voice.active, false)
+  }
+})
+
+test('canceling or losing voice releases the outstanding question and its listener', async () => {
+  const voice = createVoiceQuestions({ speak: () => true })
   const control = new AbortController()
   const pending = voice.ask({ questions: [question], signal: control.signal })
   control.abort(new Error('Task canceled'))
@@ -59,6 +55,17 @@ test('canceling or losing voice releases the outstanding question and does not k
   const next = voice.ask({ questions: [question] })
   voice.close()
   await assert.rejects(next, /connection closed/)
+})
+
+test('a failed send or a silent voice model releases the question for the normal DSH answerer', async () => {
+  const unavailable = createVoiceQuestions({ speak: () => false })
+  await assert.rejects(unavailable.ask({ questions: [question] }), /Could not send/u)
+  assert.equal(unavailable.active, false)
+  const silent = createVoiceQuestions({ speak: () => true, deliveryMs: 10 })
+  const waiting = silent.ask({ questions: [question] })
+  silent.heardReply('I have a question for you.')
+  await Promise.all([assert.rejects(waiting, /No voice response/u), new Promise(resolve => setTimeout(resolve, 20))])
+  assert.equal(silent.active, false)
 })
 
 test('barge-in stops audible playback once, keeps microphone speech and waits for stale output to drain', () => {
@@ -74,5 +81,18 @@ test('barge-in stops audible playback once, keeps microphone speech and waits fo
   assert.deepEqual(changes, [true], 'old audio stays inaudible even after the user stops')
   gate.sample({ mic: 0, output: 0, now: 1000 })
   gate.sample({ mic: 0, output: 0, now: 1300 })
+  assert.deepEqual(changes, [true, false])
+})
+
+test('a new reply becomes audible after barge-in even with no silent gap between outputs', () => {
+  const changes = []
+  const gate = createBargeInGate({ changed: value => changes.push(value), interrupt() {} })
+  const sample = (now, mic, replyEpoch) => gate.sample({ now, mic, output: .4, replyEpoch })
+  sample(0, .4, 4)
+  sample(130, .4, 4)
+  sample(200, 0, 4)
+  sample(850, 0, 4)
+  assert.deepEqual(changes, [true])
+  sample(880, 0, 5)
   assert.deepEqual(changes, [true, false])
 })

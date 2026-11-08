@@ -86,16 +86,6 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
           : 'Could not save the default model')
       }
     }
-    if (endpoint === 'voice/interrupt') {
-      try {
-        signal.throwIfAborted()
-        if (typeof desktopVoice?.interrupt !== 'function' || typeof payload?.sessionId !== 'string') return publicError('unavailable', 'Voice is unavailable')
-        return { ok: true, value: { interrupted: desktopVoice.interrupt(payload.sessionId) } }
-      } catch (error) {
-        if (signal.aborted) throw error
-        return publicError('operation-error', 'Could not interrupt voice')
-      }
-    }
     if (endpoint === 'voice/status') {
       try {
         signal.throwIfAborted()
@@ -105,6 +95,12 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
         if (signal.aborted) throw error
         return publicError('operation-error', 'Could not read the voice status')
       }
+    }
+    if (endpoint === 'voice/playback') {
+      signal.throwIfAborted()
+      if (typeof payload?.sessionId !== 'string' || !['playing', 'waiting'].includes(payload.state)) return publicError('invalid-input', 'Invalid playback event')
+      desktopVoice?.playback?.(payload.sessionId, payload.state)
+      return { ok: true, value: {} }
     }
     if (endpoint === 'voice/start' || endpoint === 'voice/stop') {
       try {

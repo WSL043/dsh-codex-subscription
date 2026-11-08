@@ -1,5 +1,4 @@
 import { CHANNEL } from './rpc-contract.js'
-import { createBargeInGate } from './voice-barge-in.js'
 import { voiceCallCapability } from './voice-problems.js'
 
 const ICE_WAIT_MS = 3_000
@@ -79,12 +78,15 @@ export async function openVoiceCall({ rpc, sessionId, onEnd, signal }) {
   for (const track of stream.getTracks()) connection.addTrack(track, stream)
   connection.createDataChannel('oai-events')
   let ended = false
-  let monitor
+  const notePlayback = state => {
+    if (!ended) void rpc.call(CHANNEL, 'voice/playback', { sessionId, state }).catch(() => {})
+  }
+  sound.addEventListener('playing', () => notePlayback('playing'))
+  sound.addEventListener('waiting', () => notePlayback('waiting'))
   const end = async () => {
     if (ended) return
     ended = true
     signal?.removeEventListener('abort', aborted)
-    clearInterval(monitor)
     if (context) chime(context, [740, 520])
     for (const track of stream.getTracks()) track.stop()
     sound.srcObject = null
@@ -115,22 +117,13 @@ export async function openVoiceCall({ rpc, sessionId, onEnd, signal }) {
   if (context) chime(context, [520, 740])
   const buffers = { mic: new Uint8Array(512), assistant: new Uint8Array(512) }
   let muted = false
-  let outputMuted = false
-  let interrupted = false
-  const gate = createBargeInGate({
-    changed: value => { interrupted = value; sound.muted = outputMuted || interrupted },
-    interrupt: () => { void rpc.call(CHANNEL, 'voice/interrupt', { sessionId }).catch(() => {}) },
-  })
-  if (context) monitor = setInterval(() => gate.sample({
-    mic: muted ? 0 : loudness(analysers.mic, buffers.mic),
-    output: loudness(analysers.assistant, buffers.assistant), now: performance.now(),
-  }), 30)
+  // Both media directions stay open. The voice service handles turn-taking; levels only drive the UI.
   return {
     stop: end,
     isMuted: () => muted,
     setMuted: value => { muted = value; for (const track of stream.getAudioTracks()) track.enabled = !value },
-    isOutputMuted: () => outputMuted,
-    setOutputMuted: value => { outputMuted = value; sound.muted = outputMuted || interrupted },
+    isOutputMuted: () => sound.muted,
+    setOutputMuted: value => { sound.muted = value },
     /** How loud the person (mic) and the model (voice) are right now, 0..1 each. */
     levels: () => ({ mic: muted ? 0 : loudness(analysers.mic, buffers.mic), assistant: loudness(analysers.assistant, buffers.assistant) }),
   }

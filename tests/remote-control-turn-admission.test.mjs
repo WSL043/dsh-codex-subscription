@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { EventEmitter } from 'node:events'
 import test from 'node:test'
 import { createDshRemoteControl } from '../src/remote-control-dsh.js'
 
@@ -9,18 +10,19 @@ async function until(predicate) {
   while (!predicate()) { if (Date.now() > end) throw Error('Admission did not settle'); await tick() }
 }
 const input = text => [{ type: 'text', text }]
-function fixture() {
+function fixture(voice) {
   const calls = [], notes = [], idle = []
   let admission = async () => ({ accepted: true }), resolve = async () => {}, tier = 'default', speedGate
-  const session = { id: 's', meta: {}, deriveMessages: () => [] }
-  const agent = { session, whenIdle: () => { const next = deferred(); idle.push(next); return next.promise } }
+  const messages = []
+  const session = { id: 's', meta: {}, deriveMessages: () => messages }
+  const agent = { session, status: 'idle', whenIdle: () => { const next = deferred(); idle.push(next); return next.promise } }
   const bridge = createDshRemoteControl({
     controller: () => ({
       resolveAgent: async () => { await resolve(); return { agent } },
       modelCatalog: async () => ({ groups: [] }),
       prompt: async (request, signal) => { calls.push({ request, signal }); return admission(request, signal) },
       cancel: () => { calls.push({ cancel: true }) },
-    }), agents: () => ({}), userAgent: 'admission-test/1',
+    }), agents: () => ({}), userAgent: 'admission-test/1', voice,
     speed: { current: () => tier, set: async value => { tier = value; if (speedGate) await speedGate.promise } },
   })
   const notify = async (method, params) => { notes.push({ method, params: structuredClone(params) }) }
@@ -30,9 +32,138 @@ function fixture() {
   const list = () => call('thread/queue/list').data
   const prompts = () => calls.filter(call => call.request)
   const completed = () => notes.filter(note => note.method === 'turn/completed')
-  return { bridge, session, calls, notes, idle, call, start, add, list, prompts, completed,
+  return { bridge, session, agent, messages, calls, notes, idle, call, start, add, list, prompts, completed,
     admit: value => { admission = value }, resolve: value => { resolve = value },
     speedGate: value => { speedGate = value }, tier: () => tier }
+}
+
+for (const origin of ['voice', 'native', 'reopened voice']) {
+  test(`desktop voice queues behind a running ${origin} turn and associates results when DSH starts them`, async () => {
+    const alreadyRunning = origin === 'native'
+    let socket
+    class VoiceSocket extends EventEmitter {
+      sent = []
+      constructor() { super(); socket = this; queueMicrotask(() => this.emit('open')) }
+      send(frame) { this.sent.push(JSON.parse(frame)) }
+      close() { this.emit('close') }
+      delegate(id, text) {
+        this.emit('message', JSON.stringify({ type: 'delegation.created', item: { type: 'delegation', target: 'client', id, content: [{ type: 'input_text', text }] } }))
+      }
+    }
+    const f = fixture({
+      WebSocket: VoiceSocket,
+      credentials: async () => ({ access: 'test', accountId: 'test' }),
+      fetch: async () => new Response('v=0', { headers: { location: '/calls/rtc_test_test' } }),
+    })
+    const admission = deferred()
+    const admitted = []
+    f.admit(async request => {
+      await admission.promise
+      admitted.push(request)
+      return { accepted: true }
+    })
+    const begin = request => {
+      f.agent.status = 'running'
+      f.bridge.onSessionEvent(f.session, { type: 'turn/start' })
+      if (request) f.bridge.onSessionEvent(f.session, { type: 'user/message', data: { source: { kind: 'user', rpcId: request.requestId } } })
+    }
+    if (alreadyRunning) f.agent.status = 'running'
+    try {
+      await f.bridge.desktopVoice.start({ sessionId: 's', sdp: 'v=0', language: 'ja' })
+      if (!alreadyRunning) {
+        socket.delegate('first', 'Check the documentation')
+        await until(() => f.prompts().length === 1)
+      }
+      if (origin === 'reopened voice') {
+        admission.resolve()
+        await until(() => admitted.length === 1)
+        begin(admitted.shift())
+        f.messages.push({ role: 'user', content: input('The chosen colour is blue. <system-reminder>internal secret</system-reminder>') }, { role: 'tool', content: input('private tool output') })
+        f.agent.inject = () => assert.fail('the previous DSH task is still working')
+        socket.emit('message', JSON.stringify({ type: 'turn.done', turn: { role: 'assistant', transcript: 'The last call was about the blue option.' } }))
+        f.bridge.desktopVoice.stop('s')
+        await f.bridge.desktopVoice.start({ sessionId: 's', sdp: 'v=0', language: 'ja' })
+        const history = socket.sent.filter(event => event.channel === 'commentary').map(event => event.content[0].text).join('')
+        assert.match(history, /chosen colour is blue/u)
+        assert.match(history, /last call was about the blue option/u)
+        assert.doesNotMatch(history, /internal secret|private tool output/u)
+        assert.ok(!socket.sent.some(event => event.channel === 'speakable'))
+        f.agent.inject = () => {}
+      }
+      socket.delegate('followup', 'Focus on the Windows setup')
+      if (origin === 'voice') {
+        assert.equal(f.prompts().length, 1, 'preserve the order of native queue admissions')
+        admission.resolve()
+        await until(() => admitted.length === 2)
+        begin(admitted.shift())
+      }
+      if (alreadyRunning) admission.resolve()
+      await until(() => socket.sent.some(event => event.delegation_item_id === 'followup' && event.channel === 'commentary'))
+      assert.deepEqual(f.prompts().map(call => call.request.mode), alreadyRunning ? ['queue'] : ['queue', 'queue'])
+      assert.equal(f.prompts().at(-1).request.content[0].text, 'Focus on the Windows setup')
+      assert.equal(f.calls.some(call => call.cancel), false)
+      assert.equal(f.bridge.desktopVoice.status('s').working, true)
+      const lead = 'I found the Windows setup.'
+      const detail = 'It needs one local configuration change.'
+      const delta = text => f.bridge.onStream(f.session, { type: 'chunk', chunk: { type: 'text-delta', text } })
+      const speech = () => socket.sent.filter(event => event.channel === 'speakable').map(event => event.content[0].text)
+      const form = deferred()
+      let forms = 0
+      if (origin === 'voice') {
+        const phone = Object.assign(async () => {}, { ask: async () => assert.fail('phone intercepted the desktop question') })
+        await f.call('thread/resume', {}, { notify: phone })
+      }
+      const question = f.bridge.onQuestion({ agent: f.agent, questions: [{ id: 'choose', question: 'どちらの方式にしますか？', options: [{ label: '標準' }, { label: '詳細' }] }] }, () => { forms++; return form.promise })
+      assert.match(speech().at(-1), /^\[SCREEN_CHOICE\]/u)
+      assert.equal(f.bridge.desktopVoice.status('s').awaitingScreenAnswer, true)
+      for (const text of ['2番でお願いします', '第二个', 'Option two', 'la deuxième option']) {
+        socket.emit('message', JSON.stringify({ type: 'turn.done', turn: { role: 'user', transcript: text } }))
+        socket.delegate('echo', text)
+      }
+      await tick()
+      assert.equal(forms, 1)
+      assert.equal(f.bridge.desktopVoice.status('s').awaitingScreenAnswer, true)
+      assert.equal(speech().filter(text => text.startsWith('[SCREEN_CHOICE]')).length, 1)
+      form.resolve({ answers: [{ id: 'choose', selected: ['詳細'] }] })
+      assert.deepEqual(await question, { answers: [{ id: 'choose', selected: ['詳細'] }] })
+      assert.equal(f.bridge.desktopVoice.status('s').awaitingScreenAnswer, false)
+      assert.ok(socket.sent.some(event => event.channel === 'commentary' && event.content[0].text.includes('["詳細"]')))
+      assert.equal(f.prompts().length, alreadyRunning ? 1 : 2)
+      if (origin === 'native') {
+        const send = socket.send
+        const fallback = { answers: [{ id: 'fallback', selected: [], custom: 'typed on screen' }] }
+        assert.equal(await f.bridge.onQuestion({ agent: f.agent, questions: [{ id: 'fallback', question: '長い質問です。'.repeat(40) }] }, () => fallback), fallback)
+        socket.send = () => { throw Error('sideband unavailable') }
+        assert.equal(await f.bridge.onQuestion({ agent: f.agent, questions: [{ id: 'fallback', question: 'What next?' }] }, () => fallback), fallback)
+        socket.send = send
+      }
+      f.bridge.onStream(f.session, { type: 'start' })
+      delta('I found the Windows')
+      delta(' setup.')
+      delta(' ' + detail)
+      assert.ok(!speech().some(text => text.includes(lead)))
+      f.bridge.onStream(f.session, { type: 'end', outcome: { eventType: 'assistant/message' } })
+      f.bridge.onSessionEvent(f.session, { type: 'assistant/message', data: { message: { id: 'answer', role: 'assistant', content: [{ type: 'text', text: `${lead} ${detail}` }] } } })
+      const results = socket.sent.filter(event => event.content?.[0]?.text.includes(lead))
+      assert.equal(results.length, 1)
+      assert.equal(results[0].channel, 'commentary')
+      assert.match(results[0].content[0].text, /It needs one local configuration change/u)
+      if (origin === 'voice') assert.equal(results[0].delegation_item_id, 'first')
+      else assert.equal(results[0].delegation_item_id, undefined)
+      f.agent.status = 'idle'
+      f.bridge.onSessionEvent(f.session, { type: 'turn/end', data: {} })
+      await until(() => !f.bridge.desktopVoice.status('s').working)
+      assert.equal(admitted.length, 1)
+      begin(admitted.shift())
+      f.bridge.onSessionEvent(f.session, { type: 'assistant/message', data: { message: { role: 'assistant', content: input('Queued task finished') } } })
+      assert.ok(socket.sent.some(event => event.delegation_item_id === 'followup' && event.content[0].text.includes('Queued task finished')))
+      assert.ok(!f.calls.some(call => call.cancel))
+    } finally {
+      admission.resolve()
+      f.idle[0]?.resolve()
+      f.bridge.close()
+    }
+  })
 }
 async function retainedQueue(f, count = 1) {
   await f.start()

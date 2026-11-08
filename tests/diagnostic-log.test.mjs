@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
+import { mkdtempSync, readdirSync, rmdirSync, unlinkSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createDiagnosticLog, formatLogLine, sanitizeLogText } from '../src/diagnostic-log.js'
 
 test('the log keeps no token, email, query string or user path', () => {
@@ -28,4 +31,20 @@ test('the log is bounded', () => {
   assert.equal(entries.length, 5)
   assert.equal(entries.at(-1).message, 'line 19')
   assert.ok(dropped > 0)
+})
+
+test('rotation retains the latest four files and restores recent records in order', t => {
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-diagnostics-'))
+  const file = join(dir, 'events.jsonl')
+  t.after(() => {
+    for (const name of readdirSync(dir)) unlinkSync(join(dir, name))
+    rmdirSync(dir)
+  })
+  const log = createDiagnosticLog({ fileLimit: 1 })
+  log.attach(file)
+  for (let index = 0; index < 7; index++) log.info('test', `entry ${index}`)
+  assert.deepEqual(readdirSync(dir).sort(), ['events.jsonl', 'events.jsonl.1', 'events.jsonl.2', 'events.jsonl.3'])
+  const reloaded = createDiagnosticLog()
+  reloaded.attach(file)
+  assert.deepEqual(reloaded.snapshot().entries.map(entry => entry.message), ['entry 3', 'entry 4', 'entry 5', 'entry 6'])
 })

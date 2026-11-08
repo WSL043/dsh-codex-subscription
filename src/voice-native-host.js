@@ -250,7 +250,7 @@ export function createNativeVoiceHost({ desktopVoice, spawn = spawnProcess, plat
           if (call.ended || event.event !== 'level') return
           if (![event.mic, event.assistant].every(x => typeof x === 'number' && Number.isFinite(x) && x >= 0 && x <= 1)) return
           call.levels = { mic: call.muted ? 0 : Math.min(1, event.mic * 3.2), assistant: Math.min(1, event.assistant * 3.2) }
-          if (call.state === 'connected') gate.sample({ mic: call.levels.mic, output: call.levels.assistant, now: performance.now() })
+          if (call.state === 'connected') gate.sample({ mic: call.levels.mic, output: call.levels.assistant, now: performance.now(), replyEpoch: desktopVoice.replyEpoch?.(sessionId) })
         }, error => { void closeCall(call, error.code) })
         if (call.ended) { await call.port.close(); throw aborted() }
         await withAbort(call.port.request('start', { captureAllowed: true }), call.controller.signal)

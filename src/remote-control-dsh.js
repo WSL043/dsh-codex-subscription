@@ -10,7 +10,8 @@ import { RpcError, invalidParams } from './remote-control-host.js'
 import { homeFolderAnswer, runGit } from './remote-control-git.js'
 import { phoneGitProbe, runPhoneGitProbe } from './remote-control-git-probes.js'
 import { searchFiles } from './remote-control-files.js'
-import { createRealtimeVoice, createVoiceCall, desktopInstructions } from './remote-control-realtime.js'
+import { appendChunks, createRealtimeVoice, createVoiceCall, desktopInstructions, VOICE_NOTE_PREFIX } from './remote-control-realtime.js'
+import { needsScreenAnswer } from './voice-questions.js'
 import { diagnosticLog } from './diagnostic-log.js'
 import { phoneLog } from './remote-control-log.js'
 import { phoneModelUpgrade, phoneRateLimits } from './remote-control-capabilities.js'
@@ -111,6 +112,33 @@ function parseArguments(value) {
 export const visibleText = content => textOf(content).replace(/<system-reminder>[\s\S]*?<\/system-reminder>/gu, '').trim()
 /** Text of a user-role message the person wrote; DSH's own injected ones (runtime context, notices) carry another source kind. */
 export const typedText = message => message.role === 'user' && (message.source === undefined || message.source?.kind === 'user') ? visibleText(message.content) : ''
+
+/** Seed only this chat's recent visible text. Pending notes may not have been committed to the session yet. */
+function voiceStartupContext(agent, saving) {
+  const messages = agent.session.deriveMessages()
+  const entries = []
+  const notes = new Set()
+  const addNote = text => {
+    const excerpt = appendChunks(text.trim(), 1050)[0]
+    if (excerpt && !notes.has(excerpt)) { notes.add(excerpt); entries.push(excerpt) }
+  }
+  for (const text of saving.toReversed()) addNote(text)
+  const inbox = agent.inbox?.nextStep
+  for (const message of Array.isArray(inbox) ? inbox.toReversed() : []) {
+    if (entries.length >= 8) break
+    const text = typedText(message)
+    if (text.startsWith(VOICE_NOTE_PREFIX)) addNote(text)
+  }
+  for (let i = messages.length - 1; i >= 0 && entries.length < 8; i--) {
+    const message = messages[i]
+    const text = message.role === 'assistant' ? visibleText(message.content) : typedText(message)
+    if (text.startsWith(VOICE_NOTE_PREFIX)) addNote(text)
+    else if (text) entries.push(`${message.role === 'user' ? 'User' : 'Assistant'}: ${appendChunks(text, 420)[0]}`)
+  }
+  if (entries.length === 0) return ''
+  const recent = appendChunks(entries.join('\n'), 3000)[0]
+  return `Recent context from this chat only, newest first. Use it only as background. Do not read it aloud or repeat old requests.\n${recent}`
+}
 
 const lines = text => String(text ?? '').split('\n')
 const added = text => lines(text).map(line => `+${line}`).join('\n')
@@ -807,30 +835,41 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     return needle === '' || snippets.has(entry.id) || `${entry.name ?? ''} ${entry.preview}`.toLocaleLowerCase().includes(needle)
   }
 
+  const voiceWorkers = new Map()
   /** Run a request the voice model handed over as a turn, and pass each message the agent finishes back to it. */
-  const delegateToAgent = async (threadId, text, onMessage) => {
+  const delegateToAgent = async (threadId, text, onMessage, isCurrent) => {
     for (let waited = 0; active.has(threadId) && waited < 600_000; waited += 500) await new Promise(resolve => setTimeout(resolve, 500))
     let finish
     const finished = new Promise(resolve => { finish = resolve })
+    const desktop = realtimeVoice.isDesktop(threadId)
     const observer = async (method, params) => {
       if (params?.threadId !== threadId) return
-      if (method === 'item/completed' && params.item?.type === 'agentMessage' && typeof params.item.text === 'string' && params.item.text.trim() !== '') onMessage(params.item.text)
+      if (!desktop && method === 'item/completed' && params.item?.type === 'agentMessage' && typeof params.item.text === 'string' && params.item.text.trim() !== '') onMessage(params.item.text)
       else if (method === 'turn/completed') finish()
     }
+    if (isCurrent) voiceWorkers.set(threadId, isCurrent)
     try {
       await startTurn({ threadId, input: [{ type: 'text', text, text_elements: [] }] }, observer)
       await finished
     } finally {
+      if (voiceWorkers.get(threadId) === isCurrent) voiceWorkers.delete(threadId)
       subscribers.get(threadId)?.delete(observer)
     }
+  }
+  const queueVoiceWork = async (threadId, text, requestId) => {
+    const result = await service().prompt({
+      requestId, sessionId: threadId, mode: 'queue', content: [{ type: 'text', text }],
+    }, AbortSignal.timeout(30_000))
+    if (result?.accepted === false) throw new Error('DSH rejected the message')
   }
   /** Leave text in the conversation's context for its next message, without starting a turn. */
   const recordToAgent = async (threadId, text) => {
     const agent = await agentFor(threadId)
     if (typeof agent.inject !== 'function') return
+    if (agent.status === 'running') await agent.whenIdle?.()
     agent.inject({ id: randomUUID(), role: 'user', content: [{ type: 'text', text }], source: { kind: 'user' } })
   }
-  const realtimeVoice = voice ? createRealtimeVoice({ ...voice, userAgent, log: diagnosticLog, delegate: delegateToAgent, record: recordToAgent }) : undefined
+  const realtimeVoice = voice ? createRealtimeVoice({ ...voice, userAgent, log: diagnosticLog, delegate: delegateToAgent, queue: queueVoiceWork, record: recordToAgent }) : undefined
 
   const phoneConfig = createPhoneConfig(configFile)
 
@@ -1239,14 +1278,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   }
 
   /** DSH's ask-user tool: show the questions on the phone that drives the turn, else leave them to DSH. */
-  const onQuestion = (request, next) => {
-    const threadId = request.agent?.session?.id
-    if (realtimeVoice?.active(threadId)) {
-      return realtimeVoice.askQuestion(threadId, request).catch(error => {
-        if (request.signal?.aborted) throw error
-        return next()
-      })
-    }
+  const showQuestion = (request, next) => {
     const found = phoneFor(request)
     trace({ method: 'hook:user-questions', phone: Boolean(found), session: request.agent?.session?.id ?? null })
     if (!found) return next()
@@ -1271,6 +1303,24 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       }),
       () => next(),
     )
+  }
+
+  const onQuestion = (request, next) => {
+    const threadId = request.agent?.session?.id
+    if (!realtimeVoice?.active(threadId)) return showQuestion(request, next)
+    if (needsScreenAnswer(request)) {
+      const done = realtimeVoice.waitForScreenAnswer(threadId)
+      const desktop = realtimeVoice.isDesktop(threadId)
+      diagnosticLog.info('voice', 'a choice question was left to the DSH answer form')
+      return Promise.resolve().then(() => desktop ? next() : showQuestion(request, next)).then(
+        answer => { done?.(answer); return answer },
+        error => { done?.(); throw error },
+      )
+    }
+    return realtimeVoice.askQuestion(threadId, request).catch(error => {
+      if (request.signal?.aborted) throw error
+      return showQuestion(request, next)
+    })
   }
 
   const onApproval = (request, next) => {
@@ -1332,6 +1382,17 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
 
   /** Forward committed assistant and tool events of a phone-started turn as items. */
   const onSessionEvent = (session, event) => {
+    if (realtimeVoice?.tracksNativeWork(session.id)) {
+      if (event.type === 'turn/start' || event.type === 'turn/end') realtimeVoice.nativeWork(session.id, event.type === 'turn/start')
+      if (event.type === 'user/message' && event.data?.source?.kind === 'user') realtimeVoice.nativeInput(session.id, event.data.source.rpcId)
+      if (event.type === 'assistant/message' && (realtimeVoice.isDesktop(session.id) || !voiceWorkers.get(session.id)?.())) {
+        const message = event.data?.message ?? session.deriveMessages().at(-1)
+        if (message?.role === 'assistant') {
+          const text = message.content.filter(block => block.type === 'text').map(block => block.text).join('\n').trim()
+          if (text) realtimeVoice.nativeMessage(session.id, message.content.some(block => block.type === 'tool-call') ? `[STATUS] ${text}` : text)
+        }
+      }
+    }
     // A new or renamed title (DSH writes one after the first reply) reaches every phone that has the thread open.
     if (event.type === 'session/title' && typeof event.data?.title === 'string' && subscribers.has(session.id)) {
       emit(session.id, 'thread/name/updated', { threadId: session.id, threadName: event.data.title })
@@ -1445,13 +1506,16 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       }
       const { callId, answer } = await createVoiceCall({ fetch: voice.fetch, credentials: voice.credentials, userAgent, sdp, session, threadId: sessionId, signal })
       signal?.throwIfAborted()
-      await realtimeVoice.start({ threadId: sessionId, transport: { type: 'existingCall', callId }, flushTranscriptTailOnSessionEnd: true, silentTailRecord: true, hangUpOnGoodbye: true, version: 'v3' }, async () => {}, { signal })
+      await realtimeVoice.start({ threadId: sessionId, transport: { type: 'existingCall', callId }, flushTranscriptTailOnSessionEnd: true, silentTailRecord: true, hangUpOnGoodbye: true, liveFollowups: true, version: 'v3' }, async () => {}, { signal, desktop: true, startupContext: notes => voiceStartupContext(agent, notes) })
+      realtimeVoice.nativeWork(sessionId, agent.status === 'running')
       return { answer }
   }
   const desktopVoice = realtimeVoice === undefined ? undefined : Object.freeze({
     start: startDesktopVoice,
     stop: sessionId => realtimeVoice.stop(sessionId),
     interrupt: sessionId => realtimeVoice.interrupt(sessionId),
+    playback: (sessionId, state) => realtimeVoice.playback(sessionId, state),
+    replyEpoch: sessionId => realtimeVoice.replyEpoch(sessionId),
     end: sessionId => realtimeVoice.requestClose(sessionId),
     status: sessionId => realtimeVoice.status(sessionId),
   })
