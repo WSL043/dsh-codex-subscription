@@ -311,10 +311,11 @@ test('when the voice model hands the goodbye over itself (even just before the f
 
 test('a classified desktop hang-up closes the call while a previous queue admission is still pending', async () => {
   const queued = []
+  const classified = []
   const admitted = Promise.withResolvers()
   const { voice, notify, notes } = setup({ options: {
     queue: async (_id, text) => { queued.push(text); await admitted.promise },
-    classifyHangUp: async text => text === 'えーじゃあ今日はこの辺でね',
+    classifyHangUp: async text => { classified.push(text); return text === 'えー、じゃあ今日はこの辺でね' },
   } })
   await voice.start({ ...start, hangUpOnGoodbye: true, liveFollowups: true }, notify, { desktop: true })
   const [socket] = FakeSocket.instances
@@ -325,7 +326,11 @@ test('a classified desktop hang-up closes the call while a previous queue admiss
     await settle()
     assert.deepEqual(queued, ['「バイバイ」の意味を調べて'])
     const screenDone = voice.waitForScreenAnswer('t1')
+    socket.hear({ type: 'input_transcript.added', item: { text: 'えー' } })
     delegate('d2', 'えーじゃあ今日はこの辺でね')
+    await settle()
+    assert.equal(voice.active('t1'), true, 'a delegation does not decide whether to hang up')
+    socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: 'えー、じゃあ今日はこの辺でね' } })
     await settle()
     assert.equal(voice.active('t1'), false)
     assert.equal(socket.closed, true)
@@ -334,7 +339,27 @@ test('a classified desktop hang-up closes the call while a previous queue admiss
     admitted.resolve()
     await settle()
     assert.deepEqual(queued, ['「バイバイ」の意味を調べて'])
+    assert.deepEqual(classified, ['えー、じゃあ今日はこの辺でね'])
   } finally { admitted.resolve(); voice.stop('t1') }
+})
+
+test('a finalized voice-only sign-off closes the call even when no agent request arrives', async () => {
+  const { voice, notify } = setup({ options: {
+    queue: async () => assert.fail('a sign-off does not create a turn'),
+    classifyHangUp: async text => text === '作業はそのままで。私はそろそろ失礼するね。',
+  } })
+  await voice.start({ ...start, hangUpOnGoodbye: true, liveFollowups: true }, notify, { desktop: true })
+  const [socket] = FakeSocket.instances
+  try {
+    voice.nativeWork('t1', true)
+    socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: '電話は切らないでね。' } })
+    await settle()
+    assert.equal(voice.active('t1'), true)
+    socket.hear({ type: 'turn.done', turn: { role: 'user', transcript: '作業はそのままで。私はそろそろ失礼するね。' } })
+    await settle()
+    assert.equal(voice.active('t1'), false)
+    assert.equal(socket.closed, true)
+  } finally { voice.stop('t1') }
 })
 
 test('voice hang-up requires a complete affirmative classification and sends only a one-shot utterance', async () => {

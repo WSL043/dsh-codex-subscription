@@ -146,7 +146,7 @@ export function desktopInstructions(language) {
     'Keep listening and talking while the agent works. Answer progress questions briefly from its latest status, without making up details or starting the same task again. New delegated requests join the DSH task queue and run in order after any earlier work. Let the user finish speaking before reading out a result.',
     'Interruption policy: If the user cuts in with a new thought, yield, listen, and respond to what they just said. Allow brief acknowledgments without restarting your reply.',
     'DSH posts background results in the written chat. Use those results as context when the user asks what happened or continues the task. Answer from the latest result if available. Let the current conversation continue when a result arrives.',
-    'Chat that needs nothing from the computer (greetings, small talk, questions you can answer) you answer yourself. Always delegate the user’s own words when they intend to end this voice call, including natural sign-offs, even while a task is running or waiting for an answer. The host will decide and stop the call. Stopping speech, pausing work, and mentioning a farewell are different from hanging up.',
+    'Answer greetings, small talk, and questions that need no tools yourself. When the caller clearly wants to end the call, acknowledge briefly in their language. The host handles hang-up from the caller’s speech, including while work continues. Do not delegate a hang-up as a work request. Stopping speech, pausing work, and mentioning a farewell are different from hanging up.',
     'Summarize results in your own words when relevant to the conversation. Leave code, links, and full details in the written chat.',
     'Previous chat context is for reference only: do not read it aloud or repeat earlier actions. For a [QUESTION], ask the free-text question and wait. For [SCREEN_CHOICE], briefly ask the user to use the choices in the chat. Do not interpret spoken numbers as a selection or ask the same question aloud.',
     spoken ? `Speak and answer in ${spoken} unless the user clearly speaks another language.` : 'Answer in the language the user speaks.',
@@ -331,6 +331,42 @@ export function createRealtimeVoice(options) {
       flow(session, 'background result shared as context', `sent=${sent} truncated=${excerpt !== result} user_speaking=${Boolean(session.speaking)} voice_responding=${Boolean(session.voiceResponding)}`)
     }
     const isCurrent = () => !session.ended
+    const classifySpokenHangup = session.desktop && session.hangUp && typeof options.classifyHangUp === 'function'
+    let pendingSpeech, finalSpeech
+    const speechKey = text => text.normalize('NFKC').replace(/[\s\p{P}]+/gu, '').toLowerCase()
+    const checkFinalSpeech = (text, at) => {
+      const utterance = { at, key: speechKey(text), endsCall: Promise.resolve(false) }
+      finalSpeech = utterance
+      if (text) utterance.endsCall = (async () => {
+        const signal = AbortSignal.timeout(6000)
+        try {
+          if (!await options.classifyHangUp(text, signal) || signal.aborted) return false
+          if (isCurrent() && finalSpeech === utterance) {
+            flow(session, 'spoken hangup accepted')
+            stop(threadId, 'spoken-hangup')
+          }
+          return true
+        } catch {
+          if (isCurrent()) flow(session, 'spoken hangup classification unavailable')
+          return false
+        }
+      })()
+      pendingSpeech?.resolve(utterance)
+      pendingSpeech = undefined
+      return utterance.endsCall
+    }
+    const hangupDecisionFor = text => {
+      if (!classifySpokenHangup) return false
+      if (pendingSpeech) {
+        // The delegation may arrive before the transcript is final. Never hang up on provisional words.
+        return new Promise(resolve => {
+          const timer = setTimeout(resolve, 2000, false)
+          pendingSpeech.promise.then(utterance => { clearTimeout(timer); resolve(utterance.endsCall) })
+        })
+      }
+      return finalSpeech && Date.now() - finalSpeech.at < 8000 && finalSpeech.key === speechKey(text)
+        ? finalSpeech.endsCall : false
+    }
     const questionContext = (text, channel) => {
       const id = session.activeDelegation
       return send(id ? outbound.delegationAppend(id, text, channel) : outbound.sessionAppend(text, channel))
@@ -389,23 +425,7 @@ export function createRealtimeVoice(options) {
         return
       }
       if (session.closing) return
-      // Classify in parallel with work and previous admissions. A hang-up must never wait for either.
-      const classify = async () => {
-        if (!session.hangUp || !options.classifyHangUp) return false
-        const signal = AbortSignal.timeout(6000)
-        try {
-          if (!await options.classifyHangUp(text, signal) || signal.aborted) return false
-          if (!session.ended && sessions.get(threadId) === session) {
-            flow(session, 'spoken hangup accepted')
-            stop(threadId, 'spoken-hangup')
-          }
-          return true
-        } catch {
-          if (!session.ended) flow(session, 'spoken hangup classification unavailable')
-          return false
-        }
-      }
-      const decision = classify()
+      const decision = hangupDecisionFor(text)
       const requestId = crypto.randomUUID()
       // DSH owns pending work. Serialize only admission so later requests reach its queue in order.
       session.admission = session.admission.then(async () => {
@@ -468,7 +488,10 @@ export function createRealtimeVoice(options) {
       }
       if (event.kind === 'delta') {
         if (event.role === 'user') {
-          if (!session.speaking) flow(session, 'user transcript started')
+          if (!session.speaking) {
+            flow(session, 'user transcript started')
+            if (classifySpokenHangup) { finalSpeech = undefined; pendingSpeech = Promise.withResolvers() }
+          }
           session.speaking = true
         }
         else if (event.text.trim()) {
@@ -493,6 +516,9 @@ export function createRealtimeVoice(options) {
           session.lines.push({ role: event.role, text: event.text.slice(0, 400) }); if (session.lines.length > 12) session.lines.shift()
         }
         void notify('thread/realtime/transcript/done', { threadId, role: event.role, text: event.text }).catch(() => {})
+        const spoken = event.text.trim()
+        const said = Date.now()
+        const endsCall = event.role === 'user' && classifySpokenHangup ? checkFinalSpeech(spoken, said) : undefined
         const legacyGoodbye = !session.desktop && session.hangUp && event.role === 'user' && isGoodbye(event.text)
         if (event.role !== 'user') {
           session.voiceResponding = false
@@ -502,10 +528,15 @@ export function createRealtimeVoice(options) {
             session.questions.heardReply(event.text)
           }
         }
-        else if (event.role === 'user' && event.text.trim() !== '' && !legacyGoodbye) {
+        else if (spoken && !legacyGoodbye) {
           if (session.screenQuestions) return
-          if (session.questions.consume(event.text.trim())) return
-          session.unhandled.push({ text: event.text.trim(), at: Date.now() })
+          if (endsCall && session.questions.active) {
+            const answer = session.questions.captureAnswer(spoken)
+            void endsCall.then(ended => { if (!ended && isCurrent()) answer() })
+            return
+          }
+          if (session.questions.consume(spoken)) return
+          session.unhandled.push({ text: spoken, at: said })
           clearTimeout(session.unhandledTimer)
           session.unhandledTimer = setTimeout(settleUnhandled, handoverMs)
         }

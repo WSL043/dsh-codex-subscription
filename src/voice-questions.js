@@ -26,7 +26,7 @@ export function createVoiceQuestions({ speak, now = Date.now, deliveryMs = 15_00
       current.delivery.unref?.()
     } catch (error) { finish(undefined, error) }
   }
-  return {
+  const questions = {
     ask(request) {
       if (pending) return Promise.reject(new Error('Another voice question is still open'))
       if (request.signal?.aborted) return Promise.reject(request.signal.reason ?? new Error('Question aborted'))
@@ -52,6 +52,11 @@ export function createVoiceQuestions({ speak, now = Date.now, deliveryMs = 15_00
       else prompt()
       return true
     },
+    captureAnswer(text) {
+      const question = pending
+      const index = pending?.answers.length
+      return () => { if (pending && pending === question && pending.answers.length === index) questions.consume(text) }
+    },
     heardReply(text) {
       if (!pending?.delivery || !text) return
       const { question } = pending.questions[pending.answers.length]
@@ -64,4 +69,5 @@ export function createVoiceQuestions({ speak, now = Date.now, deliveryMs = 15_00
     close() { finish(undefined, new Error('Voice question connection closed')) },
     get active() { return pending !== undefined },
   }
+  return questions
 }
