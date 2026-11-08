@@ -1,7 +1,7 @@
 import { Hint, SettingsLabel } from './client-hint.jsx'
 import { useEffect, useRef, useState } from 'react'
 import { create as createQr } from 'qrcode/lib/core/qrcode.js'
-import { Button, Switch } from './client-primitives.js'
+import { Button, Switch } from './client-primitives.jsx'
 import { CHANNEL } from './rpc-contract.js'
 import { uiLocale } from './client-shared.js'
 

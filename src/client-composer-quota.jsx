@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
-import { createPortal } from 'react-dom'
-import { useAnchoredPosition, useDismissOnOutsidePointer } from './client-primitives.js'
+import { useAnchoredPosition, useDismissOnOutsidePointer, usePopover } from './client-primitives.jsx'
 import { QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
 import { fill, percent, uiLocale, windowLabel, usePreferenceSnapshot, formatQuotaForecast } from './client-shared.js'
 import { useQuickQuota } from './client-quota.jsx'
@@ -23,6 +22,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory, openSettings
   useEffect(() => () => clearTimeout(dismissTimer.current), [])
   const id = useId()
   const visible = open && quotaEnabled && !!quotas?.length
+  usePopover(panel, visible)
   const position = useAnchoredPosition({ open: visible, anchorRef: trigger, panelRef: panel, side: 'top', gap: 8, margin: 12 })
   useDismissOnOutsidePointer(trigger, visible, dismiss, panel)
   useEffect(() => { dismiss() }, [current?.model, quotaEnabled])
@@ -54,7 +54,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory, openSettings
         {preferenceSnapshot.quickQuotaMode !== QUICK_QUOTA_MODE_BAR ? <span>{`${percent(quota.remainingPercent)}%`}</span> : null}
       </span>)}
     </button>
-    {visible ? createPortal(<section ref={panel} id={id} role="dialog" aria-label={t('quotaDetails')}
+    {visible ? <section ref={panel} id={id} popover="manual" role="dialog" aria-label={t('quotaDetails')}
       className="codexQuotaPopover" tabIndex={-1} onMouseEnter={enter} onMouseLeave={leave}
       style={{ ...position, visibility: position ? 'visible' : 'hidden' }}>
       {quotas.map((quota, index) => <div className="codexQuotaDetail" key={`${quota.windowSeconds}-${index}`}>
@@ -62,7 +62,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory, openSettings
         {forecastMode ? <p>{formatQuotaForecast(quota.forecast, t, quota)}</p> : null}
       </div>)}
       {openSettings ? <button type="button" className="codexQuotaSettingsLink" onClick={() => { dismiss(); openSettings() }}>{t('openSubscriptionSettings')}</button> : null}
-    </section>, document.body) : null}
+    </section> : null}
   </>
 }
 

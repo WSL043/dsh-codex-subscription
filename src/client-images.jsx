@@ -1,7 +1,7 @@
 import { PhotoIcon, ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline'
 import { officialImageTools } from './image-official-tools.js'
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { ImageLightbox } from './client-primitives.js'
+import { ImageLightbox } from './client-primitives.jsx'
 import { useImageSource } from './use-image-source.js'
 import { buildImageEditDraft } from './image-edit.js'
 import { decodeImagePresentation } from './image-original-contract.js'
@@ -86,8 +86,7 @@ function CodexGeneratedImage({ attachment, original, gallery, rpc, sessionId, lo
       if (revision !== opening.current || viewer.open({ ...request, items: resolved }) === true) return
     }
     if (features.imageViewer) internalViewer?.open?.({ ...request, annotations: false })
-    else if (ImageLightbox) setNativePreview({ attachment, src })
-    else window.open(src, '_blank', 'noopener,noreferrer')
+    else setNativePreview({ attachment, src })
   }
   if (error && !usable) {
     return <button type="button" className="codexGeneratedImageRetry" onClick={retry}>{t('imageLoadFailed')}</button>
@@ -97,7 +96,7 @@ function CodexGeneratedImage({ attachment, original, gallery, rpc, sessionId, lo
       {src === undefined ? <span>{t('imageLoading')}</span> : <img key={attempt} src={src} onError={fail} onLoad={loaded} alt={label} />}
       {error ? <span>{t('imageLoadFailed')}</span> : null}
     </button>
-    {nativePreview?.attachment === attachment && !features.imageViewer && ImageLightbox ? <ImageLightbox
+    {nativePreview?.attachment === attachment && !features.imageViewer ? <ImageLightbox
       src={nativePreview.src} alt={label} labels={{ dialog: t('imagePreview'), close: t('imageClosePreview') }}
       onClose={() => setNativePreview(undefined)} /> : null}
   </>

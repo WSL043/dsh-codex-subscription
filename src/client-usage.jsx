@@ -1,6 +1,6 @@
 import { recoveryCall } from './client-recovery.js'
 import { useEffect, useRef, useState } from 'react'
-import { Button } from './client-primitives.js'
+import { Button } from './client-primitives.jsx'
 import { CHANNEL, unwrap, accessFailureText, usageFailureText, fill, uiLocale, percent, windowLabel, validDate, formatQuotaForecast, creditAmount, usePreferenceSnapshot } from './client-shared.js'
 import { creditExpiryStatus, creditExpiryDateText } from './credit-expiry.js'
 import { REQUEST_BLOCKED, isAccessFailureMessage } from './http-failure.js'

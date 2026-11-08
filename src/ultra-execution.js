@@ -3,7 +3,7 @@ import { LlmError } from '@deepseek-ai/dsh-llm'
 import { isDshAutoReview } from './pi-ai-runtime.js'
 import { presetEntries, SUBAGENT_PROVIDER } from './subagent-backend.js'
 
-export const ULTRA_POLICY_RECORD = 'plugin:dsh-codex-subscription/ultra-policy'
+const contextName = 'dsh-codex-subscription:ultra'
 const providerId = 'openai-codex'
 const unavailable = message => new LlmError(message, 'UNSUPPORTED_OPTION')
 const scopedTools = agent => agent?.ctx?.get?.('tools') ?? (Object.hasOwn(agent?.ctx ?? {}, 'tools') ? agent.ctx.tools : undefined)
@@ -28,11 +28,11 @@ function nativeDelegations(ctx, agent) {
  * sandbox/approval decisions, concurrency/depth budgets and cancellation.
  */
 export function createUltraExecutionPreset({ catalog, resolveAgent = () => undefined,
-  defaultEffort = () => undefined, delegations = nativeDelegations, record } = {}) {
+  defaultEffort = () => undefined, delegations = nativeDelegations } = {}) {
   const scope = new AsyncLocalStorage(), bindings = new Map()
   let context, installed = false
   const metadata = id => catalog?.metadata?.(id)?.ultra
-  const available = () => installed && typeof record === 'function' && typeof context?.get?.('tools')?.guard === 'function'
+  const available = () => installed && typeof context?.get?.('tools')?.guard === 'function'
     && delegations(context).length > 0
   const supported = id => available() && metadata(id) !== undefined
   const deactivate = binding => {
@@ -78,7 +78,6 @@ export function createUltraExecutionPreset({ catalog, resolveAgent = () => undef
     const tools = [...new Map(delegations(context, agent).map(tool => [tool.name, tool])).values()]
     if (!tools.length) throw unavailable('Ultra requires an independent subagent tool in the selected Agent preset')
     const binding = bind(agent)
-    const previous = binding.state
     deactivate(binding)
     const policy = Object.freeze({ version: 1, provider: config.provider, model: config.model,
       requestedEffort: 'ultra', effectiveEffort: preset.effectiveEffort, delegationPolicy: 'proactive',
@@ -88,10 +87,12 @@ export function createUltraExecutionPreset({ catalog, resolveAgent = () => undef
     const abort = () => { state.active = false }
     signal.addEventListener('abort', abort, { once: true })
     binding.removeAbort = () => signal.removeEventListener('abort', abort)
-    // This is an ignorable plugin record, never an extra conversation message.
-    try {
-      if (JSON.stringify(previous?.policy) !== JSON.stringify(policy)) record(agent.session, ULTRA_POLICY_RECORD, policy)
-    } catch (error) { deactivate(binding); throw error }
+  }
+  const guidance = ({ agent, signal }) => {
+    const state = bindings.get(agent)?.state
+    if (!state?.active || state.signal !== signal || signal.aborted) return ''
+    const { effectiveEffort, tools } = state.policy
+    return `DSH Ultra execution preset: the selected model uses ${effectiveEffort} reasoning. Proactively delegate useful, bounded independent work with ${tools.join(' or ')} and continue useful work while it runs. Use the native subagent controls to receive results. Do simple work directly. Respect explicit user limits, the existing depth/concurrency limits, sandbox and approvals; this preset grants no additional permissions. Apply this guidance only while it is in the latest runtime context.`
   }
   const describe = info => !info?.reasoning || !supported(info.id) || resolveAgent() &&
     (!delegations(context, resolveAgent()).length || typeof scopedTools(resolveAgent())?.guard !== 'function') ? info : {
@@ -130,6 +131,12 @@ export function createUltraExecutionPreset({ catalog, resolveAgent = () => undef
     snapshot: agent => { const state = bindings.get(agent)?.state; return state ? { ...state.policy, tools: [...state.policy.tools], active: state.active && !state.signal.aborted } : undefined },
     install(ctx) {
       if (installed) throw new Error('Ultra execution preset is already installed')
+      const prompt = ctx.get?.('systemPrompt')
+      if (typeof prompt?.context !== 'function' || typeof prompt.refreshContext !== 'function') return () => {}
+      // DSH refreshes runtime context after agent/request, then commits the
+      // resulting snapshot through the session surface. The request header
+      // already owns the selected effort; no separate policy record is needed.
+      const disposePrompt = prompt.context({ name: contextName, order: 9000, text: guidance, interpolate: false, required: true })
       context = ctx; installed = true
       const disposeRequest = ctx.on('agent/request', async ({ agent, signal, turn }, next) => {
         const config = await next()
@@ -143,7 +150,7 @@ export function createUltraExecutionPreset({ catalog, resolveAgent = () => undef
       })
       return () => {
         installed = false
-        disposeRequest(); disposeAgentListener(); disposeEnd()
+        disposePrompt(); disposeRequest(); disposeAgentListener(); disposeEnd()
         for (const agent of [...bindings.keys()]) disposeAgent(agent)
         context = undefined
       }
@@ -168,11 +175,7 @@ export function createUltraExecutionPreset({ catalog, resolveAgent = () => undef
       if (!state) return payload
       if (!state.active || state.signal.aborted || payload.model !== state.policy.model) throw unavailable('Ultra request policy is no longer active')
       if (payload.reasoning?.effort === 'ultra' || payload.input?.some(item => item.type === 'configuration_update' && item.reasoning?.effort === 'ultra')) throw unavailable('Ultra must resolve to a native model effort before sending')
-      if (payload.instructions != null && typeof payload.instructions !== 'string') throw unavailable('Ultra requires the native Codex instructions contract')
-      const guidance = `DSH Ultra execution preset: the selected model uses ${state.policy.effectiveEffort} reasoning. Proactively delegate useful, bounded independent work with ${state.policy.tools.map(name => `\`${name}\``).join(' or ')} and continue useful work while it runs. Use the native subagent controls to receive results. Do simple work directly. Respect explicit user limits, the existing depth/concurrency limits, sandbox and approvals; this preset grants no additional permissions. Do not create agents merely to use this preset.`
-      return { ...payload,
-        ...(state.policy.effectiveEffort === 'none' ? { reasoning: { ...payload.reasoning, effort: 'none' } } : {}),
-        instructions: `${payload.instructions ?? ''}\n\n<multi_agent_mode>\n${guidance}\n</multi_agent_mode>` }
+      return state.policy.effectiveEffort === 'none' ? { ...payload, reasoning: { ...payload.reasoning, effort: 'none' } } : payload
     },
   }
 }

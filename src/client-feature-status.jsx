@@ -1,5 +1,5 @@
 import { ArrowPathIcon } from '@heroicons/react/24/outline'
-import { Button, Tooltip } from './client-primitives.js'
+import { Button, Tooltip } from './client-primitives.jsx'
 
 export function FeatureLoadStatus({ failed, onRetry, t, compact = false }) {
   const label = t(failed ? 'featureLoadFailed' : 'featureLoading')

@@ -28,7 +28,7 @@ function harness() {
       }]
     },
     useRef(initial) { return refs[refIndex++] ??= { current: initial } },
-    useId: () => 'quota', useAnchoredPosition: () => null,
+    useId: () => 'quota', useAnchoredPosition: () => null, usePopover() {},
     useDismissOnOutsidePointer(_trigger, visible, dismiss) { outside = visible ? dismiss : undefined },
     useEffect(callback, deps) {
       const index = effectIndex++, previous = effects[index]

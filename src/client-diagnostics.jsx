@@ -1,6 +1,6 @@
 import { useId, useState } from 'react'
 import { SettingsLabel } from './client-hint.jsx'
-import { Button } from './client-primitives.js'
+import { Button } from './client-primitives.jsx'
 import { SUPPORT_ISSUE_URL, uiLocale } from './client-shared.js'
 import { recoveryCall, clientDiagnostic } from './client-recovery.js'
 import { diagnosticSummary } from './diagnostic-summary.js'

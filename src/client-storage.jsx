@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button } from './client-primitives.js'
+import { Button } from './client-primitives.jsx'
 import { SettingsLabel } from './client-hint.jsx'
 import { CHANNEL, unwrap } from './rpc-contract.js'
 import { uiLocale } from './client-shared.js'

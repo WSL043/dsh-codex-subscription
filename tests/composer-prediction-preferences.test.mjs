@@ -27,7 +27,7 @@ test('input predictions default off and the existing settings RPC persists only 
   assert.equal(value, 'off')
 })
 
-async function renderPreference({ tooltip = true, locale = en, componentFile = 'composer-prediction-preferences.jsx', componentName = 'ComposerPredictionPreference' } = {}) {
+async function renderPreference({ locale = en, componentFile = 'composer-prediction-preferences.jsx', componentName = 'ComposerPredictionPreference' } = {}) {
   const require = createRequire(import.meta.resolve('tsdown'))
   const { rolldown } = await import(pathToFileURL(require.resolve('rolldown')).href)
   const source = await readFile(new URL('../src/' + componentFile, import.meta.url), 'utf8') + "\nexport { SettingsLabel, Hint } from './client-hint.jsx'"
@@ -41,10 +41,10 @@ async function renderPreference({ tooltip = true, locale = en, componentFile = '
   try { code = (await bundle.generate({ format: 'cjs' })).output[0].code }
   finally { await bundle.close() }
   let snapshot = { status: 'ready', writable: true, saving: false }
-  const Switch = () => null, Tooltip = tooltip ? () => null : undefined, element = (type, props) => typeof type === 'function' && type !== Switch && type !== Tooltip ? type(props) : ({ type, props })
+  const Switch = () => null, Tooltip = () => null, element = (type, props) => typeof type === 'function' && type !== Switch && type !== Tooltip ? type(props) : ({ type, props })
   const dependencies = {
     'react/jsx-runtime': { jsx: element, jsxs: element },
-    './client-primitives.js': { Switch, Tooltip },
+    './client-primitives.jsx': { Switch, Tooltip },
     './client-shared.js': { usePreferenceSnapshot: () => snapshot },
     './settings-contract.js': await import('../src/settings-contract.js'),
     './image-models.js': await import('../src/image-models.js'),
@@ -55,13 +55,13 @@ async function renderPreference({ tooltip = true, locale = en, componentFile = '
     snapshot = { ...snapshot, ...patch }
     const row = module.exports.ComposerPredictionPreference({ preference, t: key => locale[key] })
     const [help, hint] = row.props.children[0].props.children
-    return { row, control: row.props.children.find(child => child.type === Switch), help, hint, label: Tooltip ? help.props.children : help }
+    return { row, control: row.props.children.find(child => child.type === Switch), help, hint, label: help.props.children }
   }
   const renderTree = (patch, props = {}) => { snapshot = { ...snapshot, ...patch }; return module.exports[componentName]({ preference, t: key => locale[key], ...props }) }
   return { render, renderTree, patches, Switch, Tooltip, label: props => module.exports.SettingsLabel(props), hint: props => module.exports.Hint(props) }
 }
 
-test('the compact prediction row uses the host switch and a keyboard-accessible host tooltip', async () => {
+test('the compact prediction row separates the switch state from keyboard-accessible help', async () => {
   const fixture = await renderPreference()
   const { row, control, help, hint, label } = fixture.render({})
   assert.equal(control.props.label, 'Input predictions')
@@ -70,10 +70,9 @@ test('the compact prediction row uses the host switch and a keyboard-accessible 
   assert.equal(hint.props.children, en.state_predictions_off)
   assert.equal(help.props.label, en.composerPredictionsHint)
   assert.match(help.props.label, /GPT-6 Astra, GPT-6\.1 Sol, GPT-6\.1 Terra/u)
-  assert.equal(help.props.portal, true)
   assert.equal(help.props.openOnClick, true)
   assert.equal(label.props.tabIndex, 0)
-  assert.equal(label.props.title, undefined, 'avoid duplicate native and host tooltip bubbles')
+  assert.equal(label.props.title, undefined, 'avoid duplicate tooltip bubbles')
   assert.equal(label.props.children[0], en.composerPredictions)
   assert.equal(label.props.children[2].type, 'small')
   assert.equal(label.props.children[2].props.children, 'Beta')
@@ -85,12 +84,11 @@ test('the compact prediction row uses the host switch and a keyboard-accessible 
   assert.deepEqual(fixture.patches.map(patch => ({ ...patch })), [{ composerPredictions: 'on' }, { composerPredictions: 'off' }])
 })
 
-test('old hosts retain the full explanation through a focusable title and accessible description', async () => {
-  const fixture = await renderPreference({ tooltip: false, locale: zh })
-  const { label, hint } = fixture.render({})
+test('translated prediction help keeps the same focusable target and current state', async () => {
+  const fixture = await renderPreference({ locale: zh })
+  const { help, label, hint } = fixture.render({})
   assert.equal(label.props.tabIndex, 0)
-  assert.equal(label.props.title, zh.composerPredictionsHint)
-  assert.equal(label.props['aria-description'], zh.composerPredictionsHint)
+  assert.equal(help.props.label, zh.composerPredictionsHint)
   assert.equal(hint.props.children, zh.state_predictions_off)
 })
 
@@ -126,7 +124,7 @@ const inlineText = (node, tooltip) => {
   return (Array.isArray(children) ? children.flat(Infinity) : [children]).map(child => inlineText(child, tooltip)).join(' ')
 }
 
-test('creative switches show current state inline while detailed help stays in the host tooltip', async () => {
+test('creative switches show current state inline while detailed help stays in the tooltip', async () => {
   const fixture = await renderPreference({ componentFile: 'client-pages.jsx', componentName: 'CreatePage', locale: zh })
   const base = { status: 'ready', writable: true, imageGeneration: true, imageEditing: true, imageShortcut: true, imageViewer: true, imageAnnotations: true, imageSketch: true, imageSketchAgent: true, imageModel: 'gpt-image-2', imageQuality: 'auto' }
   for (const [field, state, title] of [['imageGeneration','imageGeneration','imageGenerationRow'],['imageEditing','imageEditing','imageEditingRow'],['imageShortcut','imageShortcut','imageShortcutRow'],['imageViewer','imageViewer','imageViewerRow'],['imageSketch','sketchBoard','featureSketchTitle'],['imageSketchAgent','sketchAgent','sketchAgentRow']]) {

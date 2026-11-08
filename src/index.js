@@ -26,7 +26,6 @@ import { createDshRemoteControl } from './remote-control-dsh.js'
 import { createVoiceHangupClassifier } from './voice-hangup.js'
 import { createRemoteHistorySource } from './remote-history-source.js'
 import { createUltraExecutionPreset } from './ultra-execution.js'
-import { loadHostSessionSdk } from './host-session-sdk.js'
 import { createRemoteImageAssets } from './remote-image-assets.js'
 import { dshHomePath } from '@deepseek-ai/dsh-home-paths'
 import * as dshLlm from '@deepseek-ai/dsh-llm'
@@ -192,7 +191,6 @@ export function apply(ctx, config = {}) {
     fetch: (input, init) => network.fetch('catalog', input, init),
     retryDelaysMs: [5_000, 15_000, 30_000, 60_000, 120_000, 300_000],
   })
-  const appendUltraPolicy = loadHostSessionSdk()?.appendPluginRecord
   const subagentCatalog = createOfficialModelCatalog({
     subagent: true,
     getAuth: options => resolveAuth(options),
@@ -210,9 +208,12 @@ export function apply(ctx, config = {}) {
     catalog: modelCatalog,
     resolveAgent: () => ctx.get?.('agents')?.currentInitiator?.(),
     defaultEffort: () => settings.get()[DEFAULT_REASONING_EFFORT_FIELD],
-    record: appendUltraPolicy,
   })
-  ctx.effect(() => ultra.install(ctx), 'codex-subscription: Ultra execution preset')
+  ctx.inject(['systemPrompt'], scope => scope.effect(() => {
+    const dispose = ultra.install(scope)
+    ctx.llm.emitAdaptersUpdated?.()
+    return () => { dispose(); ctx.llm.emitAdaptersUpdated?.() }
+  }, 'codex-subscription: Ultra execution preset'))
   const connection = createSubscriptionConnection({ resolveMode: () => settings.get().connectionMode })
   // The settings surface edits DSH's own default model instead of keeping a
   // second copy, so every new conversation opens on what the user selected.

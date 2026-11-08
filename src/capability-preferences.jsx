@@ -1,6 +1,6 @@
 import { SettingsLabel } from './client-hint.jsx'
 import { useId, useEffect, useState, useSyncExternalStore } from 'react'
-import { Input } from './client-primitives.js'
+import { Input } from './client-primitives.jsx'
 import { SEARCH_MODES, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, validQuotaThreshold, normalizeSearchDomains } from './capability-settings.js'
 
 export function CapabilityPreferences({ preference, t, section, disabled = false }) {

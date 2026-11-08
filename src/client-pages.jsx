@@ -1,6 +1,6 @@
 import { useId } from 'react'
 import { Hint, SettingsLabel } from './client-hint.jsx'
-import { Switch, IconChevronRightOutline14 } from './client-primitives.js'
+import { Switch, IconChevronRightOutline14 } from './client-primitives.jsx'
 import { usePreferenceSnapshot } from './client-shared.js'
 import { CapabilityPreferences } from './capability-preferences.jsx'
 import { DefaultModelPreference } from './default-model-preferences.jsx'

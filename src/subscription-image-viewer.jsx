@@ -6,7 +6,7 @@ import {
 import {
   IconCheckOutline16, IconChevronLeftOutline14, IconChevronRightOutline14, IconCloseOutline16,
   IconCopyOutline16, IconDownloadOutline16, IconEditOutline16,
-} from './client-primitives.js'
+} from './client-primitives.jsx'
 import { SUBSCRIPTION_IMAGE_VIEWER_CSS } from './subscription-image-viewer-styles.js'
 import { useImageTransform } from './subscription-image-transform.js'
 import { paintEraseMask, paintEraseStrokes } from './image-official-tools.js'

@@ -270,7 +270,7 @@ test('a hidden workspace keeps its bridge and runs commands while a second board
 test('feature failures use native button and tooltip without expanding the compact composer control', async () => {
   const nativeButton = () => null, nativeTooltip = () => null, icon = () => null
   const dependencies = { 'react/jsx-runtime': { jsx: element, jsxs: element },
-    './client-primitives.js': { Button: nativeButton, Tooltip: nativeTooltip },
+    './client-primitives.jsx': { Button: nativeButton, Tooltip: nativeTooltip },
     '@heroicons/react/24/outline': { ArrowPathIcon: icon } }
   const exports = {}
   new vm.Script(await compileComponent('client-feature-status.jsx')).runInNewContext({

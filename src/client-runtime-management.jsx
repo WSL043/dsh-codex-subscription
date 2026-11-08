@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Button } from './client-primitives.js'
+import { Button } from './client-primitives.jsx'
 import { CHANNEL } from './rpc-contract.js'
 
 export function RuntimeManagement({ rpc, preference, t, active = true, openSubagentBundle }) {

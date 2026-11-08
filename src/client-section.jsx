@@ -1,6 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { PROJECT_URL, useAccountStatusSnapshot, usePreferenceSnapshot } from './client-shared.js'
-import { Button } from './client-primitives.js'
+import { Button } from './client-primitives.jsx'
 import { CreatePage, FeatureOverview, ModelsPage, MorePage, QuotaSettingsCard, ToolsPage } from './client-pages.jsx'
 import { AccountCard, AccountFailureCard } from './client-account.jsx'
 import { UsageCard } from './client-usage.jsx'

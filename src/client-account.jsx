@@ -1,6 +1,6 @@
 import { Hint } from './client-hint.jsx'
 import { useEffect, useRef, useState } from 'react'
-import { Button, Input } from './client-primitives.js'
+import { Button, Input } from './client-primitives.jsx'
 import { readLoginProgress } from './login-progress.js'
 import { CHANNEL, unwrap, accountStatusErrorText, maskEmail, notifyQuickQuota, accessFailureText } from './client-shared.js'
 import { isAccessFailureMessage, SIGN_IN_RENEW } from './http-failure.js'

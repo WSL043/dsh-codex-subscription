@@ -5,34 +5,32 @@ import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { ultraCatalogPreset } from '../src/ultra-effort.js'
-import { createUltraExecutionPreset, ULTRA_POLICY_RECORD } from '../src/ultra-execution.js'
+import { createUltraExecutionPreset } from '../src/ultra-execution.js'
 import { withDefaultReasoningEffort } from '../src/default-reasoning-effort.js'
 import { openaiCodexProvider, openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
 import { createReasoningBridge } from '../src/subscription-reasoning.js'
 
-const { Session, appendPluginRecord } = nativeSessionSdk
-const nativeUltraTest = (name, run) => test(name, {
-  skip: typeof appendPluginRecord !== 'function' && 'This SDK has no native ignorable plugin records; Ultra stays unavailable',
-}, run)
+const { Session } = nativeSessionSdk
 
 const user = text => ({ role: 'user', content: [{ type: 'text', text }] })
 const info = id => ({ id, reasoning: { defaultEffort: 'medium', efforts: ['low','medium','high','max'].map(id => ({ id, name: id })) } })
 const fixtureBlock = { type: 'text', text: 'synthetic answer' }
 const wireModel = { id: 'fixture', provider: 'openai-codex', api: 'openai-codex-responses', baseUrl: 'https://chatgpt.com/backend-api', reasoning: true }
 
-function fixture({ cache = false, canDelegate = true, hasRecord = true, hasGuard = true, restored } = {}) {
+function fixture({ cache = false, canDelegate = true, hasPrompt = true, hasGuard = true, restored } = {}) {
   const listeners = new Map(), guards = [], wires = []
-  let preference = 'auto', current, delegateAvailable = canDelegate, effective = 'max', tool = { name: 'subagent' }
+  let preference = 'auto', current, delegateAvailable = canDelegate, effective = 'max', prompt, tool = { name: 'subagent' }
   const session = restored ?? new Session('ultra-fixture')
   const tools = { guard(fn) { guards.push(fn); return () => { const index = guards.indexOf(fn); if (index >= 0) guards.splice(index, 1) } }, get: (name, agent, toolSet) => toolSet ? toolSet.view(agent).get(name) : name === 'subagent' ? tool : undefined }
   if (!hasGuard) delete tools.guard
   const agent = { session, ctx: { tools } }; current = agent
-  const ctx = { get: name => name === 'tools' ? tools : undefined, on(name, fn) { listeners.set(name, fn); return () => listeners.delete(name) } }
+  const systemPrompt = { context(provider) { prompt = provider; return () => { prompt = undefined } }, refreshContext() {} }
+  const ctx = { get: name => name === 'tools' ? tools : name === 'systemPrompt' && hasPrompt ? systemPrompt : undefined, on(name, fn) { listeners.set(name, fn); return () => listeners.delete(name) } }
+  const guidance = (signal, subject = agent) => prompt?.text({ agent: subject, signal }) ?? ''
   const ultra = createUltraExecutionPreset({
     catalog: { metadata: id => id === 'fixture' ? { ultra: { effectiveEffort: effective } } : undefined },
     resolveAgent: () => current, defaultEffort: () => preference,
     delegations: () => delegateAvailable ? [{ name: 'subagent', definition: tool }] : [],
-    ...(hasRecord ? { record: appendPluginRecord } : {}),
   })
   const dispose = ultra.install(ctx)
   const reasoning = cache ? createReasoningBridge({ enabled: () => true, supportsModel: () => true, accountScope: async () => 'synthetic-account', resolveSession: () => session, now: () => session.header.createdAt }) : undefined
@@ -51,16 +49,19 @@ function fixture({ cache = false, canDelegate = true, hasRecord = true, hasGuard
   const adapter = wrap(native)
   const request = async (effort, { model = 'fixture', turn = 1, signal = new AbortController().signal } = {}) => {
     const config = { provider: 'openai-codex', model, ...(effort === undefined ? {} : { reasoningEffort: effort }) }
-    const result = await listeners.get('agent/request')({ agent, signal, turn }, async () => config)
+    const listener = listeners.get('agent/request')
+    const result = listener ? await listener({ agent, signal, turn }, async () => config) : config
     assert.equal(result, config, 'the durable user selection must not be replaced with its wire effort')
     return config
   }
   const drain = async stream => { const events = []; for await (const event of stream) events.push(event); return events.at(-1) }
   const run = async (effort, messages = [user('fixture')], extra = {}) => {
-    const config = await request(effort, extra)
-    return drain(adapter.stream({ ...config, messages, sessionId: session.id, ...extra }))
+    const signal = extra.signal ?? new AbortController().signal
+    const config = await request(effort, { ...extra, signal })
+    const context = guidance(signal)
+    return drain(adapter.stream({ ...config, messages: context ? [...messages, user(context)] : messages, sessionId: session.id, ...extra, signal }))
   }
-  return { ultra, agent, session, listeners, guards, wires, adapter, request, run, drain, wrap, dispose,
+  return { ultra, agent, session, listeners, guards, wires, adapter, guidance, request, run, drain, wrap, dispose,
     preference: value => { preference = value }, delegates: value => { delegateAvailable = value }, effort: value => { effective = value }, replaceTool: () => { tool = { name: 'subagent' } }, current: value => { current = value } }
 }
 
@@ -74,12 +75,12 @@ test('Ultra follows the official catalog override and fallback order without bec
   assert.equal(ultraCatalogPreset({ supported_reasoning_levels: [{ effort: 'ultra' }, { effort: 'unknown' }] }), undefined)
 })
 
-test('missing native record/guard capability and non-advertised models do not expose Ultra', async () => {
-  const h = fixture({ hasRecord: false })
+test('missing native prompt/guard capability and non-advertised models do not expose Ultra', async () => {
+  const h = fixture({ hasPrompt: false })
   assert.equal(h.ultra.available(), false)
   assert.ok(!(await h.adapter.resolveModel('openai-codex', 'fixture')).reasoning.efforts.some(x => x.id === 'ultra'))
   h.preference('ultra'); await h.run(undefined); assert.equal(h.wires[0].reasoning.effort, 'medium')
-  await assert.rejects(h.request('ultra'), /does not advertise/)
+  await assert.rejects(h.run('ultra'), /does not advertise/)
   h.dispose()
   const oldHost = fixture({ hasGuard: false })
   oldHost.preference('ultra'); await oldHost.run(undefined)
@@ -98,27 +99,13 @@ test('global Ultra default falls back on unsupported models and presets without 
   h.dispose()
 })
 
-test('the installed SDK capability controls whether Ultra can be advertised', async () => {
-  const h = fixture()
-  const supported = typeof appendPluginRecord === 'function'
-  assert.equal(h.ultra.available(), supported)
-  assert.equal((await h.adapter.resolveModel('openai-codex', 'fixture')).reasoning.efforts.some(e => e.id === 'ultra'), supported)
-  if (!supported) {
-    h.preference('ultra')
-    await h.run(undefined)
-    assert.equal(h.wires.at(-1).reasoning.effort, 'medium')
-    await assert.rejects(h.request('ultra'), /does not advertise/)
-  }
-  h.dispose()
-})
-
-nativeUltraTest('requested Ultra is durably distinct from real effort and activates only native delegation', async () => {
+test('requested Ultra is durably distinct from real effort and activates only native delegation', async () => {
   const h = fixture(); await h.run('ultra')
   assert.deepEqual(h.ultra.snapshot(h.agent), { version: 1, provider: 'openai-codex', model: 'fixture', requestedEffort: 'ultra', effectiveEffort: 'max', delegationPolicy: 'proactive', tools: ['subagent'], turn: 1, active: true })
   assert.equal(h.wires[0].reasoning.effort, 'max')
-  assert.match(h.wires[0].instructions, /DSH Ultra.*max.*Proactively delegate/s)
-  const record = h.session.snapshotEvents().find(e => e.type === ULTRA_POLICY_RECORD)
-  assert.equal(record.ignorable, true); assert.equal(record.data.requestedEffort, 'ultra')
+  assert.equal(h.wires[0].instructions, 'fixture instructions')
+  assert.match(h.wires[0].input.at(-1).content[0].text, /DSH Ultra.*max.*Proactively delegate/s)
+  assert.ok(h.session.snapshotEvents().every(event => !event.type.startsWith('plugin:')))
   assert.equal(h.guards[0]({ name: 'subagent', agent: h.agent }), undefined)
   assert.match(h.guards[0]({ name: 'subagent', agent: h.agent, toolSet: { view: () => new Map() } }), /changed after/, 'a registered tool excluded from this step is never admitted by Ultra')
   h.replaceTool()
@@ -126,7 +113,7 @@ nativeUltraTest('requested Ultra is durably distinct from real effort and activa
   h.dispose(); assert.equal(h.guards.length, 0)
 })
 
-nativeUltraTest('ordinary selection removes proactive policy; cancellation and turn completion deny late delegations', async () => {
+test('ordinary selection removes proactive policy; cancellation and turn completion deny late delegations', async () => {
   const h = fixture(), abort = new AbortController()
   await h.run('ultra', undefined, { signal: abort.signal })
   abort.abort()
@@ -143,7 +130,7 @@ nativeUltraTest('ordinary selection removes proactive policy; cancellation and t
   h.dispose()
 })
 
-nativeUltraTest('unbound direct requests cannot turn an effort alias into ungoverned proactive execution', async () => {
+test('unbound direct requests cannot turn an effort alias into ungoverned proactive execution', async () => {
   const h = fixture()
   await assert.rejects(h.drain(h.adapter.stream({ provider: 'openai-codex', model: 'fixture', sessionId: h.session.id, reasoningEffort: 'ultra', messages: [user('fixture')] })), /matching live DSH request/)
   await h.run('ultra')
@@ -152,7 +139,7 @@ nativeUltraTest('unbound direct requests cannot turn an effort alias into ungove
   h.dispose()
 })
 
-nativeUltraTest('prepared calls preserve the resolved model snapshot; stale new preparation rejects safely', async () => {
+test('prepared calls preserve the resolved model snapshot; stale new preparation rejects safely', async () => {
   const h = fixture(); await h.request('ultra')
   const call = await h.adapter.prepareCall('openai-codex', 'fixture')
   assert.match(call.model.reasoning.efforts.at(-1).name, /DSH parallel.*max/)
@@ -163,21 +150,23 @@ nativeUltraTest('prepared calls preserve the resolved model snapshot; stale new 
   h.dispose()
 })
 
-nativeUltraTest('cache-preserving reasoning records native effort when switching into and out of Ultra', async () => {
+test('cache-preserving reasoning records native effort when switching into and out of Ultra', async () => {
   const h = fixture({ cache: true }), firstUser = user('first')
   const first = await h.run('high', [firstUser])
   const assistant = finish => ({ role: 'assistant', content: [fixtureBlock], source: { provider: 'openai-codex', model: 'fixture', kind: 'model', replayState: finish.replayState } })
   const second = await h.run('ultra', [firstUser, assistant(first), user('second')], { turn: 2 })
   assert.equal(h.wires.at(-1).reasoning.effort, 'high')
   assert.deepEqual(h.wires.at(-1).input.filter(item => item.type === 'configuration_update').map(item => item.reasoning.effort), ['max'])
-  await h.run('high', [firstUser, assistant(first), user('second'), assistant(second), user('third')], { turn: 3 })
+  const retainedContext = h.wires.at(-1).input.at(-1)
+  await h.run('high', [firstUser, assistant(first), user('second'), retainedContext, assistant(second),
+    user('third'), user('Current runtime context: none. Earlier runtime-context snapshots no longer apply.')], { turn: 3 })
   assert.deepEqual(h.wires.at(-1).input.filter(item => item.type === 'configuration_update').map(item => item.reasoning.effort), ['max', 'high'])
   assert.equal(h.wires.at(-1).instructions, 'fixture instructions')
   assert.ok(!JSON.stringify(h.wires).includes('"effort":"ultra"'))
   h.dispose()
 })
 
-nativeUltraTest('restart and committed native compaction revalidate Ultra instead of restoring live permissions', async () => {
+test('restart and committed native compaction revalidate Ultra instead of restoring live permissions', async () => {
   const h = fixture()
   const config = await h.request('ultra')
   h.session.append('request/header', { header: { config }, reason: 'initial' })
@@ -195,13 +184,13 @@ nativeUltraTest('restart and committed native compaction revalidate Ultra instea
   assert.equal(restored.requestHeader().config.reasoningEffort, 'ultra')
   await next.run(restored.requestHeader().config.reasoningEffort, restored.deriveMessages(), { turn: 2 })
   assert.equal(next.wires[0].reasoning.effort, 'max')
-  assert.match(next.wires[0].instructions, /Proactively delegate/)
+  assert.match(next.wires[0].input.at(-1).content[0].text, /Proactively delegate/)
   assert.equal(next.ultra.snapshot(next.agent).turn, 2)
   assert.deepEqual(restored.deriveMessages().map(message => message.id), ['summary'])
   next.dispose()
 })
 
-nativeUltraTest('titles, native compaction and approval review receive native effort without the proactive policy', async () => {
+test('titles, native compaction and approval review receive native effort without the proactive policy', async () => {
   const h = fixture(); await h.run('ultra')
   for (const options of [
     { purpose: 'session-title', messages: [user('title')] },
@@ -217,7 +206,7 @@ nativeUltraTest('titles, native compaction and approval review receive native ef
   h.dispose()
 })
 
-nativeUltraTest('the actual PiAiAdapter receives the resolved native effort, including prepared dispatch', async () => {
+test('the actual PiAiAdapter receives the resolved native effort, including prepared dispatch', async () => {
   const h = fixture(), sent = []
   const base = openaiCodexProvider().getModels().find(model => model.reasoning && model.thinkingLevelMap?.max === 'max')
   assert.ok(base)
@@ -233,17 +222,19 @@ nativeUltraTest('the actual PiAiAdapter receives the resolved native effort, inc
 })
 
 // This ABI acceptance uses the existing installed runtime, not a downloaded SDK.
-if (process.env.DSH_REMOTE_HISTORY_RUNTIME) test('installed rc3 native request/initiator/guard contracts preserve exact Agent identity', async () => {
+if (process.env.DSH_REMOTE_HISTORY_RUNTIME) test('official DSH prompt refresh and tool guard preserve exact Agent identity', async () => {
   const requireSdk = createRequire(resolve(process.env.DSH_REMOTE_HISTORY_RUNTIME, 'package.json'))
   const { Context } = requireSdk('@deepseek-ai/cordis')
   const { AgentRegistry, agentEvents } = requireSdk('@deepseek-ai/dsh-agent')
   const { SystemPrompt } = requireSdk('@deepseek-ai/dsh-system-prompt')
   const { ToolRuntime } = requireSdk('@deepseek-ai/dsh-tools')
+  const { SessionProjectionRegistry } = requireSdk('@deepseek-ai/dsh-session-projection')
+  const nativeExecutor = requireSdk('@deepseek-ai/dsh-tool-executor-native')
   const { createScope } = requireSdk('@deepseek-ai/dsh-scope')
   const nativeSession = requireSdk('@deepseek-ai/dsh-session')
   const ctx = new Context()
   const ownedPlugins = []
-  for (const plugin of [SystemPrompt, AgentRegistry, ToolRuntime]) { const fiber = ctx.plugin(plugin); ownedPlugins.push(fiber); await fiber }
+  for (const plugin of [SessionProjectionRegistry, SystemPrompt, AgentRegistry, ToolRuntime, nativeExecutor]) { const fiber = ctx.plugin(plugin); ownedPlugins.push(fiber); await fiber }
   const agent = { id: 'ultra-native-fixture', session: new nativeSession.Session('ultra-native-fixture') }, owned = createScope(ctx, agent)
   agent.ctx = owned.ctx
   let entered = 0, observed
@@ -251,12 +242,24 @@ if (process.env.DSH_REMOTE_HISTORY_RUNTIME) test('installed rc3 native request/i
   const unregister = ctx.get('tools').register(definition)
   const config = Object.freeze({ provider: 'openai-codex', model: 'fixture', reasoningEffort: 'ultra' })
   const unlisten = ctx.on('agent/request', async (event, next) => { assert.equal(event.agent, agent); assert.equal(ctx.get('agents').currentInitiator(), agent); assert.equal(await next(), config); return config })
-  const ultra = createUltraExecutionPreset({ catalog: { metadata: () => ({ ultra: { effectiveEffort: 'max' } }) }, resolveAgent: () => ctx.get('agents').currentInitiator(), delegations: () => [{ name: definition.name, definition }], record: nativeSession.appendPluginRecord })
+  const ultra = createUltraExecutionPreset({ catalog: { metadata: () => ({ ultra: { effectiveEffort: 'max' } }) }, resolveAgent: () => ctx.get('agents').currentInitiator(), delegations: () => [{ name: definition.name, definition }] })
   const disposeUltra = ultra.install(ctx), requestAbort = new AbortController()
-  const execute = () => ctx.get('tools').execute({ name: definition.name, arguments: {}, callId: 'synthetic-call', signal: new AbortController().signal, agent })
+  const execute = async () => {
+    const signal = new AbortController().signal
+    const result = await ctx.get('tools').execute({ agent, signal, calls: [
+      { type: 'tool-call', id: 'synthetic-call', name: definition.name, arguments: '{}' },
+    ] })
+    return result.results[0].result
+  }
   try {
     const returned = await ctx.get('agents').withInitiator(agent, () => agentEvents(ctx, agent).waterfall('agent/request', { turn: 1, step: 0, signal: requestAbort.signal }, () => Promise.resolve(config)))
     assert.equal(returned, config)
+    const prompt = ctx.get('systemPrompt')
+    const context = { agent, signal: requestAbort.signal }
+    const assembly = prompt.refreshContext(await prompt.assemble(context), context)
+    assert.ok(assembly.contexts.some(entry => entry.text.includes('Proactively delegate')))
+    assert.ok(!prompt.refreshContext(assembly, { ...context, signal: new AbortController().signal }).contexts.some(entry => entry.text.includes('Proactively delegate')))
+    assert.ok(agent.session.snapshotEvents().every(event => !event.type.startsWith('plugin:')))
     assert.equal((await execute()).isError, false)
     assert.equal(observed, agent); assert.equal(entered, 1)
     const deny = ctx.get('tools').guard(() => 'existing global permission denial')

@@ -1,6 +1,6 @@
 import { Hint, SettingsLabel } from './client-hint.jsx'
 import { useEffect, useState, useSyncExternalStore } from 'react'
-import { IconChevronDownOutline14, Menu } from './client-primitives.js'
+import { IconChevronDownOutline14, Menu } from './client-primitives.jsx'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
 
 /**

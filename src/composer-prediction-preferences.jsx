@@ -1,5 +1,5 @@
 import { SettingsLabel } from './client-hint.jsx'
-import { Switch } from './client-primitives.js'
+import { Switch } from './client-primitives.jsx'
 import { usePreferenceSnapshot } from './client-shared.js'
 
 export function ComposerPredictionPreference({ preference, t }) {

@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Hint, SettingsLabel } from './client-hint.jsx'
-import { IconChevronDownOutline14, Menu, Switch } from './client-primitives.js'
+import { IconChevronDownOutline14, Menu, Switch } from './client-primitives.jsx'
 import { CHANNEL } from './rpc-contract.js'
 import { usePreferenceSnapshot } from './client-shared.js'
 import { VOICE_CALL_FIELD, VOICE_LANGUAGE_FIELD, VOICE_LANGUAGES, VOICE_VOICE_FIELD, VOICE_VOICES } from './settings-contract.js'

@@ -1,33 +1,19 @@
 import { SettingsLabel } from './client-hint.jsx'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
-import { Button, Menu, IconChevronDownOutline14 } from './client-primitives.js'
+import { useState, useSyncExternalStore } from 'react'
+import { Button, Menu, IconChevronDownOutline14 } from './client-primitives.jsx'
 import { IMAGE_MODELS } from './image-models.js'
 import { IMAGE_SETTING_GROUPS, imageGroupValue, imageGroupPatch } from './image-setting-groups.js'
 
 export function ImageChoice({ t, label, hint, title, value, text, items, disabled, onSelect }) {
   const [open, setOpen] = useState(false)
-  const anchor = useRef(null)
-  useEffect(() => {
-    if (!open || disabled) return
-    // The host settings modal also listens for Escape. Dismiss only this layer.
-    const escape = event => {
-      if (event.key !== 'Escape') return
-      event.preventDefault()
-      event.stopPropagation()
-      setOpen(false)
-      anchor.current?.focus()
-    }
-    window.addEventListener('keydown', escape, true)
-    return () => window.removeEventListener('keydown', escape, true)
-  }, [open, disabled])
   return <div className="codexSubscriptionPreference codexImagePreference">
     <div className="codexSubscriptionPreferenceCopy">
       <SettingsLabel className="" description={[hint, title].filter(Boolean).join(' ')}>{label}</SettingsLabel>
     </div>
     <Menu open={open && !disabled} items={items} selectedId={value}
       onSelect={id => { setOpen(false); onSelect(id) }} onClose={() => setOpen(false)}
-      align="end" side="bottom" portal compact anchor={
-        <button ref={anchor} type="button" className="codexSubscriptionContextTrigger"
+      align="end" side="bottom" anchor={
+        <button type="button" className="codexSubscriptionContextTrigger"
           aria-label={label} aria-haspopup="menu" aria-expanded={open && !disabled}
           disabled={disabled} onClick={() => setOpen(current => !current)}>
           <span>{text}</span><IconChevronDownOutline14 />
