@@ -132,7 +132,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
         return publicError(['voice-auth', 'voice-catalog', 'voice-download'].includes(error?.code) ? error.code : 'operation-error', 'Could not load the voice sample')
       }
     }
-    if (['remote/status', 'remote/enable', 'remote/disable', 'remote/pair', 'remote/clients', 'remote/revoke'].includes(endpoint)) {
+    if (['remote/status', 'remote/enable', 'remote/disable', 'remote/pair', 'remote/pair-status', 'remote/clients', 'remote/revoke'].includes(endpoint)) {
       try {
         signal.throwIfAborted()
         if (!remoteControl) return publicError('unavailable', 'Remote Control is unavailable')
@@ -142,7 +142,8 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
             : action === 'disable' ? await remoteControl.disable()
               : action === 'clients' ? await remoteControl.clients(signal)
                 : action === 'revoke' ? await remoteControl.revoke(payload?.clientId, signal)
-                  : await remoteControl.pair(signal)
+                  : action === 'pair-status' ? await remoteControl.pairingStatus(payload?.pairingCode, signal)
+                    : await remoteControl.pair(signal)
         return { ok: true, value }
       } catch (error) {
         if (signal.aborted) throw error

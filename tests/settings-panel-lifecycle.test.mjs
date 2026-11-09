@@ -325,6 +325,46 @@ test('remote display polling pauses while hidden and returns without regeneratin
   } finally { h.dispose() }
 })
 
+test('the relay claiming a pairing code removes the QR and manual code and refreshes the phone list', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 1000 })
+  let claimed = false, failStatus = false, listCalls = 0, statusCalls = 0
+  const rpc = { async call(_channel, endpoint, payload) {
+    if (endpoint === 'remote/pair') return { ok: true, value: { pairingCode: 'fixture-qr', manualCode: 'ABCD-EFGH', expiresAt: 61000 } }
+    if (endpoint === 'remote/clients') { listCalls++; return { ok: true, value: [] } }
+    if (endpoint === 'remote/pair-status') {
+      statusCalls++
+      assert.equal(payload.pairingCode, 'fixture-qr')
+      return failStatus ? { ok: false } : { ok: true, value: { claimed } }
+    }
+    return { ok: true, value: { status: 'connected' } }
+  } }
+  const h = await component('client-remote-control.jsx', 'RemoteControlCard', { rpc, snapshot: { remoteControl: 'on' }, t: key => key })
+  const button = key => nodes(h.tree, node => node.props.children === key)[0]
+  const codes = () => nodes(h.tree, node => node.type?.name === 'Qr' || node.props['aria-label'] === 'remoteManualCode')
+  const poll = async () => { t.mock.timers.tick(5000); await flush(); h.render() }
+  try {
+    await flush(); h.render()
+    button('remotePair').props.onClick()
+    await flush(); h.render()
+    assert.equal(codes().length, 2)
+    await poll()
+    assert.equal(codes().length, 2)
+    failStatus = true
+    await poll()
+    assert.equal(codes().length, 2)
+
+    failStatus = false; claimed = true
+    const before = listCalls
+    await poll()
+    assert.equal(codes().length, 0)
+    assert.ok(button('remotePair'))
+    assert.equal(listCalls, before + 1)
+    assert.equal(statusCalls, 3)
+    await poll()
+    assert.equal(statusCalls, 3)
+  } finally { h.dispose() }
+})
+
 test('a started runtime installation keeps its progress and finishes across hidden tabs', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] })
   let status = { phase: 'idle', available: true, adapterInstalled: true, installable: true, componentVersion: 'fixture' }, reads = 0, loads = 0

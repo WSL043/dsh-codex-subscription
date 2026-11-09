@@ -3,7 +3,7 @@
 // host handler. The wire format follows openai/codex (Apache-2.0) and is the same
 // one the ChatGPT desktop app speaks; OpenAI does not document third-party hosts.
 
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { diagnosticLog } from './diagnostic-log.js'
 import { resolveCodexOAuthProxy } from './oauth-network.js'
@@ -63,6 +63,7 @@ export function remoteControlEndpoints(base = REMOTE_CONTROL_BASE_URL) {
     enroll: at('wham/remote/control/server/enroll'),
     refresh: at('wham/remote/control/server/refresh'),
     pair: at('wham/remote/control/server/pair'),
+    pairStatus: at('wham/remote/control/server/pair/status'),
     clients: environment => at(`wham/remote/control/environments/${encodeURIComponent(environment)}/clients`),
     websocket,
   })
@@ -106,6 +107,8 @@ export function createRemoteControlRelay(options) {
     signal.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true })
   }))
   let enrolled
+  let savedEnrollment = options.enrollment
+  let enrolling
   let stop
   let running
   let socket
@@ -126,6 +129,7 @@ export function createRemoteControlRelay(options) {
     if (!response.ok) {
       const error = new RemoteControlError(response.status === 401 || response.status === 403 ? 'unauthorized' : 'http-error',
         `Remote Control request failed (HTTP ${response.status})`)
+      error.httpStatus = response.status
       if (response.status === 429 || response.status >= 500) error.retryAfterMs = retryAfterMs(response.headers?.get?.('retry-after'), now())
       throw error
     }
@@ -134,8 +138,7 @@ export function createRemoteControlRelay(options) {
 
   const accountHeaders = (access, accountId) => ({ authorization: `Bearer ${access}`, 'chatgpt-account-id': accountId, accept: 'application/json', 'user-agent': options.userAgent })
 
-  const ensureEnrollment = async signal => {
-    if (enrolled && enrolled.expiresAt > now() + REFRESH_MARGIN_MS) return enrolled
+  const updateEnrollment = async signal => {
     const { access, accountId } = await options.credentials(signal)
     if (!access || !accountId) throw new RemoteControlError('not-signed-in', 'ChatGPT subscription is not signed in')
     const headers = {
@@ -145,14 +148,32 @@ export function createRemoteControlRelay(options) {
       'user-agent': options.userAgent,
       'x-codex-installation-id': installation,
     }
-    const refresh = enrolled !== undefined
-    const body = refresh
-      ? { installation_id: installation, server_id: enrolled.serverId }
-      : { app_server_version: options.appServerVersion ?? options.userAgent.split('/').at(-1), arch: process.arch, installation_id: installation, name: options.hostName, os: process.platform }
-    const next = enrollment(await request(refresh ? endpoints.refresh : endpoints.enroll, { method: 'POST', headers, body: JSON.stringify(body) }, signal))
-    if (refresh && next.serverId !== enrolled.serverId) throw new RemoteControlError('bad-response', 'Remote Control returned a mismatched enrollment')
+    const accountKey = createHash('sha256').update(accountId).digest('hex')
+    const previous = savedEnrollment?.accountKey === accountKey ? savedEnrollment : undefined
+    const send = async (url, body) => enrollment(await request(url, { method: 'POST', headers, body: JSON.stringify(body) }, signal))
+    let next
+    if (previous) {
+      try { next = await send(endpoints.refresh, { installation_id: installation, server_id: previous.serverId }) }
+      catch (error) { if (error.httpStatus !== 404) throw error }
+      if (next && (next.serverId !== previous.serverId || next.environmentId !== previous.environmentId)) {
+        throw new RemoteControlError('bad-response', 'Remote Control returned a mismatched enrollment')
+      }
+    }
+    if (!next) {
+      next = await send(endpoints.enroll, { app_server_version: options.appServerVersion ?? options.userAgent.split('/').at(-1), arch: process.arch, installation_id: installation, name: options.hostName, os: process.platform })
+      savedEnrollment = { accountKey, serverId: next.serverId, environmentId: next.environmentId }
+      await options.saveEnrollment?.(savedEnrollment)
+    }
     enrolled = next
     return enrolled
+  }
+  const ensureEnrollment = async signal => {
+    signal?.throwIfAborted()
+    if (enrolled && enrolled.expiresAt > now() + REFRESH_MARGIN_MS) return enrolled
+    enrolling ??= updateEnrollment(signal).finally(() => { enrolling = undefined })
+    const current = await enrolling
+    signal?.throwIfAborted()
+    return current
   }
 
   /** Start a pairing: the code goes into a QR; the manual code can be typed in the app. */
@@ -165,10 +186,26 @@ export function createRemoteControlRelay(options) {
     }, signal)
     const pairingCode = text(value?.pairing_code)
     const expiresAt = Date.parse(value?.expires_at)
-    if (!pairingCode || value?.server_id !== current.serverId || !Number.isFinite(expiresAt)) {
+    if (!pairingCode || value?.server_id !== current.serverId
+      || (value.environment_id !== undefined && value.environment_id !== current.environmentId) || !Number.isFinite(expiresAt)) {
       throw new RemoteControlError('bad-response', 'Remote Control returned an unexpected pairing')
     }
     return { pairingCode, manualCode: text(value?.manual_pairing_code) ?? null, expiresAt }
+  }
+
+  /** Check whether the relay has already accepted this code. */
+  const pairingStatus = async (pairingCode, signal) => {
+    if (typeof pairingCode !== 'string' || pairingCode.length === 0 || pairingCode.length > 2048) {
+      throw new RemoteControlError('bad-request', 'A pairing code is required')
+    }
+    const current = await ensureEnrollment(signal)
+    const value = await request(endpoints.pairStatus, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${current.token}`, 'content-type': 'application/json', 'user-agent': options.userAgent },
+      body: JSON.stringify({ pairing_code: pairingCode }),
+    }, signal)
+    if (typeof value?.claimed !== 'boolean') throw new RemoteControlError('bad-response', 'Remote Control returned an unexpected pairing status')
+    return { claimed: value.claimed }
   }
 
   /** The phones paired with this host, from the same account endpoint Codex uses. */
@@ -430,7 +467,7 @@ export function createRemoteControlRelay(options) {
         stopBeat()
         const error = new RemoteControlError(response?.statusCode === 401 || response?.statusCode === 403 ? 'unauthorized' : 'socket', `Unexpected server response: ${response?.statusCode}`)
         // The relay no longer knows this host id (404): the old enrollment is stale, take a new one.
-        if (response?.statusCode === 404) enrolled = undefined
+        if (response?.statusCode === 404) { enrolled = undefined; savedEnrollment = undefined }
         if (response?.statusCode === 429 || response?.statusCode >= 500) error.retryAfterMs = retryAfterMs(String(response.headers?.['retry-after'] ?? ''), now())
         try { request?.destroy?.() } catch { /* the socket is already closing */ }
         reject(error)
@@ -478,7 +515,8 @@ export function createRemoteControlRelay(options) {
         // A restarted host is refused for a few minutes until the relay drops the old connection;
         // only a host stuck far longer gets a new id (its phones then need to pair again).
         if (conflicts >= 3 && now() - conflictSince >= (options.conflictRenewMs ?? CONFLICT_RENEW_MS) && options.renewInstallation) {
-          installation = await options.renewInstallation(); enrolled = undefined; conflicts = 0
+          await enrolling?.catch(() => {})
+          installation = await options.renewInstallation(); enrolled = undefined; savedEnrollment = undefined; conflicts = 0
           resetStreams()
         }
         if (error?.code === 'not-signed-in') { state.status = 'stopped'; return }
@@ -495,6 +533,7 @@ export function createRemoteControlRelay(options) {
 
   return Object.freeze({
     pair,
+    pairingStatus,
     listClients,
     revokeClient,
     status: () => ({ ...state, enrolled: enrolled !== undefined, server: enrolled?.serverId.slice(-6), clients: clients.size }),

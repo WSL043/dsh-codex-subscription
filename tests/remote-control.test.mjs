@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRemoteControlHost, RpcError } from '../src/remote-control-host.js'
+import { createRemoteControl } from '../src/remote-control.js'
 import { createDshRemoteControl, localFolder, modelKey, parseModelKey, projectTurns, visibleText } from '../src/remote-control-dsh.js'
 import { createRemoteControlRelay, remoteControlEndpoints, retryAfterMs } from '../src/remote-control-relay.js'
 
@@ -169,9 +170,11 @@ test('only chatgpt.com endpoints are accepted', () => {
 
 test('the relay enrolls, pairs, frames messages and re-chunks large replies', async () => {
   const requests = []
+  let claimed = false
   const fetch = async (url, init) => {
     requests.push([String(url), JSON.parse(init.body), init.headers])
     if (String(url).endsWith('/enroll')) return Response.json({ environment_id: 'env', server_id: 'srv', remote_control_token: 'rct', expires_at: new Date(Date.now() + 3_600_000).toISOString() })
+    if (String(url).endsWith('/pair/status')) return Response.json({ claimed })
     return Response.json({ pairing_code: '123', manual_pairing_code: 'ABCD-EFGH', server_id: 'srv', environment_id: 'env', expires_at: new Date(Date.now() + 600_000).toISOString() })
   }
   const sockets = []
@@ -192,6 +195,12 @@ test('the relay enrolls, pairs, frames messages and re-chunks large replies', as
   assert.equal(pairing.manualCode, 'ABCD-EFGH')
   assert.equal(requests[0][2].authorization, 'Bearer tok')
   assert.equal(requests[1][2].authorization, 'Bearer rct')
+  assert.deepEqual(await relay.pairingStatus(pairing.pairingCode), { claimed: false })
+  claimed = true
+  assert.deepEqual(await relay.pairingStatus(pairing.pairingCode), { claimed: true })
+  assert.equal(new URL(requests[3][0]).pathname, '/backend-api/wham/remote/control/server/pair/status')
+  assert.deepEqual(requests[3][1], { pairing_code: pairing.pairingCode })
+  assert.equal(requests[3][2].authorization, 'Bearer rct')
   void relay.start()
   await wait(20)
   const socket = sockets[0]
@@ -293,6 +302,57 @@ test('a host id the relay keeps refusing with 409 is enrolled again and finally 
   await relay.stop()
   assert.ok(renewals >= 1, 'a new host id is taken')
   assert.ok(enrolls >= 3, 'enrollment is repeated first')
+})
+
+test('concurrent remote startup shares one registration and restart refreshes that registration', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-remote-registration-'))
+  const stateFile = join(directory, 'remote-control.json')
+  const changes = []
+  class Socket {
+    on(name, callback) { if (name === 'open') queueMicrotask(callback); if (name === 'close') this.onClose = callback }
+    close() { this.onClose?.() }
+  }
+  const expires_at = new Date(Date.now() + 3600000).toISOString()
+  const enrollment = { environment_id: 'stable-env', server_id: 'stable-server', remote_control_token: 'test-relay-token', expires_at }
+  const options = {
+    credentials: async () => ({ access: 'test-account-token', accountId: 'test-account' }),
+    base: 'http://127.0.0.1/', stateFile, WebSocket: Socket, hostName: 'DSH', userAgent: 'test/1',
+    fetch: async (url, init) => {
+      const pathname = new URL(url).pathname
+      if (pathname.endsWith('/pair')) return Response.json({ pairing_code: 'fixture-code', ...enrollment })
+      if (pathname.endsWith('/clients')) {
+        assert.match(pathname, /\/stable-env\/clients$/u)
+        return Response.json({ items: [{ client_id: 'already-paired' }] })
+      }
+      changes.push([pathname, JSON.parse(init.body)])
+      await wait()
+      return Response.json(enrollment)
+    },
+  }
+  let remote
+  try {
+    remote = createRemoteControl(options)
+    const [, clients] = await Promise.all([remote.enable(), remote.clients(), remote.pair()])
+    assert.equal(clients[0].clientId, 'already-paired')
+    assert.equal(changes.length, 1)
+    assert.match(changes[0][0], /\/enroll$/u)
+    const stored = JSON.parse(await readFile(stateFile, 'utf8'))
+    assert.deepEqual(Object.keys(stored.enrollment).sort(), ['accountKey', 'environmentId', 'serverId'])
+    assert.equal(stored.enrollment.environmentId, 'stable-env')
+    assert.equal(stored.enrollment.serverId, 'stable-server')
+    assert.notEqual(stored.enrollment.accountKey, 'test-account')
+
+    await remote.disable()
+    remote = createRemoteControl(options)
+    const [, reconnected] = await Promise.all([remote.enable(), remote.clients()])
+    assert.equal(reconnected[0].clientId, 'already-paired')
+    assert.equal(changes.length, 2)
+    assert.match(changes[1][0], /\/refresh$/u)
+    assert.deepEqual(changes[1][1], { installation_id: stored.installationId, server_id: stored.enrollment.serverId })
+  } finally {
+    await remote?.disable()
+    await rm(directory, { recursive: true, force: true })
+  }
 })
 
 test('the app title thread is answered in place and never becomes a DSH conversation', async () => {
