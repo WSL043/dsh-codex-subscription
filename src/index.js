@@ -41,7 +41,7 @@ import { createCodexAuthService, DshOAuthCredentialStore } from './credential-st
 import { DshOAuthAccountVault } from './account-vault.js'
 import { openCodexAuthUrl } from './external-url.js'
 import { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinator.js'
-import { createCodexNetworkTransport } from './oauth-network.js'
+import { createCodexNetworkTransport, resolveCodexOAuthProxy } from './oauth-network.js'
 import { createModels, openaiCodexProvider, openaiCodexSubscriptionProvider } from './pi-ai-runtime.js'
 import { createOfficialModelCatalog, withModelCatalogReady } from './model-catalog.js'
 import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET } from './capability-settings.js'
@@ -263,6 +263,7 @@ export function apply(ctx, config = {}) {
     resolveReviewModel: () => settings.get().reviewModel,
     catalog: modelCatalog,
     runNetwork: network.run,
+    runOAuthRefresh: network.refreshOAuth,
     beginModelAttempt: network.beginModelAttempt,
   })
   let fetchRouted = false
@@ -377,7 +378,7 @@ export function apply(ctx, config = {}) {
     const instance = createSubscriptionSubagent({
       ctx: scoped, nativeHome: dshHomePath('state', 'codex-subscription', 'native-subagent'),
       resolveAuth, store,
-      refresh: credential => network.run('oauth', () => baseProvider.auth.oauth.refresh(credential)),
+      refresh: provider.auth.oauth.refresh,
       loadRuntime: () => loadSubagentRuntime({ cli: subagentCli }),
       maintenance: runtimeManagement.blocked,
       defaults: subagentDefaults,
@@ -668,7 +669,8 @@ export function apply(ctx, config = {}) {
     configFile: dshHomePath('state', 'codex-subscription', 'remote-config.json'),
     voice: {
       WebSocket,
-      fetch: (input, init) => network.fetch('remote', input, init),
+      resolveProxy: resolveCodexOAuthProxy,
+      fetch: (input, init) => network.fetch('voice', input, init),
       credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal),
       classifyHangUp: createVoiceHangupClassifier({
         stream: request => ctx.llm.stream(request), provider: PROVIDER,

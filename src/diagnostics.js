@@ -7,21 +7,19 @@ import { safeOperations } from './diagnostic-operations.js'
 import { diagnosticLog } from './diagnostic-log.js'
 import { MODEL_OUTCOMES, safeAttempt } from './model-attempt.js'
 import { safeStreamHealth } from './model-stream-health.js'
+import { isNetworkDiagnosticArea, safeNetworkTiming } from './diagnostic-events.js'
 
-const requestAreas = new Set(['login', 'model', 'catalog', 'quota', 'quota-reset', 'search', 'image', 'voice'])
 const statuses = MODEL_OUTCOMES
 const stages = new Set(['transport', 'http', 'prepare', 'request', 'payload', 'stream'])
 const codes = new Set(['timeout', 'dns', 'tls', 'connection', 'network', 'http-error'])
-const routes = new Set(['direct', 'environment', 'system', 'bypass', 'proxy', 'unknown'])
-const elapsedBuckets = new Set(['under-1s', '1-5s', '5-15s', 'over-15s'])
 
 function safeHistory(raw) {
   if (!raw || !Array.isArray(raw.events)) return undefined
   const events = raw.events.slice(-32).flatMap(value => {
-    if (!value || !requestAreas.has(value.area) || !statuses.has(value.status)
+    if (!value || !isNetworkDiagnosticArea(value.area) || !statuses.has(value.status)
       || !Number.isSafeInteger(value.sequence) || value.sequence < 1
       || !Number.isSafeInteger(value.observedAt) || value.observedAt < 0) return []
-    return [{ area: value.area, status: value.status, sequence: value.sequence, observedAt: value.observedAt, ...safeAttempt(value),
+    return [{ area: value.area, status: value.status, sequence: value.sequence, observedAt: value.observedAt, ...safeAttempt(value), ...safeNetworkTiming(value),
       ...(codes.has(value.code) ? { code: value.code } : {}),
       ...(Number.isInteger(value.httpStatus) && value.httpStatus >= 100 && value.httpStatus <= 599 ? { httpStatus: value.httpStatus } : {}),
     }]
@@ -34,15 +32,15 @@ function safeRequests(network) {
   const raw = network?.snapshot?.() ?? {}
   const result = {}
   for (const [area, value] of Object.entries(raw)) {
-    if (!requestAreas.has(area) || value === null || typeof value !== 'object') continue
-    if (!statuses.has(value.status) || !routes.has(value.route) || !elapsedBuckets.has(value.elapsed)) continue
+    if (!isNetworkDiagnosticArea(area) || value === null || typeof value !== 'object') continue
+    const timing = safeNetworkTiming(value)
+    if (!statuses.has(value.status) || !timing.route || !timing.elapsed) continue
     result[area] = {
       status: value.status, ...safeAttempt(value),
       ...(stages.has(value.stage) ? { stage: value.stage } : {}),
       ...(codes.has(value.code) ? { code: value.code } : {}),
       ...(Number.isInteger(value.httpStatus) && value.httpStatus >= 100 && value.httpStatus <= 599 ? { httpStatus: value.httpStatus } : {}),
-      route: value.route,
-      elapsed: value.elapsed,
+      ...timing,
     }
   }
   return result

@@ -90,6 +90,24 @@ test('joining an existing call: the side channel opens on the call id and the ph
   assert.deepEqual(notes[0].params, { threadId: 't1', version: 'v3', realtimeSessionId: 'S1' })
 })
 
+test('voice sideband attaches the configured proxy to the WebSocket handshake', async () => {
+  const lookups = []
+  const { voice, notify } = setup({ options: {
+    resolveProxy: async ({ target, signal }) => {
+      assert.equal(signal.aborted, false)
+      lookups.push(target.hostname)
+      return 'http://127.0.0.1:7890/'
+    },
+  } })
+  await voice.start(start, notify)
+  try {
+    assert.deepEqual(lookups, ['api.openai.com'])
+    const [socket] = FakeSocket.instances
+    assert.equal(socket.options.agent?.proxy?.hostname, '127.0.0.1')
+    assert.equal(socket.options.headers.authorization, 'Bearer test-access')
+  } finally { voice.stop('t1') }
+})
+
 test('input readiness requires a nonempty audio frame, stays private, and resets for each voice session', async () => {
   const { voice, notify, notes, delegated } = setup()
   await voice.start(start, notify)

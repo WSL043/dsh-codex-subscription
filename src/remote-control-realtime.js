@@ -3,6 +3,7 @@
 // transcripts and the requests the voice model hands to the agent, runs them as DSH turns, and
 // sends the agent's answers back for the voice to speak.
 // api.openai.com is where the side channel of a ChatGPT-created call answers; realtime.chatgpt.com is kept as the fallback.
+import { HttpsProxyAgent } from 'https-proxy-agent'
 import { createVoiceQuestions } from './voice-questions.js'
 
 const SIDEBAND_BASES = ['wss://api.openai.com/v1/live', 'wss://realtime.chatgpt.com/v1/live']
@@ -164,24 +165,46 @@ export function createRealtimeVoice(options) {
     log.info('voice-flow', event, `call=${session.flowId} elapsed_ms=${elapsed}${detail ? ` ${detail}` : ''}`)
   }
 
-  const connect = (base, callId, headers, signal) => new Promise((resolve, reject) => {
-    signal?.throwIfAborted()
-    const url = `${base.replace(/\/$/, '')}/${encodeURIComponent(callId)}`
-    const ws = new options.WebSocket(url, { headers })
-    let settled = false
-    const abort = () => { fail(new Error('Voice start cancelled')); try { ws.close() } catch { /* closing */ } }
-    const fail = error => { if (!settled) { settled = true; signal?.removeEventListener('abort', abort); reject(error) } }
-    ws.on('open', () => { if (!settled) { settled = true; signal?.removeEventListener('abort', abort); resolve(ws) } })
-    ws.on('unexpected-response', (request, response) => {
-      try { request?.destroy?.() } catch { /* closing */ }
-      const error = new Error(`HTTP ${response?.statusCode}`)
-      error.status = response?.statusCode
-      fail(error)
+  const connect = async (base, callId, headers, signal) => {
+    const target = new URL(`${base.replace(/\/$/, '')}/${encodeURIComponent(callId)}`)
+    const timeout = AbortSignal.timeout(20_000)
+    const handshake = signal ? AbortSignal.any([signal, timeout]) : timeout
+    handshake.throwIfAborted()
+    const proxy = target.protocol === 'wss:' ? await options.resolveProxy?.({ target, signal: handshake }) : undefined
+    handshake.throwIfAborted()
+    return new Promise((resolve, reject) => {
+      const connecting = new AbortController()
+      const agent = proxy ? new HttpsProxyAgent(proxy, { signal: connecting.signal }) : undefined
+      const ws = new options.WebSocket(target.toString(), { headers, ...(agent ? { agent } : {}) })
+      let settled = false
+      const finish = () => {
+        if (settled) return false
+        settled = true
+        handshake.removeEventListener('abort', abort)
+        return true
+      }
+      const fail = error => {
+        if (!finish()) return
+        connecting.abort()
+        reject(error)
+      }
+      const abort = () => {
+        fail(handshake.reason)
+        try { ws.close() } catch { /* closing */ }
+      }
+      ws.on('open', () => { if (finish()) resolve(ws) })
+      ws.on('unexpected-response', (request, response) => {
+        try { request?.destroy?.() } catch { /* closing */ }
+        const error = new Error(`HTTP ${response?.statusCode}`)
+        error.status = response?.statusCode
+        fail(error)
+      })
+      ws.on('error', fail)
+      ws.on('close', () => fail(new Error('closed before it opened')))
+      handshake.addEventListener('abort', abort, { once: true })
+      if (handshake.aborted) abort()
     })
-    ws.on('error', error => fail(error))
-    ws.on('close', () => fail(new Error('closed before it opened')))
-    signal?.addEventListener('abort', abort, { once: true })
-  })
+  }
 
   async function join(callId, headers, signal) {
     let last

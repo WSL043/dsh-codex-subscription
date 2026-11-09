@@ -13,6 +13,7 @@ const execFileAsync = promisify(execFile)
 const CODEX_AUTH_HOST = 'auth.openai.com'
 const CODEX_SUBSCRIPTION_HOST = 'chatgpt.com'
 const CODEX_HOSTS = new Set([CODEX_AUTH_HOST, CODEX_SUBSCRIPTION_HOST])
+const OAUTH_HOSTS = new Set([CODEX_AUTH_HOST])
 
 const networkScope = new AsyncLocalStorage()
 let activeScopes = 0
@@ -179,7 +180,7 @@ export function fetchThroughProxy(input, init, proxyUrl) {
     const request = httpsRequest(target, {
       method: init?.method ?? 'GET',
       headers: Object.fromEntries(headers.entries()),
-      agent: proxyUrl ? new HttpsProxyAgent(proxyUrl) : undefined,
+      agent: proxyUrl ? new HttpsProxyAgent(proxyUrl, { signal: init?.signal }) : undefined,
       signal: init?.signal,
     }, response => {
       const responseHeaders = new Headers()
@@ -283,7 +284,7 @@ export async function withCodexNetwork(run, options = {}) {
 
 export const withCodexOAuthNetwork = (run, options = {}) => withCodexNetwork(run, {
   ...options,
-  hosts: new Set([CODEX_AUTH_HOST]),
+  hosts: OAUTH_HOSTS,
 })
 
 function classifyTransportError(error) {
@@ -309,14 +310,25 @@ export function createCodexNetworkTransport(options = {}) {
     if (value.status === 'failed') {
       const what = value.stage === 'http' ? `HTTP ${value.httpStatus}` : `network ${value.code}`
       diagnosticLog.log(value.stage === 'http' && value.httpStatus < 500 && value.httpStatus !== 401 && value.httpStatus !== 403 ? 'warn' : 'error', area, `request failed: ${what} (${value.route}, ${value.elapsed})`)
+    } else if (value.status === 'ok' && area === 'oauth') {
+      diagnosticLog.info(area, `token endpoint accepted the refresh (${value.route}, ${value.elapsed})`)
     } else if (value.status === 'ok' && before?.status === 'failed') diagnosticLog.info(area, 'request works again')
   }
   const run = async (area, operation, connection = {}) => {
     const startedAt = now()
     let route = attempts.get(area)?.route ?? 'direct'
     let routed = false
+    let rejectedStatus
     try {
-      const value = await withCodexNetwork(operation, { ...options, ...connection, onRoute: source => { route = source; routed = true; connection.onRoute?.(source) } })
+      const scoped = { ...options, ...connection }
+      const value = await withCodexNetwork(operation, {
+        ...scoped,
+        onRoute: source => { route = source; routed = true; connection.onRoute?.(source) },
+        transformResponse(response, target) {
+          if (connection.observeHttpFailure && !response.ok) rejectedStatus = response.status
+          return scoped.transformResponse?.(response, target) ?? response
+        },
+      })
       // The model wrapper owns the whole SDK attempt, including yielded error events.
       if (connection.modelAttempt) return value
       connection.signal?.throwIfAborted()
@@ -330,12 +342,19 @@ export function createCodexNetworkTransport(options = {}) {
       // A caller changing drafts or closing a view is not a network failure.
       // Keep real AbortSignal.timeout failures visible in support diagnostics.
       if (connection.signal?.aborted && connection.signal.reason?.name !== 'TimeoutError') throw error
-      if (routed && !connection.modelAttempt) remember(area, { status: 'failed', stage: 'transport', code: classifyTransportError(error), route, elapsed: elapsedBucket(now() - startedAt) })
+      if (routed && !connection.modelAttempt) {
+        const failure = rejectedStatus === undefined
+          ? { stage: 'transport', code: classifyTransportError(connection.signal?.reason ?? error) }
+          : { stage: 'http', code: 'http-error', httpStatus: rejectedStatus }
+        remember(area, { status: 'failed', ...failure, route, elapsed: elapsedBucket(now() - startedAt) })
+      }
       throw error
     }
   }
   return Object.freeze({
     run,
+    // The SDK consumes the HTTP response and throws its own error on rejection.
+    refreshOAuth: (operation, signal) => run('oauth', operation, { hosts: OAUTH_HOSTS, signal, observeHttpFailure: true }),
     beginModelAttempt: () => createModelAttempt({ now, publish: value => remember('model', { ...value, ...(value.status === 'failed' && value.networkFailure ? { code: classifyTransportError({ code: value.networkFailure.match(/\[([A-Z_]+)/)?.[1] }) } : {}) }) }),
     history: evidence.snapshot,
     fetch: (area, input, init, connection) => run(area, () => globalThis.fetch(input, init), {

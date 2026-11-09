@@ -470,7 +470,9 @@ export function createRemoteControlRelay(options) {
         if (conflicts === 1) conflictSince = now()
         // Expected right after a restart; shown as waiting rather than as a failure.
         if (conflicts > 0) { state.status = 'waiting'; state.lastError = 'conflict' }
-        diagnosticLog.log(conflicts > 0 ? 'warn' : 'error', 'phone', conflicts > 0 ? 'relay refused the connection: another host with the same identity is connected (409)' : `connection to the relay failed (${state.lastError})`, conflicts > 0 ? undefined : error?.message)
+        // The OAuth transport records its own redacted route and HTTP status.
+        const detail = conflicts > 0 || state.lastError === 'oauth' ? undefined : error?.message
+        diagnosticLog.log(conflicts > 0 ? 'warn' : 'error', 'phone', conflicts > 0 ? 'relay refused the connection: another host with the same identity is connected (409)' : `connection to the relay failed (${state.lastError})`, detail)
         if (error?.code === 'unauthorized' || conflicts >= 3) enrolled = undefined
         // Still refused after fresh enrollments: this host id is stuck on the relay, so take a new one.
         // A restarted host is refused for a few minutes until the relay drops the old connection;

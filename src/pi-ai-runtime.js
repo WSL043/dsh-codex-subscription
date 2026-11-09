@@ -115,6 +115,7 @@ export function openaiCodexSubscriptionProvider({
   reasoning,
   ultra,
   runNetwork = (_area, operation) => operation(),
+  runOAuthRefresh = operation => operation(),
   beginModelAttempt = createModelAttempt,
   providerFactory = createOpenAICodexProvider,
 } = {}) {
@@ -378,7 +379,14 @@ export function openaiCodexSubscriptionProvider({
   }
   return Object.freeze({
     ...provider,
-    auth: Object.freeze({ ...provider.auth, apiKey: requestToken }),
+    auth: Object.freeze({
+      ...provider.auth,
+      oauth: {
+        ...provider.auth.oauth,
+        refresh: (credential, signal) => runOAuthRefresh(() => provider.auth.oauth.refresh(credential, signal), signal),
+      },
+      apiKey: requestToken,
+    }),
     getModels,
     stream: (model, context, options) => routed('stream', model, context, options),
     streamSimple: (model, context, options) => routed('streamSimple', model, context, options),

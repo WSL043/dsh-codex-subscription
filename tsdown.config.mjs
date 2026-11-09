@@ -134,9 +134,12 @@ function clientBundle(entry, fileName, chunk) {
     entry: { client: entry },
     outDir: 'lib', format: 'cjs', platform: 'browser', target: 'es2022',
     dts: false, sourcemap: true, clean: false,
-    // Resolve the installed ESM entry once. On Windows, parallel browser builds
-    // can otherwise disagree on this pnpm package's conditional subpath export.
-    alias: { '@heroicons/react/24/outline': fileURLToPath(import.meta.resolve('@heroicons/react/24/outline')) },
+    // Resolve the installed entries once. Parallel browser builds on Windows
+    // can otherwise leave these pnpm subpaths as unresolved external imports.
+    alias: {
+      '@heroicons/react/24/outline': fileURLToPath(import.meta.resolve('@heroicons/react/24/outline')),
+      'qrcode/lib/core/qrcode.js': fileURLToPath(import.meta.resolve('qrcode/lib/core/qrcode.js')),
+    },
     deps: { neverBundle: clientExternal },
     plugins: [...(chunk ? [featureRebuildNotice()] : [featureImports()]), portableSourcePaths()],
     define: { 'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production') },

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { createServer } from 'node:http'
 import test from 'node:test'
 
 import {
@@ -8,6 +9,8 @@ import {
   withCodexNetwork,
   withCodexOAuthNetwork,
 } from '../src/oauth-network.js'
+import { createModels, openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
+import { createSubscriptionDiagnostics } from '../src/diagnostics.js'
 
 test('voice standard HTTPS honors direct and NO_PROXY routing without changing model transport', async () => {
   const original = globalThis.fetch, requests = []
@@ -200,6 +203,55 @@ test('network diagnostics keep actionable request failures without proxy address
   assert.doesNotMatch(JSON.stringify(transport.snapshot()), /secret|127\.0\.0\.1|7890/u)
 })
 
+test('SDK OAuth refresh uses the proxy, preserves the credential on 403, and reports separately from the relay', async () => {
+  const accountId = 'fixture-account'
+  const claim = Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: accountId } })).toString('base64url')
+  const access = `eyJhbGciOiJub25lIn0.${claim}.fixture`
+  const expired = { type: 'oauth', accountId, access, refresh: 'old-fixture', expires: Date.now() - 1000 }
+  let saved = expired
+  let fail = true
+  const targets = []
+  const network = createCodexNetworkTransport({
+    env: { HTTPS_PROXY: 'http://proxy-user:proxy-secret@127.0.0.1:7890' },
+    fetchThroughProxy: async (input, init, proxy) => {
+      const url = new URL(input)
+      targets.push(url.hostname)
+      assert.match(proxy, /127\.0\.0\.1:7890/u)
+      if (url.hostname === 'chatgpt.com') return Response.json({})
+      assert.equal(url.pathname, '/oauth/token')
+      assert.equal(init.body.get('grant_type'), 'refresh_token')
+      assert.equal(init.body.get('refresh_token'), 'old-fixture')
+      if (fail) return Response.json({ error: 'fixture-response-secret' }, { status: 403 })
+      return Response.json({ access_token: access, refresh_token: 'rotated-fixture', expires_in: 3600 })
+    },
+  })
+  const provider = openaiCodexSubscriptionProvider({ runOAuthRefresh: network.refreshOAuth })
+  const models = createModels({ credentials: {
+    read: async () => saved,
+    modify: async (_id, update) => { saved = await update(saved) ?? saved; return saved },
+  } })
+  models.setProvider(provider)
+  const original = globalThis.fetch
+  globalThis.fetch = async () => { throw new Error('unproxied request') }
+  try {
+    await assert.rejects(models.getAuth('openai-codex'), /OAuth refresh failed/u)
+    assert.equal(saved, expired)
+    fail = false
+    assert.equal((await models.getAuth('openai-codex')).auth.apiKey, access)
+    assert.equal(saved.refresh, 'rotated-fixture')
+    await models.getAuth('openai-codex')
+    await network.fetch('remote', 'https://chatgpt.com/backend-api/wham/remote/control/server/pair')
+    assert.deepEqual(targets, ['auth.openai.com', 'auth.openai.com', 'chatgpt.com'])
+    const report = await createSubscriptionDiagnostics({ auth: { status: async () => ({ authenticated: true }) }, preferences: { status: () => ({}) }, network })
+    assert.deepEqual(report.requestHistory.events.map(({ area, status, httpStatus, route }) => ({ area, status, httpStatus, route })), [
+      { area: 'oauth', status: 'failed', httpStatus: 403, route: 'environment' },
+      { area: 'oauth', status: 'ok', httpStatus: undefined, route: 'environment' },
+      { area: 'remote', status: 'ok', httpStatus: undefined, route: 'environment' },
+    ])
+    assert.doesNotMatch(JSON.stringify(report), /fixture-response-secret|proxy-secret|rotated-fixture|127\.0\.0\.1/u)
+  } finally { globalThis.fetch = original }
+})
+
 test('caller cancellation is not a transport timeout, while real timeout signals remain diagnosed', async () => {
   const transport = createCodexNetworkTransport({
     env: { HTTPS_PROXY: 'http://127.0.0.1:7890' },
@@ -219,4 +271,31 @@ test('caller cancellation is not a transport timeout, while real timeout signals
     await assert.rejects(transport.fetch('predictions', 'https://chatgpt.com/backend-api/codex/responses', { signal: AbortSignal.timeout(10) }), error => error.name === 'TimeoutError')
     assert.equal(transport.snapshot().predictions.code, 'timeout')
   } finally { clearTimeout(alive) }
+})
+
+test('cancelling OAuth also closes a silent proxy CONNECT socket', { timeout: 3000 }, async t => {
+  const accepted = Promise.withResolvers()
+  const closed = Promise.withResolvers()
+  let socket
+  const proxy = createServer()
+  proxy.on('connect', (request, client) => {
+    socket = client
+    client.on('error', () => {})
+    client.on('end', () => client.end())
+    client.once('close', closed.resolve)
+    client.resume()
+    accepted.resolve(request.url)
+  })
+  await new Promise(resolve => proxy.listen(0, '127.0.0.1', resolve))
+  t.after(async () => { socket?.destroy(); await new Promise(resolve => proxy.close(resolve)) })
+  const network = createCodexNetworkTransport({ env: { HTTPS_PROXY: `http://127.0.0.1:${proxy.address().port}` } })
+  const abort = new AbortController()
+  const refresh = network.refreshOAuth(() => fetch('https://auth.openai.com/oauth/token', {
+    method: 'POST', signal: abort.signal,
+  }), abort.signal)
+  assert.equal(await accepted.promise, 'auth.openai.com:443')
+  abort.abort()
+  await assert.rejects(refresh, { name: 'AbortError' })
+  await closed.promise
+  assert.equal(network.snapshot().oauth, undefined)
 })

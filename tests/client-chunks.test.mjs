@@ -65,6 +65,7 @@ test('emitted feature artifacts register lazily under one plugin owner with usab
   for (const fileName of ['client.js', ...featureNames]) {
     const source = await readFile(new URL(`../lib/${fileName}`, import.meta.url), 'utf8')
     assert.doesNotMatch(source, /\brequire\(['"]@deepseek-ai\/dsh-client-[^'"]+['"]\)/u, `${fileName} must load without importing host Client packages`)
+    assert.doesNotMatch(source, /\brequire\(['"](?:qrcode|@heroicons\/react)\//u, `${fileName} must bundle its QR and icon dependencies`)
     assert.equal(/\/\/#region (?:\.\.\/)+[^\n]*node_modules/u.test(source), false, `${fileName} exposes an external dependency location`)
     const registrations = []
     const context = vm.createContext({ window: { __ModuleLoader__: { load: value => registrations.push(value) } } })
