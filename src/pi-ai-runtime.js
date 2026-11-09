@@ -20,7 +20,7 @@ import {
   OUTPUT_VERBOSITY_DEFAULT,
   SPEED_MODE_FAST,
   SPEED_MODE_ULTRAFAST,
-  supportsCodexFastMode,
+  effectiveCodexSpeedMode,
   modelContextMaximum,
   clampModelContext,
 } from './settings-contract.js'
@@ -142,10 +142,10 @@ export function openaiCodexSubscriptionProvider({
       : undefined
     // A tier is sent only when the account catalog advertises it for this model;
     // otherwise the request stays on the standard tier.
-    const speedMode = resolveSpeedMode()
-    const serviceTier = speedMode === SPEED_MODE_ULTRAFAST && metadata?.supportsUltrafast === true
+    const speedMode = effectiveCodexSpeedMode(resolveSpeedMode(), model?.id, metadata)
+    const serviceTier = speedMode === SPEED_MODE_ULTRAFAST
       ? ULTRAFAST_SERVICE_TIER
-      : speedMode === SPEED_MODE_FAST && (metadata?.supportsFast ?? supportsCodexFastMode(model?.id))
+      : speedMode === SPEED_MODE_FAST
         ? FAST_SERVICE_TIER
         : undefined
     const inputImageDetail = normalizeInputImageDetail(resolveInputImageDetail())

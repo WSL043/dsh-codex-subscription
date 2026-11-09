@@ -19,6 +19,8 @@ import { createAccountStatusController } from './account-status-controller.js'
 import { NS, CHANNEL, unwrap } from './client-shared.js'
 import { createSubscriptionRpcClient } from './rpc-contract.js'
 import { CodexComposerQuota } from './client-composer-quota.jsx'
+import { CodexModelSelect } from './client-model-select.jsx'
+import { registerLegacyModelPicker } from './client-model-picker-slot.js'
 import { quotaUsageController } from './client-quota.jsx'
 import { VoiceCallButton } from './client-voice-call.jsx'
 import { CodexSection, ProjectAction } from './client-section.jsx'
@@ -125,6 +127,18 @@ export function apply(ctx) {
     const modelDirectories = scope.get('modelDirectories')
     scopedDirectories = modelDirectories
     scope.effect(() => () => { if (scopedDirectories === modelDirectories) scopedDirectories = undefined }, 'codex-subscription: scoped model directories')
+    registerLegacyModelPicker(scope.slots, preference, sessionId => {
+      const directory = modelDirectories.directoryFor(sessionId)
+      const available = sessions.subagentAddress(sessionId) === undefined
+      return {
+        available, directory: directory.store, preference, t,
+        load: () => { if (available) void directory.load().catch(() => {}) },
+        select: async selection => {
+          if (!available) return false
+          try { return (await directory.select(selection))?.ok !== false } catch { return false }
+        },
+      }
+    }, CodexModelSelect)
   }
   if (ctx.get('remote.session') === undefined) installDirectorySlots(ctx)
   else ctx.inject(['remote.session'], installDirectorySlots)

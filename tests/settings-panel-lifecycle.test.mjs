@@ -4,7 +4,11 @@ import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import vm from 'node:vm'
 import test from 'node:test'
+import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots'
 import * as settingsContract from '../src/settings-contract.js'
+import { registerLegacyModelPicker } from '../src/client-model-picker-slot.js'
+import { createPreferenceController } from '../src/preference-controller.js'
+import { createSubscriptionRpcHandler } from '../src/subscription-rpc.js'
 import { PROJECT_URL, maskEmail, unwrap, validDate } from '../src/client-shared.js'
 import { SIGN_IN_RENEW } from '../src/http-failure.js'
 
@@ -61,6 +65,7 @@ async function component(file, name, props, additions = {}, invoke = (fn, value)
     pending.push(() => { cells[index].cleanup?.(); cells[index].cleanup = run() })
   }
   const hooks = { useState: state, useRef(initial) { const index = cursor++; return cells[index] ??= { current: initial } },
+    useMemo: factory => factory(), useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot(),
     useEffect: effect, useLayoutEffect: effect, useId: () => fixtureId }
   const shared = { useAccountStatusSnapshot: () => ({ status: 'ready', account: { authenticated: true } }),
     usePreferenceSnapshot: () => ({}), uiLocale: () => 'en-US', fill: value => value, percent: String, windowLabel: String, validDate }
@@ -70,7 +75,7 @@ async function component(file, name, props, additions = {}, invoke = (fn, value)
     ...additions }
   const module = { exports: {} }
   new vm.Script(await codeFor(file), { filename: file }).runInNewContext({
-    module, exports: module.exports, console, window, document, Date,
+    module, exports: module.exports, console, window, document, Date, queueMicrotask,
     setTimeout: (...args) => setTimeout(...args), clearTimeout: id => clearTimeout(id),
     setInterval: (...args) => setInterval(...args), clearInterval: id => clearInterval(id),
     require: id => dependencies[id] ?? new Proxy({}, { get: (_target, key) => named(String(key)) }),
@@ -108,6 +113,107 @@ test('project action belongs only to this bundle and the native button opens its
     host.tree.props.onClick()
     assert.deepEqual(calls, [[PROJECT_URL, '_blank', 'noopener,noreferrer']])
   } finally { host.dispose() }
+})
+
+test('the custom picker defaults on after settings load and preserves native and third-party selections', async () => {
+  const modelSlot = 'conversation.input.model', labelSlot = 'conversation.input.model.label'
+  const core = new SlotCore()
+  core.register({ name: 'root', children: { [modelSlot]: { kind: 'single', scope: 'session' } } }, named('composer'))
+  const native = named('native'), legacy = named('legacy'), external = named('external'), badge = named('badge')
+  core.register({ name: modelSlot, children: { [labelSlot]: { kind: 'single', scope: 'session', inline: true } } }, native)
+  core.register({ name: labelSlot }, badge)
+  const unregisterExternal = core.register({ name: modelSlot, priority: -10 }, external)
+  let settings = {}
+  const handler = createSubscriptionRpcHandler({ preferences: {
+    status: () => ({ ...settings, writable: true }),
+    update: async patch => { settings = { ...settings, ...patch } },
+  } })
+  const rpc = { call: (_channel, endpoint, payload) => handler(endpoint, payload, new AbortController().signal) }
+  const preference = createPreferenceController(rpc)
+  const winner = () => core.entriesOfSlot(modelSlot)[0].component
+  const dispose = registerLegacyModelPicker({
+    inject: (_key, install) => install(),
+    entries: key => core.entries(key),
+    register: (options, component) => core.register(options, component),
+  }, preference, () => ({}), legacy)
+  try {
+    assert.equal(core.entries(modelSlot).length, 2, 'startup waits for the saved picker choice')
+    await preference.load()
+    assert.equal(preference.getSnapshot().composerModelPicker, 'legacy')
+    assert.equal(winner(), external)
+    await preference.set({ composerModelPicker: 'legacy' })
+    assert.equal(winner(), external)
+    assert.equal(settings.composerModelPicker, 'legacy')
+    unregisterExternal()
+    assert.equal(winner(), legacy)
+    assert.equal(core.entriesOfSlot(labelSlot)[0].component, badge)
+    await preference.load()
+    assert.equal(winner(), legacy)
+    await preference.set({ composerModelPicker: 'dsh' })
+    assert.equal(winner(), native)
+    assert.equal(core.entriesOfSlot(labelSlot)[0].component, badge)
+  } finally { dispose(); preference.dispose() }
+})
+
+test('the classic picker toggles supported speed inside the model menu and shows its bolt', async () => {
+  const snapshot = { status: 'ready', writable: true, disabledModels: [], fastModels: ['gpt-6.1-sol'], ultrafastModels: [], verbosityModels: [], speedMode: 'standard', composerSpeedBadge: 'off' }
+  const pref = { set: async patch => { Object.assign(snapshot, patch) } }
+  const models = [{ id: 'gpt-6.1-sol', name: 'GPT-6.1-Sol' }]
+  const state = { status: 'ready', groups: [{ id: 'openai-codex', models }], current: { provider: 'openai-codex', model: models[0].id }, failures: [], error: null }
+  const props = { available: true, directory: { subscribe: () => () => {}, getSnapshot: () => state }, preference: pref, t: key => key, load() {} }
+  const h = await component('client-model-select.jsx', 'CodexModelSelect', props, { './settings-contract.js': settingsContract, './client-shared.js': { usePreferenceSnapshot: () => snapshot } })
+  const find = (className, label) => nodes(h.tree, node => node.props.className === className && (!label || nodes(node, item => item.props.children === label).length))[0]
+  const trigger = () => find('codexModelSelectTrigger')
+  const bolt = () => find('codexModelSelectBolt')
+  const openSpeed = () => { trigger().props.onClick(); h.render(); find('codexModelSelectCell', 'speedTitle').props.onClick(); h.render() }
+  try {
+    assert.equal(bolt(), undefined)
+    openSpeed()
+    find('codexModelSelectOption', 'speedFast').props.onClick(); h.render()
+    assert.equal(snapshot.speedMode, 'fast')
+    assert.match(trigger().props['aria-label'], /speedFast/u)
+    assert.ok(bolt())
+    openSpeed()
+    find('codexModelSelectOption', 'speedStandard').props.onClick(); h.render()
+    assert.equal(snapshot.speedMode, 'standard')
+    assert.equal(bolt(), undefined)
+    snapshot.ultrafastModels = [models[0].id]
+    openSpeed()
+    find('codexModelSelectOption', 'speedUltrafast').props.onClick(); h.render()
+    assert.equal(snapshot.speedMode, 'ultrafast')
+    assert.ok(bolt())
+    assert.match(trigger().props['aria-label'], /speedUltrafast/u)
+    state.current = { provider: 'deepseek', model: 'v4' }
+    h.render()
+    assert.equal(bolt(), undefined)
+    trigger().props.onClick(); h.render()
+    assert.equal(find('codexModelSelectCell', 'speedTitle'), undefined)
+  } finally { h.dispose() }
+})
+
+test('turning off the custom menu hides its speed control and preserves the saved speed', async () => {
+  const snapshot = { status: 'ready', writable: true, composerModelPicker: 'legacy', speedMode: 'fast', ultrafastModels: [] }
+  const preference = { set: async patch => { Object.assign(snapshot, patch) } }
+  const h = await component('client-pages.jsx', 'ModelsPage', { preference, t: key => key }, {
+    './client-shared.js': { usePreferenceSnapshot: () => snapshot },
+    './settings-contract.js': settingsContract,
+  })
+  const control = label => nodes(h.tree, node => node.props.label === label && typeof node.props.onChange === 'function')[0]
+  const speed = () => {
+    const group = nodes(h.tree, node => node.props.role === 'group' && node.props['aria-label'] === 'legacyModelPicker')[0]
+    const row = nodes(group, node => node.props.snapshot === snapshot)[0]
+    return row && nodes(row.type(row.props), node => node.props.field === 'speedMode')[0]
+  }
+  try {
+    assert.equal(speed().props.snapshot.speedMode, 'fast')
+    control('legacyModelPicker').props.onChange(false)
+    h.render()
+    assert.equal(speed(), undefined)
+    assert.equal(snapshot.speedMode, 'fast')
+    control('legacyModelPicker').props.onChange(true)
+    h.render()
+    assert.equal(speed().props.snapshot.speedMode, 'fast')
+  } finally { h.dispose() }
 })
 
 test('account changes re-mask email and signing out requires a separate confirmation', async () => {

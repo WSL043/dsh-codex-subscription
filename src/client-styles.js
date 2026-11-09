@@ -1,4 +1,43 @@
 export const STYLE = `
+.codexModelSelect{position:relative;min-width:0}
+.codexModelSelectTrigger{display:flex;align-items:center;gap:4px;min-width:0;max-width:min(360px,45cqw);height:28px;padding:0 4px 0 8px;border:0;border-radius:var(--dsw-radius-sm);outline:0;background:transparent;color:var(--dsw-alias-label-secondary);font-size:13px;font-weight:500;line-height:20px;cursor:pointer}
+.codexModelSelectTrigger:hover:not(:disabled),.codexModelSelectTrigger[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover)}
+.codexModelSelectTrigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}
+.codexModelSelectTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
+.codexModelSelectBolt{display:block;flex:none;width:14px;height:14px;color:var(--dsw-alias-label-primary)}
+.codexModelSelectLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.codexModelSelectEffort{flex:none;color:var(--dsw-alias-label-caption)}
+.codexModelSelectChevron{flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms}
+.codexModelSelectTrigger[aria-expanded=true] .codexModelSelectChevron{transform:rotate(180deg)}
+.codexModelSelectMenu{inset:auto;margin:0;--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-sizing:border-box;position:fixed;display:flex;flex-direction:column;width:max-content;min-width:min(240px,calc(100vw - 32px));max-width:min(420px,calc(100vw - 32px));max-height:min(360px,calc(100vh - 32px));padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-layer-1));box-shadow:var(--dsw-elevation-prominent);color:var(--dsw-alias-label-primary);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);overflow:hidden}
+.codexModelSelectCell{box-sizing:border-box;display:flex;align-items:center;gap:6px;width:auto;min-width:100%;height:34px;padding:0 8px;border:none;border-radius:var(--dsw-radius-md);outline:none;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-align:left;cursor:pointer}
+.codexModelSelectCell:hover,.codexModelSelectCell:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}
+.codexModelSelectCellLabel{flex:none;white-space:nowrap}
+.codexModelSelectCellValue{flex:auto;min-width:0;overflow:hidden;color:var(--dsw-alias-label-tertiary);text-align:right;text-overflow:ellipsis;white-space:nowrap}
+.codexModelSelectCellChevron{flex:none;width:12px;height:12px;color:var(--dsw-alias-menu-icon)}
+.codexModelSelectSearchRow{flex-shrink:0;position:relative;margin:2px 0 3px}
+.codexModelSelectSearchRow .codexModelSelectSearch{display:flex;height:auto;padding:5px 7px;border:0 solid transparent;border-radius:var(--dsw-radius-md);background:transparent}
+.codexModelSelectSearchRow .codexModelSelectSearch:focus-within{border-color:transparent}
+.codexModelSelectSearchRow .codexModelSelectSearch input{padding:0;font-size:12px;line-height:normal}
+.codexModelSelectSearchRow .codexModelSelectSearch input::placeholder{color:var(--dsw-alias-label-caption)}
+.codexModelSelectGroups{flex:1 1 auto;min-height:0;overflow-y:auto}
+.codexModelSelectGroupTitle{padding:5px 8px 3px;color:var(--dsw-alias-label-tertiary);font-size:12px;font-weight:500;line-height:18px}
+.codexModelSelectOption{box-sizing:border-box;display:flex;align-items:center;gap:6px;width:auto;min-width:100%;min-height:34px;padding:5px 7px;border:none;border-radius:var(--dsw-radius-md);outline:none;background:transparent;color:inherit;text-align:left;cursor:pointer}
+.codexModelSelectOption:hover:not(:disabled),.codexModelSelectOption:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}
+.codexModelSelectOption:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
+.codexModelSelectOptionCopy{display:flex;flex:1;flex-direction:column;min-width:0}
+.codexModelSelectOptionName{overflow:hidden;color:inherit;font-size:13px;font-weight:400;line-height:18px;text-overflow:ellipsis;white-space:nowrap}
+.codexModelSelectOptionDescription{overflow:hidden;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:16px;text-overflow:ellipsis;white-space:nowrap}
+.codexModelSelectCheck{display:grid;place-items:center;flex:0 0 14px;color:var(--dsw-alias-label-primary)}
+.codexModelSelectCheck svg{width:14px;height:14px}
+.codexModelSelectStatus,.codexModelSelectEmpty{padding:8px;color:var(--dsw-alias-label-tertiary);font-size:12px;line-height:18px}
+.codexModelSelectError,.codexModelSelectWarning{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:3px;padding:6px 7px;border-radius:var(--dsw-radius-md);background:var(--dsw-alias-interactive-bg-hover-danger);color:var(--dsw-alias-state-error-primary);font-size:11px;line-height:16px}
+.codexModelSelectWarning{background:var(--dsw-alias-bg-module-platform);color:var(--dsw-alias-state-warn-label)}
+.codexModelSelectRetry{flex:none;padding:0;border:none;background:transparent;color:inherit;font:inherit;font-weight:600;cursor:pointer}
+.codexModelSelectSearchRow{margin:2px 0 0;border-bottom:1px solid var(--dsw-alias-border-l2)}
+.codexModelSelectGroups{scroll-padding-block:30px;padding-top:2px}
+.codexModelSelectGroups [class*=_heading_]{background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-module-platform))}
+
 .codexSubscription[data-embedded=true]{max-width:960px}
 .codexQuotaSettingsLink{display:block;width:100%;margin-top:8px;padding:8px 0 0;border:0;border-top:1px solid var(--dsw-alias-border-l2);background:transparent;color:var(--dsw-alias-label-link,var(--dsw-alias-label-primary));font:inherit;text-align:start;cursor:pointer}
 .codexQuotaSettingsLink:hover{text-decoration:underline}
@@ -379,6 +418,8 @@ a.codexVoiceCall{display:flex;align-items:center;justify-content:center;box-sizi
 .codexFlat .codexSubscriptionPreferenceLabel small,.codexFlat .codexFeatureTitle small{line-height:16px;height:16px;display:inline-flex;align-items:center}
 .codexFlat .codexSubscriptionPreferenceHint,.codexFlat .codexFeatureSummary{font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
 .codexFlat .codexSubscriptionPreferenceCopy{gap:0}
+.codexFlat .codexComposerMenuGroup>.codexSubscriptionPreference:not(:last-child){border-bottom:0;padding-bottom:0}
+.codexFlat .codexComposerMenuOption{padding-inline-start:16px;min-height:40px}
 .codexFlat .codexSubscriptionDivider{display:none}
 .codexFlat .codexSubscriptionQuotaModes{background:var(--dsw-alias-bg-module-platform);border-radius:10px;padding:2px;gap:2px;min-height:32px;box-sizing:border-box}
 .codexFlat .codexSubscriptionQuotaMode{min-height:28px;border-radius:8px;padding:0 10px;font-size:13px;white-space:nowrap}

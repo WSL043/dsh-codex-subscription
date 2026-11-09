@@ -111,25 +111,41 @@ function SpeedPreference({ snapshot, preference, t }) {
   const values = [SPEED_MODE_STANDARD, SPEED_MODE_FAST]
   if (ultrafast || snapshot.speedMode === SPEED_MODE_ULTRAFAST) values.push(SPEED_MODE_ULTRAFAST)
   const labels = { [SPEED_MODE_STANDARD]: 'speedStandard', [SPEED_MODE_FAST]: 'speedFast', [SPEED_MODE_ULTRAFAST]: 'speedUltrafast' }
-  return <div className="codexSubscriptionPreference">
+  return <div className="codexSubscriptionPreference codexComposerMenuOption">
     <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={ultrafast
-      ? `${t('speedFastHint')} · ${t('speedUltrafastHint')}` : t('speedFastHint')}>{t('speedTitle')}</SettingsLabel></div>
+      ? `${t('speedFastHint')} · ${t('speedUltrafastHint')}` : t('speedFastHint')}>{t('defaultSpeedTitle')}</SettingsLabel></div>
     <Radios snapshot={snapshot} preference={preference} field={SPEED_MODE_FIELD} values={values}
-      name="codex-speed" label={t('speedTitle')} text={value => t(labels[value])}
+      name="codex-speed" label={t('defaultSpeedTitle')} text={value => t(labels[value])}
       disabledValues={ultrafast ? [] : [SPEED_MODE_ULTRAFAST]} />
   </div>
 }
 
 export function ModelsPage({ preference, t, defaultModel }) {
   const snapshot = usePreferenceSnapshot(preference)
+  const loaded = snapshot.status === 'ready'
+  const customMenu = snapshot.composerModelPicker === 'legacy'
+  const menuDisabled = !ready(snapshot) || snapshot.saving
   return <div className="codexSubscriptionAdvancedPreferences">
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('modelsSectionTitle')}>
       <ModelCatalogStatus preference={preference} t={t} title={t('modelsSectionTitle')} />
       {defaultModel === undefined ? null : <><DefaultModelPreference preference={preference} defaultModel={defaultModel} t={t} /><div className="codexSubscriptionDivider" /></>}
       <DefaultReasoningEffortPreference preference={preference} t={t} />
-      <SpeedPreference snapshot={snapshot} preference={preference} t={t} />
-      <ComposerPredictionPreference preference={preference} t={t} />
+    </section>
+    <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('composerSettingsTitle')}>
+      <h3>{t('composerSettingsTitle')}</h3>
+      <div className="codexComposerMenuGroup" role="group" aria-label={t('legacyModelPicker')}>
+        <div className="codexSubscriptionPreference">
+          <div className="codexSubscriptionPreferenceCopy">
+            <SettingsLabel description={t('legacyModelPickerHint')}>{t('legacyModelPicker')}</SettingsLabel>
+            {loaded ? <Hint>{t(customMenu ? 'composerMenuCustom' : 'composerMenuHost')}</Hint> : null}
+          </div>
+          <Switch checked={customMenu} label={t('legacyModelPicker')} disabled={menuDisabled}
+            onChange={on => { void preference.set({ composerModelPicker: on ? 'legacy' : 'dsh' }) }} />
+        </div>
+        {loaded && customMenu ? <SpeedPreference snapshot={snapshot} preference={preference} t={t} /> : null}
+      </div>
       <PickerModelsPreference preference={preference} t={t} />
+      <ComposerPredictionPreference preference={preference} t={t} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('answerStyleTitle')}>
       <h3>{t('answerStyleTitle')}</h3>

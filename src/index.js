@@ -280,6 +280,7 @@ export function apply(ctx, config = {}) {
         reviewModel: settings.get().reviewModel ?? 'session',
         remoteControl: settings.get().remoteControl ?? 'off',
         composerPredictions: settings.get().composerPredictions === 'on' ? 'on' : 'off',
+        composerModelPicker: settings.get().composerModelPicker === 'dsh' ? 'dsh' : 'legacy',
         otherModels: settings.get().otherModels === 'off' ? 'off' : 'on',
         subagentBackend: settings.get().subagentBackend ?? 'dsh',
         subagentDefaultModel: normalizeSubagentModel(settings.get().subagentDefaultModel),

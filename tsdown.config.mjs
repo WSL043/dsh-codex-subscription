@@ -137,6 +137,7 @@ function clientBundle(entry, fileName, chunk) {
     // Resolve the installed entries once. Parallel browser builds on Windows
     // can otherwise leave these pnpm subpaths as unresolved external imports.
     alias: {
+      '@heroicons/react/16/solid': fileURLToPath(import.meta.resolve('@heroicons/react/16/solid')),
       '@heroicons/react/24/outline': fileURLToPath(import.meta.resolve('@heroicons/react/24/outline')),
       'qrcode/lib/core/qrcode.js': fileURLToPath(import.meta.resolve('qrcode/lib/core/qrcode.js')),
     },

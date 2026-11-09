@@ -130,6 +130,12 @@ export const normalizeSpeedMode = value => [SPEED_MODE_STANDARD, SPEED_MODE_FAST
   ? value
   : DEFAULT_SPEED_MODE
 
+export function effectiveCodexSpeedMode(mode, modelId, capability) {
+  if (mode === SPEED_MODE_ULTRAFAST && capability?.supportsUltrafast === true) return mode
+  if (mode === SPEED_MODE_FAST && (capability?.supportsFast ?? supportsCodexFastMode(modelId))) return mode
+  return SPEED_MODE_STANDARD
+}
+
 export const normalizeContextMode = value => [CONTEXT_MODE_STANDARD, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_CUSTOM].includes(value)
   ? value
   : DEFAULT_CONTEXT_MODE
