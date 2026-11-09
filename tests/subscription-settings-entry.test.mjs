@@ -41,6 +41,18 @@ test('quota shortcut uses the host public navigation without touching the active
   assert.deepEqual(opened, ['dsh-codex-subscription'])
 })
 
+test('an image extension at the same slot priority cannot block the client entry', async () => {
+  const name = 'conversation.chat.message.images'
+  const host = registerClient(false, { occupiedSlot: name, imageSettings: { imageViewer: true, imageEditing: true } })
+  assert.equal(host.registry.entriesOfSlot(name)[0].component, host.otherRenderer)
+  assert.throws(() => host.registry.register({ name, priority: -10 }, () => null), /already has a registration/u)
+  assert.ok(host.entries.some(entry => entry.options.name === 'settings.section'))
+  host.releaseOther()
+  await Promise.resolve()
+  assert.equal(host.registry.entriesOfSlot(name).length, 1)
+  assert.notEqual(host.registry.entriesOfSlot(name)[0].component, host.otherRenderer)
+})
+
 test('hosts without plugin navigation do not advertise a broken shortcut', () => {
   for (const navigation of [undefined, {}, { openBundle: false }]) assert.equal(subscriptionSettingsOpener({ get: () => navigation }), undefined)
 })

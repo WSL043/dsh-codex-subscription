@@ -233,6 +233,9 @@ export function apply(ctx) {
     let dispose
     const sync = () => {
       if (needsSubscriptionImageEnhancement(preference.getSnapshot()) && (component !== ComposerImagePreviews || nativeAttachments())) {
+        // An equal-priority entry belongs to another extension. The host rejects
+        // duplicate priorities for a single slot, so leave its renderer in place.
+        if (!dispose && ctx.slots.entries(name).some(entry => entry.options.priority === -10)) return
         dispose ??= ctx.slots.register({ name, priority: -10,
           inject: sessionId => ({ preference, t, sessionId, nativeAttachments, watchNativeAttachments, nativeTranslate, service: imageViewer, openSketchImage: openSketchImage(sessionId), attachForEdit: attachForEdit(sessionId) }),
         }, component)
@@ -240,8 +243,8 @@ export function apply(ctx) {
     }
     sync()
     const unwatch = preference.subscribe(sync)
-    const unwatchNative = component === ComposerImagePreviews ? watchNativeAttachments(sync) : () => {}
-    return () => { unwatch(); unwatchNative(); dispose?.() }
+    const unwatchSlot = ctx.slots.subscribe(name, sync)
+    return () => { unwatch(); unwatchSlot(); dispose?.() }
   })
   const attachSketch = (sessionId, blob) => {
     const current = preference.getSnapshot()
