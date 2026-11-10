@@ -80,7 +80,7 @@ DSH `0.2.2-rc.1` CLI/Web には Node.js **24.9 以降**が必要です。公式�
 2. バージョンを含めた以下のパッケージ名を、**パッケージ名またはアドレス**欄に貼り付けます。
 
    ```text
-   dsh-codex-subscription@3.2.9
+   dsh-codex-subscription@3.2.10
    ```
 
 3. **インストール**をクリックし、完了するまで待ちます。ページの指示に従ってください。再起動を求められた場合は、その前に作業内容を保存してください。
@@ -97,7 +97,7 @@ DSH `0.2.2-rc.1` CLI/Web には Node.js **24.9 以降**が必要です。公式�
 <summary>ターミナルからインストール（dsh コマンドがすでにある場合）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.9
+dsh plugin --profile web add dsh-codex-subscription@3.2.10
 ```
 
 再起動の指示に従い、その後 **設定 → Codex** でサインインしてください。プラグインページとターミナルのどちらからインストールしても、DSH のインストール管理機能が使用されます。
@@ -110,7 +110,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.2.9
 Web でサインインし、Codex モデルを選択した後、Headless プロファイルにも同じプラグインをインストールします。
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.9
+dsh plugin --profile headless add dsh-codex-subscription@3.2.10
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -399,7 +399,7 @@ DSH の **プラグイン** ページでこのプラグインを見つけ、更�
 <summary>ターミナルコマンド</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.9
+dsh plugin --profile web update dsh-codex-subscription@3.2.10
 ```
 
 アンインストールする場合にのみ実行してください：

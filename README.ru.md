@@ -80,7 +80,7 @@
 2. Вставьте имя этого пакета вместе с его версией в поле **Package name or address**:
 
    ```text
-   dsh-codex-subscription@3.2.9
+   dsh-codex-subscription@3.2.10
    ```
 
 3. Нажмите **Install** и дождитесь завершения. Следуйте инструкциям на странице; если будет предложено перезапустить приложение, перед этим сохраните свою работу.
@@ -97,7 +97,7 @@
 <summary>Установка через терминал (если команда dsh уже установлена)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.9
+dsh plugin --profile web add dsh-codex-subscription@3.2.10
 ```
 
 Следуйте инструкциям по перезапуску, затем войдите в систему в разделе **Настройки → Codex**. И страница «Плагины», и терминал используют систему управления установками DSH.
@@ -110,7 +110,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.2.9
 Войдите в систему и выберите модель Codex в Web, затем установите тот же плагин в профиле Headless:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.9
+dsh plugin --profile headless add dsh-codex-subscription@3.2.10
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -399,7 +399,7 @@ DSH управляет диалогами, подтверждениями инс
 <summary>Команды терминала</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.9
+dsh plugin --profile web update dsh-codex-subscription@3.2.10
 ```
 
 Запускайте только в том случае, если хотите удалить плагин:
