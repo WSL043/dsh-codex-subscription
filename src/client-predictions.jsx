@@ -1,10 +1,12 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { createPortal } from 'react-dom'
 import { composerPredictionAccountKey, composerPredictionContext, createComposerPredictionController } from './composer-prediction-controller.js'
+import { attachPredictionLayout, predictionAnchor } from './composer-prediction-layout.js'
 
 export const PREDICTION_CSS = `
-.codex-composer-prediction{position:absolute;inset:16px 20px auto;z-index:1;display:flex;align-items:baseline;gap:10px;pointer-events:none;color:var(--dsw-alias-label-tertiary,#888);font:inherit;line-height:1.5;min-width:0}
-.codex-composer-prediction>span{white-space:pre-wrap;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;min-width:0}
-.codex-composer-prediction button{pointer-events:auto;flex:none;border:0;border-radius:4px;background:var(--dsw-alias-bg-l2,transparent);color:inherit;font:inherit;font-size:11px;padding:1px 5px;cursor:pointer}
+.codex-composer-prediction{position:absolute;z-index:1;display:block;box-sizing:border-box;border-style:solid;border-color:transparent;pointer-events:none;user-select:none;color:color-mix(in srgb,var(--codex-prediction-ink,#888) 55%,transparent);visibility:hidden;min-width:0}
+.codex-composer-prediction>span{font:inherit;color:inherit}
+.codex-composer-prediction button{display:inline-block;pointer-events:auto;border:0;border-radius:4px;background:var(--dsw-alias-bg-l2,transparent);color:inherit;font:inherit;font-size:11px;line-height:1.4;padding:1px 5px;margin-inline-start:8px;vertical-align:baseline;white-space:nowrap;cursor:pointer}
 `
 
 /** The disabled path owns neither DOM nor composer event listeners. */
@@ -28,6 +30,8 @@ function ActiveComposerPrediction({ sessionId, rpc, t, directory, accountStatus,
   const controller = useMemo(() => createComposerPredictionController(rpc), [rpc])
   const snapshot = useSyncExternalStore(controller.subscribe, controller.getSnapshot)
   const marker = useRef(null)
+  const layer = useRef(null)
+  const [target, setTarget] = useState(null)
   const current = useRef(null)
   const [focused, setFocused] = useState(false)
   const composing = useRef(false)
@@ -46,10 +50,27 @@ function ActiveComposerPrediction({ sessionId, rpc, t, directory, accountStatus,
   const refresh = () => controller.update(environment())
   const accept = () => controller.accept(inputActions, environment())
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const card = marker.current?.closest('[data-composer-card]')
-    const editor = card?.querySelector('[data-composer-input][contenteditable="true"]')
-    if (!editor) return
+    if (!card) return
+    const resolve = () => {
+      const editor = card.querySelector('[data-composer-input][contenteditable="true"]')
+      const anchor = editor && predictionAnchor(editor)
+      setTarget(previous => previous?.editor === editor && previous?.anchor === anchor ? previous : anchor ? { card, editor, anchor } : null)
+    }
+    const observer = new MutationObserver(resolve)
+    observer.observe(card, { childList: true, subtree: true, attributes: true, attributeFilter: ['contenteditable'] })
+    resolve()
+    return () => observer.disconnect()
+  }, [sessionId])
+  useLayoutEffect(() => {
+    if (!snapshot.prediction || !focused || !accountKey || !target || !layer.current) return
+    return attachPredictionLayout(target.editor, target.anchor, layer.current)
+  }, [snapshot.prediction, focused, accountKey, target])
+
+  useEffect(() => {
+    if (!target) return
+    const { card, editor } = target
     dom.current = { card, editor }
     const focus = () => { setFocused(editor === document.activeElement); refresh() }
     const blur = () => { setFocused(false); refresh() }
@@ -80,30 +101,24 @@ function ActiveComposerPrediction({ sessionId, rpc, t, directory, accountStatus,
       document.removeEventListener('selectionchange', focus)
       document.removeEventListener('visibilitychange', focus)
       dom.current = null
+      composing.current = false
+      compositionUntil.current = 0
       controller.cancel()
     }
-  }, [controller, sessionId, inputActions])
+  }, [controller, sessionId, inputActions, target])
   useLayoutEffect(() => { refresh() }, [controller, sessionId, accountKey, input, selection, context, focused])
   // StrictMode replays setup/cleanup on the same memoized controller. A cancel
   // releases pending work; useSyncExternalStore owns listener unsubscription.
   useEffect(() => () => controller.cancel(), [controller])
-  useLayoutEffect(() => {
-    if (!snapshot.prediction || !focused) return
-    const placeholder = marker.current?.closest('[data-composer-card]')?.querySelector('[data-composer-placeholder]')
-    if (!placeholder) return
-    const visibility = placeholder.style.getPropertyValue('visibility')
-    const priority = placeholder.style.getPropertyPriority('visibility')
-    placeholder.style.setProperty('visibility', 'hidden')
-    return () => {
-      if (placeholder.style.getPropertyValue('visibility') !== 'hidden') return
-      if (visibility) placeholder.style.setProperty('visibility', visibility, priority)
-      else placeholder.style.removeProperty('visibility')
-    }
-  }, [snapshot.prediction, focused, sessionId])
 
-  if (!snapshot.prediction || !focused || !accountKey) return <span ref={marker} hidden />
-  return <div ref={marker} className="codex-composer-prediction">
-    <span aria-hidden="true">{snapshot.prediction}</span>
-    <button type="button" aria-label={t('composerPredictionAccept')} title={t('composerPredictionAccept')} onPointerDown={event => event.preventDefault()} onClick={accept}>Tab</button>
-  </div>
+  // Keep the slot marker in its React-owned position. Only our own presentation
+  // is portalled into the editor's scrollport; the host editor is never moved.
+  return <>
+    <span ref={marker} hidden />
+    {snapshot.prediction && focused && accountKey && target && createPortal(
+      <div ref={layer} className="codex-composer-prediction">
+        <span aria-hidden="true">{snapshot.prediction}</span>
+        <button type="button" aria-label={t('composerPredictionAccept')} title={t('composerPredictionAccept')} onPointerDown={event => event.preventDefault()} onClick={accept}>Tab</button>
+      </div>, target.anchor)}
+  </>
 }
