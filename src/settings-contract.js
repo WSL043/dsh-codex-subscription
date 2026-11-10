@@ -20,6 +20,9 @@ export const FETCH_PROVIDER_DSH = 'dsh'
 export const FETCH_PROVIDER_CODEX = 'codex'
 export const DEFAULT_FETCH_PROVIDER = FETCH_PROVIDER_DSH
 export const normalizeFetchProvider = value => value === FETCH_PROVIDER_CODEX ? FETCH_PROVIDER_CODEX : FETCH_PROVIDER_DSH
+export const COMPOSER_MODEL_PICKER_MODES = Object.freeze(['auto', 'dsh', 'legacy'])
+export const normalizeComposerModelPicker = value => COMPOSER_MODEL_PICKER_MODES.includes(value) ? value : 'auto'
+
 export const SPEED_MODE_FIELD = 'speedMode'
 export const SPEED_MODE_STANDARD = 'standard'
 export const SPEED_MODE_FAST = 'fast'

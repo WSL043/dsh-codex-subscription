@@ -1,22 +1,76 @@
+import { unwrap } from './rpc-contract.js'
+
 const slot = 'conversation.input.model'
+const nativeLabel = 'conversation.input.model.label'
+const priority = -1
+const priorityOf = entry => entry.options.priority ?? 0
+
+// The standard picker declares the host's model-label extension point.
+// Priority zero alone also matches third-party replacements.
+const native = entry => priorityOf(entry) === 0 && entry.children?.[nativeLabel]?.kind === 'single'
+
+export function watchComposerModelPickerConflict(manager, remote, update, onReset) {
+  if (typeof manager?.listPlugins !== 'function') return
+  let generation = 0
+  let disposed = false
+  const refresh = async () => {
+    const current = ++generation
+    try {
+      const entries = unwrap(await manager.listPlugins())
+      if (disposed || current !== generation) return
+      // Claude Style customizes the standard picker without taking a slot entry.
+      update(entries.some(entry => entry.moduleName === 'dsh-claude-style' && entry.enabled === true))
+    } catch {
+      if (!disposed && current === generation) update(true)
+    }
+  }
+  update(true)
+  const unwatch = remote?.$on?.('plugin-manager/changed', refresh)
+  const unwatchReset = onReset?.(refresh)
+  void refresh()
+  return () => {
+    disposed = true
+    unwatch?.()
+    unwatchReset?.()
+    update(false)
+  }
+}
 
 export function registerLegacyModelPicker(slots, preference, props, component) {
   return slots.inject(slot, () => {
     let dispose
+    let disposed = false
+    let syncing = false
     const sync = () => {
-      const state = preference.getSnapshot()
-      if (state.status === 'ready' && state.composerModelPicker === 'legacy') {
-        // Native owns its label child. Lower-numbered third-party overrides keep priority.
-        if (!dispose && !slots.entries(slot).some(entry => entry.options.priority === -1)) {
-          dispose = slots.register({ name: slot, priority: -1, inject: props }, component)
+      if (disposed || syncing) return
+      syncing = true
+      try {
+        const state = preference.getSnapshot()
+        const others = slots.entries(slot).filter(entry => entry.component !== component)
+        const custom = state.composerModelPicker === 'legacy' || (
+          state.composerModelPicker === 'auto' && !state.composerModelPickerConflict && others.every(native)
+        )
+        if (state.status === 'ready' && custom && !others.some(entry => priorityOf(entry) === priority)) {
+          dispose ??= slots.register({ name: slot, priority, inject: props }, component)
+        } else {
+          dispose?.()
+          dispose = undefined
         }
-      } else {
-        dispose?.()
-        dispose = undefined
-      }
+        preference.setComposerModelPickerActive(Boolean(dispose) && !others.some(entry => priorityOf(entry) < priority))
+      } catch (error) {
+        // A queued slot notification can run while Cordis is tearing down its owner.
+        if (error?.code !== 'INACTIVE_EFFECT') throw error
+      } finally { syncing = false }
     }
-    sync()
     const unwatch = preference.subscribe(sync)
-    return () => { unwatch(); dispose?.() }
+    const unwatchSlot = slots.subscribe(slot, sync)
+    sync()
+    return () => {
+      disposed = true
+      unwatch()
+      unwatchSlot()
+      dispose?.()
+      preference.setComposerModelPickerActive(false)
+    }
   })
 }

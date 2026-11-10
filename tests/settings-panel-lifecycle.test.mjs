@@ -6,7 +6,7 @@ import vm from 'node:vm'
 import test from 'node:test'
 import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots'
 import * as settingsContract from '../src/settings-contract.js'
-import { registerLegacyModelPicker } from '../src/client-model-picker-slot.js'
+import { registerLegacyModelPicker, watchComposerModelPickerConflict } from '../src/client-model-picker-slot.js'
 import { createPreferenceController } from '../src/preference-controller.js'
 import { createSubscriptionRpcHandler } from '../src/subscription-rpc.js'
 import { PROJECT_URL, maskEmail, unwrap, validDate } from '../src/client-shared.js'
@@ -115,14 +115,13 @@ test('project action belongs only to this bundle and the native button opens its
   } finally { host.dispose() }
 })
 
-test('the custom picker defaults on after settings load and preserves native and third-party selections', async () => {
+test('auto preserves third-party pickers and restores the speed menu when they unload', async () => {
   const modelSlot = 'conversation.input.model', labelSlot = 'conversation.input.model.label'
   const core = new SlotCore()
   core.register({ name: 'root', children: { [modelSlot]: { kind: 'single', scope: 'session' } } }, named('composer'))
   const native = named('native'), legacy = named('legacy'), external = named('external'), badge = named('badge')
   core.register({ name: modelSlot, children: { [labelSlot]: { kind: 'single', scope: 'session', inline: true } } }, native)
   core.register({ name: labelSlot }, badge)
-  const unregisterExternal = core.register({ name: modelSlot, priority: -10 }, external)
   let settings = {}
   const handler = createSubscriptionRpcHandler({ preferences: {
     status: () => ({ ...settings, writable: true }),
@@ -134,17 +133,31 @@ test('the custom picker defaults on after settings load and preserves native and
   const dispose = registerLegacyModelPicker({
     inject: (_key, install) => install(),
     entries: key => core.entries(key),
+    subscribe: (key, callback) => core.subscribe(key, callback),
     register: (options, component) => core.register(options, component),
   }, preference, () => ({}), legacy)
   try {
-    assert.equal(core.entries(modelSlot).length, 2, 'startup waits for the saved picker choice')
+    assert.equal(winner(), native, 'startup waits for the saved picker choice')
     await preference.load()
-    assert.equal(preference.getSnapshot().composerModelPicker, 'legacy')
+    assert.equal(preference.getSnapshot().composerModelPicker, 'auto')
+    assert.equal(winner(), legacy)
+    assert.equal(preference.getSnapshot().composerModelPickerActive, true)
+
+    const unregisterExternal = core.register({ name: modelSlot, priority: -10 }, external)
+    await flush()
+    assert.equal(core.entries(modelSlot).length, 2)
     assert.equal(winner(), external)
+    assert.equal(preference.getSnapshot().composerModelPickerActive, false)
     await preference.set({ composerModelPicker: 'legacy' })
     assert.equal(winner(), external)
     assert.equal(settings.composerModelPicker, 'legacy')
     unregisterExternal()
+    await flush()
+    assert.equal(winner(), legacy)
+    await preference.set({ composerModelPicker: 'auto' })
+    preference.setComposerModelPickerConflict(true)
+    assert.equal(winner(), native, 'Claude Style can claim the visual seat without a slot entry')
+    preference.setComposerModelPickerConflict(false)
     assert.equal(winner(), legacy)
     assert.equal(core.entriesOfSlot(labelSlot)[0].component, badge)
     await preference.load()
@@ -191,26 +204,48 @@ test('the classic picker toggles supported speed inside the model menu and shows
   } finally { h.dispose() }
 })
 
-test('turning off the custom menu hides its speed control and preserves the saved speed', async () => {
-  const snapshot = { status: 'ready', writable: true, composerModelPicker: 'legacy', speedMode: 'fast', ultrafastModels: [] }
+test('the host inventory tracks Claude Style enablement and ignores stale responses', async () => {
+  const old = deferred()
+  let rows = old.promise, refresh
+  const updates = []
+  const unwatch = watchComposerModelPickerConflict({ listPlugins: async () => ({ ok: true, value: await rows }) }, {
+    $on(event, listener) { assert.equal(event, 'plugin-manager/changed'); refresh = listener; return () => { refresh = undefined } },
+  }, value => updates.push(value))
+  try {
+    assert.deepEqual(updates, [true], 'wait for the initial inventory before claiming the seat')
+    rows = [{ moduleName: 'dsh-claude-style', enabled: false }]
+    await refresh()
+    old.resolve([{ moduleName: 'dsh-claude-style', enabled: true }])
+    await flush()
+    assert.deepEqual(updates, [true, false])
+    rows = [{ moduleName: 'dsh-claude-style', enabled: true }]
+    await refresh()
+    assert.deepEqual(updates, [true, false, true])
+  } finally { unwatch() }
+  assert.equal(refresh, undefined)
+})
+
+test('yielding the model menu hides its speed controls and preserves the saved speed', async () => {
+  const snapshot = { status: 'ready', writable: true, composerModelPicker: 'auto', composerModelPickerActive: true, speedMode: 'fast', ultrafastModels: [] }
   const preference = { set: async patch => { Object.assign(snapshot, patch) } }
   const h = await component('client-pages.jsx', 'ModelsPage', { preference, t: key => key }, {
     './client-shared.js': { usePreferenceSnapshot: () => snapshot },
     './settings-contract.js': settingsContract,
   })
-  const control = label => nodes(h.tree, node => node.props.label === label && typeof node.props.onChange === 'function')[0]
+  const control = () => nodes(h.tree, node => node.props.field === 'composerModelPicker')[0]
   const speed = () => {
     const group = nodes(h.tree, node => node.props.role === 'group' && node.props['aria-label'] === 'legacyModelPicker')[0]
-    const row = nodes(group, node => node.props.snapshot === snapshot)[0]
+    const row = nodes(group, node => node.props.snapshot === snapshot && node.props.field === undefined)[0]
     return row && nodes(row.type(row.props), node => node.props.field === 'speedMode')[0]
   }
   try {
     assert.equal(speed().props.snapshot.speedMode, 'fast')
-    control('legacyModelPicker').props.onChange(false)
+    assert.deepEqual([...control().props.values], ['auto', 'dsh', 'legacy'])
+    snapshot.composerModelPickerActive = false
     h.render()
     assert.equal(speed(), undefined)
     assert.equal(snapshot.speedMode, 'fast')
-    control('legacyModelPicker').props.onChange(true)
+    snapshot.composerModelPickerActive = true
     h.render()
     assert.equal(speed().props.snapshot.speedMode, 'fast')
   } finally { h.dispose() }

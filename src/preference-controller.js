@@ -5,6 +5,7 @@ import {
   AUTO_QUOTA_RETRY_FIELD,
   DEFAULT_REASONING_EFFORT_FIELD,
   normalizeDefaultReasoningEffort,
+  normalizeComposerModelPicker,
   clampModelContext,
   CONTEXT_MODE_FIELD,
   DISABLED_MODELS_FIELD,
@@ -72,6 +73,8 @@ export function createPreferenceController(rpc) {
   let subagentModels = []
   let fetchRoutingAvailable = false
   let restartRequired = false
+  let composerModelPickerActive = false
+  let composerModelPickerConflict = false
 
   const sameModels = (left, right) => left.length === right.length
     && left.every((model, index) => JSON.stringify(model) === JSON.stringify(right[index]))
@@ -88,7 +91,9 @@ export function createPreferenceController(rpc) {
       reviewModel: value?.reviewModel === 'official' ? 'official' : 'session',
       remoteControl: value?.remoteControl === 'on' ? 'on' : 'off',
       composerPredictions: value?.composerPredictions === 'on' ? 'on' : 'off',
-      composerModelPicker: value?.composerModelPicker === 'dsh' ? 'dsh' : 'legacy',
+      composerModelPicker: normalizeComposerModelPicker(value?.composerModelPicker),
+      composerModelPickerActive,
+      composerModelPickerConflict,
       otherModels: value?.otherModels === 'off' ? 'off' : 'on',
       compactionMode: value?.compactionMode === 'cloud' ? 'cloud' : 'dsh',
       reasoningCache: normalizeReasoningCache(value?.reasoningCache),
@@ -175,7 +180,7 @@ export function createPreferenceController(rpc) {
         reviewModel: value?.reviewModel === 'official' ? 'official' : 'session',
         remoteControl: value?.remoteControl === 'on' ? 'on' : 'off',
         composerPredictions: value?.composerPredictions === 'on' ? 'on' : 'off',
-        composerModelPicker: value?.composerModelPicker === 'dsh' ? 'dsh' : 'legacy',
+        composerModelPicker: normalizeComposerModelPicker(value?.composerModelPicker),
         otherModels: value?.otherModels === 'off' ? 'off' : 'on',
       otherModels: value?.otherModels === 'off' ? 'off' : 'on',
         compactionMode: value?.compactionMode === 'cloud' ? 'cloud' : 'dsh',
@@ -316,6 +321,16 @@ export function createPreferenceController(rpc) {
     },
     load,
     set,
+    setComposerModelPickerActive(active) {
+      if (composerModelPickerActive === active) return
+      composerModelPickerActive = active
+      publish()
+    },
+    setComposerModelPickerConflict(conflict) {
+      if (composerModelPickerConflict === conflict) return
+      composerModelPickerConflict = conflict
+      publish()
+    },
     retry: () => failedPatch === undefined ? load() : set(failedPatch),
     refreshModels,
     dispose: () => {

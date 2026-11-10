@@ -16,7 +16,7 @@ import {
   PickerModelsPreference, QuickQuotaPreference, ReasoningCachePreference, ReasoningSummaryPreference, RetryPolicyPreference, SearchProviderPreference,
   StreamIdleTimeoutPreference,
 } from './client-preferences.jsx'
-import { OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF, SPEED_MODE_FIELD, SPEED_MODE_FAST, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST } from './settings-contract.js'
+import { COMPOSER_MODEL_PICKER_MODES, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF, SPEED_MODE_FIELD, SPEED_MODE_FAST, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST } from './settings-contract.js'
 import { IMAGE_MODELS } from './image-models.js'
 import { ImageChoice } from './image-preferences.jsx'
 
@@ -123,8 +123,8 @@ function SpeedPreference({ snapshot, preference, t }) {
 export function ModelsPage({ preference, t, defaultModel }) {
   const snapshot = usePreferenceSnapshot(preference)
   const loaded = snapshot.status === 'ready'
-  const customMenu = snapshot.composerModelPicker === 'legacy'
-  const menuDisabled = !ready(snapshot) || snapshot.saving
+  const customMenu = snapshot.composerModelPickerActive
+  const menuLabels = { auto: 'composerMenuAuto', dsh: 'composerMenuDsh', legacy: 'composerMenuSubscription' }
   return <div className="codexSubscriptionAdvancedPreferences">
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('modelsSectionTitle')}>
       <ModelCatalogStatus preference={preference} t={t} title={t('modelsSectionTitle')} />
@@ -139,8 +139,8 @@ export function ModelsPage({ preference, t, defaultModel }) {
             <SettingsLabel description={t('legacyModelPickerHint')}>{t('legacyModelPicker')}</SettingsLabel>
             {loaded ? <Hint>{t(customMenu ? 'composerMenuCustom' : 'composerMenuHost')}</Hint> : null}
           </div>
-          <Switch checked={customMenu} label={t('legacyModelPicker')} disabled={menuDisabled}
-            onChange={on => { void preference.set({ composerModelPicker: on ? 'legacy' : 'dsh' }) }} />
+          <Radios snapshot={snapshot} preference={preference} field="composerModelPicker" values={COMPOSER_MODEL_PICKER_MODES}
+            name="codex-model-picker" label={t('legacyModelPicker')} text={value => t(menuLabels[value])} disabled={!loaded || snapshot.saving} />
         </div>
         {loaded && customMenu ? <SpeedPreference snapshot={snapshot} preference={preference} t={t} /> : null}
       </div>

@@ -20,7 +20,7 @@ import { NS, CHANNEL, unwrap } from './client-shared.js'
 import { createSubscriptionRpcClient } from './rpc-contract.js'
 import { CodexComposerQuota } from './client-composer-quota.jsx'
 import { CodexModelSelect } from './client-model-select.jsx'
-import { registerLegacyModelPicker } from './client-model-picker-slot.js'
+import { registerLegacyModelPicker, watchComposerModelPickerConflict } from './client-model-picker-slot.js'
 import { quotaUsageController } from './client-quota.jsx'
 import { VoiceCallButton } from './client-voice-call.jsx'
 import { CodexSection, ProjectAction } from './client-section.jsx'
@@ -62,6 +62,10 @@ export function apply(ctx) {
   }, 'codex-subscription: style')
   const rpc = createSubscriptionRpcClient(ctx.get('connection').rpc)
   const preference = createPreferenceController(rpc)
+  ctx.inject(['remote.pluginManager'], scope => scope.effect(() => watchComposerModelPickerConflict(
+    scope.get('remote.pluginManager'), scope.get('remote'), preference.setComposerModelPickerConflict,
+    refresh => scope.on('connection/reset', refresh),
+  ), 'codex-subscription: composer model menu compatibility'))
   const quotaUsage = quotaUsageController(rpc)
   ctx.effect(() => {
     let mode = preference.getSnapshot().quickQuotaMode
