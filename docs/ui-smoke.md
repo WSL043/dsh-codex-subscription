@@ -1,59 +1,33 @@
-# Live UI smoke test
+# UI smoke tests on official DSH
 
-Unit tests and the scripted acceptance run do not look at the real DSH page. This smoke test does:
-it installs an official DSH from npm in a throwaway directory, adds this checkout's packed plugin with
-DSH's own `plugin add`, starts `dsh web` with copied signed-in credentials on a free port, and drives
-headless Chrome over the DevTools protocol. It never sends a message and never starts a voice call.
+Install the candidate package in official DSH Desktop for UI and slot changes. Record checks performed with `dsh web` as Web checks. Verify Desktop-specific interactions in Desktop.
 
-## Run
+## Checks
 
-```sh
-node scripts/ui-smoke.mjs --dsh-version 0.2.1-rc.2 [--credentials <home>] [--keep] [--shots <dir>]
-```
-
-- `--credentials <home>`: a DSH home signed in with a ChatGPT account (needs `.credentials.yaml` and
-  `.anonymous-user-id`); default `%LOCALAPPDATA%/dsh-codex-acceptance/home`. The files are copied,
-  never modified or printed. Refresh tokens are single use, so run it once rather than in a loop.
-- `--keep`: keep the throwaway directory (`--shots <dir>` saves a PNG per step).
-- `--url <address>`: drive an already running `dsh web` instead of installing one.
-- `CHROME_PATH` overrides the Chrome location. Exit code is non-zero if any check fails.
-
-## What it checks
-
-| Check | Catches |
+| Area | What to verify |
 | --- | --- |
-| a) page loads, no "Failed to load plugins" screen, no skipped bundle in the host log | plugin does not load on this DSH |
-| f) every slot name the client registers is declared by the host (`slots.specOf` in the page) | a host-renamed slot such as `conversation.message.images` -> `conversation.chat.message.images` |
-| b) Settings -> Codex subscription: the five tabs render, no raw i18n keys, no horizontal overflow | missing locale strings, broken layout |
-| d) our picker mounted (`.codexModelSelectTrigger`) and, with a Codex model, rows Model / Reasoning effort / Speed | the picker or its Speed tier never mounting |
-| c) quota readout (`quickQuotaMode=percent`) mounted in `conversation.input.right`; voice button (`voiceCall=on`) sits within 0.5px of the send button | composer slots not mounting, voice button misplaced |
-| e) no uncaught exception, and no console error from the plugin | runtime errors |
+| Startup and settings | Check host and plugin versions. Open each settings tab and check the affected languages for missing translations, overflow and incorrect state. Verify saved changes after restarting. |
+| Sign-in and quota | Expired sign-in offers sign-in again on the saved account. A failed refresh offers retry guidance. Stale quota is marked as the last known reading even with forecasting off. A successful refresh restores the current state. Record any simulated responses. |
+| Model picker | In Auto, the subscription menu yields to Claude Style or another active picker and returns when that picker is disabled. DSH standard uses the host picker. For supported models, check speed, output detail and saved selections. |
+| Composer | Check the selected quota display and the voice button on an empty composer. For prediction changes, verify supported models, standard and custom composers, Tab insertion and reappearance after clearing an unsent draft. Tab should retain its normal behavior during IME input and when the suggestion is hidden. |
+| Images and sketch | Check image navigation, pin persistence after reopening and the explicit add-to-composer action. See [sketch testing](sketch-maintenance.md). |
+| Logs | Check load failures, plugin exceptions and mismatched slot names. Redact account and credential data. |
 
-Console errors that do not mention the plugin are printed as notes, not failures. Settings are written
-through the plugin's own `preferences/update` RPC in the throwaway home only.
+Verify affected model responses, audio capture and playback, or account validity through the corresponding live operation.
 
-## Offline slot contract
+## Offline slot checks
 
-`tests/ui-smoke-contract.test.mjs` runs in the normal test suite (no browser). It parses every slot
-name the client registers and requires it to be in the newest `tests/fixtures/dsh-slots-<version>.json`
-(slot name, kind and scope, taken from the type declarations of the installed host packages).
-
-Refresh the snapshot for a new DSH version:
+`tests/ui-smoke-contract.test.mjs` compares source registrations with the slot definitions in `tests/fixtures/dsh-slots-<version>.json`. If the host adds or renames a slot, regenerate the snapshot with the target host packages and review the diff.
 
 ```sh
-# install the DSH version somewhere, e.g. a temp profile: npm install @deepseek-ai/dsh@<version>
 node scripts/refresh-slot-snapshot.mjs --modules <dir>/node_modules --dsh-version <version>
+node --test tests/ui-smoke-contract.test.mjs
 ```
 
-Review the diff (renamed or removed slots are the point), then run `pnpm test`.
+The [composer prediction fixture](../tests/browser/build-prediction-fixture.mjs) checks display, editor replacement and Tab behavior. Check live prediction requests and official Desktop behavior separately.
 
-## Proposed CI step (not wired yet)
+## Retired Web smoke script
 
-After the acceptance job has a signed-in home available as a secret/cache, on a runner with Chrome:
+`scripts/ui-smoke.mjs` prints migration guidance and exits with code **2**. Use the current checks above. The retired runner relied on `.codexModelSelectTrigger`, copied test credentials and could write settings to the host provided through `--url`.
 
-```yaml
-- run: node scripts/ui-smoke.mjs --dsh-version ${{ matrix.dsh }} --credentials "$ACCEPTANCE_HOME" --shots ui-shots
-- uses: actions/upload-artifact@v4
-  if: always()
-  with: { name: ui-smoke-${{ matrix.dsh }}, path: ui-shots }
-```
+When automating checks, record the host version, candidate commit and test profile. Use the host's supported picker and settings contracts. Report the surfaces actually exercised.

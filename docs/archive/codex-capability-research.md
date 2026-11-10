@@ -1,5 +1,7 @@
 # Codex 能力与代理实测
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 核对日期：2026-09-12。范围：DSH 0.1.5-rc.2、订阅 Responses 接口及官方 Codex 子代理。本文是研究记录，不代表产品已启用这些能力。
 
 ## 实测结果
@@ -215,7 +217,7 @@ Reproduce the dependency boundary without credentials or network calls:
 node scripts/audit-compaction-runtime.mjs
 ```
 
-An optional argument selects another installed pi-ai package directory. The probe includes a normal text item as a positive control and reports whether the opaque checkpoint survives; it does not patch dependencies or enable compaction. Consult [Luna quality and verbatim experiments](./luna-compaction-quality-experiment.md) for the separate live protocol results.
+An optional argument selects another installed pi-ai package directory. The probe includes a normal text item as a positive control and reports whether the opaque checkpoint survives; it does not patch dependencies or enable compaction. Consult [Luna quality and verbatim experiments](luna-compaction-quality-experiment.md) for the separate live protocol results.
 
 ### Experimental checkpoint state prototype
 

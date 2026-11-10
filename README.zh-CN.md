@@ -51,7 +51,7 @@
 
 DSH `0.2.2-rc.1` 的 CLI/Web 模式需要 Node.js **24.9 或更高版本**；官方桌面版使用自带的运行时。
 
-另支持预览宿主 `0.2.2-alpha.2`；范围与验收边界见[兼容性记录](docs/dsh-022-alpha2-compatibility.md)。
+另支持预览宿主 `0.2.2-alpha.2`；范围与验收边界见[兼容性记录](docs/archive/dsh-022-alpha2-compatibility.md)。
 
 本插件支持软件包元数据中记录的最新版 DeepSeek Harness，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
 
@@ -350,22 +350,13 @@ Agent 先在画板绘制可编辑草图，再以该草图为参考调用订阅�
 
 会话、工具审批和工作区权限由 DSH 管理。订阅插件提供 Codex 请求路径，以及上面介绍的设置和工具。排查功能为什么不可用时，先核对 DSH 版本、账号能力、当前模型和设置，再追踪相关工具或请求。
 
-[完整使用指南](docs/GUIDE.zh-CN.md) · [草图工具协议](docs/sketch-agent.md) · [设置默认值](src/preference-fields.js)
+[完整使用指南](docs/GUIDE.zh-CN.md) · [草图工具协议](docs/sketch-agent.md) · [设置默认值](src/preference-fields.js) · [开发与文档索引（英文）](docs/DEVELOPMENT.md)
 
 ### 切换推理强度时复用缓存
 
-**切换推理强度时复用缓存**位于**设置 → Codex 订阅 → 模型 → 高级**，默认开启，可随时关闭；已保存的关闭选择会保留。只对当前账号模型目录明确声明支持的标准、单智能体模型生效；不根据模型名称猜测支持情况。普通提示词缓存原本就是自动的，关闭这个开关仍有普通缓存。
+位于**设置 → Codex 订阅 → 模型 → 高级**，默认开启。切换推理强度时，可帮助受支持的模型复用缓存。关闭后仍可使用普通提示词缓存。
 
-请求顶层 `reasoning.effort` 保持当前上下文窗口的初始值。在 DSH 调整强度后，插件在新增历史中记录 `configuration_update`，后续请求保留它的位置。这有助于减少切档导致的缓存失效，不保证每次命中、回复更快或额度节省；服务端响应的顶层 effort 仍可能显示初始值。
-
-- **云端自动压缩和无限重试模式会禁用此功能。** 界面会说明冲突；不会自动修改压缩、重试、鉴权、连接或 cache key 设置。
-- 成功响应在 DSH 原有 replay metadata 中保存少量不含正文的状态，重启、恢复和分支可据此续用。本地压缩成功后，旧前缀不再相同，插件核对 DSH 已提交的历史替换并以当前强度建立新基线；失败的压缩不会清掉原状态。
-- 开启已有会话或切回支持的模型时，只有能与 DSH 原生会话历史完整核对，才建立新基线，第一条不保证复用旧缓存。无法验证的历史、不支持的模型、账户变化及资源上限会使用所选强度的普通请求。
-- 同一进程中的 pending 状态会固定已发送输入，即使该请求失败或取消。对完全相同的输入重试时选择不同强度会明确报错；请保留原强度重试，或发送新消息。失败请求没有成功响应的持久化检查点，因此进程重启或插件重载后，不保证保留失败请求的缓存前缀。
-- 关闭后恢复普通请求，不给旧日志补写 update。不向 `/responses/compact` 发送 update 历史，不支持 pro、多智能体、自动截断或自动压缩。
-- 上限为 20,000 个 input item、16 MiB 输入与外层字段指纹数据、128 个 update，以及 256 个活动或 pending 会话。历史校验或边界校验失败时停止保缓存，不忽略用户所选强度。
-
-此机制使用 OpenAI [推理指南](https://developers.openai.com/api/docs/guides/reasoning)中的 configuration update；[提示词缓存文档](https://developers.openai.com/api/docs/guides/prompt-caching)解释缓存条件。支持情况以当前账号目录和实际响应为准；服务端拒绝参数时报告错误，不换成旧强度或 API key 重试。
+[工作原理与暂停条件](docs/GUIDE.zh-CN.md#reuse-cache-when-changing-effort)
 
 ## 更新与卸载
 
@@ -432,7 +423,7 @@ dsh plugin --profile web remove dsh-codex-subscription
 
 - **只做 ChatGPT / Codex 订阅**，并把这一件事做深：额度与预测、图片与草图、子任务、诊断；不接入 Claude、Grok 等其他订阅。
 - **失败就明确报错**：不会静默切换到其他付费路由，也不会虚构账号没有返回的额度窗口。
-- **跟随官方 DSH 发布**：每次发版都用官方 DSH 的 latest、next 等通道做安装、启动、卸载、重装的端到端验收；已验证的版本见 [兼容性记录](docs/dsh-020-compatibility.md)。
+- **跟随官方 DSH 发布**：每次发版都用官方 DSH 的 latest、next 等通道做安装、启动、卸载、重装的端到端验收；已验证的版本见 [兼容性记录](docs/DEVELOPMENT.md#compatibility)。
 - 模型、额度和功能开放情况以你的账号实际返回为准；ChatGPT 后端与 DSH 可能独立变化。
 
 本项目为社区项目，与 DeepSeek、OpenAI 无隶属或背书关系。

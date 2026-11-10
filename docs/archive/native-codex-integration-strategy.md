@@ -1,5 +1,7 @@
 # 官方 Codex 子代理出现后的取舍与接入方案
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 核对日期：2026-09-09；基于 DSH `dsh-v0.1.5-alpha.1`。这是后续方案，不表示已安装或接通官方子代理。2.0 已获用户条件发布授权，官方子代理研究在发布后继续。
 
 ## 判断

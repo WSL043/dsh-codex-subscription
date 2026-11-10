@@ -55,7 +55,7 @@ Verified against DSH `0.2.2-rc.1`, with `0.2.1-rc.3` and `0.2.1-rc.2` still supp
 
 DSH `0.2.2-rc.1` CLI/Web requires Node.js **24.9 or newer**; the official desktop app uses its bundled runtime.
 
-Also supports the preview host `0.2.2-alpha.2`. See the [compatibility notes](docs/dsh-022-alpha2-compatibility.md) for scope and validation limits.
+Also supports the preview host `0.2.2-alpha.2`. See the [compatibility notes](docs/archive/dsh-022-alpha2-compatibility.md) for scope and validation limits.
 
 This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
 
@@ -370,24 +370,15 @@ Use phone control to reach a running DSH from the ChatGPT mobile app. Use a voic
 
 DSH owns the conversation, tool approvals and workspace permissions. The subscription plugin supplies the Codex route and adds the settings and tools described above. When investigating a missing feature, check the DSH version, account capabilities, selected model and setting before tracing the relevant tool or request.
 
-[Detailed user guide](docs/GUIDE.en.md) · [Sketch tool contract](docs/sketch-agent.md) · [Setting defaults](src/preference-fields.js)
+[Detailed user guide](docs/GUIDE.en.md) · [Sketch tool contract](docs/sketch-agent.md) · [Setting defaults](src/preference-fields.js) · [Development and documentation index](docs/DEVELOPMENT.md)
 
 <a id="reuse-cache-when-changing-effort"></a>
 
 ### Reuse cache when changing effort
 
-**Reuse cache when changing effort** is under **Settings → Codex → Models → Advanced**. It is on by default and can be turned off; saved Off choices are preserved. It applies only to standard, single-agent models explicitly supported by the current account catalog; support is never inferred from model names. Ordinary prompt caching is automatic and still works when this switch is off.
+On by default under **Settings → Codex → Models → Advanced**. It can help supported models reuse their cache when you change reasoning effort. Ordinary prompt caching remains available with this setting off.
 
-The request-level `reasoning.effort` stays at the current context window's initial value. Changes are recorded as `configuration_update` items in new history and replayed in their original positions. This can reduce cache invalidation when switching effort; it does not guarantee cache hits, faster replies or quota savings. The response-level effort can still report the initial value.
-
-- **Cloud auto-compaction and Unlimited retries disable this feature.** The UI explains the conflict; your compaction, retry, authentication, connection and cache-key settings are never changed automatically.
-- Successful responses save small, text-free state alongside DSH's existing replay metadata for restart, resume and forks. Successful local compaction changes the prefix; after checking DSH's committed history replacement, the plugin establishes a fresh baseline at the selected effort. Failed compaction keeps the previous state.
-- Enabling an existing chat or returning to a supported model establishes a baseline only when the complete input matches DSH's native session history. The first request may lose the old cache. Unverifiable history, unsupported models, account changes and resource limits use ordinary requests with your selected effort.
-- The same-process pending state freezes an already dispatched input even if it fails or is cancelled. Selecting a different effort for that exact retry reports an error; keep its original effort or send a new message. Failed attempts have no durable successful-response checkpoint, so preserving their cache prefix across a process restart or plugin reload is not guaranteed.
-- Disabling restores ordinary requests without retrofitting updates into old logs. Update history is never sent to `/responses/compact`. Pro, multi-agent, automatic truncation and automatic compaction are not supported.
-- The feature is bounded to 20,000 input items, 16 MiB of fingerprinted input/envelope data, 128 updates and 256 active/pending sessions. Boundary or history validation failures stop preservation, not your selected reasoning effort.
-
-This uses configuration updates documented in OpenAI's [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning); see [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching) for cache requirements. Support follows the current account catalog and actual responses. Backend parameter rejections are surfaced, never retried with an old effort or an API key.
+[How it works and when it is paused](docs/GUIDE.en.md#reuse-cache-when-changing-effort)
 
 <a id="update-and-uninstall"></a>
 
@@ -460,7 +451,7 @@ For **Codex independent subtasks**, install **Codex Subagent** from DSH Plugins,
 
 - **ChatGPT / Codex subscription only**, done in depth: quota and forecasting, images and sketches, subtasks, diagnostics. Other subscriptions such as Claude or Grok are out of scope.
 - **Fail explicitly**: requests never silently fall back to another paid route, and quota windows the account does not return are never invented.
-- **Tracks official DSH releases**: every release is accepted end to end (install, start, remove, reinstall) against official DSH channels such as latest and next; verified versions are recorded in the [compatibility notes](docs/dsh-020-compatibility.md).
+- **Tracks official DSH releases**: every release is accepted end to end (install, start, remove, reinstall) against official DSH channels such as latest and next; verified versions are recorded in the [compatibility notes](docs/DEVELOPMENT.md#compatibility).
 - Models, quota and features depend on what your account actually returns; the ChatGPT backend and DSH can change independently.
 
 This community project is not affiliated with or endorsed by DeepSeek or OpenAI.

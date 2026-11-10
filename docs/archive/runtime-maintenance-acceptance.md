@@ -1,5 +1,9 @@
 # Optional runtime maintenance acceptance
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
+> Validation as of 2.1.3. See the [user guide](../GUIDE.en.md#codex-subtask-runtime) for current Codex subtask runtime management.
+
 Date: 2026-09-22.
 
 Using the official DSH 0.1.6-alpha.2 CLI and a new isolated profile, installed the published 2.1.3-beta.1, then updated to the published 2.1.3.

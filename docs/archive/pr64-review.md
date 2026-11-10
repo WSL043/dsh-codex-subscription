@@ -1,5 +1,7 @@
 # PR #64 review
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 Reviewed head: `c44dc11baa917da725a167746489f413e1f07911`, contributor `teron131`.
 
 ## Accepted changes

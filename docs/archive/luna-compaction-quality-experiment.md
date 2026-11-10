@@ -1,5 +1,7 @@
 # Luna 压缩质量：三组实验
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 每组为自造、答案预先确定的档案，核心事实分散在开头、中间与结尾，并插入260条例行记录。模型固定 gpt-5.6-luna / low，compact_threshold=4000。每组一次压缩请求、一次仅携带最新压缩项及后续项的核对请求，共6次真实请求。没有向核对请求提供预期答案。
 
 压缩项是加密内容，下列摘要是模型从压缩状态重新生成的文本，不是压缩项的解密结果。

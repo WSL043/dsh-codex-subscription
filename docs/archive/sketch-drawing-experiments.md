@@ -1,5 +1,7 @@
 # Agent drawing experiments (2026-10)
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 What was measured, what the model's own tool traces showed, and what changed because of it. The tools only measure and show; an automatic tracer that copied the reference was built, scored 2.7% error and was removed again because copying pixels is not drawing.
 
 Error is the mean absolute colour difference to the reference in percent (0 = identical), measured the same way for every run (reference fitted into the canvas on white, every second pixel).

@@ -1,5 +1,7 @@
 # Reserve 本地候选验收
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 日期：2026-09-22。未发布的本地候选，包版本仍为 2.1.3-beta.1，不等于 npm 同版本内容。
 
 - 官方账号目录包含 gpt-reserve 时，模型选择器展示 GPT-Reserve (Experimental)，放在普通模型之后；不暴露其他隐藏条目，不添加离线 Reserve，不自动切换。

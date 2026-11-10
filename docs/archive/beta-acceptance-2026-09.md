@@ -1,5 +1,7 @@
 # Beta acceptance, 2026-09-29
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 Real ChatGPT account, `dsh-codex-subscription` 2.2.6, isolated DSH `0.2.0-rc.1` web host, model `GPT-5.6-Luna`. Results come from the plugin's own diagnostics counters and the visible conversation. The subtask section found two defects on `0.2.0-rc.1`, fixed in 2.2.7 (below); everything else needed no code change.
 
 ## WebSocket connection (Beta)

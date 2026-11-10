@@ -1,5 +1,7 @@
 # 上游适配研究：2026-09-19
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 研究基线：插件 2.1.2 / `7d71869`。本文是源码与发布信息审计，不是 alpha.2 实机验收报告，也不代表以下功能已经发布。
 
 ## 已核对的版本

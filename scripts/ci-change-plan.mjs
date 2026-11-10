@@ -62,6 +62,8 @@ const manager = plannerChanged || changedTest('manager') || matches([
 const delivery = plannerChanged || runtime || changedTest('delivery') || matches([
   /^\.github\//u,
   /^(?:README(?:\.(?:zh-CN|en|ja|es|fr|de|ru|pt))?|CONTRIBUTING|DIRECTORY|AGENTS|SECURITY|THIRD_PARTY_NOTICES|LICENSE)\.md$/u,
+  /^docs\/.*\.md$/u,
+  /^scripts\/(?:ui-smoke|support\/dsh-host)\.mjs$/u,
   /^screenshots\.json$/u,
   /^compatibility\.json$/u,
   /^package\.json$/u,

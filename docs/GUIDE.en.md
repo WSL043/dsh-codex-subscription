@@ -2,11 +2,24 @@
 
 [Back to README](../README.en.md) · [简体中文](GUIDE.zh-CN.md)
 
+## Find what you need
+
+| I want to… | Where to start |
+| --- | --- |
+| Install, sign in again or diagnose an account error | [Install](../README.en.md#install) · [Sign-in and quota status](#sign-in-and-quota-status) |
+| Show remaining quota or use a reset | [Composer quota](#composer-quota) · [Quota reset](#quota-reset) |
+| Pick a search source or use a connected app | [Web search](#web-search) · [ChatGPT connectors](#connectors) |
+| Change response speed or use Tab to fill a draft | [Codex speed](#codex-speed) · [Input predictions](#predictions) |
+| Edit an image or draw on the canvas | [Images](#images) · [Sketch canvas](#sketch) |
+| Pair a phone or start a voice conversation | [Phone remote control](#phone) · [Voice conversations](#voice) |
+
 ## Feature details
 
 ### Add instructions while a task is running
 
 Use DSH’s native message queue: messages sent during generation can wait for the next turn. Where the host offers interjection, its shortcut delivers queued input at the next step of the current turn. This does not immediately rewrite a response already being generated.
+
+<a id="voice"></a>
 
 ### Voice conversations (Beta)
 
@@ -38,6 +51,19 @@ Choose the model a new conversation opens with under **Settings → Codex subscr
 
 Choose **Restore DSH default** in the menu to clear the saved selection in this profile and use its inherited default. Existing conversations are unchanged; this does not recover a personal selection that was previously overwritten. Restoration remains available without a model catalog when the native DSH configuration editor supports it; unsupported hosts disable the action.
 
+<a id="sign-in-and-quota-status"></a>
+
+### Sign-in and quota status
+
+| What you see in **Settings → Codex → Start** | What to do |
+| --- | --- |
+| **Not signed in** | Use the browser or device-code sign-in. |
+| **Sign-in expired** | Use **Sign in again** on that saved account. |
+| **Could not verify sign-in** or quota could not be updated | The check did not finish successfully. Try **Refresh** under **Subscription quota** after checking your connection. |
+| A quota percentage with an earlier fetch time | The value is from the last successful read. Refresh before relying on it, especially after the reset time. |
+
+<a id="composer-quota"></a>
+
 ### Composer quota
 
 Quota groups follow backend-provided data; missing limits are not invented.
@@ -48,6 +74,19 @@ Choose Off, Percent, Progress bar, or Beta Runway under Account. When a five-hou
 
 Runway uses official observations from the recent two hours, including unchanged readings. Repeated boundary crossings can refine the rate interval when the assumptions hold; insufficient evidence or changing intensity falls back to a conservative estimate. It remains Beta and is not a guarantee of working time. History is bounded and stored locally; resets, long gaps or disabling the feature restart calibration.
 Spark keeps its independent quota. The plugin does not invent five-hour limits, Credits, or spending caps that the service did not return.
+
+<a id="web-search"></a>
+
+### Web search
+
+Under **Settings → Codex → Web & tools**, **Search source** finds pages and **Webpage reading source** opens a URL to retrieve its content. The two settings are independent.
+
+- **Auto** prefers subscription search for Codex models and DSH search for other models. It tries the other source only when sign-in or a key is missing, or the preferred service is unavailable.
+- **DSH** uses the search service configured in DSH. Charges depend on that service.
+- **Codex** uses subscription search. With subscription features for other models turned off, non-Codex conversations use native DSH search.
+- If search returns links but the page text is missing, check the webpage reader and whether it can access that URL. The Codex reader reports its own failures directly.
+
+<a id="connectors"></a>
 
 ### ChatGPT connectors
 
@@ -67,6 +106,8 @@ Under the quota card, "Usage overview" shows the official usage statistics: life
 
 Under the quota card, "Where the allowance went (weekly)" shows how each week's allowance was spent: by model, by surface (desktop app and so on), by source (your chats, subtasks, memory upkeep) and by trigger, as a percentage of that period's allowance. It comes from the official usage report, so only periods that have been counted show a split, usually a day or two late; accounts without the report do not show the section. It is read only when you expand it and does not affect normal quota refreshes.
 
+<a id="quota-reset"></a>
+
 ### Safe quota reset
 
 If ChatGPT reports available quota resets, Settings shows each one in its own compact row with its disclosed name and expiry.
@@ -74,6 +115,8 @@ You may deliberately try it before a quota reaches 100%, which is useful for a r
 decides whether a window needs resetting and may return **nothing to reset** without spending the reset. The final
 action requires an acknowledgement checkbox and five-second cooldown. Cancel never consumes a reset, rapid repeated
 clicks are single-flight, and an uncertain network result is never retried automatically.
+
+<a id="images"></a>
 
 ### Image generation and editing
 
@@ -91,6 +134,8 @@ A new image request does not silently include earlier images. GPT Image 2 can ta
 
 The screenshot above illustrates image viewing and on-image notes; available buttons can vary with the image and installed viewer version.
 
+<a id="sketch"></a>
+
 ### Sketch canvas (Beta)
 
 Use the composer pen button for manual drawing. Selecting `@sketch` only inserts the Agent entry into the composer; the Agent opens the board after you send your drawing request. You can also choose Open in sketch from an enhanced image preview. Attachment intake and removal use the native DSH component.
@@ -101,9 +146,11 @@ The board supports editable shapes and text, native curves, and a side control f
 
 **Sketch to image**: draw, click Attach, describe the desired result in the composer, then send; the sketch is the reference image and the composition is kept.
 
-**Agent drawing from a reference**: attach the reference and send `@sketch` plus a request. The agent first puts the reference on the board as a hidden layer with `reference`, then draws in stages; every batch reports how the error changed, and it can compare side by side, read a difference heat map, zoom into a region, measure colours and edge positions, and undo. The board's Replay redraws the process stroke by stroke and can record it as a video (previewed first, saved only when you click Save video). Measured comparisons are in the README's "Sketch drawing, measured", the log is in [Drawing experiments](sketch-drawing-experiments.md). The agent prefers the SVG command to draw a whole stage at once; the import still produces editable native strokes.
+**Agent drawing from a reference**: attach the reference and send `@sketch` plus a request. The agent first puts the reference on the board as a hidden layer with `reference`, then draws in stages; every batch reports how the error changed, and it can compare side by side, read a difference heat map, zoom into a region, measure colours and edge positions, and undo. The board's Replay redraws the process stroke by stroke and can record it as a video (previewed first, saved only when you click Save video). Measured comparisons are in the README's "Sketch drawing, measured", the log is in [Drawing experiments](archive/sketch-drawing-experiments.md). The agent prefers the SVG command to draw a whole stage at once; the import still produces editable native strokes.
 
 Flare / Sunburst request overrides remain experimental: successful generation does not confirm which image engine or quality the subscription backend used.
+
+<a id="predictions"></a>
 
 ### Input predictions (Beta)
 
@@ -115,21 +162,25 @@ If you undo or clear an accepted draft without sending, the empty composer shows
 
 [OpenAI states](https://learn.chatgpt.com/docs/features/composer-predictions) that generating predictions in official Codex does not count toward usage limits or consume credits; sending an accepted prediction is metered normally. DSH makes additional prediction requests, and the same exemption for this third-party integration is unconfirmed, so the plugin does not promise free predictions. Predictions neither retrieve other conversations nor run tools.
 
+<a id="codex-speed"></a>
+
 ### Codex speed
 
-Choose speed under **Settings → Codex subscription → Models**. Output verbosity is on the same page. Speed settings apply when the selected Codex model supports the tier. Fast mode increases speed and uses more Credits. For current rules, see the [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed) for the current rules.
+Choose speed and output verbosity under **Settings → Codex subscription → Models**. You can also adjust them in the subscription model menu when the selected model supports them. The default **Auto** menu mode yields to another picker or Claude Style. Choose **DSH standard** to give control of the picker to DSH or another plugin. Fast mode prioritizes requests and can use more Credits. [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed).
 
 **Ultrafast (Beta).** The speed setting offers “Ultrafast” only when the current account's catalog lists an `ultrafast` tier for that model (at the developer event: GPT-6 Astra on Pro 500 only). If you chose Ultrafast and switch to a model without it, requests go out on the standard tier; the plugin never substitutes Fast for you. It is the fastest tier and uses allowance and Credits faster. It stays Beta because it has not been run on a Pro 500 account yet.
 
 ### Ultra proactive delegation
 
-Starting with plugin **3.1.9**, supported models offer **Ultra** in the composer's reasoning-effort menu. You can also choose it under **Settings → Codex subscription → Models → Default reasoning effort**. Availability depends on the current account's model catalog, the host's native session-record and tool-policy services, and a usable native subagent tool in the selected Agent preset. The option is hidden when these requirements are not met. With Ultra selected as the default, unsupported models still use their own default reasoning effort.
+Supported models offer **Ultra** in the composer's reasoning-effort menu. You can also choose it under **Settings → Codex subscription → Models → Default reasoning effort**. Availability depends on the current account's model catalog, the host's runtime-context and tool-policy services, and a usable native subagent tool in the selected Agent preset. The option is hidden when these requirements are not met. With Ultra selected as the default, unsupported models still use their own default reasoning effort.
 
 Ultra is a **DSH proactive delegation preset**: it uses the native reasoning effort resolved from the account's model catalog and guides the model to delegate suitable independent work to native subagents. Real-account acceptance for GPT-6.1-Sol used `xhigh`; the effective effort depends on the catalog, and the literal value `ultra` is never sent as `reasoning.effort`. Simple tasks can still run directly, so selecting Ultra does not guarantee a subagent on every request. Additional subtasks can increase usage and completion time.
 
 Subagents retain DSH's existing approvals, sandbox, concurrency and depth limits, and cancellation controls. Ultra grants no additional permissions and does not install components or change Agent presets automatically. Switching to an ordinary effort removes the Ultra delegation policy from subsequent requests; restoring a session rechecks capabilities and the current request's permissions.
 
 **Acceptance coverage:** real-account tests on the full DSH **0.2.1-rc.3** host verified GPT-6.1-Sol completing a native subtask, cancellation, restoring Ultra and switching back to High. Selecting Ultra in the iPhone menu has not yet been confirmed on the device. This is a DSH execution preset, not a claim to reproduce the official client's entire orchestration.
+
+<a id="phone"></a>
 
 ### Phone remote control (Beta)
 
@@ -148,6 +199,23 @@ Turn it on under **Settings → Codex subscription → Phone & more → Phone re
 - Model errors (missing key, exhausted quota, ...) are shown on the phone.
 - Only a host identifier is stored locally; pairing credentials are never written to disk, and turning the switch off disconnects.
 - This feature is a third-party host compatibility layer built on the Codex Remote Control protocol and uses OpenAI's remote connection service. Connecting DSH as a third-party host is not something OpenAI has explicitly committed to support and may be affected by later service updates, hence Beta. It does not mean OpenAI has certified or endorsed it. For safety the phone cannot run arbitrary commands on the computer, only the read-only git described above.
+
+<a id="reuse-cache-when-changing-effort"></a>
+
+### Reuse cache when changing effort
+
+**Reuse cache when changing effort** is under **Settings → Codex → Models → Advanced**. It is on by default and can be turned off; saved Off choices are preserved. It applies only to standard, single-agent models explicitly supported by the current account catalog; support is never inferred from model names. Ordinary prompt caching is automatic and still works when this switch is off.
+
+The request-level `reasoning.effort` stays at the current context window's initial value. Changes are recorded as `configuration_update` items in new history and replayed in their original positions. This can reduce cache invalidation when switching effort; it does not guarantee cache hits, faster replies or quota savings. The response-level effort can still report the initial value.
+
+- **Cloud auto-compaction and Unlimited retries disable this feature.** The UI explains the conflict; your compaction, retry, authentication, connection and cache-key settings are never changed automatically.
+- Successful responses save small, text-free state alongside DSH's existing replay metadata for restart, resume and forks. Successful local compaction changes the prefix; after checking DSH's committed history replacement, the plugin establishes a fresh baseline at the selected effort. Failed compaction keeps the previous state.
+- Enabling an existing chat or returning to a supported model establishes a baseline only when the complete input matches DSH's native session history. The first request may lose the old cache. Unverifiable history, unsupported models, account changes and resource limits use ordinary requests with your selected effort.
+- The same-process pending state freezes an already dispatched input even if it fails or is cancelled. Selecting a different effort for that exact retry reports an error; keep its original effort or send a new message. Failed attempts have no durable successful-response checkpoint, so preserving their cache prefix across a process restart or plugin reload is not guaranteed.
+- Disabling restores ordinary requests without retrofitting updates into old logs. Update history is never sent to `/responses/compact`. Pro, multi-agent, automatic truncation and automatic compaction are not supported.
+- The feature is bounded to 20,000 input items, 16 MiB of fingerprinted input/envelope data, 128 updates and 256 active/pending sessions. Boundary or history validation failures stop preservation, not your selected reasoning effort.
+
+This uses configuration updates documented in OpenAI's [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning); see [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching) for cache requirements. Support follows the current account catalog and actual responses. Backend parameter rejections are surfaced, never retried with an old effort or an API key.
 
 ### Advanced experiments
 

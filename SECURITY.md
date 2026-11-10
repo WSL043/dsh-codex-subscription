@@ -16,7 +16,7 @@ Do not open a public issue containing access tokens, refresh tokens, account ide
 
 - The plugin runs with the privileges of the DSH host process.
 - OAuth credentials remain in DSH's host credential service.
-- The browser settings client can call only a loopback-authorized, redacted RPC surface.
+- The browser settings client uses redacted exact-route RPC handlers inside DSH's native `/api` bridge. On the current DSH host, the carrier authenticates browser/API Peers and checks Host/Origin before dispatch; exact routes require an owner Peer. Native audio endpoints additionally require a matching local Origin/Host. Loopback classification alone is not authentication.
 - Login links are restricted to the HTTPS `auth.openai.com` origin before they are returned or opened.
 - Usage requests are host-side, use a bounded timeout, refuse redirects, and return parsed quota projections rather than provider payloads.
 - Cache telemetry stores no prompts, responses, session IDs, tokens, account IDs, or returned fingerprint hashes. Its per-session state is bounded and process-local.

@@ -55,7 +55,7 @@ Verificado con DSH `0.2.2-rc.1`; `0.2.1-rc.3` y `0.2.1-rc.2` siguen siendo compa
 
 La CLI/Web de DSH `0.2.2-rc.1` requiere Node.js **24.9 o posterior**; la aplicación oficial de escritorio usa el entorno de ejecución incluido.
 
-También es compatible con el host de vista previa `0.2.2-alpha.2`. Consulta las [notas de compatibilidad (en inglés)](docs/dsh-022-alpha2-compatibility.md) para conocer el alcance y los límites de validación.
+También es compatible con el host de vista previa `0.2.2-alpha.2`. Consulta las [notas de compatibilidad (en inglés)](docs/archive/dsh-022-alpha2-compatibility.md) para conocer el alcance y los límites de validación.
 
 Este complemento es compatible con la versión más reciente de DeepSeek Harness indicada en los metadatos de su paquete y requiere una cuenta de ChatGPT que tenga acceso a Codex en este momento.
 
@@ -370,24 +370,15 @@ El control remoto conecta la app móvil de ChatGPT con DSH en ejecución. Las ll
 
 DSH gestiona las conversaciones, las aprobaciones de herramientas y los permisos del espacio de trabajo. El complemento aporta la conexión a Codex y los ajustes y herramientas anteriores. Para investigar una función ausente, verifica primero la versión de DSH, las capacidades de la cuenta, el modelo y el ajuste pertinente.
 
-[Guía completa (inglés)](docs/GUIDE.en.md) · [Contrato de la herramienta de dibujo (inglés)](docs/sketch-agent.md) · [Valores predeterminados](src/preference-fields.js)
+[Guía completa (inglés)](docs/GUIDE.en.md) · [Contrato de la herramienta de dibujo (inglés)](docs/sketch-agent.md) · [Valores predeterminados](src/preference-fields.js) · [Índice de desarrollo y documentación (en inglés)](docs/DEVELOPMENT.md)
 
 <a id="reuse-cache-when-changing-effort"></a>
 
 ### Reutilizar la caché al cambiar el nivel de razonamiento
 
-**Reutilizar la caché al cambiar el nivel de razonamiento** está en **Configuración → Codex → Modelos → Avanzado**. Está activado de forma predeterminada y se puede desactivar; se conservan las opciones desactivadas que se hayan guardado. Solo se aplica a modelos estándar de un solo agente cuya compatibilidad esté confirmada explícitamente por el catálogo de la cuenta actual; nunca se deduce la compatibilidad a partir de los nombres de los modelos. El almacenamiento en caché normal de las indicaciones es automático y sigue funcionando aunque este ajuste esté desactivado.
+Activada de forma predeterminada en **Ajustes → Codex → Modelos → Avanzado**. Puede ayudar a los modelos compatibles a reutilizar la caché al cambiar el nivel de razonamiento. La caché normal de prompts sigue disponible al desactivarla.
 
-El valor inicial de `reasoning.effort` en cada solicitud se mantiene en el valor inicial de la ventana de contexto actual. Los cambios se registran como elementos `configuration_update` en el historial nuevo y se reproducen en sus posiciones originales. Esto puede reducir la invalidación de la caché al cambiar el nivel de razonamiento; no garantiza aciertos de caché, respuestas más rápidas ni ahorro de cuota. El nivel de razonamiento de la respuesta puede seguir indicando el valor inicial.
-
-- **La compactación automática en la nube y los reintentos ilimitados desactivan esta función.** La interfaz explica el conflicto; tus ajustes de compactación, reintentos, autenticación, conexión y clave de caché nunca se modifican automáticamente.
-- Las respuestas correctas guardan un estado pequeño, sin texto, junto con los metadatos de reproducción existentes de DSH para reinicios, reanudaciones y bifurcaciones. Una compactación local correcta cambia el prefijo; después de verificar el reemplazo del historial confirmado de DSH, el plugin establece una nueva línea de base con el nivel de razonamiento seleccionado. Si la compactación falla, se conserva el estado anterior.
-- Al activar esta función en un chat existente o volver a un modelo compatible, se establece una línea de base solo cuando la entrada completa coincide con el historial de sesión nativo de DSH. La primera solicitud puede perder la caché anterior. Si no se puede verificar el historial, el modelo no es compatible, cambia la cuenta o se alcanzan los límites de recursos, se usan solicitudes normales con el nivel de razonamiento seleccionado.
-- El estado pendiente del mismo proceso congela una entrada que ya se ha enviado, aunque falle o se cancele. Si seleccionas un nivel de razonamiento diferente para reintentar exactamente esa solicitud, se mostrará un error; conserva el nivel original o envía un mensaje nuevo. Los intentos fallidos no tienen un punto de control persistente de respuesta satisfactoria, por lo que no se garantiza conservar el prefijo de caché al reiniciar el proceso o volver a cargar el plugin.
-- Al desactivar la función, se restablecen las solicitudes normales, sin aplicar retroactivamente actualizaciones a los registros antiguos. El historial de actualizaciones nunca se envía a `/responses/compact`. Pro, los agentes múltiples, el truncamiento automático y la compactación automática no son compatibles.
-- La función tiene límites de 20.000 elementos de entrada, 16 MiB de datos de entrada y de sobre con huella digital, 128 actualizaciones y 256 sesiones activas o pendientes. Los errores de validación de límites o del historial detienen la conservación, no el nivel de razonamiento seleccionado.
-
-Esta función utiliza actualizaciones de configuración documentadas en la [guía de razonamiento de OpenAI](https://developers.openai.com/api/docs/guides/reasoning); consulta [el almacenamiento en caché de solicitudes](https://developers.openai.com/api/docs/guides/prompt-caching) para conocer los requisitos de caché. La compatibilidad depende del catálogo de la cuenta actual y de las respuestas reales. Los rechazos de parámetros del backend se muestran como errores; nunca se vuelve a intentar con un nivel de razonamiento anterior ni con una clave de API.
+[Funcionamiento y límites (en inglés)](docs/GUIDE.en.md#reuse-cache-when-changing-effort)
 
 <a id="update-and-uninstall"></a>
 
@@ -460,7 +451,7 @@ Para usar **subtareas independientes de Codex**, instala el **subagente de Codex
 
 - **Solo suscripción de ChatGPT / Codex**, con funciones detalladas: cuota y previsiones, imágenes y bocetos, subtareas y diagnósticos. Otras suscripciones, como Claude o Grok, quedan fuera del alcance.
 - **Los errores se muestran explícitamente**: las solicitudes nunca recurren silenciosamente a otra vía de pago y nunca se inventan períodos de cuota que la cuenta no devuelve.
-- **Sigue las versiones oficiales de DSH**: cada versión se acepta de principio a fin (instalación, inicio, eliminación y reinstalación) en canales oficiales de DSH, como latest y next; las versiones verificadas se registran en las [notas de compatibilidad](docs/dsh-020-compatibility.md).
+- **Sigue las versiones oficiales de DSH**: cada versión se acepta de principio a fin (instalación, inicio, eliminación y reinstalación) en canales oficiales de DSH, como latest y next; las versiones verificadas se registran en las [notas de compatibilidad](docs/DEVELOPMENT.md#compatibility).
 - Los modelos, la cuota y las funciones dependen de lo que devuelva realmente tu cuenta; el backend de ChatGPT y DSH pueden cambiar de forma independiente.
 
 Este proyecto comunitario no está afiliado a DeepSeek ni a OpenAI, ni cuenta con su respaldo.

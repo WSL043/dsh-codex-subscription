@@ -1,5 +1,7 @@
 # Issue #220: long-stream investigation and diagnostics
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 Validation date: 2026-10-30. Plugin baseline: 3.2.1 / `36e335a`.
 
 ## Findings

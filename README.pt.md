@@ -55,7 +55,7 @@ Verificado com o DSH `0.2.2-rc.1`, com suporte mantido para `0.2.1-rc.3` e `0.2.
 
 O CLI/Web do DSH `0.2.2-rc.1` requer Node.js **24.9 ou mais recente**; o aplicativo oficial para computador usa o ambiente de execução incluído.
 
-Também é compatível com o host de prévia `0.2.2-alpha.2`. Consulte as [notas de compatibilidade (em inglês)](docs/dsh-022-alpha2-compatibility.md) para conhecer o escopo e os limites de validação.
+Também é compatível com o host de prévia `0.2.2-alpha.2`. Consulte as [notas de compatibilidade (em inglês)](docs/archive/dsh-022-alpha2-compatibility.md) para conhecer o escopo e os limites de validação.
 
 Este plugin é compatível com a versão mais recente do DeepSeek Harness registrada nos metadados do pacote e requer uma conta ChatGPT que tenha acesso ao Codex no momento.
 
@@ -370,24 +370,15 @@ O controle remoto conecta o app ChatGPT ao DSH em execução. A chamada de voz s
 
 O DSH gerencia conversas, aprovações de ferramentas e permissões do espaço de trabalho. O plugin oferece a conexão com o Codex e as configurações e ferramentas acima. Para investigar um recurso indisponível, confira a versão do DSH, as capacidades da conta, o modelo e a configuração antes de rastrear a ferramenta ou a solicitação.
 
-[Guia detalhado (inglês)](docs/GUIDE.en.md) · [Contrato da ferramenta de esboço (inglês)](docs/sketch-agent.md) · [Configurações padrão](src/preference-fields.js)
+[Guia detalhado (inglês)](docs/GUIDE.en.md) · [Contrato da ferramenta de esboço (inglês)](docs/sketch-agent.md) · [Configurações padrão](src/preference-fields.js) · [Índice de desenvolvimento e documentação (em inglês)](docs/DEVELOPMENT.md)
 
 <a id="reuse-cache-when-changing-effort"></a>
 
 ### Reutilizar cache ao alterar o nível
 
-**Reutilizar cache ao alterar o nível** fica em **Configurações → Codex → Modelos → Avançado**. Está ativado por padrão e pode ser desativado; as escolhas salvas como desativadas são preservadas. Aplica-se somente a modelos padrão de agente único explicitamente compatíveis com o catálogo atual da conta; a compatibilidade nunca é inferida pelos nomes dos modelos. O cache comum de prompts é automático e continua funcionando mesmo quando esta opção está desativada.
+Ativada por padrão em **Configurações → Codex → Modelos → Avançado**. Pode ajudar modelos compatíveis a reutilizar o cache ao mudar o nível de raciocínio. O cache normal de prompts continua disponível com a opção desativada.
 
-O `reasoning.effort` no nível da solicitação permanece no valor inicial da janela de contexto atual. As alterações são registradas como itens `configuration_update` no novo histórico e reproduzidas nas posições originais. Isso pode reduzir a invalidação do cache ao mudar o nível de raciocínio; não garante acertos de cache, respostas mais rápidas nem economia de cota. O nível de raciocínio no nível da resposta ainda pode informar o valor inicial.
-
-- **A compactação automática na nuvem e as tentativas ilimitadas desativam este recurso.** A interface explica o conflito; suas configurações de compactação, tentativas, autenticação, conexão e chave de cache nunca são alteradas automaticamente.
-- Respostas bem-sucedidas salvam um pequeno estado sem texto junto aos metadados de reprodução existentes do DSH para reinicialização, retomada e ramificações. Uma compactação local bem-sucedida altera o prefixo; após verificar a substituição confirmada do histórico pelo DSH, o plugin estabelece uma nova referência inicial no nível de raciocínio selecionado. Uma compactação com falha mantém o estado anterior.
-- Ativar esse recurso em um chat existente ou voltar a um modelo compatível estabelece uma referência inicial somente quando a entrada completa corresponde ao histórico de sessão nativo do DSH. A primeira solicitação pode perder o cache antigo. Históricos não verificáveis, modelos incompatíveis, mudanças de conta e limites de recursos usam solicitações comuns com o nível de raciocínio selecionado.
-- O estado pendente no mesmo processo congela uma entrada já enviada, mesmo que ela falhe ou seja cancelada. Selecionar um nível de raciocínio diferente para essa mesma repetição gera um erro; mantenha o nível original ou envie uma nova mensagem. Tentativas com falha não têm um ponto de verificação durável de resposta bem-sucedida, portanto não há garantia de que o prefixo do cache seja preservado após a reinicialização do processo ou o recarregamento do plugin.
-- Desativar restaura as solicitações normais, sem aplicar atualizações retroativamente aos registros antigos. O histórico de atualizações nunca é enviado para `/responses/compact`. Pro, multiagente, truncamento automático e compactação automática não são compatíveis.
-- O recurso é limitado a 20.000 itens de entrada, 16 MiB de dados de entrada/envelope com impressão digital, 128 atualizações e 256 sessões ativas/pendentes. Falhas na validação dos limites ou do histórico interrompem a preservação, não o nível de raciocínio selecionado.
-
-Isso usa atualizações de configuração documentadas no [guia de raciocínio](https://developers.openai.com/api/docs/guides/reasoning) da OpenAI; consulte [cache de prompts](https://developers.openai.com/api/docs/guides/prompt-caching) para ver os requisitos de cache. O suporte acompanha o catálogo atual da conta e as respostas reais. Rejeições de parâmetros pelo backend são informadas e nunca levam a uma nova tentativa com um nível de raciocínio antigo ou uma chave de API.
+[Funcionamento e limites (em inglês)](docs/GUIDE.en.md#reuse-cache-when-changing-effort)
 
 <a id="update-and-uninstall"></a>
 
@@ -460,7 +451,7 @@ Para usar **subtarefas independentes do Codex**, instale o **subagente Codex** n
 
 - **Somente assinatura ChatGPT / Codex**, com suporte aprofundado: cota e previsão, imagens e esboços, subtarefas, diagnósticos. Outras assinaturas, como Claude ou Grok, não fazem parte do escopo.
 - **Falhas explícitas**: as solicitações nunca recorrem silenciosamente a outra opção paga, e nunca são inventadas janelas de cota que a conta não retorna.
-- **Acompanha os lançamentos oficiais do DSH**: cada lançamento é validado de ponta a ponta (instalação, inicialização, remoção e reinstalação) nos canais oficiais do DSH, como latest e next; as versões verificadas são registradas nas [notas de compatibilidade](docs/dsh-020-compatibility.md).
+- **Acompanha os lançamentos oficiais do DSH**: cada lançamento é validado de ponta a ponta (instalação, inicialização, remoção e reinstalação) nos canais oficiais do DSH, como latest e next; as versões verificadas são registradas nas [notas de compatibilidade](docs/DEVELOPMENT.md#compatibility).
 - Os modelos, a cota e os recursos dependem do que sua conta realmente retorna; o backend do ChatGPT e o DSH podem mudar de forma independente.
 
 Este projeto da comunidade não é afiliado nem endossado pela DeepSeek ou pela OpenAI.

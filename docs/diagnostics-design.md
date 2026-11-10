@@ -1,53 +1,42 @@
-# 诊断设计与当前覆盖
+# Diagnostics design
 
-状态：下一版本待发布实现。统一采集、操作结果、宿主观测及报告界面已接通；报告不作为全功能验收结论。
+Code baseline `7795f59` (2026-11-09). See the [development index](DEVELOPMENT.md) and the [historical audit](archive/audit-2026-09-28.md).
 
-## 方案选择
+## Scope
 
-采用 DSH 官方观测接口 + 插件薄层报告。当前依赖 0.1.7-rc.2 提供 `slots.snapshot(root?)`，包含注册来源和选中状态；工具服务提供 `tools/result` 最终结果事件。复用这些接口，不自行推断 React 组件选举，不扫描其他插件配置。
+Diagnostics read existing state from DSH and the subscription path. They leave model execution, settings and reset credits to their respective workflows. Credential presence, remote validity, RPC acknowledgment, operation completion, slot selection and rendered visibility each require their own evidence.
 
-没有发现能直接替代整个订阅报告的宿主服务。完全自建会重复宿主逻辑；只导出宿主信息又缺少订阅请求链路。轻量适配是当前源码支持的选择，不宣称绝对最佳。
+- [diagnostics.js](../src/diagnostics.js) assembles schema version 3 and isolates collectors.
+- [diagnostic-checks.js](../src/diagnostic-checks.js) handles timeouts, failures and unknown results. It discards late results. A timeout can bound an asynchronous wait, while synchronous code still runs on the same thread.
+- [diagnostic-capabilities.js](../src/diagnostic-capabilities.js) records prerequisites as `readiness` and observed operations as `execution`. Inspect operation results separately from `inspection-completed`.
+- [diagnostic-evidence.js](../src/diagnostic-evidence.js) and [diagnostic-summary.js](../src/diagnostic-summary.js) interpret failures, recovery, deadlines and scope. A later success clears evidence of failure for the same operation.
 
-## 统一语义
+## Evidence sources
 
-- 采集状态使用 `pass/fail/warn/unknown/not-applicable`，附检查 ID、能力、来源、作用域、时间、原因。
-- `inspection-completed` 仅证明状态读取成功，不能表示功能可用。
-- 功能覆盖与采集结果分开。没有执行证据明确 `not-verified`。
-- 每个采集器独立超时和异常隔离，不导出异常原文；超时后的结果不能写回当前报告。
-- 公共网络链路保留最近 32 次脱敏 HTTP/传输结果、发生时间和截断数。不把 HTTP 成功当成流式回复完成，不把历史失败当成当前故障。
-- 默认只读取已有状态，不发模型请求、不修改配置、不消费重置卡。
-
-## 当前覆盖
-
-| 能力 | 已有来源 | 当前实现 / 仍缺少 |
+| Area | Evidence collected | Requires further verification |
 | --- | --- | --- |
-| 登录 | auth.status、登录协调器 | 隔离采集；远端凭据有效性未验证 |
-| 多账号 | 账号管理调用边界 | 记录选择、移除及辅助清理的结果，不记录账号标识 |
-| 设置 | preferences.status、RPC | 可写性及保存响应；没有写入证据时不宣称保存成功 |
-| 模型 | catalog.status、capabilityGaps | 隔离采集；缺完整模型调用完成证据 |
-| 额度 | 公共请求链路 | 有时间的请求历史；缺缓存/匹配状态适配 |
-| 搜索、生图 | 公共请求链路、tools/result | 搜索保留传输证据；生图额外观察本插件工具最终结果，不观察其他工具正文 |
-| 压缩 | compaction.snapshot | 隔离采集计数；不能证明摘要质量 |
-| 子任务 | runtimeManagement.status、管理 RPC | 检查组件安装/重启条件；安装响应不等于安装完成，不证明子任务执行成功 |
-| 草图 | 全局工具注册、tools/result | 展示启用条件和工具结果；不证明特定会话可用或绘画质量 |
-| 连接 | network、connection.snapshot | 隔离采集及有界历史；缺流完成阶段 |
-| 存储 | 现有预测缓存服务 | 只读检查预测缓存；不外推到图片或所有文件可写 |
-| 宿主界面 | slots.snapshot | 按已挂载作用域读取注册来源与选中状态；旧版缺接口为未知 |
+| Local sign-in, settings and models | Status, catalog source and refresh, write access and capabilities | Current token validity and individual model responses |
+| HTTP attempts | Phases, classification, timing and limited route information from [oauth-network.js](../src/oauth-network.js) and [model-attempt.js](../src/model-attempt.js) | Completion, quality and billing |
+| Adapter failures | Text-free request and adapter shape, bounded frame and category data from [request-observer.js](../src/request-observer.js) and [failure-capture.js](../src/failure-capture.js) | Conversation details. Review even anonymized structures before sharing. |
+| Model response streams | Configured, selected and effective transport, duration, first and last event, counts and completion, failure or cancellation from [model-stream-health.js](../src/model-stream-health.js) | External proxy and edge failures, lossless resumption and what the UI retained |
+| WebSocket recovery | Connection, reuse, fallback and cooldown counters and bounded recovery state | Stability or latency across networks and regions |
+| Compaction | Persistence and reuse counts and native replay envelope | Internal summary, semantic retention and quota effects |
+| Tools and RPC | Final `tools/result` and plugin operation outcomes | Execution in a particular conversation when only registration was observed |
+| Runtime and storage | Component state, restart requirement and forecast history access | Subtask execution, sandbox behavior and filesystem permissions |
+| Host UI | [Host diagnostics](../src/diagnostic-host.js) and slot snapshots | Plugin conflicts, layout, theme, focus and rendered visibility |
 
-报告界面分别展示前置条件和近期执行证据。未登录导致的阻断关联至登录；未接入的前置条件保持未知。不能用全部绿色或测试总数代表完成。
+## Limits and ownership
 
-操作历史最多 32 条，摘要只取最近 15 分钟。它属于插件进程，不能归因到当前会话或当前账号。RPC 只代表接口响应，`tools/result` 代表工具最终结果；完整历史保留失败和恢复。宿主拓扑最多 8 个已挂载作用域，每个插槽最多 16 个注册来源，截断明确标记。读取仅在生成报告时发生，不持续轮询 DOM，不读取其他插件配置，不推断界面视觉遮挡。
+- Network history retains 32 entries. Operation history is also bounded and recent summaries cover 15 minutes. See [diagnostic-operations.js](../src/diagnostic-operations.js) for the current limits.
+- Stream health retains 20 entries. The consecutive-failure map holds up to 100 sessions. Public snapshots omit session IDs.
+- Reports are snapshots at generation time. Some history is process-wide. Report truncation and dropped entries.
+- A registrant label identifies a slot registration. Confirm package ownership and rendered visibility separately.
+- Report logs retain up to 300 entries. Exclude tokens, account identifiers, proxy URLs, prompts, answers, tool bodies and personal paths. Test new fields against allowlisting and redaction.
 
-## 验收门槛
+## Investigating an interrupted stream
 
-证据判定统一由 `diagnostic-evidence.js` 提供，摘要和能力表共用。只有同来源、同操作的后续成功才能替代该操作的失败；取消和其他操作成功都不能清除失败。报告按服务端快照时间解释服务端记录，避免客户端时钟偏差导致误判；它是生成时的快照，不伪装成实时监控。
-
-摘要每条结论包含级别、证据引用和后续建议；未恢复失败直接展示操作与时间，不要求用户从 JSON 猜测。目录能力差异为信息级别，不自动认定功能损坏。记录或作用域截断必须提示覆盖不足。本轮 520 项测试：517 通过，3 项真实 PATH 变更测试未启用；实际宿主摘要排版验收通过。
-
-2.2.3 后续改进：网络历史按能力关联到近期证据，明确网络响应不是完整回复。无独立前置检查与采集失败分开显示；工具注册检查关联到生图/草图。合并前后端报告后生成可读摘要：版本差异、采集不完整、目录能力缺口、同操作近期未恢复的失败。摘要仅覆盖已有记录，失败后的同操作成功和过期记录不会继续报警。
-
-宿主 `registrant` 可能是压缩后的函数标签（例如 `cf`），不再导出为已确认的 `owner`。它保留为受限字符的宿主标签并注明身份未验证，不能当作包名或干扰证据。不同账号/会话共享进程的历史范围在界面明确说明。
-
-已覆盖：单项抛错、异步挂起、失败后恢复、有限队列截断、脱敏、历史过期、禁用能力、缺宿主接口、多作用域隔离、工具取消/失败。超时不能中断同步死循环。官方 DSH 0.1.7-rc.1 已实机验收生成、展开、复制及两个作用域采集。
-
-尚不覆盖：自动判定视觉遮挡或其他插件冲突、完整回复流完成、搜索最终执行、压缩语义质量、独立子任务完成。没有这些证据时明确未知。下一次版本发布仍需单独执行发布门槛；本次没有发布。
+1. Record the host, plugin build, configured transport and observed transport.
+2. Compare total and idle time, network and adapter events, and what reached the UI. Account for heartbeat events with no content.
+3. Use a synthetic connection reset to verify recording, cancellation and recovery. Record live-account results with their specific conditions.
+4. Trace unfinished attempts through the host message lifecycle.
+5. If the original failure does not reproduce, record what remains unknown. See the [Issue #220 investigation](archive/issue-220-stream-recovery.md) for the 330-second comparison and the reported 235-second interruption.

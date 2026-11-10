@@ -1,5 +1,7 @@
 # DSH 0.2.2-alpha.2 compatibility
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 2026-10-28. Preview-host support is included in plugin 3.2.0. Existing rc support and the stable development cohort remain unchanged.
 
 ## Changes

@@ -3,6 +3,15 @@
 Bug reports, focused fixes, compatibility updates, and small user-facing
 improvements are welcome.
 
+Start with the [current development documentation](docs/DEVELOPMENT.md),
+[architecture](docs/ARCHITECTURE.md), [maintenance lessons](docs/maintenance-lessons.md)
+and [DSH plugin contracts](docs/dsh-plugin-contracts.md). Follow the
+[documentation publication/storage policy](docs/documentation-policy.md): detailed
+conversation-derived history, local audits and working reports stay in ignored
+local storage; only generalized guidance belongs in shared documentation. Versioned
+acceptance reports and superseded plans live in [the historical archive](docs/archive/README.md);
+they are evidence, not current setup instructions or permission to run old probes.
+
 ## Before changing code
 
 - Use the issue forms for a reproducible bug or a concrete feature need.
@@ -26,29 +35,57 @@ pnpm run check
 affects the DSH UI or plugin lifecycle, also verify it in an actual supported
 DSH installation; source tests alone are not installed-product acceptance.
 
-Behavior tests are discovered automatically; new test files join that gate by
-default. CI and release acceptance resolve the official `latest` and `alpha`
-channels, test against their actual dependencies, and exercise the candidate
-package lifecycle. Keep existing model capability assertions when allowing
-legitimate additions to the upstream model catalog.
+Behavior tests are discovered automatically. CI selects checks by the changed
+paths. For changes affecting runtime or host compatibility, it exercises the
+official Windows plugin lifecycle on the accepted host, the oldest supported
+host, and the current `latest`, `next` and supported `alpha` channels. See
+[tests/README.md](tests/README.md) for the test groups. Keep existing model
+capability assertions when accepting upstream catalog additions.
 
-For a change that touches the DSH UI (slots, settings pages, the composer or the
-model picker), also run the live UI smoke test on the target DSH version:
-`node scripts/ui-smoke.mjs --dsh-version <version>`. It needs a signed-in
-copy of the acceptance home and never calls the model; see
-[docs/ui-smoke.md](docs/ui-smoke.md). When a new DSH version renames or adds
-slots, refresh the slot snapshot described there.
+For settings, slots, or the composer, verify the affected path in official DSH
+Desktop. See [docs/ui-smoke.md](docs/ui-smoke.md) for the current checklist and
+the limits of the legacy Web smoke script. Use an isolated profile for tests
+that change settings. Record real-account checks separately from package
+lifecycle and UI-only checks.
 
-Upstream checks inspect npm latest/next/alpha every five minutes and can also
-receive repository_dispatch events. New latest/next RC releases are eligible for
-an automatic stable compatibility patch after source/build and official Windows
-lifecycle acceptance. Alpha previews stay separate. An unpublished main change
-or a failed gate leaves one tracking issue and holds publication. dry_run exercises
-the candidate and publisher verification without pushing, tagging or publishing.
-Scheduled publication is enabled by the repository variable DSH_COMPAT_AUTO_PUBLISH
-only after the dry-run has passed. Manual verification can always use dry_run=true.
+The compatibility workflow checks npm `latest`, `next` and `alpha` on an hourly
+schedule and can also run after a successful maintenance workflow or a
+repository dispatch. An eligible `latest` or `next` version can produce a stable
+compatibility patch from the **published plugin tag** after source, build and
+official Windows lifecycle checks. Alpha previews use a separate tracking path.
+If a gate blocks a candidate, review the compatibility tracking issue.
+
+Use `dry_run=true` to verify a compatibility candidate and the publisher inputs
+without pushing, tagging or publishing. `DSH_COMPAT_AUTO_PUBLISH` controls
+publication from automatic triggers. For an ordinary release, review all open
+issues and pull requests, record unresolved validation, and use `verify_only=true`
+to run the release acceptance checks without publishing.
+
+## Maintainer acceptance records
+
+Record the target commit, packed/installed package, DSH version, platform and
+Desktop/Web/Portable form. Separate synthetic tests, real-host checks,
+real-account calls, visual checks and physical-device acceptance. Report failures,
+skips and unreproduced conditions; do not substitute test totals for those results.
+Use isolated profiles for settings writes and fault injection, and verify cleanup
+without modifying the user's working profile or shared dependency store.
+
+Before publishing, inspect both open issues and pull requests again. A reply or
+investigation is not completion: record implementation, verification, disposition
+and any reopen condition for each item. Hold the release for unresolved required
+work unless the owner explicitly agrees to the exception. Keep source/main,
+published tag/npm, local candidate and installed runtime as distinct states.
+
+Keep one current procedure per topic. Move superseded plans and versioned
+acceptance into the historical archive after retaining unique failures, decisions
+and validation limits. Run `node --test tests/documentation.test.mjs` after moving
+links. The retired `scripts/ui-smoke.mjs` exits 2 without performing acceptance.
 
 ## Pull requests
+
+Include the related issue number in the commit message, PR description and
+release note. Link to the issue in the release note. Use `Fixes #number` for
+complete fixes and `Refs #number` for partial fixes or investigations.
 
 Describe the user-visible problem, the smallest implemented change, the checks
 you ran, and any remaining compatibility or privacy risk. Keep README and

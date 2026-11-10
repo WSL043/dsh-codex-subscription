@@ -1,5 +1,9 @@
 # Image 2.5 差异与订阅插件接入方案
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
+> Research and candidate design from 2026-09-09. The release status below reflects that date. See the [user guide](../GUIDE.en.md) for current procedures.
+
 研究日期：2026-09-09。本文保留最初的能力分析与阶段方案；实际候选版已调整为 **2.0.0，尚未发布**。已实现范围和证据以 [2.0 架构](2.0.0-architecture.md) 与 [验收记录](2.0.0-acceptance.md) 为准。Flare 已完成一次真实订阅生图；服务端未报告实际型号，Sunburst 尚未实测，不能把下面的规划全部视为已交付。
 
 ## 已确认的产品差异

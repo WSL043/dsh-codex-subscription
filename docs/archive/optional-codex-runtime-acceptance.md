@@ -1,5 +1,7 @@
 # 可选 Codex 运行时拆分验收
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 日期：2026-09-19。候选改动，尚未发布；不是已发布 2.1.3-beta.1 的行为说明。
 
 ## 依赖与体积

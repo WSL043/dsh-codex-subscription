@@ -55,7 +55,7 @@ Vérifié avec DSH `0.2.2-rc.1`, avec `0.2.1-rc.3` et `0.2.1-rc.2` toujours pris
 
 La CLI/Web DSH `0.2.2-rc.1` nécessite Node.js **24.9 ou une version ultérieure** ; l’application de bureau officielle utilise son environnement d’exécution intégré.
 
-Prend également en charge l’hôte de prévisualisation `0.2.2-alpha.2`. Consultez les [notes de compatibilité (en anglais)](docs/dsh-022-alpha2-compatibility.md) pour connaître le périmètre et les limites de validation.
+Prend également en charge l’hôte de prévisualisation `0.2.2-alpha.2`. Consultez les [notes de compatibilité (en anglais)](docs/archive/dsh-022-alpha2-compatibility.md) pour connaître le périmètre et les limites de validation.
 
 Ce plugin prend en charge la dernière version de DeepSeek Harness indiquée dans les métadonnées de son package et nécessite un compte ChatGPT disposant actuellement d’un accès à Codex.
 
@@ -370,24 +370,15 @@ Le contrôle à distance relie l’app ChatGPT au DSH en cours d’exécution. U
 
 DSH gère les conversations, les approbations d’outils et les permissions de l’espace de travail. L’extension apporte la connexion à Codex et les options et outils ci-dessus. Pour expliquer une fonction absente, vérifiez la version de DSH, les capacités du compte, le modèle sélectionné et le réglage avant de suivre l’outil ou la requête.
 
-[Guide détaillé (anglais)](docs/GUIDE.en.md) · [Contrat de l’outil de croquis (anglais)](docs/sketch-agent.md) · [Réglages par défaut](src/preference-fields.js)
+[Guide détaillé (anglais)](docs/GUIDE.en.md) · [Contrat de l’outil de croquis (anglais)](docs/sketch-agent.md) · [Réglages par défaut](src/preference-fields.js) · [Index du développement et de la documentation (en anglais)](docs/DEVELOPMENT.md)
 
 <a id="reuse-cache-when-changing-effort"></a>
 
 ### Réutiliser le cache lors d’un changement d’intensité
 
-**Réutiliser le cache lors d’un changement d’intensité** se trouve sous **Paramètres → Codex → Modèles → Avancé**. Cette option est activée par défaut et peut être désactivée ; les choix Désactivé enregistrés sont conservés. Elle s’applique uniquement aux modèles standard à agent unique explicitement pris en charge par le catalogue actuel du compte ; la prise en charge n’est jamais déduite du nom des modèles. La mise en cache ordinaire des invites est automatique et continue de fonctionner lorsque cette option est désactivée.
+Activée par défaut dans **Paramètres → Codex → Modèles → Avancé**. Elle facilite la réutilisation du cache lors d’un changement de niveau de raisonnement sur les modèles compatibles. Le cache habituel des prompts reste disponible si cette option est désactivée.
 
-La valeur de `reasoning.effort` au niveau de la requête reste celle définie initialement pour la fenêtre de contexte actuelle. Les modifications sont enregistrées sous forme d’éléments `configuration_update` dans le nouvel historique et rejouées à leur emplacement d’origine. Cela peut réduire l’invalidation du cache lors d’un changement d’intensité ; cela ne garantit ni l’utilisation du cache, ni des réponses plus rapides, ni des économies de quota. La réponse peut toujours indiquer la valeur d’intensité initiale.
-
-- **La compaction automatique dans le cloud et les nouvelles tentatives illimitées désactivent cette fonctionnalité.** L’interface explique le conflit ; vos paramètres de compaction, de nouvelle tentative, d’authentification, de connexion et de clé de cache ne sont jamais modifiés automatiquement.
-- Les réponses réussies enregistrent un petit état sans texte, avec les métadonnées de relecture existantes de DSH, pour le redémarrage, la reprise et les embranchements. Une compaction locale réussie modifie le préfixe ; après vérification du remplacement de l’historique validé par DSH, le plugin établit une nouvelle référence de base pour l’intensité sélectionnée. Une compaction échouée conserve l’état précédent.
-- L’activation d’une conversation existante ou le retour à un modèle pris en charge n’établit une référence de base que si l’entrée complète correspond à l’historique natif de la session DSH. La première requête peut perdre l’ancien cache. En cas d’historique invérifiable, de modèle non pris en charge, de changement de compte ou de limite de ressources, des requêtes ordinaires sont utilisées avec l’intensité sélectionnée.
-- L’état en attente dans le même processus fige une entrée déjà envoyée, même si elle échoue ou est annulée. Sélectionner une intensité différente pour cette nouvelle tentative précise renvoie une erreur ; conservez son intensité d’origine ou envoyez un nouveau message. Les tentatives échouées ne disposent d’aucun point de contrôle durable de réponse réussie ; la conservation de leur préfixe de cache après le redémarrage d’un processus ou le rechargement du plugin n’est donc pas garantie.
-- La désactivation rétablit les requêtes ordinaires sans appliquer rétroactivement de mises à jour aux anciens journaux. L’historique des mises à jour n’est jamais envoyé à `/responses/compact`. Pro, le mode multi-agent, la troncature automatique et la compaction automatique ne sont pas pris en charge.
-- La fonctionnalité est limitée à 20 000 éléments d’entrée, 16 Mio de données d’entrée/enveloppe avec empreinte, 128 mises à jour et 256 sessions actives/en attente. Les échecs de validation des limites ou de l’historique interrompent la conservation, mais pas l’intensité de raisonnement que vous avez sélectionnée.
-
-Cette fonctionnalité utilise les mises à jour de configuration décrites dans le [guide de raisonnement](https://developers.openai.com/api/docs/guides/reasoning) d’OpenAI ; consultez la page sur la [mise en cache des invites](https://developers.openai.com/api/docs/guides/prompt-caching) pour connaître les exigences relatives au cache. La prise en charge dépend du catalogue du compte actuel et des réponses réelles. Les refus de paramètres par le backend sont signalés ; aucune nouvelle tentative n’est effectuée avec une ancienne intensité ou une clé API.
+[Fonctionnement et limites (en anglais)](docs/GUIDE.en.md#reuse-cache-when-changing-effort)
 
 <a id="update-and-uninstall"></a>
 
@@ -460,7 +451,7 @@ Pour les **sous-tâches indépendantes de Codex**, installez le **sous-agent Cod
 
 - **Abonnement ChatGPT / Codex uniquement**, avec une prise en charge approfondie : quota et prévisions, images et croquis, sous-tâches, diagnostics. Les autres abonnements, tels que Claude ou Grok, ne sont pas concernés.
 - **Signalement explicite des échecs** : les requêtes ne basculent jamais silencieusement vers une autre voie payante et les fenêtres de quota que le compte ne renvoie pas ne sont jamais inventées.
-- **Suit les versions officielles de DSH** : chaque version est validée de bout en bout (installation, démarrage, suppression, réinstallation) avec les canaux officiels de DSH, tels que latest et next ; les versions vérifiées sont consignées dans les [notes de compatibilité](docs/dsh-020-compatibility.md).
+- **Suit les versions officielles de DSH** : chaque version est validée de bout en bout (installation, démarrage, suppression, réinstallation) avec les canaux officiels de DSH, tels que latest et next ; les versions vérifiées sont consignées dans les [notes de compatibilité](docs/DEVELOPMENT.md#compatibility).
 - Les modèles, le quota et les fonctionnalités dépendent des données réellement renvoyées par votre compte ; le backend ChatGPT et DSH peuvent évoluer indépendamment.
 
 Ce projet communautaire n’est ni affilié à DeepSeek ou OpenAI, ni approuvé par ces entreprises.

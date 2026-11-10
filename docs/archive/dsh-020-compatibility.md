@@ -1,5 +1,7 @@
 # DSH 0.2.0-rc.1 compatibility
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 ## Evidence
 
 - `pnpm run test`: 521 passed, 0 failed, 0 skipped.

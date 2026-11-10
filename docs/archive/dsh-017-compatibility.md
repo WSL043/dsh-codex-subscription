@@ -1,5 +1,7 @@
 # DSH 0.1.7-alpha.1 compatibility
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 ## Changes
 
 - Use volatile Config fields and profile-entry settings updates on the new host; (historical) older hosts used namespace registration; support for them was removed in 3.0.0.

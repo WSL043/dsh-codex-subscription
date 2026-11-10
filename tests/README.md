@@ -10,3 +10,13 @@ Keep a test when it protects a distinct user-visible behavior, failure boundary,
 - A skipped test is not a pass. Automated tests do not replace real-account, device or visual acceptance for changed behavior.
 
 Run `pnpm test` for the full local suite, or `pnpm run test:behavior` / `pnpm run test:delivery` for the same groups used by CI. New helpers should serve an exercised scenario; avoid adding a parallel test framework.
+
+`documentation.test.mjs` belongs to delivery. It checks local Markdown file links
+in current and archived documentation, the retained CDP port probe's cleanup,
+and that old UI-smoke commands exit before changing the supplied home/output.
+It also rejects public-document links to private local records and checks that
+local-only documentation paths are ignored and absent from the Git index.
+It does not validate remote URLs, heading fragments, visual UI, real-account
+behavior, all possible secret formats or every sentence in a historical report. Documentation-only changes
+and the retired runner/helper select delivery checks without claiming runtime
+or installed-product acceptance.

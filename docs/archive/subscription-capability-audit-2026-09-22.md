@@ -1,5 +1,7 @@
 # Subscription capability audit — 2026-09-22
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 Read-only review against current source and official documentation. This is a research backlog, not a claim of newly implemented or account-validated capabilities.
 
 ## Current versions

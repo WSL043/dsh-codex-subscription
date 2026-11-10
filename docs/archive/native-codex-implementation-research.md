@@ -1,5 +1,7 @@
 # 官方 Codex 子代理：实现核对与首个接入切片
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 核对日期：2026-09-09。基于上游固定标签 `dsh-v0.1.5-alpha.1` 的源码；这是 2.0.0 之后的研究记录，不是已发布功能。未执行原生 Codex 任务，未复制登录凭据。
 
 ## 已确认的执行链

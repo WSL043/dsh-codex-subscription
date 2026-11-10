@@ -1,5 +1,7 @@
 # DSH 0.1.7-alpha.2 compatibility
 
+> **Historical record, archived 2026-11-09.** Results, version claims, pending work and commands below describe their original date, not current support or authorization to run them. Start with the [current documentation](../DEVELOPMENT.md), [architecture](../ARCHITECTURE.md) and [maintenance lessons](../maintenance-lessons.md).
+
 The candidate accepts the alpha.2 dependency cohort and uses the user-provided plugin icon through native package metadata. The icon is a 256px WebP below the host 256 KiB limit; the source image is unchanged.
 
 ## Evidence

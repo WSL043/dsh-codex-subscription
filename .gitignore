@@ -15,3 +15,9 @@ Thumbs.db
 /docs/assets/subscription-overview-2.2-en.png
 
 phone-acceptance-*.txt
+
+# Private development notes and evidence are never main/release inputs.
+/.local/
+/audit-notes/
+*.local.md
+*.local.*.md

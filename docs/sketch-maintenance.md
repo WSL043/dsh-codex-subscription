@@ -1,34 +1,21 @@
-# Sketch maintenance boundaries
+# Sketch canvas development and testing
 
-This is an engineering guide, not a claim of additional shipped features.
+## Implementation boundaries
 
-## Ownership
+- `sketch-session-state.js` and `sketch-workspace.jsx` keep each conversation's document, history, agent connection and execution state. Switching conversations or closing the canvas leaves running work intact.
+- `sketch-document-lifecycle.js` handles saving, restoring, replacing and importing. Save from a snapshot. Preserve newer edits and document identity when old operations complete. A restored document stays dirty until explicitly saved. Keep the document and export available after a save failure.
+- `sketch-operation-gate.js` serializes file operations synchronously. `sketch-agent-export.js` holds the lock through encoding and Blob reads and releases it on success or failure.
+- `sketch-gesture.js` retains raw coordinates until pointer release. Keep React state updates, layout reads and storage I/O out of the pointer path. `sketch-studio.jsx` handles drawing frames and UI actions.
+- `sketch-agent-*` handles conversation connections, execution IDs, commands and results. See the [drawing protocol](sketch-agent.md). Use DSH's attachment operations and keep model and attachment controls out of document persistence.
 
-- `sketch-session-state.js`: session lifetime, document refs and idle eviction.
-- `sketch-document-lifecycle.js`: saved-document identity, snapshot saves, recovery, replacement and imports. Storage and image decoding can be injected for delayed/failing-I/O tests.
-- `sketch-operation-gate.js`: synchronous exclusion for manual file operations. File menu, keyboard save, paste/drop, close and attach share this gate. Agent availability also checks it before a React busy-state commit.
-- `sketch-agent-export.js`: native Agent export uses that same gate through encoding and Blob serialization. Duplicate requests fail without releasing the in-flight request's lock; errors propagate to the caller and release the editor in `finally`.
-- `sketch-gesture.js`: coalesced pointer samples, shape constraints, stroke erasing and object transforms. This hot path has no React state, storage, image decoding or layout reads; it preserves raw paths until pen-up smoothing.
-- `sketch-tool-picker.jsx` and `sketch-layer-panel.jsx`: tool/layer presentation and callbacks. Document mutation stays with the owning controller. Every shape-menu choice observes the same busy/agent lock as its opener.
-- `sketch-studio.jsx`: pointer lifecycle, painting scheduling, React effects and composition. Pointer-down/up, colors and brush options remain here; the component is still a candidate for evidence-led simplification.
-- `sketch-agent-*`: transport, request receipts, command session and run lifecycle. Do not add model orchestration to the storage controller.
+## Checks for changes
 
-## Invariants for future changes
+1. Start drawing in two conversations in official DSH. Switch between them and verify that both continue, stopping one leaves the other active, and returning shows the correct canvas and progress. Save drafts before testing a full reload.
+2. Check manual drawing, saving, creating, loading, attaching, returning from an attachment to the canvas and editing during restore. Verify playback and on-demand recording separately.
+3. For UI changes, check light and dark themes, the composer button on hover, the active drawing indicator and operation in a narrow Desktop window.
+4. Use automated tests for delayed and failed document operations, per-conversation state and concurrent exports. Use real input and frame measurements for pen pressure and drawing performance.
 
-1. Save a cloned snapshot. Completing an older revision must not mark a newer edit clean; completing an older document save must not change the replacement document identity.
-2. Recovery is cancellable and must not overwrite newer document edits. Recovered documents remain dirty until explicitly persisted.
-3. Failed persistence must preserve the current document. Export remains independent of successful draft storage.
-4. Acquire operation exclusion synchronously. Disabling a React button after the next render is insufficient to prevent same-event re-entry. Nested file-menu work stays inside one operation.
-5. Rendering may use refs and animation frames; persistence and agent readiness must not infer state from visible button labels.
-6. Keep host-native attachment behavior outside sketch document logic. Prefer an official host action/slot contract when available; maintain a bounded fallback for current DOM integration.
-
-## Acceptance
-
-Run the document-lifecycle tests with delayed storage and failures, then the full behavior suite/build. For client changes also verify the built client in official DSH: draw, save, create blank document, load the saved document, attach once, reopen attachment in sketch, and reload while a recovery checkpoint exists. Source tests alone are not visual acceptance.
-
-## Remaining development requires evidence
-
-Further pointer-lifecycle extraction should preserve synchronous operation exclusion and pen-up smoothing. Brush-pressure improvements need physical pen traces and frame-time measurements. Quota-forecast changes need chronological real-account trace replay. None of these should be presented as completed merely because the current unit tests pass.
+The following records describe the host and code used at the time.
 
 ## 2026-09-12 maintenance acceptance
 

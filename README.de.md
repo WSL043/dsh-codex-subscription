@@ -55,7 +55,7 @@ Verifiziert mit DSH `0.2.2-rc.1`; `0.2.1-rc.3` und `0.2.1-rc.2` werden weiterhin
 
 Für DSH `0.2.2-rc.1` CLI/Web ist Node.js **24.9 oder neuer** erforderlich; die offizielle Desktop-App verwendet ihre gebündelte Laufzeitumgebung.
 
-Unterstützt auch den Vorschau-Host `0.2.2-alpha.2`. Einzelheiten zum Umfang und zu den Grenzen der Validierung findest du in den [Kompatibilitätshinweisen](docs/dsh-022-alpha2-compatibility.md) (auf Englisch).
+Unterstützt auch den Vorschau-Host `0.2.2-alpha.2`. Einzelheiten zum Umfang und zu den Grenzen der Validierung findest du in den [Kompatibilitätshinweisen](docs/archive/dsh-022-alpha2-compatibility.md) (auf Englisch).
 
 Dieses Plugin unterstützt die neueste DeepSeek-Harness-Version, die in seinen Paketmetadaten angegeben ist, und erfordert ein ChatGPT-Konto, das derzeit Zugriff auf Codex hat.
 
@@ -370,24 +370,15 @@ Die Fernsteuerung verbindet die ChatGPT-App mit dem laufenden DSH. Ein Sprachanr
 
 DSH verwaltet Gespräche, Werkzeugfreigaben und Arbeitsbereichsrechte. Die Erweiterung stellt den Codex-Zugang und die oben genannten Einstellungen und Werkzeuge bereit. Prüfe bei einer fehlenden Funktion zunächst die DSH-Version, die Kontofunktionen, das Modell und die Einstellung, bevor du das Werkzeug oder die Anfrage untersuchst.
 
-[Ausführliches Handbuch (Englisch)](docs/GUIDE.en.md) · [Vertrag des Skizzenwerkzeugs (Englisch)](docs/sketch-agent.md) · [Standardeinstellungen](src/preference-fields.js)
+[Ausführliches Handbuch (Englisch)](docs/GUIDE.en.md) · [Vertrag des Skizzenwerkzeugs (Englisch)](docs/sketch-agent.md) · [Standardeinstellungen](src/preference-fields.js) · [Index für Entwicklung und Dokumentation (Englisch)](docs/DEVELOPMENT.md)
 
 <a id="reuse-cache-when-changing-effort"></a>
 
 ### Cache bei Änderung des Aufwands wiederverwenden
 
-**Cache bei Änderung des Aufwands wiederverwenden** befindet sich unter **Einstellungen → Codex → Modelle → Erweitert**. Die Funktion ist standardmäßig aktiviert und kann ausgeschaltet werden; gespeicherte Aus-Einstellungen bleiben erhalten. Sie gilt nur für Standardmodelle mit einem Agenten, die vom aktuellen Kontokatalog ausdrücklich unterstützt werden; die Unterstützung wird niemals anhand von Modellnamen abgeleitet. Gewöhnliches Prompt-Caching erfolgt automatisch und funktioniert weiterhin, wenn diese Option ausgeschaltet ist.
+Unter **Einstellungen → Codex → Modelle → Erweitert** standardmäßig aktiviert. Kann bei unterstützten Modellen die Cache-Nutzung beim Wechsel der Reasoning-Stufe verbessern. Das normale Prompt-Caching bleibt auch bei ausgeschalteter Option verfügbar.
 
-Die anfragebezogene Einstellung `reasoning.effort` bleibt auf dem Anfangswert des aktuellen Kontextfensters. Änderungen werden als `configuration_update`-Elemente im neuen Verlauf aufgezeichnet und an ihren ursprünglichen Positionen wiedergegeben. Dadurch kann die Cache-Invalidierung beim Wechsel des Aufwands verringert werden; Cache-Treffer, schnellere Antworten oder Einsparungen beim Kontingent werden dadurch nicht garantiert. Für den Antwortaufwand kann weiterhin der Anfangswert angegeben werden.
-
-- **Automatische Cloud-Komprimierung und „Unbegrenzte Wiederholungen“ deaktivieren diese Funktion.** Die Benutzeroberfläche erklärt den Konflikt; deine Einstellungen für Komprimierung, Wiederholungsversuche, Authentifizierung, Verbindung und Cache-Schlüssel werden niemals automatisch geändert.
-- Erfolgreiche Antworten speichern einen kleinen, textfreien Status zusammen mit den vorhandenen Wiedergabemetadaten von DSH für Neustart, Fortsetzen und Forks. Eine erfolgreiche lokale Komprimierung ändert das Präfix; nachdem der festgeschriebene Verlaufsersatz von DSH überprüft wurde, legt das Plugin beim ausgewählten Aufwand eine neue Basis fest. Bei fehlgeschlagener Komprimierung bleibt der vorherige Status erhalten.
-- Beim Aktivieren eines bestehenden Chats oder der Rückkehr zu einem unterstützten Modell wird eine Basis nur festgelegt, wenn die vollständige Eingabe mit dem nativen Sitzungsverlauf von DSH übereinstimmt. Bei der ersten Anfrage kann der alte Cache verloren gehen. Nicht verifizierbarer Verlauf, nicht unterstützte Modelle, Kontoänderungen und Ressourcenlimits führen zu gewöhnlichen Anfragen mit dem ausgewählten Aufwand.
-- Der ausstehende Status desselben Prozesses friert eine bereits übermittelte Eingabe ein, selbst wenn sie fehlschlägt oder abgebrochen wird. Wird für genau diesen erneuten Versuch ein anderer Aufwand für Überlegungen ausgewählt, wird ein Fehler gemeldet; behalte den ursprünglichen Aufwand bei oder sende eine neue Nachricht. Für fehlgeschlagene Versuche gibt es keinen dauerhaft gespeicherten Checkpoint einer erfolgreichen Antwort. Daher ist nicht garantiert, dass ihr Cache-Präfix einen Neustart des Prozesses oder ein erneutes Laden des Plugins übersteht.
-- Durch Deaktivieren werden gewöhnliche Anfragen wiederhergestellt, ohne nachträglich Aktualisierungen in alte Protokolle einzufügen. Der Aktualisierungsverlauf wird niemals an `/responses/compact` gesendet. Pro, Multi-Agent, automatisches Kürzen und automatische Komprimierung werden nicht unterstützt.
-- Die Funktion ist auf 20.000 Eingabeelemente, 16 MiB an Eingabe-/Hüllendaten mit Fingerabdruck, 128 Aktualisierungen und 256 aktive/ausstehende Sitzungen begrenzt. Fehler bei der Validierung von Grenzwerten oder des Verlaufs beenden die Beibehaltung, nicht den von dir gewählten Aufwand für Überlegungen.
-
-Hierfür werden Konfigurationsaktualisierungen verwendet, die im [Reasoning-Leitfaden](https://developers.openai.com/api/docs/guides/reasoning) von OpenAI dokumentiert sind; Informationen zu Cache-Anforderungen findest du unter [Prompt-Caching](https://developers.openai.com/api/docs/guides/prompt-caching). Die Unterstützung richtet sich nach dem aktuellen Kontokatalog und den tatsächlichen Antworten. Ablehnungen von Backend-Parametern werden angezeigt und niemals mit einem alten Aufwand oder einem API-Schlüssel erneut versucht.
+[Funktionsweise und Einschränkungen (Englisch)](docs/GUIDE.en.md#reuse-cache-when-changing-effort)
 
 <a id="update-and-uninstall"></a>
 
@@ -460,7 +451,7 @@ Für **unabhängige Codex-Teilaufgaben** installiere den **Codex-Subagenten** ü
 
 - **Nur ChatGPT-/Codex-Abo**, mit ausführlichen Funktionen: Kontingent und Prognosen, Bilder und Skizzen, Teilaufgaben, Diagnosedaten. Andere Abos wie Claude oder Grok sind nicht Gegenstand des Projekts.
 - **Fehler werden ausdrücklich gemeldet**: Anfragen weichen niemals stillschweigend auf einen anderen kostenpflichtigen Zugangsweg aus, und Kontingentzeiträume, die das Konto nicht zurückgibt, werden niemals erfunden.
-- **Folgt den offiziellen DSH-Versionen**: Jede Version wird durchgängig (Installation, Start, Entfernung, Neuinstallation) mit offiziellen DSH-Kanälen wie latest und next getestet; verifizierte Versionen sind in den [Kompatibilitätshinweisen](docs/dsh-020-compatibility.md) festgehalten.
+- **Folgt den offiziellen DSH-Versionen**: Jede Version wird durchgängig (Installation, Start, Entfernung, Neuinstallation) mit offiziellen DSH-Kanälen wie latest und next getestet; verifizierte Versionen sind in den [Kompatibilitätshinweisen](docs/DEVELOPMENT.md#compatibility) festgehalten.
 - Modelle, Kontingent und Funktionen hängen davon ab, was dein Konto tatsächlich zurückgibt; das ChatGPT-Backend und DSH können sich unabhängig voneinander ändern.
 
 Dieses Community-Projekt ist weder mit DeepSeek oder OpenAI verbunden noch wird es von ihnen unterstützt.
