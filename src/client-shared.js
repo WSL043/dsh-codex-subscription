@@ -7,8 +7,7 @@ export const accessFailureText = (message, t) => {
   const key = ACCESS_FAILURE_KEYS.get(message)
   return key === undefined ? message : t(key)
 }
-export const usageFailureText = (message, t) => ['Request timed out', 'Could not read ChatGPT usage'].includes(message)
-  ? t('usageRefreshFailed') : accessFailureText(message, t)
+export const usageFailureText = (message, t) => t(ACCESS_FAILURE_KEYS.get(message) ?? 'usageRefreshFailed')
 export const NS = 'settings.codexSubscription'
 export const PROJECT_URL = 'https://github.com/WSL043/dsh-codex-subscription'
 export const SUPPORT_ISSUE_URL = `${PROJECT_URL}/issues/new?template=install-problem.yml`

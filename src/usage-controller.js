@@ -1,7 +1,7 @@
 import { highestUsed, quotaRefreshMs } from './quota-cadence.js'
 
 /** One live quota snapshot and polling loop for every mounted view. */
-export function createUsageController({ request, now = Date.now, schedule = setTimeout, cancel = clearTimeout, listen, visible = () => true, onUpdate }) {
+export function createUsageController({ request, now = Date.now, schedule = setTimeout, cancel = clearTimeout, listen, visible = () => true, onSettled }) {
   let snapshot = Object.freeze({ usage: undefined, busy: false, error: undefined, now: now() })
   let generation = 0, consumers = 0, flight, timer, unlisten
   const listeners = new Set()
@@ -27,14 +27,17 @@ export function createUsageController({ request, now = Date.now, schedule = setT
     operation.promise = Promise.resolve().then(() => current === generation ? request(force) : undefined).then(usage => {
       if (current === generation) {
         publish({ usage, busy: false, error: undefined, now: now() })
-        onUpdate?.({ force })
       }
       return usage
     }).catch(error => {
       if (current === generation) publish({ ...snapshot, busy: false, error: error?.message ?? 'Could not read quota', now: now() })
       throw error
     }).finally(() => {
-      if (flight === operation) { flight = undefined; queue() }
+      if (flight === operation) {
+        flight = undefined
+        queue()
+        onSettled?.({ force, error: snapshot.error })
+      }
     })
     flight = operation
     publish({ ...snapshot, busy: true, now: now() })

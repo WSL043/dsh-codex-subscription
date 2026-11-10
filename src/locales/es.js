@@ -642,6 +642,7 @@ export default {
   "usageEmpty": "Esta cuenta no devolvió ventanas de cuota que se puedan mostrar. Actualiza más tarde; esto no significa que la cuota sea cero.",
   "usageRefreshFailed": "No se pudo actualizar la cuota. Inténtalo de nuevo en breve.",
   "usageUpdated": "Actualizado {value}",
+  "usageLastKnown": "Última cuota consultada: {value}",
   "remaining": "Queda un {value}%",
   "windowFiveHours": "Cuota de 5 horas",
   "windowDaily": "Cuota diaria",

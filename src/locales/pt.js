@@ -642,6 +642,7 @@ export default {
   "usageEmpty": "Esta conta não retornou períodos de cota exibíveis. Atualize mais tarde; isso não significa cota zero.",
   "usageRefreshFailed": "Não foi possível atualizar a cota. Tente novamente em instantes.",
   "usageUpdated": "Atualizado {value}",
+  "usageLastKnown": "Última cota consultada: {value}",
   "remaining": "{value}% restante",
   "windowFiveHours": "Cota de 5 horas",
   "windowDaily": "Cota diária",

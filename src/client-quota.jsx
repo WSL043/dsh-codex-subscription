@@ -3,6 +3,7 @@ import { selectModelQuotaWindows } from './sidebar-quota.js'
 import { recoveryCall } from './client-recovery.js'
 import { QUICK_QUOTA_REFRESH_EVENT } from './client-shared.js'
 import { createUsageController } from './usage-controller.js'
+import { SIGN_IN_RENEW } from './http-failure.js'
 
 const controllers = new WeakMap()
 export function quotaUsageController(rpc) {
@@ -12,7 +13,9 @@ export function quotaUsageController(rpc) {
       return account?.authenticated === true ? recoveryCall(rpc, 'usage', { force }) : undefined
     },
     visible: () => document.visibilityState !== 'hidden',
-    onUpdate: ({ force }) => { if (force) window.dispatchEvent(new Event('codex-subscription:usage-loaded')) },
+    onSettled: ({ force, error }) => {
+      if (force || error === SIGN_IN_RENEW) window.dispatchEvent(new Event('codex-subscription:usage-loaded'))
+    },
     listen: ({ invalidate, wake }) => {
       window.addEventListener(QUICK_QUOTA_REFRESH_EVENT, invalidate)
       document.addEventListener('visibilitychange', wake)

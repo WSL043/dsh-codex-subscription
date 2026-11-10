@@ -642,6 +642,7 @@ export default {
   "usageEmpty": "Ce compte n’a renvoyé aucune période de quota affichable. Actualisez plus tard ; cela ne signifie pas que le quota est nul.",
   "usageRefreshFailed": "Impossible de mettre à jour le quota. Réessayez dans quelques instants.",
   "usageUpdated": "Mis à jour : {value}",
+  "usageLastKnown": "Dernier quota relevé : {value}",
   "remaining": "{value} % restants",
   "windowFiveHours": "Quota sur 5 heures",
   "windowDaily": "Quota quotidien",

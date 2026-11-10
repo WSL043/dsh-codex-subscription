@@ -1,9 +1,13 @@
 import { forecastRunway } from './quota-pace.js'
 
+export function quotaReadingIsStale({ fetchedAt, now = Date.now(), resetsAt, refreshError = false }) {
+  return refreshError || (Number.isFinite(fetchedAt) && (fetchedAt > now || now - fetchedAt > 5 * 60_000))
+    || (Number.isFinite(resetsAt) && resetsAt * 1000 <= now)
+}
+
 /** A time estimate is anchored to the reading, never advanced by opening another view later. */
 export function quotaForecastView(forecast, { fetchedAt, now = Date.now(), resetsAt, remainingPercent, refreshError = false } = {}) {
-  if (refreshError || Number.isFinite(fetchedAt) && (fetchedAt > now || now - fetchedAt > 5 * 60_000)
-    || Number.isFinite(resetsAt) && resetsAt * 1000 <= now) return { kind: 'stale' }
+  if (quotaReadingIsStale({ fetchedAt, now, resetsAt, refreshError })) return { kind: 'stale' }
   if (remainingPercent === 0) return { kind: 'exhausted' }
   if (forecast?.status === 'calibrating') return { kind: forecast.reason ?? 'calibrating' }
   if (forecast?.status === 'idle') return { kind: 'idle' }

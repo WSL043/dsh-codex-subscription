@@ -9,7 +9,8 @@ import * as settingsContract from '../src/settings-contract.js'
 import { registerLegacyModelPicker, watchComposerModelPickerConflict } from '../src/client-model-picker-slot.js'
 import { createPreferenceController } from '../src/preference-controller.js'
 import { createSubscriptionRpcHandler } from '../src/subscription-rpc.js'
-import { PROJECT_URL, maskEmail, unwrap, validDate } from '../src/client-shared.js'
+import { PROJECT_URL, maskEmail, unwrap, usageFailureText, validDate } from '../src/client-shared.js'
+import { quotaReadingIsStale } from '../src/quota-forecast-view.js'
 import { SIGN_IN_RENEW } from '../src/http-failure.js'
 
 // Compile the actual components in memory. The hook/clock host below exercises
@@ -342,6 +343,39 @@ test('zero-quota polling does not reload reset cards, but an explicit refresh st
     h.render()
     assert.notEqual(cards().props.refreshKey, initial)
     assert.deepEqual(refreshes, [true])
+  } finally { h.dispose() }
+})
+
+test('quota marks an old reading outside forecast mode and distinguishes refresh failures from sign-in expiry', async () => {
+  const now = Date.now()
+  const reading = { fetchedAt: now - 1000, rateLimits: [{ id: 'codex', windows: [{ remainingPercent: 77, windowSeconds: 604800, resetsAt: now / 1000 + 60 }] }] }
+  let snapshot = { now, usage: reading }
+  const h = await component('client-usage.jsx', 'UsageCard', {
+    rpc: {}, t: key => key, signedIn: true, resetKey: 0, preference: {},
+  }, {
+    './client-quota.jsx': { useQuotaUsage: () => snapshot },
+    './quota-forecast-view.js': { quotaReadingIsStale },
+    './client-shared.js': { usePreferenceSnapshot: () => ({ quickQuotaMode: 'off' }), uiLocale: () => 'en-US', validDate, fill: value => value, percent: String, windowLabel: String, usageFailureText },
+  })
+  const label = () => nodes(h.tree, node => node.type === 'time' && node.props.className === 'codexSubscriptionFreshness')[0]?.props.children
+  const alert = () => nodes(h.tree, node => node.props.role === 'alert')[0]?.props.children
+  try {
+    assert.equal(label(), 'usageUpdated')
+    snapshot = { now: now + 61_000, usage: reading }; h.render()
+    assert.equal(label(), 'usageLastKnown')
+    assert.equal(alert(), undefined)
+    snapshot = { now, usage: reading, error: 'Could not read ChatGPT usage' }; h.render()
+    assert.equal(label(), 'usageLastKnown')
+    assert.equal(alert(), 'usageRefreshFailed')
+    snapshot = { now, usage: reading, error: SIGN_IN_RENEW }; h.render()
+    assert.equal(label(), 'usageLastKnown')
+    assert.equal(alert(), 'resetRenewLogin')
+    snapshot = { now, error: 'Request timed out' }; h.render()
+    assert.equal(label(), undefined)
+    assert.equal(alert(), 'usageRefreshFailed')
+    snapshot = { now, usage: reading }; h.render()
+    assert.equal(label(), 'usageUpdated')
+    assert.equal(alert(), undefined)
   } finally { h.dispose() }
 })
 

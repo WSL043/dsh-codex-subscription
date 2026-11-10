@@ -5,9 +5,9 @@ import { createUsageController } from '../src/usage-controller.js'
 const deferred = () => { let resolve, reject; const promise = new Promise((a,b) => { resolve=a; reject=b }); return {promise,resolve,reject} }
 const tick = () => new Promise(resolve => setImmediate(resolve))
 const usage = (usedPercent = 10, fetchedAt = 1000) => ({ fetchedAt, rateLimits: [{id:'codex',windows:[{usedPercent,remainingPercent:100-usedPercent,windowSeconds:604800}]}] })
-function fixture(request) {
+function fixture(request, onSettled) {
   const scheduled = new Map(); let next=0, active=true, hooks
-  const controller=createUsageController({request,now:()=>1000,schedule:(fn,ms)=>{const id=++next;scheduled.set(id,{fn,ms});return id},cancel:id=>scheduled.delete(id),visible:()=>active,listen:value=>{hooks=value;return()=>{hooks=undefined}}})
+  const controller=createUsageController({request,now:()=>1000,schedule:(fn,ms)=>{const id=++next;scheduled.set(id,{fn,ms});return id},cancel:id=>scheduled.delete(id),visible:()=>active,onSettled,listen:value=>{hooks=value;return()=>{hooks=undefined}}})
   return {controller,scheduled,hide(){active=false;hooks.wake()},show(){active=true;hooks.wake()}}
 }
 
@@ -45,6 +45,26 @@ test('hidden pages pause polling and resume a single fresh read; failures retain
   f.show();await tick();assert.equal(calls,2);assert.equal(f.controller.getSnapshot().error,'offline')
   assert.equal(f.controller.getSnapshot().usage.fetchedAt,1000);assert.equal(f.scheduled.size,1)
   release()
+})
+
+test('a failed forced refresh notifies the account check after settling while keeping the reading', async () => {
+  const events = []
+  let failing = false
+  const { controller } = fixture(async () => {
+    if (failing) throw Error('sign-in expired')
+    return usage()
+  }, event => events.push({ ...event, busy: controller.getSnapshot().busy }))
+  const release = controller.retain()
+  try {
+    await tick()
+    failing = true
+    await assert.rejects(controller.refresh(true), /sign-in expired/)
+    assert.deepEqual(events, [
+      { force: false, error: undefined, busy: false },
+      { force: true, error: 'sign-in expired', busy: false },
+    ])
+    assert.equal(controller.getSnapshot().usage.fetchedAt, 1000)
+  } finally { release() }
 })
 
 test('a new mount cannot display quota retained from a different unobserved account', async () => {

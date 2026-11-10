@@ -5,6 +5,7 @@ import { CHANNEL, unwrap, accessFailureText, usageFailureText, fill, uiLocale, p
 import { creditExpiryStatus, creditExpiryDateText } from './credit-expiry.js'
 import { REQUEST_BLOCKED, isAccessFailureMessage } from './http-failure.js'
 import { useQuotaUsage } from './client-quota.jsx'
+import { quotaReadingIsStale } from './quota-forecast-view.js'
 import { QUICK_QUOTA_MODE_FORECAST } from './settings-contract.js'
 import { UsageHistory } from './client-usage-history.jsx'
 import { UsageOverview } from './client-usage-overview.jsx'
@@ -162,9 +163,14 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
   const hasUsageDetails = limits.length > 0 || visibleUsage?.chatPass !== undefined || visibleUsage?.credits !== undefined
     || visibleUsage?.individualLimit !== undefined || visibleUsage?.resetCredits?.availableCount > 0
   const fetchedAt = typeof visibleUsage?.fetchedAt === 'number' ? validDate(visibleUsage.fetchedAt) : undefined
+  const stale = visibleUsage !== undefined && (
+    quotaReadingIsStale({ fetchedAt: visibleUsage.fetchedAt, now, refreshError: error !== undefined })
+    || limits.some(limit => limit.windows.some(window => quotaReadingIsStale({ resetsAt: window.resetsAt, now })))
+    || visibleUsage.chatPass?.windows.some(window => quotaReadingIsStale({ resetsAt: window.resetsAt, now }))
+  )
   return <div className="codexSubscriptionCard codexSubscriptionUsageCard">
     <div className="codexSubscriptionSectionHead">
-      <div className="codexSubscriptionSectionTitle"><h3>{t('usage')}</h3>{fetchedAt === undefined ? null : <time className="codexSubscriptionFreshness" dateTime={fetchedAt.toISOString()}>{fill(t('usageUpdated'), { value: fetchedAt.toLocaleString(uiLocale()) })}</time>}</div>
+      <div className="codexSubscriptionSectionTitle"><h3>{t('usage')}</h3>{fetchedAt === undefined ? null : <time className="codexSubscriptionFreshness" data-stale={stale || undefined} dateTime={fetchedAt.toISOString()}>{fill(t(stale ? 'usageLastKnown' : 'usageUpdated'), { value: fetchedAt.toLocaleString(uiLocale()) })}</time>}</div>
       <Button className="codexSubscriptionRefresh" type="button" variant="outline" disabled={!signedIn || busy} aria-busy={busy} onClick={() => load(true)}>{busy ? t('refreshing') : t('refresh')}</Button>
     </div>
     <div aria-live="polite">

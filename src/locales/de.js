@@ -642,6 +642,7 @@ export default {
   "usageEmpty": "Für dieses Konto wurden keine anzeigbaren Kontingentzeiträume zurückgegeben. Aktualisiere später; das bedeutet nicht, dass kein Kontingent vorhanden ist.",
   "usageRefreshFailed": "Kontingent konnte nicht aktualisiert werden. Versuche es in Kürze erneut.",
   "usageUpdated": "Aktualisiert {value}",
+  "usageLastKnown": "Zuletzt abgerufenes Kontingent: {value}",
   "remaining": "Noch {value}%",
   "windowFiveHours": "5-Stunden-Kontingent",
   "windowDaily": "Tageskontingent",

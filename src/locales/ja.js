@@ -642,6 +642,7 @@ export default {
   "usageEmpty": "このアカウントから表示可能な利用枠が返されませんでした。後でもう一度更新してください。利用枠がゼロという意味ではありません。",
   "usageRefreshFailed": "利用枠を更新できませんでした。しばらくしてから再試行してください。",
   "usageUpdated": "更新日時：{value}",
+  "usageLastKnown": "前回取得した利用枠：{value}",
   "remaining": "残り{value}%",
   "windowFiveHours": "5時間の利用枠",
   "windowDaily": "日次の利用枠",
