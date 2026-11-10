@@ -474,6 +474,10 @@ export function apply(ctx, config = {}) {
     },
     auth: adapterAuth,
     resolveAttachments: () => ctx.get?.('attachments'),
+    // Proxy boundary signal for billion-context: the adapter owns header
+    // assembly, so this is the only seam that reaches the wire per request.
+    // Inert unless the cloud-compaction bridge is reusing a checkpoint.
+    prepareHeaders: (_request, headers) => compaction.stampHeaders(headers),
   })
   // Hiding a model means "do not use it": the host directory drops hidden models, except those a session, the default or a plugin setting still uses.
   const hiddenDirectory = createHiddenModelDirectory({

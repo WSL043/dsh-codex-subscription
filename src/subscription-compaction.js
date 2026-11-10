@@ -12,11 +12,21 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 export function createCompactionBridge({ enabled = () => false, threshold, accountScope, diagnostic = () => {}, now = Date.now }) {
  const scope = new AsyncLocalStorage()
  const stats = { requests: 0, checkpointsSaved: 0, checkpointsReused: 0 }
+ // Checkpoint ids already announced to the proxy in this process. Restart
+ // re-announces as `fresh`, which the proxy dedupes on (id, seq) by design.
+ // Bounded: an entry per remote compaction is tiny, but the process can live
+ // for weeks, so forget the oldest ids instead of growing without limit.
+ const announced = new Set()
+ const ANNOUNCED_LIMIT = 256
+ const announce = id => {
+  announced.add(id)
+  while (announced.size > ANNOUNCED_LIMIT) announced.delete(announced.values().next().value)
+ }
  const wrapStream = (factory, options, modelInfo) => (async function* () {
   if (!enabled() || options.provider !== 'openai-codex') { yield* factory(options); return }
   const identity = await accountScope(options)
   if (!identity) throw new Error('Compaction requires a stable account identity')
-  const state = { identity: hash([identity, options.model]), original: options.messages, blocks: [], suffix: undefined, completed: false,
+  const state = { identity: hash([identity, options.model]), original: options.messages, blocks: [], suffix: undefined, signal: undefined, completed: false,
    outputReserve: options.maxTokens ?? modelInfo?.defaultMaxTokens }
   let messages = options.messages
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -27,6 +37,19 @@ export function createCompactionBridge({ enabled = () => false, threshold, accou
     && Array.isArray(candidate.items) && candidate.items[0]?.type === 'compaction' && typeof candidate.items[0].encrypted_content === 'string'
     && candidate.digest === hash(candidate.items) && JSON.stringify(candidate.items).length <= MAX_BYTES) {
     state.suffix = clone(candidate.items)
+    // Boundary signal for the proxy: this request installs a server-side
+    // compaction checkpoint, so the summarized prefix is authoritative and the
+    // proxy may close its own compressed history into a read-only generation.
+    // The id is the checkpoint digest (stable across restart) and seq counts
+    // the checkpoint carriers still present in durable history, so a retry or a
+    // plugin restart emits the same identity and can never rebase twice.
+    const carriers = messages.filter(m => m.source?.replayState?.response?.[key]).length
+    state.signal = {
+     id: candidate.digest,
+     digest: candidate.digest,
+     seq: Math.max(1, carriers),
+     covered: messages.slice(0, i).filter(m => m.role !== 'system').length,
+    }
     messages = [...messages.slice(0, i + 1).filter(m => m.role === 'system'), ...messages.slice(i + 1)]
    }
    break
@@ -49,8 +72,23 @@ export function createCompactionBridge({ enabled = () => false, threshold, accou
    }
   } finally { await scope.run(state, () => iterator.return?.()) }
  })()
+ const stampHeaders = headers => {
+  const state = scope.getStore()
+  const signal = state?.signal
+  if (!signal || !headers || typeof headers.set !== 'function') return headers
+  const fresh = !announced.has(signal.id)
+  if (fresh) announce(signal.id)
+  headers.set('x-bili-codex-checkpoint', signal.id)
+  headers.set('x-bili-codex-checkpoint-seq', String(signal.seq))
+  headers.set('x-bili-codex-checkpoint-state', fresh ? 'fresh' : 'reuse')
+  headers.set('x-bili-codex-checkpoint-covered', String(signal.covered))
+  headers.set('x-bili-codex-checkpoint-digest', signal.digest)
+  return headers
+ }
  return {
   snapshot: () => ({ ...stats }),
+  checkpointSignal: () => { const signal = scope.getStore()?.signal; return signal ? { ...signal } : null },
+  stampHeaders,
   wrapAdapter(adapter) {
    return new Proxy(adapter, { get(target, property) {
     if (property === 'stream') return options => (async function* () {

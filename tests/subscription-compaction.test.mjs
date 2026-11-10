@@ -4,10 +4,10 @@ import {createCompactionBridge} from '../src/subscription-compaction.js'
 const user=text=>({id:text,role:'user',source:{kind:'user'},content:[{type:'text',text}]})
 const native={response:{kind:'pi-ai',version:2},blocks:[{type:'text'}]}
 const item={type:'compaction',encrypted_content:'SYNTHETIC_ONLY'}
-function fixture({enabled=true,complete=true,reason='stop',block={type:'text',text:'READY'},contextWindow}={}){
+function fixture({enabled=true,complete=true,reason='stop',block={type:'text',text:'READY'},contextWindow,onWire}={}){
  const wires=[];let bridge
  const adapter={async *stream(options){
-  const payload=bridge.preparePayload({input:options.messages.map(m=>({role:m.role,content:m.content})),model:options.model},contextWindow,options.maxTokens);wires.push(payload)
+  const payload=bridge.preparePayload({input:options.messages.map(m=>({role:m.role,content:m.content})),model:options.model},contextWindow,options.maxTokens);wires.push(payload);onWire?.(bridge,new Headers())
   const toolItems=block.type==='tool-call'?[{type:'response.output_item.done',item:{type:'function_call',call_id:block.id,name:block.name,arguments:block.arguments}}]:[]
   const events=[{type:'response.output_item.done',item},...toolItems,{type:'response.completed',response:{status:complete?'completed':'incomplete'}}]
   const bytes=new TextEncoder().encode(events.map(e=>'data: '+JSON.stringify(e)+'\n\n').join(''))
@@ -107,4 +107,39 @@ test('without an explicit threshold the trigger follows the context window inste
  assert.equal((await run(872000)).context_management[0].compact_threshold,697600)
  assert.equal((await run(272000)).context_management[0].compact_threshold,206464)
  assert.equal((await run(undefined)).context_management[0].compact_threshold,100000)
+})
+
+test('a reused checkpoint stamps the proxy boundary headers, stably and once',async()=>{
+ const seen=[]
+ const f=fixture({onWire:(bridge,headers)=>{bridge.stampHeaders(headers);seen.push(Object.fromEntries(headers))}})
+ const first=await run(f.adapter,[user('history')])
+ await run(f.adapter,[user('history'),message(first),user('next')])
+ const checkpoint=first.replayState.response.codexCompactionV1
+ const fresh=seen[1]
+ assert.equal(fresh['x-bili-codex-checkpoint'],checkpoint.digest)
+ assert.equal(fresh['x-bili-codex-checkpoint-digest'],checkpoint.digest)
+ assert.equal(fresh['x-bili-codex-checkpoint-state'],'fresh')
+ assert.equal(fresh['x-bili-codex-checkpoint-covered'],'1')
+ assert.match(fresh['x-bili-codex-checkpoint-seq'],/^\d+$/)
+ await run(f.adapter,[user('history'),message(first),user('next'),user('again')])
+ assert.equal(seen[2]['x-bili-codex-checkpoint-state'],'reuse')
+ assert.equal(seen[2]['x-bili-codex-checkpoint-seq'],fresh['x-bili-codex-checkpoint-seq'])
+})
+test('no boundary headers without a reused checkpoint, and restart re-announces the same identity',async()=>{
+ const bare=[]
+ const f=fixture({onWire:(bridge,headers)=>{bridge.stampHeaders(headers);bare.push(Object.fromEntries(headers))}})
+ await run(f.adapter,[user('history')])
+ assert.equal(bare[0]['x-bili-codex-checkpoint'],undefined)
+ const first=await run(f.adapter,[user('history')])
+ const messages=[user('history'),message(first),user('next')]
+ await run(f.adapter,messages)
+ assert.equal(bare[2]['x-bili-codex-checkpoint'],first.replayState.response.codexCompactionV1.digest)
+ // A fresh bridge (plugin restart) must derive the same id and seq from the
+ // durable message, so the proxy can dedupe instead of rebasing twice.
+ const restarted=[]
+ const g=fixture({onWire:(bridge,headers)=>{bridge.stampHeaders(headers);restarted.push(Object.fromEntries(headers))}})
+ await run(g.adapter,messages)
+ assert.equal(restarted[0]['x-bili-codex-checkpoint'],first.replayState.response.codexCompactionV1.digest)
+ assert.equal(restarted[0]['x-bili-codex-checkpoint-seq'],bare[2]['x-bili-codex-checkpoint-seq'])
+ assert.equal(restarted[0]['x-bili-codex-checkpoint-state'],'fresh')
 })
