@@ -89,7 +89,7 @@ const rpc = {
 const props = { sessionId: 'prediction-browser-fixture', rpc, t: () => 'Accept prediction', preference, directory, accountStatus, useInput, useConversation, inputActions }
 const predictionStyle = document.createElement('style')
 predictionStyle.dataset.fixturePrediction = ''
-predictionStyle.textContent = PREDICTION_CSS
+predictionStyle.textContent = PREDICTION_CSS + '\n.fixture-editor-contents{display:contents!important}'
 document.head.append(predictionStyle)
 
 const box = element => {
@@ -134,6 +134,9 @@ const api = {
   setDraft(text) { flushSync(() => updateDraft(String(text))); scheduleFocus() },
   setEnabled(enabled) { flushSync(() => preference.set({ composerPredictions: enabled ? 'on' : 'off' })); if (enabled) scheduleFocus() },
   replaceEditor() { flushSync(() => ui.set({ ...ui.getSnapshot(), editorKey: ui.getSnapshot().editorKey + 1 })); scheduleFocus() },
+  setWrapperDisplayContents(enabled) {
+    document.querySelector('[data-dsh-claude-part="input-grow"]')?.classList.toggle('fixture-editor-contents', enabled)
+  },
   setMounted(mounted) { flushSync(() => ui.set({ ...ui.getSnapshot(), mounted: Boolean(mounted) })); if (mounted) scheduleFocus() },
   setWidth(width) { flushSync(() => ui.set({ ...ui.getSnapshot(), width: Number(width) })); scheduleFocus() },
   setTheme(enabled) {

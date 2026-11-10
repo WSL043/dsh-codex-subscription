@@ -53,11 +53,12 @@ const textProperties = [
 ]
 
 /** Own only presentation and reversible height reservation; never edit the draft. */
-export function attachPredictionLayout(editor, anchor, layer) {
+export function attachPredictionLayout(editor, anchor, layer, onAnchorChange) {
   const height = ownStyle(editor, 'min-height')
   const position = ownStyle(anchor, 'position')
   let frame = 0
   let disposed = false
+  let reanchoring = false
   const scroll = editor.closest('[data-input-scroll]')
   const initialScroll = scroll.scrollTop
   const card = editor.closest('[data-composer-card]')
@@ -73,6 +74,16 @@ export function attachPredictionLayout(editor, anchor, layer) {
     frame = 0
     if (disposed) return
     if (!editor.isConnected || !layer.isConnected) { dispose(); return }
+    const nextAnchor = predictionAnchor(editor)
+    if (nextAnchor !== anchor) {
+      // Class and stylesheet changes can replace the containing box without
+      // replacing the editor. Rebind the portal without cancelling its draft.
+      reanchoring = true
+      layer.style.visibility = 'hidden'
+      mutations.takeRecords()
+      onAnchorChange(nextAnchor)
+      return
+    }
     const currentScroll = scroll.scrollTop
     // Measure the host's natural minimum, not our last reservation. These writes
     // and the replacement happen in one frame, before the browser paints.
@@ -122,10 +133,14 @@ export function attachPredictionLayout(editor, anchor, layer) {
     restorePlaceholders()
     // An empty draft may have been scrolled to read a long suggestion. Do not
     // carry that scroll position into the next draft or session.
-    scroll.scrollTop = initialScroll
+    if (!reanchoring) scroll.scrollTop = initialScroll
   }
 
-  for (const element of new Set([editor, anchor, scroll, layer])) resize.observe(element)
+  resize.observe(layer)
+  for (let element = editor; element; element = element.parentElement) {
+    resize.observe(element)
+    if (element === scroll) break
+  }
   // Observe only this ancestry, not the conversation subtree. Theme changes can
   // arrive via body attributes, a stylesheet marker, or editor inline styles.
   for (let element = editor; element; element = element.parentElement) mutations.observe(element, { attributes: true })

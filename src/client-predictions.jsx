@@ -32,6 +32,8 @@ function ActiveComposerPrediction({ sessionId, rpc, t, directory, accountStatus,
   const marker = useRef(null)
   const layer = useRef(null)
   const [target, setTarget] = useState(null)
+  const card = target?.card
+  const editor = target?.editor
   const current = useRef(null)
   const [focused, setFocused] = useState(false)
   const composing = useRef(false)
@@ -48,7 +50,13 @@ function ActiveComposerPrediction({ sessionId, rpc, t, directory, accountStatus,
     span: inputActions.captureInsertion(),
   })
   const refresh = () => controller.update(environment())
-  const accept = () => controller.accept(inputActions, environment())
+  const accept = () => {
+    const prediction = layer.current
+    const activeEditor = dom.current?.editor
+    if (!prediction?.isConnected || !activeEditor || activeEditor.offsetParent !== prediction.parentElement
+      || !prediction.getClientRects().length || getComputedStyle(prediction).visibility !== 'visible') return false
+    return controller.accept(inputActions, environment())
+  }
 
   useLayoutEffect(() => {
     const card = marker.current?.closest('[data-composer-card]')
@@ -64,13 +72,16 @@ function ActiveComposerPrediction({ sessionId, rpc, t, directory, accountStatus,
     return () => observer.disconnect()
   }, [sessionId])
   useLayoutEffect(() => {
-    if (!snapshot.prediction || !focused || !accountKey || !target || !layer.current) return
-    return attachPredictionLayout(target.editor, target.anchor, layer.current)
+    if (!snapshot.prediction || !focused || !accountKey || !target?.anchor || !layer.current) return
+    const { editor, anchor } = target
+    return attachPredictionLayout(editor, anchor, layer.current, nextAnchor => {
+      setTarget(previous => previous?.editor === editor && previous.anchor === anchor
+        ? { ...previous, anchor: nextAnchor } : previous)
+    })
   }, [snapshot.prediction, focused, accountKey, target])
 
   useEffect(() => {
-    if (!target) return
-    const { card, editor } = target
+    if (!card || !editor) return
     dom.current = { card, editor }
     const focus = () => { setFocused(editor === document.activeElement); refresh() }
     const blur = () => { setFocused(false); refresh() }
@@ -105,7 +116,7 @@ function ActiveComposerPrediction({ sessionId, rpc, t, directory, accountStatus,
       compositionUntil.current = 0
       controller.cancel()
     }
-  }, [controller, sessionId, inputActions, target])
+  }, [controller, sessionId, inputActions, card, editor])
   useLayoutEffect(() => { refresh() }, [controller, sessionId, accountKey, input, selection, context, focused])
   // StrictMode replays setup/cleanup on the same memoized controller. A cancel
   // releases pending work; useSyncExternalStore owns listener unsubscription.
@@ -115,7 +126,7 @@ function ActiveComposerPrediction({ sessionId, rpc, t, directory, accountStatus,
   // is portalled into the editor's scrollport; the host editor is never moved.
   return <>
     <span ref={marker} hidden />
-    {snapshot.prediction && focused && accountKey && target && createPortal(
+    {snapshot.prediction && focused && accountKey && target?.anchor && createPortal(
       <div ref={layer} className="codex-composer-prediction">
         <span aria-hidden="true">{snapshot.prediction}</span>
         <button type="button" aria-label={t('composerPredictionAccept')} title={t('composerPredictionAccept')} onPointerDown={event => event.preventDefault()} onClick={accept}>Tab</button>
