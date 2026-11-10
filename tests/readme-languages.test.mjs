@@ -7,27 +7,43 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 
 const root = fileURLToPath(new URL('../', import.meta.url))
-const files = ['README.md', 'README.en.md', ...['zh-CN', 'ja', 'es', 'fr', 'de', 'ru', 'pt'].map(id => `README.${id}.md`)]
+const languages = [
+  ['README.md', '中文', 'zh'],
+  ['README.en.md', 'English', 'en'],
+  ['README.ja.md', '日本語', 'ja'],
+  ['README.es.md', 'Español', 'es'],
+  ['README.fr.md', 'Français', 'fr'],
+  ['README.de.md', 'Deutsch', 'de'],
+  ['README.ru.md', 'Русский', 'ru'],
+  ['README.pt.md', 'Português', 'pt'],
+]
+const chineseMirror = 'README.zh-CN.md'
+const files = [...languages.map(([file]) => file), chineseMirror]
 const read = name => readFileSync(resolve(root, name), 'utf8').replaceAll('\r\n', '\n')
 const fences = text => [...text.matchAll(/^```[^\n]*\n[\s\S]*?^```/gmu)].map(match => match[0])
 const media = text => [...text.matchAll(/(?:src|srcset)="([^"]+)"/gu)].map(match => match[1]).sort()
 const interfaceAsset = /^docs\/assets\/interface-(?:account|models)-[a-z]+\.png$/u
 
 test('all README languages retain navigation, installation commands, media and stable section links', () => {
-  const english = read('README.md')
-  assert.equal(english, read('README.en.md'), 'the old English URL remains a complete mirror')
+  const english = read('README.en.md')
+  const chinese = read('README.md')
+  assert.equal(chinese, read(chineseMirror), 'the existing Chinese URL remains a complete mirror')
+  assert.match(chinese, /把 ChatGPT \/ Codex 订阅直接接入 DeepSeek Harness/u)
   assert.match(english, /Use your ChatGPT \/ Codex subscription directly/u)
   for (const file of files) {
     const body = read(file)
     assert.doesNotMatch(body, /\{(?:KEEP_|ALT_)/u, file)
-    const current = file === 'README.en.md' ? 'README.md' : file
-    for (const other of files.filter(name => name !== current && name !== 'README.en.md')) assert.ok(body.includes(`](${other})`), `${file} links to ${other}`)
+    const current = file === chineseMirror ? 'README.md' : file
+    const navigation = languages.map(([path, name]) => path === current ? `**${name}**` : `[${name}](${path})`).join(' · ')
+    const menus = body.split('\n').filter(line => line.includes(' · ') && /\]\(README(?:\.[\w-]+)?\.md\)/u.test(line))
+    assert.ok(menus.includes(navigation), `${file}: language order follows DSH`)
+    for (const menu of menus) assert.ok(menu === navigation || menu === `${navigation} · [MIT](LICENSE)`, file)
     for (const match of body.matchAll(/\]\((#[^)]+|(?:docs\/[^)]+|LICENSE|CONTRIBUTING\.md|SECURITY\.md))\)/gu)) {
       const [path, fragment] = match[1].split('#')
       if (path) assert.ok(existsSync(resolve(root, path)), `${file}: ${path}`)
       else assert.ok(body.includes(`id="${fragment}"`) || body.split('\n').some(line => line.startsWith('#') && line.replace(/^#+\s*/u, '').toLowerCase().replace(/[^\p{L}\p{N}\s-]/gu, '').replace(/\s/gu, '-') === fragment), `${file}: ${fragment}`)
     }
-    const locale = file === 'README.md' ? 'en' : file.split('.')[1].replace('zh-CN', 'zh')
+    const locale = languages.find(([path]) => path === current)[2]
     const assets = media(body)
     const localizedDemo = ['account', 'models'].map(view => `docs/assets/interface-${view}-${locale}.png`)
     assert.deepEqual(assets.filter(path => interfaceAsset.test(path)), localizedDemo, `${file}: localized interface demo`)
@@ -41,7 +57,7 @@ test('all README languages retain navigation, installation commands, media and s
   }
   for (const id of ['en', 'zh', 'ja', 'es', 'fr', 'de', 'ru', 'pt']) {
     const path = id === 'en' ? 'docs/plugin/DETAIL.md' : `docs/plugin/DETAIL.${id}.md`
-    const target = id === 'en' ? 'README.md' : id === 'zh' ? 'README.zh-CN.md' : `README.${id}.md`
+    const target = id === 'zh' ? chineseMirror : `README.${id}.md`
     assert.ok(read(path).includes(`/blob/main/${target}`), path)
   }
 })

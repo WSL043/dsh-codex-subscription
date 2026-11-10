@@ -32,7 +32,7 @@ test('native plugin detail documents are brief, translated and explicitly packag
     const body = text(meta.detail)
     assert.ok(Buffer.byteLength(body) < 1024, 'detail remains a short introduction')
     assert.equal(body.includes('!['), false, 'no screenshots or duplicate README gallery')
-    assert.ok(body.includes(`README${language === 'zh' ? '.zh-CN' : ''}.md`))
+    assert.ok(body.includes(`README.${language === 'zh' ? 'zh-CN' : 'en'}.md`))
     assert.ok(body.includes('https://github.com/WSL043/dsh-codex-subscription/issues'))
   }
 })
@@ -367,7 +367,7 @@ test('an alpha newer than the declared compatibility list is a notice, never a r
 })
 
 test('the README install step names the exact released version, so a new release installs on its first day', () => {
-  for (const [label, readme] of [['zh', text('README.zh-CN.md')], ['en', text('README.md')]]) {
+  for (const [label, readme] of [['zh', text('README.md')], ['en', text('README.en.md')]]) {
     const pinned = readme.match(/```text\s+dsh-codex-subscription@([\d.]+)\s+```/u)?.[1]
     if (manifest.version.includes('-')) {
       // A preview plugin beta is not advertised: the README keeps pinning the last stable release.
