@@ -16,7 +16,7 @@ Inicia sesión con ChatGPT Plus / Pro para usar GPT-6 y otros modelos de Codex, 
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Estrella](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Aspectos destacados](#highlights) · [Instalación](#install) · [Imágenes y bocetos](#images-and-sketching) · [Control remoto desde el teléfono](#phone-remote-control-beta) · [Todas las funciones](#all-features) · [Guía del usuario (en inglés)](docs/GUIDE.en.md) · [Solución de problemas (en inglés)](#troubleshooting)
+[Aspectos destacados](#highlights) · [Instalación](#install) · [Imágenes y bocetos](#images-and-sketching) · [Control remoto desde el teléfono](#phone-remote-control-beta) · [Todas las funciones](#all-features) · [Guía del usuario (en inglés)](docs/GUIDE.en.md) · [Solución de problemas (en inglés)](#troubleshooting) · [Agent](#agent-reference)
 
 </div>
 
@@ -270,21 +270,26 @@ Esta es una capa de compatibilidad de terceros que utiliza el servicio de conexi
 El acceso a los modelos y las cuotas dependen de tu cuenta.
 
 <details>
-<summary><b>Modelos y búsqueda</b> (14)</summary>
-<br>
+<summary><b>Modelos y búsqueda</b></summary>
+
+Elige el modelo según la tarea, el razonamiento según el análisis necesario y la velocidad según el ritmo de ejecución que admita el modelo. El nivel de detalle orienta la respuesta. En **Web y herramientas**, usa la búsqueda para encontrar páginas y la lectura para abrir una URL conocida.
 
 | Función | Qué puedes hacer | Disponibilidad / configuración |
 | --- | --- | --- |
 | **Inicio de sesión de la suscripción** | Inicia sesión en ChatGPT y usa modelos de la suscripción de Codex sin una clave de API | El chat normal no requiere Codex CLI |
 | **Sincronización del catálogo de modelos** | Lee los modelos y niveles de razonamiento disponibles en tu cuenta, con actualización manual; el último catálogo sincronizado correctamente se guarda localmente por cuenta y permanece disponible durante la actualización en segundo plano tras reiniciar, con una vigencia de 24 horas; los modelos marcados para retirarse muestran la fecha de retirada junto al nombre, sin cambiar automáticamente tu selección | Aparecen modelos nuevos cuando tu cuenta los ofrece; el catálogo de la cuenta es la única fuente, por lo que no se muestra ningún modelo si no has iniciado sesión o no hay disponible una lectura remota ni una caché válida |
 | **Lista de modelos** | Muestra u oculta modelos individuales en el selector del cuadro de redacción, en la página Modelos; el selector conserva las etiquetas de modelo propias de DSH (como la insignia de modelo nuevo) | Solo afecta a la visualización; los modelos seleccionados y las solicitudes siguen funcionando |
+| **Menú de modelos del cuadro de entrada** | Automático cede el sitio a otros selectores y muestra el menú de suscripción cuando funciona solo. DSH estándar deja el menú al anfitrión u otro complemento. | Se configura en Modelos. Selecciona Suscripción para utilizar su menú y los controles de velocidad compatibles. Las preferencias guardadas se conservan. |
+| **Predicciones de entrada (Beta)** | Tras una respuesta completa, el cuadro de texto vacío puede sugerir otro mensaje. Pulsa Tab para insertarlo en un borrador editable. | Desactivadas por defecto en Modelos. Solo funcionan con modelos Codex compatibles y con acceso habilitado. Las solicitudes pueden consumir cuota. |
 | **Modelo predeterminado** | Elige en la página Modelos el modelo con el que se abre una conversación nueva | Escribe el ajuste de modelo predeterminado de DSH, el mismo que se escribe al cambiar de modelo dentro de un chat; borra este ajuste para seguir el modelo predeterminado de DSH |
 | **Nivel de razonamiento predeterminado** | Elige en la página Modelos un nivel predeterminado para los modelos de suscripción; «Predeterminado del modelo» sigue la recomendación del catálogo oficial de cada modelo | Las opciones manuales tienen prioridad. Los niveles no compatibles recurren al nivel predeterminado válido del modelo; se conservan las opciones manuales existentes de las conversaciones |
 | **Niveles de razonamiento** | Elige en el cuadro de redacción un nivel de razonamiento compatible | Los niveles varían según el modelo |
+| **Razonamiento Ultra** | Permite a DSH delegar trabajo independiente en subtareas nativas con el nivel de razonamiento compatible del modelo. | Disponible si el modelo y la configuración del agente lo admiten. Ultrafast es un nivel de velocidad. |
 | **Niveles de velocidad** | Cambia los modelos compatibles entre Estándar y Rápido; también Ultrarrápido (Beta) cuando el catálogo de la cuenta lo ofrece, indicado con un rayo | Estándar de forma predeterminada; Rápido y Ultrarrápido aumentan el uso, y actualmente Ultrarrápido solo está disponible con Pro 500 |
 | **Extensión de las respuestas** | Solicita respuestas breves, medias o detalladas | Sigue el valor predeterminado del modelo, salvo que lo cambies |
 | **Detalle de imagen de entrada** | Elige el nivel de detalle Bajo, Alto, Original o Automático para las imágenes enviadas al modelo de chat | Afecta a los tokens de entrada; Automático de forma predeterminada |
 | **Búsqueda web de la suscripción** | Fuentes Automático, DSH y Codex | Automático prefiere la fuente que coincide con el modelo de la sesión y prueba la otra solo si faltan credenciales o el servicio no está disponible. Las opciones explícitas DSH / Codex fijan la fuente e informan directamente de los errores. Si Otros modelos está desactivado, los chats que no sean de Codex solo usan la búsqueda nativa de DSH. El plugin no reescribe los ajustes de búsqueda de DSH ni añade una alternativa con una cuenta de DeepSeek; los cargos de la búsqueda nativa dependen del servicio seleccionado |
+| **Fuente de lectura de páginas web** | Elige cómo leer una URL conocida, con independencia de la fuente de búsqueda. | En Web y herramientas. DSH es la opción predeterminada. Codex requiere un anfitrión compatible y muestra los fallos de lectura. |
 | **Interruptor para otros modelos** | Un solo interruptor impide que las conversaciones con DeepSeek y otros modelos que no sean de Codex usen la búsqueda web de la suscripción, la generación de imágenes y los conectores de ChatGPT | Configuración → Suscripción de Codex → Web y herramientas; activado de forma predeterminada, no afecta a los modelos de suscripción de Codex; el control remoto desde el teléfono y la voz los inicias tú y no se ven afectados |
 | **Ámbito de búsqueda** | Elige entre búsqueda en directo o en caché, desactiva la búsqueda o limita los dominios | Configúralo en Web y herramientas, en el grupo de fuentes de búsqueda |
 | **Tiempo de espera por inactividad de la transmisión** | Establece cuánto tiempo puede no recibir datos transmitidos una solicitud antes de cancelarse | 10 minutos de forma predeterminada; no es un límite de tiempo total para la respuesta |
@@ -294,8 +299,9 @@ El acceso a los modelos y las cuotas dependen de tu cuenta.
 </details>
 
 <details>
-<summary><b>Cuentas y cuota</b> (10)</summary>
-<br>
+<summary><b>Cuentas y cuota</b></summary>
+
+En **Inicio → Cuota de suscripción** puedes ver cuánto queda y cuándo se restablece. Los períodos corto y semanal pueden aplicarse a la vez. El desglose muestra uso pasado y la previsión estima cuánto durará la cuota al ritmo reciente. Activa la cuota del cuadro de texto para verla durante el chat.
 
 | Función | Qué puedes hacer | Disponibilidad / configuración |
 | --- | --- | --- |
@@ -313,8 +319,9 @@ El acceso a los modelos y las cuotas dependen de tu cuenta.
 </details>
 
 <details>
-<summary><b>Imágenes y bocetos</b> (14)</summary>
-<br>
+<summary><b>Imágenes y bocetos</b></summary>
+
+Genera una imagen nueva o indica una edición concreta con una referencia o un comentario. Cerrar el visor guarda las marcas. **Añadir al cuadro de entrada** las pone en un borrador que puedes revisar antes de enviar. Exporta PNG para compartir o un borrador nativo para conservar capas y trazos editables.
 
 | Función | Qué puedes hacer | Disponibilidad / configuración |
 | --- | --- | --- |
@@ -338,12 +345,14 @@ El acceso a los modelos y las cuotas dependen de tu cuenta.
 <a id="codex-subtask-runtime"></a>
 
 <details>
-<summary><b>Funciones avanzadas y mantenimiento</b> (9)</summary>
-<br>
+<summary><b>Funciones avanzadas y mantenimiento</b></summary>
+
+El control remoto conecta la app móvil de ChatGPT con DSH en ejecución. Las llamadas permiten hablar en una conversación y las subtareas delegan parte del trabajo. Si algo falla, revisa **Teléfono y más → Diagnóstico de soporte** para ver qué requisito u operación reciente se ha comprobado.
 
 | Función | Qué puedes hacer | Disponibilidad / configuración |
 | --- | --- | --- |
 | **Control remoto desde el teléfono** | Controlar el DSH de tu ordenador desde la sección Codex de la aplicación móvil de ChatGPT: iniciar, continuar y archivar conversaciones, cambiar el modelo y los permisos, responder a aprobaciones y preguntas; DeepSeek y cualquier otro modelo de DSH también funcionan | Beta; desactivado de forma predeterminada; Configuración → Codex → Teléfono y más → Control remoto desde el teléfono; emparejar mediante QR o código manual |
+| **Conversación por voz (Beta)** | Inicia una llamada desde el cuadro de texto. Si la ventana nativa no admite WebRTC, puedes usar un navegador. | Desactivada por defecto en Teléfono y más. Concede acceso al micrófono cuando se te pida. |
 | **Subtareas independientes de Codex** | Reutilizar el inicio de sesión de la suscripción y los permisos del espacio de trabajo; seleccionar modelos y niveles de razonamiento permitidos | Beta, opcional; la mayoría de las personas no lo necesita: de forma predeterminada, DSH ejecuta sus propios subagentes (que también pueden usar modelos de suscripción); instala el componente opcional (incluye un Codex CLI exclusivo del complemento) y activa la selección de modelos en Complementos → Subagentes solo si quieres que el agente oficial de Codex ejecute las subtareas. Usa su propio directorio de datos y el inicio de sesión de tu suscripción, nunca el inicio de sesión de Codex de este ordenador |
 | **Gestión del componente de subtareas** | Instalar, desactivar o desinstalar desde la configuración el componente oficial de subtareas de Codex | Lo administran los hosts de DSH compatibles; no requiere inicio de sesión adicional |
 | **Compactación del contexto en la nube** | Continuar conversaciones largas con la compactación de Codex y conservar el historial de DSH y la compactación nativa | Beta / experimental; desactivada de forma predeterminada; cuando está activada, las solicitudes usan SSE |
@@ -354,6 +363,14 @@ El acceso a los modelos y las cuotas dependen de tu cuenta.
 | **Limpieza de la caché de previsiones** | Revisar y borrar el historial local de previsiones de cuota | Conserva el inicio de sesión, los borradores, los originales y las dependencias compartidas |
 
 </details>
+
+<a id="agent-reference"></a>
+
+### Referencia para agentes y colaboradores
+
+DSH gestiona las conversaciones, las aprobaciones de herramientas y los permisos del espacio de trabajo. El complemento aporta la conexión a Codex y los ajustes y herramientas anteriores. Para investigar una función ausente, verifica primero la versión de DSH, las capacidades de la cuenta, el modelo y el ajuste pertinente.
+
+[Guía completa (inglés)](docs/GUIDE.en.md) · [Contrato de la herramienta de dibujo (inglés)](docs/sketch-agent.md) · [Valores predeterminados](src/preference-fields.js)
 
 <a id="reuse-cache-when-changing-effort"></a>
 

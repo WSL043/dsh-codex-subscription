@@ -16,7 +16,7 @@ Sign in with ChatGPT Plus / Pro to use GPT-6 and other Codex models, quota, web 
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Highlights](#highlights) · [Install](#install) · [Images & sketching](#images-and-sketching) · [Phone remote control](#phone-remote-control-beta) · [All features](#all-features) · [User guide](docs/GUIDE.en.md) · [Troubleshooting](#troubleshooting)
+[Highlights](#highlights) · [Install](#install) · [Images & sketching](#images-and-sketching) · [Phone remote control](#phone-remote-control-beta) · [All features](#all-features) · [User guide](docs/GUIDE.en.md) · [Troubleshooting](#troubleshooting) · [Agent](#agent-reference)
 
 </div>
 
@@ -270,21 +270,26 @@ This is a third-party compatibility layer using OpenAI's remote connection servi
 Model access and quota depend on your account.
 
 <details>
-<summary><b>Models and search</b> (14)</summary>
-<br>
+<summary><b>Models and search</b></summary>
+
+Choose the model for the task, then adjust reasoning for how much analysis you need and speed for how quickly a supported request runs. Response verbosity changes the requested level of detail. In **Web & tools**, use search to find pages and webpage reading to open a URL you already have.
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
 | **Subscription sign-in** | Sign in to ChatGPT and use Codex subscription models without an API key | Normal chat needs no Codex CLI |
 | **Model catalog sync** | Read available models and reasoning levels from your account, with manual refresh; the last successful catalog is stored locally per account and remains available during the background refresh after restart, with a 24-hour lifetime; models marked for retirement show their retirement date next to the model name, without automatically switching your selection | New models appear when your account offers them; the account catalog is the only source, so no models are shown when signed out or when neither a remote read nor a valid cache is available |
 | **Model list** | Show or hide individual models in the composer picker on the Models page; the picker keeps DSH's own model labels (such as the new-model badge) | Display only; selected models and requests still work |
+| **Composer model menu** | Auto yields to another model picker and shows the subscription menu when used on its own. DSH standard leaves the slot to the host or another plugin. | Under Models. Select Subscription explicitly to use its menu and speed controls on supported models. Saved choices are preserved. |
+| **Input predictions (Beta)** | After a completed reply, the empty composer may suggest a follow-up. Tab puts it in the draft for editing. | Off by default under Models. Only supported Codex models with prediction access qualify. Requests may consume usage. |
 | **Default model** | Choose the model a new conversation opens with on the Models page | Writes the DSH default model setting, the same one a model switch inside a chat writes; unset it to follow the DSH default |
 | **Default reasoning effort** | Choose a default level for subscription models on the Models page; Model default follows each model's official catalog recommendation | Manual choices take priority. Unsupported levels fall back to the model's valid default; existing manual conversation choices are preserved |
 | **Reasoning levels** | Choose supported reasoning effort in the composer | Levels vary by model |
+| **Ultra reasoning** | Lets DSH delegate suitable independent work to native subagents using the model’s supported reasoning effort. | Offered only when the model and Agent preset support it. Separate from the Ultrafast speed tier. |
 | **Speed tiers** | Switch supported models between Standard and Fast; Ultrafast (Beta) too when the account catalog offers it, with a lightning indicator | Standard by default; Fast and Ultrafast increase usage, and Ultrafast is Pro 500 only today |
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
 | **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
 | **Subscription web search** | Auto, DSH, and Codex sources | Auto prefers the source matching the session model and tries the other only for missing credentials or an unavailable service. Explicit DSH / Codex choices fix the source and report failures directly. With Other models off, non-Codex chats use native DSH search only. The plugin neither rewrites DSH search settings nor adds a DeepSeek account fallback; native search charges depend on the selected service |
+| **Webpage reading source** | Choose how the tools read a known URL, independently of the search source. | Web & tools. DSH is the default. Codex requires a compatible host and reports reading failures directly. |
 | **Other-models switch** | One switch that stops conversations on DeepSeek and other non-Codex models from using subscription web search, image generation and ChatGPT connectors | Settings → Codex subscription → Web & tools; on by default, Codex subscription models are not affected; phone remote control and voice are started by you and are not affected |
 | **Search scope** | Choose live / cached search, disable search, or restrict domains | Configure under Web & tools, in the search source group |
 | **Stream inactivity timeout** | Set how long a request can receive no streamed data before it is aborted | 10 minutes by default; not an overall response deadline |
@@ -294,8 +299,9 @@ Model access and quota depend on your account.
 </details>
 
 <details>
-<summary><b>Accounts and quota</b> (10)</summary>
-<br>
+<summary><b>Accounts and quota</b></summary>
+
+Start with **Start → Subscription quota** for the remaining allowance and reset times. A short and a weekly window can apply at the same time. The usage breakdown describes past activity, while Runway estimates what will happen if your recent pace continues. Enable Composer quota to see the remaining allowance without leaving a chat.
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
@@ -313,8 +319,9 @@ Model access and quota depend on your account.
 </details>
 
 <details>
-<summary><b>Images and sketching</b> (14)</summary>
-<br>
+<summary><b>Images and sketching</b></summary>
+
+Use generation to create an image and a reference or comment pin to request a specific edit. Closing the viewer saves your pins. **Add to composer** puts them in a draft you can review and send. Export PNG for sharing or a native draft to keep layers and strokes editable.
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
@@ -338,12 +345,14 @@ Model access and quota depend on your account.
 <a id="codex-subtask-runtime"></a>
 
 <details>
-<summary><b>Advanced capabilities and maintenance</b> (9)</summary>
-<br>
+<summary><b>Advanced capabilities and maintenance</b></summary>
+
+Use phone control to reach a running DSH from the ChatGPT mobile app. Use a voice call to speak in a conversation, or a subtask to delegate part of the work. For a failure, open **Phone & more → Support diagnostics** and check which prerequisite or recent operation the report covers.
 
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
 | **Phone remote control** | Drive the DSH on your computer from the Codex section of the ChatGPT mobile app: start, continue and archive conversations, switch model and permissions, answer approvals and questions; DeepSeek and any other DSH model work | Beta; off by default; Settings → Codex → Phone & more → Phone remote control, pair by QR or manual code |
+| **Voice conversation (Beta)** | Start a spoken conversation from the composer. A browser can host the call when the native window lacks WebRTC. | Off by default under Phone & more. Grant microphone access when prompted. |
 | **Codex independent subtasks** | Reuse subscription sign-in and workspace permissions; select allowed models and reasoning levels | Beta, optional, most people do not need it: by default DSH runs its own subagents (they can use subscription models too); install the optional component (including a dedicated Codex CLI) and turn on model selection under Plugins → Subagents only if you want subtasks run by the official Codex agent. It uses its own data directory and your subscription sign-in, never the Codex login on this computer |
 | **Subtask component management** | Install, disable, or uninstall the official Codex subtask component from settings | Managed by supported DSH hosts; no extra login |
 | **Cloud context compaction** | Continue long conversations using Codex compaction while retaining DSH history and native compaction | Beta / experimental; off by default, enabled requests use SSE |
@@ -354,6 +363,14 @@ Model access and quota depend on your account.
 | **Forecast cache cleanup** | Inspect and clear local quota forecast history | Keeps sign-in, drafts, originals, and shared dependencies |
 
 </details>
+
+<a id="agent-reference"></a>
+
+### Reference for agents and contributors
+
+DSH owns the conversation, tool approvals and workspace permissions. The subscription plugin supplies the Codex route and adds the settings and tools described above. When investigating a missing feature, check the DSH version, account capabilities, selected model and setting before tracing the relevant tool or request.
+
+[Detailed user guide](docs/GUIDE.en.md) · [Sketch tool contract](docs/sketch-agent.md) · [Setting defaults](src/preference-fields.js)
 
 <a id="reuse-cache-when-changing-effort"></a>
 

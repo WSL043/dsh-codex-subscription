@@ -16,7 +16,7 @@ Entre com o ChatGPT Plus / Pro para usar GPT-6 e outros modelos Codex, a cota, a
 [![MIT](https://img.shields.io/badge/license-MIT-111111.svg)](LICENSE)
 [![Star](https://img.shields.io/github/stars/WSL043/dsh-codex-subscription?style=flat&logo=github&label=Star)](https://github.com/WSL043/dsh-codex-subscription/stargazers)
 
-[Destaques](#highlights) · [Instalação](#install) · [Imagens e esboços](#images-and-sketching) · [Controle remoto pelo celular](#phone-remote-control-beta) · [Todos os recursos](#all-features) · [Guia do usuário (em inglês)](docs/GUIDE.en.md) · [Solução de problemas (em inglês)](#troubleshooting)
+[Destaques](#highlights) · [Instalação](#install) · [Imagens e esboços](#images-and-sketching) · [Controle remoto pelo celular](#phone-remote-control-beta) · [Todos os recursos](#all-features) · [Guia do usuário (em inglês)](docs/GUIDE.en.md) · [Solução de problemas (em inglês)](#troubleshooting) · [Agent](#agent-reference)
 
 </div>
 
@@ -270,21 +270,26 @@ Esta é uma camada de compatibilidade de terceiros que usa o serviço de conexã
 O acesso a modelos e a cota dependem da sua conta.
 
 <details>
-<summary><b>Modelos e pesquisa</b> (14)</summary>
-<br>
+<summary><b>Modelos e pesquisa</b></summary>
+
+Escolha o modelo conforme a tarefa, o raciocínio conforme a análise necessária e a velocidade conforme os modos disponíveis. O nível de detalhe orienta a resposta. Em **Web e ferramentas**, use a pesquisa para encontrar páginas e a leitura para abrir uma URL conhecida.
 
 | Recurso | O que você pode fazer | Disponibilidade / configuração |
 | --- | --- | --- |
 | **Login da assinatura** | Entre no ChatGPT e use os modelos da assinatura Codex sem uma chave de API | O chat normal não precisa do Codex CLI |
 | **Sincronização do catálogo de modelos** | Lê os modelos e níveis de raciocínio disponíveis na sua conta, com atualização manual; o último catálogo sincronizado com sucesso é armazenado localmente por conta e permanece disponível durante a atualização em segundo plano após a reinicialização, por 24 horas; modelos marcados para descontinuação exibem a data ao lado do nome, sem alterar automaticamente sua seleção | Novos modelos aparecem quando são disponibilizados para sua conta; o catálogo da conta é a única fonte, portanto nenhum modelo é exibido quando você está desconectado ou quando não há leitura remota nem cache válido |
 | **Lista de modelos** | Exibe ou oculta modelos individuais no seletor do campo de mensagem, na página Modelos; o seletor mantém os rótulos de modelo próprios do DSH (como o selo de modelo novo) | Apenas exibição; os modelos selecionados e as solicitações continuam funcionando |
+| **Menu de modelos do campo de entrada** | O modo Automático cede lugar a outro seletor e mostra o menu da assinatura quando está sozinho. O modo padrão do DSH deixa o menu com o host ou outro plugin. | Ajuste em Modelos. Escolha Assinatura para usar seu menu e as velocidades compatíveis. As preferências salvas são mantidas. |
+| **Previsão de entrada (Beta)** | Após uma resposta concluída, o campo vazio pode sugerir a próxima mensagem. Tab a insere em um rascunho editável. | Desativada por padrão em Modelos. Requer um modelo Codex compatível e acesso ao recurso. As solicitações podem consumir cota. |
 | **Modelo padrão** | Escolhe o modelo com que uma nova conversa é iniciada, na página Modelos | Define a configuração de modelo padrão do DSH, a mesma que é alterada ao trocar de modelo em um chat; desmarque para seguir o padrão do DSH |
 | **Nível padrão de raciocínio** | Escolhe um nível padrão para modelos de assinatura na página Modelos; Padrão do modelo segue a recomendação oficial do catálogo para cada modelo | As escolhas manuais têm prioridade. Níveis não compatíveis retornam ao padrão válido do modelo; escolhas manuais existentes nas conversas são preservadas |
 | **Níveis de raciocínio** | Escolhe o nível de raciocínio compatível no campo de mensagem | Os níveis variam conforme o modelo |
+| **Raciocínio Ultra** | Permite ao DSH delegar partes independentes a subtarefas nativas usando um nível de raciocínio compatível com o modelo. | Disponível quando o modelo e o perfil do agente oferecem suporte. Ultrafast é um nível de velocidade. |
 | **Níveis de velocidade** | Alterna modelos compatíveis entre Padrão e Rápido; também inclui Ultrarrápido (Beta) quando o catálogo da conta o disponibiliza, com um indicador de raio | Padrão por padrão; Rápido e Ultrarrápido aumentam o uso, e atualmente Ultrarrápido está disponível apenas no Pro 500 |
 | **Detalhamento das respostas** | Solicita respostas curtas, médias ou detalhadas | Segue o padrão do modelo, a menos que seja alterado |
 | **Detalhe das imagens de entrada** | Escolhe o nível de detalhe Baixo, Alto, Original ou Automático para imagens enviadas ao modelo de chat | Afeta os tokens de entrada; Automático por padrão |
 | **Pesquisa na web por assinatura** | Fontes Automático, DSH e Codex | Automático prioriza a fonte correspondente ao modelo da sessão e tenta a outra apenas quando faltam credenciais ou o serviço está indisponível. As escolhas explícitas DSH / Codex fixam a fonte e informam as falhas diretamente. Com Outros modelos desativado, chats que não usam Codex recorrem apenas à pesquisa nativa do DSH. O plugin não reescreve as configurações de pesquisa do DSH nem adiciona uma alternativa de conta DeepSeek; as cobranças da pesquisa nativa dependem do serviço selecionado |
+| **Fonte de leitura de páginas da web** | Escolha como ler uma URL conhecida, independentemente da fonte de pesquisa. | Em Web e ferramentas. DSH é o padrão. Codex requer um host compatível e informa falhas de leitura. |
 | **Alternância para outros modelos** | Uma única opção impede que conversas em DeepSeek e outros modelos que não sejam Codex usem a pesquisa na web por assinatura, a geração de imagens e os conectores do ChatGPT | Configurações → Assinatura Codex → Web e ferramentas; ativada por padrão; não afeta os modelos da assinatura Codex; o controle remoto pelo celular e a voz são iniciados por você e não são afetados |
 | **Escopo da pesquisa** | Escolhe pesquisa ao vivo / em cache, desativa a pesquisa ou restringe os domínios | Configure em Web e ferramentas, no grupo de fontes de pesquisa |
 | **Tempo limite de inatividade do fluxo** | Define por quanto tempo uma solicitação pode ficar sem receber dados transmitidos antes de ser cancelada | 10 minutos por padrão; não é um prazo limite para a resposta inteira |
@@ -294,8 +299,9 @@ O acesso a modelos e a cota dependem da sua conta.
 </details>
 
 <details>
-<summary><b>Contas e cota</b> (10)</summary>
-<br>
+<summary><b>Contas e cota</b></summary>
+
+Em **Início → Cota da assinatura**, confira o saldo e o horário de redefinição. As janelas curta e semanal podem valer ao mesmo tempo. O detalhamento mostra o consumo passado e a previsão estima a duração pelo ritmo recente. Ative a cota no campo de mensagem para acompanhar o saldo durante a conversa.
 
 | Recurso | O que você pode fazer | Disponibilidade / configuração |
 | --- | --- | --- |
@@ -313,8 +319,9 @@ O acesso a modelos e a cota dependem da sua conta.
 </details>
 
 <details>
-<summary><b>Imagens e esboços</b> (14)</summary>
-<br>
+<summary><b>Imagens e esboços</b></summary>
+
+Gere uma imagem nova ou indique uma edição específica com uma referência ou um marcador com comentário. Fechar o visualizador salva os marcadores. **Adicionar ao campo de entrada** coloca o conteúdo em um rascunho para revisar antes de enviar. Exporte PNG para compartilhar ou um rascunho nativo para preservar camadas e traços editáveis.
 
 | Recurso | O que você pode fazer | Disponibilidade / configuração |
 | --- | --- | --- |
@@ -338,12 +345,14 @@ O acesso a modelos e a cota dependem da sua conta.
 <a id="codex-subtask-runtime"></a>
 
 <details>
-<summary><b>Recursos avançados e manutenção</b> (9)</summary>
-<br>
+<summary><b>Recursos avançados e manutenção</b></summary>
+
+O controle remoto conecta o app ChatGPT ao DSH em execução. A chamada de voz serve para falar na conversa e a subtarefa serve para delegar parte do trabalho. Se algo falhar, abra **Celular e mais → Diagnóstico para suporte** para identificar o requisito ou a operação recente em questão.
 
 | Recurso | O que você pode fazer | Disponibilidade / configuração |
 | --- | --- | --- |
 | **Controle remoto pelo celular** | Controle o DSH no computador pela seção Codex do app móvel do ChatGPT: inicie, continue e arquive conversas, alterne o modelo e as permissões, responda a aprovações e perguntas; DeepSeek e qualquer outro modelo do DSH funcionam | Beta; desativado por padrão; Configurações → Codex → Celular e mais → Controle remoto pelo celular, emparelhe por QR ou código manual |
+| **Conversa por voz (Beta)** | Inicie uma chamada no campo de mensagem. Se a janela nativa não oferecer WebRTC, a chamada pode continuar no navegador. | Desativada por padrão em Celular e mais. Permita o acesso ao microfone quando solicitado. |
 | **Subtarefas independentes do Codex** | Reutilize o login da assinatura e as permissões do espaço de trabalho; selecione modelos e níveis de raciocínio permitidos | Beta, opcional, desnecessário para a maioria: por padrão, o DSH executa seus próprios subagentes (que também podem usar modelos da assinatura); instale o componente opcional (inclui um Codex CLI exclusivo deste plugin) e ative a seleção de modelos em Plugins → Subagentes somente se quiser que as subtarefas sejam executadas pelo agente oficial do Codex. Ele usa seu próprio diretório de dados e o login da sua assinatura, nunca o login do Codex neste computador |
 | **Gerenciamento do componente de subtarefas** | Instale, desative ou desinstale o componente oficial de subtarefas do Codex pelas configurações | Gerenciado por hosts DSH compatíveis; não requer login adicional |
 | **Compactação de contexto na nuvem** | Continue conversas longas usando a compactação do Codex, preservando o histórico do DSH e a compactação nativa | Beta / experimental; desativado por padrão, as solicitações com o recurso ativado usam SSE |
@@ -354,6 +363,14 @@ O acesso a modelos e a cota dependem da sua conta.
 | **Limpeza do cache de previsão** | Verifique e limpe o histórico local de previsão de cotas | Preserva o login, os rascunhos, os originais e as dependências compartilhadas |
 
 </details>
+
+<a id="agent-reference"></a>
+
+### Referência para agentes e colaboradores
+
+O DSH gerencia conversas, aprovações de ferramentas e permissões do espaço de trabalho. O plugin oferece a conexão com o Codex e as configurações e ferramentas acima. Para investigar um recurso indisponível, confira a versão do DSH, as capacidades da conta, o modelo e a configuração antes de rastrear a ferramenta ou a solicitação.
+
+[Guia detalhado (inglês)](docs/GUIDE.en.md) · [Contrato da ferramenta de esboço (inglês)](docs/sketch-agent.md) · [Configurações padrão](src/preference-fields.js)
 
 <a id="reuse-cache-when-changing-effort"></a>
 
