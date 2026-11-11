@@ -214,6 +214,13 @@ Ultra 是 **DSH 主动分工预设**：使用账号模型目录解析出的实�
 
 此机制使用 OpenAI [推理指南](https://developers.openai.com/api/docs/guides/reasoning)中的 configuration update；[提示词缓存文档](https://developers.openai.com/api/docs/guides/prompt-caching)解释缓存条件。支持情况以当前账号目录和实际响应为准；服务端拒绝参数时报告错误，不换成旧强度或 API key 重试。
 
+### Codex 模型 SSE 专用代理
+
+需要单独配置时，可在启动 DSH 的环境中将 `DSH_CODEX_SSE_PROXY` 设为可信的 HTTP 或 HTTPS CONNECT 代理，例如 `http://127.0.0.1:8787`，修改后重启 DSH。设置后，此值在 Codex 模型 SSE 请求中优先于通用代理和 `NO_PROXY`。代理地址无效或无法连接时，该请求会报错。
+
+登录、额度、手机远程和 WebSocket 仍使用各自原有的网络路径。留空则模型 SSE 也继续使用原有代理规则。如果本地代理需要解密 TLS，请按该代理的说明配置其 CA。
+
+
 ### 高级实验选项
 
 在 **模型** 页的“高级”中按需开启，默认仍使用 SSE 和 DSH 子任务：

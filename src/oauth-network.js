@@ -12,6 +12,8 @@ import WebSocket from 'ws'
 const execFileAsync = promisify(execFile)
 const CODEX_AUTH_HOST = 'auth.openai.com'
 const CODEX_SUBSCRIPTION_HOST = 'chatgpt.com'
+const CODEX_MODEL_SSE_PATH = '/backend-api/codex/responses'
+const MODEL_SSE_PROXY_ENV = 'DSH_CODEX_SSE_PROXY'
 const CODEX_HOSTS = new Set([CODEX_AUTH_HOST, CODEX_SUBSCRIPTION_HOST])
 const OAUTH_HOSTS = new Set([CODEX_AUTH_HOST])
 
@@ -209,16 +211,25 @@ async function fetchInCodexScope(scope, fetchBeforeScope, input, init) {
   const proxyFetch = scopedOptions.fetchThroughProxy ?? fetchThroughProxy
   const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url)
   if (target.protocol !== 'https:' || !allowedHosts.has(target.hostname)) return fetchBeforeScope(input, init)
-  let proxy = resolved.get(target.hostname)
-  if (proxy === undefined) {
-    proxy = resolveCodexProxy({ ...scopedOptions, target })
-    resolved.set(target.hostname, proxy)
+  const dedicatedProxy = target.origin === `https://${CODEX_SUBSCRIPTION_HOST}` && target.pathname === CODEX_MODEL_SSE_PATH
+    ? scopedOptions.modelSseProxy
+    : undefined
+  let route
+  if (dedicatedProxy) {
+    route = { url: normalizeProxy(dedicatedProxy), source: 'model-proxy' }
+  } else {
+    let proxy = resolved.get(target.hostname)
+    if (proxy === undefined) {
+      proxy = resolveCodexProxy({ ...scopedOptions, target })
+      resolved.set(target.hostname, proxy)
+    }
+    route = await proxy
   }
-  const route = await proxy
   scopedOptions.onRoute?.(route.source)
   try { scopedOptions.onTransport?.('sse') } catch {}
   let response
   try {
+    if (dedicatedProxy && !route.url) throw new TypeError('Invalid DSH_CODEX_SSE_PROXY. Use an HTTP or HTTPS CONNECT proxy.')
     response = await (route.url === undefined && !scopedOptions.standardHttps ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url))
   } catch (error) {
     // Observe before SDK normalization discards Error.cause; diagnostics must
@@ -329,6 +340,9 @@ export function createCodexNetworkTransport(options = {}) {
       const scoped = { ...options, ...connection }
       const value = await withCodexNetwork(operation, {
         ...scoped,
+        modelSseProxy: area === 'model' && connection.requestFetch === true
+          ? (scoped.env ?? process.env)[MODEL_SSE_PROXY_ENV]?.trim()
+          : undefined,
         onRoute: source => { route = source; routed = true; connection.onRoute?.(source) },
         transformResponse(response, target) {
           if (connection.observeHttpFailure && !response.ok) rejectedStatus = response.status

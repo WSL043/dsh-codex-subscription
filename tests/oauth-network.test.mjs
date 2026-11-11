@@ -41,7 +41,7 @@ test('model SSE honors an explicit proxy while preserving host interception on d
     env, platform: 'test',
     fetchThroughProxy: async (input, _init, proxy) => { proxied.push([input, proxy]); return response() },
   })
-  const provider = openaiCodexSubscriptionProvider({ runNetwork: transport.run })
+  const provider = openaiCodexSubscriptionProvider({ runNetwork: transport.run, beginModelAttempt: transport.beginModelAttempt })
   const model = provider.getModels().find(value => value.id === 'gpt-5.6-luna')
   const apiKey = 'e30.' + Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture' } })).toString('base64url') + '.fixture'
   const context = { messages: [{ role: 'user', content: 'fixture', timestamp: Date.now() }] }
@@ -58,8 +58,53 @@ test('model SSE honors an explicit proxy while preserving host interception on d
     await complete()
     assert.deepEqual(direct, [url])
     assert.equal(proxied.length, 1)
+    env.DSH_CODEX_SSE_PROXY = 'http://127.0.0.1:7891'
+    await complete()
+    assert.deepEqual(proxied.at(-1), [url, 'http://127.0.0.1:7891/'])
+    assert.equal(direct.length, 1)
+    assert.equal(transport.snapshot().model.route, 'model-proxy')
     assert.equal(assignments, 0)
   } finally { Object.defineProperty(globalThis, 'fetch', descriptor) }
+})
+
+test('the dedicated proxy stays on the exact model SSE endpoint and fails without a fallback', async () => {
+  const model = 'https://chatgpt.com/backend-api/codex/responses'
+  const other = 'https://chatgpt.com/backend-api/wham/usage'
+  const baseProxy = 'http://127.0.0.1:7890/'
+  const dedicated = 'http://127.0.0.1:7891/'
+  const env = { HTTPS_PROXY: baseProxy, DSH_CODEX_SSE_PROXY: dedicated }
+  const calls = []
+  const network = createCodexNetworkTransport({
+    env, platform: 'test',
+    fetchThroughProxy: async (input, _init, proxy) => {
+      calls.push([input, proxy])
+      if (proxy === dedicated) throw Object.assign(new Error('Connection refused'), { code: 'ECONNREFUSED' })
+      return new Response('ok')
+    },
+  })
+  const runModel = () => network.run('model', async fetch => {
+    await fetch(other)
+    return fetch(model)
+  }, { requestFetch: true, fallbackFetch: () => assert.fail('Unexpected direct request') })
+  await assert.rejects(runModel(), { code: 'ECONNREFUSED' })
+  await network.refreshOAuth(() => fetch('https://auth.openai.com/oauth/token'))
+  await network.fetch('quota', other)
+  await network.fetch('remote', 'https://chatgpt.com/backend-api/wham/remote/control/server/pair/status')
+  await network.fetch('predictions', model, {}, { standardHttps: true })
+  assert.deepEqual(calls, [
+    [other, baseProxy], [model, dedicated],
+    ['https://auth.openai.com/oauth/token', baseProxy], [other, baseProxy],
+    ['https://chatgpt.com/backend-api/wham/remote/control/server/pair/status', baseProxy],
+    [model, baseProxy],
+  ])
+  assert.equal(await resolveCodexOAuthProxy({ env, target: new URL('wss://chatgpt.com/') }), baseProxy)
+  assert.equal(network.snapshot().model.route, 'model-proxy')
+
+  env.DSH_CODEX_SSE_PROXY = 'socks5://private-proxy.invalid:1111'
+  await assert.rejects(runModel(), {
+    message: 'Invalid DSH_CODEX_SSE_PROXY. Use an HTTP or HTTPS CONNECT proxy.',
+  })
+  assert.equal(calls.length, 7)
 })
 
 test('OAuth proxy resolution honors standard environment variables and NO_PROXY', () => {

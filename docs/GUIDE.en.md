@@ -217,6 +217,13 @@ The request-level `reasoning.effort` stays at the current context window's initi
 
 This uses configuration updates documented in OpenAI's [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning); see [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching) for cache requirements. Support follows the current account catalog and actual responses. Backend parameter rejections are surfaced, never retried with an old effort or an API key.
 
+### Dedicated Codex SSE proxy
+
+For an advanced network setup, set `DSH_CODEX_SSE_PROXY` to a trusted HTTP or HTTPS CONNECT proxy, such as `http://127.0.0.1:8787`, in the environment that launches DSH. Restart DSH after changing it. When set, it takes precedence over the general proxy and `NO_PROXY` for Codex model SSE. An invalid or unreachable proxy fails the affected request.
+
+Sign-in, usage, phone remote control, and WebSocket keep their existing routes. Leave the variable unset to use the existing proxy policy for model SSE as well. If a local proxy inspects TLS, configure its CA using the proxy’s instructions.
+
+
 ### Advanced experiments
 
 Opt in under **Models → Advanced**. SSE and DSH subtasks remain the defaults:
