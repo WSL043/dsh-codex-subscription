@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
-import { compareVersions } from '../scripts/prepare-compat-release.mjs'
+import { compareVersions, declaresDshCompatibility } from '../scripts/prepare-compat-release.mjs'
 import { SUBAGENT_RUNTIME_VERSION, SUPPORTED_RUNTIME_VERSIONS } from '../src/subagent-runtime.js'
 
 const text = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
@@ -121,8 +121,11 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
   const supportedDshReleases = new Set([...compatibility.supported, ...compatibility.previews])
   for (const [name, version] of Object.entries(pkg.peerDependencies)) {
-    if (name.startsWith('@deepseek-ai/dsh-') && !pkg.peerDependenciesMeta?.[name]?.optional) assert.deepEqual(new Set(version.split(' || ')), supportedDshReleases, name)
+    if (name.startsWith('@deepseek-ai/dsh-') && !pkg.peerDependenciesMeta?.[name]?.optional) assert.equal(version, pkg.engines.dsh, name)
   }
+  for (const version of supportedDshReleases) assert.ok(declaresDshCompatibility(pkg, version), version)
+  assert.ok(declaresDshCompatibility(pkg, '0.2.2-rc.3'))
+  assert.ok(!declaresDshCompatibility(pkg, '0.2.3-rc.1'))
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-llm-pi-ai'], compatibility.latestTested)
   assert.equal(pkg.dependencies['@deepseek-ai/dsh-home-paths'], compatibility.latestTested)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-api-remotes'], compatibility.latestTested)

@@ -53,6 +53,8 @@ As fontes de pesquisa na web e leitura de páginas, os conectores do ChatGPT e a
 
 Verificado com o DSH `0.2.2-rc.1`, com suporte mantido para `0.2.1-rc.3` e `0.2.1-rc.2`; a versão mínima compatível é `0.1.7-rc.2`. Atualize primeiro as versões mais antigas do DSH.
 
+O aplicativo oficial DSH Desktop `0.2.2-rc.2` foi testado na prática.
+
 O CLI/Web do DSH `0.2.2-rc.1` requer Node.js **24.9 ou mais recente**; o aplicativo oficial para computador usa o ambiente de execução incluído.
 
 Também é compatível com o host de prévia `0.2.2-alpha.2`. Consulte as [notas de compatibilidade (em inglês)](docs/archive/dsh-022-alpha2-compatibility.md) para conhecer o escopo e os limites de validação.
@@ -80,7 +82,7 @@ Este plugin é compatível com a versão mais recente do DeepSeek Harness regist
 2. Cole o nome deste pacote, com a versão, no campo **Nome ou endereço do pacote**:
 
    ```text
-   dsh-codex-subscription@3.2.10
+   dsh-codex-subscription@3.2.11
    ```
 
 3. Clique em **Instalar** e aguarde a conclusão. Siga as instruções da página; salve seu trabalho antes de reiniciar, se solicitado.
@@ -97,7 +99,7 @@ Por que a versão está incluída: a página de plugins do DSH só instala vers�
 <summary>Instalação pelo terminal (com um comando dsh existente)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.10
+dsh plugin --profile web add dsh-codex-subscription@3.2.11
 ```
 
 Siga as instruções para reiniciar e entre em **Configurações → Codex**. Tanto a página Plugins quanto o terminal usam o gerenciamento de instalações do DSH.
@@ -110,7 +112,7 @@ Siga as instruções para reiniciar e entre em **Configurações → Codex**. Ta
 Depois de entrar e selecionar um modelo Codex na versão Web, instale o mesmo plugin no perfil Headless:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.10
+dsh plugin --profile headless add dsh-codex-subscription@3.2.11
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -390,7 +392,7 @@ Encontre este plugin na página **Plugins** do DSH e use a opção de atualizaç
 <summary>Comandos do terminal</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.10
+dsh plugin --profile web update dsh-codex-subscription@3.2.11
 ```
 
 Execute somente quando quiser desinstalar:

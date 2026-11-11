@@ -38,6 +38,24 @@ export function compareVersions(left, right) {
   return 0
 }
 
+export function dshCompatibilityRange(manifest) {
+  const range = manifest?.engines?.dsh ?? manifest?.peerDependencies?.['@deepseek-ai/dsh-llm']
+  return typeof range === 'string' ? range : ''
+}
+
+// Published manifests use exact versions and bounded intervals. Interpret only
+// those forms so unknown declarations cannot silently skip an acceptance run.
+export function declaresDshCompatibility(manifest, version) {
+  if (typeof version !== 'string' || !VERSION_RE.test(version)) return false
+  return dshCompatibilityRange(manifest).split('||').some(term => {
+    const clause = term.trim()
+    if (clause === version) return true
+    const interval = /^>=(\S+) <(\S+)$/u.exec(clause)
+    return interval !== null && interval.slice(1).every(bound => VERSION_RE.test(bound))
+      && compareVersions(version, interval[1]) >= 0 && compareVersions(version, interval[2]) < 0
+  })
+}
+
 export function selectNextUntestedVersion(versions, current) {
   const compatibility = typeof current === 'string'
     ? { latestTested: current, supported: [current], previews: [] }
@@ -145,7 +163,11 @@ export function planCompatibilityUpdate(state, candidate) {
   const subagentRuntime = state.host?.subagentRuntime
   widenPeer(manifest, SUBAGENT_RUNTIME, subagentRuntime)
   if (subagentRuntime !== undefined && !preview && manifest.devDependencies?.[SUBAGENT_RUNTIME]) manifest.devDependencies[SUBAGENT_RUNTIME] = subagentRuntime
-  const supportedRange = [...compatibility.supported, ...compatibility.previews].sort(compareVersions).join(' || ')
+  const testedVersions = [...compatibility.supported, ...compatibility.previews].sort(compareVersions)
+  const supportedRange = manifest.engines?.dsh === undefined
+    ? testedVersions.join(' || ')
+    : [manifest.engines.dsh, ...testedVersions.filter(version => !declaresDshCompatibility(manifest, version))].join(' || ')
+  if (manifest.engines?.dsh !== undefined) manifest.engines.dsh = supportedRange
   for (const name of Object.keys(manifest.peerDependencies ?? {})) {
     if (name.startsWith('@deepseek-ai/dsh-') && !manifest.peerDependenciesMeta?.[name]?.optional) manifest.peerDependencies[name] = supportedRange
   }

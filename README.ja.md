@@ -53,6 +53,8 @@ DeepSeek やその他の DSH モデルで、ChatGPT に接続したアプリ（G
 
 DSH `0.2.2-rc.1` で動作確認済みです。`0.2.1-rc.3` および `0.2.1-rc.2` も引き続きサポートされます。サポート対象の最小バージョンは `0.1.7-rc.2` です。古い DSH をお使いの場合は、先にアップグレードしてください。
 
+公式 DSH Desktop `0.2.2-rc.2` で実機検証済みです。
+
 DSH `0.2.2-rc.1` CLI/Web には Node.js **24.9 以降**が必要です。公式デスクトップアプリでは、同梱のランタイムを使用します。
 
 プレビュー版ホスト `0.2.2-alpha.2` にも対応しています。対象範囲と検証上の制限については、[互換性に関する注意事項（英語）](docs/archive/dsh-022-alpha2-compatibility.md)をご覧ください。
@@ -80,7 +82,7 @@ DSH `0.2.2-rc.1` CLI/Web には Node.js **24.9 以降**が必要です。公式�
 2. バージョンを含めた以下のパッケージ名を、**パッケージ名またはアドレス**欄に貼り付けます。
 
    ```text
-   dsh-codex-subscription@3.2.10
+   dsh-codex-subscription@3.2.11
    ```
 
 3. **インストール**をクリックし、完了するまで待ちます。ページの指示に従ってください。再起動を求められた場合は、その前に作業内容を保存してください。
@@ -97,7 +99,7 @@ DSH `0.2.2-rc.1` CLI/Web には Node.js **24.9 以降**が必要です。公式�
 <summary>ターミナルからインストール（dsh コマンドがすでにある場合）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.10
+dsh plugin --profile web add dsh-codex-subscription@3.2.11
 ```
 
 再起動の指示に従い、その後 **設定 → Codex** でサインインしてください。プラグインページとターミナルのどちらからインストールしても、DSH のインストール管理機能が使用されます。
@@ -110,7 +112,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.2.10
 Web でサインインし、Codex モデルを選択した後、Headless プロファイルにも同じプラグインをインストールします。
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.10
+dsh plugin --profile headless add dsh-codex-subscription@3.2.11
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -390,7 +392,7 @@ DSH の **プラグイン** ページでこのプラグインを見つけ、更�
 <summary>ターミナルコマンド</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.10
+dsh plugin --profile web update dsh-codex-subscription@3.2.11
 ```
 
 アンインストールする場合にのみ実行してください：

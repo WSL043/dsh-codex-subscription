@@ -53,6 +53,8 @@
 
 Проверено на DSH `0.2.2-rc.1`; `0.2.1-rc.3` и `0.2.1-rc.2` по-прежнему поддерживаются; минимальная поддерживаемая версия — `0.1.7-rc.2`. Сначала обновите более старые версии DSH.
 
+Официальное приложение DSH Desktop `0.2.2-rc.2` проверено в работе.
+
 Для CLI/Web DSH `0.2.2-rc.1` требуется Node.js **версии 24.9 или новее**; в официальном настольном приложении используется встроенная среда выполнения.
 
 Также поддерживается предварительная версия хоста `0.2.2-alpha.2`. См. [заметки о совместимости (на английском)](docs/archive/dsh-022-alpha2-compatibility.md), где описаны область действия и ограничения проверки.
@@ -80,7 +82,7 @@
 2. Вставьте имя этого пакета вместе с его версией в поле **Package name or address**:
 
    ```text
-   dsh-codex-subscription@3.2.10
+   dsh-codex-subscription@3.2.11
    ```
 
 3. Нажмите **Install** и дождитесь завершения. Следуйте инструкциям на странице; если будет предложено перезапустить приложение, перед этим сохраните свою работу.
@@ -97,7 +99,7 @@
 <summary>Установка через терминал (если команда dsh уже установлена)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.10
+dsh plugin --profile web add dsh-codex-subscription@3.2.11
 ```
 
 Следуйте инструкциям по перезапуску, затем войдите в систему в разделе **Настройки → Codex**. И страница «Плагины», и терминал используют систему управления установками DSH.
@@ -110,7 +112,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.2.10
 Войдите в систему и выберите модель Codex в Web, затем установите тот же плагин в профиле Headless:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.10
+dsh plugin --profile headless add dsh-codex-subscription@3.2.11
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -390,7 +392,7 @@ DSH управляет диалогами, подтверждениями инс
 <summary>Команды терминала</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.10
+dsh plugin --profile web update dsh-codex-subscription@3.2.11
 ```
 
 Запускайте только в том случае, если хотите удалить плагин:

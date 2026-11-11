@@ -12,6 +12,12 @@ test('official RC channels deduplicate and take priority over alpha; known chann
   assert.equal(selectChannelCandidate({ next: '0.2.1-rc.5' }, published, compat, { requested: '0.2.1-rc.5' }), undefined)
   assert.equal(selectChannelCandidate({ latest: '0.2.1-rc.5', next: '0.2.1-rc.5', alpha: '0.2.2-alpha.2' }, published, compat), undefined)
 })
+test('a published bounded range admits later RCs without a compatibility release', () => {
+  const manifest = { ...published, engines: { dsh: '>=0.2.2-rc.1 <0.2.3-0' } }
+  assert.equal(selectChannelCandidate({ latest: '0.2.2-rc.3' }, manifest, compat), undefined)
+  assert.equal(selectChannelCandidate({ latest: '0.2.3-rc.1' }, manifest, compat).version, '0.2.3-rc.1')
+})
+
 test('main-only compatibility never disguises an unpublished fix as an available npm version', async () => {
   const main = { ...compat, latestTested: '0.2.1-rc.6', supported: [...compat.supported, '0.2.1-rc.6'] }
   assert.equal(selectChannelCandidate({ next: '0.2.1-rc.6' }, published, main).version, '0.2.1-rc.6')

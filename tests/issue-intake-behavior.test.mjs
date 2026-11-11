@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import { createRequire } from 'node:module'
 
 const CR = String.fromCharCode(13)
 const source = (await readFile(new URL('../.github/workflows/issue-intake.yml', import.meta.url), 'utf8')).split(CR).join('')
 const script = source.slice(source.indexOf('script: |') + 'script: |'.length + 1).split('\n').map(line => line.slice(12)).join('\n')
 const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor
-const intake = new AsyncFunction('github', 'context', script)
+const intake = new AsyncFunction('github', 'context', 'require', script)
+const require = createRequire(import.meta.url)
 
 const bugBody = (plugin, dsh) => [
   '### System', '', 'Windows', '', '### DSH setup', '', 'Official DSH installation', '',
@@ -88,7 +90,7 @@ async function run({ labels, body, action = 'opened', existingComments = [], lat
     return manifest ? Response.json(manifest) : new Response('not found', { status: 404 })
   }
   try {
-    await intake(github, { repo: { owner: 'o', repo: 'r' }, issue: { number: 1 }, payload: { action, issue: { labels: labels.map(name => ({ name })), body } } })
+    await intake(github, { repo: { owner: 'o', repo: 'r' }, issue: { number: 1 }, payload: { action, issue: { labels: labels.map(name => ({ name })), body } } }, require)
   } finally {
     globalThis.fetch = previousFetch
   }

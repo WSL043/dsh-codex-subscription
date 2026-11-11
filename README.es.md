@@ -53,6 +53,8 @@ La búsqueda web y la lectura de páginas web como fuentes, los conectores de Ch
 
 Verificado con DSH `0.2.2-rc.1`; `0.2.1-rc.3` y `0.2.1-rc.2` siguen siendo compatibles; la versión mínima compatible es `0.1.7-rc.2`. Actualiza primero las versiones anteriores de DSH.
 
+Se verificó el funcionamiento de la aplicación oficial DSH Desktop `0.2.2-rc.2`.
+
 La CLI/Web de DSH `0.2.2-rc.1` requiere Node.js **24.9 o posterior**; la aplicación oficial de escritorio usa el entorno de ejecución incluido.
 
 También es compatible con el host de vista previa `0.2.2-alpha.2`. Consulta las [notas de compatibilidad (en inglés)](docs/archive/dsh-022-alpha2-compatibility.md) para conocer el alcance y los límites de validación.
@@ -80,7 +82,7 @@ Este complemento es compatible con la versión más reciente de DeepSeek Harness
 2. Pega el nombre de este paquete, incluida su versión, en el campo **Nombre o dirección del paquete**:
 
    ```text
-   dsh-codex-subscription@3.2.10
+   dsh-codex-subscription@3.2.11
    ```
 
 3. Haz clic en **Instalar** y espera a que termine. Sigue las instrucciones de la página; guarda tu trabajo antes de reiniciar si se te solicita.
@@ -97,7 +99,7 @@ Por qué se incluye la versión: la página de complementos de DSH solo instala 
 <summary>Instalación desde la terminal (con un comando dsh existente)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.10
+dsh plugin --profile web add dsh-codex-subscription@3.2.11
 ```
 
 Sigue las instrucciones para reiniciar y luego inicia sesión en **Configuración → Codex**. Tanto la página Complementos como la terminal usan la administración de instalaciones de DSH.
@@ -110,7 +112,7 @@ Sigue las instrucciones para reiniciar y luego inicia sesión en **Configuració
 Después de iniciar sesión y seleccionar un modelo de Codex en Web, instala el mismo complemento en el perfil Headless:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.10
+dsh plugin --profile headless add dsh-codex-subscription@3.2.11
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -390,7 +392,7 @@ Busca este plugin en la página **Complementos** de DSH y usa la opción de actu
 <summary>Comandos de terminal</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.10
+dsh plugin --profile web update dsh-codex-subscription@3.2.11
 ```
 
 Ejecuta solo si quieres desinstalarlo:

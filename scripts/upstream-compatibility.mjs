@@ -2,16 +2,15 @@ import { appendFile, readFile } from 'node:fs/promises'
 import { execFileSync } from 'node:child_process'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { compareVersions } from './prepare-compat-release.mjs'
+import { compareVersions, declaresDshCompatibility, dshCompatibilityRange } from './prepare-compat-release.mjs'
 import { publishedBaseline } from './compatibility-baseline.mjs'
 
 const exact = value => typeof value === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(value)
 const preview = version => /-(?:alpha|beta|dev|nightly|canary)(?:\.|$)/iu.test(version)
-const declared = manifest => new Set(String(manifest.peerDependencies?.['@deepseek-ai/dsh-llm'] ?? '').split('||').map(x => x.trim()).filter(exact))
+const declared = manifest => new Set(dshCompatibilityRange(manifest).split('||').map(x => x.trim()).filter(exact))
 
 function testedVersions(compatibility, manifest) {
-  const supported = declared(manifest)
-  return new Set([...compatibility.supported, ...(compatibility.previews ?? [])].filter(version => supported.has(version)))
+  return new Set([...compatibility.supported, ...(compatibility.previews ?? [])].filter(version => declaresDshCompatibility(manifest, version)))
 }
 
 export function selectChannelCandidate(tags, published, compatibility, { requested, dryRun = false } = {}) {
@@ -20,12 +19,12 @@ export function selectChannelCandidate(tags, published, compatibility, { request
     if (!exact(requested)) throw new Error('Invalid requested DSH version')
     const entry = entries.find(x => x.version === requested)
     if (!entry) throw new Error('Requested DSH version is not on an official npm channel')
-    if (!dryRun && declared(published).has(entry.version)) return undefined
+    if (!dryRun && declaresDshCompatibility(published, entry.version)) return undefined
     return { ...entry, stable: !preview(entry.version), recheck: dryRun }
   }
   const supported = declared(published)
-  const floors = [...supported].filter(v => !preview(v)).sort(compareVersions)
-  const candidates = entries.filter(({ version }) => !supported.has(version)
+  const floors = [...supported, ...testedVersions(compatibility, published)].filter(v => !preview(v)).sort(compareVersions)
+  const candidates = entries.filter(({ version }) => !declaresDshCompatibility(published, version)
     && (preview(version) ? !(compatibility.previews ?? []).includes(version)
       : floors.length === 0 || compareVersions(version, floors.at(-1)) > 0))
   candidates.sort((a, b) => Number(preview(a.version)) - Number(preview(b.version)) || compareVersions(b.version, a.version))

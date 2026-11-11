@@ -97,19 +97,17 @@ export { createSubscriptionRpcHandler } from './subscription-rpc.js'
 
 export function createSearchProviderSwitcher(loader) {
   const webEntry = () => [...loader.entries()].find(entry => entry.options?.id === WEB_ENTRY_ID)
-  // The entry's own raw config keeps the DSH provider; only the running web fiber is pointed elsewhere.
-  const dshProviderId = () => {
-    const configured = webEntry()?.options?.config?.searchProvider
-    // A saved subscription provider must not route the DSH fallback back into this plugin.
-    return typeof configured === 'string' && configured.length > 0 && !SUBSCRIPTION_SEARCH_PROVIDER_IDS.has(configured)
-      ? configured
-      : DSH_SEARCH_PROVIDER_FALLBACK
-  }
   // Cordis 4.1 separates active validated config from raw input.
   const current = () => {
     const fiber = webEntry()?.fiber
     const value = (fiber?.effectiveConfig ?? fiber?.config)?.searchProvider
     return typeof value === 'string' ? value : value?.get?.()
+  }
+  const dshProviderId = () => {
+    const active = current()
+    const saved = webEntry()?.options?.config?.searchProvider
+    return [active, saved].find(id => typeof id === 'string' && id.length > 0 && !SUBSCRIPTION_SEARCH_PROVIDER_IDS.has(id))
+      ?? DSH_SEARCH_PROVIDER_FALLBACK
   }
   const writeProvider = async provider => {
     const entry = webEntry()
