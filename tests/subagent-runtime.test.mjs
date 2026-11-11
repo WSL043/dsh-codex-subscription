@@ -60,7 +60,7 @@ test('preparation checks the dedicated CLI without shell or PATH and supports re
     assert.equal(matchingSubagentRuntimeVersion(resolve),'0.2.0-rc.1')
     assert.deepEqual(inspectSubagentRuntime(resolve,cli),{installed:true,present:true,adapterInstalled:true})
     await loadSubagentRuntime({resolve,run,cli,importModule:async()=>({JsonRpcLineTransport:class {}})})
-    for (const version of ['0.2.1-rc.3', '0.2.1-rc.4']) {
+    for (const version of ['0.2.1-rc.3', '0.2.1-rc.4', '0.2.2-rc.2', '0.2.2-rc.3']) {
       await writeFile(host,JSON.stringify({version}))
       assert.deepEqual(inspectSubagentRuntime(resolve,cli),{installed:false,present:true}, 'a different cohort must not load')
       await writeFile(provider,JSON.stringify({version}))

@@ -2,7 +2,6 @@ import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
 import { compareVersions, declaresDshCompatibility } from '../scripts/prepare-compat-release.mjs'
-import { SUBAGENT_RUNTIME_VERSION, SUPPORTED_RUNTIME_VERSIONS } from '../src/subagent-runtime.js'
 
 const text = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 const imageHeader = path => {
@@ -60,10 +59,8 @@ test('normal installation does not pull the optional Codex executable runtime', 
   // The host provides react to client bundles; a dependency audit that cannot find it (DSHA) must not disable the plugin.
   for (const name of ['react', 'react-dom']) assert.equal(manifest.peerDependenciesMeta?.[name]?.optional, true, name)
   // The compatibility autopilot widens this range and the runtime list together.
-  assert.equal(manifest.peerDependencies[runtime], [...SUPPORTED_RUNTIME_VERSIONS].sort(compareVersions).join(' || '))
+  assert.equal(manifest.peerDependencies[runtime], manifest.engines.dsh)
   assert.equal(manifest.devDependencies[runtime], compatibility.latestTested)
-  assert.equal(SUBAGENT_RUNTIME_VERSION, manifest.devDependencies[runtime])
-  assert.deepEqual(new Set(SUPPORTED_RUNTIME_VERSIONS), new Set(manifest.peerDependencies[runtime].split(' || ')))
 })
 
 test('scheduled compatibility publication requires stable channels, accepted gates and a non-dry run', () => {

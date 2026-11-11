@@ -251,8 +251,8 @@ test('host inspection reads the release manifest and treats a missing subtask ru
   await assert.rejects(hostOf('9.9.9', fetchManifest), /Cannot inspect @deepseek-ai\/dsh@9\.9\.9/)
 })
 
-test('the real subagent runtime source can be rewritten', () => {
+test('the runtime with a DSH engine range needs no per-version rewrite', () => {
   const source = readFileSync(new URL('../src/subagent-runtime.js', import.meta.url), 'utf8')
-  const next = rewriteSubagentRuntime(source, { subagentRuntime: '9.0.0-alpha.1', updateStableReferences: false })
-  assert.match(next, /SUPPORTED_RUNTIME_VERSIONS = Object\.freeze\(\[[^\]]*'9\.0\.0-alpha\.1'\]\)/)
+  const manifest = { engines: { dsh: '>=0.2.2-rc.1 <0.2.3-0' } }
+  assert.equal(rewriteSubagentRuntime(source, { manifest, subagentRuntime: '0.2.2-rc.3' }), source)
 })

@@ -5,11 +5,10 @@ import { pathToFileURL } from 'node:url'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { SUBAGENT_CODEX_VERSION } from './subagent-cli.js'
+import { declaresDshCompatibility } from './dsh-compatibility.js'
 export { SUBAGENT_CODEX_VERSION } from './subagent-cli.js'
 
 export const SUBAGENT_RUNTIME_PACKAGE = '@deepseek-ai/dsh-subagent-codex'
-export const SUBAGENT_RUNTIME_VERSION = '0.2.2-rc.1'
-export const SUPPORTED_RUNTIME_VERSIONS = Object.freeze(['0.1.7-rc.2', '0.2.0-rc.1', '0.2.0-rc.2', '0.2.1-alpha.1', '0.2.1-alpha.2', '0.2.1-alpha.3', '0.2.1-alpha.4', '0.2.1-alpha.5', '0.2.1-rc.1', '0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.4', '0.2.1-rc.5', '0.2.2-alpha.2', '0.2.2-alpha.3', SUBAGENT_RUNTIME_VERSION])
 const require = createRequire(import.meta.url)
 const execute = promisify(execFile)
 
@@ -33,7 +32,7 @@ export function hostDshVersion(resolve = require.resolve, entry = process.argv[1
 // newest component into an older host can appear to succeed but fail at load.
 export function matchingSubagentRuntimeVersion(resolve = require.resolve) {
   const version = hostDshVersion(resolve, resolve === require.resolve ? process.argv[1] : '')
-  return SUPPORTED_RUNTIME_VERSIONS.includes(version) ? version : undefined
+  return declaresDshCompatibility(require('../package.json'), version) ? version : undefined
 }
 
 // Reuse the host-matching official provider and protocol with the dedicated CLI.
@@ -42,7 +41,8 @@ export function inspectSubagentRuntime(resolve = require.resolve, cli) {
   try {
     const manifestPath = resolve(`${SUBAGENT_RUNTIME_PACKAGE}/package.json`)
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
-    if (!SUPPORTED_RUNTIME_VERSIONS.includes(manifest.version) || manifest.version !== matchingSubagentRuntimeVersion(resolve)) return { installed: false, present: true }
+    const hostVersion = matchingSubagentRuntimeVersion(resolve)
+    if (hostVersion === undefined || manifest.version !== hostVersion) return { installed: false, present: true }
     return { installed: cli?.inspect().installed === true, present: true, adapterInstalled: true }
   } catch { return { installed: false } }
 }
