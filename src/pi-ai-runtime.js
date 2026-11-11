@@ -318,9 +318,10 @@ export function openaiCodexSubscriptionProvider({
       try {
         const { next, network } = await (prepared ??= initialize())
         signal.throwIfAborted()
-        const result = await runNetwork('model', () => {
+        const result = await runNetwork('model', fetch => {
           if (!iterator) {
             producer = factory({ ...next,
+              ...(fetch === undefined ? {} : { fetch }),
               async onResponse(info, requestModel) { health.response(info); attempt.response(); retryHint?.onResponse(info); return next.onResponse?.(info, requestModel) },
               onProviderStreamEvent(event) { health.providerEvent(); return next.onProviderStreamEvent?.(event) },
               async onPayload(payload, requestModel) {
@@ -338,7 +339,7 @@ export function openaiCodexSubscriptionProvider({
             }, error => { settle(cancelled() ? 'cancelled' : 'failed', error); finish() })
           }
           return iterator[method]?.(value) ?? (method === 'throw' ? Promise.reject(value) : Promise.resolve({ done: true, value }))
-        }, network)
+        }, { ...network, requestFetch: true, fallbackFetch: next.fetch })
         if (!result.done) {
           health?.observe(result.value)
           attempt.event(result.value)

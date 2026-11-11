@@ -203,7 +203,37 @@ export function fetchThroughProxy(input, init, proxyUrl) {
   })
 }
 
+async function fetchInCodexScope(scope, fetchBeforeScope, input, init) {
+  if (scope === undefined) return fetchBeforeScope(input, init)
+  const { options: scopedOptions, allowedHosts, resolved } = scope
+  const proxyFetch = scopedOptions.fetchThroughProxy ?? fetchThroughProxy
+  const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url)
+  if (target.protocol !== 'https:' || !allowedHosts.has(target.hostname)) return fetchBeforeScope(input, init)
+  let proxy = resolved.get(target.hostname)
+  if (proxy === undefined) {
+    proxy = resolveCodexProxy({ ...scopedOptions, target })
+    resolved.set(target.hostname, proxy)
+  }
+  const route = await proxy
+  scopedOptions.onRoute?.(route.source)
+  try { scopedOptions.onTransport?.('sse') } catch {}
+  let response
+  try {
+    response = await (route.url === undefined && !scopedOptions.standardHttps ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url))
+  } catch (error) {
+    // Observe before SDK normalization discards Error.cause; diagnostics must
+    // not change the original rejection or initiate another request.
+    try { scopedOptions.onFetchFailure?.(error) } catch {}
+    throw error
+  }
+  return scopedOptions.transformResponse?.(response, target) ?? response
+}
+
 export async function withCodexNetwork(run, options = {}) {
+  // Model SSE supports a request-local fetch. This keeps proxy policy ahead
+  // of the Host's global middleware and still lets it handle direct calls.
+  const requestFetch = options.requestFetch
+  const fetchBeforeScope = baseFetch ?? globalThis.fetch
   if (options.websocket && activeWebSocketScopes === 0) {
     baseWebSocket = globalThis.WebSocket
     const original = baseWebSocket
@@ -228,53 +258,29 @@ export async function withCodexNetwork(run, options = {}) {
     globalThis.WebSocket = scopedWebSocket
   }
   if (options.websocket) activeWebSocketScopes += 1
-  if (activeScopes === 0) {
-    const fetchBeforeScope = globalThis.fetch
+  if (!requestFetch && activeScopes === 0) {
     baseFetch = fetchBeforeScope
-    scopedFetch = async (input, init) => {
-      const scope = networkScope.getStore()
-      if (scope === undefined) return fetchBeforeScope(input, init)
-      const { options: scopedOptions, allowedHosts, resolved } = scope
-      const proxyFetch = scopedOptions.fetchThroughProxy ?? fetchThroughProxy
-      const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url)
-      if (target.protocol !== 'https:' || !allowedHosts.has(target.hostname)) return fetchBeforeScope(input, init)
-      let proxy = resolved.get(target.hostname)
-      if (proxy === undefined) {
-        proxy = resolveCodexProxy({ ...scopedOptions, target })
-        resolved.set(target.hostname, proxy)
-      }
-      const route = await proxy
-      scopedOptions.onRoute?.(route.source)
-      try { scopedOptions.onTransport?.('sse') } catch {}
-      let response
-      try {
-        response = await (route.url === undefined && !scopedOptions.standardHttps ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url))
-      } catch (error) {
-        // Observe before SDK normalization discards Error.cause; diagnostics must
-        // not change the original rejection or initiate another request.
-        try { scopedOptions.onFetchFailure?.(error) } catch {}
-        throw error
-      }
-      return scopedOptions.transformResponse?.(response, target) ?? response
-    }
+    scopedFetch = (input, init) => fetchInCodexScope(networkScope.getStore(), fetchBeforeScope, input, init)
     globalThis.fetch = scopedFetch
   }
-  activeScopes += 1
+  if (!requestFetch) activeScopes += 1
   const scope = {
     options,
     allowedHosts: options.hosts ?? CODEX_HOSTS,
     resolved: new Map(),
   }
   try {
-    return await networkScope.run(scope, run)
+    const fetch = requestFetch
+      ? (input, init) => fetchInCodexScope(scope, options.fallbackFetch ?? fetchBeforeScope, input, init)
+      : undefined
+    return await networkScope.run(scope, () => requestFetch ? run(fetch) : run())
   } finally {
     if (options.websocket && --activeWebSocketScopes === 0) {
       if (globalThis.WebSocket === scopedWebSocket) globalThis.WebSocket = baseWebSocket
       baseWebSocket = undefined
       scopedWebSocket = undefined
     }
-    activeScopes -= 1
-    if (activeScopes === 0) {
+    if (!requestFetch && --activeScopes === 0) {
       if (globalThis.fetch === scopedFetch) globalThis.fetch = baseFetch
       baseFetch = undefined
       scopedFetch = undefined

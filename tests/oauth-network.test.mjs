@@ -26,6 +26,42 @@ test('voice standard HTTPS honors direct and NO_PROXY routing without changing m
   } finally { globalThis.fetch = original }
 })
 
+test('model SSE honors an explicit proxy while preserving host interception on direct calls', async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'fetch')
+  const url = 'https://chatgpt.com/backend-api/codex/responses'
+  const response = () => new Response('data: {"type":"response.created","response":{"id":"fixture"}}\n\ndata: {"type":"response.done","response":{"id":"fixture","status":"completed","output":[],"usage":{"input_tokens":1,"output_tokens":0,"total_tokens":1}}}\n\n')
+  const direct = [], proxied = []
+  let assignments = 0
+  const intercept = async input => { direct.push(String(input)); return response() }
+  Object.defineProperty(globalThis, 'fetch', {
+    configurable: true, get: () => intercept, set: () => { assignments++ },
+  })
+  const env = { HTTPS_PROXY: 'http://127.0.0.1:7890' }
+  const transport = createCodexNetworkTransport({
+    env, platform: 'test',
+    fetchThroughProxy: async (input, _init, proxy) => { proxied.push([input, proxy]); return response() },
+  })
+  const provider = openaiCodexSubscriptionProvider({ runNetwork: transport.run })
+  const model = provider.getModels().find(value => value.id === 'gpt-5.6-luna')
+  const apiKey = 'e30.' + Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture' } })).toString('base64url') + '.fixture'
+  const context = { messages: [{ role: 'user', content: 'fixture', timestamp: Date.now() }] }
+  async function complete() {
+    const events = []
+    for await (const event of provider.streamSimple(model, context, { apiKey, transport: 'sse' })) events.push(event.type)
+    assert.ok(events.includes('done'), events.join(','))
+  }
+  try {
+    await complete()
+    assert.deepEqual(proxied, [[url, 'http://127.0.0.1:7890/']])
+    assert.deepEqual(direct, [])
+    env.NO_PROXY = 'chatgpt.com'
+    await complete()
+    assert.deepEqual(direct, [url])
+    assert.equal(proxied.length, 1)
+    assert.equal(assignments, 0)
+  } finally { Object.defineProperty(globalThis, 'fetch', descriptor) }
+})
+
 test('OAuth proxy resolution honors standard environment variables and NO_PROXY', () => {
   assert.equal(proxyFromEnvironment({ HTTPS_PROXY: '127.0.0.1:7890' }), 'http://127.0.0.1:7890/')
   assert.equal(proxyFromEnvironment({ HTTPS_PROXY: 'http://127.0.0.1:7890', NO_PROXY: 'auth.openai.com' }), undefined)
