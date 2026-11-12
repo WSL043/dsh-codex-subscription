@@ -19,7 +19,7 @@ import { createAccountStatusController } from './account-status-controller.js'
 import { NS, CHANNEL, unwrap } from './client-shared.js'
 import { createSubscriptionRpcClient } from './rpc-contract.js'
 import { CodexComposerQuota } from './client-composer-quota.jsx'
-import { CodexModelOptionsOverlay, CodexModelSelect, CodexNativeModelOptions, createModelOptionsMenu } from './client-model-select.jsx'
+import { CodexModelOptionsOverlay, CodexModelSelect, CodexNativeModelOptions, CodexModelLabel, createModelOptionsMenu } from './client-model-select.jsx'
 import { registerLegacyModelPicker, watchComposerModelPickerConflict } from './client-model-picker-slot.js'
 import { quotaUsageController } from './client-quota.jsx'
 import { VoiceCallButton } from './client-voice-call.jsx'
@@ -62,10 +62,6 @@ export function apply(ctx) {
   }, 'codex-subscription: style')
   const rpc = createSubscriptionRpcClient(ctx.get('connection').rpc)
   const preference = createPreferenceController(rpc)
-  ctx.inject(['remote.pluginManager'], scope => scope.effect(() => watchComposerModelPickerConflict(
-    scope.get('remote.pluginManager'), scope.get('remote'), preference.setComposerModelPickerConflict,
-    refresh => scope.on('connection/reset', refresh),
-  ), 'codex-subscription: composer model menu compatibility'))
   const quotaUsage = quotaUsageController(rpc)
   ctx.effect(() => {
     let mode = preference.getSnapshot().quickQuotaMode
@@ -139,14 +135,17 @@ export function apply(ctx) {
       const directory = modelDirectories.directoryFor(sessionId)
       const available = sessions.subagentAddress(sessionId) === undefined
       return {
-        available, directory: directory.store, preference, t, optionsMenu,
+        available, directory: directory.store, preference, t, optionsMenu, resolveText: text => ctx.locale.resolveText(text),
         load: () => { if (available) void directory.load().catch(() => {}) },
         select: async selection => {
           if (!available) return false
           try { return (await directory.select(selection))?.ok !== false } catch { return false }
         },
       }
-    }, CodexModelSelect, CodexNativeModelOptions)
+    }, CodexModelSelect, CodexNativeModelOptions, CodexModelLabel, () => watchComposerModelPickerConflict(
+      scope.get('remote.pluginManager'), scope.get('remote'), preference.setComposerModelPickerConflict,
+      refresh => scope.on('connection/reset', refresh),
+    ))
   }
   if (ctx.get('remote.session') === undefined) installDirectorySlots(ctx)
   else ctx.inject(['remote.session'], installDirectorySlots)

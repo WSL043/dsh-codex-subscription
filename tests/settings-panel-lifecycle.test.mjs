@@ -195,7 +195,7 @@ test('the subscription extends the rc.2 model menu without shadowing Team or a t
     sync()
     assert.equal(core.entriesOfSlot(menu)[0].component, native)
     assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [team, extra])
-    assert.equal(active, false)
+    assert.equal(active, true, 'modern extension capability does not depend on a plugin name')
     state = { ...state, composerModelPickerConflict: false }
     const unregister = core.register({ name: menu, priority: -10 }, external)
     sync()
@@ -249,6 +249,57 @@ test('the classic picker toggles supported speed inside the model menu and shows
   } finally { h.dispose() }
 })
 
+test('a third-party owner can expose standard options; labels yield without replacing its menu', async () => {
+  const menu = 'conversation.input.model', options = menu + '.options', label = menu + '.label'
+  const core = new SlotCore(), legacy = named('legacy'), extra = named('extra'), bolt = named('bolt'), otherLabel = named('other-label')
+  core.register({ name: 'root', children: { [menu]: { kind: 'single', scope: 'session' } } }, named('composer'))
+  const owner = named('third-party')
+  core.register({ name: menu, priority: -20, children: { [options]: { kind: 'list', scope: 'session' }, [label]: { kind: 'single', scope: 'session', inline: true } } }, owner)
+  const team = named('team')
+  core.register({ name: options, id: 'team' }, team)
+  let state = { status: 'ready', composerModelPicker: 'auto', speedMode: 'fast' }, sync
+  const preference = { getSnapshot: () => state, subscribe: fn => { sync = fn; return () => {} }, setComposerModelPickerActive() {} }
+  const dispose = registerLegacyModelPicker({
+    inject: (_key, fn) => fn(), entries: key => core.entries(key), subscribe: (key, fn) => core.subscribe(key, fn),
+    register: (opts, component) => core.register(opts, component),
+  }, preference, () => ({}), legacy, extra, bolt, () => { throw Error('modern owners must not inspect plugin identities') })
+  try {
+    assert.deepEqual(core.entries(menu).map(e => e.component), [owner])
+    assert.deepEqual(core.entries(options).map(e => e.component), [team, extra])
+    assert.equal(core.entries(label)[0].component, bolt)
+    const removeOther = core.register({ name: label }, otherLabel)
+    await flush()
+    assert.deepEqual(core.entries(label).map(e => e.component), [otherLabel])
+    removeOther(); await flush()
+    assert.equal(core.entries(label)[0].component, bolt)
+    state = { ...state, speedMode: 'standard' }; sync()
+    assert.equal(core.entries(label).length, 0, 'standard speed restores the host fallback label')
+    state = { ...state, composerModelPicker: 'dsh' }; sync()
+    assert.deepEqual(core.entries(options).map(e => e.component), [team])
+  } finally { dispose() }
+  assert.deepEqual(core.entries(menu).map(e => e.component), [owner])
+  assert.deepEqual(core.entries(options).map(e => e.component), [team])
+})
+
+test('inline speed indication preserves model badges and never marks another provider or unselected model', async () => {
+  const snapshot = { speedMode: 'fast', fastModels: ['gpt-6.1-sol'], ultrafastModels: ['gpt-6.1-sol'] }
+  const props = { provider: { id: 'openai-codex' }, model: { id: 'gpt-6.1-sol', name: 'GPT-6.1-Sol', badge: { text: 'Original badge', tone: 'info' } }, placement: 'trigger', selected: true, resolveText: text => text, t: key => key }
+  const h = await component('client-model-select.jsx', 'CodexModelLabel', props, { './settings-contract.js': settingsContract, './client-shared.js': { usePreferenceSnapshot: () => snapshot } })
+  const bolts = () => nodes(h.tree, n => n.props.className === 'codexModelSelectBolt')
+  try {
+    assert.equal(bolts()[0].props['aria-label'], 'speedFast')
+    assert.equal(h.tree.props.children.filter(Boolean)[0].props.className, 'codexModelSelectBolt', 'bolt precedes the model name')
+    assert.equal(nodes(h.tree, n => n.props.className === 'codexModelCatalogBadge')[0].props.children, 'Original badge')
+    snapshot.speedMode = 'ultrafast'; h.render()
+    assert.equal(bolts()[0].props['aria-label'], 'speedUltrafast')
+    h.render({ ...props, placement: 'menu' }); assert.equal(bolts().length, 0)
+    h.render({ ...props, placement: 'option' }); assert.equal(bolts().length, 0)
+    h.render({ ...props, selected: false }); assert.equal(bolts().length, 0)
+    h.render({ ...props, provider: { id: 'another-provider' } }); assert.equal(bolts().length, 0)
+    snapshot.speedMode = 'standard'; h.render(props); assert.equal(bolts().length, 0)
+  } finally { h.dispose() }
+})
+
 test('the host inventory tracks Claude Style enablement and ignores stale responses', async () => {
   const old = deferred()
   let rows = old.promise, refresh
@@ -270,7 +321,7 @@ test('the host inventory tracks Claude Style enablement and ignores stale respon
   assert.equal(refresh, undefined)
 })
 
-test('yielding the model menu hides its speed controls and preserves the saved speed', async () => {
+test('yielding the model menu keeps speed available in settings and preserves the saved speed', async () => {
   const snapshot = { status: 'ready', writable: true, composerModelPicker: 'auto', composerModelPickerActive: true, speedMode: 'fast', ultrafastModels: [] }
   const preference = { set: async patch => { Object.assign(snapshot, patch) } }
   const h = await component('client-pages.jsx', 'ModelsPage', { preference, t: key => key }, {
@@ -288,7 +339,7 @@ test('yielding the model menu hides its speed controls and preserves the saved s
     assert.deepEqual([...control().props.values], ['auto', 'dsh', 'legacy'])
     snapshot.composerModelPickerActive = false
     h.render()
-    assert.equal(speed(), undefined)
+    assert.equal(speed().props.snapshot.speedMode, 'fast')
     assert.equal(snapshot.speedMode, 'fast')
     snapshot.composerModelPickerActive = true
     h.render()

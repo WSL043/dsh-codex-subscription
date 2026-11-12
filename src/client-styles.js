@@ -5,6 +5,8 @@ export const STYLE = `
 .codexModelSelectTrigger:focus-visible{box-shadow:0 0 0 2px var(--dsw-alias-border-l3)}
 .codexModelSelectTrigger:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
 .codexModelSelectBolt{display:block;flex:none;width:14px;height:14px;color:var(--dsw-alias-label-primary)}
+.codexModelInlineLabel{display:inline-flex;align-items:center;gap:4px;max-width:100%;vertical-align:middle}
+.codexModelCatalogBadge{font-size:11px;line-height:16px;padding:0 3px;border-radius:4px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary)}
 .codexModelSelectLabel{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .codexModelSelectEffort{flex:none;color:var(--dsw-alias-label-caption)}
 .codexModelSelectChevron{flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms}

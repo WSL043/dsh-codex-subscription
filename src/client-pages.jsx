@@ -142,7 +142,7 @@ export function ModelsPage({ preference, t, defaultModel }) {
           <Radios snapshot={snapshot} preference={preference} field="composerModelPicker" values={COMPOSER_MODEL_PICKER_MODES}
             name="codex-model-picker" label={t('legacyModelPicker')} text={value => t(menuLabels[value])} disabled={!loaded || snapshot.saving} />
         </div>
-        {loaded && customMenu ? <SpeedPreference snapshot={snapshot} preference={preference} t={t} /> : null}
+        {loaded ? <SpeedPreference snapshot={snapshot} preference={preference} t={t} /> : null}
       </div>
       <PickerModelsPreference preference={preference} t={t} />
       <ComposerPredictionPreference preference={preference} t={t} />

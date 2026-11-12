@@ -20,6 +20,8 @@ Read the `cordis-plugin-development` skill and references shipped with `@deepsee
 
 ## UI components and Ultra
 
+- **Model menu ownership (DSH 0.2.2-rc.2).** Extend `conversation.input.model.options` instead of replacing its owner. Preserve Agent Teams and any other list contributions. Use the published non-interactive label slot for the fast-mode icon and yield to another label contributor. A third-party picker decides which extension slots it renders; do not rewrite its preferences or private DOM. Speed and detail settings remain accessible independently of menu presentation. The plugin-inventory compatibility check is limited to the older replacement path.
+
 - The [UI primitives](../src/client-primitives.jsx) use React and host theme tokens. Menus and hints stay within their slot. Image previews use browser dialogs.
 - [Ultra](../src/ultra-execution.js) uses the native DSH request record. Register delegation instructions with `systemPrompt.context()` so DSH updates and records them after `agent/request`. Switching to ordinary reasoning removes the instructions from subsequent runtime context. Preserve replay of existing logs.
 

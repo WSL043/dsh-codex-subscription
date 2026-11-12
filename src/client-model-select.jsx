@@ -19,6 +19,21 @@ export function createModelOptionsMenu() {
   }
 }
 
+// DSH owns the trigger and selection. Only decorate its published inline label.
+export function CodexModelLabel({ provider, model, placement, selected, preference, resolveText, t }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  const speed = provider.id === 'openai-codex' ? effectiveCodexSpeedMode(snapshot.speedMode, model.id, {
+    supportsFast: snapshot.fastModels?.includes(model.id) ?? supportsCodexFastMode(model.id),
+    supportsUltrafast: snapshot.ultrafastModels?.includes(model.id) ?? false,
+  }) : SPEED_MODE_STANDARD
+  const badge = model.badge && <span className="codexModelCatalogBadge" data-tone={model.badge.tone}>{resolveText(model.badge.text)}</span>
+  return <span className="codexModelInlineLabel">
+    {placement === 'trigger' && selected && speed !== SPEED_MODE_STANDARD && <BoltIcon className="codexModelSelectBolt"
+      aria-label={t(speed === SPEED_MODE_ULTRAFAST ? 'speedUltrafast' : 'speedFast')} />}
+    {placement === 'trigger' && badge}{model.name}{placement !== 'trigger' && badge}
+  </span>
+}
+
 export function CodexNativeModelOptions({ locked, directory, preference, t, dismiss, reportFailure, optionsMenu }) {
   const { current } = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
   const snapshot = usePreferenceSnapshot(preference)
@@ -44,7 +59,7 @@ export function CodexNativeModelOptions({ locked, directory, preference, t, dism
     option(OUTPUT_VERBOSITY_MEDIUM, 'verbosityMedium'),
     option(OUTPUT_VERBOSITY_HIGH, 'verbosityHigh'),
   ]
-  const row = (field, label, items, value, icon) => {
+  const row = (field, label, items, value) => {
     const open = event => {
       const menu = event.currentTarget.closest('[role="menu"]')
       if (!menu?.id) return
@@ -66,13 +81,11 @@ export function CodexNativeModelOptions({ locked, directory, preference, t, dism
       }}>
       <span className="codexModelSelectCellLabel">{label}</span>
       <span className="codexModelSelectCellValue">{items.find(item => item.id === value)?.label ?? items[0].label}</span>
-      {icon}
       <IconChevronRightOutline14 className="codexModelSelectCellChevron" />
     </button>
   }
   return <>
-    {(fast || ultrafast) && row(SPEED_MODE_FIELD, t('speedTitle'), speedItems, speed,
-      speed !== SPEED_MODE_STANDARD && <BoltIcon className="codexModelSelectBolt" aria-hidden="true" />)}
+    {(fast || ultrafast) && row(SPEED_MODE_FIELD, t('speedTitle'), speedItems, speed)}
     {verbosity && row(OUTPUT_VERBOSITY_FIELD, t('verbosityTitle'), verbosityItems, snapshot.outputVerbosity)}
   </>
 }
