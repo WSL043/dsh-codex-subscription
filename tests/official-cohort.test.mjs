@@ -90,6 +90,7 @@ test('official runtime probe works with a release checkout that has no root node
     await writeFile(join(source, 'docs/plugin/DETAIL.md'), 'Subscription guide')
     await writeFile(join(source, 'scripts/test-groups.mjs'), `export const testFiles=()=>['tests/resolution.test.mjs']`)
     await writeFile(join(source, '.github/scripts/test-official-runtime.mjs'), await readFile(new URL('../.github/scripts/test-official-runtime.mjs', import.meta.url)))
+    await writeFile(join(source, '.github/scripts/prepare-official-test-dependencies.mjs'), await readFile(new URL('../.github/scripts/prepare-official-test-dependencies.mjs', import.meta.url)))
     for (const name of TEST_DEPENDENCIES) {
       const dir = join(deps, 'node_modules', name)
       await mkdir(dir, { recursive: true })

@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { testFiles } from '../../scripts/test-groups.mjs'
+import { TEST_DEPENDENCIES } from './prepare-official-test-dependencies.mjs'
 
 const source = fileURLToPath(new URL('../../', import.meta.url))
 const runner = resolve(process.argv[2])
@@ -17,12 +18,12 @@ try {
   for (const name of ['src', 'tests', 'scripts', 'locale', 'docs/plugin', 'package.json', 'cordis.patch.yml']) {
     cpSync(join(source, name), join(probe, name), { recursive: true })
   }
-  // Release checkouts intentionally have no node_modules. Only these test-owned
-  // packages come from the separately materialized, frozen checkout lockfile.
+  // Release checkouts intentionally have no node_modules. Test utilities and
+  // plugin-owned transports use the frozen checkout graph, just as the package does.
   // DSH packages still resolve from the official runner's own cohort.
   mkdirSync(join(probe, 'node_modules'), { recursive: true })
   const manifest = JSON.parse(readFileSync(join(source, 'package.json'), 'utf8'))
-  for (const name of ['fake-indexeddb', 'react']) {
+  for (const name of TEST_DEPENDENCIES) {
     const dependency = realpathSync(join(testDependencies, 'node_modules', name))
     const expected = manifest.dependencies?.[name] ?? manifest.devDependencies?.[name]
     const installed = JSON.parse(readFileSync(join(dependency, 'package.json'), 'utf8'))
