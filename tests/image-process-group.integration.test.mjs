@@ -14,10 +14,10 @@ const plain = value => JSON.parse(JSON.stringify(value))
 
 function loadChatAlgorithms() {
   const source = readFileSync(bundlePath, 'utf8')
-  const marker = 'return module.exports;'
-  assert.equal(source.split(marker).length, 2, 'expected one ModuleLoader factory export return')
+  const factoryReturn = /\breturn\s+module\.exports\s*;?(?=\s*\}\s*\}\s*\)\s*;)/u
+  assert.match(source, factoryReturn, 'expected the ModuleLoader factory export return')
   // Instrument the loaded string only; leave the installed bundle unchanged.
-  const instrumented = source.replace(marker,
+  const instrumented = source.replace(factoryReturn,
     'module.exports.__imageGroupTest = { ChatSnapshotBuilder, processGroupDefinition }; return module.exports;')
   let descriptor
   vm.runInNewContext(instrumented, {
