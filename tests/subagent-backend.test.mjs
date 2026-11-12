@@ -151,6 +151,15 @@ test('backend switches independent tool and restores it without changing fork or
   assert.deepEqual(spawn.fiber.config, { provider: 'spawn' })
   await assert.rejects(switcher.select('codex'), /unavailable/)
 })
+test('modern DSH enables child model selection with the host field and restores prior settings', async () => {
+  const spawn = entry('spawn', { modelSelection: false })
+  const switcher = createSubagentBackendSwitcher({ entries: () => [spawn], prepare: async () => {}, hostVersion: '0.2.2-rc.2' })
+  await switcher.select('codex')
+  assert.deepEqual(spawn.fiber.config, { provider: SUBAGENT_PROVIDER, modelSelection: true, maxDepth: 'provider-managed' })
+  await switcher.dispose()
+  assert.deepEqual(spawn.fiber.config, { provider: 'spawn', modelSelection: false })
+})
+
 test('failed persistence restores tool configuration', async () => {
   const spawn = entry('spawn')
   const switcher = createSubagentBackendSwitcher({ entries: () => [spawn], prepare: async () => {}, persist: async () => { throw Error('disk') } })

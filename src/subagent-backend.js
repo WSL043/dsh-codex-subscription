@@ -1,6 +1,7 @@
 import { mkdir } from 'node:fs/promises'
 import { authenticatedSubagentChild, createSubagentTokens } from './subagent-auth.js'
 import { resolveCodexOAuthProxy } from './oauth-network.js'
+import { compareVersions } from './dsh-compatibility.js'
 
 export const SUBAGENT_BACKEND_FIELD = 'subagentBackend'
 export const SUBAGENT_PROVIDER = 'codex-subscription-subagent'
@@ -114,15 +115,21 @@ export function subagentConfigListener(switcher) {
 }
 
 /** Change only standard independent spawn tools; leave fork/custom tools untouched. */
-export function createSubagentBackendSwitcher({ entries, prepare, persist }) {
+export function createSubagentBackendSwitcher({ entries, prepare, persist, hostVersion }) {
   const originals = new Map()
   let selected = 'dsh'
   let tail = Promise.resolve()
   let disposed = false
   const standard = (entry, config) => entry?.options?.name === '@deepseek-ai/dsh-tool-subagent'
     && config?.provider === 'spawn' && !config.agentOptions && !config.persona && !config.toolFilter
-  const convert = config => ({ ...config, provider: SUBAGENT_PROVIDER, modelSelectionSettings: true, backgroundMode: 'one-shot', maxDepth: 'provider-managed' })
-  const ownedFields = ['provider', 'modelSelectionSettings', 'backgroundMode', 'maxDepth']
+  const modernSelection = hostVersion !== undefined && compareVersions(hostVersion, '0.2.2-alpha.2') >= 0
+  const childRoute = {
+    provider: SUBAGENT_PROVIDER,
+    ...(modernSelection ? { modelSelection: true } : { modelSelectionSettings: true, backgroundMode: 'one-shot' }),
+    maxDepth: 'provider-managed',
+  }
+  const convert = config => ({ ...config, ...childRoute })
+  const ownedFields = Object.keys(childRoute)
   const restore = (current, original) => {
     const result = { ...current }, applied = convert(original)
     for (const key of ownedFields) {

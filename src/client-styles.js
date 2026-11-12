@@ -1,4 +1,7 @@
 export const STYLE = `
+.codexNativeModelOption{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 8px;min-height:32px;color:var(--dsw-alias-label-primary);font-size:13px}
+.codexNativeModelOption>span{display:flex;align-items:center;gap:4px}
+.codexNativeModelOption select{max-width:55%;min-height:24px;padding:0 4px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm);background:var(--dsw-alias-bg-layer-2);color:inherit;font:inherit}
 .codexModelSelect{position:relative;min-width:0}
 .codexModelSelectTrigger{display:flex;align-items:center;gap:4px;min-width:0;max-width:min(360px,45cqw);height:28px;padding:0 4px 0 8px;border:0;border-radius:var(--dsw-radius-sm);outline:0;background:transparent;color:var(--dsw-alias-label-secondary);font-size:13px;font-weight:500;line-height:20px;cursor:pointer}
 .codexModelSelectTrigger:hover:not(:disabled),.codexModelSelectTrigger[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover)}

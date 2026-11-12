@@ -122,6 +122,12 @@ test("an older plugin that already declares the reporter's DSH only gets the out
   assert.ok(comments.some(text => text.includes('dsh-version-check:outdated:2.3.0')))
 })
 
+test('issue #253 accepts an uppercase V prefix in version fields', async () => {
+  const { comments, added } = await run({ labels: ['bug'], body: bugBody('V2.3.0', 'V0.2.0-rc.2') })
+  assert.equal(comments.some(text => text.includes('dsh-version-check:')), false)
+  assert.deepEqual(added, [])
+})
+
 test('a bug without a DSH version asks for it and waits for the reporter', async () => {
   const { comments, added } = await run({ labels: ['bug'], body: bugBody('2.3.0', '_No response_') })
   assert.ok(comments.some(text => text.includes('dsh-version-check:dsh-missing')))

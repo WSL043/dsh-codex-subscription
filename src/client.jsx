@@ -19,7 +19,7 @@ import { createAccountStatusController } from './account-status-controller.js'
 import { NS, CHANNEL, unwrap } from './client-shared.js'
 import { createSubscriptionRpcClient } from './rpc-contract.js'
 import { CodexComposerQuota } from './client-composer-quota.jsx'
-import { CodexModelSelect } from './client-model-select.jsx'
+import { CodexModelSelect, CodexNativeModelOptions } from './client-model-select.jsx'
 import { registerLegacyModelPicker, watchComposerModelPickerConflict } from './client-model-picker-slot.js'
 import { quotaUsageController } from './client-quota.jsx'
 import { VoiceCallButton } from './client-voice-call.jsx'
@@ -142,7 +142,7 @@ export function apply(ctx) {
           try { return (await directory.select(selection))?.ok !== false } catch { return false }
         },
       }
-    }, CodexModelSelect)
+    }, CodexModelSelect, CodexNativeModelOptions)
   }
   if (ctx.get('remote.session') === undefined) installDirectorySlots(ctx)
   else ctx.inject(['remote.session'], installDirectorySlots)

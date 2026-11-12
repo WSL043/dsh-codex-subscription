@@ -2,6 +2,7 @@ import { unwrap } from './rpc-contract.js'
 
 const slot = 'conversation.input.model'
 const nativeLabel = 'conversation.input.model.label'
+const nativeOptions = 'conversation.input.model.options'
 const priority = -1
 const priorityOf = entry => entry.options.priority ?? 0
 
@@ -36,9 +37,10 @@ export function watchComposerModelPickerConflict(manager, remote, update, onRese
   }
 }
 
-export function registerLegacyModelPicker(slots, preference, props, component) {
+export function registerLegacyModelPicker(slots, preference, props, component, optionsComponent) {
   return slots.inject(slot, () => {
     let dispose
+    let disposeOptions
     let disposed = false
     let syncing = false
     const sync = () => {
@@ -50,13 +52,24 @@ export function registerLegacyModelPicker(slots, preference, props, component) {
         const custom = state.composerModelPicker === 'legacy' || (
           state.composerModelPicker === 'auto' && !state.composerModelPickerConflict && others.every(native)
         )
-        if (state.status === 'ready' && custom && !others.some(entry => priorityOf(entry) === priority)) {
+        const standard = others.find(native)
+        const supportsOptions = standard?.children?.[nativeOptions]?.kind === 'list'
+        const enabled = state.status === 'ready' && custom
+        if (enabled && !supportsOptions && !others.some(entry => priorityOf(entry) === priority)) {
           dispose ??= slots.register({ name: slot, priority, inject: props }, component)
         } else {
           dispose?.()
           dispose = undefined
         }
-        preference.setComposerModelPickerActive(Boolean(dispose) && !others.some(entry => priorityOf(entry) < priority))
+        // The native picker owns this child slot. Keep it mounted so Team and
+        // future host options remain available alongside the subscription rows.
+        if (enabled && supportsOptions && optionsComponent && !others.some(entry => priorityOf(entry) < 0)) {
+          disposeOptions ??= slots.register({ name: nativeOptions, id: 'codex-subscription', inject: props }, optionsComponent)
+        } else {
+          disposeOptions?.()
+          disposeOptions = undefined
+        }
+        preference.setComposerModelPickerActive(Boolean(disposeOptions) || Boolean(dispose) && !others.some(entry => priorityOf(entry) < priority))
       } catch (error) {
         // A queued slot notification can run while Cordis is tearing down its owner.
         if (error?.code !== 'INACTIVE_EFFECT') throw error
@@ -70,6 +83,7 @@ export function registerLegacyModelPicker(slots, preference, props, component) {
       unwatch()
       unwatchSlot()
       dispose?.()
+      disposeOptions?.()
       preference.setComposerModelPickerActive(false)
     }
   })

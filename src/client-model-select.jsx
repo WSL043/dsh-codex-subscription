@@ -3,6 +3,40 @@ import { BoltIcon } from '@heroicons/react/16/solid'
 import { IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, Input, useAnchoredPosition, useDismissOnOutsidePointer, usePopover } from './client-primitives.jsx'
 import { effectiveCodexSpeedMode, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, SPEED_MODE_FAST, SPEED_MODE_FIELD, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST, supportsCodexFastMode } from './settings-contract.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
+export function CodexNativeModelOptions({ locked, directory, preference, t, reportFailure }) {
+  const { current } = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
+  const snapshot = usePreferenceSnapshot(preference)
+  if (current?.provider !== 'openai-codex') return null
+  const fast = snapshot.fastModels?.includes(current.model) ?? supportsCodexFastMode(current.model)
+  const ultrafast = snapshot.ultrafastModels?.includes(current.model) ?? false
+  const verbosity = snapshot.verbosityModels.includes(current.model)
+  const speed = effectiveCodexSpeedMode(snapshot.speedMode, current.model, { supportsFast: fast, supportsUltrafast: ultrafast })
+  const disabled = locked || snapshot.status !== 'ready' || !snapshot.writable || snapshot.saving
+  const change = async (field, value) => {
+    await preference.set({ [field]: value })
+    if (preference.getSnapshot().error) reportFailure(t('preferenceFailed'))
+  }
+  return <>
+    {(fast || ultrafast) && <label className="codexNativeModelOption">
+      <span>{speed !== SPEED_MODE_STANDARD && <BoltIcon className="codexModelSelectBolt" aria-hidden="true" />}{t('speedTitle')}</span>
+      <select value={speed} disabled={disabled} onChange={event => { void change(SPEED_MODE_FIELD, event.target.value) }}>
+        <option value={SPEED_MODE_STANDARD}>{t('speedStandard')}</option>
+        {fast && <option value={SPEED_MODE_FAST}>{t('speedFast')}</option>}
+        {ultrafast && <option value={SPEED_MODE_ULTRAFAST}>{t('speedUltrafast')}</option>}
+      </select>
+    </label>}
+    {verbosity && <label className="codexNativeModelOption">
+      <span>{t('verbosityTitle')}</span>
+      <select value={snapshot.outputVerbosity} disabled={disabled} onChange={event => { void change(OUTPUT_VERBOSITY_FIELD, event.target.value) }}>
+        <option value={OUTPUT_VERBOSITY_DEFAULT}>{t('verbosityDefault')}</option>
+        <option value={OUTPUT_VERBOSITY_LOW}>{t('verbosityLow')}</option>
+        <option value={OUTPUT_VERBOSITY_MEDIUM}>{t('verbosityMedium')}</option>
+        <option value={OUTPUT_VERBOSITY_HIGH}>{t('verbosityHigh')}</option>
+      </select>
+    </label>}
+  </>
+}
+
 export function CodexModelSelect({ locked, available, directory, load, select, preference, t }) {
   const state = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
   const preferenceSnapshot = usePreferenceSnapshot(preference)

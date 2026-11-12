@@ -169,6 +169,44 @@ test('auto preserves third-party pickers and restores the speed menu when they u
   } finally { dispose(); preference.dispose() }
 })
 
+test('the subscription extends the rc.2 model menu without shadowing Team or a third-party picker', () => {
+  const menu = 'conversation.input.model', options = menu + '.options'
+  const core = new SlotCore()
+  const native = named('native'), legacy = named('legacy'), extra = named('extra'), team = named('team'), external = named('external')
+  core.register({ name: 'root', children: { [menu]: { kind: 'single', scope: 'session' } } }, named('composer'))
+  core.register({ name: menu, children: {
+    [menu + '.label']: { kind: 'single', scope: 'session', inline: true },
+    [options]: { kind: 'list', scope: 'session' },
+  } }, native)
+  core.register({ name: options, id: 'agent-team' }, team)
+  let state = { status: 'ready', composerModelPicker: 'auto' }, active, sync
+  const preference = { getSnapshot: () => state, subscribe: fn => { sync = fn; return () => {} }, setComposerModelPickerActive: value => { active = value } }
+  const dispose = registerLegacyModelPicker({
+    inject: (_key, install) => install(),
+    entries: key => core.entries(key),
+    subscribe: (key, callback) => core.subscribe(key, callback),
+    register: (config, component) => core.register(config, component),
+  }, preference, () => ({}), legacy, extra)
+  try {
+    assert.equal(core.entriesOfSlot(menu)[0].component, native)
+    assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [team, extra])
+    assert.equal(active, true)
+    const unregister = core.register({ name: menu, priority: -10 }, external)
+    sync()
+    assert.equal(core.entriesOfSlot(menu)[0].component, external)
+    assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [team])
+    unregister()
+    state = { ...state, composerModelPicker: 'dsh' }
+    sync()
+    assert.equal(active, false)
+    assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [team])
+    state = { ...state, composerModelPicker: 'legacy' }
+    sync()
+    assert.equal(core.entriesOfSlot(menu)[0].component, native)
+    assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [team, extra])
+  } finally { dispose() }
+})
+
 test('the classic picker toggles supported speed inside the model menu and shows its bolt', async () => {
   const snapshot = { status: 'ready', writable: true, disabledModels: [], fastModels: ['gpt-6.1-sol'], ultrafastModels: [], verbosityModels: [], speedMode: 'standard', composerSpeedBadge: 'off' }
   const pref = { set: async patch => { Object.assign(snapshot, patch) } }

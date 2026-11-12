@@ -385,6 +385,7 @@ export function apply(ctx, config = {}) {
     scoped.subagents.registerProvider(instance.provider)
     const switcher = createSubagentBackendSwitcher({
       entries: () => [...scoped.loader.entries(), ...presetEntries(scoped)], prepare: instance.prepare,
+      hostVersion: hostDshVersion(),
       persist: mode => settings.update({ subagentBackend: mode }),
     })
     // Web presets mount their scoped tool rows lazily, after the settings page.
