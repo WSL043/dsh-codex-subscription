@@ -80,12 +80,20 @@ export function useAnchoredPosition({ open, anchorRef, panelRef, side = 'bottom'
 export function useDismissOnOutsidePointer(anchor, open, dismiss, panel) {
   useEffect(() => {
     if (!open) return
-    const doc = anchor.current?.ownerDocument
+    const doc = anchor.current?.ownerDocument ?? panel.current?.ownerDocument
     const outside = event => {
       if (!anchor.current?.contains(event.target) && !panel.current?.contains(event.target)) dismiss()
     }
-    doc?.addEventListener('pointerdown', outside)
-    return () => doc?.removeEventListener('pointerdown', outside)
+    doc?.addEventListener('pointerdown', outside, true)
+    doc?.addEventListener('focusin', outside, true)
+    doc?.defaultView?.addEventListener('blur', dismiss)
+    doc?.defaultView?.addEventListener('resize', dismiss)
+    return () => {
+      doc?.removeEventListener('pointerdown', outside, true)
+      doc?.removeEventListener('focusin', outside, true)
+      doc?.defaultView?.removeEventListener('blur', dismiss)
+      doc?.defaultView?.removeEventListener('resize', dismiss)
+    }
   }, [anchor, open, dismiss, panel])
 }
 

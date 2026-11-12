@@ -124,10 +124,14 @@ function ModelOptionChoices({ request, close }) {
   const onKeyDown = event => {
     const { key } = event
     if (!['Escape', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Tab'].includes(key)) return
+    if (key === 'Tab' && !event.shiftKey) {
+      close()
+      if (request.trigger.isConnected) request.trigger.focus()
+      return
+    }
     event.preventDefault()
     event.stopPropagation()
     if (key === 'Escape' || key === 'ArrowLeft' || key === 'Tab' && event.shiftKey) { returnToMenu(); return }
-    if (key === 'Tab') { event.target.click(); return }
     const choices = [...panel.current.children]
     const index = choices.indexOf(event.target)
     const next = key === 'Home' ? 0 : key === 'End' ? choices.length - 1

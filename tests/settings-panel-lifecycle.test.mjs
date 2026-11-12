@@ -67,7 +67,7 @@ async function component(file, name, props, additions = {}, invoke = (fn, value)
   }
   const hooks = { useState: state, useRef(initial) { const index = cursor++; return cells[index] ??= { current: initial } },
     useMemo: factory => factory(), useSyncExternalStore: (_subscribe, getSnapshot) => getSnapshot(),
-    useEffect: effect, useLayoutEffect: effect, useId: () => fixtureId }
+    useEffect: effect, useLayoutEffect: effect, useId: () => fixtureId, forwardRef: fn => fn }
   const shared = { useAccountStatusSnapshot: () => ({ status: 'ready', account: { authenticated: true } }),
     usePreferenceSnapshot: () => ({}), uiLocale: () => 'en-US', fill: value => value, percent: String, windowLabel: String, validDate }
   const dependencies = { react: hooks, 'react/jsx-runtime': { jsx: element, jsxs: element },
@@ -96,6 +96,30 @@ async function component(file, name, props, additions = {}, invoke = (fn, value)
   return { render, get tree() { return tree }, get props() { return currentProps }, window, document,
     dispose() { for (const cell of cells) cell?.cleanup?.() } }
 }
+
+test('detached model choices dismiss outside without an anchor and clean up their listener', async () => {
+  const listeners = new Map(), windowListeners = new Map()
+  const doc = { addEventListener(type, fn, capture) { assert.equal(capture, true); listeners.set(type, fn) },
+    removeEventListener(type, fn, capture) { assert.equal(capture, true); assert.equal(listeners.get(type), fn); listeners.delete(type) },
+    defaultView: { addEventListener(type, fn) { windowListeners.set(type, fn) }, removeEventListener(type, fn) { assert.equal(windowListeners.get(type), fn); windowListeners.delete(type) } } }
+  const inside = {}, outside = {}
+  let dismissed = 0
+  const props = { anchor: { current: null }, panel: { current: { ownerDocument: doc, contains: node => node === inside } },
+    open: true, dismiss: () => dismissed++ }
+  const host = await component('client-primitives.jsx', 'useDismissOnOutsidePointer', props, {},
+    (fn, p) => fn(p.anchor, p.open, p.dismiss, p.panel))
+  assert.equal(listeners.size, 2)
+  for (const fn of listeners.values()) fn({ target: inside })
+  assert.equal(dismissed, 0)
+  for (const fn of listeners.values()) fn({ target: outside })
+  assert.equal(dismissed, 2)
+  for (const fn of windowListeners.values()) fn()
+  assert.equal(dismissed, 4)
+  host.render({ open: false })
+  assert.equal(listeners.size, 0)
+  assert.equal(windowListeners.size, 0)
+  host.dispose()
+})
 
 test('project action belongs only to this bundle and the native button opens its declared homepage', async () => {
   const t = key => key
@@ -189,12 +213,12 @@ test('the subscription extends the rc.2 model menu without shadowing Team or a t
   }, preference, () => ({}), legacy, extra)
   try {
     assert.equal(core.entriesOfSlot(menu)[0].component, native)
-    assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [team, extra])
+    assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [extra, team])
     assert.equal(active, true)
     state = { ...state, composerModelPickerConflict: true }
     sync()
     assert.equal(core.entriesOfSlot(menu)[0].component, native)
-    assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [team, extra])
+    assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [extra, team])
     assert.equal(active, true, 'modern extension capability does not depend on a plugin name')
     state = { ...state, composerModelPickerConflict: false }
     const unregister = core.register({ name: menu, priority: -10 }, external)
@@ -209,7 +233,7 @@ test('the subscription extends the rc.2 model menu without shadowing Team or a t
     state = { ...state, composerModelPicker: 'legacy' }
     sync()
     assert.equal(core.entriesOfSlot(menu)[0].component, native)
-    assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [team, extra])
+    assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [extra, team])
   } finally { dispose() }
 })
 
@@ -265,7 +289,7 @@ test('a third-party owner can expose standard options; labels yield without repl
   }, preference, () => ({}), legacy, extra, bolt, () => { throw Error('modern owners must not inspect plugin identities') })
   try {
     assert.deepEqual(core.entries(menu).map(e => e.component), [owner])
-    assert.deepEqual(core.entries(options).map(e => e.component), [team, extra])
+    assert.deepEqual(core.entries(options).map(e => e.component), [extra, team])
     assert.equal(core.entries(label)[0].component, bolt)
     const removeOther = core.register({ name: label }, otherLabel)
     await flush()

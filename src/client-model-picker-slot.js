@@ -71,7 +71,7 @@ export function registerLegacyModelPicker(slots, preference, props, component, o
         // future host options remain available alongside the subscription rows.
         const nativeOptionsEnabled = state.status === 'ready' && state.composerModelPicker !== 'dsh'
         if (nativeOptionsEnabled && supportsOptions && optionsComponent) {
-          disposeOptions ??= slots.register({ name: nativeOptions, id: 'codex-subscription', inject: props }, optionsComponent)
+          disposeOptions ??= slots.register({ name: nativeOptions, id: 'codex-subscription', priority: -1, inject: props }, optionsComponent)
         } else {
           disposeOptions?.()
           disposeOptions = undefined
