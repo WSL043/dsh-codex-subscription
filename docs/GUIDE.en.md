@@ -223,7 +223,7 @@ This uses configuration updates documented in OpenAI's [reasoning guide](https:/
 
 For an advanced network setup, set `DSH_CODEX_SSE_PROXY` to a trusted HTTP or HTTPS CONNECT proxy, such as `http://127.0.0.1:8787`, in the environment that launches DSH. Restart DSH after changing it. When set, it takes precedence over the general proxy and `NO_PROXY` for Codex model SSE. An invalid or unreachable proxy fails the affected request.
 
-Sign-in, usage, phone remote control, and WebSocket keep their existing routes. Leave the variable unset to use the existing proxy policy for model SSE as well. If a local proxy inspects TLS, configure its CA using the proxy’s instructions.
+Sign-in, usage, phone remote control, and WebSocket keep their existing routes. Normally leave the variable unset: model SSE follows the host/SDK fetch middleware, with the ordinary proxy applied below fetch. A middleware's local handoff is not sent through the external proxy. If that middleware forwards through another process, that process owns its upstream proxy settings; a successful local handoff does not prove which upstream exit it used. The explicit variable selects a dedicated transport instead of this normal fetch chain. If a local proxy inspects TLS, configure its CA using the proxy’s instructions.
 
 
 ### Advanced experiments

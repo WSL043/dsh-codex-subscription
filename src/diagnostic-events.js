@@ -3,7 +3,7 @@ import { MODEL_OUTCOMES, safeAttempt } from './model-attempt.js'
 const areas = new Set(['login', 'oauth', 'model', 'catalog', 'quota', 'quota-reset', 'search', 'image', 'voice', 'remote', 'connectors', 'predictions'])
 export const isNetworkDiagnosticArea = area => areas.has(area)
 const codes = new Set(['timeout', 'dns', 'tls', 'connection', 'network', 'http-error'])
-const routes = new Set(['direct', 'environment', 'system', 'bypass', 'proxy', 'model-proxy', 'unknown'])
+const routes = new Set(['host', 'direct', 'environment', 'system', 'bypass', 'proxy', 'model-proxy', 'unknown'])
 const elapsedBuckets = new Set(['under-1s', '1-5s', '5-15s', 'over-15s'])
 
 export const safeNetworkTiming = ({ route, elapsed }) => ({

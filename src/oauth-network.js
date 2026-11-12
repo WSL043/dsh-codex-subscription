@@ -8,6 +8,7 @@ import { promisify } from 'node:util'
 
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import WebSocket from 'ws'
+import { getGlobalDispatcher, ProxyAgent } from 'undici'
 
 const execFileAsync = promisify(execFile)
 const CODEX_AUTH_HOST = 'auth.openai.com'
@@ -226,12 +227,38 @@ async function fetchInCodexScope(scope, fetchBeforeScope, input, init) {
     }
     route = await proxy
   }
-  scopedOptions.onRoute?.(route.source)
+  const hostModelFetch = scopedOptions.requestFetch && target.origin === `https://${CODEX_SUBSCRIPTION_HOST}`
+    && target.pathname === CODEX_MODEL_SSE_PATH && !dedicatedProxy
+  scopedOptions.onRoute?.(hostModelFetch ? 'host' : route.source)
   try { scopedOptions.onTransport?.('sse') } catch {}
   let response
   try {
     if (dedicatedProxy && !route.url) throw new TypeError('Invalid DSH_CODEX_SSE_PROXY. Use an HTTP or HTTPS CONNECT proxy.')
-    response = await (route.url === undefined && !scopedOptions.standardHttps ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url, dedicatedProxy ? { ca: scopedOptions.modelSseCa } : {}))
+    if (hostModelFetch) {
+      // Keep the host's fetch middleware in the chain. Proxy selection belongs
+      // below fetch, not in a competing HTTP implementation ahead of it.
+      if (!route.url || init?.dispatcher) response = await fetchBeforeScope(input, init)
+      else {
+        const proxy = new ProxyAgent(route.url)
+        const signal = init?.signal ?? input?.signal
+        const abort = () => { void proxy.destroy(signal.reason).catch(() => {}) }
+        signal?.addEventListener('abort', abort, { once: true })
+        if (signal?.aborted) abort()
+        const fallback = getGlobalDispatcher()
+        const dispatcher = { dispatch(options, handler) {
+          // A middleware may hand the request to a local service. Do not send
+          // that service through the external proxy or claim its upstream route.
+          if (String(options.origin) !== target.origin) return fallback.dispatch(options, handler)
+          scopedOptions.onRoute?.(route.source)
+          return proxy.dispatch(options, handler)
+        } }
+        try { response = await fetchBeforeScope(input, { ...init, dispatcher }) }
+        finally {
+          signal?.removeEventListener('abort', abort)
+          void proxy.close().catch(() => {})
+        }
+      }
+    } else response = await (route.url === undefined && !scopedOptions.standardHttps ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url, dedicatedProxy ? { ca: scopedOptions.modelSseCa } : {}))
   } catch (error) {
     // Observe before SDK normalization discards Error.cause; diagnostics must
     // not change the original rejection or initiate another request.
@@ -242,8 +269,8 @@ async function fetchInCodexScope(scope, fetchBeforeScope, input, init) {
 }
 
 export async function withCodexNetwork(run, options = {}) {
-  // Model SSE supports a request-local fetch. This keeps proxy policy ahead
-  // of the Host's global middleware and still lets it handle direct calls.
+  // Model SSE decorates the host's fetch per request, without installing a
+  // global wrapper or bypassing middleware for ordinary proxy settings.
   const requestFetch = options.requestFetch
   const fetchBeforeScope = baseFetch ?? globalThis.fetch
   if (options.websocket && activeWebSocketScopes === 0) {
@@ -341,11 +368,9 @@ export function createCodexNetworkTransport(options = {}) {
       const scoped = { ...options, ...connection }
       const modelRequest = area === 'model' && connection.requestFetch === true
       const explicitProxy = modelRequest ? (scoped.env ?? process.env)[MODEL_SSE_PROXY_ENV]?.trim() : undefined
-      const coordinated = modelRequest && !explicitProxy ? scoped.resolveModelSseProxy?.() : undefined
       const value = await withCodexNetwork(operation, {
         ...scoped,
-        modelSseProxy: explicitProxy || coordinated?.proxy,
-        modelSseCa: coordinated?.ca,
+        modelSseProxy: explicitProxy,
         onRoute: source => { route = source; routed = true; connection.onRoute?.(source) },
         transformResponse(response, target) {
           if (connection.observeHttpFailure && !response.ok) rejectedStatus = response.status

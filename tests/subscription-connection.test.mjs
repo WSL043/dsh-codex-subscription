@@ -50,13 +50,14 @@ test('a rejected WebSocket proxy CONNECT falls back through the existing SSE rou
   server.on('connect', (_request, socket) => { connects++; socket.end('HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n') })
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
   const proxy = `http://127.0.0.1:${server.address().port}`
-  const originalWebSocket = globalThis.WebSocket, originalEnv = process.env.HTTPS_PROXY
+  const originalWebSocket = globalThis.WebSocket, originalEnv = process.env.HTTPS_PROXY, originalFetch = globalThis.fetch
   const connection = createSubscriptionConnection({ resolveMode: () => 'websocket', resolveProxy: async () => proxy })
-  const network = createCodexNetworkTransport({ env: { HTTPS_PROXY: proxy }, fetchThroughProxy: async (_input, _init, route) => {
-    assert.equal(route, `${proxy}/`)
+  const network = createCodexNetworkTransport({ env: { HTTPS_PROXY: proxy } })
+  globalThis.fetch = async (_input, init) => {
+    assert.equal(typeof init.dispatcher.dispatch, 'function')
     fetches++
     return new Response('data: {"type":"response.created","response":{"id":"fallback"}}\n\ndata: {"type":"response.done","response":{"id":"fallback","status":"completed","output":[],"usage":{"input_tokens":1,"output_tokens":0,"total_tokens":1}}}\n\n', { headers: { 'content-type': 'text/event-stream' } })
-  } })
+  }
   const provider = openaiCodexSubscriptionProvider({ connection, runNetwork: network.run })
   const apiKey = `e30.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture' } })).toString('base64url')}.fake`
   try {
@@ -72,7 +73,7 @@ test('a rejected WebSocket proxy CONNECT falls back through the existing SSE rou
     assert.doesNotMatch(JSON.stringify(connection.snapshot()), /fixture|proxy-failure|responseId|Error/)
     assert.equal(globalThis.WebSocket, originalWebSocket)
     assert.equal(process.env.HTTPS_PROXY, originalEnv)
-  } finally { connection.dispose(); await new Promise(resolve => server.close(resolve)) }
+  } finally { globalThis.fetch = originalFetch; connection.dispose(); await new Promise(resolve => server.close(resolve)) }
 })
 
 for (const closeCode of [1006, 1000]) test(`close ${closeCode} after response acceptance reaches DSH as TRANSPORT without SSE replay`, async () => {

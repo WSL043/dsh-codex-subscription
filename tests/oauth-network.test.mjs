@@ -26,13 +26,13 @@ test('voice standard HTTPS honors direct and NO_PROXY routing without changing m
   } finally { globalThis.fetch = original }
 })
 
-test('model SSE honors an explicit proxy while preserving host interception on direct calls', async () => {
+test('model SSE preserves host interception with a general proxy and reserves bypass for its dedicated override', async () => {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'fetch')
   const url = 'https://chatgpt.com/backend-api/codex/responses'
   const response = () => new Response('data: {"type":"response.created","response":{"id":"fixture"}}\n\ndata: {"type":"response.done","response":{"id":"fixture","status":"completed","output":[],"usage":{"input_tokens":1,"output_tokens":0,"total_tokens":1}}}\n\n')
   const direct = [], proxied = []
   let assignments = 0
-  const intercept = async input => { direct.push(String(input)); return response() }
+  const intercept = async (input, init) => { direct.push({ url: String(input), dispatcher: !!init?.dispatcher }); return response() }
   Object.defineProperty(globalThis, 'fetch', {
     configurable: true, get: () => intercept, set: () => { assignments++ },
   })
@@ -52,16 +52,16 @@ test('model SSE honors an explicit proxy while preserving host interception on d
   }
   try {
     await complete()
-    assert.deepEqual(proxied, [[url, 'http://127.0.0.1:7890/']])
-    assert.deepEqual(direct, [])
+    assert.deepEqual(proxied, [])
+    assert.deepEqual(direct, [{ url, dispatcher: true }])
     env.NO_PROXY = 'chatgpt.com'
     await complete()
-    assert.deepEqual(direct, [url])
-    assert.equal(proxied.length, 1)
+    assert.deepEqual(direct, [{ url, dispatcher: true }, { url, dispatcher: false }])
+    assert.equal(proxied.length, 0)
     env.DSH_CODEX_SSE_PROXY = 'http://127.0.0.1:7891'
     await complete()
     assert.deepEqual(proxied.at(-1), [url, 'http://127.0.0.1:7891/'])
-    assert.equal(direct.length, 1)
+    assert.equal(direct.length, 2)
     assert.equal(transport.snapshot().model.route, 'model-proxy')
     assert.equal(assignments, 0)
   } finally { Object.defineProperty(globalThis, 'fetch', descriptor) }
@@ -379,4 +379,59 @@ test('cancelling OAuth also closes a silent proxy CONNECT socket', { timeout: 30
   await assert.rejects(refresh, { name: 'AbortError' })
   await closed.promise
   assert.equal(network.snapshot().oauth, undefined)
+})
+
+
+test('host fetch uses the configured CONNECT proxy without changing global fetch', { timeout: 3000 }, async t => {
+  const accepted = Promise.withResolvers(), closed = Promise.withResolvers()
+  const proxy = createServer(); let socket, count = 0
+  proxy.on('connect', (request, client) => {
+    socket = client; count++
+    client.on('error', () => {}); client.on('end', () => client.end()); client.once('close', closed.resolve)
+    client.resume(); accepted.resolve(request.url)
+  })
+  await new Promise(resolve => proxy.listen(0, '127.0.0.1', resolve))
+  t.after(async () => { socket?.destroy(); await new Promise(resolve => proxy.close(resolve)) })
+  const original = globalThis.fetch, controller = new AbortController()
+  const network = createCodexNetworkTransport({ env: { HTTPS_PROXY: `http://127.0.0.1:${proxy.address().port}` } })
+  let intercepted = 0
+  const result = network.run('model', fetch => fetch('https://chatgpt.com/backend-api/codex/responses', { method: 'POST', body: '{}', signal: controller.signal }), {
+    requestFetch: true, fallbackFetch: (input, init) => { intercepted++; return original(input, init) },
+  })
+  assert.equal(await accepted.promise, 'chatgpt.com:443')
+  controller.abort()
+  await assert.rejects(result, { name: 'AbortError' })
+  await closed.promise
+  assert.equal(count, 1); assert.equal(intercepted, 1); assert.equal(globalThis.fetch, original)
+})
+
+test('middleware endpoint migration remains local and preserves checkpoint bodies and response transforms', async t => {
+  const servers = [0, 1].map(index => createServer((req, res) => { let body = ''; req.on('data', b => body += b); req.on('end', () => res.end(index + ':' + body)) }))
+  for (const server of servers) {
+    await new Promise(resolve => server.listen(0, '127.0.0.1', resolve))
+    t.after(() => new Promise(resolve => { server.closeAllConnections(); server.close(resolve) }))
+  }
+  const network = createCodexNetworkTransport({ env: { HTTPS_PROXY: 'http://127.0.0.1:1' } })
+  const original = globalThis.fetch, routes = []
+  let endpoint = 0
+  const run = () => network.run('model', fetch => fetch('https://chatgpt.com/backend-api/codex/responses', { method: 'POST', body: 'checkpoint-preserved' }), {
+    requestFetch: true,
+    fallbackFetch: (_input, init) => original(`http://127.0.0.1:${servers[endpoint].address().port}`, init),
+    onRoute: route => routes.push(route),
+    transformResponse: async response => new Response('observed:' + await response.text()),
+  })
+  assert.equal(await (await run()).text(), 'observed:0:checkpoint-preserved')
+  endpoint = 1
+  assert.equal(await (await run()).text(), 'observed:1:checkpoint-preserved')
+  assert.deepEqual(routes, ['host', 'host'])
+})
+
+test('a host middleware failure is not bypassed or replayed', async () => {
+  const failure = new Error('middleware unavailable')
+  let calls = 0
+  const network = createCodexNetworkTransport({ env: { HTTPS_PROXY: 'http://127.0.0.1:1' }, fetchThroughProxy: () => assert.fail('must not bypass host') })
+  await assert.rejects(network.run('model', fetch => fetch('https://chatgpt.com/backend-api/codex/responses'), {
+    requestFetch: true, fallbackFetch: () => { calls++; throw failure },
+  }), error => error === failure)
+  assert.equal(calls, 1)
 })

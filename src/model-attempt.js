@@ -3,7 +3,7 @@ import { safeFetchFailure } from './transport-failure.js'
 
 const transports = new Set(['sse', 'websocket'])
 const choices = new Set(['sse', 'websocket', 'websocket-cached', 'auto', 'unknown'])
-const routes = new Set(['direct', 'environment', 'system', 'bypass', 'proxy', 'model-proxy', 'unknown'])
+const routes = new Set(['host', 'direct', 'environment', 'system', 'bypass', 'proxy', 'model-proxy', 'unknown'])
 const phases = new Set(['prepare', 'request', 'payload', 'stream'])
 const elapsedBuckets = new Set(['under-1s', '1-5s', '5-15s', 'over-15s'])
 export const MODEL_OUTCOMES = new Set(['ok', 'failed', 'cancelled', 'abandoned'])

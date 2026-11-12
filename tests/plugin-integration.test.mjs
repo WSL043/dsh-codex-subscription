@@ -466,7 +466,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.equal(host.handled[0].path, '/api/codex-subscription/status')
   assert.ok(host.handled.every(route => route.methods.length === 1 && route.methods[0] === 'POST'))
   assert.equal(host.settings.length, 1)
-  assert.deepEqual([...host.provided.keys()], ['codexModelSseProxy'], 'only the documented model transport coordination service is published')
+  assert.deepEqual([...host.provided.keys()], [], 'transport follows the host fetch chain without a parallel coordination service')
   assert.equal('CodexCacheTelemetry' in plugin, false, 'cache diagnostics are outside the subscription route boundary')
 
   const signal = new AbortController().signal
