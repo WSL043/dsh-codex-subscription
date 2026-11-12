@@ -19,7 +19,7 @@ import { createAccountStatusController } from './account-status-controller.js'
 import { NS, CHANNEL, unwrap } from './client-shared.js'
 import { createSubscriptionRpcClient } from './rpc-contract.js'
 import { CodexComposerQuota } from './client-composer-quota.jsx'
-import { CodexModelSelect, CodexNativeModelOptions } from './client-model-select.jsx'
+import { CodexModelOptionsOverlay, CodexModelSelect, CodexNativeModelOptions, createModelOptionsMenu } from './client-model-select.jsx'
 import { registerLegacyModelPicker, watchComposerModelPickerConflict } from './client-model-picker-slot.js'
 import { quotaUsageController } from './client-quota.jsx'
 import { VoiceCallButton } from './client-voice-call.jsx'
@@ -96,6 +96,10 @@ export function apply(ctx) {
     }
   }, 'codex-subscription: preferences and account status')
   const t = ctx.locale.bind(NS)
+  const optionsMenu = createModelOptionsMenu()
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay', id: 'codex-subscription-model-options', inject: () => ({ optionsMenu }),
+  }, CodexModelOptionsOverlay))
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'codex-subscription-image-viewer', order: 20,
     inject: () => ({ service: imageViewer, t }),
@@ -135,7 +139,7 @@ export function apply(ctx) {
       const directory = modelDirectories.directoryFor(sessionId)
       const available = sessions.subagentAddress(sessionId) === undefined
       return {
-        available, directory: directory.store, preference, t,
+        available, directory: directory.store, preference, t, optionsMenu,
         load: () => { if (available) void directory.load().catch(() => {}) },
         select: async selection => {
           if (!available) return false

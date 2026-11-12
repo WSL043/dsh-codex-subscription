@@ -166,6 +166,8 @@ Tab 填入后，若未发送就撤销或清空草稿，空输入框会再次显�
 
 在 **设置 → Codex 订阅 → 模型** 中调整速度和输出详略。当前模型支持时，也可在订阅插件的模型菜单内调整。模型菜单默认使用**自动**，其他插件提供模型选择器或启用了 Claude Style 时会让出入口。选择 **DSH 标准**可交由 DSH 或其他插件提供模型菜单。高速模式会优先处理请求，可能消耗更多 Credits。 [OpenAI Codex Speed 文档](https://learn.chatgpt.com/docs/agent-configuration/speed)。
 
+在 DSH 0.2.2-rc.2 中，智能体团队开关位于 DSH 的模型菜单。使用 Claude Style 时，在其设置中只关闭「模型选择器」，即可保留主题并通过 DSH 模型菜单使用智能体团队。
+
 **极速 Ultrafast（Beta）**：只有当前账号的模型目录给某个模型列出 `ultrafast` 档位时（发布会上仅限 Pro 500 的 GPT-6 Astra），速度设置才会提供“极速”。选了极速后，切到不支持它的模型会按标准档发送，不会替你改用 Fast。该档位速度最快，额度和 Credits 消耗也更快。因为还没有在 Pro 500 账号上实机验证，所以标为 Beta。
 
 ### Ultra 主动分工

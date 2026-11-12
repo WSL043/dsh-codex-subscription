@@ -191,6 +191,12 @@ test('the subscription extends the rc.2 model menu without shadowing Team or a t
     assert.equal(core.entriesOfSlot(menu)[0].component, native)
     assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [team, extra])
     assert.equal(active, true)
+    state = { ...state, composerModelPickerConflict: true }
+    sync()
+    assert.equal(core.entriesOfSlot(menu)[0].component, native)
+    assert.deepEqual(core.entriesOfSlot(options).map(entry => entry.component), [team, extra])
+    assert.equal(active, false)
+    state = { ...state, composerModelPickerConflict: false }
     const unregister = core.register({ name: menu, priority: -10 }, external)
     sync()
     assert.equal(core.entriesOfSlot(menu)[0].component, external)

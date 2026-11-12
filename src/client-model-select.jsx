@@ -1,9 +1,25 @@
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { BoltIcon } from '@heroicons/react/16/solid'
 import { IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, Input, useAnchoredPosition, useDismissOnOutsidePointer, usePopover } from './client-primitives.jsx'
 import { effectiveCodexSpeedMode, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, SPEED_MODE_FAST, SPEED_MODE_FIELD, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST, supportsCodexFastMode } from './settings-contract.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
-export function CodexNativeModelOptions({ locked, directory, preference, t, reportFailure }) {
+export function createModelOptionsMenu() {
+  const changes = new EventTarget()
+  let request
+  return {
+    getSnapshot: () => request,
+    subscribe(listener) {
+      changes.addEventListener('change', listener)
+      return () => changes.removeEventListener('change', listener)
+    },
+    set(value) {
+      request = value
+      changes.dispatchEvent(new Event('change'))
+    },
+  }
+}
+
+export function CodexNativeModelOptions({ locked, directory, preference, t, dismiss, reportFailure, optionsMenu }) {
   const { current } = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
   const snapshot = usePreferenceSnapshot(preference)
   if (current?.provider !== 'openai-codex') return null
@@ -13,28 +29,112 @@ export function CodexNativeModelOptions({ locked, directory, preference, t, repo
   const speed = effectiveCodexSpeedMode(snapshot.speedMode, current.model, { supportsFast: fast, supportsUltrafast: ultrafast })
   const disabled = locked || snapshot.status !== 'ready' || !snapshot.writable || snapshot.saving
   const change = async (field, value) => {
+    const model = directory.getSnapshot().current
+    if (model?.provider !== current.provider || model.model !== current.model) return
     await preference.set({ [field]: value })
     if (preference.getSnapshot().error) reportFailure(t('preferenceFailed'))
   }
+  const option = (id, label) => ({ id, label: t(label) })
+  const speedItems = [option(SPEED_MODE_STANDARD, 'speedStandard')]
+  if (fast) speedItems.push(option(SPEED_MODE_FAST, 'speedFast'))
+  if (ultrafast) speedItems.push(option(SPEED_MODE_ULTRAFAST, 'speedUltrafast'))
+  const verbosityItems = [
+    option(OUTPUT_VERBOSITY_DEFAULT, 'verbosityDefault'),
+    option(OUTPUT_VERBOSITY_LOW, 'verbosityLow'),
+    option(OUTPUT_VERBOSITY_MEDIUM, 'verbosityMedium'),
+    option(OUTPUT_VERBOSITY_HIGH, 'verbosityHigh'),
+  ]
+  const row = (field, label, items, value, icon) => {
+    const open = event => {
+      const menu = event.currentTarget.closest('[role="menu"]')
+      if (!menu?.id) return
+      const trigger = [...menu.ownerDocument.querySelectorAll('button[aria-controls]')]
+        .find(button => button.getAttribute('aria-controls') === menu.id)
+      if (!trigger) return
+      const { width, right, bottom } = menu.getBoundingClientRect()
+      const { innerWidth, innerHeight } = menu.ownerDocument.defaultView
+      optionsMenu.set({ field, label, items, value, trigger, width, right: innerWidth - right, bottom: innerHeight - bottom,
+        select: next => { if (next !== value) void change(field, next) } })
+      dismiss()
+    }
+    return <button type="button" role="menuitem" className="codexModelSelectCell" aria-haspopup="menu"
+      data-codex-model-option={field} disabled={disabled} onClick={open} onKeyDown={event => {
+        if (event.key !== 'ArrowRight') return
+        event.preventDefault()
+        event.stopPropagation()
+        open(event)
+      }}>
+      <span className="codexModelSelectCellLabel">{label}</span>
+      <span className="codexModelSelectCellValue">{items.find(item => item.id === value)?.label ?? items[0].label}</span>
+      {icon}
+      <IconChevronRightOutline14 className="codexModelSelectCellChevron" />
+    </button>
+  }
   return <>
-    {(fast || ultrafast) && <label className="codexNativeModelOption">
-      <span>{speed !== SPEED_MODE_STANDARD && <BoltIcon className="codexModelSelectBolt" aria-hidden="true" />}{t('speedTitle')}</span>
-      <select value={speed} disabled={disabled} onChange={event => { void change(SPEED_MODE_FIELD, event.target.value) }}>
-        <option value={SPEED_MODE_STANDARD}>{t('speedStandard')}</option>
-        {fast && <option value={SPEED_MODE_FAST}>{t('speedFast')}</option>}
-        {ultrafast && <option value={SPEED_MODE_ULTRAFAST}>{t('speedUltrafast')}</option>}
-      </select>
-    </label>}
-    {verbosity && <label className="codexNativeModelOption">
-      <span>{t('verbosityTitle')}</span>
-      <select value={snapshot.outputVerbosity} disabled={disabled} onChange={event => { void change(OUTPUT_VERBOSITY_FIELD, event.target.value) }}>
-        <option value={OUTPUT_VERBOSITY_DEFAULT}>{t('verbosityDefault')}</option>
-        <option value={OUTPUT_VERBOSITY_LOW}>{t('verbosityLow')}</option>
-        <option value={OUTPUT_VERBOSITY_MEDIUM}>{t('verbosityMedium')}</option>
-        <option value={OUTPUT_VERBOSITY_HIGH}>{t('verbosityHigh')}</option>
-      </select>
-    </label>}
+    {(fast || ultrafast) && row(SPEED_MODE_FIELD, t('speedTitle'), speedItems, speed,
+      speed !== SPEED_MODE_STANDARD && <BoltIcon className="codexModelSelectBolt" aria-hidden="true" />)}
+    {verbosity && row(OUTPUT_VERBOSITY_FIELD, t('verbosityTitle'), verbosityItems, snapshot.outputVerbosity)}
   </>
+}
+
+export function CodexModelOptionsOverlay({ optionsMenu }) {
+  const request = useSyncExternalStore(optionsMenu.subscribe, optionsMenu.getSnapshot)
+  return request ? <ModelOptionChoices key={request.field} request={request} close={() => optionsMenu.set(undefined)} /> : null
+}
+
+function ModelOptionChoices({ request, close }) {
+  const panel = useRef(null)
+  const outside = useRef(null)
+  usePopover(panel, true)
+  useDismissOnOutsidePointer(outside, true, close, panel)
+  useLayoutEffect(() => {
+    const menu = panel.current
+    const selected = menu.querySelector('[aria-checked="true"]') ?? menu.firstElementChild
+    selected?.focus()
+  }, [])
+  const returnToMenu = () => {
+    close()
+    if (!request.trigger.isConnected) return
+    request.trigger.click()
+    requestAnimationFrame(() => {
+      const menu = request.trigger.ownerDocument.getElementById(request.trigger.getAttribute('aria-controls'))
+      menu?.querySelector(`[data-codex-model-option="${request.field}"]`)?.focus()
+    })
+  }
+  const select = value => {
+    close()
+    if (request.trigger.isConnected) {
+      request.trigger.focus()
+      request.select(value)
+    }
+  }
+  const onKeyDown = event => {
+    const { key } = event
+    if (!['Escape', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Tab'].includes(key)) return
+    event.preventDefault()
+    event.stopPropagation()
+    if (key === 'Escape' || key === 'ArrowLeft' || key === 'Tab' && event.shiftKey) { returnToMenu(); return }
+    if (key === 'Tab') { event.target.click(); return }
+    const choices = [...panel.current.children]
+    const index = choices.indexOf(event.target)
+    const next = key === 'Home' ? 0 : key === 'End' ? choices.length - 1
+      : (index + (key === 'ArrowDown' ? 1 : choices.length - 1)) % choices.length
+    choices[next]?.focus()
+  }
+  return <div ref={panel} popover="manual" className="codexModelSelectMenu codexModelOptionsMenu" role="menu" aria-label={request.label}
+    style={{
+      right: `min(${request.right}px, max(12px, calc(100vw - ${request.width + 12}px)))`,
+      bottom: `min(${request.bottom}px, max(12px, calc(100dvh - 240px)))`,
+      maxHeight: `min(360px, calc(100dvh - ${request.bottom + 12}px))`,
+      minWidth: 0,
+      width: request.width,
+    }} onKeyDown={onKeyDown}>
+    {request.items.map(item => <button key={item.id} type="button" role="menuitemradio" className="codexModelSelectOption"
+      aria-checked={item.id === request.value} onClick={() => select(item.id)}>
+      <span className="codexModelSelectOptionCopy"><span className="codexModelSelectOptionName">{item.label}</span></span>
+      <span className="codexModelSelectCheck">{item.id === request.value && <IconCheckOutline16 />}</span>
+    </button>)}
+  </div>
 }
 
 export function CodexModelSelect({ locked, available, directory, load, select, preference, t }) {

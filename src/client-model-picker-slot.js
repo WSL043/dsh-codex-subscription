@@ -63,13 +63,15 @@ export function registerLegacyModelPicker(slots, preference, props, component, o
         }
         // The native picker owns this child slot. Keep it mounted so Team and
         // future host options remain available alongside the subscription rows.
-        if (enabled && supportsOptions && optionsComponent && !others.some(entry => priorityOf(entry) < 0)) {
+        const nativeOptionsEnabled = state.status === 'ready' && state.composerModelPicker !== 'dsh'
+          && (state.composerModelPicker === 'legacy' || others.every(native))
+        if (nativeOptionsEnabled && supportsOptions && optionsComponent && !others.some(entry => priorityOf(entry) < 0)) {
           disposeOptions ??= slots.register({ name: nativeOptions, id: 'codex-subscription', inject: props }, optionsComponent)
         } else {
           disposeOptions?.()
           disposeOptions = undefined
         }
-        preference.setComposerModelPickerActive(Boolean(disposeOptions) || Boolean(dispose) && !others.some(entry => priorityOf(entry) < priority))
+        preference.setComposerModelPickerActive(Boolean(disposeOptions) && custom || Boolean(dispose) && !others.some(entry => priorityOf(entry) < priority))
       } catch (error) {
         // A queued slot notification can run while Cordis is tearing down its owner.
         if (error?.code !== 'INACTIVE_EFFECT') throw error

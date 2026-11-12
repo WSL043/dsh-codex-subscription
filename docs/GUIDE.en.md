@@ -168,6 +168,8 @@ If you undo or clear an accepted draft without sending, the empty composer shows
 
 Choose speed and output verbosity under **Settings → Codex subscription → Models**. You can also adjust them in the subscription model menu when the selected model supports them. The default **Auto** menu mode yields to another picker or Claude Style. Choose **DSH standard** to give control of the picker to DSH or another plugin. Fast mode prioritizes requests and can use more Credits. [OpenAI Codex Speed documentation](https://learn.chatgpt.com/docs/agent-configuration/speed).
 
+On DSH 0.2.2-rc.2, Agent Teams is part of the DSH model menu. To use it with Claude Style, turn off only **Model picker** in Claude Style settings. The theme stays active and the DSH model menu provides the Agent Teams switch.
+
 **Ultrafast (Beta).** The speed setting offers “Ultrafast” only when the current account's catalog lists an `ultrafast` tier for that model (at the developer event: GPT-6 Astra on Pro 500 only). If you chose Ultrafast and switch to a model without it, requests go out on the standard tier; the plugin never substitutes Fast for you. It is the fastest tier and uses allowance and Credits faster. It stays Beta because it has not been run on a Pro 500 account yet.
 
 ### Ultra proactive delegation

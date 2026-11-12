@@ -1,7 +1,4 @@
 export const STYLE = `
-.codexNativeModelOption{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 8px;min-height:32px;color:var(--dsw-alias-label-primary);font-size:13px}
-.codexNativeModelOption>span{display:flex;align-items:center;gap:4px}
-.codexNativeModelOption select{max-width:55%;min-height:24px;padding:0 4px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-sm);background:var(--dsw-alias-bg-layer-2);color:inherit;font:inherit}
 .codexModelSelect{position:relative;min-width:0}
 .codexModelSelectTrigger{display:flex;align-items:center;gap:4px;min-width:0;max-width:min(360px,45cqw);height:28px;padding:0 4px 0 8px;border:0;border-radius:var(--dsw-radius-sm);outline:0;background:transparent;color:var(--dsw-alias-label-secondary);font-size:13px;font-weight:500;line-height:20px;cursor:pointer}
 .codexModelSelectTrigger:hover:not(:disabled),.codexModelSelectTrigger[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover)}
@@ -13,8 +10,10 @@ export const STYLE = `
 .codexModelSelectChevron{flex:none;color:var(--dsw-alias-label-caption);transition:transform 120ms}
 .codexModelSelectTrigger[aria-expanded=true] .codexModelSelectChevron{transform:rotate(180deg)}
 .codexModelSelectMenu{inset:auto;margin:0;--dsw-elevation-stroke-color:var(--dsw-alias-border-l1);box-sizing:border-box;position:fixed;display:flex;flex-direction:column;width:max-content;min-width:min(240px,calc(100vw - 32px));max-width:min(420px,calc(100vw - 32px));max-height:min(360px,calc(100vh - 32px));padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:var(--dsw-radius-md,12px);background:var(--dsw-alias-bg-layer-2,var(--dsw-alias-bg-layer-1));box-shadow:var(--dsw-elevation-prominent);color:var(--dsw-alias-label-primary);--dsh-scrollbar-thumb:var(--dsw-alias-scrollbar-bg-l2);--dsh-scrollbar-thumb-hover:var(--dsw-alias-scrollbar-hover-l2);overflow:hidden}
+.codexModelOptionsMenu{border:0;overflow:auto}
 .codexModelSelectCell{box-sizing:border-box;display:flex;align-items:center;gap:6px;width:auto;min-width:100%;height:34px;padding:0 8px;border:none;border-radius:var(--dsw-radius-md);outline:none;background:transparent;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px;text-align:left;cursor:pointer}
-.codexModelSelectCell:hover,.codexModelSelectCell:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}
+.codexModelSelectCell:hover:not(:disabled),.codexModelSelectCell:focus-visible{background:var(--dsw-alias-interactive-bg-hover)}
+.codexModelSelectCell:disabled{color:var(--dsw-alias-label-dimmed);cursor:default}
 .codexModelSelectCellLabel{flex:none;white-space:nowrap}
 .codexModelSelectCellValue{flex:auto;min-width:0;overflow:hidden;color:var(--dsw-alias-label-tertiary);text-align:right;text-overflow:ellipsis;white-space:nowrap}
 .codexModelSelectCellChevron{flex:none;width:12px;height:12px;color:var(--dsw-alias-menu-icon)}
