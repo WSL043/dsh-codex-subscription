@@ -42,6 +42,7 @@ import { DshOAuthAccountVault } from './account-vault.js'
 import { openCodexAuthUrl } from './external-url.js'
 import { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinator.js'
 import { createCodexNetworkTransport, resolveCodexOAuthProxy } from './oauth-network.js'
+import { createModelSseProxyRegistry } from './model-sse-proxy.js'
 import { createModels, openaiCodexProvider, openaiCodexSubscriptionProvider } from './pi-ai-runtime.js'
 import { createOfficialModelCatalog, withModelCatalogReady } from './model-catalog.js'
 import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET } from './capability-settings.js'
@@ -158,7 +159,9 @@ export function apply(ctx, config = {}) {
   if (!process.env.NODE_TEST_CONTEXT) diagnosticLog.attach(dshHomePath('state', 'codex-subscription', 'diagnostic-log.jsonl'))
   diagnosticLog.info('plugin', `loaded ${PACKAGE_VERSION}`, `DSH ${hostDshVersion() ?? 'unknown'}, node ${process.version}, ${process.platform}`)
   setAuthFailureLogger((message, detail) => diagnosticLog.error('auth', message, detail))
-  const network = createCodexNetworkTransport()
+  const modelSseProxy = createModelSseProxyRegistry()
+  ctx.provide('codexModelSseProxy', modelSseProxy)
+  const network = createCodexNetworkTransport({ resolveModelSseProxy: modelSseProxy.resolve })
   const diagnosticOperations = createDiagnosticOperations()
   ctx.effect(() => ctx.on?.('tools/result', (exec, result) => diagnosticOperations.tool(exec, result)), 'codex-subscription: operation evidence')
   const originalImages = new OriginalImageStore()

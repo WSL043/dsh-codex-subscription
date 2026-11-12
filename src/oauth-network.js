@@ -173,7 +173,7 @@ export function transportResponseBody(response, signal) {
   })
 }
 
-export function fetchThroughProxy(input, init, proxyUrl) {
+export function fetchThroughProxy(input, init, proxyUrl, tls = {}) {
   const target = new URL(typeof input === 'string' || input instanceof URL ? input : input.url)
   const body = bodyBytes(init?.body)
   const headers = new Headers(init?.headers)
@@ -184,6 +184,7 @@ export function fetchThroughProxy(input, init, proxyUrl) {
       headers: Object.fromEntries(headers.entries()),
       agent: proxyUrl ? new HttpsProxyAgent(proxyUrl, { signal: init?.signal }) : undefined,
       signal: init?.signal,
+      ...(tls.ca ? { ca: tls.ca } : {}),
     }, response => {
       const responseHeaders = new Headers()
       for (const [name, value] of Object.entries(response.headers)) {
@@ -230,7 +231,7 @@ async function fetchInCodexScope(scope, fetchBeforeScope, input, init) {
   let response
   try {
     if (dedicatedProxy && !route.url) throw new TypeError('Invalid DSH_CODEX_SSE_PROXY. Use an HTTP or HTTPS CONNECT proxy.')
-    response = await (route.url === undefined && !scopedOptions.standardHttps ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url))
+    response = await (route.url === undefined && !scopedOptions.standardHttps ? fetchBeforeScope(input, init) : proxyFetch(input, init, route.url, dedicatedProxy ? { ca: scopedOptions.modelSseCa } : {}))
   } catch (error) {
     // Observe before SDK normalization discards Error.cause; diagnostics must
     // not change the original rejection or initiate another request.
@@ -338,11 +339,13 @@ export function createCodexNetworkTransport(options = {}) {
     let rejectedStatus
     try {
       const scoped = { ...options, ...connection }
+      const modelRequest = area === 'model' && connection.requestFetch === true
+      const explicitProxy = modelRequest ? (scoped.env ?? process.env)[MODEL_SSE_PROXY_ENV]?.trim() : undefined
+      const coordinated = modelRequest && !explicitProxy ? scoped.resolveModelSseProxy?.() : undefined
       const value = await withCodexNetwork(operation, {
         ...scoped,
-        modelSseProxy: area === 'model' && connection.requestFetch === true
-          ? (scoped.env ?? process.env)[MODEL_SSE_PROXY_ENV]?.trim()
-          : undefined,
+        modelSseProxy: explicitProxy || coordinated?.proxy,
+        modelSseCa: coordinated?.ca,
         onRoute: source => { route = source; routed = true; connection.onRoute?.(source) },
         transformResponse(response, target) {
           if (connection.observeHttpFailure && !response.ok) rejectedStatus = response.status
