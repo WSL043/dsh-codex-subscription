@@ -161,7 +161,20 @@ try {
         $publishedHostRange = if ($LASTEXITCODE -eq 0 -and $publishedPeersJson) {
             try { (ConvertFrom-Json $publishedPeersJson).'@deepseek-ai/dsh-web' } catch { $null }
         }
-        if ($publishedHostRange -and (@($publishedHostRange -split '\s*\|\|\s*') -contains $DshVersion)) {
+        # Check bounded ranges the same way as compatibility detection.
+        $supportsPredecessor = $false
+        if ($publishedHostRange) {
+            $compatibilityModule = Join-Path $PSScriptRoot '../../src/dsh-compatibility.js'
+            $rangeCheck = @'
+import { pathToFileURL } from 'node:url'
+const [modulePath, range, version] = process.argv.slice(1)
+const { declaresDshCompatibility } = await import(pathToFileURL(modulePath).href)
+console.log(declaresDshCompatibility({ engines: { dsh: range } }, version))
+'@
+            $supportsPredecessor = (& node --input-type=module -e $rangeCheck $compatibilityModule $publishedHostRange $DshVersion) -eq 'true'
+            if ($LASTEXITCODE -ne 0) { throw 'Published plugin compatibility check failed.' }
+        }
+        if ($supportsPredecessor) {
             Invoke-Dsh @('plugin', '--profile', $Profile, 'add', "dsh-codex-subscription@$latest", '--reporter', 'append-only')
         } else {
             Write-Host "Skipping predecessor ${latest}: it does not declare DSH $DshVersion compatibility."

@@ -7,7 +7,7 @@ import { safeOperations } from './diagnostic-operations.js'
 import { diagnosticLog } from './diagnostic-log.js'
 import { MODEL_OUTCOMES, safeAttempt } from './model-attempt.js'
 import { safeStreamHealth } from './model-stream-health.js'
-import { isNetworkDiagnosticArea, safeNetworkTiming } from './diagnostic-events.js'
+import { isNetworkDiagnosticArea, NETWORK_FAILURE_LIMIT, NETWORK_HISTORY_LIMIT, safeNetworkTiming } from './diagnostic-events.js'
 
 const statuses = MODEL_OUTCOMES
 const stages = new Set(['transport', 'http', 'prepare', 'request', 'payload', 'stream'])
@@ -15,7 +15,8 @@ const codes = new Set(['timeout', 'dns', 'tls', 'connection', 'network', 'http-e
 
 function safeHistory(raw) {
   if (!raw || !Array.isArray(raw.events)) return undefined
-  const events = raw.events.slice(-32).flatMap(value => {
+  const maximum = NETWORK_HISTORY_LIMIT + NETWORK_FAILURE_LIMIT
+  const events = raw.events.slice(-maximum).flatMap(value => {
     if (!value || !isNetworkDiagnosticArea(value.area) || !statuses.has(value.status)
       || !Number.isSafeInteger(value.sequence) || value.sequence < 1
       || !Number.isSafeInteger(value.observedAt) || value.observedAt < 0) return []
@@ -24,8 +25,8 @@ function safeHistory(raw) {
       ...(Number.isInteger(value.httpStatus) && value.httpStatus >= 100 && value.httpStatus <= 599 ? { httpStatus: value.httpStatus } : {}),
     }]
   })
-  return { scope: 'plugin-process', capacity: 32,
-    dropped: (Number.isSafeInteger(raw.dropped) && raw.dropped >= 0 ? raw.dropped : 0) + Math.max(0, raw.events.length - 32), events }
+  return { scope: 'plugin-process', capacity: NETWORK_HISTORY_LIMIT,
+    dropped: (Number.isSafeInteger(raw.dropped) && raw.dropped >= 0 ? raw.dropped : 0) + Math.max(0, raw.events.length - maximum), events }
 }
 
 function safeRequests(network) {
@@ -73,7 +74,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
         return [{ scope: item.scope, state: item.state, active: item.active, cooldownMs: item.cooldownMs }]
       }) }
     }],
-    ['compaction', 'compaction', () => compaction ? safeCounters(compaction, ['requests', 'checkpointsSaved', 'checkpointsReused']) : undefined],
+    ['compaction', 'compaction', () => compaction ? safeCounters(compaction, ['requests', 'checkpointsReceived', 'checkpointsSaved', 'checkpointsReused']) : undefined],
     ['review', 'transport', () => typeof review?.reviewCounters === 'function' ? safeCounters({ snapshot: () => review.reviewCounters() }, ['requests', 'routed', 'sessionModel', 'retries']) : undefined],
     ['streamFailure', 'transport', () => {
       const value = review?.streamFailure?.()
@@ -147,6 +148,9 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
       ? { catalog: { source: catalog.source, refresh: catalog.refresh, ...(gaps.length ? { unsupported: gaps } : {}) } } : {}),
     configuration: {
       ...(typeof preference.autoQuotaRetry === 'boolean' ? { autoQuotaRetry: preference.autoQuotaRetry } : {}),
+      connectionMode: preference.connectionMode,
+      compactionMode: preference.compactionMode,
+      composerModelPicker: preference.composerModelPicker,
       contextMode: preference.contextMode,
       quickQuotaMode: preference.quickQuotaMode,
       ...(typeof preference.outputVerbosity === 'string' ? { outputVerbosity: preference.outputVerbosity } : {}),

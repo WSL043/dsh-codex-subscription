@@ -1,7 +1,7 @@
 import { collectChecks } from './diagnostic-checks.js'
 import { PACKAGE_VERSION } from './version.js'
 
-const roots = ['settings.section', 'conversation.input.right', 'conversation.input.model',
+const roots = ['settings.section', 'conversation.input.right', 'conversation.input.model', 'conversation.input.model.options', 'conversation.input.model.label',
   'conversation.input.attachments', 'conversation.chat.message.images', 'conversation.chat.user.images', 'tool.call.images', 'conversation.trajectory.images', 'shell.overlay']
 const packageName = /^(?:@[a-z0-9_.-]+\/)?[a-z0-9][a-z0-9_.-]{0,99}$/u
 export function projectHostSlots(slots) {

@@ -4,7 +4,7 @@ import { dirname } from 'node:path'
 
 const DEFAULT_MAX_BYTES = 256 * 1024
 const MAX_WINDOWS = 128
-const MAX_SAMPLES = 192
+const MAX_SAMPLES = 280
 
 function sanitize(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)
@@ -23,9 +23,11 @@ function sanitize(value) {
       const remainingPercent = Number(sample?.remainingPercent)
       if (!Number.isFinite(at) || !Number.isFinite(remainingPercent)
         || remainingPercent < 0 || remainingPercent > 100) return undefined
-      samples.push({ at, remainingPercent })
+      samples.push({ at, remainingPercent, ...(sample.reset === true ? { reset: true } : {}) })
     }
-    windows[key] = { resetsAt, samples }
+    const epochStart = record.epochStart
+    if (epochStart !== undefined && !Number.isFinite(epochStart)) return undefined
+    windows[key] = { resetsAt, ...(epochStart === undefined ? {} : { epochStart }), samples }
   }
   return { windows }
 }

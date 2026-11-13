@@ -229,6 +229,7 @@ async function fetchInCodexScope(scope, fetchBeforeScope, input, init) {
   }
   const hostModelFetch = scopedOptions.requestFetch && target.origin === `https://${CODEX_SUBSCRIPTION_HOST}`
     && target.pathname === CODEX_MODEL_SSE_PATH && !dedicatedProxy
+  if (hostModelFetch || dedicatedProxy) scopedOptions.onModelFetchPath?.(hostModelFetch ? 'host-fetch' : 'dedicated-proxy')
   scopedOptions.onRoute?.(hostModelFetch ? 'host' : route.source)
   try { scopedOptions.onTransport?.('sse') } catch {}
   let response
@@ -265,6 +266,7 @@ async function fetchInCodexScope(scope, fetchBeforeScope, input, init) {
     try { scopedOptions.onFetchFailure?.(error) } catch {}
     throw error
   }
+  if (hostModelFetch || dedicatedProxy) scopedOptions.onModelHttpStatus?.(response.status)
   return scopedOptions.transformResponse?.(response, target) ?? response
 }
 

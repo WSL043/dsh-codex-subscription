@@ -225,6 +225,8 @@ For an advanced network setup, set `DSH_CODEX_SSE_PROXY` to a trusted HTTP or HT
 
 Sign-in, usage, phone remote control, and WebSocket keep their existing routes. Normally leave the variable unset: model SSE follows the host/SDK fetch middleware, with the ordinary proxy applied below fetch. A middleware's local handoff is not sent through the external proxy. If that middleware forwards through another process, that process owns its upstream proxy settings; a successful local handoff does not prove which upstream exit it used. The explicit variable selects a dedicated transport instead of this normal fetch chain. If a local proxy inspects TLS, configure its CA using the proxy’s instructions.
 
+For billion-context compression, use subscription plugin **3.2.14 or later**, enable billion-context, select **SSE**, and leave `DSH_CODEX_SSE_PROXY` unset. If billion-context needs to discover the Windows system proxy for its upstream connection, set its upstream proxy mode to `auto` and make sure its running proxy has loaded the setting. Check billion-context's log for a model request and a compression block for the affected conversation. A successful response or an available `acp_status` tool alone does not confirm compression. See [#254](https://github.com/WSL043/dsh-codex-subscription/issues/254) for the tested configuration.
+
 
 ### Advanced experiments
 
@@ -274,5 +276,5 @@ Subscription chat, image generation and native DSH subtasks work without these o
 
 Uninstalling does not clear shared package caches or guarantee a fixed amount of reclaimed space. DSH or Portable manages those caches centrally; this plugin does not delete shared directories. Sketches, conversation history, generated originals and sign-in data are not package caches. Use their respective management controls when you want to remove them.
 
-**Storage and cache** under Maintenance shows the quota forecast cache size and lets you confirm clearing its local history. New samples are required afterwards; server quotas do not change. Support diagnostics include observed WebSocket connection, reuse and fallback counts, plus cloud compaction checkpoint saves and reuse. These counters exclude response bodies and session identifiers and do not establish a performance improvement.
+**Storage and cache** under Maintenance shows the quota forecast cache size and lets you confirm clearing its local history. New samples are required afterwards. After reproducing a problem, use **Phone & more → Support diagnostics** to copy recent operation outcomes, available connection evidence and host extension slots. For a startup failure, include the startup error in the bug report. The recorded fetch path describes where the subscription plugin handed off the request. Check any third-party middleware's own diagnostics to verify what it did after handoff.
 

@@ -23,10 +23,13 @@ test('request history preserves failure then recovery with timestamps and bounde
   assert.deepEqual(store.snapshot().events.map(x => [x.status, x.observedAt]), [['failed', 100], ['ok', 101]])
   store.record('private-url', { status: 'ok' })
   store.record('model', { status: 'ok' })
-  assert.equal(store.snapshot().events.length, 2)
-  assert.equal(store.snapshot().dropped, 1)
-  const copy = store.snapshot(); copy.events[0].status = 'failed'
-  assert.equal(store.snapshot().events[0].status, 'ok')
+  assert.equal(store.snapshot().events.length, 3)
+  assert.equal(store.snapshot().dropped, 0)
+  const copy = store.snapshot(); copy.events[0].status = 'ok'
+  assert.equal(store.snapshot().events[0].status, 'failed')
+  store.record('quota', { status: 'failed', code: 'connection' })
+  assert.deepEqual(store.snapshot().events.map(event => event.sequence), [3, 4])
+  assert.equal(store.snapshot().dropped, 2)
   assert.doesNotMatch(JSON.stringify(store.snapshot()), /secret|private|token|url/)
 })
 

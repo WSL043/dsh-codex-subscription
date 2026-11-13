@@ -5,6 +5,7 @@ const transports = new Set(['sse', 'websocket'])
 const choices = new Set(['sse', 'websocket', 'websocket-cached', 'auto', 'unknown'])
 const routes = new Set(['host', 'direct', 'environment', 'system', 'bypass', 'proxy', 'model-proxy', 'unknown'])
 const phases = new Set(['prepare', 'request', 'payload', 'stream'])
+const fetchPaths = new Set(['host-fetch', 'dedicated-proxy'])
 const elapsedBuckets = new Set(['under-1s', '1-5s', '5-15s', 'over-15s'])
 export const MODEL_OUTCOMES = new Set(['ok', 'failed', 'cancelled', 'abandoned'])
 
@@ -18,6 +19,12 @@ export function safeAttempt(value = {}) {
     ...(typeof value.attemptId === 'string' && /^[a-f0-9-]{36}$/.test(value.attemptId) ? { attemptId: value.attemptId } : {}),
     ...(choices.has(value.preference) ? { preference: value.preference } : {}),
     ...(choices.has(value.requestedTransport) ? { requestedTransport: value.requestedTransport } : {}),
+    ...(typeof value.model === 'string' && /^gpt-[a-z0-9][a-z0-9.-]{0,63}$/u.test(value.model) ? { model: value.model } : {}),
+    ...(fetchPaths.has(value.fetchPath) ? { fetchPath: value.fetchPath } : {}),
+    ...(value.failure === 'context-overflow' ? { failure: value.failure } : {}),
+    ...(Number.isInteger(value.httpStatus) && value.httpStatus >= 100 && value.httpStatus <= 599 ? { httpStatus: value.httpStatus } : {}),
+    ...(typeof value.cloudCompactionRequested === 'boolean' ? { cloudCompactionRequested: value.cloudCompactionRequested } : {}),
+    ...(typeof value.checkpointInPayload === 'boolean' ? { checkpointInPayload: value.checkpointInPayload } : {}),
     ...(Array.isArray(value.transports) ? { transports: value.transports.filter(item => transports.has(item)).slice(0, 8) } : {}),
     ...(typeof value.headersReceived === 'boolean' ? { headersReceived: value.headersReceived } : {}),
     ...(typeof value.eventDelivered === 'boolean' ? { eventDelivered: value.eventDelivered } : {}),
@@ -37,7 +44,7 @@ export function createModelAttempt({ now = Date.now, publish = () => {} } = {}) 
     transport(value) {
       if (!finished && transports.has(value) && data.transports.at(-1) !== value && data.transports.length < 8) data.transports.push(value)
     },
-    response() { if (!finished) data.headersReceived = true },
+    response(status) { if (!finished) { data.headersReceived = true; if (Number.isInteger(status)) data.httpStatus = status } },
     fetchFailure(error) { if (!finished) data.networkFailure = safeFetchFailure(error) },
     event(event) {
       if (finished || !event || ['error', 'done'].includes(event.type)) return

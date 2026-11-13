@@ -6,10 +6,13 @@ const actions = Object.freeze({
   'predictions/generate': 'predictions',
   usage: 'quota', 'preferences/models': 'models', 'storage/status': 'storage', 'storage/clear-forecast': 'storage',
   'runtime/install': 'subagents', 'runtime/remove': 'subagents', 'runtime/cancel': 'subagents',
+  'voice/start': 'transport', 'voice/stop': 'transport', 'voice/native/start': 'transport', 'voice/native/stop': 'transport',
+  'remote/enable': 'transport', 'remote/pair': 'transport', 'remote/disable': 'transport',
   codex_image_generate: 'images', codex_sketch: 'sketch',
 })
 import { diagnosticLog } from './diagnostic-log.js'
 const QUIET = new Set(['usage', 'storage/status', 'preferences/models', 'predictions/generate'])
+const RPC_FAILURES = new Set(['internal', 'invalid-input', 'not-found', 'operation-error', 'unavailable', 'voice-native-unavailable'])
 export function safeOperations(raw) {
   if (!Array.isArray(raw?.events)) return undefined
   return { scope: 'plugin-process', capacity: 32,
@@ -17,16 +20,18 @@ export function safeOperations(raw) {
     events: raw.events.slice(-32).flatMap(value => {
       if (!Object.hasOwn(actions, value?.action ?? '') || !['completed', 'failed', 'cancelled'].includes(value.status)
         || !['rpc', 'tool'].includes(value.source) || !Number.isSafeInteger(value.observedAt) || value.observedAt < 0) return []
-      return [{ capability: actions[value.action], action: value.action, status: value.status, source: value.source, observedAt: value.observedAt }]
+      return [{ capability: actions[value.action], action: value.action, status: value.status, source: value.source, observedAt: value.observedAt,
+        ...(value.status === 'failed' && RPC_FAILURES.has(value.code) ? { code: value.code } : {}) }]
     }),
   }
 }
 export function createDiagnosticOperations({ now = Date.now } = {}) {
   const events = []
   let sequence = 0, dropped = 0
-  const record = (action, status, source = 'rpc') => {
+  const record = (action, status, source = 'rpc', code) => {
     if (!Object.hasOwn(actions, action) || !['completed', 'failed', 'cancelled'].includes(status) || !['rpc', 'tool'].includes(source)) return
-    events.push({ sequence: ++sequence, capability: actions[action], action, source, status, observedAt: now() })
+    events.push({ sequence: ++sequence, capability: actions[action], action, source, status, observedAt: now(),
+      ...(status === 'failed' && RPC_FAILURES.has(code) ? { code } : {}) })
     if (status === 'failed') diagnosticLog.error(actions[action], `${action} failed`)
     else if (status === 'completed' && !QUIET.has(action)) diagnosticLog.info(actions[action], `${action} completed`)
     else if (status === 'cancelled' && action === 'predictions/generate') diagnosticLog.info('predictions', 'predictions/generate cancelled')
@@ -41,7 +46,7 @@ export function createDiagnosticOperations({ now = Date.now } = {}) {
           const reason = { disabled: 'disabled', authentication: 'not signed in', unavailable: 'not available' }[result.value?.reason]
           diagnosticLog.info('predictions', result.value?.prediction ? 'suggestion ready' : `no suggestion${reason ? `: ${reason}` : ''}`)
         }
-        record(endpoint, result?.ok === true ? 'completed' : 'failed')
+        record(endpoint, signal?.aborted ? 'cancelled' : result?.ok === true ? 'completed' : 'failed', 'rpc', result?.error?.code)
         return result
       } catch (error) { record(endpoint, signal?.aborted ? 'cancelled' : 'failed'); if (!signal?.aborted) diagnosticLog.error(actions[endpoint] ?? 'rpc', `${endpoint} threw`, error); throw error }
     },

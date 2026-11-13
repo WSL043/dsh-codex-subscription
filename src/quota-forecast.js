@@ -1,6 +1,9 @@
 import { quotaRateInterval, refineQuotaRate } from './quota-rate-interval.js'
 const HOUR_MS = 60 * 60 * 1000
-const HISTORY_MS = 24 * HOUR_MS
+const HISTORY_MS = 30 * 24 * HOUR_MS
+const WEEK_MS = 7 * 24 * HOUR_MS
+const RECENT_MS = 2 * HOUR_MS
+const OBSERVATION_GAP_MS = 90 * 60_000
 const finite = value => value !== null && value !== undefined && Number.isFinite(Number(value))
 const clampPercent = value => Math.max(0, Math.min(100, Number(value)))
 const cleanSegment = value => String(value ?? 'default').slice(0, 96)
@@ -9,6 +12,30 @@ const keyFor = (window, context = {}) => JSON.stringify([
   cleanSegment(context.limitId ?? 'codex'),
   Number(window.windowSeconds) || 'limit',
 ])
+
+function retainSamples(samples, now) {
+  const older = new Map(), recent = []
+  for (const sample of samples) {
+    if (sample.at < now - HISTORY_MS) continue
+    if (sample.at >= now - RECENT_MS) recent.push(sample)
+    else {
+      const width = sample.at >= now - WEEK_MS ? RECENT_MS : 8 * HOUR_MS
+      const bucket = `${width}:${Math.floor(sample.at / width)}`
+      if (!older.has(bucket) || sample.reset === true) older.set(bucket, sample)
+    }
+  }
+  return [...older.values(), ...recent.slice(-104)]
+}
+
+function historicalForecast(samples, window, common) {
+  if (window.windowSeconds < 24 * 3600) return undefined
+  const spanHours = (samples.at(-1).at - samples[0].at) / HOUR_MS
+  const consumedPercent = samples[0].remainingPercent - samples.at(-1).remainingPercent
+  if (spanHours < 6 || consumedPercent < 3 || new Set(samples.map(sample => sample.remainingPercent)).size < 3) return undefined
+  const pacePerHour = consumedPercent / spanHours
+  return { ...common, status: 'ready', provisional: true, rateMethod: 'historical', pacePerHour,
+    runwaySeconds: clampPercent(window.remainingPercent) / pacePerHour * 3600, survivesReset: false }
+}
 export function observeQuotaForecast(state, windows, now = Date.now(), context = {}) {
   const next = { windows: { ...(state?.windows ?? {}) } }
   let changed = false
@@ -24,18 +51,12 @@ export function observeQuotaForecast(state, windows, now = Date.now(), context =
     )
     const last = previous?.samples?.at(-1)
     const quotaIncreased = last !== undefined && remainingPercent > last.remainingPercent + 0.5
-    const observationGap = last !== undefined && now - last.at > 90 * 60_000
-    const record = resetChanged || quotaIncreased || observationGap
-      ? { resetsAt, samples: [] }
-      : { resetsAt, samples: [...(previous?.samples ?? [])] }
-    const latest = record.samples.at(-1)
-    // Only fresh snapshots count. Plateaus constrain the rate too.
-    if (latest === undefined || now > latest.at) {
-      record.samples.push({ at: now, remainingPercent })
-      record.samples = record.samples.filter(sample => sample.at >= now - HISTORY_MS).slice(-192)
-      changed = true
-    }
+    if (last !== undefined && now <= last.at) continue
+    const epochStart = resetChanged || quotaIncreased ? now : previous?.epochStart ?? previous?.samples?.[0]?.at ?? now
+    const sample = { at: now, remainingPercent, ...(resetChanged || quotaIncreased ? { reset: true } : {}) }
+    const record = { resetsAt, epochStart, samples: retainSamples([...(previous?.samples ?? []), sample], now) }
     next.windows[key] = record
+    changed = true
   }
   return { state: next, changed }
 }
@@ -48,10 +69,17 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
   if ((record.resetsAt === null) !== (resetsAt === null)
     || (resetsAt !== null && Math.abs(record.resetsAt - resetsAt) > 300)) return { status: 'calibrating' }
   // The 2 h window hangs off the newest reading, not off the clock, so re-reading the same snapshot later gives the same pace.
-  const newest = record.samples.filter(sample => sample.at <= now).at(-1)
-  let samples = newest === undefined ? [] : record.samples.filter(sample => sample.at >= newest.at - 2 * HOUR_MS && sample.at <= newest.at)
-  if (samples.length < 2) return { status: 'calibrating', sampleCount: samples.length }
-  if (now - samples.at(-1).at > 20 * 60_000) return { status: 'calibrating', reason: 'stale' }
+  const history = record.samples.filter(sample => sample.at >= (record.epochStart ?? 0) && sample.at <= now)
+  const newest = history.at(-1)
+  if (newest === undefined) return { status: 'calibrating', sampleCount: 0 }
+  if (now - newest.at > 20 * 60_000 || (resetsAt !== null && resetsAt <= now / 1000)) return { status: 'calibrating', reason: 'stale' }
+  let samples = history.filter(sample => sample.at >= newest.at - RECENT_MS)
+  const lastGap = samples.findLastIndex((sample, index) => index > 0 && sample.at - samples[index - 1].at > OBSERVATION_GAP_MS)
+  if (lastGap > 0) samples = samples.slice(lastGap)
+  const recentChange = samples.findLastIndex(sample => sample.remainingPercent !== newest.remainingPercent)
+  const flat = samples.slice(recentChange + 1)
+  if (flat.length >= 3 && newest.at - flat[0].at >= 30 * 60_000) return { status: 'idle' }
+  if (samples.length < 2) return historicalForecast(history, window, { sampleCount: history.length }) ?? { status: 'calibrating', sampleCount: samples.length }
   // The endpoint's rounding contract is unknown. A one-point error on either
   // side covers floor, ceiling and nearest; decimals are retained, not invented.
   const rateBounds = readings => refineQuotaRate(readings, quotaRateInterval(readings))
@@ -92,7 +120,7 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
       survivesReset: false }
   }
   // A flat trace or an isolated boundary crossing still cannot establish pace.
-  if (spanMs < 60_000 || bounds.min <= 1e-9) return { ...common, status: 'calibrating', reason: 'resolution' }
+  if (spanMs < 60_000 || bounds.min <= 1e-9) return historicalForecast(history, window, common) ?? { ...common, status: 'calibrating', reason: 'resolution' }
   const pacePerHour = (bounds.min + bounds.max) * 30
   const remaining = clampPercent(window.remainingPercent)
   const runwayMinSeconds = Math.max(0, remaining - 1) / common.upperPacePerHour * 3600

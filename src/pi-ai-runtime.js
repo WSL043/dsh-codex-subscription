@@ -5,6 +5,7 @@ import { diagnosticLog } from './diagnostic-log.js'
 import { redactRequest } from './failure-capture.js'
 import { hoistLeadingSystem, runtimeVersions, understandsSystemMessages } from './pi-ai-compat.js'
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
+import { isContextOverflow } from '@earendil-works/pi-ai/utils/overflow'
 import { normalizeTransportEvent, safeFetchFailure } from './transport-failure.js'
 import { createModelRetryBridge } from './model-retry-hint.js'
 import { authFailureMessage } from './http-failure.js'
@@ -285,7 +286,12 @@ export function openaiCodexSubscriptionProvider({
     const settle = (status, error, healthError = error) => {
       if (attempt.snapshot().status) return
       health?.finish(status === 'ok' ? 'completed' : status === 'abandoned' ? 'cancelled' : status, healthError)
-      if (status === 'failed') noteStreamFailure(stage, error, effectiveSource, networkFailure, attempt.snapshot().attemptId)
+      if (status === 'failed') {
+        if (isContextOverflow({ stopReason: 'error', errorMessage: healthError?.errorMessage ?? error?.message ?? '' })) {
+          attempt.configure({ failure: 'context-overflow' })
+        }
+        noteStreamFailure(stage, error, effectiveSource, networkFailure, attempt.snapshot().attemptId)
+      }
       attempt.finish(status, stage)
     }
     const finish = () => {
@@ -296,7 +302,7 @@ export function openaiCodexSubscriptionProvider({
       const overrides = direct ? undefined : compaction?.networkOptions(undefined)
       request = await (direct ? undefined : connection?.prepare({ ...options, signal }, { model: source?.model, allowWebSocket: overrides?.websocket !== false })) ?? { options }
       const next = { ...(direct ? { ...request.options, transport: 'sse' } : compaction?.requestOptions(request.options) ?? request.options), signal }
-      attempt.configure({ preference: request.diagnostic?.preference ?? request.options?.transport ?? 'auto', requestedTransport: next.transport ?? 'auto' })
+      attempt.configure({ preference: request.diagnostic?.preference ?? request.options?.transport ?? 'auto', requestedTransport: next.transport ?? 'auto', model: source?.model?.id })
       effectiveSource = { ...source, options: next }
       health = streamHealth.begin({ sessionId: direct ? undefined : options?.sessionId, configured: request.options?.transport, selected: next.transport })
       const scopedNetwork = direct ? request.network : overrides ?? request.network
@@ -304,6 +310,8 @@ export function openaiCodexSubscriptionProvider({
       return { next, network: {
         ...scopedNetwork, modelAttempt: true,
         onRoute(route) { attempt.route(route); scopedNetwork?.onRoute?.(route) },
+        onModelFetchPath(fetchPath) { attempt.configure({ fetchPath }) },
+        onModelHttpStatus(status) { attempt.response(status) },
         onTransport(transport) { attempt.transport(transport); scopedNetwork?.onTransport?.(transport) },
         onFetchFailure(error) { networkFailure = safeFetchFailure(error); attempt.fetchFailure(error); scopedNetwork?.onFetchFailure?.(error) },
         async transformResponse(response, target) {
@@ -322,11 +330,16 @@ export function openaiCodexSubscriptionProvider({
           if (!iterator) {
             producer = factory({ ...next,
               ...(fetch === undefined ? {} : { fetch }),
-              async onResponse(info, requestModel) { health.response(info); attempt.response(); retryHint?.onResponse(info); return next.onResponse?.(info, requestModel) },
+              async onResponse(info, requestModel) { health.response(info); attempt.response(info?.status); retryHint?.onResponse(info); return next.onResponse?.(info, requestModel) },
               onProviderStreamEvent(event) { health.providerEvent(); return next.onProviderStreamEvent?.(event) },
               async onPayload(payload, requestModel) {
                 stage = 'payload'; signal.throwIfAborted()
                 const body = await next.onPayload?.(payload, requestModel)
+                const outgoing = body ?? payload
+                attempt.configure({ model: requestModel?.id,
+                  cloudCompactionRequested: Array.isArray(outgoing?.context_management) && outgoing.context_management.some(item => item?.type === 'compaction'),
+                  checkpointInPayload: Array.isArray(outgoing?.input) && outgoing.input.some(item => item?.type === 'compaction'),
+                })
                 signal.throwIfAborted(); stage = 'request'; return body
               },
             })

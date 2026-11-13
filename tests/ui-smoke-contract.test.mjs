@@ -13,7 +13,7 @@ const snapshot = JSON.parse(readFileSync(new URL(newest, fixtures), 'utf8'))
 const declared = new Map(snapshot.slots.map(slot => [slot.name, slot]))
 // Added by SettingsRoot in @deepseek-ai/dsh-client-ui-settings-general 0.2.2-rc.1.
 // The client uses slots.inject so the icon is optional on older hosts.
-const newerNativeSlots = new Set(['settings.section.icon'])
+const newerNativeSlots = new Set(['settings.section.icon', 'conversation.input.model.options'])
 
 test('every slot name this plugin registers is declared by the host catalog', () => {
   const ours = registeredSlotNames(root)

@@ -37,6 +37,14 @@ test('coarse provisional consumption cannot claim survival until reset in either
   const label=formatQuotaForecast(forecast,key=>zh[key],{fetchedAt:current,now:current})
   assert.match(label,/粗估/);assert.doesNotMatch(label,/够用/)
 })
+
+test('a provisional date or uncertain range cannot promise exhaustion beyond the current reset', () => {
+  const resetsAt = (now + 2 * 3600000) / 1000
+  const options = { fetchedAt: now, now, resetsAt }
+  assert.equal(quotaForecastView(ready, options).kind, 'calibrating')
+  assert.equal(quotaForecastView({ ...ready, provisional: true }, options).kind, 'calibrating')
+  assert.equal(quotaForecastView({ ...ready, provisional: true, runwaySeconds: 3600 }, options).kind, 'time')
+})
 test('calendar labels cross local day and year boundaries and support English and Chinese', () => {
   const start=Date.UTC(2026,11,31,14),end=Date.UTC(2026,11,31,17)
   for(const [locale,words] of [['zh-CN',zh],['en-US',en]]) {

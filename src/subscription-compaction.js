@@ -11,7 +11,7 @@ const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000
 
 export function createCompactionBridge({ enabled = () => false, threshold, accountScope, diagnostic = () => {}, now = Date.now }) {
  const scope = new AsyncLocalStorage()
- const stats = { requests: 0, checkpointsSaved: 0, checkpointsReused: 0 }
+ const stats = { requests: 0, checkpointsReceived: 0, checkpointsSaved: 0, checkpointsReused: 0 }
  const wrapStream = (factory, options, modelInfo) => (async function* () {
   if (!enabled() || options.provider !== 'openai-codex') { yield* factory(options); return }
   const identity = await accountScope(options)
@@ -94,7 +94,11 @@ export function createCompactionBridge({ enabled = () => false, threshold, accou
       else if (state.captured) state.captured.push(clone(event.item))
       if (state.captured && JSON.stringify(state.captured).length > MAX_BYTES) { state.captured = undefined; oversized = true }
      }
-     if (event.type === 'response.completed' && event.response?.status === 'completed') state.completed = !oversized
+     if (event.type === 'response.completed' && event.response?.status === 'completed') {
+      if (!state.completed && !oversized && state.captured?.length)
+       stats.checkpointsReceived = Math.min(Number.MAX_SAFE_INTEGER, stats.checkpointsReceived + 1)
+      state.completed = !oversized
+     }
     }
     const stream = response.body.pipeThrough(new TransformStream({
      transform(bytes, controller) {

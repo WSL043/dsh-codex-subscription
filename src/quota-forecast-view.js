@@ -25,7 +25,11 @@ export function quotaForecastView(forecast, { fetchedAt, now = Date.now(), reset
   if (anchor + min * 1000 <= now) return { kind: 'stale' }
   const grid = min < 3600 ? 5 * 60_000 : 3600_000
   const round = value => Math.round(value / grid) * grid
-  return { kind: 'time', earliest: round(anchor + min * 1000), latest: round(anchor + max * 1000), provisional: forecast.provisional === true }
+  const earliest = round(anchor + min * 1000), latest = round(anchor + max * 1000)
+  // A range that spans a reset cannot predict when the current allowance runs out.
+  const rawMax = !forecast.provisional && Number.isFinite(forecast.runwayMaxSeconds) ? forecast.runwayMaxSeconds : forecast.runwaySeconds
+  if (Number.isFinite(resetsAt) && Math.max(latest, anchor + rawMax * 1000) >= resetsAt * 1000) return { kind: 'calibrating' }
+  return { kind: 'time', earliest, latest, provisional: forecast.provisional === true }
 }
 
 export function formatQuotaRunout(view, { t, locale, now = Date.now(), timeZone }) {

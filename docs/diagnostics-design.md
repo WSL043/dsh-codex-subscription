@@ -20,14 +20,14 @@ Diagnostics read existing state from DSH and the subscription path. They leave m
 | Adapter failures | Text-free request and adapter shape, bounded frame and category data from [request-observer.js](../src/request-observer.js) and [failure-capture.js](../src/failure-capture.js) | Conversation details. Review even anonymized structures before sharing. |
 | Model response streams | Configured, selected and effective transport, duration, first and last event, counts and completion, failure or cancellation from [model-stream-health.js](../src/model-stream-health.js) | External proxy and edge failures, lossless resumption and what the UI retained |
 | WebSocket recovery | Connection, reuse, fallback and cooldown counters and bounded recovery state | Stability or latency across networks and regions |
-| Compaction | Persistence and reuse counts and native replay envelope | Internal summary, semantic retention and quota effects |
+| Compaction | Requests, completed responses with a checkpoint, checkpoints attached to DSH replay state and checkpoints sent again | Third-party compression, semantic retention and quota effects |
 | Tools and RPC | Final `tools/result` and plugin operation outcomes | Execution in a particular conversation when only registration was observed |
 | Runtime and storage | Component state, restart requirement and forecast history access | Subtask execution, sandbox behavior and filesystem permissions |
 | Host UI | [Host diagnostics](../src/diagnostic-host.js) and slot snapshots | Plugin conflicts, layout, theme, focus and rendered visibility |
 
 ## Limits and ownership
 
-- Network history retains 32 entries. Operation history is also bounded and recent summaries cover 15 minutes. See [diagnostic-operations.js](../src/diagnostic-operations.js) for the current limits.
+- Network history retains 32 recent entries and the last failure per network area for the current process. The shareable report can link a model stream failure to its network entry using an alias generated for that report. Operation history is also bounded and recent summaries cover 15 minutes. See [diagnostic-operations.js](../src/diagnostic-operations.js) for the current limits.
 - Stream health retains 20 entries. The consecutive-failure map holds up to 100 sessions. Public snapshots omit session IDs.
 - Reports are snapshots at generation time. Some history is process-wide. Report truncation and dropped entries.
 - A registrant label identifies a slot registration. Confirm package ownership and rendered visibility separately.

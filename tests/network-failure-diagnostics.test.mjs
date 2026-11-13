@@ -68,6 +68,9 @@ for (const code of ['ECONNRESET', 'UND_ERR_SOCKET']) test(code + ' SDK error is 
     assert.equal(events[0].attemptId, provider.streamFailure().attemptId)
     assert.equal(events[0].stage, 'request')
     assert.equal(events[0].route, 'host')
+    assert.equal(events[0].fetchPath, 'host-fetch')
+    assert.match(events[0].model, /^gpt-/u)
+    assert.equal(events[0].checkpointInPayload, false)
     assert.equal(calls, 1)
     assert.doesNotMatch(JSON.stringify(events), /SECRET|fixture/)
   } finally { globalThis.fetch = previous }
@@ -125,6 +128,7 @@ test('an HTTP 200 followed by SDK stream error is failed, not successful headers
     assert.equal(network.history().events.length, 1)
     assert.equal(network.snapshot().model.status, 'failed')
     assert.equal(network.snapshot().model.headersReceived, true)
+    assert.equal(network.snapshot().model.httpStatus, 200)
     assert.doesNotMatch(JSON.stringify(network.history()), /SECRET/)
   } finally { globalThis.fetch = previous }
 })

@@ -1,34 +1,63 @@
-import { formatLogLine } from './diagnostic-log-format.js'
-import { safeStreamHealth } from './model-stream-health.js'
-// The copied report is what a person pastes into an issue, so it carries the
-// conclusions and the facts needed to act on them, not every counter. The full
-// JSON stays available in the settings page's details section.
+const preferences = {
+  connectionMode: ['sse', 'websocket'], compactionMode: ['dsh', 'cloud'],
+  composerModelPicker: ['auto', 'dsh', 'legacy'], contextMode: ['standard', 'extended', 'custom'],
+  searchProvider: ['auto', 'dsh', 'codex'],
+  speedMode: ['standard', 'fast', 'ultrafast'], outputVerbosity: ['default', 'low', 'medium', 'high'],
+}
+
+function recentOperations(events, key, attemptAlias = () => undefined) {
+  const latest = new Map(), failures = new Map()
+  for (const event of events ?? []) {
+    latest.set(key(event), event)
+    if (event.status === 'failed') failures.set(key(event), event)
+  }
+  return [...new Set([...latest.values(), ...failures.values()])].sort((a, b) => a.observedAt - b.observedAt)
+    .map(({ observedAt, sequence, attemptId, capability, ...event }) => {
+      const attempt = attemptAlias(attemptId)
+      return { at: new Date(observedAt).toISOString(), ...event, ...(attempt ? { attempt } : {}) }
+    })
+}
+
+// The report that can be pasted into a public issue uses only structured observations.
 export function compactDiagnostic(report) {
-  const summary = report.summary ?? { findings: [] }
+  const attempts = new Map()
+  const network = recentOperations(report.requestHistory?.events, event => event.model ? `${event.area}:${event.model}` : event.area, id => {
+    if (typeof id !== 'string' || !/^[a-f0-9-]{36}$/u.test(id)) return undefined
+    if (!attempts.has(id)) attempts.set(id, `op${attempts.size + 1}`)
+    return attempts.get(id)
+  })
+  const failureAttempt = attempts.get(report.streamFailure?.attemptId)
+  const configuration = Object.fromEntries(Object.entries(preferences).flatMap(([key, allowed]) =>
+    allowed.includes(report.configuration?.[key]) ? [[key, report.configuration[key]]] : []))
+  const slots = (report.client?.topology ?? []).flatMap(({ scope, slots: items }) => {
+    const observed = items.filter(item => item.declared && item.occupants.length > 0)
+    return observed.length ? [{ scope, slots: observed.map(({ name, occupants }) => ({
+      name, occupants: occupants.map(({ registrant, active }) => ({ registrant, active })),
+    })) }] : []
+  })
+  const truncated = (report.requestHistory?.dropped ?? 0) > 0 || (report.operations?.dropped ?? 0) > 0 || report.client?.truncated === true
+  const unavailable = [...(report.inspection?.checks ?? []), ...(report.client?.checks ?? [])]
+    .filter(check => ['inspection-failed', 'inspection-timeout', 'host-inspection-unavailable'].includes(check.reason))
+    .map(({ id, reason }) => ({ id, reason }))
   return {
-    format: 'compact-1',
-    plugin: report.version,
+    format: 'support-2',
+    plugin: report.version ?? report.pluginVersion,
     dsh: report.runtime?.dsh,
-    ...(report.client?.version && report.client.version !== report.version ? { pluginClient: report.client.version } : {}),
-    platform: report.runtime ? `${report.runtime.platform}-${report.runtime.arch}` : undefined,
+    ...(report.client?.version && report.version && report.client.version !== report.version ? { pluginClient: report.client.version } : {}),
+    ...(report.runtime ? { runtime: report.runtime } : {}),
     generatedAt: report.generatedAt,
+    ...(report.serverDiagnostics === 'unavailable' ? { serverDiagnostics: 'unavailable', error: report.error } : {}),
+    ...(!report.client?.topology?.length ? { clientDiagnostics: 'unavailable' } : {}),
     account: report.account?.status,
-    catalog: report.catalog ? { source: report.catalog.source, refresh: report.catalog.refresh } : undefined,
-    configuration: report.configuration,
-    ...(report.streamHealth ? { streamHealth: safeStreamHealth(report.streamHealth).slice(-5) } : {}),
-    findings: summary.findings.map(item => ({
-      code: item.code,
-      severity: item.severity,
-      ...(item.code === 'recent-failure' ? { failures: item.evidence.map(event => ({ action: event.action, source: event.source, at: new Date(event.observedAt).toISOString() })) } : {}),
-    })),
-    capabilities: (report.inspection?.capabilities ?? [])
-      .filter(item => item.readiness !== 'not-applicable')
-      .map(item => ({
-        id: item.id,
-        reason: item.reason,
-        ...(item.latest ? { latest: `${item.latest.action} ${item.latest.status}` } : { latest: 'not-verified' }),
-      })),
-    log: (report.log?.entries ?? []).slice(-150).map(formatLogLine),
-    ...(report.client?.status === 'unknown' ? { hostCollected: false } : {}),
+    catalog: report.catalog,
+    configuration,
+    ...(report.login?.phase !== undefined ? { login: report.login } : {}),
+    ...(unavailable.length ? { unavailable } : {}),
+    ...(truncated ? { historyTruncated: true } : {}),
+    ...(slots.length ? { uiSlots: slots } : {}),
+    ...(report.requestHistory ? { network } : {}),
+    ...(failureAttempt ? { lastModelStreamFailure: { attempt: failureAttempt } } : {}),
+    ...(report.operations ? { operations: recentOperations(report.operations.events, event => `${event.source}:${event.action}`) } : {}),
+    ...(report.compaction?.requests ? { pluginCompaction: report.compaction } : {}),
   }
 }

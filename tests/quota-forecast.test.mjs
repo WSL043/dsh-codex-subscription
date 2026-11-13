@@ -69,7 +69,7 @@ test('stopped consumption and a pinched boundary do not retain the old precise c
   for (const end of [75, 90, 120]) {
     const points = Array.from({ length: end / 3 + 1 }, (_, i) => [i * 3, 100 - Math.floor(20 + .17 * Math.min(i * 3, 60))])
     const result = forecastTrace(points)
-    assert.equal(result.status, 'calibrating')
+    assert.equal(result.status, end === 75 ? 'calibrating' : 'idle')
     assert.equal(result.runwaySeconds, undefined)
     assert.notEqual(result.survivesReset, true)
   }
@@ -117,6 +117,8 @@ test('reset or quota increase starts a fresh forecast epoch', () => {
   const result = estimateQuotaForecast(state, usage(99, 2_000_086_400).rateLimits[0].windows[0], start + 2 * HOUR)
   assert.equal(result.status, 'calibrating')
   assert.equal(result.sampleCount, 1)
+  assert.equal(Object.values(state.windows)[0].samples.length, 4, 'previous period remains available for analysis')
+  assert.equal(Object.values(state.windows)[0].samples.at(-1).reset, true)
 })
 
 test('reader collects only while opted in and clears its account-local memory on sign-out', async () => {
@@ -333,5 +335,41 @@ test('fresh flat readings never create provisional consumption', () => {
   const start = 1_900_000_000_000
   let state
   for (let minute = 0; minute <= 40; minute += 2) state = observeQuotaForecast(state, usage(40).rateLimits[0].windows, start + minute * 60000).state
-  assert.equal(estimateQuotaForecast(state, usage(40).rateLimits[0].windows[0], start + 40 * 60000).status, 'calibrating')
+  const result = estimateQuotaForecast(state, usage(40).rateLimits[0].windows[0], start + 40 * 60000)
+  assert.equal(result.status, 'idle')
+  assert.equal(result.runwaySeconds, undefined)
+})
+
+test('weekly history survives hours offline and offers a rough average until fresh flat readings supersede it', () => {
+  const start = 1_900_000_000_000
+  let state
+  const observe = (hours, remaining) => {
+    const [window] = usage(remaining).rateLimits[0].windows
+    const now = start + hours * HOUR
+    state = observeQuotaForecast(state, [window], now).state
+    return estimateQuotaForecast(state, window, now)
+  }
+  observe(0, 90); observe(10, 85)
+  const result = observe(24, 78)
+  assert.equal(result.rateMethod, 'historical')
+  assert.equal(result.provisional, true)
+  assert.equal(result.pacePerHour, .5)
+  assert.equal(result.survivesReset, false)
+  observe(24.25, 78)
+  assert.equal(observe(24.5, 78).status, 'idle')
+})
+
+test('history retains a thinned month of data through resets within the store limit', () => {
+  const start = 1_900_000_000_000
+  let state
+  for (let hour = 0; hour <= 35 * 24; hour++) {
+    const cycle = Math.floor(hour / 168)
+    const [window] = usage(100 - Math.floor(hour % 168 / 3), (start + (cycle + 1) * 168 * HOUR) / 1000).rateLimits[0].windows
+    state = observeQuotaForecast(state, [window], start + hour * HOUR).state
+  }
+  const { samples } = Object.values(state.windows)[0]
+  assert.ok(samples[0].at >= start + 5 * 24 * HOUR)
+  assert.ok(samples[0].at < start + (5 * 24 + 8) * HOUR)
+  assert.ok(samples.length <= 280)
+  assert.ok(samples.filter(sample => sample.reset).length >= 4)
 })
