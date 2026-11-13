@@ -193,6 +193,44 @@ test('model defaults and explicit model overrides reach the subscription endpoin
   assert.equal(value.reportedModel,undefined)
   await tool.execute({prompt:'small test',model:'gpt-image-2',quality:'high'},execContext('model-explicit'))
   assert.equal(JSON.parse(requests[1].init.body).model,'gpt-image-2')
+  for (const model of ['gpt-image-2.6-flare', 'gpt-image-2.6-sunburst']) {
+    const result = await tool.execute({ prompt: 'small test', model, quality: 'low' }, execContext(model))
+    assert.equal(JSON.parse(requests.at(-1).init.body).model, model)
+    assert.equal(result.requestedModel, model)
+    assert.equal(result.reportedModel, undefined)
+  }
+})
+
+test('animated image requests keep the GIF original and never substitute a PNG response', async () => {
+  const gif = Buffer.from('47494638396101000100800000000000ffffff21f904000f0000002c000000000100010000020244010021f904000f0000002c00000000010001000002024c01003b', 'hex')
+  const root = await mkdtemp(join(tmpdir(), 'dsh-gif-original-'))
+  const store = new OriginalImageStore(root)
+  let sent, preview
+  let payload = { data: [{ b64_json: gif.toString('base64') }] }
+  let status = 200
+  const { tool } = fixture({
+    originalImages: store,
+    attachments: { imageLimits: { mediaTypes: ['image/png', 'image/gif'], maxImageBytes: 4096, maxMessageImageBytes: 4096 },
+      async saveImage(input) { preview = input; return IMAGE_REF } },
+    fetch: async (_url, options) => { sent = JSON.parse(options.body); return Response.json(payload, { status }) },
+  })
+  const args = { prompt: 'Animate a dot', gif: { frameCount: 2, frameDurationMs: 150 } }
+  try {
+    const result = await tool.execute(args, execContext('gif'))
+    assert.deepEqual([sent.output_format, sent.frame_count, sent.frame_duration_ms], ['gif', 2, 150])
+    assert.equal(preview.mediaType, 'image/gif')
+    assert.equal(result.original.name, 'codex-generated-original.gif')
+    const chunk = await store.chunk('session-image', result.original.assetId, 0)
+    assert.equal(chunk.ref.mediaType, 'image/gif')
+    assert.deepEqual(Buffer.from(chunk.encoded, 'base64'), gif)
+    assert.equal(await store.chunk('different-session', result.original.assetId, 0), undefined)
+
+    payload = { data: [{ b64_json: ONE_PIXEL_PNG }] }
+    await assert.rejects(tool.execute(args, execContext('static')), /GIF/)
+    status = 400
+    payload = { detail: 'GIF output is not enabled for this request.' }
+    await assert.rejects(tool.execute(args, execContext('disabled-gif')), /not yet available.*ChatGPT Images/)
+  } finally { await rm(root, { recursive: true, force: true }) }
 })
 
 test('disabling image editing during authentication prevents the outgoing image request', async () => {

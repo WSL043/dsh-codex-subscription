@@ -17,11 +17,10 @@ import {
   StreamIdleTimeoutPreference,
 } from './client-preferences.jsx'
 import { COMPOSER_MODEL_PICKER_MODES, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF, SPEED_MODE_FIELD, SPEED_MODE_FAST, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST } from './settings-contract.js'
-import { IMAGE_MODELS } from './image-models.js'
+import { IMAGE_MODELS, imageModelLabel as modelLabel, isExperimentalImageModel } from './image-models.js'
 import { ImageChoice } from './image-preferences.jsx'
 
 const ready = snapshot => snapshot.status === 'ready' && snapshot.writable === true
-const modelLabel = model => model.replace('gpt-image-', 'GPT Image ').replace('-flare', ' Flare').replace('-sunburst', ' Sunburst')
 
 /** One feature in the overview: what it does, its on/off switch (or current state) and an arrow to the page that owns its options. */
 export function FeatureRow({ t, title, summary, beta, checked, onChange, disabled, reason, status, onMore }) {
@@ -250,8 +249,8 @@ export function CreatePage({ preference, t }) {
       <SwitchRow loaded={snapshot.status === 'ready'} t={t} title={t('imageViewerRow')} state="imageViewer" checked={snapshot.imageViewer && snapshot.imageAnnotations} disabled={disabled} onChange={next => set({ imageViewer: next, imageAnnotations: next })} />
       <details className="codexAdvancedFold codexAdvancedInline">
         <summary>{t('imageAdvancedTitle')}<span>{imagesOn ? `${modelLabel(snapshot.imageModel)} · ${t(`imageQuality_${snapshot.imageQuality}`)}` : t('imageCapability_off')}</span></summary>
-        <ImageChoice t={t} label={t('imageModel')} hint={snapshot.imageModel.includes('2.5') ? t('imageModelHint') : undefined} value={snapshot.imageModel} text={modelLabel(snapshot.imageModel)} disabled={disabled || !imagesOn}
-          items={Object.keys(IMAGE_MODELS).map(id => ({ id, label: `${modelLabel(id)}${id.includes('2.5') ? ` · ${t('imageExperimental')}` : ''}` }))}
+        <ImageChoice t={t} label={t('imageModel')} hint={t('imageModelHint')} value={snapshot.imageModel} text={modelLabel(snapshot.imageModel)} disabled={disabled || !imagesOn}
+          items={Object.keys(IMAGE_MODELS).map(id => ({ id, label: `${modelLabel(id)}${isExperimentalImageModel(id) ? ` · ${t('imageExperimental')}` : ''}` }))}
           onSelect={imageModel => set({ imageModel, imageQuality: 'auto' })} />
         <ImageChoice t={t} label={t('imageQuality')} value={snapshot.imageQuality} text={t(`imageQuality_${snapshot.imageQuality}`)} disabled={disabled || !imagesOn}
           items={IMAGE_MODELS[snapshot.imageModel].map(id => ({ id, label: t(`imageQuality_${id}`) }))} onSelect={imageQuality => set({ imageQuality })} />

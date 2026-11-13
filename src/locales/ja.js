@@ -438,7 +438,7 @@ export default {
   "imageModel": "リクエストしたモデル",
   "imageQuality": "リクエストした品質",
   "imageExperimental": "実験的",
-  "imageModelHint": "Image 2.5 のオプションは実験的です。画像の生成リクエストは成功しますが、指定したモデルと品質は保証されません。",
+  "imageModelHint": "Flare と Sunburst は試験的な選択肢です。購読サービスが別のモデルや品質で処理する場合があります。",
   "sketchTool_pen": "ペン",
   "sketchTool_rectangle": "長方形",
   "sketchTool_circle": "楕円",

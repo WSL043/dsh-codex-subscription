@@ -510,6 +510,7 @@ a.codexVoiceCall{display:flex;align-items:center;justify-content:center;box-sizi
 .dcsLightbox[open]{display:grid;place-items:center}
 .dcsLightbox::backdrop{background:var(--dsw-alias-bg-mask-1);backdrop-filter:var(--dsw-mask-blur);clip-path:inset(var(--dsh-frame-chrome-top,0px) 0 0)}
 .dcsLightbox img{max-width:100%;max-height:100%;object-fit:contain}
+.dcsLightboxDownload{position:absolute;inset-block-end:24px;inset-inline-end:24px;padding:8px 12px;border-radius:8px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary)}
 .dcsLightbox button{position:absolute;inset-block-start:calc(var(--dsh-frame-chrome-top,0px) + 16px);inset-inline-end:16px;display:grid;place-items:center;width:36px;height:36px;padding:0;border:1px solid var(--dsw-alias-border-l2);border-radius:999px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);cursor:pointer}
 @media(prefers-reduced-motion:reduce){.dcsSwitch>span{transition:none}}
 `

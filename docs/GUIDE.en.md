@@ -148,7 +148,9 @@ The board supports editable shapes and text, native curves, and a side control f
 
 **Agent drawing from a reference**: attach the reference and send `@sketch` plus a request. The agent first puts the reference on the board as a hidden layer with `reference`, then draws in stages; every batch reports how the error changed, and it can compare side by side, read a difference heat map, zoom into a region, measure colours and edge positions, and undo. The board's Replay redraws the process stroke by stroke and can record it as a video (previewed first, saved only when you click Save video). Measured comparisons are in the README's "Sketch drawing, measured", the log is in [Drawing experiments](archive/sketch-drawing-experiments.md). The agent prefers the SVG command to draw a whole stage at once; the import still produces editable native strokes.
 
-Flare / Sunburst request overrides remain experimental: successful generation does not confirm which image engine or quality the subscription backend used.
+Image 2.5 and 2.6 Flare and Sunburst are experimental request options. Open the tool result details to see the requested model and the model reported by the service, if available.
+
+For a new animation, explicitly ask for an animated GIF. If the subscription service returns an animation, open its preview to play it and download the original. If your connection does not yet have GIF access, you can try [ChatGPT Images](https://chatgpt.com/images) separately.
 
 <a id="predictions"></a>
 

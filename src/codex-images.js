@@ -1,11 +1,12 @@
 import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { createUserMessage } from '@deepseek-ai/dsh-llm'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { ORIGINAL_IMAGE_SCHEMA_VERSION } from './image-original-contract.js'
+import { GENERATED_IMAGE_MEDIA_TYPES, ORIGINAL_IMAGE_SCHEMA_VERSION } from './image-original-contract.js'
 import { USER_AGENT } from './version.js'
 import { IMAGE_MODELS, resolveImageModel, validateImageQuality } from './image-models.js'
 import { assertImageOperation, readImageDefaults } from './image-features.js'
 import { authFailureMessage, ACCESS_DENIED } from './http-failure.js'
+import { gifDimensions } from './image-original-store.js'
 
 export const CODEX_IMAGE_TOOL_NAME = 'codex_image_generate'
 export const CODEX_IMAGE_GENERATION_URL = 'https://chatgpt.com/backend-api/codex/images/generations'
@@ -110,21 +111,50 @@ async function readJsonWithin(response, maximumBytes) {
 }
 
 /** Strictly decode one PNG returned by the subscription backend. */
-export function decodeCodexPng(value, maximumBytes) {
+function decodeImageBytes(value, maximumBytes, format) {
   const encoded = nonEmpty(value)
   const padding = encoded?.endsWith('==') ? 2 : encoded?.endsWith('=') ? 1 : 0
   if (encoded === undefined || encoded.length % 4 !== 0
     || !validBase64Body(encoded, encoded.length - padding)) {
-    throw new Error('Codex returned an invalid base64 PNG')
+    throw new Error(`Codex returned an invalid base64 ${format}`)
   }
   const decodedBytes = (encoded.length / 4) * 3 - padding
   if (decodedBytes > maximumBytes) throw new Error('Codex image exceeds the image size limit')
   const data = Buffer.from(encoded, 'base64')
-  if (data.length !== decodedBytes || data.length < PNG_SIGNATURE.length
-    || !data.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
-    throw new Error('Codex returned an invalid PNG')
-  }
+  if (data.length !== decodedBytes) throw new Error(`Codex returned an invalid ${format}`)
+  return data
+}
+
+export function decodeCodexPng(value, maximumBytes) {
+  const data = decodeImageBytes(value, maximumBytes, 'PNG')
+  if (!data.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) throw new Error('Codex returned an invalid PNG')
   return new Uint8Array(data)
+}
+
+function decodeAnimatedGif(value, maximumBytes) {
+  const data = decodeImageBytes(value, maximumBytes, 'GIF')
+  const { width, height } = gifDimensions(data)
+  if (width * height > 8_294_400) throw new Error('Codex GIF exceeds the image pixel limit')
+  // Walk GIF blocks without decoding pixel data. DSH validates the image
+  // during attachment creation, before any result is shown.
+  let offset = 13 + (data[10] & 0x80 ? 3 * (2 << (data[10] & 7)) : 0)
+  let frames = 0
+  while (offset < data.length) {
+    const kind = data[offset++]
+    if (kind === 0x3b && offset === data.length && frames > 1) return data
+    if (kind === 0x21) offset++
+    else if (kind === 0x2c && offset + 9 < data.length) {
+      const frameWidth = data.readUInt16LE(offset + 4)
+      const frameHeight = data.readUInt16LE(offset + 6)
+      if (frameWidth === 0 || frameHeight === 0 || frameWidth > width || frameHeight > height) break
+      const flags = data[offset + 8]
+      offset += 10 + (flags & 0x80 ? 3 * (2 << (flags & 7)) : 0)
+      if (++frames > 16) break
+    } else break
+    while (offset < data.length && data[offset] !== 0) offset += 1 + data[offset]
+    offset++
+  }
+  throw new Error('Codex did not return a valid animated GIF')
 }
 
 function imageReference(value) {
@@ -238,7 +268,7 @@ function imageContent(value) {
     ? `Generated a ${value.size} image.`
     : 'Generated an image.'
   return [
-    { type: 'text', text: value.localPath === undefined ? label : `${label}\nOriginal PNG saved on the DSH host at: ${JSON.stringify(value.localPath)}. Read this file or copy it to the workspace with a .png extension; this host path is not a browser URL. The image is already shown to the user, so do not embed it again; copy it rather than move it, and leave the original in place unless the user asks you to delete it.` },
+    { type: 'text', text: value.localPath === undefined ? label : `${label}\nOriginal ${value.original?.mediaType === 'image/gif' ? 'GIF' : 'PNG'} saved on the DSH host at: ${JSON.stringify(value.localPath)}. Read this file or copy it to the workspace with the matching extension; this host path is not a browser URL. The image is already shown to the user, so do not embed it again; copy it rather than move it, and leave the original in place unless the user asks you to delete it.` },
     { type: 'image', attachment: imageReference(value.image) },
   ]
 }
@@ -254,7 +284,7 @@ function imageOutputSchema() {
         additionalProperties: false,
         properties: {
           attachmentId: { type: 'string', required: true },
-          mediaType: { type: 'string', enum: ['image/png'], required: true },
+          mediaType: { type: 'string', enum: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'], required: true },
           bytes: { type: 'integer', required: true },
           width: { type: 'integer', required: true },
           height: { type: 'integer', required: true },
@@ -275,7 +305,7 @@ function imageOutputSchema() {
         additionalProperties: false,
         properties: {
           assetId: { type: 'string', required: true },
-          mediaType: { type: 'string', enum: ['image/png'], required: true },
+          mediaType: { type: 'string', enum: GENERATED_IMAGE_MEDIA_TYPES, required: true },
           bytes: { type: 'integer', required: true },
           width: { type: 'integer', required: true },
           height: { type: 'integer', required: true },
@@ -287,7 +317,7 @@ function imageOutputSchema() {
       requestedModel: { type: 'string' },
       reportedModel: { type: 'string' },
       requestedSize: { type: 'string' },
-      localPath: { type: 'string', required: true, description: 'Absolute path to the original PNG on the DSH host.' },
+      localPath: { type: 'string', required: true, description: 'Absolute path to the original image on the DSH host.' },
       quality: { type: 'string' },
       size: { type: 'string' },
     },
@@ -369,7 +399,7 @@ export function createCodexImageTool(options) {
       model: {
         type: 'string',
         enum: Object.keys(IMAGE_MODELS),
-        description: 'Optional image engine, independent of the conversation model. When omitted, uses the user image setting (initially gpt-image-2). The 2.5 identifiers are experimental subscription candidates; override only when explicitly requested. Never silently retry with another model.',
+        description: 'Optional image engine, independent of the conversation model. Defaults to the user image setting. Flare and Sunburst are experimental request options; override only when explicitly requested. Never silently retry with another model.',
       },
       prompt: {
         type: 'string',
@@ -389,6 +419,15 @@ export function createCodexImageTool(options) {
         type: 'string',
         enum: ['auto', 'transparent', 'opaque'],
         description: 'Optional background mode. Request transparent only when the user needs transparency.',
+      },
+      gif: {
+        type: 'object',
+        additionalProperties: false,
+        description: 'Only for an explicit request for a new animated GIF. Availability depends on the subscription service. Never replace an unavailable GIF with a static image.',
+        properties: {
+          frameCount: { type: 'integer', description: '2–16 frames, defaults to 6.' },
+          frameDurationMs: { type: 'integer', description: '20–655350 milliseconds, defaults to 150.' },
+        },
       },
       referenceImages: {
         type: 'array',
@@ -445,19 +484,28 @@ export function createCodexImageTool(options) {
       const prompt = nonEmpty(args.prompt)
       if (prompt === undefined) throw new Error('prompt must be a non-empty string')
       const imageOptions = normalizeImageOptions(args)
+      const editing = args.referenceImages !== undefined
+      const animated = args.gif !== undefined
+      const mediaType = animated ? 'image/gif' : 'image/png'
+      if (animated) {
+        if (editing) throw new Error('Animated GIF editing is not supported on the Codex subscription route')
+        const { frameCount = 6, frameDurationMs = 150 } = args.gif ?? {}
+        if (!record(args.gif) || !Number.isInteger(frameCount) || frameCount < 2 || frameCount > 16
+          || !Number.isInteger(frameDurationMs) || frameDurationMs < 20 || frameDurationMs > 655350) throw new Error('Invalid animated GIF options')
+        imageOptions.animation = { output_format: 'gif', frame_count: frameCount, frame_duration_ms: frameDurationMs }
+      }
       const { access, accountId } = await readSubscriptionCredentials(options.getAuth, options.readCredential, exec.signal)
       if (typeof access !== 'string' || access.length === 0
         || typeof accountId !== 'string' || accountId.length === 0) {
         throw new Error('ChatGPT subscription is not signed in')
       }
-      if (!attachments.imageLimits.mediaTypes.includes('image/png')) {
-        throw new Error('This DSH installation does not accept PNG image attachments')
+      if (!attachments.imageLimits.mediaTypes.includes(mediaType)) {
+        throw new Error(`This DSH installation does not accept ${animated ? 'GIF' : 'PNG'} image attachments`)
       }
       const maximumBytes = Math.min(
         attachments.imageLimits.maxImageBytes,
         attachments.imageLimits.maxMessageImageBytes,
       )
-      const editing = args.referenceImages !== undefined
       const sessionMessages = editing && typeof options.getSessionMessages === 'function'
         ? await options.getSessionMessages(exec.agent?.id)
         : undefined
@@ -486,6 +534,7 @@ export function createCodexImageTool(options) {
             model: resolveImageModel(args.model),
             quality: imageOptions.quality,
             size: imageOptions.size,
+            ...imageOptions.animation,
           }),
           signal: exec.signal,
         })
@@ -501,6 +550,12 @@ export function createCodexImageTool(options) {
         if (response.status === 403 && authFailure === ACCESS_DENIED) throw new Error(`${await refusalMessage(response, editing)}${requestId}`)
         if (authFailure !== undefined) throw new Error(authFailure)
         if (response.status === 429) throw new Error(`${await limitMessage(response)}${requestId}`)
+        if (animated && response.status === 400) {
+          const body = await readTextWithin(response, 16 * 1024)
+          if (/GIF output is not enabled for this request/iu.test(body)) {
+            throw new Error(`GIF generation is not yet available through this Codex subscription connection. Try ChatGPT Images in the browser.${requestId}`)
+          }
+        }
         throw new Error(`Codex image ${editing ? 'edit' : 'generation'} failed (HTTP ${response.status})${requestId}`)
       }
       const value = await readJsonWithin(
@@ -508,16 +563,17 @@ export function createCodexImageTool(options) {
         encodedLimit(maximumBytes) + RESPONSE_ENVELOPE_BYTES,
       )
       const metadata = responseMetadata(value)
-      const data = decodeCodexPng(metadata.encoded, maximumBytes)
+      const data = animated ? decodeAnimatedGif(metadata.encoded, maximumBytes) : decodeCodexPng(metadata.encoded, maximumBytes)
       const sessionId = exec.agent?.id
       if (sessionId === undefined) throw new Error('Codex image generation requires a session-owned tool call')
-      const original = await options.originalImages.save(String(sessionId), data)
+      const extension = animated ? 'gif' : 'png'
+      const original = await options.originalImages.save(String(sessionId), data, `codex-generated-original.${extension}`, mediaType)
       let ref
       try {
         ref = await attachments.saveImage({
           data,
-          mediaType: 'image/png',
-          name: 'codex-generated.png',
+          mediaType,
+          name: `codex-generated.${extension}`,
         })
       } catch (error) {
         await options.originalImages.remove(original)

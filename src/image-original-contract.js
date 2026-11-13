@@ -1,13 +1,14 @@
 export const ORIGINAL_IMAGE_SCHEMA_VERSION = 1
 export const ORIGINAL_IMAGE_CHUNK_BYTES = 4 * 1024 * 1024
 export const ORIGINAL_IMAGE_ID_PATTERN = /^img_[0-9a-f]{32}$/u
+export const GENERATED_IMAGE_MEDIA_TYPES = Object.freeze(['image/png', 'image/gif'])
 
 const positiveInteger = value => Number.isSafeInteger(value) && value > 0
 
 export function decodeOriginalImageRef(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)
     || typeof value.assetId !== 'string' || !ORIGINAL_IMAGE_ID_PATTERN.test(value.assetId)
-    || value.mediaType !== 'image/png'
+    || !GENERATED_IMAGE_MEDIA_TYPES.includes(value.mediaType)
     || !positiveInteger(value.bytes) || value.bytes > 48 * 1024 * 1024
     || !positiveInteger(value.width) || !positiveInteger(value.height)
     || typeof value.name !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(value.name)

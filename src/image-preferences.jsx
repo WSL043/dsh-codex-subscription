@@ -1,7 +1,7 @@
 import { SettingsLabel } from './client-hint.jsx'
 import { useState, useSyncExternalStore } from 'react'
 import { Button, Menu, IconChevronDownOutline14 } from './client-primitives.jsx'
-import { IMAGE_MODELS } from './image-models.js'
+import { IMAGE_MODELS, imageModelLabel as modelLabel, isExperimentalImageModel } from './image-models.js'
 import { IMAGE_SETTING_GROUPS, imageGroupValue, imageGroupPatch } from './image-setting-groups.js'
 
 export function ImageChoice({ t, label, hint, title, value, text, items, disabled, onSelect }) {
@@ -21,7 +21,6 @@ export function ImageChoice({ t, label, hint, title, value, text, items, disable
       } />
   </div>
 }
-const modelLabel = model => model.replace('gpt-image-', 'GPT Image ').replace('-flare', ' Flare').replace('-sunburst', ' Sunburst')
 export function ImagePreferences({ preference, t, section = 'image' }) {
   const snapshot = useSyncExternalStore(preference.subscribe, preference.getSnapshot)
   const disabled = snapshot.status !== 'ready' || !snapshot.writable || snapshot.saving
@@ -39,9 +38,9 @@ export function ImagePreferences({ preference, t, section = 'image' }) {
         onSelect={id => { void preference.set(imageGroupPatch(group, id === 'on')) }} />
     })}
     {!sketch ? <div className="codexImageDefaultsGroup">
-      <ImageChoice t={t} label={t('imageModel')} hint={snapshot.imageModel.includes('2.5') ? t('imageModelHint') : undefined} value={snapshot.imageModel} text={modelLabel(snapshot.imageModel)}
+      <ImageChoice t={t} label={t('imageModel')} hint={t('imageModelHint')} value={snapshot.imageModel} text={modelLabel(snapshot.imageModel)}
         disabled={disabled || !active}
-        items={Object.keys(IMAGE_MODELS).map(id => ({ id, label: `${modelLabel(id)}${id.includes('2.5') ? ` · ${t('imageExperimental')}` : ''}` }))}
+        items={Object.keys(IMAGE_MODELS).map(id => ({ id, label: `${modelLabel(id)}${isExperimentalImageModel(id) ? ` · ${t('imageExperimental')}` : ''}` }))}
         onSelect={imageModel => { void preference.set({ imageModel, imageQuality: 'auto' }) }} />
       <ImageChoice t={t} label={t('imageQuality')} value={snapshot.imageQuality} text={t(`imageQuality_${snapshot.imageQuality}`)}
         disabled={disabled || !active}

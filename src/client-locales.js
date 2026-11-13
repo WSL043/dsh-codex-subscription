@@ -182,7 +182,7 @@ export const zh = {
 
 
   imageDetails: '图片信息', imageRequestedModel: '请求模型', imageReportedModel: '服务端报告模型', imageModelUnreported: '未报告', imageRequestedSize: '请求尺寸', imageActualSize: '实际尺寸',
-  imageModel: '请求型号', imageQuality: '请求质量', imageExperimental: '实验', imageModelHint: '2.5 为实验选项：请求已成功出图，但尚无法确认指定型号或质量是否生效。',
+  imageModel: '请求型号', imageQuality: '请求质量', imageExperimental: '实验', imageModelHint: 'Flare 和 Sunburst 为实验选项。订阅服务可能不采用请求的型号或质量。',
   sketchTool_pen: '画笔', sketchTool_rectangle: '矩形', sketchTool_circle: '椭圆', sketchTool_eraser: '橡皮',
 
   sketchCanvas: '草图画板 · Beta', sketchCanvasHint: '默认关闭；开启后显示手动画板入口。', sketchCanvas_on: '开启', sketchCanvas_off: '关闭', sketchAgent: 'Agent 绘图 · Beta', sketchAgentHint: '默认关闭；开启后可用 @sketch 请求 Agent 绘图，需要同时开启草图画板。', sketchRun_drawing: 'Agent 正在绘制…', sketchRun_finished: '绘制完成', sketchRun_stopped: '绘制已停止', sketchRun_failed: '绘制失败', sketchRunStop: '停止绘制', sketchRunResume: '允许继续绘制', sketchAgent_on: '开启', sketchAgent_off: '关闭',
@@ -528,7 +528,7 @@ export const en = {
 
 
   imageDetails: 'Image details', imageRequestedModel: 'Requested model', imageReportedModel: 'Server-reported model', imageModelUnreported: 'Not reported', imageRequestedSize: 'Requested size', imageActualSize: 'Actual size',
-  imageModel: 'Requested model', imageQuality: 'Requested quality', imageExperimental: 'Experimental', imageModelHint: 'Image 2.5 options are experimental: requests generated images successfully, but the requested model and quality are not confirmed.',
+  imageModel: 'Requested model', imageQuality: 'Requested quality', imageExperimental: 'Experimental', imageModelHint: 'Flare and Sunburst are experimental. The subscription service may use a different model or quality.',
   sketchTool_pen: 'Pen', sketchTool_rectangle: 'Rectangle', sketchTool_circle: 'Ellipse', sketchTool_eraser: 'Eraser',
 
   sketchCanvas: 'Sketch canvas · Beta', sketchCanvasHint: 'Off by default. Enables the manual sketch board.', sketchCanvas_on: 'On', sketchCanvas_off: 'Off', sketchAgent: 'Agent drawing · Beta', sketchAgentHint: 'Off by default. Use @sketch to ask the Agent to draw; requires the sketch canvas.', sketchRun_drawing: 'Agent is drawing…', sketchRun_finished: 'Drawing complete', sketchRun_stopped: 'Drawing stopped', sketchRun_failed: 'Drawing failed', sketchRunStop: 'Stop drawing', sketchRunResume: 'Allow drawing again', sketchAgent_on: 'On', sketchAgent_off: 'Off',

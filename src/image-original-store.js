@@ -23,6 +23,18 @@ export function pngDimensions(data) {
   return { width, height }
 }
 
+export function gifDimensions(data) {
+  if (!(data instanceof Uint8Array) || data.byteLength < 13
+    || !/^GIF8[79]a$/u.test(Buffer.from(data.subarray(0, 6)).toString('ascii'))) throw new TypeError('invalid GIF dimensions')
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength)
+  const width = view.getUint16(6, true)
+  const height = view.getUint16(8, true)
+  if (width === 0 || height === 0) throw new TypeError('invalid GIF dimensions')
+  return { width, height }
+}
+
+const imageDimensions = (data, mediaType) => mediaType === 'image/gif' ? gifDimensions(data) : pngDimensions(data)
+
 async function writeExclusive(filename, data) {
   await mkdir(dirname(filename), { recursive: true, mode: 0o700 })
   const handle = await open(filename, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY, 0o600)
@@ -62,14 +74,14 @@ export class OriginalImageStore {
     return join(this.directory(assetId), 'original')
   }
 
-  async save(sessionId, data, name = 'codex-generated-original.png') {
+  async save(sessionId, data, name = 'codex-generated-original.png', mediaType = 'image/png') {
     if (!validSessionId(sessionId) || !(data instanceof Uint8Array) || data.byteLength === 0 || data.byteLength > 48 * 1024 * 1024) {
       throw new TypeError('invalid original image input')
     }
-    const { width, height } = pngDimensions(data)
+    const { width, height } = imageDimensions(data, mediaType)
     const assetId = `img_${randomBytes(16).toString('hex')}`
     const directory = this.directory(assetId)
-    const ref = { assetId, mediaType: 'image/png', bytes: data.byteLength, width, height, name, sha256: digest(data) }
+    const ref = { assetId, mediaType, bytes: data.byteLength, width, height, name, sha256: digest(data) }
     try {
       await mkdir(dirname(directory), { recursive: true, mode: 0o700 })
       await mkdir(directory, { recursive: false, mode: 0o700 })
@@ -102,7 +114,7 @@ export class OriginalImageStore {
         || (metadata.sessionId !== sessionId && !originalImageRefsEqual(metadata.image, inherited))) return undefined
       const buffer = await readFile(originalFile)
       const data = new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
-      const dimensions = pngDimensions(data)
+      const dimensions = imageDimensions(data, metadata.image.mediaType)
       if (data.byteLength !== metadata.image.bytes || digest(data) !== metadata.image.sha256
         || dimensions.width !== metadata.image.width || dimensions.height !== metadata.image.height) return undefined
       return { ref: metadata.image, data }
@@ -128,9 +140,9 @@ export class OriginalImageStore {
       const stat = await handle.stat()
       if (!stat.isFile() || stat.size !== metadata.image.bytes || offset >= stat.size
         || process.platform !== 'win32' && (stat.mode & 0o077) !== 0) return undefined
-      const header = Buffer.alloc(24)
-      if ((await handle.read(header, 0, 24, 0)).bytesRead !== 24) return undefined
-      const dimensions = pngDimensions(header)
+      const header = Buffer.alloc(metadata.image.mediaType === 'image/gif' ? 13 : 24)
+      if ((await handle.read(header, 0, header.length, 0)).bytesRead !== header.length) return undefined
+      const dimensions = imageDimensions(header, metadata.image.mediaType)
       if (dimensions.width !== metadata.image.width || dimensions.height !== metadata.image.height) return undefined
       const length = Math.min(ORIGINAL_IMAGE_CHUNK_BYTES, stat.size - offset)
       const chunk = Buffer.alloc(length)

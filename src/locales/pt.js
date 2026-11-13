@@ -438,7 +438,7 @@ export default {
   "imageModel": "Modelo solicitado",
   "imageQuality": "Qualidade solicitada",
   "imageExperimental": "Experimental",
-  "imageModelHint": "As opções Image 2.5 são experimentais: as solicitações geram imagens com sucesso, mas o modelo e a qualidade solicitados não são confirmados.",
+  "imageModelHint": "Flare e Sunburst são experimentais. O serviço pode usar outro modelo ou outra qualidade.",
   "sketchTool_pen": "Caneta",
   "sketchTool_rectangle": "Retângulo",
   "sketchTool_circle": "Elipse",

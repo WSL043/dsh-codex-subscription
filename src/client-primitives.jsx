@@ -237,7 +237,7 @@ export function Menu({ open, anchor, items, selectedId, onSelect, onClose, align
   </>
 }
 
-export function ImageLightbox({ src, alt, labels, onClose }) {
+export function ImageLightbox({ src, alt, labels, onClose, content }) {
   const dialog = useRef(null)
   useLayoutEffect(() => {
     const element = dialog.current, opener = element.ownerDocument.activeElement
@@ -250,7 +250,8 @@ export function ImageLightbox({ src, alt, labels, onClose }) {
     event.stopPropagation()
     onClose()
   }} onClick={event => { if (event.target === event.currentTarget) onClose() }}>
-    <img src={src} alt={alt} />
+    {src ? <img src={src} alt={alt} /> : null}
+    {content}
     <button type="button" aria-label={labels.close} onClick={onClose}><IconCloseOutline16 /></button>
   </dialog>
 }

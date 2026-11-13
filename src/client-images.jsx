@@ -8,11 +8,12 @@ import { decodeImagePresentation } from './image-original-contract.js'
 import { readOriginalImage, imageEditSource } from './original-image-download.js'
 
 const imageDownloadName = attachment => {
-  const fallback = 'codex-generated-image.png'
+  const extension = attachment?.mediaType === 'image/gif' ? '.gif' : '.png'
+  const fallback = `codex-generated-image${extension}`
   if (typeof attachment?.name !== 'string') return fallback
   const cleaned = attachment.name.replace(/[<>:"/\\|?*\u0000-\u001f]/gu, '-').replace(/[. ]+$/u, '').trim()
   if (cleaned === '') return fallback
-  return cleaned.toLowerCase().endsWith('.png') ? cleaned : `${cleaned}.png`
+  return cleaned.toLowerCase().endsWith(extension) ? cleaned : `${cleaned}${extension}`
 }
 
 function triggerBlobDownload(data, mediaType, filename) {
@@ -26,12 +27,14 @@ function triggerBlobDownload(data, mediaType, filename) {
 }
 
 function CodexGeneratedImage({ attachment, original, gallery, rpc, sessionId, loadImage, openSketchImage, attachForEdit, getImageViewer, getInternalImageViewer, t, features }) {
+  const animated = original?.mediaType === 'image/gif'
   const reload = useCallback(() => loadImage(attachment), [attachment, loadImage])
   const { src, failed: error, fail, retry, attempt, usable, loaded } = useImageSource(reload, attachment.attachmentId ?? attachment)
   const [nativePreview, setNativePreview] = useState()
   const triggerRef = useRef(null)
   const opening = useRef(0)
-  useEffect(() => () => { opening.current++ }, [attachment])
+  const animationRequest = useRef()
+  useEffect(() => () => { opening.current++; animationRequest.current?.abort() }, [attachment])
   const label = attachment.name ?? t('imageLabel')
   const makeItem = (attachment, original, src) => {
     const downloadName = imageDownloadName(attachment)
@@ -48,7 +51,7 @@ function CodexGeneratedImage({ attachment, original, gallery, rpc, sessionId, lo
           pendingLabel: t('imageDownloadPreparing'), errorLabel: t('imageDownloadFailed'),
           onInvoke: async ({ signal, onProgress } = {}) => triggerBlobDownload(await readOriginalImage(rpc, sessionId, original, { signal, onProgress }), original.mediaType, original.name),
         },
-        actions: !features.imageEditing ? [] : [{
+        actions: !features.imageEditing || original?.mediaType === 'image/gif' ? [] : [{
           id: 'continue-editing', label: t('imageEdit'), pendingLabel: t('imageEditPreparing'), errorLabel: t('imageEditFailed'), closeOnSuccess: true,
           onInvoke: ({ annotations = [], src: preview, signal }) => {
             const imageKey = String(attachment.attachmentId ?? 'image').replace(/^sha256:/u, '').slice(0, 12).replace(/[^a-zA-Z0-9_-]/gu, '_')
@@ -64,6 +67,19 @@ function CodexGeneratedImage({ attachment, original, gallery, rpc, sessionId, lo
   const openImage = async () => {
     if (src === undefined) return
     const revision = ++opening.current
+    if (animated) {
+      animationRequest.current?.abort()
+      const controller = new AbortController()
+      animationRequest.current = controller
+      setNativePreview({ attachment })
+      try {
+        const bytes = await readOriginalImage(rpc, sessionId, original, { signal: controller.signal })
+        if (!controller.signal.aborted) setNativePreview({ attachment, blob: new Blob([bytes], { type: original.mediaType }) })
+      } catch {
+        if (!controller.signal.aborted) setNativePreview({ attachment, error: true })
+      }
+      return
+    }
     const selectedIndex = gallery?.findIndex(image => image.attachment === attachment || (attachment.attachmentId && image.attachment.attachmentId === attachment.attachmentId)) ?? -1
     const group = selectedIndex < 0 ? [...(gallery ?? []), { attachment, original }] : gallery
     const index = selectedIndex < 0 ? group.length - 1 : selectedIndex
@@ -96,10 +112,25 @@ function CodexGeneratedImage({ attachment, original, gallery, rpc, sessionId, lo
       {src === undefined ? <span>{t('imageLoading')}</span> : <img key={attempt} src={src} onError={fail} onLoad={loaded} alt={label} />}
       {error ? <span>{t('imageLoadFailed')}</span> : null}
     </button>
-    {nativePreview?.attachment === attachment && !features.imageViewer ? <ImageLightbox
+    {nativePreview?.attachment === attachment && animated ? <AnimatedPreview preview={nativePreview} name={original.name} label={label} t={t} onClose={() => { animationRequest.current?.abort(); setNativePreview(undefined) }} /> : null}
+    {nativePreview?.attachment === attachment && !animated && !features.imageViewer ? <ImageLightbox
       src={nativePreview.src} alt={label} labels={{ dialog: t('imagePreview'), close: t('imageClosePreview') }}
       onClose={() => setNativePreview(undefined)} /> : null}
   </>
+}
+
+function AnimatedPreview({ preview, name, label, t, onClose }) {
+  const [src, setSource] = useState()
+  useEffect(() => {
+    if (!preview.blob) return
+    const url = URL.createObjectURL(preview.blob)
+    setSource(url)
+    return () => URL.revokeObjectURL(url)
+  }, [preview.blob])
+  return <ImageLightbox src={src} alt={label} labels={{ dialog: t('imagePreview'), close: t('imageClosePreview') }}
+    onClose={onClose} content={src
+      ? <a className="codexSubscriptionLink dcsLightboxDownload" href={src} download={name}>{t('imageDownload')}</a>
+      : <span role={preview.error ? 'alert' : 'status'}>{t(preview.error ? 'imageLoadFailed' : 'imageLoading')}</span>} />
 }
 
 export function CodexImageToolRow({ presentation = 'tool', block, gallery, sessionId, rpc, loadImage, openSketchImage, attachForEdit, getImageViewer, getInternalImageViewer, t, preference }) {
@@ -127,6 +158,10 @@ export function CodexImageToolRow({ presentation = 'tool', block, gallery, sessi
 }
 
 export function CodexImageOutput({ node, ...props }) {
-  const gallery = node.data.blocks.flatMap(block => block.content.filter(item => item?.type === 'image' && item.attachment).map(item => ({ attachment: item.attachment, original: decodeImagePresentation(block?.meta)?.original })))
+  const gallery = node.data.blocks.flatMap(block => {
+    const original = decodeImagePresentation(block?.meta)?.original
+    if (original?.mediaType === 'image/gif') return []
+    return block.content.filter(item => item?.type === 'image' && item.attachment).map(item => ({ attachment: item.attachment, original }))
+  })
   return <div className="codexImageOutput">{node.data.blocks.map(block => <CodexImageToolRow key={block.toolCallId} block={block} gallery={gallery} {...props} presentation="output" />)}</div>
 }
