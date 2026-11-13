@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   intake:
-    if: github.event.issue.user.type != 'Bot'
+    if: github.event.issue.state == 'open' && github.event.issue.user.type != 'Bot'
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -67,13 +67,6 @@ jobs:
               }
             }
 
-            const needInfo = () => labelNames.has('waiting-for-reporter') ? undefined : github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: ['waiting-for-reporter'],
-            })
-
             if (!isReport) return
             const value = /^### Plugin version\s*\n+([^\n]+)/imu.exec(body)?.[1]?.trim()
             if (value?.toLowerCase() === 'not installed') return
@@ -98,7 +91,18 @@ jobs:
             if (missing.length) {
               const unanswered = missing.filter(([marker]) => !comments.some(comment => comment.body?.includes(marker)))
               if (unanswered.length) await commentOnce(unanswered.map(([marker]) => marker).join('\n'), unanswered.map(([, text]) => text).join('\n\n'))
-              await needInfo()
+              if (!labelNames.has('waiting-for-reporter') && context.payload.issue.state_reason !== 'reopened') {
+                await github.rest.issues.addLabels({ ...context.repo, issue_number: context.issue.number, labels: ['waiting-for-reporter'] })
+              }
+            } else if (labelNames.has('waiting-for-reporter') && comments.some(comment => /<!-- dsh-version-check:(?:dsh-)?missing -->/u.test(comment.body ?? ''))) {
+              for (const name of ['waiting-for-reporter', 'stale']) {
+                if (!labelNames.has(name)) continue
+                try {
+                  await github.rest.issues.removeLabel({ ...context.repo, issue_number: context.issue.number, name })
+                } catch (error) {
+                  if (error.status !== 404) throw error
+                }
+              }
             }
             if (!version) return
             const packageAt = async tag => {

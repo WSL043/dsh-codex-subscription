@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Do not include tokens, cookies, OAuth URLs, authorization codes, or other credentials.
-        If Settings opens, generate a Support diagnostics report first; it excludes credentials and account identifiers.
+        If Settings opens, reproduce the problem, then copy Support diagnostics from Codex subscription → Phone & more.
 
         Before filing, check the README troubleshooting section and try the newest release by its exact version (the number on the npm badge in the README), written as `dsh-codex-subscription@X.Y.Z`. DSH's plugin page only installs releases at least 24 hours old, so entering the bare package name can install an older version that does not match your DSH.
         Something not working belongs here. Use the feature request form only for new ideas.
@@ -97,10 +97,10 @@ body:
     id: diagnostics
     attributes:
       label: Support diagnostics
-      description: Paste the report generated in Settings, or write "unavailable" and explain why. Do not paste full raw logs, secrets, or authorization links.
+      description: Paste the copied report if available. If DSH or Settings cannot open, use Other error output for the startup message or a short redacted excerpt. Do not paste full raw logs.
       render: text
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: output

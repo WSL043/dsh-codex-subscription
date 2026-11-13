@@ -3,11 +3,14 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import { createRequire } from 'node:module'
 
-const CR = String.fromCharCode(13)
-const source = (await readFile(new URL('../.github/workflows/issue-intake.yml', import.meta.url), 'utf8')).split(CR).join('')
-const script = source.slice(source.indexOf('script: |') + 'script: |'.length + 1).split('\n').map(line => line.slice(12)).join('\n')
 const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor
-const intake = new AsyncFunction('github', 'context', 'require', script)
+async function workflowScript(name) {
+  const source = await readFile(new URL(`../.github/workflows/${name}.yml`, import.meta.url), 'utf8')
+  const script = source.replaceAll('\r', '').split('script: |\n')[1].split('\n').map(line => line.slice(12)).join('\n')
+  return new AsyncFunction('github', 'context', 'require', script)
+}
+const intake = await workflowScript('issue-intake')
+const reopen = await workflowScript('issue-reopen')
 const require = createRequire(import.meta.url)
 
 const bugBody = (plugin, dsh) => [
@@ -70,9 +73,10 @@ Windows 11 / gpt-6.1-sol / 系统代理 [local proxy]（mihomo，境外节点）
 
 补充：我本地把 \`retryPolicy\` 设成了 \`"20"\`（不是默认值），所以重试次数看起来很多——这属于我自己的配置，不在本次建议范围内。`
 
-async function run({ labels, body, action = 'opened', existingComments = [], latest = '2.3.0' }) {
+async function run({ labels, body, action = 'opened', stateReason, existingComments = [], latest = '2.3.0' }) {
   const comments = []
   const added = []
+  const removed = []
   const fetched = []
   const github = {
     paginate: async () => existingComments.map(body => ({ body })),
@@ -80,6 +84,7 @@ async function run({ labels, body, action = 'opened', existingComments = [], lat
       listComments: {},
       createComment: async ({ body: text }) => { comments.push(text) },
       addLabels: async ({ labels: names }) => { added.push(...names) },
+      removeLabel: async ({ name }) => { removed.push(name) },
     } },
   }
   const previousFetch = globalThis.fetch
@@ -90,11 +95,11 @@ async function run({ labels, body, action = 'opened', existingComments = [], lat
     return manifest ? Response.json(manifest) : new Response('not found', { status: 404 })
   }
   try {
-    await intake(github, { repo: { owner: 'o', repo: 'r' }, issue: { number: 1 }, payload: { action, issue: { labels: labels.map(name => ({ name })), body } } }, require)
+    await intake(github, { repo: { owner: 'o', repo: 'r' }, issue: { number: 1 }, payload: { action, issue: { labels: labels.map(name => ({ name })), body, state_reason: stateReason } } }, require)
   } finally {
     globalThis.fetch = previousFetch
   }
-  return { comments, added, fetched }
+  return { comments, added, removed, fetched }
 }
 
 test('a bug with a complete, current report only gets the acknowledgement', async () => {
@@ -212,9 +217,10 @@ test('replayed opened events do not repeat acknowledgements or version notices',
 
 test('an edited report can add versions without another welcome', async () => {
   const first = await run({ labels: ['bug'], body: bugBody('latest', '_No response_') })
-  const edited = await run({ labels: ['bug'], body: bugBody('2.3.0', '0.2.0-rc.2'), action: 'edited', existingComments: first.comments })
+  const edited = await run({ labels: ['bug', 'waiting-for-reporter', 'stale'], body: bugBody('2.3.0', '0.2.0-rc.2'), action: 'edited', existingComments: first.comments })
   assert.deepEqual(edited.comments, [])
   assert.deepEqual(edited.added, [])
+  assert.deepEqual(edited.removed, ['waiting-for-reporter', 'stale'])
   const unchanged = await run({ labels: ['bug', 'waiting-for-reporter'], body: bugBody('latest', '_No response_'), action: 'edited', existingComments: first.comments })
   assert.deepEqual(unchanged.comments, [])
   assert.deepEqual(unchanged.added, [])
@@ -226,6 +232,12 @@ test('an edited partial report asks for the remaining field without welcoming ag
   assert.equal(edited.comments.length, 1)
   assert.match(edited.comments[0], /dsh-version-check:dsh-missing/)
   assert.doesNotMatch(edited.comments[0], /dsh-maintenance-ack|dsh-feature-ack|dsh-version-check:missing/)
+})
+
+test('editing a reopened report can request details without putting it back into automatic closure', async () => {
+  const { comments, added } = await run({ labels: ['bug'], body: bugBody('2.3.0', '_No response_'), action: 'edited', stateReason: 'reopened' })
+  assert.match(comments[0], /dsh-version-check:dsh-missing/)
+  assert.deepEqual(added, [])
 })
 
 test('old misfiled or feature acknowledgements do not trigger a contradictory replacement welcome', async () => {
@@ -253,4 +265,43 @@ test('maintenance participation and unlabeled issues are untouched', async () =>
   assert.deepEqual(comments, [])
   assert.deepEqual(added, [])
   assert.deepEqual(fetched, [])
+})
+
+async function followUp({ body = '/reopen\nStill reproduces on 3.2.14.', issueChanges = {} } = {}) {
+  const issue = { number: 42, state: 'closed', closed_at: '2026-11-13T01:00:00Z', user: { id: 7 } }
+  const params = { owner: 'o', repo: 'r', issue_number: 42 }
+  const comment = { body, user: { id: 7 }, created_at: '2026-11-13T01:01:00Z' }
+  const current = { ...issue, labels: [{ name: 'bug' }, { name: 'waiting-for-reporter' }, { name: 'stale' }], ...issueChanges }
+  const operations = []
+  const issues = {
+    get: async request => { assert.deepEqual(request, params); return { data: current } },
+    removeLabel: async request => operations.push(['remove', request]),
+    update: async request => operations.push(['update', request]),
+  }
+  await reopen({ rest: { issues } }, { repo: { owner: 'o', repo: 'r' }, payload: { issue, comment } })
+  return operations
+}
+
+test('a report can return to review without being swept again or losing unrelated labels', async () => {
+  const params = { owner: 'o', repo: 'r', issue_number: 42 }
+  assert.deepEqual(await followUp(), [
+    ['remove', { ...params, name: 'waiting-for-reporter' }],
+    ['remove', { ...params, name: 'stale' }],
+    ['update', { ...params, state: 'open', state_reason: 'reopened' }],
+  ])
+})
+
+test('ordinary references and commands without details do not reopen an issue', async () => {
+  for (const body of ['Still relevant to #251.', 'Thanks!', '/reopen', '/reopened #251', '> /reopen with details']) {
+    assert.deepEqual(await followUp({ body }), [])
+  }
+})
+
+test('a delayed or inapplicable reopening request does not change the current issue', async () => {
+  for (const issueChanges of [
+    { state: 'open' }, { locked: true }, { state_reason: 'duplicate' }, { labels: [{ name: 'duplicate' }] },
+    { pull_request: {} }, { closed_at: '2026-11-13T01:03:00Z' }, { user: { id: 8 } },
+  ]) {
+    assert.deepEqual(await followUp({ issueChanges }), [])
+  }
 })

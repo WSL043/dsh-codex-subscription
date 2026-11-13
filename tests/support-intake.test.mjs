@@ -12,9 +12,10 @@ const englishReadme = new URL("../README.en.md", import.meta.url);
 test("bug intake accepts UI failures and requests secret-safe support evidence", async () => {
   const form = parse(await readFile(issueForm, "utf8"));
   const fields = new Map(form.body.filter(field => field.id).map(field => [field.id, field]));
-  for (const id of ['dsh_version', 'plugin_version', 'diagnostics']) assert.equal(fields.get(id)?.validations.required, true, id);
+  for (const id of ['dsh_version', 'plugin_version']) assert.equal(fields.get(id)?.validations.required, true, id);
+  assert.notEqual(fields.get('diagnostics').validations?.required, true);
   assert.equal(fields.get('diagnostics').type, 'textarea');
-  assert.match(fields.get('diagnostics').attributes.description, /unavailable/i);
+  assert.match(fields.get('diagnostics').attributes.description, /DSH or Settings cannot open/);
   assert.match(fields.get('diagnostics').attributes.description, /Do not paste full raw logs/);
   assert.ok(fields.get('stage').attributes.options.includes('Browser sign-in or cancel'));
   assert.ok(fields.has('output'));

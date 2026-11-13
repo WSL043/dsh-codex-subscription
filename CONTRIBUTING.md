@@ -81,6 +81,24 @@ acceptance into the historical archive after retaining unique failures, decision
 and validation limits. Run `node --test tests/documentation.test.mjs` after moving
 links. The retired `scripts/ui-smoke.mjs` exits 2 without performing acceptance.
 
+## Issue follow-up
+
+Keep the main issue open while there is work to do in this project, including
+reproducing a recurring report. Link duplicate reports to that issue so the
+versions, reproduction steps, and related PRs stay together. Close verified
+fixes with the scope and version of the fix. If there is no further work for
+this project, record the reason and link any known upstream tracker before closing.
+
+For an issue that closed while waiting for details, or a problem that still
+reproduces after a fix, the original reporter can post a new comment starting
+with `/reopen` followed by the versions, reproduction steps, or requested details.
+Other participants can share new evidence in the same thread for a maintainer
+to review. For a duplicate, continue in the linked issue. A reopened issue with
+a recurring failure stays open until a maintainer verifies the fix or records
+why no further work can be done here. When reopening manually for investigation,
+clear `waiting-for-reporter` and `stale` if present. Keep new fixes in their own
+PRs and link the original issue or PR for context.
+
 ## Pull requests
 
 Include the related issue number in the commit message, PR description and

@@ -1,0 +1,47 @@
+name: Reopen an issue on request
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+jobs:
+  reopen:
+    if: >-
+      ${{ !github.event.issue.pull_request && github.event.issue.state == 'closed' &&
+      !github.event.issue.locked && github.event.comment.user.type == 'User' &&
+      github.event.comment.user.id == github.event.issue.user.id &&
+      startsWith(github.event.comment.body, '/reopen') }}
+    concurrency:
+      group: issue-intake-${{ github.event.issue.number }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          script: |
+            const { comment, issue } = context.payload
+            if (!/^\/reopen\s+\S/u.test(comment.body)) return
+
+            const params = { ...context.repo, issue_number: issue.number }
+            const { data: current } = await github.rest.issues.get(params)
+            if (current.state !== 'closed' || current.locked || current.pull_request) return
+            if (current.user?.id !== comment.user.id || current.state_reason === 'duplicate') return
+            // A delayed run must not undo a later decision to close the issue again.
+            if (!current.closed_at || current.closed_at !== issue.closed_at || comment.created_at < current.closed_at) return
+            const labels = new Set(current.labels.map(label => label.name))
+            if (labels.has('duplicate')) return
+
+            // Remove the issue from the stale sweep before opening it for review.
+            for (const name of ['waiting-for-reporter', 'stale']) {
+              if (!labels.has(name)) continue
+              try {
+                await github.rest.issues.removeLabel({ ...params, name })
+              } catch (error) {
+                if (error.status !== 404) throw error
+              }
+            }
+            await github.rest.issues.update({ ...params, state: 'open', state_reason: 'reopened' })

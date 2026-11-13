@@ -18,14 +18,15 @@ jobs:
           only-issue-labels: waiting-for-reporter
           days-before-pr-stale: -1
           days-before-pr-close: -1
-          days-before-issue-stale: 1
-          days-before-issue-close: 1
+          days-before-issue-stale: 7
+          days-before-issue-close: 7
+          close-issue-reason: not_planned
           stale-issue-label: stale
           remove-stale-when-updated: true
           stale-issue-message: >
             We are still waiting for the details requested above (plugin version, DSH version, and the exact message).
-            Without them we cannot reproduce this, and it will be closed in 24 hours. Reply or edit the issue to keep it open, and it can always be reopened.
-            我们仍在等待上面要求的信息（插件版本、DSH 版本和完整提示）。没有这些信息无法复现，24 小时后将自动关闭；回复或编辑 issue 即可保留，之后也可以随时重新打开。
+            If there is no update in the next seven days, this issue will close while we wait for those details. Add the missing information to the report, or reply if you need more time.
+            我们仍在等待上面要求的信息（插件版本、DSH 版本和完整提示）。如果接下来七天没有更新，会先关闭这条 issue；请补全报告，如需更多时间可先留言。
           close-issue-message: >
-            Closing because the requested details were not provided. Please open a new Bug report, or reopen this one, with the plugin version, the DSH version, and the exact message.
-            因未收到所需信息，先关闭本 issue。补充插件版本、DSH 版本和完整提示后，可重新打开或新建 Bug 表单。
+            Closing while the requested details are still missing. If you opened this issue, post a new comment starting with `/reopen` followed by the requested details to reopen it for review.
+            因所需信息尚未补齐，先关闭这条 issue。如果你是报告者，请在此处新发一条以 `/reopen` 开头的评论，并附上所需信息，即可重新打开。
