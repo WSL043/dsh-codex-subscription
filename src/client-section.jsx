@@ -60,7 +60,7 @@ export function ProjectAction({ subject, t }) {
   return subject?.kind === 'bundle' && subject.pkg.name === 'dsh-codex-subscription' ? <ProjectLink t={t} /> : null
 }
 
-export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, defaultModel, embedded = false, close, openSubagentBundle }) {
+export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, defaultModel, embedded = false, close, openSubagentBundle, webSettingsContext }) {
   const [tab, setTab] = useState('start')
   const [visited, setVisited] = useState(() => new Set(['start']))
   // Defer unused panels, then retain their drafts and in-progress operations.
@@ -100,10 +100,10 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
     {accountSnapshot.status === 'error' ? <AccountFailureCard accountStatus={accountStatus} snapshot={accountSnapshot} t={t} rpc={rpc} onRecovered={accountChanged} /> : <AccountCard rpc={rpc} t={t} account={account} setAccount={setAccount} onSignedOut={accountChanged} active={tab === 'start'} revision={resetKey} />}
     {account === undefined ? null : <UsageCard key={resetKey} rpc={rpc} t={t} signedIn={account.authenticated === true} resetKey={resetKey} preference={preference} />}
     <QuotaSettingsCard preference={preference} t={t} />
-    <FeatureOverview preference={preference} t={t} go={selectTab} />
+    <FeatureOverview preference={preference} t={t} go={selectTab} webSettingsContext={webSettingsContext} />
     </div>
     <div className="codexFlat" role="tabpanel" id={`${id}-models`} aria-labelledby={`${id}-models-tab`} hidden={tab !== 'models'}>{visited.has('models') && <ModelsPage preference={preference} t={t} defaultModel={defaultModel} />}</div>
-    <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}>{visited.has('tools') && <ToolsPage preference={preference} rpc={rpc} t={t} active={tab === 'tools'}
+    <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}>{visited.has('tools') && <ToolsPage preference={preference} rpc={rpc} t={t} active={tab === 'tools'} webSettingsContext={webSettingsContext}
       openSubagentBundle={openSubagentBundle && (() => { openSubagentBundle(); if (!embedded) close?.() })} />}</div>
     <div className="codexFlat" role="tabpanel" id={`${id}-create`} aria-labelledby={`${id}-create-tab`} hidden={tab !== 'create'}>{visited.has('create') && <CreatePage preference={preference} t={t} />}</div>
     <div className="codexFlat" role="tabpanel" id={`${id}-more`} aria-labelledby={`${id}-more-tab`} hidden={tab !== 'more'}>{visited.has('more') && <MorePage preference={preference} rpc={rpc} t={t} diagnostics={diagnostics} active={tab === 'more'} />}</div>

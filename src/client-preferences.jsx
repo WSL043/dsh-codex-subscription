@@ -1,5 +1,6 @@
 import { Hint, SettingsLabel } from './client-hint.jsx'
 import { CapabilityPreferences } from './capability-preferences.jsx'
+import { WebProviderSettings, useWebProviderForm } from './client-web-provider-settings.jsx'
 import { DefaultModelPreference } from './default-model-preferences.jsx'
 import { RuntimeManagement } from './client-runtime-management.jsx'
 import { RemoteControlCard } from './client-remote-control.jsx'
@@ -36,12 +37,18 @@ export function AutoQuotaRetryPreference({ preference, t }) {
   </div>
 }
 
-export function SearchProviderPreference({ preference, t }) {
+export function SearchProviderPreference({ preference, t, webSettingsContext }) {
   const radioId = useId()
   const snapshot = usePreferenceSnapshot(preference)
+  const web = useWebProviderForm(webSettingsContext)
   const writable = snapshot.status === 'ready' && snapshot.writable === true
   const choice = (value, label) => <label className="codexSubscriptionQuotaMode"><input type="radio" name={`${radioId}-codex-subscription-search-provider`} checked={snapshot.searchProvider === value} disabled={!writable} onChange={() => { void preference.set({ [SEARCH_PROVIDER_FIELD]: value }) }} /><span>{label}</span></label>
   const hint = snapshot.searchProvider === SEARCH_PROVIDER_DSH ? 'searchDshHint' : snapshot.searchProvider === SEARCH_PROVIDER_CODEX ? 'searchCodexHint' : 'searchAutoHint'
+  if (snapshot.webProvidersManagedByDsh) return <div className="codexSubscriptionSearch">
+    <WebProviderSettings ctx={webSettingsContext} t={t} preference={preference} />
+    <CapabilityPreferences preference={preference} t={t} section="search"
+      showSearchOptions={['codex-subscription', 'codex-subscription-auto'].includes(web.value?.searchProvider)} />
+  </div>
   return <div className="codexSubscriptionSearch">
     <div className="codexSubscriptionPreference">
       <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t(hint)}>{t('searchTitle')}</SettingsLabel>{snapshot.status === 'ready' ? <Hint>{t(`searchState_${snapshot.searchProvider}`)}</Hint> : null}</div>

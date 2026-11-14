@@ -190,6 +190,7 @@ export function createCodexAutoSearchProvider(options) {
   const viaCodex = (request, signal) => options.codex.search(request, signal)
   return Object.freeze({
     id: CODEX_AUTO_SEARCH_PROVIDER_ID,
+    title: 'Codex Subscription (Auto)',
     available: () => true,
     async ready(llmProvider) {
       if (await options.codex.ready?.(llmProvider) ?? true) return true

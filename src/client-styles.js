@@ -440,7 +440,8 @@ a.codexVoiceCall{display:flex;align-items:center;justify-content:center;box-sizi
 .codexFlat .codexAdvancedBody{padding:0 0 4px}
 .codexFlat .codexAdvancedInline{margin-top:0;border-top:0;padding:0}.codexFlat .codexAdvancedInline>summary{padding:10px 0;font-weight:400}
 .codexFlat .codexSubscriptionSearch>.codexSubscriptionSearchOptions,.codexFlat .codexSubscriptionRuntime,.codexFlat .codexSubscriptionHistory{border-top:0;margin-top:0;padding-top:0}
-.codexFlat .codexSubscriptionSearchOptions{margin:0;padding:0}.codexFlat .codexSubscriptionSearchOptions>summary{padding:10px 0;margin:0}
+.codexFlat .codexSubscriptionSearchOptions{margin:0;padding:0}
+.codexFlat .codexSubscriptionSearchOptions>summary{margin:2px 2px 4px;padding:6px 8px}
 .codexFlat .codexSubscriptionCard:has(>.codexSubscriptionAccounts),.codexFlat .codexSubscriptionCard:has(>.codexSubscriptionActions),.codexFlat .codexSubscriptionStorage{padding-block:10px}
 .codexFlat .codexSubscriptionCreditSection{display:block}.codexFlat .codexSubscriptionCreditSection[open]>summary{border-bottom:1px solid var(--dsw-alias-border-l2);margin-bottom:8px}
 .codexFlat .codexSubscriptionStorage{gap:6px}

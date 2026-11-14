@@ -30,6 +30,7 @@ export function createCodexFetchProvider(options) {
   const fetchPage = options.fetch ?? fetch
   return Object.freeze({
     id: CODEX_FETCH_PROVIDER_ID,
+    title: 'Codex Subscription',
     available: () => true,
     ready: llmProvider => options.allowed?.(llmProvider) === false ? false : subscriptionCredentialReady(options.readCredential),
     async fetch(request, signal) {

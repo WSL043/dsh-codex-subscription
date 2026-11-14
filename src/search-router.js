@@ -17,6 +17,7 @@ export function gateSearchProvider(provider, { allowed, resolveDshProvider }) {
   }
   return Object.freeze({
     id: provider.id,
+    title: provider.title,
     available: () => { try { return selected().available() } catch { return false } },
     async ready(llmProvider) { try { return await selected(llmProvider).ready?.(llmProvider) ?? true } catch { return false } },
     async search(request, signal) { return selected().search(request, signal) },
@@ -32,9 +33,14 @@ export function gateSearchProvider(provider, { allowed, resolveDshProvider }) {
  *
  * @returns {Map|undefined} a stand-in for the web registry, or undefined when the registry is not a Map.
  */
-export function createSearchRouter({ registry, configuredId, mode, providers }) {
+export function createSearchRouter({ registry, configuredId, mode, providers, enabled = () => true }) {
   if (!(registry instanceof Map)) return undefined
-  const selected = () => {
+  const selected = id => {
+    if (!enabled()) {
+      const provider = registry.get(id)
+      if (!provider || !provider.available()) throw new WebError('The selected search provider is unavailable', 'WEB_PROVIDER_UNAVAILABLE')
+      return provider
+    }
     const source = mode()
     return source === SEARCH_PROVIDER_CODEX ? providers.codex : source === SEARCH_PROVIDER_AUTO ? providers.auto : providers.dsh
   }
@@ -44,10 +50,10 @@ export function createSearchRouter({ registry, configuredId, mode, providers }) 
     if (router === undefined) {
       router = Object.freeze({
         id,
-        available: () => true,
-        ready: llmProvider => selected().ready?.(llmProvider) ?? true,
+        available: () => enabled() || registry.get(id)?.available() === true,
+        ready: llmProvider => selected(id).ready?.(llmProvider) ?? true,
         search(request, signal) {
-          return selected().search(request, signal)
+          return selected(id).search(request, signal)
         },
       })
       wrappers.set(id, router)
@@ -59,7 +65,7 @@ export function createSearchRouter({ registry, configuredId, mode, providers }) 
       if (property === 'get') {
         return id => {
           const configured = configuredId()
-          return typeof id === 'string' && id === configured && !OWN_IDS.has(id) ? routerFor(id) : target.get(id)
+          return enabled() && typeof id === 'string' && id === configured && !OWN_IDS.has(id) ? routerFor(id) : target.get(id)
         }
       }
       const value = Reflect.get(target, property, target)

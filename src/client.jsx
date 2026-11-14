@@ -100,7 +100,7 @@ export function apply(ctx) {
     name: 'shell.overlay', id: 'codex-subscription-image-viewer', order: 20,
     inject: () => ({ service: imageViewer, t }),
   }, DeferredImageViewer))
-  registerSubscriptionSettings(ctx, { preference, rpc, accountStatus, t, diagnostics, defaultModel }, CodexSection, ProjectAction)
+  registerSubscriptionSettings(ctx, { preference, rpc, accountStatus, t, diagnostics, defaultModel, webSettingsContext: ctx }, CodexSection, ProjectAction)
   const sessions = ctx.get('sessions')
   // The quota readout and the voice button sit in the composer's right slot. They register on the root context, like the
   // composer's other entries, so DSH's composer always finds them (a session scope can be a different slot registry).

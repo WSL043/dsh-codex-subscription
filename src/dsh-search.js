@@ -6,6 +6,7 @@ export const DSH_SEARCH_PROVIDER_ID = 'codex-subscription-dsh'
 export function createDshSearchProvider({ resolveDshProvider, report }) {
   return Object.freeze({
     id: DSH_SEARCH_PROVIDER_ID,
+    title: 'DSH (Codex Subscription)',
     available: () => true,
     async ready(llmProvider) {
       const provider = resolveDshProvider?.()

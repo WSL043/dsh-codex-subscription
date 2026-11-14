@@ -20,6 +20,7 @@ import { createSketchAgentTool } from './sketch-agent-tool.js'
 import * as dshCredentials from '@deepseek-ai/dsh-credentials'
 import WebSocket from 'ws'
 import { hostname } from 'node:os'
+import { watchFile, unwatchFile } from 'node:fs'
 import { readSubscriptionCredentials } from './subscription-credentials.js'
 import { USER_AGENT } from './version.js'
 import { createRemoteControl } from './remote-control.js'
@@ -47,6 +48,7 @@ import { createOfficialModelCatalog, withModelCatalogReady } from './model-catal
 import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET } from './capability-settings.js'
 import { DSH_SEARCH_PROVIDER_ID, createDshSearchProvider } from './dsh-search.js'
 import { createSearchRouter, gateSearchProvider } from './search-router.js'
+import { createWebProviderSettings } from './web-provider-settings.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
 import { createCodexFetchProvider, createCodexFetchRouter, configuredFetchProviderId } from './codex-fetch.js'
 import { FETCH_PROVIDER_FIELD, FETCH_PROVIDER_CODEX, normalizeFetchProvider } from './settings-contract.js'
@@ -132,6 +134,9 @@ export function createSearchProviderSwitcher(loader) {
 }
 
 const settingsFields = {
+  webProvidersManagedByDsh: z.boolean().default(false),
+  webSearchFallbackProvider: z.string(),
+  webFetchFallbackProvider: z.string(),
   [DISABLED_MODELS_FIELD]: z.transform(z.array(z.string()).max(100), normalizeDisabledModels).default([]),
   [AUTO_QUOTA_RETRY_FIELD]: z.boolean().default(DEFAULT_AUTO_QUOTA_RETRY),
   subagentDefaultModel: z.transform(z.string().max(80), normalizeSubagentModel).default(''),
@@ -155,6 +160,8 @@ export const Config = z.object(Object.fromEntries(Object.entries(settingsFields)
 export function apply(ctx, config = {}) {
   const settings = createSettingsAdapter(ctx, config)
   const searchProvider = createSearchProviderSwitcher(ctx.loader)
+  const webSettings = createWebProviderSettings(ctx, settings)
+  const nativeWebSettings = () => webSettings?.managed() === true
   if (!process.env.NODE_TEST_CONTEXT) diagnosticLog.attach(dshHomePath('state', 'codex-subscription', 'diagnostic-log.jsonl'))
   diagnosticLog.info('plugin', `loaded ${PACKAGE_VERSION}`, `DSH ${hostDshVersion() ?? 'unknown'}, node ${process.version}, ${process.platform}`)
   setAuthFailureLogger((message, detail) => diagnosticLog.error('auth', message, detail))
@@ -293,6 +300,11 @@ export function apply(ctx, config = {}) {
         ),
         [SEARCH_PROVIDER_FIELD]: settings.get()[SEARCH_PROVIDER_FIELD],
         [FETCH_PROVIDER_FIELD]: normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]),
+        ...(nativeWebSettings() ? {
+          webProvidersManagedByDsh: true,
+          webSearchFallbackProvider: settings.get().webSearchFallbackProvider,
+          webFetchFallbackProvider: settings.get().webFetchFallbackProvider,
+        } : {}),
         fetchRoutingAvailable: fetchRouted,
         [SPEED_MODE_FIELD]: settings.get()[SPEED_MODE_FIELD],
         [OUTPUT_VERBOSITY_FIELD]: normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
@@ -320,6 +332,9 @@ export function apply(ctx, config = {}) {
     update: async patch => {
       if (patch.subagentDefaultModel && !subagentDefaults.list().some(model => model.id === patch.subagentDefaultModel)) {
         throw new Error('Codex subtask model is unavailable or disallowed')
+      }
+      if (nativeWebSettings() && (Object.hasOwn(patch, SEARCH_PROVIDER_FIELD) || Object.hasOwn(patch, FETCH_PROVIDER_FIELD))) {
+        throw new Error('Select the provider in DSH Web Search and Fetch settings')
       }
       if (patch[FETCH_PROVIDER_FIELD] === FETCH_PROVIDER_CODEX && !fetchRouted) throw new Error('This DSH version does not support Codex webpage reading')
       if (Object.hasOwn(patch, 'subagentBackend')) {
@@ -517,7 +532,7 @@ export function apply(ctx, config = {}) {
   }, 'codex-subscription: official model catalog')
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
   const codexFetch = createCodexFetchProvider({
-    allowed: llmProvider => fetchRouted && (settings.get().otherModels !== 'off' || (llmProvider ?? currentAgent()?.session.requestContext?.()?.provider) === PROVIDER),
+    allowed: llmProvider => (nativeWebSettings() || fetchRouted) && (settings.get().otherModels !== 'off' || (llmProvider ?? currentAgent()?.session.requestContext?.()?.provider) === PROVIDER),
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     resolveModel: () => {
@@ -528,11 +543,14 @@ export function apply(ctx, config = {}) {
     fetch: (input, init) => network.fetch('search', input, init),
   })
   const realFetchProviders = ctx.web.fetchProviders
-  ctx.web.registerFetchProvider?.({ ...codexFetch, available: () => fetchRouted && normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) === FETCH_PROVIDER_CODEX })
+  ctx.web.registerFetchProvider?.({ ...codexFetch, available: () => nativeWebSettings()
+    ? configuredFetchProviderId(ctx.web, ctx.loader.entries()) === codexFetch.id
+    : fetchRouted && normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) === FETCH_PROVIDER_CODEX })
   ctx.effect(() => {
+    if (nativeWebSettings()) return undefined
     const web = ctx.web
     const configuredId = () => configuredFetchProviderId(web, ctx.loader.entries())
-    const router = createCodexFetchRouter({ registry: realFetchProviders, configuredId, mode: () => fetchRouted ? normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) : 'dsh', codex: codexFetch })
+    const router = createCodexFetchRouter({ registry: realFetchProviders, configuredId, mode: () => fetchRouted && !nativeWebSettings() ? normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) : 'dsh', codex: codexFetch })
     if (router !== undefined) {
       try { web.fetchProviders = router } catch { /* A host without a writable registry cannot opt in. */ }
       fetchRouted = web.fetchProviders === router
@@ -555,7 +573,7 @@ export function apply(ctx, config = {}) {
     return provider === undefined || provider === PROVIDER
   }
   const realSearchProviders = ctx.web.searchProviders
-  const resolveDshSearch = () => realSearchProviders?.get(searchProvider.dshProviderId())
+  const resolveDshSearch = () => realSearchProviders?.get(nativeWebSettings() ? webSettings.nativeSearch() ?? DSH_SEARCH_PROVIDER_FALLBACK : searchProvider.dshProviderId())
   const gateSearch = provider => gateSearchProvider(provider, {
     allowed: llmProvider => settings.get().otherModels !== 'off' || (llmProvider ?? currentAgent()?.session.requestContext?.()?.provider) === PROVIDER,
     resolveDshProvider: resolveDshSearch,
@@ -574,6 +592,7 @@ export function apply(ctx, config = {}) {
   const searchTrace = route => diagnosticLog.info('search', `web search: ${route}`)
   const tracedCodexSearch = gateSearch({
     id: codexSearch.id,
+    title: 'Codex Subscription',
     available: () => codexSearch.available(),
     ready: llmProvider => codexSearch.ready(llmProvider),
     async search(request, signal) {
@@ -598,12 +617,14 @@ export function apply(ctx, config = {}) {
   // Search is routed at lookup time, so the provider DSH has configured (and its settings page shows) is never replaced.
   let searchRouted = false
   ctx.effect(() => {
+    if (nativeWebSettings()) return undefined
     const web = ctx.web
     const router = createSearchRouter({
       registry: realSearchProviders,
       configuredId: () => searchProvider.current(),
       // Each provider enforces the model switch at request time, including legacy hosts.
       mode: () => settings.get()[SEARCH_PROVIDER_FIELD],
+      enabled: () => !nativeWebSettings(),
       providers: { codex: tracedCodexSearch, auto: autoSearch, dsh: dshSearch },
     })
     if (router === undefined) return undefined
@@ -615,6 +636,7 @@ export function apply(ctx, config = {}) {
   }, 'codex-subscription: search router')
   ctx.effect(() => {
     const select = async value => {
+      if (nativeWebSettings()) return
       // Hosts that do not let the registry be stood in for fall back to pointing DSH's web runtime at a provider of this plugin.
       if (searchRouted) { diagnosticLog.info('search', `web search source is ${value[SEARCH_PROVIDER_FIELD]}`); return }
       try {
@@ -628,6 +650,25 @@ export function apply(ctx, config = {}) {
     void select(settings.get())
     return settings.watch(select)
   }, 'codex-subscription: search provider selection')
+  if (webSettings) ctx.effect(() => {
+    // Document notifications can precede the running fiber's new configuration.
+    let timer
+    const sync = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => {
+        void (nativeWebSettings() ? webSettings.remember() : webSettings.migrate()).catch(error => {
+          ctx.logger?.warn?.('could not sync Web Search and Fetch settings: %s', error.message)
+        })
+      }, 75)
+    }
+    const documentPath = ctx.settings.documentPath
+    if (typeof documentPath === 'string') watchFile(documentPath, { persistent: false, interval: 250 }, sync)
+    sync()
+    return () => {
+      clearTimeout(timer)
+      if (typeof documentPath === 'string') unwatchFile(documentPath, sync)
+    }
+  }, 'codex-subscription: migrate web provider settings')
 
   const auth = createCodexAuthService(authModels, store, {
     runLogin: operation => network.run('login', operation),

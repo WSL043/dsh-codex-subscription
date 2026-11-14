@@ -3,7 +3,7 @@ import { useId, useEffect, useState, useSyncExternalStore } from 'react'
 import { Input } from './client-primitives.jsx'
 import { SEARCH_MODES, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, validQuotaThreshold, normalizeSearchDomains } from './capability-settings.js'
 
-export function CapabilityPreferences({ preference, t, section, disabled = false }) {
+export function CapabilityPreferences({ preference, t, section, disabled = false, showSearchOptions }) {
   const radioId = useId()
   const snapshot = useSyncExternalStore(preference.subscribe, preference.getSnapshot)
   const [domains, setDomains] = useState('')
@@ -19,7 +19,7 @@ export function CapabilityPreferences({ preference, t, section, disabled = false
       if (JSON.stringify(next) !== JSON.stringify(snapshot.searchDomains)) void preference.set({ searchDomains: next })
     } catch { setInvalid(true) }
   }
-  if (snapshot.searchProvider === 'dsh') return null
+  if (!(showSearchOptions ?? snapshot.searchProvider !== 'dsh')) return null
   return <details className="codexSubscriptionSearchOptions">
     <summary>{t('searchOptions')}<span>{t(`searchMode_${snapshot.searchMode}`)}{snapshot.searchDomains.length > 0 ? ` · ${snapshot.searchDomains.length} ${t('searchDomainCount')}` : ''}</span></summary>
     <div className="codexSubscriptionPreference"><SettingsLabel description={t('searchModeHint')}>{t('searchMode')}</SettingsLabel>{choices('searchMode', SEARCH_MODES)}</div>

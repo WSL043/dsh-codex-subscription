@@ -19,6 +19,7 @@ import {
 import { COMPOSER_MODEL_PICKER_MODES, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF, SPEED_MODE_FIELD, SPEED_MODE_FAST, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST } from './settings-contract.js'
 import { IMAGE_MODELS, imageModelLabel as modelLabel, isExperimentalImageModel } from './image-models.js'
 import { ImageChoice } from './image-preferences.jsx'
+import { useWebProviderForm, webProviderTitle } from './client-web-provider-settings.jsx'
 
 const ready = snapshot => snapshot.status === 'ready' && snapshot.writable === true
 
@@ -45,14 +46,18 @@ function SwitchRow({ t, title, hint, state, loaded, beta, checked, disabled, rea
 }
 
 /** The first thing a new user sees: every feature, what it does, and whether it is on. Options live on the page the arrow leads to. */
-export function FeatureOverview({ preference, t, go }) {
+export function FeatureOverview({ preference, t, go, webSettingsContext }) {
   const snapshot = usePreferenceSnapshot(preference)
+  const web = useWebProviderForm(webSettingsContext)
+  const searchStatus = snapshot.webProvidersManagedByDsh
+    ? (web.status === 'ready' ? webProviderTitle(web.value?.searchProvider) ?? t('searchAuto') : undefined)
+    : `${t(`searchSource_${snapshot.searchProvider}`)} · ${t(`searchMode_${snapshot.searchMode}`)}`
   const writable = ready(snapshot)
   const set = patch => { void preference.set(patch) }
   const imagesOn = snapshot.imageGeneration || snapshot.imageEditing
   return <section className="codexSubscriptionCard codexFeatureOverview" aria-label={t('featureOverviewTitle')}>
     <h3>{t('featureOverviewTitle')}</h3>
-    <FeatureRow t={t} title={t('featureSearchTitle')} summary={t('featureSearchSummary')} status={`${t(`searchSource_${snapshot.searchProvider}`)} · ${t(`searchMode_${snapshot.searchMode}`)}`} onMore={() => go('tools')} />
+    <FeatureRow t={t} title={t('featureSearchTitle')} summary={t('featureSearchSummary')} status={searchStatus} onMore={() => go('tools')} />
     <FeatureRow t={t} title={t('featureImageTitle')} summary={t('featureImageSummary')} checked={imagesOn} disabled={!writable}
       onChange={next => set({ imageGeneration: next, imageEditing: next })} onMore={() => go('create')} />
     <FeatureRow t={t} title={t('featureConnectorsTitle')} summary={t('featureConnectorsSummary')} checked={snapshot.connectors !== 'off'} disabled={!writable}
@@ -205,7 +210,7 @@ function SubagentDefaultPreferences({ preference, snapshot, t }) {
   </>
 }
 
-export function ToolsPage({ preference, rpc, t, active = true, openSubagentBundle }) {
+export function ToolsPage({ preference, rpc, t, active = true, openSubagentBundle, webSettingsContext }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = ready(snapshot)
   const others = snapshot.otherModels !== 'off'
@@ -217,7 +222,7 @@ export function ToolsPage({ preference, rpc, t, active = true, openSubagentBundl
         onChange={next => { void preference.set({ otherModels: next ? 'on' : 'off' }) }} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('searchSectionTitle')}>
-      <SearchProviderPreference preference={preference} t={t} />
+      <SearchProviderPreference preference={preference} t={t} webSettingsContext={webSettingsContext} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('connectors')}>
       <ConnectorsPreference preference={preference} t={t} />

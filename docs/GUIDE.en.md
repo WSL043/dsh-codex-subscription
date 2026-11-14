@@ -81,6 +81,8 @@ Spark keeps its independent quota. The plugin does not invent five-hour limits, 
 
 Under **Settings → Codex → Web & tools**, **Search source** finds pages and **Webpage reading source** opens a URL to retrieve its content. The two settings are independent.
 
+On hosts that expose the shared provider settings, these controls edit the same selections as **Plugins → Web search and fetch**. Save changes on the official page to see them in the Codex settings. Search mode and domain filters apply to Codex subscription searches.
+
 - **Auto** prefers subscription search for Codex models and DSH search for other models. It tries the other source only when sign-in or a key is missing, or the preferred service is unavailable.
 - **DSH** uses the search service configured in DSH. Charges depend on that service.
 - **Codex** uses subscription search. With subscription features for other models turned off, non-Codex conversations use native DSH search.

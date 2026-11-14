@@ -18,8 +18,9 @@ export function createSettingsAdapter(ctx, config) {
   }
   const get = () => Object.fromEntries(Object.entries(liveConfig()).map(([key, value]) => [key, typeof value?.get === 'function' ? value.get() : value]))
   return {
+    id,
     get,
-    update: patch => ctx.settings.update(id, patch),
+    update: (patch, ...revision) => ctx.settings.update(id, patch, ...revision),
     // The host reports only that settings changed; keep the last values so watchers can compare.
     watch(listener) {
       let previous = get()
