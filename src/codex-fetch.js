@@ -17,6 +17,14 @@ const httpUrl = value => {
   } catch { return undefined }
 }
 
+function markdownFormatHint(url) {
+  const parsed = new URL(url)
+  const values = parsed.searchParams.getAll('accept')
+  return parsed.hostname === 'learn.microsoft.com' && values.length === 1 && values[0] === 'text/markdown'
+    ? 'Codex could not open the Microsoft Learn Markdown URL. Remove only the accept=text/markdown parameter and try again.'
+    : undefined
+}
+
 /** Read public page text through Codex commands.open; never call another provider. */
 export function createCodexFetchProvider(options) {
   const fetchPage = options.fetch ?? fetch
@@ -62,8 +70,12 @@ export function createCodexFetchProvider(options) {
             }
             throw new WebError(authFailure ?? `Codex webpage request failed (HTTP ${response.status})`, authFailure === SIGN_IN_RENEW ? 'WEB_PROVIDER_CREDENTIAL_MISSING' : 'WEB_PROVIDER_ERROR')
           }
-          const value = await response.json()
+          const value = await response.json().catch(() => undefined)
           activeSignal.throwIfAborted()
+          if (value === undefined) {
+            diagnosticLog.warn('fetch', 'Codex webpage response could not be parsed', 'invalid-response')
+            throw new WebError('Codex returned an unreadable webpage response', 'WEB_PROVIDER_ERROR')
+          }
           // SearchResponse.results is optional: real RFC opens return [] with readable
           // output. The service's normal page heading carries the final URL instead.
           // HTTP 200 "Internal Error ()" has neither a source nor that normal heading.
@@ -84,8 +96,11 @@ export function createCodexFetchProvider(options) {
               continue
             }
             const upstreamTimeout = internalError && /(?:^|\n)Failed to fetch [^\n]*:\s*\(\d+\)\s*Timeout fetching/iu.test(output)
-            diagnosticLog.warn('fetch', 'Codex webpage text unavailable', upstreamTimeout ? 'upstream-timeout' : internalError ? 'upstream-error' : !pageUrl ? 'missing-source' : 'empty-output')
+            const inaccessible = internalError && /^URL(?: https?:\/\/\S+)? is not accessible via this tool\./imu.test(output)
+            diagnosticLog.warn('fetch', 'Codex webpage text unavailable', upstreamTimeout ? 'upstream-timeout' : inaccessible ? 'upstream-inaccessible' : internalError ? 'upstream-error' : !output.trim() ? 'empty-output' : headingUrl ? 'invalid-source-metadata' : 'missing-source')
             if (upstreamTimeout) throw new WebError('Codex webpage service timed out fetching this page. Try another page, or change the webpage provider in settings.', 'WEB_FETCH_TIMEOUT')
+            const hint = inaccessible && !/not safe|blocked|robots|forbidden|access denied/iu.test(output) ? markdownFormatHint(url) : undefined
+            if (hint) throw new WebError(hint, 'WEB_PROVIDER_ERROR')
             throw new WebError('Codex could not read this webpage. Try another page, or change the webpage provider in settings.', 'WEB_PROVIDER_ERROR')
           }
           const lineCount = Number(metadata.match(/Total lines: (\d+)/u)?.[1])

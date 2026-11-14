@@ -33,23 +33,26 @@ test('original store preserves exact PNG bytes and isolates them by session', as
 test('fork access requires an exact original reference in the inherited event prefix', async () => withStore(async store => {
   const ref = await store.save('session-parent', PNG)
   const presentation = { kind: 'codex-subscription-image', schemaVersion: 1, original: ref }
-  const events = [
-    { seq: 0, type: 'user/message', data: {} },
-    { seq: 1, type: 'tool/result', data: { meta: presentation } },
-    { seq: 2, type: 'tool/result', data: { meta: presentation } },
-  ]
-  const child = { header: { parentSession: 'session-parent' }, inheritedEventCount: 2, snapshotEvents: () => events }
+  const events = Array.from({ length: 600 }, (_, seq) => ({ seq, type: 'user/message' }))
+  events[299] = { seq: 299, type: 'tool/result', data: { meta: presentation } }
+  const child = {
+    header: { parentSession: 'session-parent' }, inheritedEventCount: 300,
+    snapshotEvents(from, to) {
+      assert.ok(to > from && to - from <= 256 && to <= this.inheritedEventCount)
+      return events.slice(from, to)
+    },
+  }
   const inherited = inheritedOriginalImageRef(child, ref.assetId)
   assert.equal(originalImageRefsEqual(inherited, ref), true)
   assert.deepEqual((await store.read('session-child', ref.assetId, inherited))?.data, PNG)
   assert.equal((await store.chunk('session-child', ref.assetId, 0, inherited))?.done, true)
   assert.equal(await store.chunk('session-child', ref.assetId, 0, { ...ref, sha256: '0'.repeat(64) }), undefined)
   assert.equal(await store.read('session-child', ref.assetId, { ...ref, sha256: '0'.repeat(64) }), undefined)
-  assert.equal(inheritedOriginalImageRef({ ...child, inheritedEventCount: 1 }, ref.assetId), undefined)
+  assert.equal(inheritedOriginalImageRef({ ...child, inheritedEventCount: 299 }, ref.assetId), undefined)
   assert.equal(inheritedOriginalImageRef({ ...child, header: {} }, ref.assetId), undefined)
   const seeded = { ...child, header: { isSeeded: true } }
   assert.equal(originalImageRefsEqual(inheritedOriginalImageRef(seeded, ref.assetId), ref), true)
-  assert.equal(inheritedOriginalImageRef({ ...seeded, inheritedEventCount: 1 }, ref.assetId), undefined)
+  assert.equal(inheritedOriginalImageRef({ ...seeded, inheritedEventCount: 299 }, ref.assetId), undefined)
   assert.equal(inheritedOriginalImageRef({ ...seeded, header: { isSeeded: false } }, ref.assetId), undefined)
 }))
 

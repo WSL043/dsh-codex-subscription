@@ -18,6 +18,25 @@ import { phoneModelUpgrade, phoneRateLimits } from './remote-control-capabilitie
 import { historyIndex, historyPage, initialHistoryCursor } from './remote-history-page.js'
 import { rememberRemoteImage, withRemoteImageOutput } from './remote-control-image-output.js'
 
+const SESSION_EVENT_BATCH = 256
+
+function latestDirectory(events) {
+  for (let i = events.length - 1; i >= 0; i--) {
+    const event = events[i]
+    if (event?.type === 'working-directory/change' && typeof event.data?.cwd === 'string' && event.data.cwd) return event.data.cwd
+  }
+}
+
+function foldSessionDetails(details, events) {
+  for (const event of events) {
+    const data = event?.data
+    if (event?.type === 'model/selection' && data?.provider && data?.model) {
+      details.model = { provider: data.provider, model: data.model, reasoningEffort: data.reasoningEffort }
+    }
+    if (event?.type === 'working-directory/change' && typeof data?.cwd === 'string' && data.cwd) details.cwd = data.cwd
+  }
+}
+
 /** A folder the phone named, only when it is an existing absolute folder on this machine. */
 export function localFolder(value) {
   if (typeof value !== 'string' || value === '' || !isAbsolute(value)) return undefined
@@ -354,32 +373,39 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   // The model of a conversation is the last model/selection event in its log; a freshly loaded agent reports DSH's
   // newest default instead. A pick the log has not recorded yet (DSH applies it at the next turn) is remembered here.
   const pickedBy = new Map() // threadId -> { selection, was } (was: what the log said when it was picked)
-  const recorded = agent => {
+  const detailsBySession = new WeakMap()
+  const sessionDetails = session => {
+    if (!session) return undefined
+    const end = session.seq
     try {
-      const session = agent?.session
-      // A running session has no cached snapshot; it reads its events through snapshotEvents().
-      const events = typeof session?.snapshotEvents === 'function' ? session.snapshotEvents() : session?.eventsSnapshot
-      for (let index = (events?.length ?? 0) - 1; index >= 0; index -= 1) {
-        const data = events[index]?.type === 'model/selection' ? events[index].data : undefined
-        if (data?.provider && data?.model) return { provider: data.provider, model: data.model, reasoningEffort: data.reasoningEffort }
+      if (typeof session.snapshotEvents !== 'function' || !Number.isSafeInteger(end) || end < 0) {
+        const details = {}
+        foldSessionDetails(details, session.eventsSnapshot ?? [])
+        return details
       }
-    } catch { /* fall back to the agent's own setting */ }
+      const prior = detailsBySession.get(session)
+      if (prior?.end === end) return prior
+      // A restored session starts with its own cursor; subsequent reads only fold the appended tail.
+      const details = { ...(prior?.end < end ? prior : { end: 0 }) }
+      while (details.end < end) {
+        const next = Math.min(details.end + SESSION_EVENT_BATCH, end)
+        foldSessionDetails(details, session.snapshotEvents(details.end, next))
+        details.end = next
+      }
+      detailsBySession.set(session, details)
+      return details
+    } catch { return undefined }
+  }
+  const recorded = agent => {
+    const model = sessionDetails(agent?.session)?.model
+    if (model) return model
     return agent?.options?.provider && agent?.options?.model
       ? { provider: agent.options.provider, model: agent.options.model, reasoningEffort: agent.options.reasoningEffort }
       : undefined
   }
   // DSH 0.2.1-alpha.3 and later can change a conversation's working directory; the last
   // working-directory/change event wins over the project the conversation started in.
-  const directoryOf = session => {
-    try {
-      const events = typeof session?.snapshotEvents === 'function' ? session.snapshotEvents() : session?.eventsSnapshot
-      for (let index = (events?.length ?? 0) - 1; index >= 0; index -= 1) {
-        const cwd = events[index]?.type === 'working-directory/change' ? events[index].data?.cwd : undefined
-        if (typeof cwd === 'string' && cwd !== '') return cwd
-      }
-    } catch { /* keep the project directory */ }
-    return session?.meta?.cwd
-  }
+  const directoryOf = session => sessionDetails(session)?.cwd ?? session?.meta?.cwd
   const sameSelection = (a, b) => a?.provider === b?.provider && a?.model === b?.model && a?.reasoningEffort === b?.reasoningEffort
   const selection = agent => {
     const saved = recorded(agent)
@@ -541,7 +567,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const messages = source?.messages ?? session.deriveMessages()
     const meta = source?.meta ?? session.meta
     const events = source?.events
-    const cwd = directoryOf(events ? { meta, snapshotEvents: () => events } : session)
+    const cwd = events ? (latestDirectory(events) ?? meta?.cwd) : directoryOf(session)
     const owner = events && Object.isFrozen(events) ? events : session ?? messages
     const revision = source?.cursor ?? session?.seq ?? messages
     let cached = historyIndexes.get(owner)

@@ -59,6 +59,27 @@ test('HTTP 200 inaccessible-page errors, absent sources and malformed outputs fa
   ]) await assert.rejects(setup({ fetch: async () => Response.json(body) }).fetch({ url: target }), error => error.code === 'WEB_PROVIDER_ERROR')
 })
 
+test('confirmed Microsoft Learn format rejection offers a targeted hint without retrying or rewriting the URL', async () => {
+  const learn = 'https://learn.microsoft.com/en-us/windows/powertoys/light-switch'
+  const cases = [
+    [learn + '?view=stable&accept=text%2Fmarkdown', `URL ${learn}?view=stable&accept=text%2Fmarkdown is not accessible via this tool.`, true],
+    [learn + '?accept=text/markdown', 'URL is not safe to open (non-retryable error)', false],
+    [learn + '?accept=text/markdown', 'URL is not accessible via this tool. Blocked by site.', false],
+    [learn + '?accept=text/markdown&accept=text/html', 'URL is not accessible via this tool.', false],
+    [learn.replace('learn.microsoft.com', 'example.com') + '?accept=text/markdown', 'URL is not accessible via this tool.', false],
+  ]
+  for (const [url, errorText, hinted] of cases) {
+    const calls = []
+    const provider = setup({ fetch: async (endpoint, init) => {
+      calls.push([endpoint, JSON.parse(init.body).commands.open[0].ref_id])
+      return Response.json({ output: `Internal Error ()\n${errorText}`, results: [{ title: 'Internal Error', type: 'text_result' }] })
+    } })
+    await assert.rejects(provider.fetch({ url }), error => error.code === 'WEB_PROVIDER_ERROR'
+      && error.message.includes('Remove only the accept=text/markdown parameter') === hinted)
+    assert.deepEqual(calls, [[CODEX_SEARCH_URL, url]])
+  }
+})
+
 test('HTTP, malformed JSON, network and timeout failures are sanitized and never fall back', async () => {
   for (const status of [401, 403, 404, 429, 503]) {
     let calls = 0

@@ -906,13 +906,35 @@ test('a conversation whose model DSH no longer offers shows the default model', 
   assert.equal(resumed.model, modelKey({ provider: 'openai-codex', model: 'gpt-6' }))
 })
 
-test('the model of a running session is read from its events even without a cached snapshot', async () => {
+test('a running session reads model and directory from bounded ranges and folds only new events on resume', async () => {
   const { bridge, session } = fakeControl()
-  const events = [{ type: 'model/selection', data: { provider: 'deepseek', model: 'chat' } }]
-  session.eventsSnapshot = undefined
-  session.snapshotEvents = () => events
-  const resumed = await bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })
+  const events = [
+    { type: 'model/selection', data: { provider: 'deepseek', model: 'chat' } },
+    { type: 'working-directory/change', data: { cwd: '/log-directory' } },
+    ...Array.from({ length: 1000 }, () => ({ type: 'session/title' })),
+  ]
+  Object.defineProperty(session, 'seq', { get: () => events.length })
+  const ranges = []
+  session.snapshotEvents = (from, to) => {
+    assert.ok(to > from && to - from <= 256)
+    ranges.push([from, to])
+    return events.slice(from, to)
+  }
+  const resume = () => bridge.methods['thread/resume']({ threadId: 's1' }, { notify: async () => {} })
+  const resumed = await resume()
   assert.equal(resumed.model, modelKey({ provider: 'deepseek', model: 'chat' }))
+  assert.equal(resumed.cwd, '/log-directory')
+  assert.ok(ranges.length > 1)
+  ranges.length = 0
+  await resume()
+  assert.deepEqual(ranges, [])
+  const tail = events.length
+  events.push({ type: 'working-directory/change', data: { cwd: '/new-directory' } })
+  events.push({ type: 'model/selection', data: { provider: 'openai-codex', model: 'gpt-6' } })
+  const updated = await resume()
+  assert.equal(updated.cwd, '/new-directory')
+  assert.equal(updated.model, modelKey({ provider: 'openai-codex', model: 'gpt-6' }))
+  assert.deepEqual(ranges, [[tail, events.length]])
 })
 
 test('the phone sees the speed tiers a Codex model offers and its choice becomes the speed setting', async () => {
