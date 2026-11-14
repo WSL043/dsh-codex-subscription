@@ -19,6 +19,7 @@ import { historyIndex, historyPage, initialHistoryCursor } from './remote-histor
 import { rememberRemoteImage, withRemoteImageOutput } from './remote-control-image-output.js'
 
 const SESSION_EVENT_BATCH = 256
+const RESUME_TURN_LIMIT = 5
 
 function latestDirectory(events) {
   for (let i = events.length - 1; i >= 0; i--) {
@@ -228,6 +229,32 @@ const toolOutput = (message, imageUrls, imageAssets) => [
 export const typedImages = message => message.role === 'user' && (message.source === undefined || message.source?.kind === 'user')
   ? (message.content ?? []).filter(block => block?.type === 'image' && block.attachment)
   : []
+
+function recentTurnMessages(session, limit) {
+  const nodes = session.surface?.nodes
+  const useSurface = Array.isArray(nodes) && typeof session.deriveEventMessage === 'function'
+    && typeof session.snapshotEvents === 'function'
+  const list = useSurface ? nodes : session.deriveMessages()
+  const recent = []
+  let turns = 0
+  let oldestStart = 0
+  for (let index = list.length - 1; index >= 0; index--) {
+    const entry = list[index]
+    const event = useSurface ? session.snapshotEvents(entry, entry + 1)[0] : undefined
+    const message = useSurface ? (event && session.deriveEventMessage(event)) : entry
+    if (!message) continue
+    if (typedText(message) !== '' || typedImages(message).length > 0) {
+      turns++
+      if (turns > limit) {
+        recent.length = oldestStart
+        break
+      }
+      oldestStart = recent.length + 1
+    }
+    recent.push(message)
+  }
+  return recent.reverse()
+}
 
 /** `imageUrls` maps an attachment id to a data URL the phone can show; images without one are left out. */
 export function projectTurns(messages, at = Date.now(), imageUrls = new Map(), cwd = undefined, imageAssets = new Map(), indexOnly = false) {
@@ -529,8 +556,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const writing = streams.get(id)
     const tail = writing ? [{ ...writing.item, text: writing.text }] : []
     const last = turns.at(-1)
-    const ours = last?.items[0]?.type === 'userMessage' && (last.items[0].id === live.userItem.id || (!live.priorMessageIds.has(last.items[0].id) && typed(last.items[0]) === typed(live.userItem)))
-    const items = ours ? [live.userItem, ...last.items.slice(1), ...tail] : [live.userItem, ...tail]
+    const ours = live.userItem && last?.items[0]?.type === 'userMessage' && (last.items[0].id === live.userItem.id || (!live.priorMessageIds.has(last.items[0].id) && typed(last.items[0]) === typed(live.userItem)))
+    const items = ours ? [live.userItem, ...last.items.slice(1), ...tail] : [...(live.userItem ? [live.userItem] : live.turn.items), ...tail]
     return [...(ours ? turns.slice(0, -1) : turns), { ...live.turn, items, status: 'inProgress', error: null, completedAt: null, durationMs: null }]
   }
   const openThread = async (id, notify, signal) => {
@@ -594,8 +621,10 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   }
   const listHistoryTurns = async (params, signal) => {
     if (params?.itemsView != null && !['full', 'summary', 'notLoaded'].includes(params.itemsView)) throw invalidParams('Invalid turn items view')
-    const id = params?.threadId
-    const snapshot = await historySnapshot(id, signal)
+    return renderTurnPage(params, await historySnapshot(params?.threadId, signal), signal)
+  }
+  const renderTurnPage = async (params, snapshot, signal) => {
+    const id = params.threadId
     const result = historyPage(snapshot.outline, params, JSON.stringify([id, 'turns']))
     // Legacy callers receive full turns. Explicit lightweight reads do not read
     // attachments and say notLoaded so the client can request item pages.
@@ -604,6 +633,43 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const data = turns.map(({ from, to, ...turn }) => turn)
     phoneLog('history page completed', { threadId: id, type: full ? 'full' : 'notLoaded', turns: data.length })
     return { ...result, data }
+  }
+  const resumePageOptions = value => {
+    if (value == null) return undefined
+    if (typeof value !== 'object' || Array.isArray(value)) throw invalidParams('Invalid initial turns page')
+    const limit = value.limit ?? RESUME_TURN_LIMIT
+    const sortDirection = value.sortDirection ?? 'desc'
+    const itemsView = value.itemsView ?? 'summary'
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw invalidParams('History page limit must be between 1 and 100')
+    if (!['asc', 'desc'].includes(sortDirection)) throw invalidParams('Invalid history sort direction')
+    if (!['full', 'summary', 'notLoaded'].includes(itemsView)) throw invalidParams('Invalid turn items view')
+    return { limit: Math.min(limit, RESUME_TURN_LIMIT), sortDirection, itemsView }
+  }
+  const resumePaginated = async (id, options, notify, signal) => {
+    const value = { ...await readThreadMetadata(id, signal), historyMode: 'paginated' }
+    const agent = await agentFor(id)
+    if (notify) subscribe(id, notify)
+    await (catalog ? undefined : loadCatalog().catch(() => undefined))
+    signal?.throwIfAborted()
+    const session = agent.session
+    const cwd = directoryOf(session) ?? value.cwd
+    const meta = session.meta
+    // Include one extra turn so the shared pager can issue an exclusive cursor
+    // into the history it will read on demand.
+    const messages = recentTurnMessages(session, (options?.limit ?? 1) + 1)
+    const live = active.get(id)
+    if (live?.userItem) for (const message of messages) reconcileUser(id, live, message)
+    const ranges = historyIndex(messages, projectTurns(messages, meta?.createdAt, new Map(), cwd, new Map(), true))
+    const outline = withLiveTurn(id, ranges)
+    const last = outline.at(-1)
+    const lastItem = last?.items.at(-1)
+    const itemAnchors = lastItem ? [{ id: JSON.stringify([last.id, lastItem.id]) }] : []
+    const initialTurnsPage = options ? await renderTurnPage({ ...options, threadId: id },
+      options.sortDirection === 'asc' ? await historySnapshot(id, signal) : { meta, messages, cwd, ranges, outline }, signal) : null
+    return { ...settings(agent, cwd), thread: { ...value, cwd }, initialTurnsPage,
+      turnsBackwardsCursor: initialHistoryCursor(outline, JSON.stringify([id, 'turns'])),
+      itemsBackwardsCursor: initialHistoryCursor(itemAnchors, JSON.stringify([id, 'items'])),
+    }
   }
   const listHistoryItems = async (params, signal) => {
     const id = params?.threadId
@@ -1107,18 +1173,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       ? { ...await readThreadMetadata(params?.threadId, signal), historyMode: 'paginated' }
       : (await openThread(params?.threadId, undefined, signal)).thread }),
     'thread/resume': async (params, { notify, signal }) => {
-      if (params?.excludeTurns === true) {
-        const value = { ...await readThreadMetadata(params?.threadId, signal), historyMode: 'paginated' }
-        const snapshot = await historySnapshot(params.threadId, signal)
-        const agent = await agentFor(params.threadId)
-        if (notify) subscribe(params.threadId, notify)
-        await (catalog ? undefined : loadCatalog().catch(() => undefined))
-        const itemAnchors = snapshot.outline.flatMap(turn => turn.items.map(item => ({ id: JSON.stringify([turn.id, item.id]) })))
-        return { ...settings(agent, value.cwd), thread: value,
-          turnsBackwardsCursor: initialHistoryCursor(snapshot.outline, JSON.stringify([params.threadId, 'turns'])),
-          itemsBackwardsCursor: initialHistoryCursor(itemAnchors, JSON.stringify([params.threadId, 'items'])),
-        }
-      }
+      const options = resumePageOptions(params?.initialTurnsPage)
+      if (options || params?.excludeTurns === true) return resumePaginated(params?.threadId, options, notify, signal)
       const { agent, thread: value } = await openThread(params?.threadId, notify, signal)
       return { ...settings(agent, value.cwd), thread: value }
     },

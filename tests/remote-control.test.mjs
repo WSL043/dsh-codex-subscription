@@ -879,6 +879,12 @@ test('reopening a thread while DSH is mid-turn returns the running turn with the
   assert.deepEqual(live.items.map(item => item.type), ['userMessage', 'commandExecution', 'agentMessage'])
   assert.equal(live.items.at(-1).text, 'Half a sen')
   assert.equal(thread.turns.length, 1, 'the running turn is not shown twice')
+  const paged = await bridge.methods['thread/resume']({
+    threadId: 's1', excludeTurns: true, initialTurnsPage: { itemsView: 'full' },
+  }, {})
+  assert.deepEqual(paged.thread.turns, [])
+  assert.equal(paged.initialTurnsPage.data.length, 1)
+  assert.deepEqual(paged.initialTurnsPage.data[0], live)
   finish(); await wait()
 })
 

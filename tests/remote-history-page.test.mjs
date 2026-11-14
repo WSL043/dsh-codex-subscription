@@ -36,6 +36,55 @@ test('turn pages read only selected-turn images and remain stable when a new tur
   assert.equal(f.files.length, 4, 'do not reread the newest twelve history images for every page')
 })
 
+test('paginated resume reads only the latest native surface nodes and older pages load on demand', async () => {
+  const messages = Array.from({ length: 30 }, (_, n) => [user(n), assistant(n)]).flat()
+  const offsets = messages.map((_, n) => n * 1000)
+  const reads = [], files = []
+  const meta = { id: 's', cwd: 'C:/test', createdAt: 1700000000000 }
+  let historyReads = 0
+  const session = {
+    id: 's', meta, surface: { nodes: offsets },
+    snapshotEvents(from, to) {
+      assert.equal(to, from + 1)
+      reads.push(from)
+      return [messages[from / 1000]]
+    },
+    deriveEventMessage: message => message,
+    deriveMessages: () => assert.fail('resume must not derive the full message history'),
+  }
+  const bridge = createDshRemoteControl({
+    userAgent: 'test/1',
+    controller: () => ({
+      list: async () => ({ items: [{ sessionId: 's', cwd: meta.cwd, updatedAt: meta.createdAt }] }),
+      resolveAgent: async () => ({ agent: { session } }),
+      modelCatalog: async () => ({}),
+    }),
+    historySource: { async read() { historyReads++; return { messages, meta, events: Object.freeze([]) } } },
+    attachments: () => ({ async readImage(ref) { files.push(ref.attachmentId); return { data: new Uint8Array([1]), ref } } }),
+  })
+  const initial = await bridge.methods['thread/resume']({
+    threadId: 's', excludeTurns: true, initialTurnsPage: { limit: 5, sortDirection: 'desc', itemsView: 'full' },
+  }, {})
+  assert.equal(initial.thread.historyMode, 'paginated')
+  assert.deepEqual(initial.thread.turns, [])
+  assert.deepEqual(initial.initialTurnsPage.data.map(turn => turn.id), ['u29', 'u28', 'u27', 'u26', 'u25'])
+  assert.ok(initial.initialTurnsPage.nextCursor)
+  assert.ok(initial.turnsBackwardsCursor && initial.itemsBackwardsCursor)
+  assert.equal(historyReads, 0)
+  assert.ok(reads.length <= 14 && reads.every(seq => seq >= offsets[46]))
+  assert.deepEqual(files.toSorted(), [25, 26, 27, 28, 29].map(n => `image-${n}`))
+  const older = await bridge.methods['thread/turns/list']({
+    threadId: 's', cursor: initial.initialTurnsPage.nextCursor, sortDirection: 'desc', limit: 2,
+  }, {})
+  assert.deepEqual(older.data.map(turn => turn.id), ['u24', 'u23'])
+  assert.equal(historyReads, 1)
+  assert.deepEqual(files.slice(5).toSorted(), ['image-23', 'image-24'])
+  const first = await bridge.methods['thread/items/list']({
+    threadId: 's', turnId: 'u0', cursor: initial.itemsBackwardsCursor, sortDirection: 'desc', limit: 2,
+  }, {})
+  assert.deepEqual(first.data.map(entry => entry.item.id), ['a0:0', 'u0'])
+})
+
 test('lightweight turns and metadata have no attachment I/O or agent activation', async () => {
   const f = fixture()
   const meta = await f.bridge.methods['thread/read']({ threadId: 's', includeTurns: false }, {})
