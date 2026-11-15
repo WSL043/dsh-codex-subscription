@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { closeOpenAICodexWebSocketSessions, resetOpenAICodexWebSocketDebugStats, getOpenAICodexWebSocketDebugStats } from '@earendil-works/pi-ai/api/openai-codex-responses'
-import { resolveCodexOAuthProxy } from './oauth-network.js'
+import { CODEX_WEBSOCKET_MESSAGE_TOO_LARGE, resolveCodexOAuthProxy } from './oauth-network.js'
 
 /**
  * Who a bearer token belongs to, stable across refreshes: the ChatGPT account id inside the token, so a
@@ -38,7 +38,8 @@ export function createSubscriptionConnection({ resolveMode = () => 'sse', resolv
       totals[key] = Math.min(Number.MAX_SAFE_INTEGER, totals[key] + Math.max(0, count - entry.seen[key]))
       entry.seen[key] = count
     }
-    if (!entry.retired && stats.websocketFallbackActive === true && (!entry.cooling || failures > 0)) {
+    if (!entry.retired && stats.websocketFallbackActive === true
+      && stats.lastWebSocketError !== CODEX_WEBSOCKET_MESSAGE_TOO_LARGE && (!entry.cooling || failures > 0)) {
       entry.streak = Math.min(20, entry.streak + Math.max(1, failures))
       entry.cooling = true
       entry.retryAt = now() + delay(entry.streak)
@@ -116,11 +117,17 @@ export function createSubscriptionConnection({ resolveMode = () => 'sse', resolv
           finished = true
           const stats = observe(entry)
           entry.active--; entry.used = now()
+          const skippedForSize = stats.lastWebSocketError === CODEX_WEBSOCKET_MESSAGE_TOO_LARGE
+          if (skippedForSize && !entry.active && !entry.retired) {
+            // Clear the SDK's sticky SSE preference once this session has no requests in flight.
+            sdk.reset(entry.key)
+            entry.seen = zero()
+          }
           if (probe) {
             probes.delete(group); entry.probe = false
             if (!entry.retired && outcome.status === 'ok' && outcome.transports?.at(-1) === 'websocket' && !outcome.transports.includes('sse') && stats.websocketFallbackActive !== true) {
               entry.streak = 0; entry.retryAt = 0; entry.cooling = false; recovery.recoverySuccesses++
-            } else if (!entry.retired && !entry.cooling) {
+            } else if (!skippedForSize && !entry.retired && !entry.cooling) {
               // Cancellation/business failures are not new transport failures.
               entry.cooling = true; entry.retryAt = now() + delay(entry.streak)
             }

@@ -1,6 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
+import { once } from 'node:events'
+import WebSocket, { WebSocketServer } from 'ws'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { createSubscriptionConnection, tokenScope } from '../src/subscription-connection.js'
 import { openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
@@ -74,6 +76,69 @@ test('a rejected WebSocket proxy CONNECT falls back through the existing SSE rou
     assert.equal(globalThis.WebSocket, originalWebSocket)
     assert.equal(process.env.HTTPS_PROXY, originalEnv)
   } finally { globalThis.fetch = originalFetch; connection.dispose(); await new Promise(resolve => server.close(resolve)) }
+})
+
+test('an advertised WebSocket limit checks the encoded request before send and falls back only for that request', async () => {
+  const server = new WebSocketServer({ host: '127.0.0.1', port: 0 })
+  await once(server, 'listening')
+  const endpoint = `ws://127.0.0.1:${server.address().port}`
+  let limitHeader = '2048', connections = 0, fetches = 0
+  const sends = []
+  const frames = [
+    { type: 'response.created', response: { id: 'accepted' } },
+    { type: 'response.done', response: { id: 'accepted', status: 'completed', output: [], usage: { input_tokens: 1, output_tokens: 0, total_tokens: 1 } } },
+  ]
+  server.on('headers', headers => { headers.push(`x-codex-websocket-max-message-bytes: ${limitHeader}`) })
+  server.on('connection', socket => {
+    connections++
+    socket.on('message', message => {
+      sends.push({ bytes: message.length, chars: message.toString('utf8').length })
+      for (const frame of frames) socket.send(JSON.stringify(frame))
+    })
+  })
+  class LoopbackSocket extends WebSocket {
+    constructor() { super(endpoint) }
+  }
+  const originalFetch = globalThis.fetch
+  globalThis.fetch = async () => {
+    fetches++
+    return new Response(frames.map(frame => `data: ${JSON.stringify(frame)}\n\n`).join(''), { headers: { 'content-type': 'text/event-stream' } })
+  }
+  const connection = createSubscriptionConnection({ resolveMode: () => 'websocket', resolveProxy: async () => undefined })
+  const network = createCodexNetworkTransport({ WebSocket: LoopbackSocket, env: {}, platform: 'test' })
+  const provider = openaiCodexSubscriptionProvider({ connection, runNetwork: network.run })
+  const apiKey = `e30.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture' } })).toString('base64url')}.fake`
+  const model = provider.getModels().find(candidate => candidate.id === 'gpt-5.6-luna')
+  const request = async (content, sessionId = 'size-limit') => {
+    const events = []
+    for await (const event of provider.streamSimple(model, { messages: [{ role: 'user', content, timestamp: 1 }] },
+      { apiKey, sessionId, signal: AbortSignal.timeout(5000) })) events.push(event.type)
+    assert.ok(events.includes('done'), events.join(','))
+  }
+  try {
+    const unicode = '漢'.repeat(1000)
+    await request(unicode)
+    assert.equal(connections, 1)
+    assert.deepEqual(sends, [])
+    assert.equal(fetches, 1)
+    await request('small request in the same session')
+    assert.equal(connections, 2)
+    assert.equal(sends.length, 1)
+    assert.ok(sends[0].bytes <= 2048)
+    assert.equal(fetches, 1)
+
+    limitHeader = 'invalid'
+    await request(unicode, 'invalid-header')
+    assert.equal(sends.length, 2)
+    assert.ok(sends[1].chars <= 2048)
+    assert.ok(sends[1].bytes > 2048)
+    assert.equal(fetches, 1)
+  } finally {
+    globalThis.fetch = originalFetch
+    connection.dispose()
+    for (const socket of server.clients) socket.terminate()
+    await new Promise(resolve => server.close(resolve))
+  }
 })
 
 for (const closeCode of [1006, 1000]) test(`close ${closeCode} after response acceptance reaches DSH as TRANSPORT without SSE replay`, async () => {
