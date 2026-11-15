@@ -238,6 +238,62 @@ test('the phone can prepare a working folder before a new chat', async () => {
   assert.deepEqual(await methods['fs/readDirectory']({ path: 'x' }), { entries: [] })
 })
 
+test('phone file upload attaches a localImage to a DSH turn after reconnecting', async () => {
+  const { bridge, calls, finish } = fakeControl()
+  const host = createRemoteControlHost({ methods: bridge.methods, debug: true })
+  const device = clientId => {
+    const pending = new Map()
+    const connection = host.serve({ clientId, async send(message) { pending.get(message.id)?.(message) }, close() {} })
+    let id = 0
+    return {
+      close: connection.close,
+      request(method, params) {
+        const requestId = ++id
+        return new Promise(resolve => {
+          pending.set(requestId, response => { pending.delete(requestId); resolve(response) })
+          connection.receive({ id: requestId, method, params })
+        })
+      },
+    }
+  }
+  const image = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jCuoAAAAASUVORK5CYII='
+  const path = 'C:/work/.codex/attachments/screenshot.png'
+  const phone = device('phone-1')
+  const other = device('phone-2')
+  const upload = { path, dataBase64: image }
+  const input = [...hello('describe this').input, { type: 'localImage', path }]
+  try {
+    assert.deepEqual((await phone.request('fs/createDirectory', { path: 'C:/work/.codex/attachments' })).result, {})
+    assert.deepEqual((await phone.request('fs/writeFile', upload)).result, {})
+    assert.deepEqual((await phone.request('fs/writeFile', upload)).result, {}, 'retries can upload to the same path')
+    assert.equal((await phone.request('fs/writeFile', { ...upload, dataBase64: image + '!' })).error.code, -32602)
+    assert.equal((await phone.request('fs/writeFile', { ...upload, path: 'C:/work/../screenshot.png' })).error.code, -32602)
+    assert.equal((await phone.request('fs/writeFile', { ...upload, dataBase64: 'bm90IGFuIGltYWdl' })).error.code, -32602)
+    assert.equal((await other.request('fs/readFile', { path })).error.code, -32602)
+    assert.equal((await other.request('turn/start', { threadId: 's1', input })).error.code, -32602)
+    assert.equal(calls.length, 0, 'a missing attachment must not submit a text-only turn')
+    phone.close()
+    const reconnected = device('phone-1')
+    try {
+      assert.equal((await reconnected.request('fs/getMetadata', { path })).result.isFile, true)
+      assert.equal((await reconnected.request('fs/readFile', { path })).result.dataBase64, image)
+      const result = await reconnected.request('turn/start', { threadId: 's1', input })
+      assert.equal(result.result.turn.status, 'inProgress')
+      assert.deepEqual(calls.find(([method]) => method === 'prompt')[1].content, [
+        { type: 'text', text: 'describe this' },
+        { type: 'image', data: image, mediaType: 'image/png', name: 'phone-image' },
+      ])
+      assert.ok(!JSON.stringify(host.trace()).includes(image))
+      finish()
+    } finally {
+      reconnected.close()
+    }
+  } finally {
+    other.close()
+    bridge.close()
+  }
+})
+
 test('ask-user questions go to the phone during its turn and map back to DSH answers', async () => {
   const { bridge, session } = fakeControl()
   const asked = []

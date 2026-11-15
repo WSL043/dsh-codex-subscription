@@ -17,6 +17,7 @@ import { phoneLog } from './remote-control-log.js'
 import { phoneModelUpgrade, phoneRateLimits } from './remote-control-capabilities.js'
 import { historyIndex, historyPage, initialHistoryCursor } from './remote-history-page.js'
 import { rememberRemoteImage, withRemoteImageOutput } from './remote-control-image-output.js'
+import { createRemoteImageUploads } from './remote-image-uploads.js'
 
 const SESSION_EVENT_BATCH = 256
 const RESUME_TURN_LIMIT = 5
@@ -352,6 +353,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   const active = new Map() // threadId -> { turn }
   const queues = new Map() // threadId -> QueuedSubmission[]
   const starting = new Map() // synchronous admission reservations, before the first await
+  const imageUploads = createRemoteImageUploads()
   let catalog
 
   const service = () => {
@@ -761,7 +763,11 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     return { turn: { ...turn, items: [], status: 'inProgress', completedAt: null } }
   }
 
-  /** Message content for DSH from what the phone sent: its text plus any inline images (DSH admits and stores them itself). */
+  /** Resolve previously uploaded paths before DSH admits and stores the images. */
+  const resolveInput = (input, notify) => Array.isArray(input)
+    ? input.map(part => part?.type === 'localImage' ? imageUploads.image(notify, part.path) : part)
+    : input
+
   const contentOf = input => {
     const text = [...skillGestures(input), inputText(input)].filter(Boolean).join(' ')
     const pictures = inputImages(input)
@@ -792,7 +798,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   }
 
   async function acceptTurn(params, notify, launch) {
-    const { text, pictures, content } = contentOf(params?.input)
+    const { text, pictures, content } = contentOf(resolveInput(params?.input, notify))
     lastPrompt.text = text
     const id = params?.threadId
     const agent = await agentFor(id)
@@ -1032,7 +1038,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'plugin/installed': () => ({ marketplaceLoadErrors: [], marketplaces: [] }),
     // The app prepares a working folder before a new chat; sessions here use DSH's own folders, so nothing is created.
     'fs/createDirectory': () => ({}),
-    'fs/getMetadata': params => realMetadata(params?.path) ?? ({ isDirectory: true, isFile: false, isSymlink: false, createdAtMs: Date.now(), modifiedAtMs: Date.now() }),
+    'fs/writeFile': (params, { notify, signal }) => {
+      signal?.throwIfAborted()
+      return imageUploads.write(notify, params ?? {})
+    },
+    'fs/readFile': (params, { notify }) => imageUploads.read(notify, params?.path),
+    'fs/getMetadata': (params, { notify } = {}) => imageUploads.metadata(notify, params?.path) ?? realMetadata(params?.path) ?? ({ isDirectory: true, isFile: false, isSymlink: false, createdAtMs: Date.now(), modifiedAtMs: Date.now() }),
     'fs/readDirectory': params => ({ entries: readFolder(params?.path) }),
     'collaborationMode/list': () => ({ data: [] }),
     // Live voice is not available through a DSH host yet. Answer the phone's voice calls instead of
@@ -1251,12 +1262,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       })()
       return {}
     },
-    'turn/steer': async (params, { signal } = {}) => {
+    'turn/steer': async (params, { signal, notify } = {}) => {
       const running = active.get(params?.threadId)
       const current = () => running && active.get(params?.threadId) === running && running.userItem && !running.finishing && !running.ended && !running.abort.signal.aborted && !starting.has(params?.threadId) && params?.expectedTurnId === running.turn.id
       signal?.throwIfAborted()
       if (!current()) throw invalidParams('The expected turn is not active')
-      const { content } = contentOf(params?.input)
+      const { content } = contentOf(resolveInput(params?.input, notify))
       const operation = (async () => {
         const admitted = await service().prompt({ requestId: randomUUID(), sessionId: params.threadId, mode: 'steer', content }, AbortSignal.any([running.abort.signal, AbortSignal.timeout(30_000), ...(signal ? [signal] : [])]))
         if (admitted?.accepted === false) throw invalidParams('DSH rejected the steering message')
@@ -1279,9 +1290,10 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'thread/queue/list': params => ({ data: queues.get(params?.threadId) ?? [], nextCursor: null }),
     'thread/queue/add': async (params, { notify }) => {
       if (!Array.isArray(params?.input)) throw invalidParams('input is required')
-      contentOf(params.input)
+      const input = resolveInput(params.input, notify)
+      contentOf(input)
       const id = params?.threadId
-      const queued = { id: randomUUID(), clientUserMessageId: String(params.clientUserMessageId ?? randomUUID()), input: params.input }
+      const queued = { id: randomUUID(), clientUserMessageId: String(params.clientUserMessageId ?? randomUUID()), input }
       subscribe(id, notify)
       queues.set(id, [...(queues.get(id) ?? []), queued])
       emit(id, 'thread/queue/changed', { threadId: id })
@@ -1601,5 +1613,5 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     end: sessionId => realtimeVoice.requestClose(sessionId),
     status: sessionId => realtimeVoice.status(sessionId),
   })
-  return { methods, desktopVoice, onSessionEvent, onStream, onApproval, onQuestion, adopt, close() { realtimeVoice?.closeAll() }, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
+  return { methods, desktopVoice, onSessionEvent, onStream, onApproval, onQuestion, adopt, clearUploads: imageUploads.clear, close() { imageUploads.clear(); realtimeVoice?.closeAll() }, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
 }

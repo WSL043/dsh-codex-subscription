@@ -163,13 +163,20 @@ await section('photo from the phone', async () => {
   const chunk = (type, data) => { const length = Buffer.alloc(4); length.writeUInt32BE(data.length); const body = Buffer.concat([Buffer.from(type), data]); const sum = Buffer.alloc(4); sum.writeUInt32BE(crc(body)); return Buffer.concat([length, body, sum]) }
   const header = Buffer.alloc(13); header.writeUInt32BE(size, 0); header.writeUInt32BE(size, 4); header[8] = 8; header[9] = 2
   const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', header), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))])
-  const url = `data:image/png;base64,${png.toString('base64')}`
-  const { started } = await send('', {}, [{ type: 'text', text: 'What single color fills this image? One word, no tools.', text_elements: [] }, { type: 'image', url }])
+  const folder = join(tmpdir(), `dsh-phone-photo-${crypto.randomUUID()}`)
+  const path = join(folder, 'photo.png')
+  await phone.call('fs/createDirectory', { path: folder, recursive: true })
+  const uploaded = await phone.call('fs/writeFile', { path, dataBase64: png.toString('base64') })
+  if (uploaded === undefined || uploaded.error) throw new Error('Phone image upload failed')
+  if (existsSync(path)) throw new Error('The phone upload wrote to the host filesystem')
+  const { started } = await send('', {}, [{ type: 'text', text: 'What single color fills this image? One word, no tools.', text_elements: [] }, { type: 'localImage', path }])
   const finished = await finishTurn(started.turn.id)
   console.log('  answer:', JSON.stringify(textOf(finished)), 'status', finished.status)
   const read = await phone.call('thread/read', { threadId, includeTurns: true })
   const last = read.thread.turns.at(-1)
   console.log('  history user item types:', last.items[0].content.map(part => part.type).join(','))
+  if (finished.status !== 'completed' || !/^red[.!]?$/iu.test(textOf(finished).trim())) throw new Error('The model did not identify the uploaded image')
+  if (!last.items[0].content.some(part => part.type === 'image')) throw new Error('The attachment is missing from conversation history')
 })
 
 await section('shell command approval and native item', async () => {

@@ -733,6 +733,7 @@ export function apply(ctx, config = {}) {
     methods: remoteBridge.methods,
     onActive: (_client, notify) => remoteBridge.adopt(notify),
     onClose: (_client, notify) => remoteBridge.forget(notify),
+    onStop: remoteBridge.clearUploads,
   })
   ctx.on('agent/assistant-stream', ({ agent, frame }) => { try { remoteBridge.onStream(agent?.session, frame) } catch { /* the phone view must never disturb the session */ } })
   ctx.on('session/event', (session, event) => { try { remoteBridge.onSessionEvent(session, event) } catch { /* the phone view must never disturb the session */ } })
@@ -882,7 +883,7 @@ export function apply(ctx, config = {}) {
     nativeVoice,
     voicePreview,
     composerPredictions,
-    onAccountChanged: () => { subagentCatalog.clear(); connectorsClient.clear(); usageProfileReader.clear(); voicePreview.clear(); composerPredictions.clear(); quotaRetryHandler.notifyAccountChanged() },
+    onAccountChanged: () => { remoteBridge.clearUploads(); subagentCatalog.clear(); connectorsClient.clear(); usageProfileReader.clear(); voicePreview.clear(); composerPredictions.clear(); quotaRetryHandler.notifyAccountChanged() },
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, review: provider, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
     onCleanupFailure: () => diagnosticOperations.record('account/cleanup', 'failed'),
     modelCatalog,

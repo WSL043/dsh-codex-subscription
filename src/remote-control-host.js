@@ -12,7 +12,7 @@ const MAX_SEEN = 128
 // Called constantly by the phone and never interesting when debugging.
 // What the host sends the phone is traced by name only, and the streaming kinds not at all.
 const STREAMING = /delta$|outputDelta|tokenUsage|summaryPartAdded/u
-const QUIET = new Set(['command/exec', 'thread/attachment/list', 'thread/list', 'thread/queue/list', 'threadSection/list', 'config/read', 'configRequirements/read'])
+const QUIET = new Set(['command/exec', 'fs/writeFile', 'fs/readFile', 'thread/attachment/list', 'thread/list', 'thread/queue/list', 'threadSection/list', 'config/read', 'configRequirements/read'])
 
 export class RpcError extends Error {
   constructor(code, message) {
@@ -113,7 +113,7 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
           const handler = methods[method]
           if (!handler) {
             phoneLog('method unavailable', { ...logged, code: METHOD_NOT_FOUND }, 'warn')
-            record({ method, missing: true, params: JSON.stringify(params ?? null).slice(0, /realtime/u.test(method) ? 8000 : 600) })
+            if (!QUIET.has(method)) record({ method, missing: true, params: JSON.stringify(params ?? null).slice(0, /realtime/u.test(method) ? 8000 : 600) })
             void fail(id, new RpcError(METHOD_NOT_FOUND, `Method not found: ${method}`)).catch(() => {})
             return
           }

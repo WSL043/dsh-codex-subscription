@@ -87,7 +87,8 @@ export function createRemoteControl(options) {
     },
     async disable() {
       enabled = false
-      if (relay) await relay.stop()
+      try { if (relay) await relay.stop() }
+      finally { options.onStop?.() }
       return this.status()
     },
     async pair(signal) {
