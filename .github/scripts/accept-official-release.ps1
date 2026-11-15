@@ -87,9 +87,22 @@ function Get-PluginList {
 }
 
 function Get-ComposedConfig {
-    $output = & $runner.Source @runnerPrefix --profile $Profile --dump-config 2>&1 | Out-String
+    param([switch] $AfterRemoval)
+
+    # Windows PowerShell turns native stderr into error records even for exit 0.
+    $ErrorActionPreference = 'Continue'
+    $output = & $runner.Source @runnerPrefix --profile $Profile --dump-config 2>&1
     if ($LASTEXITCODE -ne 0) { throw 'Official DSH config composition failed.' }
-    return $output
+    foreach ($item in $output) {
+        if ($item -isnot [System.Management.Automation.ErrorRecord]) { continue }
+        # DSH may keep a saved settings patch for a later reinstall.
+        if ($AfterRemoval -and [string] $item -match '^dsh: \[[^\r\n]+[\\/]cordis\.patch\.yml\] patch: entry "codex-subscription" not found$') {
+            Write-Warning ([string] $item)
+            continue
+        }
+        throw "Unexpected diagnostic from official DSH config composition: $item"
+    }
+    return $output | Where-Object { $_ -isnot [System.Management.Automation.ErrorRecord] } | Out-String
 }
 
 function Assert-InstalledOnce {
@@ -105,7 +118,7 @@ function Assert-InstalledOnce {
 
 function Assert-Removed {
     $list = Get-PluginList
-    $config = Get-ComposedConfig
+    $config = Get-ComposedConfig -AfterRemoval
     if ($list -match 'dsh-codex-subscription@' -or $config -match 'id: codex-subscription') {
         throw 'The plugin remains in the profile after removal.'
     }
