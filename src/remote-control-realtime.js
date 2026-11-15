@@ -5,6 +5,7 @@
 // api.openai.com is where the side channel of a ChatGPT-created call answers; realtime.chatgpt.com is kept as the fallback.
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { createVoiceQuestions } from './voice-questions.js'
+import { VOICE_TRANSCRIPT_LIMIT } from './voice-transcript-recovery.js'
 
 const SIDEBAND_BASES = ['wss://api.openai.com/v1/live', 'wss://realtime.chatgpt.com/v1/live']
 const ACTIVATION_RETRY_MS = [100, 300, 800]
@@ -34,6 +35,8 @@ export function callNote(transcript) {
   return VOICE_NOTE_PREFIX + dialogue(transcript)
 }
 export const VOICE_NOTE_PREFIX = 'Part of the voice call that was not handed over as a request:\n'
+export const VOICE_NOTE_SOURCE = 'codex-subscription-voice'
+const recentCallNote = entries => callNote(entries.slice(-6))
 
 /** Which side channel an agent message belongs on: progress is commentary, an answer is spoken. */
 export function channelOf(text, prefixes = CHANNEL_PREFIXES) {
@@ -229,27 +232,48 @@ export function createRealtimeVoice(options) {
     throw last ?? new Error('no voice endpoint answered')
   }
 
+  const pendingTranscript = async (threadId, checkpoint) => {
+    const ids = new Set(checkpoint.entries.map(entry => entry.callId))
+    const recorded = await options.recordedIds?.(threadId, ids)
+    return checkpoint.entries.filter(entry => !recorded?.has(entry.callId))
+  }
+
   // What was said and not yet handed to the agent becomes part of the conversation, so the voice call leaves a record in DSH.
   const flushTail = (threadId, session) => {
-    if (!session.flushTail || session.tail.length === 0) return
+    if (!session.flushTail || (session.tail.length === 0 && !session.recovered)) return
     const transcript = session.tail.splice(0)
+    const restored = session.recovered
+    const combined = [...(restored?.entries ?? []), ...transcript].slice(-VOICE_TRANSCRIPT_LIMIT)
     // a desktop call only leaves a note in the context (no turn, like Codex); a phone call hands the tail over as a turn
     const note = session.silent && options.record ? callNote(transcript) : undefined
     const notes = note ? savingNotes.get(threadId) ?? new Set() : undefined
-    const latest = note ? { text: callNote(transcript.slice(-6).map(entry => ({ ...entry, text: entry.text.slice(-350) }))) } : undefined
+    const latest = note ? { text: recentCallNote(combined) } : undefined
     if (notes) {
       notes.add(latest)
       if (notes.size > 2) notes.delete(notes.values().next().value)
       savingNotes.set(threadId, notes)
     }
-    const save = note ? () => options.record(threadId, note) : () => options.delegate(threadId, callRecord(transcript), () => {})
-    session.chain = (note ? session.admission : session.chain).then(save)
-      .catch(error => log.warn('voice', 'could not save the voice transcript to the conversation', String(error?.message ?? error)))
+    const save = session.checkpointId ? async () => {
+      const prior = restored ? await pendingTranscript(threadId, restored) : []
+      const calls = Map.groupBy([...prior, ...transcript].slice(-VOICE_TRANSCRIPT_LIMIT), entry => entry.callId)
+      for (const [recordId, entries] of calls) {
+        if (!await options.record(threadId, callNote(entries), recordId)) return
+      }
+      await options.recovery.remove(threadId, session.checkpointId)
+      if (restored) await options.recovery.remove(threadId, restored.id)
+    } : note ? () => options.record(threadId, note) : () => options.delegate(threadId, callRecord(transcript), () => {})
+    session.chain = Promise.all([note ? session.admission : session.chain, session.transcriptWrite]).then(save)
+      .catch(() => log.warn('voice', 'could not save the voice transcript to the conversation'))
       .finally(() => {
         if (!notes) return
         notes.delete(latest)
         if (notes.size === 0 && savingNotes.get(threadId) === notes) savingNotes.delete(threadId)
       })
+  }
+
+  const announceClosed = (threadId, session, reason) => {
+    const announce = () => session.notify('thread/realtime/closed', { threadId, reason })
+    void (session.transcriptWrite ? session.transcriptWrite.then(announce) : announce()).catch(() => {})
   }
 
   const stop = (threadId, reason = 'requested') => {
@@ -268,7 +292,7 @@ export function createRealtimeVoice(options) {
     flushTail(threadId, session)
     try { session.ws.send(JSON.stringify(outbound.close())) } catch { /* already closed */ }
     try { session.ws.close() } catch { /* already closed */ }
-    void session.notify('thread/realtime/closed', { threadId, reason }).catch(() => {})
+    announceClosed(threadId, session, reason)
     return true
   }
 
@@ -290,9 +314,21 @@ export function createRealtimeVoice(options) {
     const pending = new AbortController()
     starts.set(threadId, pending)
     const lifetime = signal ? AbortSignal.any([signal, pending.signal]) : pending.signal
-    let credential, ws
+    let credential, ws, recovered
+    const recoverable = desktop && params.silentTailRecord === true && params.flushTranscriptTailOnSessionEnd !== false
+      && options.recovery && options.record
     try {
       lifetime.throwIfAborted()
+      if (recoverable) {
+        try {
+          const checkpoint = await options.recovery.load(threadId)
+          if (checkpoint) {
+            const entries = await pendingTranscript(threadId, checkpoint)
+            if (entries.length > 0) recovered = { ...checkpoint, entries }
+            else await options.recovery.remove(threadId, checkpoint.id)
+          }
+        } catch { log.warn('voice', 'could not read the voice recovery checkpoint') }
+      }
       credential = await options.credentials(lifetime)
       lifetime.throwIfAborted()
     } catch (error) { if (starts.get(threadId) === pending) starts.delete(threadId); throw error }
@@ -310,6 +346,10 @@ export function createRealtimeVoice(options) {
     if (starts.get(threadId) !== pending) { ws.close(); throw new Error('Voice start replaced') }
     starts.delete(threadId)
     const session = { ws, notify, ended: false, inputReady: false, replyEpoch: 0, chain: Promise.resolve(), admission: Promise.resolve(), tail: [], lines: [], working: 0, liveFollowups: params.liveFollowups === true, controls: new Set(), flushTail: params.flushTranscriptTailOnSessionEnd !== false, silent: params.silentTailRecord === true, hangUp: params.hangUpOnGoodbye === true }
+    if (recoverable) {
+      session.checkpointId = crypto.randomUUID()
+      session.recovered = recovered
+    }
     session.flowId = crypto.randomUUID().slice(0, 8)
     session.openedAt = performance.now()
     session.desktop = desktop
@@ -535,10 +575,19 @@ export function createRealtimeVoice(options) {
           if (event.text.trim()) session.awaitingVoiceReply = true
         }
         if (event.text.trim() !== '') {
-          session.tail.push({ role: event.role, text: event.text }); if (session.tail.length > 200) session.tail.shift()
+          session.tail.push(session.checkpointId
+            ? { callId: session.checkpointId, role: event.role, text: bounded(event.text) }
+            : { role: event.role, text: event.text })
+          if (session.tail.length > VOICE_TRANSCRIPT_LIMIT) session.tail.shift()
           session.lines.push({ role: event.role, text: event.text.slice(0, 400) }); if (session.lines.length > 12) session.lines.shift()
         }
-        void notify('thread/realtime/transcript/done', { threadId, role: event.role, text: event.text }).catch(() => {})
+        const complete = () => notify('thread/realtime/transcript/done', { threadId, role: event.role, text: event.text })
+        if (session.checkpointId && event.text.trim() !== '') {
+          const entries = [...(session.recovered?.entries ?? []), ...session.tail].slice(-VOICE_TRANSCRIPT_LIMIT)
+          const save = options.recovery.save(threadId, { id: session.checkpointId, entries })
+          session.transcriptWrite = save.catch(() => { log.warn('voice', 'could not save the voice recovery checkpoint') })
+          void save.then(complete, () => notify('thread/realtime/error', { threadId, message: 'The voice transcript could not be saved.' })).catch(() => {})
+        } else void complete().catch(() => {})
         const spoken = event.text.trim()
         const said = Date.now()
         const endsCall = event.role === 'user' && classifySpokenHangup ? checkFinalSpeech(spoken, said) : undefined
@@ -596,12 +645,14 @@ export function createRealtimeVoice(options) {
       session.questions.close()
       flushTail(threadId, session)
       log.warn('voice', 'the voice call closed')
-      void notify('thread/realtime/closed', { threadId, reason: 'transportClosed' }).catch(() => {})
+      announceClosed(threadId, session, 'transportClosed')
     })
     ws.on('error', error => log.warn('voice', 'the voice connection failed', String(error?.message ?? error)))
     if (startupContext) {
       try {
-        const context = startupContext([...savingNotes.get(threadId) ?? []].map(note => note.text))
+        const notes = [...savingNotes.get(threadId) ?? []].map(note => note.text)
+        if (recovered?.entries.length) notes.push(recentCallNote(recovered.entries))
+        const context = startupContext(notes)
         if (context) for (const piece of appendChunks(context)) if (!send(outbound.sessionAppend(piece, 'commentary'))) break
       } catch { log.warn('voice', 'could not restore prior conversation context') }
     }

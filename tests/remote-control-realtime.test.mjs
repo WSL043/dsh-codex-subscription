@@ -1,8 +1,12 @@
 import assert from 'node:assert/strict'
 import { EventEmitter } from 'node:events'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import test from 'node:test'
 import { appendChunks, callRecord, callNote, isGoodbye, channelOf, createRealtimeVoice, delegationText, parseEvent, promisesAction } from '../src/remote-control-realtime.js'
 import { createVoiceHangupClassifier } from '../src/voice-hangup.js'
+import { createVoiceTranscriptRecovery } from '../src/voice-transcript-recovery.js'
 
 // A stand-in for the voice service's side channel: what the phone's call would give the host.
 class FakeSocket extends EventEmitter {
@@ -299,6 +303,55 @@ test('a desktop call leaves its tail as a note in the context, without a turn', 
   assert.equal(delegated.length, 0)
   assert.equal(recorded.length, 1)
   assert.match(recorded[0].text, /You: Hello there\nVoice: Hi\.$/u)
+})
+
+test('desktop voice acknowledges a finalized utterance after saving it and restores it in a new bridge', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-voice-recovery-'))
+  const store = createVoiceTranscriptRecovery(directory)
+  const gate = Promise.withResolvers()
+  const acknowledged = Promise.withResolvers()
+  const params = { ...start, silentTailRecord: true }
+  const first = setup({ options: {
+    recovery: { ...store, save: async (...args) => { await gate.promise; return store.save(...args) } },
+    record: async () => false,
+  } })
+  let second
+  try {
+    await first.voice.start(params, async (method, payload) => {
+      await first.notify(method, payload)
+      if (method === 'thread/realtime/transcript/done') acknowledged.resolve()
+    }, { desktop: true })
+    const [socket] = FakeSocket.instances
+    socket.hear({ type: 'input_transcript.added', item: { text: 'unconfirmed' } })
+    socket.hear({ type: 'turn.done', turn: { role: 'assistant', transcript: 'Confirmed before the restart.' } })
+    assert.equal(first.notes.some(note => note.method === 'thread/realtime/transcript/done'), false)
+    gate.resolve()
+    await acknowledged.promise
+    const checkpoint = await store.load('t1')
+    assert.deepEqual(checkpoint.entries, [{ callId: checkpoint.id, role: 'assistant', text: 'Confirmed before the restart.' }])
+    assert.equal(await store.load('other-thread'), undefined)
+
+    const recorded = Promise.withResolvers()
+    second = setup({ options: {
+      recovery: createVoiceTranscriptRecovery(directory),
+      record: async (threadId, text, id) => { recorded.resolve({ threadId, text, id }); return true },
+    } })
+    await second.voice.start(params, second.notify, { desktop: true, startupContext: notes => notes.join('\n') })
+    assert.match(JSON.stringify(FakeSocket.instances[0].sent), /Confirmed before the restart/u)
+    assert.doesNotMatch(JSON.stringify(FakeSocket.instances[0].sent), /unconfirmed/u)
+    FakeSocket.instances[0].close()
+    const note = await recorded.promise
+    assert.equal(note.id, checkpoint.id)
+    assert.match(note.text, /Confirmed before the restart/u)
+    for (let tryNo = 0; tryNo < 10 && await store.load('t1'); tryNo++) await settle()
+    assert.equal(await store.load('t1'), undefined)
+    assert.deepEqual(second.delegated, [])
+  } finally {
+    gate.resolve()
+    first.voice.closeAll()
+    second?.voice.closeAll()
+    await rm(directory, { recursive: true, force: true })
+  }
 })
 
 test('a goodbye the voice model did not hand over is handed to the agent, which decides; no keyword ends the call by itself', async () => {

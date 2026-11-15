@@ -10,7 +10,7 @@ import { RpcError, invalidParams } from './remote-control-host.js'
 import { homeFolderAnswer, runGit } from './remote-control-git.js'
 import { phoneGitProbe, runPhoneGitProbe } from './remote-control-git-probes.js'
 import { searchFiles } from './remote-control-files.js'
-import { appendChunks, createRealtimeVoice, createVoiceCall, desktopInstructions, VOICE_NOTE_PREFIX } from './remote-control-realtime.js'
+import { appendChunks, createRealtimeVoice, createVoiceCall, desktopInstructions, VOICE_NOTE_PREFIX, VOICE_NOTE_SOURCE } from './remote-control-realtime.js'
 import { needsScreenAnswer } from './voice-questions.js'
 import { diagnosticLog } from './diagnostic-log.js'
 import { phoneLog } from './remote-control-log.js'
@@ -140,7 +140,9 @@ function voiceStartupContext(agent, saving) {
   const entries = []
   const notes = new Set()
   const addNote = text => {
-    const excerpt = appendChunks(text.trim(), 1050)[0]
+    const lines = text.slice(VOICE_NOTE_PREFIX.length).trim().split('\n').slice(-6).reverse()
+    const recent = lines.map(line => line.replace(/^(You: |Voice: )(.*)$/u, (_, role, speech) => role + speech.slice(-350)))
+    const excerpt = appendChunks(VOICE_NOTE_PREFIX + recent.join('\n'), 1050)[0]
     if (excerpt && !notes.has(excerpt)) { notes.add(excerpt); entries.push(excerpt) }
   }
   for (const text of saving.toReversed()) addNote(text)
@@ -152,7 +154,7 @@ function voiceStartupContext(agent, saving) {
   }
   for (let i = messages.length - 1; i >= 0 && entries.length < 8; i--) {
     const message = messages[i]
-    const text = message.role === 'assistant' ? visibleText(message.content) : typedText(message)
+    const text = message.role === 'assistant' || message.source?.kind === VOICE_NOTE_SOURCE ? visibleText(message.content) : typedText(message)
     if (text.startsWith(VOICE_NOTE_PREFIX)) addNote(text)
     else if (text) entries.push(`${message.role === 'user' ? 'User' : 'Assistant'}: ${appendChunks(text, 420)[0]}`)
   }
@@ -961,13 +963,29 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     if (result?.accepted === false) throw new Error('DSH rejected the message')
   }
   /** Leave text in the conversation's context for its next message, without starting a turn. */
-  const recordToAgent = async (threadId, text) => {
+  const recordedIds = async (threadId, ids) => {
+    if (typeof voice?.flushSession !== 'function') return
+    const { session } = await agentFor(threadId)
+    const found = session.deriveMessages().filter(message => ids.has(message.id) && message.source?.kind === VOICE_NOTE_SOURCE)
+    if (!found.length || !await voice.flushSession(session)) return
+    return new Set(found.map(message => message.id))
+  }
+  const recordToAgent = async (threadId, text, checkpointId) => {
     const agent = await agentFor(threadId)
+    if (checkpointId && typeof voice?.flushSession === 'function' && typeof agent.session.append === 'function') {
+      // Avoid inserting a model-facing note between a running step's tool calls and results.
+      while (agent.status === 'running' && typeof agent.whenIdle === 'function') await agent.whenIdle()
+      if (agent.status === 'running') return false
+      if (!agent.session.deriveMessages().some(message => message.id === checkpointId && message.source?.kind === VOICE_NOTE_SOURCE)) {
+        agent.session.append('user/message', { id: checkpointId, role: 'user', content: [{ type: 'text', text }], source: { kind: VOICE_NOTE_SOURCE } }, { surfaceOp: 'append' })
+      }
+      return await voice.flushSession(agent.session) === true
+    }
     if (typeof agent.inject !== 'function') return
     if (agent.status === 'running') await agent.whenIdle?.()
     agent.inject({ id: randomUUID(), role: 'user', content: [{ type: 'text', text }], source: { kind: 'user' } })
   }
-  const realtimeVoice = voice ? createRealtimeVoice({ ...voice, userAgent, log: diagnosticLog, delegate: delegateToAgent, queue: queueVoiceWork, record: recordToAgent }) : undefined
+  const realtimeVoice = voice ? createRealtimeVoice({ ...voice, userAgent, log: diagnosticLog, delegate: delegateToAgent, queue: queueVoiceWork, record: recordToAgent, recordedIds }) : undefined
 
   const phoneConfig = createPhoneConfig(configFile)
 

@@ -60,6 +60,7 @@ import { OriginalImageStore } from './image-original-store.js'
 import { inheritedOriginalImageRef } from './image-original-contract.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
 import { diagnosticLog } from './diagnostic-log.js'
+import { createVoiceTranscriptRecovery } from './voice-transcript-recovery.js'
 import { setAuthFailureLogger } from './http-failure.js'
 import { PACKAGE_VERSION } from './version.js'
 import { hostDshVersion } from './subagent-runtime.js'
@@ -710,6 +711,8 @@ export function apply(ctx, config = {}) {
     configFile: dshHomePath('state', 'codex-subscription', 'remote-config.json'),
     voice: {
       WebSocket,
+      recovery: createVoiceTranscriptRecovery(dshHomePath('state', 'codex-subscription', 'voice-transcript-recovery')),
+      flushSession: session => ctx.get?.('sessions')?.flush?.(session),
       resolveProxy: resolveCodexOAuthProxy,
       fetch: (input, init) => network.fetch('voice', input, init),
       credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal),
