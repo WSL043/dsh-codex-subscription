@@ -80,6 +80,12 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
       notify.clientId = client.clientId
       const context = { client, notify, ask }
       onConnection?.(client)
+      const markActive = () => {
+        if (active) return
+        active = true
+        phoneLog('client handshake confirmed', { clientId: client.clientId })
+        onActive?.(client, notify)
+      }
       const reply = async (id, result) => { await client.send({ id, result }) }
       const fail = async (id, error) => {
         const known = error instanceof RpcError
@@ -99,7 +105,7 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
           const { id, method, params } = message
           if (id === undefined) {
             note('notify', method)
-            if (method === 'initialized') initialized = true
+            if (method === 'initialized') { initialized = true; markActive() }
             void notifications[method]?.(params, { ...context, signal: new AbortController().signal })
             return
           }
@@ -107,8 +113,8 @@ export function createRemoteControlHost({ methods, notifications = {}, onConnect
           const started = Date.now()
           const logged = { method, requestId: id, clientId: client.id, threadId: params?.threadId }
           phoneLog('request received', { ...logged, hasClientId: typeof params?.clientUserMessageId === 'string' })
-          // The relay probes every host with `initialize`; a real client asks for more.
-          if (!active && method !== 'initialize') { active = true; onActive?.(client, notify) }
+          // The relay probes with initialize alone. Older app clients may skip the acknowledgement.
+          if (method !== 'initialize') markActive()
           if (debug && !QUIET.has(method)) record({ method: `request:${method}`, params: JSON.stringify(params ?? null).slice(0, /realtime/u.test(method) ? 8000 : 700) })
           const handler = methods[method]
           if (!handler) {

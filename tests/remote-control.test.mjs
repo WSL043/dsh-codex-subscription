@@ -54,6 +54,30 @@ test('model ids round-trip through provider/model keys', () => {
   assert.deepEqual(parseModelKey(modelKey({ provider: 'a/b', model: 'c d' })), { provider: 'a/b', model: 'c d' })
 })
 
+test('remote presence counts devices after a full handshake and excludes relay probes', async () => {
+  const remote = createRemoteControl({ methods: { initialize: () => ({}), ping: () => ({}) } })
+  const connect = (id, clientId) => remote.host.serve({ id, clientId, async send() {}, close() {} })
+  const probe = connect('probe/stream', 'probe')
+  const first = connect('phone/first', 'phone')
+  const second = connect('phone/second', 'phone')
+  const older = connect('older/stream', 'older')
+  for (const stream of [probe, first, second, older]) stream.receive({ id: 1, method: 'initialize' })
+  await wait()
+  assert.equal(remote.status().phones, 0)
+  first.receive({ method: 'initialized' })
+  second.receive({ method: 'initialized' })
+  assert.equal(remote.status().phones, 1)
+  older.receive({ id: 2, method: 'ping' })
+  assert.equal(remote.status().phones, 2)
+  first.close()
+  assert.equal(remote.status().phones, 2)
+  second.close()
+  assert.equal(remote.status().phones, 1)
+  older.close()
+  probe.close()
+  assert.equal(remote.status().phones, 0)
+})
+
 test('DSH messages project into Codex turns and items', () => {
   const turns = projectTurns([
     { role: 'system', id: 's', content: [{ type: 'text', text: 'sys' }] },

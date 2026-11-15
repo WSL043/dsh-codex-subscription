@@ -33,12 +33,6 @@ export function RemoteControlCard({ rpc, preference, snapshot, t, active = true 
   const [removing, setRemoving] = useState()
   const alive = useRef(false)
   const on = snapshot.remoteControl === 'on'
-  const read = async () => {
-    try {
-      const result = await rpc.call(CHANNEL, 'remote/status', {})
-      if (alive.current && result.ok) setState(result.value)
-    } catch { /* the next poll retries */ }
-  }
   const readClients = async () => {
     try {
       const result = await rpc.call(CHANNEL, 'remote/clients', {})
@@ -67,7 +61,13 @@ export function RemoteControlCard({ rpc, preference, snapshot, t, active = true 
     if (!on) { setState(undefined); setPairing(undefined); return undefined }
     if (!active) return undefined
     let stopped = false, timer
-    const poll = async () => { await read(); if (!stopped) timer = setTimeout(poll, 4000) }
+    const poll = async () => {
+      try {
+        const result = await rpc.call(CHANNEL, 'remote/status', {})
+        if (!stopped && result.ok) setState(result.value)
+      } catch { /* the next poll retries */ }
+      if (!stopped) timer = setTimeout(poll, 4000)
+    }
     void poll()
     return () => { stopped = true; clearTimeout(timer) }
   }, [on, rpc, active])
@@ -104,12 +104,12 @@ export function RemoteControlCard({ rpc, preference, snapshot, t, active = true 
       if (!alive.current) return
       if (!result.ok) { setFailed(true); return }
       setPairing(result.value); setNow(Date.now())
-      void read()
     } catch { if (alive.current) setFailed(true) } finally { if (alive.current) setBusy(false) }
   }
   const expired = pairing && pairing.expiresAt <= now
   const minutes = pairing ? Math.max(0, Math.ceil((pairing.expiresAt - now) / 60000)) : 0
   const status = state?.status ?? 'connecting'
+  const connectedPhones = status === 'connected' ? state?.phones ?? 0 : 0
   return <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('remoteTitle')}>
     <div className="codexSubscriptionPreference">
       <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={[t('remoteHint'), t('remoteLimits')].join(' ')}>{t('remoteTitle')} <small>Beta</small></SettingsLabel>{snapshot.status === 'ready' ? <Hint>{t(on ? 'state_remote_on' : 'state_remote_off')}</Hint> : null}</div>
@@ -118,9 +118,14 @@ export function RemoteControlCard({ rpc, preference, snapshot, t, active = true 
     {on ? <>
       <div className="codexSubscriptionDivider" />
       <div className="codexSubscriptionPreference">
-        <span role="status">{status === 'connected' && state?.phones > 0 ? t('remotePhones').replace('{count}', String(state.phones)) : t(STATUS_KEYS[status] ?? 'remoteConnecting')}{status === 'error' && state?.lastError ? ` · ${state.lastError}` : ''}{status !== 'connected' && state?.phones > 0 ? ` · ${t('remotePhones').replace('{count}', String(state.phones))}` : ''}</span>
+        <span role="status">
+          {t(STATUS_KEYS[status] ?? 'remoteConnecting')}
+          {connectedPhones > 0 ? ` · ${t('remotePhones').replace('{count}', String(connectedPhones))}` : null}
+          {status === 'error' && state?.lastError ? ` · ${state.lastError}` : null}
+        </span>
         <Button type="button" variant="outline" disabled={busy || status === 'stopped'} onClick={() => { void pair() }}>{t(pairing ? 'remotePairAgain' : 'remotePair')}</Button>
       </div>
+      {status === 'connected' && connectedPhones === 0 && clients?.length > 0 ? <p className="codexSubscriptionHelp">{t('remoteOpenPairedHost')}</p> : null}
       {status === 'waiting' && state?.lastError === 'conflict' && state?.reconnects >= 6 ? <p role="status" className="codexSubscriptionHelp">{t('remoteConflictLong')}</p> : null}
       {status === 'error' && state?.lastError === 'unauthorized' ? <p role="status" className="codexSubscriptionHelp">{t('remoteUnauthorizedHelp')}</p> : null}
       {failed ? <p role="alert" className="codexSubscriptionHelp">{t('remotePairFailed')}</p> : null}

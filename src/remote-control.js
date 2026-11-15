@@ -37,12 +37,12 @@ async function writeInstallation(filename, state) {
  * @param {{ credentials: Function, WebSocket: Function, fetch?: Function, stateFile: string, hostName: string, userAgent: string, methods: object, notifications?: object, onConnection?: Function, onClose?: Function, base?: string }} options
  */
 export function createRemoteControl(options) {
-  const phones = new Set()
+  const phones = new Map()
   const host = createRemoteControlHost({
     methods: options.methods,
     notifications: options.notifications,
     onConnection: options.onConnection,
-    onActive: (client, notify) => { phones.add(client.id); options.onActive?.(client, notify) },
+    onActive: (client, notify) => { phones.set(client.id, client.clientId ?? client.id); options.onActive?.(client, notify) },
     onClose: (client, notify) => { phones.delete(client.id); options.onClose?.(client, notify) },
     debug: process.env.DSH_CODEX_REMOTE_DEBUG === '1',
     debugFile: options.debugFile,
@@ -106,7 +106,7 @@ export function createRemoteControl(options) {
     },
     status() {
       const value = relay?.status() ?? { status: 'stopped', enrolled: false, clients: 0, reconnects: 0 }
-      return { ...value, phones: phones.size, methods: host.seen(), trace: host.trace() }
+      return { ...value, phones: new Set(phones.values()).size, methods: host.seen(), trace: host.trace() }
     },
   })
 }

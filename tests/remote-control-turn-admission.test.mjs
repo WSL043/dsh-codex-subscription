@@ -201,6 +201,45 @@ test('accepted steer returns the real turn identity without starting another tur
   assert.equal(f.prompts().filter(call => call.request.mode === 'steer').length, 1)
 })
 
+test('a late or repeated interrupt cannot cancel the next queued turn', async () => {
+  const f = fixture()
+  const first = (await f.start()).turn
+  await f.add('next')
+  f.idle[0].resolve()
+  await until(() => f.idle.length === 2)
+  const next = f.notes.filter(note => note.method === 'turn/started').at(-1).params.turn
+  assert.notEqual(next.id, first.id)
+
+  assert.deepEqual(f.call('turn/interrupt', { turnId: first.id }), {})
+  assert.equal(f.prompts().at(-1).signal.aborted, false)
+  assert.equal(f.calls.some(call => call.cancel), false)
+
+  assert.deepEqual(f.call('turn/interrupt', { turnId: next.id }), {})
+  assert.deepEqual(f.call('turn/interrupt', { turnId: next.id }), {})
+  assert.equal(f.prompts().at(-1).signal.aborted, true)
+  assert.equal(f.calls.filter(call => call.cancel).length, 1)
+  f.bridge.onSessionEvent(f.session, { type: 'turn/end', data: { reason: { kind: 'aborted' } } })
+  f.idle[1].resolve()
+  await until(() => f.completed().length === 2)
+  assert.equal(f.completed().at(-1).params.turn.status, 'interrupted')
+})
+
+test('a retried queue submission returns its original receipt before and after admission', async () => {
+  const f = fixture()
+  await f.start()
+  const submit = id => f.call('thread/queue/add', { clientUserMessageId: id, input: input('same text') })
+  const first = await submit('first')
+  assert.deepEqual(await submit('first'), first)
+  const second = await submit('second')
+  assert.notEqual(second.queuedSubmission.id, first.queuedSubmission.id)
+  assert.equal(f.list().length, 2)
+  f.idle[0].resolve()
+  await until(() => f.idle.length === 2)
+  assert.deepEqual(await submit('first'), first)
+  assert.deepEqual(f.list().map(entry => entry.clientUserMessageId), ['second'])
+  assert.equal(f.prompts().length, 2)
+})
+
 test('late accepted steer holds the target until admission settles and acknowledges that actual delivery', async () => {
   const f = fixture(), { turn } = await f.start(), gate = deferred()
   f.admit(() => gate.promise)
@@ -331,6 +370,7 @@ test('temporary speed is restored if an interrupt ends preparation before dispat
   await assert.rejects(starting, error => error.code === -32800)
   assert.equal(f.tier(), 'default')
   assert.equal(f.prompts().length, 0)
+  assert.equal(f.calls.some(call => call.cancel), false)
 })
 
 test('empty or invalid image submissions cannot poison a busy thread queue', async () => {

@@ -192,6 +192,8 @@ Subagents retain DSH's existing approvals, sandbox, concurrency and depth limits
 
 Turn it on under **Settings → Codex subscription → Phone & more → Phone remote control** and this computer's DSH appears in the ChatGPT mobile app's Codex host list. Press Generate pairing code, then scan the QR code or type the manual code in the app; the code lasts about 10 minutes.
 
+The computer's ChatGPT connection, paired phones, and active phone connections are shown separately. To reconnect an already paired phone, open Codex in the ChatGPT app and select this computer.
+
 - From the phone you can browse history, start and continue conversations, interrupt, queue, fork, archive and unarchive conversations, and switch model (including DeepSeek and other third-party models), reasoning level and permissions (workspace write / full access).
 - DSH workspaces appear as projects on the phone, and a new chat can start in one; usage limits, plan and context usage are shown too.
 - Replies appear as they are written; commands, file edits (with diffs), the task list and generated images use the phone's native views.
@@ -280,5 +282,5 @@ Subscription chat, image generation and native DSH subtasks work without these o
 
 Uninstalling does not clear shared package caches or guarantee a fixed amount of reclaimed space. DSH or Portable manages those caches centrally; this plugin does not delete shared directories. Sketches, conversation history, generated originals and sign-in data are not package caches. Use their respective management controls when you want to remove them.
 
-**Storage and cache** under Maintenance shows the quota forecast cache size and lets you confirm clearing its local history. New samples are required afterwards. After reproducing a problem, use **Phone & more → Support diagnostics** to copy recent operation outcomes, available connection evidence and host extension slots. For a startup failure, include the startup error in the bug report. The recorded fetch path describes where the subscription plugin handed off the request. Check any third-party middleware's own diagnostics to verify what it did after handoff.
+**Storage and cache** under Maintenance shows the quota forecast cache size and lets you confirm clearing its local history. New samples are required afterwards. After reproducing a problem, use **Phone & more → Support diagnostics** to copy or download a JSON report with recent operation outcomes, available connection evidence and host extension slots. For a startup failure, include the startup error in the bug report. The recorded fetch path describes where the subscription plugin handed off the request. Check any third-party middleware's own diagnostics to verify what it did after handoff.
 

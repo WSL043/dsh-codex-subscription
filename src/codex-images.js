@@ -489,10 +489,17 @@ export function createCodexImageTool(options) {
       const mediaType = animated ? 'image/gif' : 'image/png'
       if (animated) {
         if (editing) throw new Error('Animated GIF editing is not supported on the Codex subscription route')
-        const { frameCount = 6, frameDurationMs = 150 } = args.gif ?? {}
-        if (!record(args.gif) || !Number.isInteger(frameCount) || frameCount < 2 || frameCount > 16
-          || !Number.isInteger(frameDurationMs) || frameDurationMs < 20 || frameDurationMs > 655350) throw new Error('Invalid animated GIF options')
-        imageOptions.animation = { output_format: 'gif', frame_count: frameCount, frame_duration_ms: frameDurationMs }
+        if (!record(args.gif)) throw new Error('Invalid animated GIF options')
+        const { frameCount, frameDurationMs } = args.gif
+        if ((frameCount !== undefined && (!Number.isInteger(frameCount) || frameCount < 2 || frameCount > 16))
+          || (frameDurationMs !== undefined && (!Number.isInteger(frameDurationMs) || frameDurationMs < 20 || frameDurationMs > 655350))) {
+          throw new Error('Invalid animated GIF options')
+        }
+        imageOptions.animation = {
+          output_format: 'gif',
+          ...(frameCount === undefined ? {} : { frame_count: frameCount }),
+          ...(frameDurationMs === undefined ? {} : { frame_duration_ms: frameDurationMs }),
+        }
       }
       const { access, accountId } = await readSubscriptionCredentials(options.getAuth, options.readCredential, exec.signal)
       if (typeof access !== 'string' || access.length === 0

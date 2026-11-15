@@ -818,7 +818,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     } catch (error) { await restoreSpeed(); throw error }
     const turn = emptyTurn()
     const userItem = { type: 'userMessage', id: randomUUID(), clientId: params.clientUserMessageId ?? null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(picture => ({ type: 'image', url: picture.url }))] }
-    const running = { turn, ended: undefined, userItem, priorMessageIds: new Set(agent.session.deriveMessages().map(message => message.id)), pendingImages: new Set(), pendingSteers: new Set(), abort: launch.abort }
+    const running = { turn, ended: undefined, userItem, queued: launch.queued, priorMessageIds: new Set(agent.session.deriveMessages().map(message => message.id)), pendingImages: new Set(), pendingSteers: new Set(), abort: launch.abort }
     active.set(id, running)
     phoneLog('turn accepted', { threadId: id, turnId: turn.id, itemId: userItem.id, hasClientId: userItem.clientId !== null, images: pictures.length })
     emit(id, 'turn/started', { threadId: id, turn })
@@ -1217,7 +1217,21 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return { ...settings(agent, value.cwd), thread: value }
     },
     'turn/start': (params, { notify }) => titles.has(params?.threadId) ? titleTurn(params, notify) : startTurn(params, notify),
-    'turn/interrupt': params => { active.get(params?.threadId)?.abort?.abort(); starting.get(params?.threadId)?.abort.abort(); service().cancel({ sessionId: params?.threadId }); return {} },
+    'turn/interrupt': params => {
+      const id = params?.threadId
+      const running = active.get(id)
+      const launch = starting.get(id)
+      // Explicit requests can be retried after the next turn has started.
+      if (params?.turnId !== undefined && params.turnId !== running?.turn.id) return {}
+      if (running?.finishing || running?.ended || (running?.abort ?? launch?.abort)?.signal.aborted) return {}
+      if (running) {
+        running.abort.abort()
+        service().cancel({ sessionId: id })
+      } else {
+        launch?.abort.abort()
+      }
+      return {}
+    },
     // DSH's /compact (0.2.0-rc.2 and later): condense the older history now. It is a turn of its own, like the app's.
     'thread/compact/start': async (params, { notify }) => {
       const id = params?.threadId
@@ -1229,12 +1243,15 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       subscribe(id, notify)
       const turn = emptyTurn()
       const abort = new AbortController()
-      active.set(id, { turn, ended: undefined, abort })
+      const running = { turn, ended: undefined, abort }
+      active.set(id, running)
       emit(id, 'turn/started', { threadId: id, turn })
       emit(id, 'thread/status/changed', { threadId: id, status: { type: 'active', activeFlags: [] } })
       void (async () => {
         try {
           const execution = await registry.execute(agent, '/compact', [], abort.signal)
+          abort.signal.throwIfAborted()
+          if (active.get(id) !== running) return
           const result = execution?.result
           if (result?.kind === 'error') throw new Error(result.text || 'Compaction failed')
           // DSH reports real work with the summary's position; a DSH that skips the start/end events still shows the app its "context compacted" row.
@@ -1246,6 +1263,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
           }
           turn.status = 'completed'
         } catch (error) {
+          if (active.get(id) !== running) return
           turn.status = abort.signal.aborted ? 'interrupted' : 'failed'
           if (turn.status === 'failed') {
             turn.error = { message: String(error?.message ?? 'Compaction failed').slice(0, 500), codexErrorInfo: null, additionalDetails: null }
@@ -1290,12 +1308,21 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'thread/queue/list': params => ({ data: queues.get(params?.threadId) ?? [], nextCursor: null }),
     'thread/queue/add': async (params, { notify }) => {
       if (!Array.isArray(params?.input)) throw invalidParams('input is required')
+      const id = params?.threadId
+      const clientUserMessageId = String(params.clientUserMessageId ?? randomUUID())
+      const queue = queues.get(id) ?? []
+      const dispatched = active.get(id)?.queued
+      const existing = queue.find(entry => entry.clientUserMessageId === clientUserMessageId)
+        ?? (dispatched?.clientUserMessageId === clientUserMessageId ? dispatched : undefined)
+      if (existing) {
+        subscribe(id, notify)
+        return { queuedSubmission: existing }
+      }
       const input = resolveInput(params.input, notify)
       contentOf(input)
-      const id = params?.threadId
-      const queued = { id: randomUUID(), clientUserMessageId: String(params.clientUserMessageId ?? randomUUID()), input }
+      const queued = { id: randomUUID(), clientUserMessageId, input }
       subscribe(id, notify)
-      queues.set(id, [...(queues.get(id) ?? []), queued])
+      queues.set(id, [...queue, queued])
       emit(id, 'thread/queue/changed', { threadId: id })
       if (!active.has(id) && !starting.has(id)) await startQueuedTurn(id, notify, queued.id, { model: params.model, effort: params.effort })
       return { queuedSubmission: queued }

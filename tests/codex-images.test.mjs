@@ -225,6 +225,11 @@ test('animated image requests keep the GIF original and never substitute a PNG r
     assert.deepEqual(Buffer.from(chunk.encoded, 'base64'), gif)
     assert.equal(await store.chunk('different-session', result.original.assetId, 0), undefined)
 
+    await tool.execute({ ...args, gif: {} }, execContext('gif-server-defaults'))
+    assert.equal(sent.output_format, 'gif')
+    assert.equal(Object.hasOwn(sent, 'frame_count'), false)
+    assert.equal(Object.hasOwn(sent, 'frame_duration_ms'), false)
+
     payload = { data: [{ b64_json: ONE_PIXEL_PNG }] }
     await assert.rejects(tool.execute(args, execContext('static')), /GIF/)
     status = 400
