@@ -57,9 +57,8 @@ export function registerLegacyModelPicker(slots, preference, props, component, o
         if (!supportsOptions && others.every(native)) unwatchConflict ??= watchLegacyConflict?.()
         else { unwatchConflict?.(); unwatchConflict = undefined }
         const state = preference.getSnapshot()
-        const custom = others.every(native) && (state.composerModelPicker === 'legacy' || (
-          state.composerModelPicker === 'auto' && !state.composerModelPickerConflict
-        ))
+        const custom = others.every(native) && !state.composerModelPickerConflict
+          && (state.composerModelPicker === 'legacy' || state.composerModelPicker === 'auto')
         const enabled = state.status === 'ready' && custom
         if (enabled && !supportsOptions && !others.some(entry => priorityOf(entry) === priority)) {
           dispose ??= slots.register({ name: slot, priority, inject: props }, component)
