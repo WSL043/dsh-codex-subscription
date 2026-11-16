@@ -38,19 +38,22 @@ export function WebProviderSettings({ ctx, t, preference }) {
   const [saving, setSaving] = useState(false)
   useEffect(() => {
     if (!form) return
-    return ctx.inject(['remote.web'], scope => scope.effect(() => {
-      const remote = scope.get('remote')
-      let generation = 0
-      const load = async () => {
-        const current = ++generation
-        const result = await remote.web.listProviders().catch(() => undefined)
-        if (current === generation) setProviders(result?.ok ? result.value : undefined)
-      }
-      const off = remote.$on('web/providers-changed', load)
-      const offReset = scope.on('connection/reset', load)
-      void load()
-      return () => { generation++; off(); offReset() }
-    }))
+    const fiber = ctx.inject(['remote.web'], scope => {
+      scope.effect(() => {
+        const remote = scope.get('remote')
+        let generation = 0
+        const load = async () => {
+          const current = ++generation
+          const result = await remote.web.listProviders().catch(() => undefined)
+          if (current === generation) setProviders(result?.ok ? result.value : undefined)
+        }
+        const off = remote.$on('web/providers-changed', load)
+        const offReset = scope.on('connection/reset', load)
+        void load()
+        return () => { generation++; off(); offReset() }
+      }, 'codex-subscription: web provider discovery')
+    })
+    return () => { void fiber.dispose() }
   }, [ctx, form])
 
   const change = async (field, value) => {
