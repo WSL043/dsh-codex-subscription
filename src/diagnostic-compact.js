@@ -48,6 +48,7 @@ export function compactDiagnostic(report) {
     generatedAt: report.generatedAt,
     ...(report.serverDiagnostics === 'unavailable' ? { serverDiagnostics: 'unavailable', error: report.error } : {}),
     ...(!report.client?.topology?.length ? { clientDiagnostics: 'unavailable' } : {}),
+    ...(report.client?.incidents && Object.keys(report.client.incidents).length ? { clientIncidents: report.client.incidents } : {}),
     account: report.account?.status,
     catalog: report.catalog,
     configuration,

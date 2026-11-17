@@ -20,7 +20,7 @@ export function projectHostSlots(slots) {
   })
 }
 
-export function createHostDiagnostics() {
+export function createHostDiagnostics(incidents) {
   const scopes = new Map()
   let sequence = 0
   return {
@@ -41,7 +41,7 @@ export function createHostDiagnostics() {
           return { status: 'pass', reason: 'inspection-completed' }
         },
       })), { source: 'client', scope: 'mounted-host-scopes' })
-      return { version: PACKAGE_VERSION, generatedAt: new Date().toISOString(), checks, topology,
+      return { version: PACKAGE_VERSION, generatedAt: new Date().toISOString(), checks, topology, incidents: incidents?.snapshot(),
         truncated: scopes.size > active.length, interpretation: 'host-selection-not-visual-or-execution-proof' }
     },
   }

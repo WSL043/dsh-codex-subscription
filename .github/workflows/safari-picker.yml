@@ -1,0 +1,57 @@
+name: Safari model picker
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'src/client-model-select.jsx'
+      - 'src/client-incident-diagnostics.js'
+      - 'tests/browser/*picker*'
+      - '.github/workflows/safari-picker.yml'
+  pull_request:
+    paths:
+      - 'src/client-model-select.jsx'
+      - 'src/client-incident-diagnostics.js'
+      - 'tests/browser/*picker*'
+      - '.github/workflows/safari-picker.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  safari:
+    runs-on: macos-15-intel
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11.26.0
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: node --test tests/client-incidents.test.mjs
+      - run: node tests/browser/build-picker-fixture.mjs
+      - name: Test model selection and injected faults in installed Safari
+        run: |
+          python3 -m venv "$RUNNER_TEMP/picker-venv"
+          "$RUNNER_TEMP/picker-venv/bin/pip" install selenium==4.29.0
+          sudo safaridriver --enable
+          python3 -m http.server 8126 --bind 127.0.0.1 --directory .artifacts/picker-diagnostics &
+          trap 'kill $!' EXIT
+          "$RUNNER_TEMP/picker-venv/bin/python" tests/browser/safari-picker.py
+      - name: Exercise published 3.2.19 on official DSH 0.2.2-rc.1
+        run: '"$RUNNER_TEMP/picker-venv/bin/python" tests/browser/official-picker.py'
+      - name: Exercise the candidate on the same host
+        if: success() || failure()
+        shell: bash
+        run: |
+          pnpm pack --pack-destination "$RUNNER_TEMP"
+          "$RUNNER_TEMP/picker-venv/bin/python" tests/browser/official-picker.py "$RUNNER_TEMP/dsh-codex-subscription-$(node -p "require('./package.json').version").tgz"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: safari-picker-diagnostics
+          path: .artifacts/picker-diagnostics/*.json
+          include-hidden-files: true

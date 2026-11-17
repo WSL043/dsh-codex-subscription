@@ -154,11 +154,12 @@ function ModelOptionChoices({ request, close }) {
   </div>
 }
 
-export function CodexModelSelect({ locked, available, directory, load, select, preference, t }) {
+export function CodexModelSelect({ locked, available, directory, load, select, preference, t, openPickerTrace }) {
   const state = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
   const preferenceSnapshot = usePreferenceSnapshot(preference)
   const [open, setOpen] = useState(false)
   const [pane, setPane] = useState('root')
+  const trace = useRef(null)
   const [query, setQuery] = useState('')
   const menuRef = useRef(null)
   const triggerRef = useRef(null)
@@ -237,6 +238,8 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
   }, [pane, speedSupported, ultrafastSupported, verbositySupported])
 
   const close = (restoreFocus = false) => {
+    trace.current?.('closed')
+    trace.current = null
     setOpen(false)
     setPane('root')
     setQuery('')
@@ -250,11 +253,13 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     if (accepted) close(true)
   }
   const chooseModel = selection => {
+    trace.current?.('activated')
     if (state.current?.provider === selection.provider && state.current.model === selection.model) {
+      trace.current?.('already-selected')
       close(true)
       return
     }
-    void select(selection).then(settleSelection)
+    void select(selection, trace.current).then(settleSelection)
   }
   const chooseEffort = effort => {
     if (state.current === null) return
@@ -276,13 +281,14 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     close(true)
     void preference.set({ [OUTPUT_VERBOSITY_FIELD]: outputVerbosity })
   }
-  const option = ({ key, label, description, selected, disabled, onClick }) => <button
+  const option = ({ key, label, description, selected, disabled, onClick, onPointerDown }) => <button
     key={key}
     type="button"
     role="menuitemradio"
     aria-checked={selected}
     className="codexModelSelectOption"
     disabled={disabled}
+    onPointerDown={onPointerDown}
     onClick={onClick}
   >
     <span className="codexModelSelectOptionCopy"><span className="codexModelSelectOptionName">{label}</span>{description === undefined ? null : <span className="codexModelSelectOptionDescription">{description}</span>}</span>
@@ -293,7 +299,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     type="button"
     role="menuitem"
     className="codexModelSelectCell"
-    onClick={() => { setQuery(''); setPane(target) }}
+    onClick={() => { if (target === 'model') trace.current?.('model-list'); setQuery(''); setPane(target) }}
   >
     <span className="codexModelSelectCellLabel">{label}</span>
     <span className="codexModelSelectCellValue">{value}</span>
@@ -324,6 +330,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
           label: model.name,
           selected: state.current?.provider === entry.id && state.current.model === model.id,
           disabled: busy,
+          onPointerDown: () => trace.current?.('pointer-down'),
           onClick: () => chooseModel({ provider: entry.id, model: model.id }),
         }))}
       </>))}</div>
@@ -358,6 +365,11 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     role={pane === 'model' ? 'group' : 'menu'}
     aria-label={t('modelMenuAria')}
     aria-busy={state.status === 'loading' || busy}
+    onMouseDown={event => {
+      // Keep the search field focused until the option's click, as in the native DSH picker.
+      if (pane === 'model' && event.button === 0 && event.target.closest?.('button[role="menuitemradio"]')
+        && event.currentTarget.ownerDocument.activeElement?.getAttribute('role') === 'searchbox') event.preventDefault()
+    }}
     onKeyDown={event => {
       if (event.key !== 'Escape') return
       event.preventDefault()
@@ -383,7 +395,11 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
       aria-controls={open ? `${id}-menu` : undefined}
       title={fast ? `${modelLabel} · ${t(speedKey)}` : modelLabel}
       disabled={locked}
-      onClick={() => open ? close() : (setPane('root'), setOpen(true), load())}
+      onClick={() => {
+        if (open) { close(); return }
+        trace.current = openPickerTrace?.()
+        setPane('root'); setOpen(true); load()
+      }}
     >
       {fast && <BoltIcon className="codexModelSelectBolt" aria-hidden="true" />}
       <span className="codexModelSelectLabel">{modelLabel}</span>

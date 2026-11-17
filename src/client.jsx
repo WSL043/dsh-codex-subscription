@@ -25,6 +25,7 @@ import { quotaUsageController } from './client-quota.jsx'
 import { VoiceCallButton } from './client-voice-call.jsx'
 import { CodexSection, ProjectAction } from './client-section.jsx'
 import { registerSubscriptionSettings, subscriptionSettingsOpener } from './subscription-settings-entry.js'
+import { createClientIncidentDiagnostics, selectWithDiagnostics } from './client-incident-diagnostics.js'
 import { createHostDiagnostics } from './diagnostic-host.js'
 import { restoreVoiceConversation } from './voice-browser.js'
 import { ComposerPrediction, PREDICTION_CSS } from './client-predictions.jsx'
@@ -49,7 +50,8 @@ export function apply(ctx) {
     restore()
     return () => { controller.abort(); unsubscribe() }
   }, 'codex-subscription: browser voice conversation'))
-  const diagnostics = createHostDiagnostics()
+  const incidents = createClientIncidentDiagnostics()
+  const diagnostics = createHostDiagnostics(incidents)
   ctx.effect(() => diagnostics.register(ctx.slots), 'codex-subscription: host inspection')
   const imageViewer = new SubscriptionImageViewerService()
   ctx.effect(() => ctx.locale.register(NS, dictionaries), 'codex-subscription: copy')
@@ -60,7 +62,7 @@ export function apply(ctx) {
     document.head.append(tag)
     return () => tag.remove()
   }, 'codex-subscription: style')
-  const rpc = createSubscriptionRpcClient(ctx.get('connection').rpc)
+  const rpc = createSubscriptionRpcClient(ctx.get('connection').rpc, incidents)
   const preference = createPreferenceController(rpc)
   const quotaUsage = quotaUsageController(rpc)
   ctx.effect(() => {
@@ -137,10 +139,8 @@ export function apply(ctx) {
       return {
         available, directory: directory.store, preference, t, optionsMenu, resolveText: text => ctx.locale.resolveText(text),
         load: () => { if (available) void directory.load().catch(() => {}) },
-        select: async selection => {
-          if (!available) return false
-          try { return (await directory.select(selection))?.ok !== false } catch { return false }
-        },
+        openPickerTrace: incidents.openPicker,
+        select: async (selection, trace) => available && selectWithDiagnostics(directory, selection, trace),
       }
     }, CodexModelSelect, CodexNativeModelOptions, CodexModelLabel, () => watchComposerModelPickerConflict(
       scope.get('remote.pluginManager'), scope.get('remote'), preference.setComposerModelPickerConflict,

@@ -35,6 +35,16 @@ For Codex model SSE, `requestCompression: "zstd-decoded"` records that the reque
 - A registrant label identifies a slot registration. Confirm package ownership and rendered visibility separately.
 - Report logs retain up to 300 entries. Exclude tokens, account identifiers, proxy URLs, prompts, answers, tool bodies and personal paths. Test new fields against allowlisting and redaction.
 
+## Reading client incidents
+
+Generate the report in the same tab after reproducing the problem. Reloading the client clears this in-memory history. Copy and Download include the same `clientIncidents` object when observations are available.
+
+- `rpcFailures` keeps the last failure for each subscription RPC endpoint, its time and duration, and the first subsequent successful response for that endpoint. It distinguishes rejected and malformed responses, transport exceptions and observed deadline aborts. Caller cancellations are excluded. `inFlight` gives the age of outstanding calls at collection time. Long polling can be expected.
+- `modelPicker` keeps the last 32 events from the subscription-owned picker, grouped by menu opening. A pointer press followed by dismissal without activation shows where input stopped. It can also be a deliberate dismissal. After an accepted selection the plugin compares the host directory with the selection at that instant. Later updates and third-party menus need separate observation.
+- Client incidents retain endpoint names and fixed event codes. They exclude payloads, model names, raw errors and session identifiers.
+
+The Safari workflow exercises the production component on macOS with a synthetic directory, then installs the published comparison package and the candidate in separate official DSH 0.2.2-rc.1 Web profiles. It checks both the DSH and subscription pickers with a fictional model catalog and saves the results as Actions artifacts.
+
 ## Investigating an interrupted stream
 
 1. Record the host, plugin build, configured transport and observed transport.

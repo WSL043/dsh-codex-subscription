@@ -16,11 +16,12 @@ export const RPC_ENDPOINTS = Object.freeze([
 ])
 
 // Components use a plugin-scoped client; DSH owns transport and authentication.
-export function createSubscriptionRpcClient(transport) {
+export function createSubscriptionRpcClient(transport, incidents) {
   return Object.freeze({
     call(channel, endpoint, payload, signal) {
       if (channel !== CHANNEL || !RPC_ENDPOINTS.includes(endpoint)) throw new Error('Invalid subscription RPC target')
-      return transport.call('/api', `codex-subscription/${endpoint}`, payload, signal)
+      const send = () => transport.call('/api', `codex-subscription/${endpoint}`, payload, signal)
+      return incidents ? incidents.observeRpc(endpoint, send, signal) : send()
     },
   })
 }
