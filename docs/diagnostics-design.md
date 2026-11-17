@@ -43,7 +43,7 @@ Generate the report in the same tab after reproducing the problem. Reloading the
 - `modelPicker` keeps the last 32 events from the subscription-owned picker, grouped by menu opening. A pointer press followed by dismissal without activation shows where input stopped. It can also be a deliberate dismissal. After an accepted selection the plugin compares the host directory with the selection at that instant. Later updates and third-party menus need separate observation.
 - Client incidents retain endpoint names and fixed event codes. They exclude payloads, model names, raw errors and session identifiers.
 
-The Safari workflow exercises the production component on macOS with a synthetic directory, then installs the published comparison package and the candidate in separate official DSH 0.2.2-rc.1 Web profiles. It checks both the DSH and subscription pickers with a fictional model catalog and saves the results as Actions artifacts.
+The Safari workflow exercises the production component on macOS with a synthetic directory, then installs the candidate in official DSH 0.2.2-rc.1 Web. It checks both the DSH and subscription pickers with a fictional model catalog and saves the results as Actions artifacts. Use the optional published comparison when dispatching the workflow to repeat the 3.2.19 baseline in a separate profile.
 
 ## Investigating an interrupted stream
 

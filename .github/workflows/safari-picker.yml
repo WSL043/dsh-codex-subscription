@@ -1,6 +1,11 @@
 name: Safari model picker
 on:
   workflow_dispatch:
+    inputs:
+      compare_published:
+        description: Also install 3.2.19 and compare the behavior reported in issue 260
+        type: boolean
+        default: false
   push:
     paths:
       - 'src/client-model-select.jsx'
@@ -34,6 +39,7 @@ jobs:
       - run: node --test tests/client-incidents.test.mjs
       - run: node tests/browser/build-picker-fixture.mjs
       - name: Test model selection and injected faults in installed Safari
+        id: fixture
         run: |
           python3 -m venv "$RUNNER_TEMP/picker-venv"
           "$RUNNER_TEMP/picker-venv/bin/pip" install selenium==4.29.0
@@ -42,9 +48,10 @@ jobs:
           trap 'kill $!' EXIT
           "$RUNNER_TEMP/picker-venv/bin/python" tests/browser/safari-picker.py
       - name: Exercise published 3.2.19 on official DSH 0.2.2-rc.1
+        if: github.event_name == 'workflow_dispatch' && inputs.compare_published
         run: '"$RUNNER_TEMP/picker-venv/bin/python" tests/browser/official-picker.py'
       - name: Exercise the candidate on the same host
-        if: success() || failure()
+        if: "!cancelled() && steps.fixture.outcome == 'success'"
         shell: bash
         run: |
           pnpm pack --pack-destination "$RUNNER_TEMP"
