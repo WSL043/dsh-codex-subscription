@@ -47,15 +47,9 @@
 
 ## 准备 DSH
 
-已验证兼容 DSH `0.2.2-rc.1`，继续支持 `0.2.1-rc.3` 和 `0.2.1-rc.2`，最低支持 `0.1.7-rc.2`；更早的 DSH 请先升级。
+请使用[官方 DSH](https://github.com/deepseek-ai/deepseek-harness/releases) 的兼容版本。插件发布前会验证 DSH 在 npm 上的 `latest` 和 `next` 渠道。可安装的 DSH 版本范围见[插件清单](package.json)中的 `engines.dsh`。
 
-官方 DSH Desktop `0.2.2-rc.2` 已通过实机验证。
-
-DSH `0.2.2-rc.1` 的 CLI/Web 模式需要 Node.js **24.9 或更高版本**；官方桌面版使用自带的运行时。
-
-另支持预览宿主 `0.2.2-alpha.2`；范围与验收边界见[兼容性记录](docs/archive/dsh-022-alpha2-compatibility.md)。
-
-本插件支持软件包元数据中记录的最新版 DeepSeek Harness，并需要一个当前具有 Codex 使用资格的 ChatGPT 账户。
+CLI 和 Web 的 Node.js 要求见 [DSH 官方运行说明](https://github.com/deepseek-ai/deepseek-harness#run)。官方桌面版自带运行时。使用插件需要拥有 Codex 访问权限的 ChatGPT 账户。
 
 <details>
 <summary>选择 DSH：官方桌面端、便携版或命令行</summary>

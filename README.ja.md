@@ -51,15 +51,9 @@ DeepSeek やその他の DSH モデルで、ChatGPT に接続したアプリ（G
 
 ## DSH の準備
 
-DSH `0.2.2-rc.1` で動作確認済みです。`0.2.1-rc.3` および `0.2.1-rc.2` も引き続きサポートされます。サポート対象の最小バージョンは `0.1.7-rc.2` です。古い DSH をお使いの場合は、先にアップグレードしてください。
+対応範囲内の[公式 DSH](https://github.com/deepseek-ai/deepseek-harness/releases) をお使いください。プラグインの公開前に、DSH の npm `latest` と `next` を検証しています。対応バージョンの範囲は[プラグインのマニフェスト](package.json)にある `engines.dsh` で確認できます。
 
-公式 DSH Desktop `0.2.2-rc.2` で実機検証済みです。
-
-DSH `0.2.2-rc.1` CLI/Web には Node.js **24.9 以降**が必要です。公式デスクトップアプリでは、同梱のランタイムを使用します。
-
-プレビュー版ホスト `0.2.2-alpha.2` にも対応しています。対象範囲と検証上の制限については、[互換性に関する注意事項（英語）](docs/archive/dsh-022-alpha2-compatibility.md)をご覧ください。
-
-このプラグインは、パッケージメタデータに記録された最新の DeepSeek Harness リリースをサポートします。また、現在 Codex を利用できる ChatGPT アカウントが必要です。
+CLI と Web の Node.js 要件は [DSH の公式手順](https://github.com/deepseek-ai/deepseek-harness#run)をご覧ください。公式 Desktop はランタイムを同梱しています。プラグインを使うには、Codex を利用できる ChatGPT アカウントが必要です。
 
 <details>
 <summary>DSH の配布版を選ぶ</summary>

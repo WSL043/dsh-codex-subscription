@@ -366,19 +366,22 @@ test('an alpha newer than the declared compatibility list is a notice, never a r
   }
 })
 
-test('the README install step names the exact released version, so a new release installs on its first day', () => {
-  for (const [label, readme] of [['zh', text('README.md')], ['en', text('README.en.md')]]) {
-    const pinned = readme.match(/```text\s+dsh-codex-subscription@([\d.]+)\s+```/u)?.[1]
-    if (manifest.version.includes('-')) {
-      // A preview plugin beta is not advertised: the README keeps pinning the last stable release.
-      assert.match(pinned, /^\d+\.\d+\.\d+$/u, `${label} README install step must pin a stable release`)
-      assert.ok(compareVersions(pinned, manifest.version) < 0, `${label} README install step must not pin ${pinned} ahead of ${manifest.version}`)
-    } else {
-      assert.equal(pinned, manifest.version, `${label} README install step must pin ${manifest.version}`)
-    }
-    // Install and update commands pin the same version: a bare name can resolve to an older release for the first day.
+test('README install and update examples pin the same released version in every language', () => {
+  const readmes = ['README.md', ...['zh-CN', 'en', 'ja', 'es', 'fr', 'de', 'ru', 'pt'].map(locale => `README.${locale}.md`)]
+  const installVersion = readme => readme.match(/```text\s+dsh-codex-subscription@([\d.]+)\s+```/u)?.[1]
+  const pinned = installVersion(text('README.md'))
+  if (manifest.version.includes('-')) {
+    // Preview plugin releases keep the public installation examples pinned to a stable version.
+    assert.match(pinned, /^\d+\.\d+\.\d+$/u)
+    assert.ok(compareVersions(pinned, manifest.version) < 0)
+  } else {
+    assert.equal(pinned, manifest.version)
+  }
+  for (const file of readmes) {
+    const readme = text(file)
+    assert.equal(installVersion(readme), pinned, `${file} install step must pin ${pinned}`)
     const commands = [...readme.matchAll(/^dsh plugin --profile \w+ (?:add|update) (\S+)$/gmu)].map(match => match[1])
-    assert.ok(commands.length >= 3, `${label} README lists install and update commands`)
-    for (const spec of commands) assert.equal(spec, `dsh-codex-subscription@${pinned}`, `${label} README command must pin ${pinned}`)
+    assert.ok(commands.length >= 3, `${file} lists install and update commands`)
+    for (const spec of commands) assert.equal(spec, `dsh-codex-subscription@${pinned}`, `${file} command must pin ${pinned}`)
   }
 })

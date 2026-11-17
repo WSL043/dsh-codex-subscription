@@ -51,15 +51,9 @@ Web search and webpage reading sources, ChatGPT connectors and official Codex in
 
 ## Prepare DSH
 
-Verified against DSH `0.2.2-rc.1`, with `0.2.1-rc.3` and `0.2.1-rc.2` still supported; the minimum supported version is `0.1.7-rc.2`. Please upgrade older DSH releases first.
+Use a compatible [official DSH release](https://github.com/deepseek-ai/deepseek-harness/releases). Plugin releases are tested against the DSH npm `latest` and `next` channels. The supported host range is listed under `engines.dsh` in the [package manifest](package.json).
 
-The official DSH Desktop `0.2.2-rc.2` was verified on-device.
-
-DSH `0.2.2-rc.1` CLI/Web requires Node.js **24.9 or newer**; the official desktop app uses its bundled runtime.
-
-Also supports the preview host `0.2.2-alpha.2`. See the [compatibility notes](docs/archive/dsh-022-alpha2-compatibility.md) for scope and validation limits.
-
-This plugin supports the latest DeepSeek Harness release recorded in its package metadata and requires a ChatGPT account that currently has Codex access.
+See the [official DSH run guide](https://github.com/deepseek-ai/deepseek-harness#run) for CLI and Web Node.js requirements. DSH Desktop bundles its runtime. The plugin requires a ChatGPT account with Codex access.
 
 <details>
 <summary>Choose a DSH distribution</summary>

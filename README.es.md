@@ -51,15 +51,9 @@ La búsqueda web y la lectura de páginas web como fuentes, los conectores de Ch
 
 ## Preparar DSH
 
-Verificado con DSH `0.2.2-rc.1`; `0.2.1-rc.3` y `0.2.1-rc.2` siguen siendo compatibles; la versión mínima compatible es `0.1.7-rc.2`. Actualiza primero las versiones anteriores de DSH.
+Usa una [versión oficial de DSH](https://github.com/deepseek-ai/deepseek-harness/releases) compatible. Las versiones del complemento se prueban con los canales `latest` y `next` de DSH en npm. El intervalo compatible figura en `engines.dsh` del [manifiesto del paquete](package.json).
 
-Se verificó el funcionamiento de la aplicación oficial DSH Desktop `0.2.2-rc.2`.
-
-La CLI/Web de DSH `0.2.2-rc.1` requiere Node.js **24.9 o posterior**; la aplicación oficial de escritorio usa el entorno de ejecución incluido.
-
-También es compatible con el host de vista previa `0.2.2-alpha.2`. Consulta las [notas de compatibilidad (en inglés)](docs/archive/dsh-022-alpha2-compatibility.md) para conocer el alcance y los límites de validación.
-
-Este complemento es compatible con la versión más reciente de DeepSeek Harness indicada en los metadatos de su paquete y requiere una cuenta de ChatGPT que tenga acceso a Codex en este momento.
+Consulta la [guía oficial de DSH](https://github.com/deepseek-ai/deepseek-harness#run) para conocer los requisitos de Node.js de la CLI y la interfaz web. DSH Desktop incluye su entorno de ejecución. El complemento requiere una cuenta de ChatGPT con acceso a Codex.
 
 <details>
 <summary>Elige una distribución de DSH</summary>
