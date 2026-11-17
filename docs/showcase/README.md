@@ -6,14 +6,13 @@ identifying domains visible. Use a demonstration account with example.com data,
 and inspect the entire screenshot before publication. Keep private source captures
 out of Git.
 
-The approved account hero is included in both READMEs. The local gallery renders
-the current AccountCard, UsageCard, PreferencesCard and plugin styles directly,
+The local gallery renders the AccountCard, UsageCard, PreferencesCard and plugin styles directly,
 with isolated fictional data and presentation-only host control adapters. It is
 a component layout preview, not a native host acceptance screenshot. No RPC calls
 leave the preview and no real account data is loaded.
 
-The README retains direct creative-settings captures, composer screenshots, and
-plugin-list screenshots. The plugin list shows the icon in its actual host location.
+The README walkthrough uses screenshots captured in official DSH Web. It shows
+the sign-in and Models tabs in each supported UI language.
 
 Build the optional local layout preview with:
 

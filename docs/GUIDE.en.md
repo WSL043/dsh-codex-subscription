@@ -126,15 +126,9 @@ A basic viewer derived from `dsh-image-viewer` is now built in, with no extra in
 
 New and edited images return the exact original path on the current DSH host in the tool result, so a model or Agent can read or copy the file. The path is on the host running DSH, not a browser download link; original downloads remain session-authorized. Uninstalling the plugin does not delete generated originals.
 
-**Continue editing in composer** does not send automatically. With annotations, it attaches the clean source and a numbered location-reference image, and includes matching numbers, coordinates, notes, and instructions to exclude the markers from the result. Without annotations, it attaches only the opened image. Every marker needs a note; reference preparation failures stop the handoff. Press **Enter** to save and collapse a region note; use **Shift+Enter** for a new line. Notes remain available when the same image is reopened during the current DSH page session.
+Use **Annotate** to add numbered notes. Press **Enter** to save a note or **Shift+Enter** for a new line. Closing the viewer preserves the notes for the current DSH page session. **Add to composer** attaches the image and, when annotated, a numbered reference with the notes. Review the draft and send it when ready. Every marker needs a note before the draft can be prepared.
 
 A new image request does not silently include earlier images. GPT Image 2 can take longer than a normal text turn, and detailed text, exact composition, or repeated-character consistency may still need another pass.
-
-<p align="center">
-  <img src="assets/annotate-en.webp" width="800" alt="Generated image, region note, and continue editing inside the DSH Image Viewer">
-</p>
-
-The screenshot above illustrates image viewing and on-image notes; available buttons can vary with the image and installed viewer version.
 
 <a id="sketch"></a>
 
@@ -190,9 +184,9 @@ Subagents retain DSH's existing approvals, sandbox, concurrency and depth limits
 
 ### Phone remote control (Beta)
 
-Turn it on under **Settings → Codex subscription → Phone & more → Phone remote control** and this computer's DSH appears in the ChatGPT mobile app's Codex host list. Press Generate pairing code, then scan the QR code or type the manual code in the app; the code lasts about 10 minutes.
+Turn it on under **Settings → Codex → Phone & more → Phone remote control**. Click **Show pairing code**, then scan the QR code or enter the manual code in Codex in the ChatGPT mobile app. After pairing, select this computer in the app. Settings show paired devices and active connections separately. The pairing code disappears after use.
 
-The computer's ChatGPT connection, paired phones, and active phone connections are shown separately. To reconnect an already paired phone, open Codex in the ChatGPT app and select this computer.
+To reconnect an already paired phone, open Codex in the ChatGPT app and select this computer.
 
 - From the phone you can browse history, start and continue conversations, interrupt, queue, fork, archive and unarchive conversations, and switch model (including DeepSeek and other third-party models), reasoning level and permissions (workspace write / full access).
 - DSH workspaces appear as projects on the phone, and a new chat can start in one; usage limits, plan and context usage are shown too.
@@ -253,7 +247,7 @@ Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only *
 
 Install **Codex Subagent** from the official entries in DSH's **Plugins** page. If you only use it with your subscription, switch the official entry off after installation to leave the package installed and its standalone tool disabled.
 
-In **Settings → Codex subscription → Web & tools**, click **Prepare CLI** under **Independent subtasks**, restart DSH, then choose **Codex (subscription)**. The dedicated CLI uses the profile dependency alias `dsh-codex-subtask-cli` and keeps your subscription login and saved child defaults.
+In **Settings → Codex → Web & tools → Independent subtasks**, use **Prepare CLI** if shown and restart DSH if prompted. Then choose **Codex (subscription)**. The dedicated CLI uses the profile dependency alias `dsh-codex-subtask-cli` and keeps your subscription login and saved child defaults.
 
 On Windows, the dedicated CLI prefers Codex's MXC sandbox when supported by the device and policy. Otherwise it needs Codex's configured legacy Windows sandbox. Subtasks retain the DSH session's file policy; the plugin does not fall back to unrestricted execution when sandbox setup is unavailable.
 
@@ -282,5 +276,5 @@ Subscription chat, image generation and native DSH subtasks work without these o
 
 Uninstalling does not clear shared package caches or guarantee a fixed amount of reclaimed space. DSH or Portable manages those caches centrally; this plugin does not delete shared directories. Sketches, conversation history, generated originals and sign-in data are not package caches. Use their respective management controls when you want to remove them.
 
-**Storage and cache** under Maintenance shows the quota forecast cache size and lets you confirm clearing its local history. New samples are required afterwards. After reproducing a problem, use **Phone & more → Support diagnostics** to copy or download a JSON report with recent operation outcomes, available connection evidence and host extension slots. For a startup failure, include the startup error in the bug report. The recorded fetch path describes where the subscription plugin handed off the request. Check any third-party middleware's own diagnostics to verify what it did after handoff.
+**Phone & more → Storage and cache** displays the quota forecast cache size and lets you confirm clearing its local history. New samples are required afterwards. After reproducing a problem, use **Phone & more → Support diagnostics → Create report** to copy or download a JSON report with recent operation outcomes, available connection evidence and host extension slots. For a startup failure, include the startup error in the bug report. The recorded fetch path describes where the subscription plugin handed off the request. Check any third-party middleware's own diagnostics to verify what it did after handoff.
 

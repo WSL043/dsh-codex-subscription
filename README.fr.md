@@ -20,8 +20,6 @@ Connectez-vous avec ChatGPT Plus / Pro pour utiliser GPT-6 et d’autres modèle
 
 </div>
 
-<p align="center"><img src="docs/assets/hero-en.webp" width="1100" alt="Votre abonnement, désormais dans DSH : la mascotte fille-baleine et l’interface du quota du compte d’abonnement Codex"></p>
-
 <a id="highlights"></a>
 
 ## Points forts
@@ -35,17 +33,6 @@ Connectez-vous avec ChatGPT Plus / Pro pour utiliser GPT-6 et d’autres modèle
 | **Utiliser les applications connectées** | Permettez aux modèles DSH d’utiliser les applications connectées dans ChatGPT, notamment GitHub, Gmail, Drive et Calendar ; l’autorisation d’écriture dépend des droits de la session DSH. |
 
 Les modèles et le quota dépendent des informations renvoyées par votre compte. [Liste complète des fonctionnalités →](#all-features)
-
-<details>
-<summary>Utiliser les fonctionnalités de l’abonnement avec DeepSeek et d’autres modèles</summary>
-
-Permettez à DeepSeek ou à tout autre modèle DSH d’utiliser les applications que vous avez connectées dans ChatGPT : GitHub, Gmail, Google Drive, Calendar et plus encore. Les modèles commencent par rechercher, puis effectuent l’appel ; l’autorisation d’écriture dépend du mode et des droits de la session DSH. Désactivé par défaut ; activez cette fonction dans Web et outils.
-
-Les sources de recherche Web et de lecture de pages Web, les connecteurs ChatGPT et les sous-tâches indépendantes officielles de Codex se trouvent dans **Paramètres → Abonnement Codex → Web et outils**, avec un seul interrupteur général en haut : lorsqu’il est désactivé, les conversations avec DeepSeek et d’autres modèles non-Codex n’utilisent plus la recherche Web de l’abonnement (la recherche DSH est utilisée à la place), la génération d’images ni les connecteurs ChatGPT ; les modèles d’abonnement Codex ne sont pas concernés. Activé par défaut.
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-interop-en-dark.webp"><img src="docs/assets/ui-interop-en-light.webp" width="640" alt="Paramètres Web et outils : sources de recherche et de lecture de pages Web, autorisations des connecteurs et sous-tâches indépendantes"></picture></p>
-
-</details>
 
 <a id="prepare-dsh"></a>
 
@@ -121,20 +108,18 @@ Connectez votre compte ChatGPT, choisissez un modèle Codex dans DSH et consulte
 <details>
 <summary>Se connecter et consulter le quota</summary>
 
-Ouvrez **Paramètres → Codex → Démarrage**, puis sélectionnez **Connexion par navigateur**. Vos comptes enregistrés et le quota indiqué par ChatGPT s’affichent après la connexion. Ouvrez l’aperçu ou la répartition de l’utilisation pour voir le détail.
+Dans **Paramètres → Codex → Démarrage**, choisissez **Connexion par navigateur**. Après connexion, la même page affiche les comptes enregistrés, le quota et les heures de réinitialisation.
 
-<p align="center"><img src="docs/assets/interface-account-fr.png" width="584" alt="Se connecter et consulter le quota"></p>
-
-_Le compte et les valeurs de quota sont fictifs._
+<p align="center"><img src="docs/assets/interface-account-fr.png" width="705" alt="Connexion par navigateur"></p>
 
 </details>
 
 <details>
 <summary>Choisir un modèle Codex et envoyer un message</summary>
 
-Dans **Paramètres → Codex → Modèles**, choisissez le modèle et le niveau de raisonnement par défaut. Pour une seule conversation, utilisez le sélecteur près du champ de saisie. Saisissez puis envoyez un message pour utiliser votre abonnement dans DSH.
+Une fois connecté, réglez le modèle et le niveau de raisonnement par défaut dans **Paramètres → Codex → Modèles**. Le sélecteur à côté du champ de saisie règle le modèle de la conversation en cours.
 
-<p align="center"><img src="docs/assets/interface-models-fr.png" width="584" alt="Choisir un modèle Codex et envoyer un message"></p>
+<p align="center"><img src="docs/assets/interface-models-fr.png" width="705" alt="Modèles"></p>
 
 </details>
 
@@ -163,22 +148,6 @@ Les échecs d’abonnement restent visibles : aucun basculement silencieux vers 
 
 Générez des images avec votre abonnement, affichez et téléchargez les originaux, ou sélectionnez une zone et ajoutez des notes pour continuer à la modifier. La génération et la modification d’images se contrôlent dans **Paramètres → Codex → Créer**.
 
-<details>
-<summary>Annotation et modification continue d’images</summary>
-
-<p align="center"><img src="docs/assets/annotate-en.webp" width="900" alt="Aperçu de l’image : une zone au-dessus de la cheminée est marquée d’une note, puis la modification se poursuit avec cette note"></p>
-
-</details>
-
-<details>
-<summary>Afficher les paramètres Images et croquis</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-creative-en-dark.png"><img src="docs/assets/ui-creative-en-light.png" width="564" alt="Paramètres des images et des croquis : génération et modification, raccourcis créatifs, modèle et qualité demandés"></picture></p>
-
-Paramètres présentés directement sous forme de captures recadrées de l’interface réelle de DSH, avec le thème clair ou sombre.
-
-</details>
-
 <a id="sketch-board-beta"></a>
 
 ### Tableau de croquis (bêta)
@@ -204,29 +173,6 @@ Après une interruption de connexion, le dessin de 6.1 a été restauré à part
 
 </details>
 
-<details>
-<summary>Du croquis à l’image générée : tour d’horloge et paysage bleu-vert</summary>
-
-L’Agent a d’abord dessiné un croquis modifiable, puis l’a utilisé comme référence pour générer une image avec l’abonnement. Sol et Astra ci-dessous désignent les modèles de conversation qui pilotent le flux de travail, et non le backend de génération d’images.
-
-**Coupe de la tour d’horloge**
-
-<table>
-<tr><th>Modèle de conversation</th><th width="43%">Croquis de l’Agent</th><th width="43%">Généré à partir du croquis</th></tr>
-<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-clocktower-sol-sketch.webp" width="360" alt="Coupe de la tour-horloge : croquis de l’agent sol"></td><td><img src="docs/assets/sketch-clocktower-sol-result.webp" width="360" alt="Coupe de la tour-horloge : image d’abonnement générée à partir du croquis sol"></td></tr>
-<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-clocktower-astra-sketch.webp" width="360" alt="Coupe de la tour-horloge : croquis de l’agent astra"></td><td><img src="docs/assets/sketch-clocktower-astra-result.webp" width="360" alt="Coupe de la tour-horloge : image d’abonnement générée à partir du croquis astra"></td></tr>
-</table>
-
-**Paysage bleu-vert**
-
-<table>
-<tr><th>Modèle de conversation</th><th width="43%">Croquis de l’Agent</th><th width="43%">Généré à partir du croquis</th></tr>
-<tr><td>GPT-6.1-Sol<br>Xhigh</td><td><img src="docs/assets/sketch-shanshui-sol-sketch.webp" width="360" alt="Paysage bleu-vert : croquis de l’agent sol"></td><td><img src="docs/assets/sketch-shanshui-sol-result.webp" width="360" alt="Paysage bleu-vert : image d’abonnement générée à partir du croquis sol"></td></tr>
-<tr><td>GPT-6-Astra<br>Low</td><td><img src="docs/assets/sketch-shanshui-astra-sketch.webp" width="360" alt="Paysage bleu-vert : croquis de l’agent astra"></td><td><img src="docs/assets/sketch-shanshui-astra-result.webp" width="360" alt="Paysage bleu-vert : image d’abonnement générée à partir du croquis astra"></td></tr>
-</table>
-
-</details>
-
 [Modification d’images et stockage des brouillons →](docs/GUIDE.en.md#image-generation-and-editing)
 
 <a id="phone-remote-control-beta"></a>
@@ -239,6 +185,8 @@ Associez la section Codex de l’application mobile ChatGPT à DSH sur votre ord
 
 Il s’agit d’une couche de compatibilité tierce qui utilise le service de connexion à distance d’OpenAI. Le contrôle à distance officiel de Codex existe, mais la compatibilité avec l’hôte DSH n’est pas explicitement garantie par OpenAI et peut changer lors des mises à jour du service. Vous pouvez à tout moment supprimer les appareils associés ou désactiver cette fonction.
 
+Cliquez sur **Afficher le code d’association** sur l’ordinateur. Scannez le code QR ou saisissez le code manuel dans Codex dans l’application ChatGPT. Choisissez l’ordinateur associé pour envoyer des messages et des images.
+
 <details>
 <summary>Opérations prises en charge depuis le téléphone</summary>
 
@@ -249,13 +197,6 @@ Il s’agit d’une couche de compatibilité tierce qui utilise le service de co
 - envoyer des photos, utiliser @ pour rechercher des fichiers sur l’ordinateur, / pour sélectionner des compétences DSH, consulter les changements avec git en lecture seule et démarrer des discussions dans un véritable sélecteur de dossiers ;
 - les espaces de travail DSH apparaissent comme des projets ; cloner une conversation, consulter les limites d’utilisation, l’utilisation cumulée et l’utilisation du contexte ; lorsque DSH prend en charge `/compact`, compacter le contexte depuis le téléphone ;
 - les erreurs de modèle s’affichent sur le téléphone ; les téléphones associés sont répertoriés dans les paramètres et peuvent être supprimés.
-
-</details>
-
-<details>
-<summary>Paramètres d’association et téléphones associés</summary>
-
-<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/ui-remote-en-dark.png"><img src="docs/assets/ui-remote-en-light.png" width="560" alt="Contrôle à distance par téléphone dans les paramètres : interrupteur, état de la connexion, code QR d’association et code manuel"></picture></p>
 
 </details>
 
@@ -275,19 +216,19 @@ Choisissez le modèle selon la tâche, le raisonnement selon l’analyse nécess
 | **Connexion à l’abonnement** | Connectez-vous à ChatGPT et utilisez les modèles d’abonnement Codex sans clé API | Le chat normal ne nécessite pas Codex CLI |
 | **Synchronisation du catalogue des modèles** | Lire les modèles et niveaux de raisonnement disponibles sur votre compte, avec actualisation manuelle ; le dernier catalogue récupéré avec succès est stocké localement pour chaque compte et reste disponible pendant l’actualisation en arrière-plan après le redémarrage, pendant 24 heures ; les modèles signalés comme devant être retirés affichent leur date de retrait à côté de leur nom, sans changement automatique de votre sélection | Les nouveaux modèles apparaissent lorsque votre compte les propose ; le catalogue du compte est l’unique source, donc aucun modèle n’est affiché si vous êtes déconnecté ou si aucune lecture distante ni aucun cache valide n’est disponible |
 | **Liste des modèles** | Afficher ou masquer des modèles individuels dans le sélecteur de la zone de rédaction, sur la page Modèles ; le sélecteur conserve les libellés de modèles propres à DSH (tels que le badge de nouveau modèle) | Affichage uniquement ; les modèles sélectionnés et les requêtes continuent de fonctionner |
-| **Menu des modèles de la zone de saisie** | Auto laisse la place à un autre sélecteur présent et affiche le menu d’abonnement lorsqu’il est seul. DSH standard laisse le menu à DSH ou à une autre extension. | Dans Modèles, choisissez Abonnement pour utiliser ce menu et les vitesses prises en charge. Les choix enregistrés sont conservés. |
+| **Menu des modèles de la zone de saisie** | Ajoute la vitesse et le niveau de détail via les extensions du menu DSH et cède la place en cas de conflit entre sélecteurs. | Réglage dans Modèles. Votre préférence reste enregistrée. |
 | **Suggestions de saisie (Bêta)** | Après une réponse terminée, la zone de saisie vide peut suggérer le prochain message. Tab l’insère dans un brouillon modifiable. | Désactivées par défaut dans Modèles. Elles nécessitent un modèle Codex compatible et un compte autorisé. Les requêtes peuvent être comptabilisées. |
 | **Modèle par défaut** | Choisir le modèle utilisé à l’ouverture d’une nouvelle conversation, sur la page Modèles | Définit le modèle par défaut de DSH, le même que celui défini lors du changement de modèle dans une conversation ; effacez ce réglage pour suivre le modèle par défaut de DSH |
 | **Intensité de raisonnement par défaut** | Choisir un niveau par défaut pour les modèles d’abonnement, sur la page Modèles ; « Valeur par défaut du modèle » suit la recommandation officielle du catalogue pour chaque modèle | Les choix manuels sont prioritaires. Les niveaux non pris en charge sont remplacés par le niveau par défaut valide du modèle ; les choix manuels déjà définis pour une conversation sont conservés |
 | **Niveaux de raisonnement** | Choisir une intensité de raisonnement prise en charge dans la zone de rédaction | Les niveaux varient selon le modèle |
 | **Raisonnement Ultra** | DSH peut répartir le travail indépendant entre ses sous-tâches natives avec le niveau de raisonnement pris en charge par le modèle. | Disponible lorsque le modèle et le profil d’agent le permettent. Ultrafast est un mode de vitesse. |
-| **Niveaux de vitesse** | Basculer les modèles pris en charge entre Standard et Rapide ; Ultrarapide (Bêta) est également disponible si le catalogue du compte le propose, avec un indicateur en forme d’éclair | Standard par défaut ; Rapide et Ultrarapide augmentent l’utilisation, et Ultrarapide est actuellement réservé à Pro 500 |
+| **Niveaux de vitesse** | Basculer les modèles pris en charge entre Standard et Rapide ; Ultrarapide (Bêta) est également disponible si le catalogue du compte le propose, avec un indicateur en forme d’éclair | Standard par défaut. Rapide et Ultrarapide consomment plus de quota. Les modes disponibles dépendent du compte et du modèle. |
 | **Verbosit​​é des réponses** | Demander des réponses courtes, moyennes ou détaillées | Suit le réglage par défaut du modèle, sauf modification |
 | **Détail des images envoyées** | Choisir le niveau de détail Faible, Élevé, Original ou Auto pour les images envoyées au modèle de chat | Influe sur les jetons d’entrée ; Auto par défaut |
-| **Recherche Web par abonnement** | Sources Auto, DSH et Codex | Auto privilégie la source correspondant au modèle de la session et essaie l’autre uniquement si les identifiants sont manquants ou si le service est indisponible. Les choix explicites DSH / Codex imposent la source et signalent directement les échecs. Si Autres modèles est désactivé, les conversations non-Codex utilisent uniquement la recherche native de DSH. Le plugin ne réécrit pas les paramètres de recherche de DSH et n’ajoute aucun recours à un compte DeepSeek ; les frais de recherche native dépendent du service sélectionné |
+| **Recherche Web par abonnement** | Sources Auto, DSH et Codex | Réglage dans Web et outils. Automatique choisit la source selon le modèle. Avec les réglages Web partagés, le module DSH de recherche et de lecture Web affiche la même sélection. La lecture se règle séparément. |
 | **Source de lecture des pages Web** | Choisissez la façon d’ouvrir une URL connue indépendamment du moteur de recherche. | Dans Web et outils. DSH est la valeur par défaut. Codex exige un hôte compatible et signale les échecs. |
 | **Interrupteur Autres modèles** | Un seul interrupteur empêche les conversations utilisant DeepSeek et d’autres modèles non-Codex d’utiliser la recherche Web par abonnement, la génération d’images et les connecteurs ChatGPT | Paramètres → Abonnement Codex → Web et outils ; activé par défaut, sans effet sur les modèles d’abonnement Codex ; le contrôle à distance par téléphone et la voix sont lancés par vous et ne sont pas concernés |
-| **Portée de la recherche** | Choisir la recherche en direct / en cache, désactiver la recherche ou limiter les domaines | À configurer sous Web et outils, dans le groupe des sources de recherche |
+| **Portée de la recherche** | Choisir la recherche en direct / en cache, désactiver la recherche ou limiter les domaines | Dans Web et outils. S’applique uniquement aux recherches de l’abonnement Codex. |
 | **Délai d’inactivité du flux** | Définir combien de temps une requête peut ne recevoir aucune donnée en flux avant d’être interrompue | 10 minutes par défaut ; ne constitue pas un délai limite global de réponse |
 | **Budget de contexte** | Utiliser un budget standard, étendu ou personnalisé pour chaque modèle | Limité par le catalogue de modèles |
 | **GPT-Reserve** | Sélectionner le modèle de réserve lorsque votre compte le propose | Expérimental ; aucun quota de réserve distinct n’est garanti |
@@ -324,7 +265,7 @@ Générez une nouvelle image ou indiquez une retouche précise à l’aide d’u
 | **Génération d’images** | Générer des images avec votre abonnement et ajuster les options disponibles de modèle / qualité de la requête ; demander un PNG avec arrière-plan transparent si nécessaire | Activée par défaut, peut être désactivée |
 | **Retouche d’images de référence** | Continuer à affiner une image à l’aide de références | Activée par défaut, peut être désactivée |
 | **Affichage et téléchargement des images** | Les images terminées apparaissent après la réponse sans développer l’activité des outils ; zoomer, déplacer, ajuster à la fenêtre et télécharger les originaux vérifiés | Visionneuse intégrée ; seules des prévisualisations peuvent être disponibles pour les images plus anciennes |
-| **Modification par zone** | Marquer des zones, ajouter des notes et poursuivre la modification à l’aide de références de position | Remplit la zone de rédaction pour que vous puissiez vérifier et envoyer le contenu |
+| **Modification par zone** | Marquer des zones, ajouter des notes et poursuivre la modification à l’aide de références de position | Fermez la visionneuse pour enregistrer les notes. Choisissez Ajouter au champ de saisie pour joindre l’image et les notes à un brouillon. |
 | **Canevas manuel** | Choisir un rapport largeur/hauteur et dessiner avec un stylo, un crayon, un marqueur et des gommes | Bêta ; canevas désactivé par défaut |
 | **Formes et texte** | Dessiner des lignes, des flèches, des formes, des courbes natives, ainsi que du texte / des objets modifiables | Disponible dans le canevas de croquis |
 | **Dégradés, flou, modes de fusion et découpage** | Remplir avec des dégradés linéaires ou radiaux ; ajouter du flou (lueur, ombre, brume), des modes de fusion (multiplication, écran, superposition, …) et découper un trait selon une forme ; les calques peuvent aussi avoir un mode de fusion | Tout reste sous forme de propriétés modifiables et est conservé lors des déplacements, mises à l’échelle, brouillons et exportations ; l’agent dispose des mêmes fonctionnalités via les dégradés SVG, `feGaussianBlur`, `mix-blend-mode` et `clip-path` |
@@ -333,7 +274,7 @@ Générez une nouvelle image ou indiquez une retouche précise à l’aide d’u
 | **Plusieurs brouillons** | Enregistrer et rouvrir jusqu’à 20 brouillons locaux | Stockés dans le navigateur actuel |
 | **Importation et exportation** | Exporter au format PNG ou en brouillons natifs qui préservent les traits modifiables | Les brouillons peuvent être réimportés pour poursuivre leur modification |
 | **Dessin par l’agent** | Demander à l’agent de dessiner avec `@sketch`, suivre sa progression et l’arrêter ; l’agent peut dessiner des étapes entières en SVG, importées sous forme de traits natifs modifiables ; avec une référence, il peut comparer côte à côte, lire une carte thermique des différences, zoomer sur une zone, mesurer les couleurs et la position des contours, et annuler ; chaque lot indique l’évolution de l’erreur | Bêta ; désactivé par défaut, nécessite le canevas. Les outils mesurent et affichent uniquement ; ils ne dessinent jamais à la place du modèle |
-| **Lecture et vidéo** | Le bouton Lecture redessine le processus trait par trait (les lignes suivent leur tracé, les remplissages sont d’abord délimités, puis remplis de haut en bas), avec des préréglages de vitesse et une barre de lecture, et l’enregistre sous forme de vidéo WebM | La vidéo est prévisualisée sur le tableau et n’est enregistrée que lorsque vous cliquez sur Enregistrer la vidéo ; aucun téléchargement ne démarre automatiquement |
+| **Lecture et vidéo** | La lecture rejoue les traits dans l’ordre. Lancez séparément l’enregistrement pour prévisualiser et sauvegarder une vidéo WebM. | La vidéo est prévisualisée sur le tableau et n’est enregistrée que lorsque vous cliquez sur Enregistrer la vidéo ; aucun téléchargement ne démarre automatiquement |
 | **Aperçu du résultat pour le modèle** | Renvoyer une image du canevas après le dessin pour permettre une vérification ultérieure | Bêta ; désactivé par défaut, augmente l’utilisation de l’entrée image |
 
 </details>
@@ -349,13 +290,12 @@ Le contrôle à distance relie l’app ChatGPT au DSH en cours d’exécution. U
 | --- | --- | --- |
 | **Contrôle à distance par téléphone** | Contrôler le DSH sur votre ordinateur depuis la section Codex de l’application mobile ChatGPT : démarrer, poursuivre et archiver des conversations, changer de modèle et d’autorisations, répondre aux demandes d’approbation et aux questions ; DeepSeek et tout autre modèle DSH fonctionnent | Bêta ; désactivé par défaut ; Paramètres → Codex → Téléphone et plus → Contrôle à distance depuis le téléphone, associez l’appareil par QR code ou code manuel |
 | **Conversation vocale (Bêta)** | Lancez un appel depuis la zone de saisie. Un navigateur peut prendre le relais si la fenêtre native ne gère pas WebRTC. | Désactivée par défaut dans Téléphone et plus. Autorisez l’accès au microphone si demandé. |
-| **Sous-tâches Codex indépendantes** | Réutiliser la connexion à l’abonnement et les autorisations de l’espace de travail ; sélectionner les modèles et niveaux de raisonnement autorisés | Bêta, facultatif, inutile pour la plupart des utilisateurs : par défaut, DSH exécute ses propres sous-agents (qui peuvent aussi utiliser des modèles d’abonnement) ; installez le composant facultatif (avec un Codex CLI réservé au plugin) et activez la sélection de modèle sous Plugins → Sous-agents uniquement si vous souhaitez que les sous-tâches soient exécutées par l’agent Codex officiel. Il utilise son propre répertoire de données et votre connexion à l’abonnement, jamais la connexion Codex de cet ordinateur |
-| **Gestion du composant de sous-tâche** | Installer, désactiver ou désinstaller le composant officiel de sous-tâche Codex depuis les paramètres | Géré par les hôtes DSH compatibles ; aucune connexion supplémentaire |
+| **Sous-tâches Codex indépendantes** | Utilisez l’abonnement pour les sous-tâches Codex et choisissez leur modèle et leur niveau de raisonnement. | Installez le sous-agent Codex dans les extensions DSH. Dans Web et outils → Sous-tâches indépendantes, préparez la CLI si demandé et sélectionnez Codex (abonnement). |
 | **Compaction du contexte dans le cloud** | Poursuivre les longues conversations à l’aide de la compaction Codex tout en conservant l’historique DSH et la compaction native | Bêta / expérimental ; désactivé par défaut, les requêtes activées utilisent SSE |
-| **Transport WebSocket** | Réutiliser expérimentalement les connexions et les transferts de contexte, avec un basculement vers SSE en cas d’échec de connexion | Bêta / expérimental ; SSE par défaut, aucune garantie de vitesse |
+| **Transport WebSocket** | Réutiliser expérimentalement les connexions et les transferts de contexte, avec un basculement vers SSE en cas d’échec de connexion | SSE par défaut. Les requêtes qui dépassent la limite WebSocket annoncée par le serveur passent à SSE avant l’envoi. |
 | **Évaluateur Codex pour la vérification automatique** | La vérification automatique DSH évalue les appels d’outils avec le propre modèle de vérification de Codex ; DSH conserve sa politique de vérification et son processus d’autorisation/refus | Bêta ; désactivé par défaut, s’applique lorsque le catalogue de votre compte propose le modèle |
 | **Connecteurs ChatGPT** | Permettre à DeepSeek ou à tout modèle DSH d’utiliser les applications que vous avez connectées dans ChatGPT : GitHub, Gmail, Google Drive, Calendar et plus encore ; les modèles effectuent d’abord une recherche, puis appellent l’application, et l’autorisation d’écriture dépend du mode et des droits de la session DSH | Désactivé par défaut, Paramètres → Codex → Web et outils → Connecteurs ChatGPT ; connectez d’abord les applications dans ChatGPT |
-| **Diagnostics d’assistance** | Vérifier les prérequis et les résultats récents des opérations, et copier un bref rapport (environ 1 Ko ; le rapport complet peut être copié séparément) sans identifiants ni texte de conversation | Paramètres → Codex → Téléphone et plus ; « non vérifié » ne signifie pas « en panne » |
+| **Diagnostics d’assistance** | Créez un rapport JSON expurgé des informations sensibles, à copier ou à télécharger. | Paramètres → Codex → Téléphone et plus → Diagnostics d’assistance. |
 | **Nettoyage du cache des prévisions** | Examiner et effacer l’historique local des prévisions de quota | Préserve la connexion, les brouillons, les originaux et les dépendances partagées |
 
 </details>
@@ -425,16 +365,14 @@ Installez le plugin depuis l’installation de DSH que vous utilisez réellement
 <details>
 <summary>Comment signaler un problème ?</summary>
 
-Générez **Diagnostics d’assistance** sous **Paramètres → Codex → Téléphone et plus**, collez-les dans le [formulaire de signalement de bug](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml) et indiquez les étapes qui ont provoqué le problème.
-
-Les diagnostics excluent les identifiants, les identifiants de compte, les réponses brutes et les journaux complets. Ne joignez jamais d’URL de connexion, de codes d’autorisation ou d’adresses de rappel du navigateur.
+Après avoir reproduit le problème, ouvrez **Paramètres → Codex → Téléphone et plus → Diagnostic d’assistance**, choisissez **Créer un rapport**, puis **Télécharger le rapport**. Joignez le JSON, les étapes et les versions au [rapport de bogue](https://github.com/WSL043/dsh-codex-subscription/issues/new?template=install-problem.yml).
 
 </details>
 
 <details>
 <summary>Ai-je besoin de la ligne de commande Codex ?</summary>
 
-Pour les **sous-tâches indépendantes de Codex**, installez le **sous-agent Codex** dans les extensions DSH, puis choisissez **Préparer la CLI** dans les paramètres de l’abonnement. [Guide d’installation et de désinstallation (en anglais) →](docs/GUIDE.en.md#codex-subtask-runtime)
+Seules les sous-tâches indépendantes de Codex (abonnement) nécessitent la CLI. La conversation, les images et les sous-tâches natives de DSH fonctionnent sans elle. [Guide d’installation et de désinstallation (en anglais) →](docs/GUIDE.en.md#codex-subtask-runtime)
 
 </details>
 
@@ -460,13 +398,6 @@ Ce projet communautaire n’est ni affilié à DeepSeek ou OpenAI, ni approuvé 
 - Lisez [SECURITY.md, en anglais](SECURITY.md) avant de signaler des problèmes sensibles.
 
 Si ce projet vous est utile, le [bouton Star](https://github.com/WSL043/dsh-codex-subscription/stargazers) permet à davantage d’utilisateurs de DSH de le découvrir.
-
-<a href="https://star-history.com/#WSL043/dsh-codex-subscription&Date">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date&theme=dark" />
-    <img alt="Historique des étoiles" src="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date" />
-  </picture>
-</a>
 
 [中文](README.md) · [English](README.en.md) · [日本語](README.ja.md) · [Español](README.es.md) · **Français** · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Português](README.pt.md) · [MIT](LICENSE)
 
