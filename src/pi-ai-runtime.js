@@ -311,6 +311,7 @@ export function openaiCodexSubscriptionProvider({
         ...scopedNetwork, modelAttempt: true,
         onRoute(route) { attempt.route(route); scopedNetwork?.onRoute?.(route) },
         onModelFetchPath(fetchPath) { attempt.configure({ fetchPath }) },
+        onModelRequestCompression(requestCompression) { attempt.configure({ requestCompression }) },
         onModelHttpStatus(status) { attempt.response(status) },
         onTransport(transport) { attempt.transport(transport); scopedNetwork?.onTransport?.(transport) },
         onFetchFailure(error) { networkFailure = safeFetchFailure(error); attempt.fetchFailure(error); scopedNetwork?.onFetchFailure?.(error) },

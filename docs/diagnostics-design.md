@@ -25,6 +25,8 @@ Diagnostics read existing state from DSH and the subscription path. They leave m
 | Runtime and storage | Component state, restart requirement and forecast history access | Subtask execution, sandbox behavior and filesystem permissions |
 | Host UI | [Host diagnostics](../src/diagnostic-host.js) and slot snapshots | Plugin conflicts, layout, theme, focus and rendered visibility |
 
+For Codex model SSE, `requestCompression: "zstd-decoded"` records that the request-local transport decoded the SDK's zstd body before sending its original JSON bytes. This compatibility handling addresses [#261](https://github.com/WSL043/dsh-codex-subscription/issues/261). It clears the request encoding and stale content length, preserves the selected fetch/proxy chain, and sends once. This field concerns HTTP body encoding. Context compaction has its own evidence above.
+
 ## Limits and ownership
 
 - Network history retains 32 recent entries and the last failure per network area for the current process. The shareable report can link a model stream failure to its network entry using an alias generated for that report. Operation history is also bounded and recent summaries cover 15 minutes. See [diagnostic-operations.js](../src/diagnostic-operations.js) for the current limits.

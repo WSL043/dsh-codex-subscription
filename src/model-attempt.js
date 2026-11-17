@@ -21,6 +21,7 @@ export function safeAttempt(value = {}) {
     ...(choices.has(value.requestedTransport) ? { requestedTransport: value.requestedTransport } : {}),
     ...(typeof value.model === 'string' && /^gpt-[a-z0-9][a-z0-9.-]{0,63}$/u.test(value.model) ? { model: value.model } : {}),
     ...(fetchPaths.has(value.fetchPath) ? { fetchPath: value.fetchPath } : {}),
+    ...(value.requestCompression === 'zstd-decoded' ? { requestCompression: value.requestCompression } : {}),
     ...(value.failure === 'context-overflow' ? { failure: value.failure } : {}),
     ...(Number.isInteger(value.httpStatus) && value.httpStatus >= 100 && value.httpStatus <= 599 ? { httpStatus: value.httpStatus } : {}),
     ...(typeof value.cloudCompactionRequested === 'boolean' ? { cloudCompactionRequested: value.cloudCompactionRequested } : {}),

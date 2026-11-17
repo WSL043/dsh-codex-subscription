@@ -5,12 +5,14 @@ import { diagnosticLog } from './diagnostic-log.js'
 import { request as httpsRequest } from 'node:https'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { promisify } from 'node:util'
+import { zstdDecompress } from 'node:zlib'
 
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import WebSocket from 'ws'
 import { getGlobalDispatcher, ProxyAgent } from 'undici'
 
 const execFileAsync = promisify(execFile)
+const decompressZstd = promisify(zstdDecompress)
 const CODEX_AUTH_HOST = 'auth.openai.com'
 const CODEX_SUBSCRIPTION_HOST = 'chatgpt.com'
 const CODEX_MODEL_SSE_PATH = '/backend-api/codex/responses'
@@ -209,6 +211,22 @@ export function fetchThroughProxy(input, init, proxyUrl, tls = {}) {
   })
 }
 
+async function uncompressedModelRequest(input, init) {
+  const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined))
+  const method = init?.method ?? (input instanceof Request ? input.method : 'GET')
+  if (method.toUpperCase() !== 'POST' || headers.get('content-encoding')?.trim().toLowerCase() !== 'zstd') return init
+  const signal = init?.signal ?? input?.signal
+  signal?.throwIfAborted()
+  const compressed = init?.body ?? (input instanceof Request ? await input.clone().arrayBuffer() : undefined)
+  // Some valid zstd frames are rejected by Codex. Preserve the SDK's exact JSON
+  // bytes and send once through the same host middleware and proxy chain.
+  const body = await decompressZstd(compressed)
+  signal?.throwIfAborted()
+  headers.delete('content-encoding')
+  headers.delete('content-length')
+  return { ...init, headers, body }
+}
+
 async function fetchInCodexScope(scope, fetchBeforeScope, input, init) {
   if (scope === undefined) return fetchBeforeScope(input, init)
   const { options: scopedOptions, allowedHosts, resolved } = scope
@@ -236,6 +254,11 @@ async function fetchInCodexScope(scope, fetchBeforeScope, input, init) {
   try { scopedOptions.onTransport?.('sse') } catch {}
   let response
   try {
+    if (scopedOptions.requestFetch && target.origin === `https://${CODEX_SUBSCRIPTION_HOST}` && target.pathname === CODEX_MODEL_SSE_PATH) {
+      const decoded = await uncompressedModelRequest(input, init)
+      if (decoded !== init) scopedOptions.onModelRequestCompression?.('zstd-decoded')
+      init = decoded
+    }
     if (dedicatedProxy && !route.url) throw new TypeError('Invalid DSH_CODEX_SSE_PROXY. Use an HTTP or HTTPS CONNECT proxy.')
     if (hostModelFetch) {
       // Keep the host's fetch middleware in the chain. Proxy selection belongs
