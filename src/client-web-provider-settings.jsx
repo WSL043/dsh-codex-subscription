@@ -33,28 +33,33 @@ const options = {
   },
 }
 
-function ProviderChoice({ kind, title, current, providers, writable, saving, t, change }) {
+function ProviderChoice({ kind, title, current, providers, writable, saving, hostAutomatic, t, change }) {
   const [open, setOpen] = useState(false)
   const names = options[kind]
   const registered = new Map(providers?.map(provider => [provider.id, provider]))
-  const ids = new Set([...Object.keys(names).filter(id => registered.has(id)), ...registered.keys()])
+  const ids = new Set(hostAutomatic ? [''] : [])
+  for (const id of Object.keys(names)) if (registered.has(id)) ids.add(id)
+  for (const id of registered.keys()) ids.add(id)
   if (current) ids.add(current)
+  const selectedId = current ?? (hostAutomatic ? '' : undefined)
   const describe = id => {
+    if (id === '') return { label: t('searchAuto') }
     if (!Object.hasOwn(names, id)) return { label: registered.get(id)?.title ?? webProviderTitle(id, t) }
     const [name, detail] = names[id]
-    return { label: name.startsWith('search') ? t(name) : name, description: t(detail) }
+    const label = name.startsWith('search') ? t(name) : name
+    return { label: hostAutomatic && id === 'codex-subscription-auto' ? 'Codex · ' + label : label, description: t(detail) }
   }
-  const selected = describe(current)
+  const selected = describe(selectedId)
   const hasNativeSearch = kind === 'search' && [...registered.keys()].some(id => !Object.hasOwn(names, id) || id === 'deepseek-official' || id === 'deepseek-search-api')
   const items = [...ids].filter(id => id !== 'codex-subscription-dsh' || id === current || !hasNativeSearch)
-    .map(id => ({ id, disabled: !registered.has(id), ...describe(id) }))
+    .map(id => ({ id, disabled: id !== '' && !registered.has(id), ...describe(id) }))
   return <div className="codexSubscriptionPreference">
     <div className="codexSubscriptionPreferenceCopy">
       <SettingsLabel description={selected.description}>{title}</SettingsLabel>
     </div>
-    <Menu open={open} items={items} selectedId={current} align="end"
+    <Menu open={open} items={items} selectedId={selectedId} align="end"
       onClose={() => setOpen(false)}
-      onSelect={id => { setOpen(false); if (id !== current) void change(kind + 'Provider', id) }}
+      onSelect={id => { setOpen(false); if (id !== selectedId) void change(kind + 'Provider', id) }}
       anchor={<button className="codexSubscriptionContextTrigger codexSubscriptionWebProviderTrigger" type="button"
         aria-label={title} aria-expanded={open} aria-busy={saving || undefined}
         disabled={!writable || !items.some(item => !item.disabled)} onClick={() => setOpen(value => !value)}>
@@ -117,6 +122,7 @@ export function WebProviderSettings({ ctx, t }) {
   return <>
     {['search', 'fetch'].map(kind => <ProviderChoice key={kind}
       kind={kind} title={t(kind + 'Title')} current={section.value?.[kind + 'Provider']}
+      hostAutomatic={section.status === 'ready' && section.base?.[kind + 'Provider'] === undefined}
       providers={providers?.[kind]} writable={writable} saving={saving} t={t} change={change} />)}
     {failed ? <p className="codexSubscriptionError" role="alert">{t('preferenceFailed')}</p> : null}
   </>
