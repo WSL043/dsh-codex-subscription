@@ -20,6 +20,8 @@ Entre com o ChatGPT Plus / Pro para usar GPT-6 e outros modelos Codex, a cota, a
 
 </div>
 
+<p align="center"><img src="docs/assets/hero-en.webp" width="1100" alt="Sua assinatura, agora no DSH: a mascote garota-baleia e a interface de cota da conta de assinatura Codex"></p>
+
 <a id="highlights"></a>
 
 ## Destaques

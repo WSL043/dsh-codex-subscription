@@ -20,6 +20,8 @@ Melde dich mit ChatGPT Plus / Pro an, um GPT-6 und andere Codex-Modelle, Konting
 
 </div>
 
+<p align="center"><img src="docs/assets/hero-en.webp" width="1100" alt="Dein Abo, jetzt in DSH: das Wal-Mädchen-Maskottchen und die Kontingentoberfläche des Codex-Abos"></p>
+
 <a id="highlights"></a>
 
 ## Highlights

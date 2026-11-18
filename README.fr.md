@@ -20,6 +20,8 @@ Connectez-vous avec ChatGPT Plus / Pro pour utiliser GPT-6 et d’autres modèle
 
 </div>
 
+<p align="center"><img src="docs/assets/hero-en.webp" width="1100" alt="Votre abonnement, désormais dans DSH : la mascotte fille-baleine et l’interface du quota du compte d’abonnement Codex"></p>
+
 <a id="highlights"></a>
 
 ## Points forts

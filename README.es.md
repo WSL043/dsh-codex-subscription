@@ -20,6 +20,8 @@ Inicia sesión con ChatGPT Plus / Pro para usar GPT-6 y otros modelos de Codex, 
 
 </div>
 
+<p align="center"><img src="docs/assets/hero-en.webp" width="1100" alt="Tu suscripción, ahora en DSH: la mascota chica ballena y la interfaz de cuota de la cuenta de suscripción Codex"></p>
+
 <a id="highlights"></a>
 
 ## Aspectos destacados

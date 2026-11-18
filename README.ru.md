@@ -20,6 +20,8 @@
 
 </div>
 
+<p align="center"><img src="docs/assets/hero-en.webp" width="1100" alt="Ваша подписка теперь в DSH: маскот-девушка-кит и интерфейс квоты аккаунта подписки Codex"></p>
+
 <a id="highlights"></a>
 
 ## Основные возможности

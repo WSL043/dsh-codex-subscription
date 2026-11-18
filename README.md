@@ -20,6 +20,8 @@
 
 </div>
 
+<p align="center"><img src="docs/assets/hero-zh.webp" width="1100" alt="已有的订阅，在 DSH 接着用：鲸鱼少女吉祥物与 Codex 订阅账号额度界面"></p>
+
 ## 核心功能
 
 | 你想做什么 | 插件提供什么 |

@@ -20,6 +20,8 @@ ChatGPT Plus / Pro でサインインすると、DSH 内で GPT-6 などの Code
 
 </div>
 
+<p align="center"><img src="docs/assets/hero-en.webp" width="1100" alt="サブスクリプションを DSH で利用：クジラの少女のマスコットと Codex サブスクリプションアカウントの利用枠画面"></p>
+
 <a id="highlights"></a>
 
 ## 主な機能
