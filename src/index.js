@@ -44,7 +44,7 @@ import { openCodexAuthUrl } from './external-url.js'
 import { CodexLoginCoordinator, createCodexRpcHandler } from './login-coordinator.js'
 import { createCodexNetworkTransport, resolveCodexOAuthProxy } from './oauth-network.js'
 import { createModels, openaiCodexProvider, openaiCodexSubscriptionProvider } from './pi-ai-runtime.js'
-import { createOfficialModelCatalog, withModelCatalogReady } from './model-catalog.js'
+import { createOfficialModelCatalog, latestCodexLuna, withModelCatalogReady } from './model-catalog.js'
 import { readCapabilitySettings, normalizeSearchDomains, CUSTOM_CONTEXT_OVERRIDES_FIELD, SEARCH_MODE_FIELD, SEARCH_MODES, SEARCH_DOMAINS_FIELD, QUOTA_ALERTS_FIELD, QUOTA_ALERT_MODES, QUOTA_THRESHOLD_FIELDS, MAX_CONTEXT_BUDGET } from './capability-settings.js'
 import { DSH_SEARCH_PROVIDER_ID, createDshSearchProvider } from './dsh-search.js'
 import { createSearchRouter, gateSearchProvider } from './search-router.js'
@@ -534,14 +534,16 @@ export function apply(ctx, config = {}) {
     }
   }, 'codex-subscription: official model catalog')
   const currentAgent = () => ctx.get?.('agents')?.currentInitiator?.()
+  const latestLuna = () => latestCodexLuna(modelCatalog.getModels())
+  const resolveWebModel = () => {
+    const request = currentAgent()?.session.requestContext?.()
+    return (request?.provider === PROVIDER ? request.model : undefined) || latestLuna()
+  }
   const codexFetch = createCodexFetchProvider({
     allowed: llmProvider => (nativeWebSettings() || fetchRouted) && (settings.get().otherModels !== 'off' || (llmProvider ?? currentAgent()?.session.requestContext?.()?.provider) === PROVIDER),
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
-    resolveModel: () => {
-      const request = currentAgent()?.session.requestContext?.()
-      return request?.provider === PROVIDER ? request.model : undefined
-    },
+    resolveModel: resolveWebModel,
     resolveSessionId: () => currentAgent()?.session.id,
     fetch: (input, init) => network.fetch('search', input, init),
   })
@@ -585,10 +587,7 @@ export function apply(ctx, config = {}) {
     resolvePreferences: () => readCapabilitySettings(settings.get()),
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
-    resolveModel: () => {
-      const request = currentAgent()?.session.requestContext?.()
-      return request?.provider === PROVIDER ? request.model : undefined
-    },
+    resolveModel: resolveWebModel,
     resolveSessionId: () => currentAgent()?.session.id,
     fetch: (input, init) => network.fetch('search', input, init),
   })
@@ -721,7 +720,7 @@ export function apply(ctx, config = {}) {
       credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal),
       classifyHangUp: createVoiceHangupClassifier({
         stream: request => ctx.llm.stream(request), provider: PROVIDER,
-        model: () => ['gpt-5.6-luna', 'gpt-5.4-mini'].find(id => modelCatalog.getModels().some(model => model.id === id)) ?? 'gpt-5.6-luna',
+        model: () => latestLuna() ?? (modelCatalog.getModels().some(model => model.id === 'gpt-5.4-mini') ? 'gpt-5.4-mini' : 'gpt-5.6-luna'),
       }),
     },
   })
@@ -870,6 +869,7 @@ export function apply(ctx, config = {}) {
   const composerPredictions = createComposerPredictions({
     fetch: (input, init) => network.fetch('predictions', input, init, { standardHttps: true }),
     credentials: signal => readSubscriptionCredentials(resolveAuth, options => store.read(PROVIDER, { ...options, signal }), signal),
+    modelAvailable: id => provider.getModels().some(model => model.id === id),
     enabled: () => settings.get().composerPredictions === 'on', userAgent: USER_AGENT,
   })
   ctx.effect(() => () => composerPredictions.clear())

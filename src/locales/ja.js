@@ -1,5 +1,4 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
-import { composerPredictionModelNames } from '../composer-prediction-models.js'
 
 export default {
   "catalogTimeout": "モデル一覧の取得がタイムアウトしました。ネットワークやプロキシを確認して再試行してください。",
@@ -156,7 +155,8 @@ export default {
   "composerPredictions": "入力予測",
   "composerPredictionAccept": "候補を採用",
   "composerPredictionsShortHint": "Tab で下書きを補完",
-  "composerPredictionsHint": `対応する Codex モデル（${composerPredictionModelNames}）は、ターン完了後、下書きが空の場合に現在の会話から次のメッセージを提案します。Tab で下書きを補完しますが、送信はされません。予測リクエストが追加で発生します。公式 Codex の予測は利用上限や利用クレジットに含まれませんが、このサードパーティ連携にも同じ免除が適用されるかは確認されていません。候補を採用した下書きを送信すると、通常どおり利用分に含まれます。`,
+  "composerPredictionsHint": `対応する Codex モデルは、ターン完了後、下書きが空の場合に現在の会話から次のメッセージを提案します。Tab で下書きを補完しますが、送信はされません。予測リクエストが追加で発生します。公式 Codex の予測は利用上限や利用クレジットに含まれませんが、このサードパーティ連携にも同じ免除が適用されるかは確認されていません。候補を採用した下書きを送信すると、通常どおり利用分に含まれます。`,
+  "composerPredictionModels": "このアカウントで利用できるモデル — {models}",
   "featureLoading": "読み込み中…",
   "featureLoadFailed": "読み込めませんでした。クリックして再試行してください",
   "featureRetry": "再試行",
@@ -869,6 +869,12 @@ export default {
   "historyTotalUnavailable": "この期間の公式な利用総量は確認できません",
   "historyNoBreakdown": "この期間の公式な内訳はまだ確認できません",
   "fetchTitle": "ウェブページの読み取り元",
+  "fetchHttpCost": "追加の取得料金なし",
+  "fetchDeepSeekCost": "成功1,000件あたり5元",
+  "fetchCodexCost": "Codex サブスクリプション経由",
+  "searchDeepSeekLegacy": "DeepSeek（旧版）",
+  "searchLegacyCost": "検索ごとの追加料金なし。DeepSeek のモデル使用分はトークン課金。",
+  "searchApiCost": "成功1,000件あたり5元。",
   "fetchDshHint": "上記の検索元とは別に、DSH で設定したウェブページリーダーを使います。",
   "fetchCodexHint": "Codex サブスクリプションを使って、アクセス可能なウェブページのテキストを読み取ります。失敗時はそのまま通知され、DeepSeek API にはフォールバックしません。",
   "fetchUnavailableHint": "このバージョンの DSH では Codex のウェブページリーダーに切り替えられません。先に DSH を更新してください。",

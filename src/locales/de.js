@@ -1,5 +1,4 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
-import { composerPredictionModelNames } from '../composer-prediction-models.js'
 
 export default {
   "speedShortcutTitle": "Tempo-Kürzel im Eingabefeld",
@@ -161,7 +160,8 @@ export default {
   "composerPredictions": "Eingabevorschläge",
   "composerPredictionAccept": "Vorschlag übernehmen",
   "composerPredictionsShortHint": "Tab fügt den Entwurf ein",
-  "composerPredictionsHint": `Unterstützte Codex-Modelle (${composerPredictionModelNames}) schlagen nach einem abgeschlossenen Gesprächsschritt deine nächste Nachricht auf Grundlage des aktuellen Gesprächs vor, sofern der Entwurf leer ist. Tab fügt den Entwurf ein, ohne ihn zu senden. Dafür werden zusätzliche Vorhersageanfragen gestellt. Offizielle Codex-Vorhersagen werden nicht auf Nutzungslimits oder Nutzungsguthaben angerechnet; ob dieselbe Ausnahme für diese Drittanbieterintegration gilt, ist nicht bestätigt. Ein gesendeter übernommener Entwurf wird normal angerechnet.`,
+  "composerPredictionsHint": `Unterstützte Codex-Modelle schlagen nach einem abgeschlossenen Gesprächsschritt deine nächste Nachricht auf Grundlage des aktuellen Gesprächs vor, sofern der Entwurf leer ist. Tab fügt den Entwurf ein, ohne ihn zu senden. Dafür werden zusätzliche Vorhersageanfragen gestellt. Offizielle Codex-Vorhersagen werden nicht auf Nutzungslimits oder Nutzungsguthaben angerechnet; ob dieselbe Ausnahme für diese Drittanbieterintegration gilt, ist nicht bestätigt. Ein gesendeter übernommener Entwurf wird normal angerechnet.`,
+  "composerPredictionModels": "Verfügbare Modelle für dieses Konto: {models}",
   "featureLoading": "Wird geladen…",
   "featureLoadFailed": "Laden fehlgeschlagen. Zum erneuten Versuchen klicken",
   "featureRetry": "Erneut versuchen",
@@ -874,6 +874,12 @@ export default {
   "historyTotalUnavailable": "Der offizielle Gesamtverbrauch ist für diesen Zeitraum nicht verfügbar",
   "historyNoBreakdown": "Eine offizielle Aufschlüsselung ist für diesen Zeitraum noch nicht verfügbar",
   "fetchTitle": "Quelle für das Lesen von Webseiten",
+  "fetchHttpCost": "Keine Gebühr pro Abruf",
+  "fetchDeepSeekCost": "5 CNY je 1.000 erfolgreiche Abrufe",
+  "fetchCodexCost": "Über dein Codex-Abo",
+  "searchDeepSeekLegacy": "DeepSeek (ältere Version)",
+  "searchLegacyCost": "Keine zusätzliche Suchgebühr. DeepSeek berechnet die Modell-Tokens.",
+  "searchApiCost": "5 CNY je 1.000 erfolgreiche Suchanfragen.",
   "fetchDshHint": "Verwende den in DSH eingerichteten Webseitenleser, unabhängig von der oben ausgewählten Suchquelle.",
   "fetchCodexHint": "Liest zugängliche Webseitentexte mit deinem Codex-Abo. Fehler werden direkt gemeldet; es gibt keinen Rückgriff auf die DeepSeek-API.",
   "fetchUnavailableHint": "Diese DSH-Version kann nicht zum Codex-Webseitenleser wechseln. Aktualisiere zuerst DSH.",

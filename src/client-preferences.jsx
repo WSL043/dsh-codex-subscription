@@ -45,7 +45,7 @@ export function SearchProviderPreference({ preference, t, webSettingsContext }) 
   const choice = (value, label) => <label className="codexSubscriptionQuotaMode"><input type="radio" name={`${radioId}-codex-subscription-search-provider`} checked={snapshot.searchProvider === value} disabled={!writable} onChange={() => { void preference.set({ [SEARCH_PROVIDER_FIELD]: value }) }} /><span>{label}</span></label>
   const hint = snapshot.searchProvider === SEARCH_PROVIDER_DSH ? 'searchDshHint' : snapshot.searchProvider === SEARCH_PROVIDER_CODEX ? 'searchCodexHint' : 'searchAutoHint'
   if (snapshot.webProvidersManagedByDsh) return <div className="codexSubscriptionSearch">
-    <WebProviderSettings ctx={webSettingsContext} t={t} preference={preference} />
+    <WebProviderSettings ctx={webSettingsContext} t={t} />
     <CapabilityPreferences preference={preference} t={t} section="search"
       showSearchOptions={['codex-subscription', 'codex-subscription-auto'].includes(web.value?.searchProvider)} />
   </div>

@@ -1,4 +1,3 @@
-import { composerPredictionModelNames } from './composer-prediction-models.js'
 
 export const zh = {
   speedShortcutTitle: '输入栏速度切换', speedShortcut_off: '原有显示', speedShortcut_icon: '闪电', speedShortcut_hover: '悬停显示', speedShortcut_label: '速度名称',
@@ -111,7 +110,8 @@ export const zh = {
   connectorsMode_write: '写操作直接执行，不再弹出确认，误操作无法撤回，请谨慎使用。',
   connectors_off: '关闭', connectors_read: '只读', connectors_ask: '询问后写入', connectors_write: '直接写入',
   defaultReasoningEffort: '默认推理等级', defaultReasoningEffortHint: '未手动选档时使用；模型不支持时跟随该模型默认值。',
-  composerPredictions: '输入预测', composerPredictionAccept: '接受建议', composerPredictionsShortHint: 'Tab 填入草稿', composerPredictionsHint: `支持的 Codex 模型（${composerPredictionModelNames}）在一轮对话完成、草稿为空时，基于当前会话建议下一条消息。Tab 填入草稿，不会自动发送。会产生额外预测请求。官方 Codex 生成预测不计额度或 Credits；DSH 第三方接入是否享有相同豁免尚未确认。接受后发送消息仍正常计量。`,
+  composerPredictions: '输入预测', composerPredictionAccept: '接受建议', composerPredictionsShortHint: 'Tab 填入草稿', composerPredictionsHint: `支持的 Codex 模型在一轮对话完成、草稿为空时，基于当前会话建议下一条消息。Tab 填入草稿，不会自动发送。会产生额外预测请求。官方 Codex 生成预测不计额度或 Credits；DSH 第三方接入是否享有相同豁免尚未确认。接受后发送消息仍正常计量。`,
+  composerPredictionModels: "此账号可用的模型：{models}",
   featureLoading: '正在加载…', featureLoadFailed: '加载失败，点击重试', featureRetry: '重试',
   defaultUltraHint: 'Ultra 是 DSH 主动分工预设，使用模型目录指定的实际推理档，不扩大权限；仅支持的模型显示。',
   defaultReasoningEffort_ultra: 'Ultra（主动分工）',
@@ -324,6 +324,8 @@ export const zh = {
   quotaWhenEarlyMorningRange: '{from}至{to}',
   historyRefresh: '刷新', historyTotalUnavailable: '官方未提供此周期的总用量', historyNoBreakdown: '官方尚未提供此周期的明细',
   fetchTitle: '网页读取来源', fetchDshHint: '使用 DSH 当前配置的网页读取服务；与上面的搜索来源分别设置。', fetchCodexHint: '通过 Codex 订阅读取可访问的网页文本。失败会直接提示，不会转到 DeepSeek API。',
+  fetchHttpCost: '不按次收费', fetchDeepSeekCost: '每 1,000 次成功读取 5 元', fetchCodexCost: '通过 Codex 订阅',
+  searchDeepSeekLegacy: 'DeepSeek（旧版）', searchLegacyCost: '搜索不另收费，仅按 DeepSeek 模型 Token 计费。', searchApiCost: '每 1,000 次成功搜索 5 元。',
   fetchUnavailableHint: '当前 DSH 不支持切换到 Codex 网页读取，请先升级宿主。',
   quotaForecastCalibrating: '续航正在校准', quotaForecastIdle: '近期剩余额度百分比未变化', quotaForecastUntilReset: '按最近用量，预计可用到重置',
   runwayDaysHours: '{days} 天 {hours}h', runwayDays: '{days} 天', runwayHours: '{hours}h', runwayMinutes: '{minutes} 分钟',
@@ -458,7 +460,8 @@ export const en = {
   connectorsMode_write: 'Changing actions run immediately without a prompt and cannot be undone, so use this carefully.',
   connectors_off: 'Off', connectors_read: 'Read-only', connectors_ask: 'Write after asking', connectors_write: 'Write directly',
   defaultReasoningEffort: 'Default reasoning effort', defaultReasoningEffortHint: 'Used when no effort is selected manually. Unsupported levels fall back to the model default.',
-  composerPredictions: 'Input predictions', composerPredictionAccept: 'Accept suggestion', composerPredictionsShortHint: 'Tab fills draft', composerPredictionsHint: `Supported Codex models (${composerPredictionModelNames}) suggest your next message from the current conversation after a completed turn, when the draft is empty. Tab fills the draft without sending. Makes additional prediction requests. Official Codex predictions do not count toward usage limits or credits; the same exemption for this third-party integration is unconfirmed. Sending an accepted draft still counts normally.`,
+  composerPredictions: 'Input predictions', composerPredictionAccept: 'Accept suggestion', composerPredictionsShortHint: 'Tab fills draft', composerPredictionsHint: `Supported Codex models suggest your next message from the current conversation after a completed turn, when the draft is empty. Tab fills the draft without sending. Makes additional prediction requests. Official Codex predictions do not count toward usage limits or credits; the same exemption for this third-party integration is unconfirmed. Sending an accepted draft still counts normally.`,
+  composerPredictionModels: "Available models for this account: {models}",
   featureLoading: 'Loading…', featureLoadFailed: 'Could not load. Click to retry', featureRetry: 'Retry',
   defaultUltraHint: 'Ultra is a DSH proactive delegation preset using the catalog-resolved model effort. It grants no additional permissions and appears only for supported models.',
   defaultReasoningEffort_ultra: 'Ultra (proactive delegation)',
@@ -671,6 +674,8 @@ export const en = {
   quotaWhenEarlyMorningRange: '{latest}',
   historyRefresh: 'Refresh', historyTotalUnavailable: 'Official total usage is unavailable for this period', historyNoBreakdown: 'Official breakdown not yet available for this period',
   fetchTitle: 'Webpage reading source', fetchDshHint: 'Use the webpage reader configured in DSH, independently of the search source above.', fetchCodexHint: 'Read accessible webpage text with your Codex subscription. Failures are reported directly, without falling back to the DeepSeek API.',
+  fetchHttpCost: 'No per-fetch fee', fetchDeepSeekCost: 'CNY 5 per 1,000 successful fetches', fetchCodexCost: 'Uses your Codex subscription',
+  searchDeepSeekLegacy: 'DeepSeek (Legacy)', searchLegacyCost: 'No separate search fee. DeepSeek model tokens are billed.', searchApiCost: 'CNY 5 per 1,000 successful searches.',
   fetchUnavailableHint: 'This DSH version cannot switch to the Codex webpage reader. Update DSH first.',
   quotaForecastCalibrating: 'Runway calibrating', quotaForecastIdle: 'No recent change in the reported percentage', quotaForecastUntilReset: 'Estimated to last until reset at recent usage',
   runwayDaysHours: '{days}d {hours}h', runwayDays: '{days}d', runwayHours: '{hours}h', runwayMinutes: '{minutes}m',

@@ -8,7 +8,7 @@ const config = overrides => ({ is_enabled: true, prompt: 'Predict the next user 
 const tick = () => new Promise(resolve => setTimeout(resolve, 0))
 function fixture(options = {}) {
   const calls = [], state = { enabled: true, account: 'account-one' }
-  const service = createComposerPredictions({ userAgent: 'test', enabled: () => state.enabled,
+  const service = createComposerPredictions({ userAgent: 'test', enabled: () => state.enabled, modelAvailable: () => true,
     credentials: async () => ({ access: 'private-test-token', accountId: state.account }),
     fetch: async (url, init) => { calls.push({ url, init }); return options.fetch ? options.fetch(url, init, calls.length) : new Response(url.endsWith('/config') ? JSON.stringify(config(options.config)) : frame(), { status: 200 }) },
     ...options.service })
@@ -21,12 +21,35 @@ test('disabled predictions do not read authentication or make any request', asyn
 })
 test('prediction input excludes tools and oversized or unfinished context', () => {
   assert.equal(predictionInput(input()).messages.length, 2)
-  for (const patch of [{ model: 'deepseek-chat' }, { sessionId: '' }, { turnId: '' }, { messages: [{ role: 'tool', text: 'hidden' }, { role: 'assistant', text: 'a' }] }, { messages: [{ role: 'user', text: 'x'.repeat(24001) }, { role: 'assistant', text: 'a' }] }, { messages: [{ role: 'user', text: 'x' }, { role: 'user', text: 'a' }] }]) assert.throws(() => predictionInput({ ...input(), ...patch }), /Invalid prediction/)
+  for (const patch of [{ model: 'invalid model id' }, { sessionId: '' }, { turnId: '' }, { messages: [{ role: 'tool', text: 'hidden' }, { role: 'assistant', text: 'a' }] }, { messages: [{ role: 'user', text: 'x'.repeat(24001) }, { role: 'assistant', text: 'a' }] }, { messages: [{ role: 'user', text: 'x' }, { role: 'user', text: 'a' }] }]) assert.throws(() => predictionInput({ ...input(), ...patch }), /Invalid prediction/)
 })
 test('capability refusal and unsupported models never perform inference', async () => {
   for (const value of [{ is_enabled: false }, { unsupported_models: ['gpt-6.1-sol'] }]) {
     const { service, calls } = fixture({ config: value }); assert.equal((await service.generate(input())).prediction, null); assert.equal(calls.length, 1)
   }
+})
+test('predictions use newly advertised models and respect catalog and account capability', async () => {
+  for (const model of ['gpt-6.2-astra', 'gpt-6.2-sol', 'gpt-test-future']) {
+    const request = { ...input(), model }
+    const { service, calls } = fixture()
+    assert.equal((await service.generate(request)).prediction, '打开预览看看。')
+    assert.equal(JSON.parse(calls[1].init.body).model, model)
+    const blocked = fixture({ config: { unsupported_models: [model] } })
+    assert.deepEqual(await blocked.service.generate(request), { prediction: null, reason: 'unavailable' })
+    assert.equal(blocked.calls.length, 1)
+  }
+  const absent = fixture({ service: { modelAvailable: () => false, credentials: () => assert.fail('must not read credentials') } })
+  assert.deepEqual(await absent.service.generate({ ...input(), model: 'gpt-unlisted' }), { prediction: null, reason: 'unavailable' })
+  assert.equal(absent.calls.length, 0)
+})
+test('the settings help uses the live model list without running inference or enabling the feature', async () => {
+  const { service, calls, state } = fixture({ config: { unsupported_models: ['gpt-excluded'] },
+    service: { modelAvailable: id => id !== 'gpt-unlisted' } })
+  state.enabled = false
+  const models = [{ id: 'gpt-6.2-sol', name: 'GPT-6.2 Sol' }, { id: 'gpt-excluded', name: 'Excluded' }, { id: 'gpt-unlisted', name: 'Unlisted' }]
+  const handler = createSubscriptionRpcHandler({ composerPredictions: service, modelCatalog: { getModels: () => models } })
+  assert.deepEqual(await handler('predictions/models', {}, new AbortController().signal), { ok: true, value: ['GPT-6.2 Sol'] })
+  assert.equal(calls.length, 1)
 })
 test('request retains prediction metadata, exact remote prompt and a tool-free isolated context', async () => {
   const { service, calls } = fixture(); assert.equal((await service.generate(input())).prediction, '打开预览看看。')

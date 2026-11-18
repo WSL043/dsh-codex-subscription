@@ -63,7 +63,7 @@ Consultez le [guide officiel de DSH](https://github.com/deepseek-ai/deepseek-har
 2. Collez ce nom de package, avec sa version, dans le champ **Nom ou adresse du package** :
 
    ```text
-   dsh-codex-subscription@3.2.23
+   dsh-codex-subscription@3.2.24
    ```
 
 3. Cliquez sur **Installer** et attendez la fin de l’installation. Suivez les instructions de la page ; enregistrez votre travail avant de redémarrer si cela vous est demandé.
@@ -80,7 +80,7 @@ Pourquoi inclure la version : la page des plugins de DSH n’installe que des ve
 <summary>Installation dans le terminal (avec une commande dsh déjà installée)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.23
+dsh plugin --profile web add dsh-codex-subscription@3.2.24
 ```
 
 Suivez les instructions de redémarrage, puis connectez-vous dans **Paramètres → Codex**. La page Plugins et le terminal utilisent tous deux le système de gestion des installations de DSH.
@@ -93,7 +93,7 @@ Suivez les instructions de redémarrage, puis connectez-vous dans **Paramètres 
 Après vous être connecté et avoir sélectionné un modèle Codex dans Web, installez le même plugin dans le profil Headless :
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.23
+dsh plugin --profile headless add dsh-codex-subscription@3.2.24
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -225,7 +225,7 @@ Choisissez le modèle selon la tâche, le raisonnement selon l’analyse nécess
 | **Niveaux de vitesse** | Basculer les modèles pris en charge entre Standard et Rapide ; Ultrarapide (Bêta) est également disponible si le catalogue du compte le propose, avec un indicateur en forme d’éclair | Standard par défaut. Rapide et Ultrarapide consomment plus de quota. Les modes disponibles dépendent du compte et du modèle. |
 | **Verbosit​​é des réponses** | Demander des réponses courtes, moyennes ou détaillées | Suit le réglage par défaut du modèle, sauf modification |
 | **Détail des images envoyées** | Choisir le niveau de détail Faible, Élevé, Original ou Auto pour les images envoyées au modèle de chat | Influe sur les jetons d’entrée ; Auto par défaut |
-| **Recherche Web par abonnement** | Sources Auto, DSH et Codex | Réglage dans Web et outils. Automatique choisit la source selon le modèle. Avec les réglages Web partagés, le module DSH de recherche et de lecture Web affiche la même sélection. La lecture se règle séparément. |
+| **Recherche Web par abonnement** | Auto, Codex ou les fournisseurs de recherche enregistrés dans DSH | Réglage dans Web et outils. Automatique choisit la source selon le modèle. Avec les réglages Web partagés, le module DSH de recherche et de lecture Web affiche la même sélection. La lecture se règle séparément. |
 | **Source de lecture des pages Web** | Choisissez la façon d’ouvrir une URL connue indépendamment du moteur de recherche. | Dans Web et outils. DSH est la valeur par défaut. Codex exige un hôte compatible et signale les échecs. |
 | **Interrupteur Autres modèles** | Un seul interrupteur empêche les conversations utilisant DeepSeek et d’autres modèles non-Codex d’utiliser la recherche Web par abonnement, la génération d’images et les connecteurs ChatGPT | Paramètres → Abonnement Codex → Web et outils ; activé par défaut, sans effet sur les modèles d’abonnement Codex ; le contrôle à distance par téléphone et la voix sont lancés par vous et ne sont pas concernés |
 | **Portée de la recherche** | Choisir la recherche en direct / en cache, désactiver la recherche ou limiter les domaines | Dans Web et outils. S’applique uniquement aux recherches de l’abonnement Codex. |
@@ -326,7 +326,7 @@ Trouvez ce plugin sur la page **Plugins** de DSH et utilisez l’action de mise 
 <summary>Commandes de terminal</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.23
+dsh plugin --profile web update dsh-codex-subscription@3.2.24
 ```
 
 À exécuter uniquement si vous souhaitez désinstaller :

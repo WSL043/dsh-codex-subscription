@@ -84,8 +84,9 @@ Under **Settings → Codex → Web & tools**, **Search source** finds pages and 
 On hosts that expose the shared provider settings, these controls edit the same selections as **Plugins → Web search and fetch**. Save changes on the official page to see them in the Codex settings. Search mode and domain filters apply to Codex subscription searches.
 
 - **Auto** prefers subscription search for Codex models and DSH search for other models. It tries the other source only when sign-in or a key is missing, or the preferred service is unavailable.
-- **DSH** uses the search service configured in DSH. Charges depend on that service.
+- **DeepSeek (Legacy)** uses DeepSeek's model-side search. Only DeepSeek model tokens are billed. **DeepSeek Search API** costs CNY 5 per 1,000 successful searches. Older hosts show **DSH** and use its configured provider. [DeepSeek pricing](https://api-docs.deepseek.com/zh-cn/guides/search/#计费)
 - **Codex** uses subscription search. With subscription features for other models turned off, non-Codex conversations use native DSH search.
+- For webpage reading, **HTTP** accesses the target site directly without a per-fetch fee, **DeepSeek Fetch API** costs CNY 5 per 1,000 successful fetches, and **Codex** uses your subscription. Hover or focus a provider in either menu to see its details.
 - If search returns links but the page text is missing, check the webpage reader and whether it can access that URL. The Codex reader reports its own failures directly.
 
 <a id="connectors"></a>
@@ -152,7 +153,7 @@ For a new animation, explicitly ask for an animated GIF. If the subscription ser
 
 ### Input predictions (Beta)
 
-Enable **Input predictions** under **Settings → Codex subscription → Models**; it is off by default. GPT-6 Astra, GPT-6.1 Sol and GPT-6.1 Terra are supported, subject to the account's official prediction capability check.
+Enable **Input predictions** under **Settings → Codex subscription → Models**. The feature is off by default. The plugin checks the account's current Codex model catalog and prediction capability for the selected model. OpenAI lists supported models for its desktop app in [Composer predictions in Codex](https://help.openai.com/en/articles/20001601-composer-predictions-in-codex).
 
 After a completed reply, an empty draft can receive a suggested next message based on the current conversation text. Focus the composer to see the grey suggestion; Tab inserts it as an editable, undoable draft without sending. Briefly losing focus preserves the same request and result. Editing the draft, switching conversations or accounts, or disabling predictions invalidates the old suggestion. The model may return no suggestion.
 

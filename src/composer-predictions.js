@@ -1,13 +1,13 @@
 import { createHash } from 'node:crypto'
 import { createSharedRequests } from './shared-request.js'
-import { supportsComposerPrediction } from './composer-prediction-models.js'
+import { validModelKey } from './capability-settings.js'
 
 const BASE = 'https://chatgpt.com/backend-api'
 const invalid = () => Object.assign(new Error('Invalid prediction request'), { code: 'invalid-input' })
 const cancelled = () => new DOMException('Prediction scope changed', 'AbortError')
 
 export function predictionInput(value) {
-  if (!value || !supportsComposerPrediction(value.model) || typeof value.sessionId !== 'string' || !value.sessionId || value.sessionId.length > 512
+  if (!value || !validModelKey(value.model) || typeof value.sessionId !== 'string' || !value.sessionId || value.sessionId.length > 512
     || typeof value.turnId !== 'string' || !value.turnId || value.turnId.length > 512
     || !Array.isArray(value.messages) || value.messages.length < 2 || value.messages.length > 12) throw invalid()
   let length = 0
@@ -55,19 +55,29 @@ export function predictionText(sse) {
 }
 
 /** Optional, isolated next-message inference. Never runs tools or mutates the source conversation. */
-export function createComposerPredictions({ fetch, credentials, enabled, userAgent, now = Date.now, base = BASE, timeoutMs = 30_000 }) {
+export function createComposerPredictions({ fetch, credentials, enabled, modelAvailable, userAgent, now = Date.now, base = BASE, timeoutMs = 30_000 }) {
   const requests = createSharedRequests(), results = new Map()
   let generation = 0, accountId, config
   const clear = () => {
     generation++; accountId = undefined; config = undefined; results.clear(); requests.clear(cancelled())
   }
-  const active = (auth, signal) => {
+  const active = (auth, signal, requireEnabled = true) => {
     signal?.throwIfAborted()
-    if (auth.generation !== generation || !enabled()) throw cancelled()
+    if (auth.generation !== generation || (requireEnabled && !enabled())) throw cancelled()
+  }
+  const authorize = async signal => {
+    const initialGeneration = generation
+    const credential = await credentials(signal)
+    signal?.throwIfAborted()
+    if (initialGeneration !== generation) throw cancelled()
+    if (!credential?.access || !credential.accountId) return undefined
+    if (accountId !== undefined && credential.accountId !== accountId) clear()
+    accountId = credential.accountId
+    return { ...credential, generation }
   }
   const headers = auth => ({ authorization: `Bearer ${auth.access}`, 'chatgpt-account-id': auth.accountId, 'user-agent': userAgent })
   const configuration = async (auth, signal) => {
-    active(auth, signal)
+    active(auth, signal, false)
     if (config && now() - config.at < 300_000) return config.value
     return requests.run('config', async sharedSignal => {
       const response = await fetch(`${base}/wham/predictions/config`, { redirect: 'error', headers: { ...headers(auth), accept: 'application/json' }, signal: AbortSignal.any([sharedSignal, AbortSignal.timeout(15_000)]) })
@@ -75,27 +85,34 @@ export function createComposerPredictions({ fetch, credentials, enabled, userAge
       const value = JSON.parse(await boundedText(response, 32_000))
       if (typeof value?.is_enabled !== 'boolean' || (value.is_enabled && (typeof value.prompt !== 'string' || !value.prompt || value.prompt.length > 16_000))
         || value.unsupported_models !== undefined && (!Array.isArray(value.unsupported_models) || value.unsupported_models.some(model => typeof model !== 'string'))) throw new Error('Invalid prediction capability')
-      active(auth, sharedSignal)
+      active(auth, sharedSignal, false)
       config = { at: now(), value }
       return value
     }, signal)
   }
   return {
     clear,
+    async modelNames(models, signal) {
+      if (!models.length) return []
+      const auth = await authorize(signal)
+      if (!auth) return []
+      const cap = await configuration(auth, signal)
+      active(auth, signal, false)
+      return cap.is_enabled ? models.filter(({ id }) => modelAvailable(id) && !cap.unsupported_models?.includes(id))
+        .map(({ name }) => name).slice(0, 32) : []
+    },
     async generate(raw, signal) {
       signal?.throwIfAborted()
       if (!enabled()) return { prediction: null, reason: 'disabled' }
-      const input = predictionInput(raw), initialGeneration = generation
-      const credential = await credentials(signal)
-      signal?.throwIfAborted()
-      if (initialGeneration !== generation) throw cancelled()
-      if (!credential?.access || !credential.accountId) return { prediction: null, reason: 'authentication' }
-      if (accountId !== undefined && credential.accountId !== accountId) clear()
-      accountId = credential.accountId
-      const auth = { ...credential, generation }
+      const input = predictionInput(raw)
+      if (!modelAvailable(input.model)) return { prediction: null, reason: 'unavailable' }
+      const auth = await authorize(signal)
+      if (!auth) return { prediction: null, reason: 'authentication' }
+      active(auth, signal)
       const cap = await configuration(auth, signal)
       active(auth, signal)
-      if (!cap.is_enabled || cap.unsupported_models?.includes(input.model)) return { prediction: null, reason: 'unavailable' }
+      // Match Codex: account capability and its model exclusions can change without a client update.
+      if (!cap.is_enabled || cap.unsupported_models?.includes(input.model) || !modelAvailable(input.model)) return { prediction: null, reason: 'unavailable' }
       const key = createHash('sha256').update(JSON.stringify(input)).digest('hex')
       const cached = results.get(key)
       if (cached && now() - cached.at < 300_000) return { prediction: cached.prediction }

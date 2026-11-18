@@ -50,7 +50,7 @@ export function FeatureOverview({ preference, t, go, webSettingsContext }) {
   const snapshot = usePreferenceSnapshot(preference)
   const web = useWebProviderForm(webSettingsContext)
   const searchStatus = snapshot.webProvidersManagedByDsh
-    ? (web.status === 'ready' ? webProviderTitle(web.value?.searchProvider) ?? t('searchAuto') : undefined)
+    ? (web.status === 'ready' ? webProviderTitle(web.value?.searchProvider, t) ?? t('searchAuto') : undefined)
     : `${t(`searchSource_${snapshot.searchProvider}`)} · ${t(`searchMode_${snapshot.searchMode}`)}`
   const writable = ready(snapshot)
   const set = patch => { void preference.set(patch) }
@@ -124,7 +124,7 @@ function SpeedPreference({ snapshot, preference, t }) {
   </div>
 }
 
-export function ModelsPage({ preference, t, defaultModel }) {
+export function ModelsPage({ preference, t, defaultModel, rpc, active, accountKey }) {
   const snapshot = usePreferenceSnapshot(preference)
   const loaded = snapshot.status === 'ready'
   const customMenu = snapshot.composerModelPickerActive
@@ -154,7 +154,7 @@ export function ModelsPage({ preference, t, defaultModel }) {
         </div>
       </div>
       <PickerModelsPreference preference={preference} t={t} />
-      <ComposerPredictionPreference preference={preference} t={t} />
+      <ComposerPredictionPreference preference={preference} t={t} rpc={rpc} active={active} accountKey={accountKey} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('answerStyleTitle')}>
       <h3>{t('answerStyleTitle')}</h3>

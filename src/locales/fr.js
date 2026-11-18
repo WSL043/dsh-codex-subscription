@@ -1,5 +1,4 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
-import { composerPredictionModelNames } from '../composer-prediction-models.js'
 
 export default {
   "speedShortcutTitle": "Raccourci de vitesse dans la zone de saisie",
@@ -161,7 +160,8 @@ export default {
   "composerPredictions": "Suggestions de saisie",
   "composerPredictionAccept": "Accepter la suggestion",
   "composerPredictionsShortHint": "Tab complète le brouillon",
-  "composerPredictionsHint": `Après un tour terminé, les modèles Codex compatibles (${composerPredictionModelNames}) suggèrent votre prochain message à partir de la conversation en cours, si le brouillon est vide. Tab complète le brouillon sans l’envoyer. Cela génère des requêtes de prédiction supplémentaires. Les prédictions officielles de Codex ne sont pas comptabilisées dans les limites d’utilisation ni les crédits ; l’exemption pour cette intégration tierce n’est pas confirmée. L’envoi d’un brouillon accepté est comptabilisé normalement.`,
+  "composerPredictionsHint": `Après un tour terminé, les modèles Codex compatibles suggèrent votre prochain message à partir de la conversation en cours, si le brouillon est vide. Tab complète le brouillon sans l’envoyer. Cela génère des requêtes de prédiction supplémentaires. Les prédictions officielles de Codex ne sont pas comptabilisées dans les limites d’utilisation ni les crédits ; l’exemption pour cette intégration tierce n’est pas confirmée. L’envoi d’un brouillon accepté est comptabilisé normalement.`,
+  "composerPredictionModels": "Modèles disponibles pour ce compte : {models}",
   "featureLoading": "Chargement…",
   "featureLoadFailed": "Échec du chargement. Cliquez pour réessayer",
   "featureRetry": "Réessayer",
@@ -874,6 +874,12 @@ export default {
   "historyTotalUnavailable": "Le total officiel d’utilisation n’est pas disponible pour cette période",
   "historyNoBreakdown": "La ventilation officielle n’est pas encore disponible pour cette période",
   "fetchTitle": "Source de lecture des pages Web",
+  "fetchHttpCost": "Sans frais par lecture",
+  "fetchDeepSeekCost": "5 CNY pour 1 000 lectures réussies",
+  "fetchCodexCost": "Avec votre abonnement Codex",
+  "searchDeepSeekLegacy": "DeepSeek (ancienne version)",
+  "searchLegacyCost": "La recherche est sans frais supplémentaires. Les jetons du modèle DeepSeek sont facturés.",
+  "searchApiCost": "5 CNY pour 1 000 recherches réussies.",
   "fetchDshHint": "Utiliser le lecteur de pages Web configuré dans DSH, indépendamment de la source de recherche ci-dessus.",
   "fetchCodexHint": "Lire le texte accessible des pages Web avec votre abonnement Codex. Les échecs sont signalés directement, sans recours à l’API DeepSeek.",
   "fetchUnavailableHint": "Cette version de DSH ne permet pas de passer au lecteur de pages Web Codex. Mettez d’abord DSH à jour.",

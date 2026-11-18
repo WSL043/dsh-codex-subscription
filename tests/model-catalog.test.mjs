@@ -6,7 +6,7 @@ import test from 'node:test'
 
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 
-import { CODEX_MODELS_URL, createOfficialModelCatalog, parseOfficialModelCatalog, retirementNotice, withModelCatalogReady } from '../src/model-catalog.js'
+import { CODEX_MODELS_URL, createOfficialModelCatalog, latestCodexLuna, parseOfficialModelCatalog, retirementNotice, withModelCatalogReady } from '../src/model-catalog.js'
 import { clearModelCatalogCache, loadModelCatalogCache, saveModelCatalogCache } from '../src/model-catalog-cache.js'
 import { openaiCodexProvider, openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
 import { contextModelGroups } from '../src/settings-contract.js'
@@ -16,6 +16,12 @@ const base = [{
   baseUrl: 'https://chatgpt.com/backend-api', reasoning: true, input: ['text'],
   cost: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0 }, contextWindow: 128_000, maxTokens: 128_000,
 }]
+
+test('background operations can use the newest Luna advertised by the account', () => {
+  const model = id => ({ id })
+  assert.equal(latestCodexLuna(['gpt-5.6-luna', 'gpt-6-luna', 'gpt-6.2-astra', 'gpt-6.10-luna', 'gpt-6.2-luna'].map(model)), 'gpt-6.10-luna')
+  assert.equal(latestCodexLuna(['gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-6-luna-preview'].map(model)), undefined)
+})
 
 test('without a successful account catalog there are no models, and the bundled list is never offered', () => {
   const catalog = createOfficialModelCatalog({ baseModels: () => base })

@@ -63,7 +63,7 @@ See the [official DSH run guide](https://github.com/deepseek-ai/deepseek-harness
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@3.2.23
+   dsh-codex-subscription@3.2.24
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -80,7 +80,7 @@ Why the version is included: DSH's plugin page only installs versions that are a
 <summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.23
+dsh plugin --profile web add dsh-codex-subscription@3.2.24
 ```
 
 Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
@@ -93,7 +93,7 @@ Follow the restart instructions, then sign in under **Settings → Codex**. Both
 After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.23
+dsh plugin --profile headless add dsh-codex-subscription@3.2.24
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -225,8 +225,8 @@ Choose the model for the task, then adjust reasoning for how much analysis you n
 | **Speed tiers** | Switch supported models between Standard and Fast; Ultrafast (Beta) too when the account catalog offers it, with a lightning indicator | Standard by default. Fast and Ultrafast use more quota; available tiers depend on your account and model. |
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
 | **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
-| **Subscription web search** | Auto, DSH, and Codex sources | Set under Web & tools. Auto chooses a source based on the model. On hosts with shared Web settings, Plugins → Web search and fetch shows the same selection. Webpage reading is separate. |
-| **Webpage reading source** | Choose how the tools read a known URL, independently of the search source. | Web & tools. DSH is the default. Codex requires a compatible host and reports reading failures directly. |
+| **Subscription web search** | Auto, Codex, and search providers registered in DSH | Set under Web & tools. Auto chooses a source based on the model. On hosts with shared Web settings, Plugins → Web search and fetch shows the same selection. Webpage reading is separate. |
+| **Webpage reading source** | Choose how the tools read a known URL, independently of the search source. | Web & tools. On hosts with shared Web settings, choose HTTP, DeepSeek Fetch API, or Codex. |
 | **Other-models switch** | One switch that stops conversations on DeepSeek and other non-Codex models from using subscription web search, image generation and ChatGPT connectors | Settings → Codex → Web & tools; on by default, Codex subscription models are not affected; phone remote control and voice are started by you and are not affected |
 | **Search scope** | Choose live / cached search, disable search, or restrict domains | Set under Web & tools. Applies to Codex subscription searches only. |
 | **Stream inactivity timeout** | Set how long a request can receive no streamed data before it is aborted | 10 minutes by default; not an overall response deadline |
@@ -326,7 +326,7 @@ Find this plugin on the DSH **Plugins** page and use its update or uninstall act
 <summary>Terminal commands</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.23
+dsh plugin --profile web update dsh-codex-subscription@3.2.24
 ```
 
 Run only when you want to uninstall:

@@ -1,5 +1,6 @@
-import { useEffect, useId, useState, useSyncExternalStore } from 'react'
-import { Hint, SettingsLabel } from './client-hint.jsx'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import { SettingsLabel } from './client-hint.jsx'
+import { IconChevronDownOutline14, Menu } from './client-primitives.jsx'
 
 const empty = Object.freeze({})
 const idle = () => () => {}
@@ -14,7 +15,53 @@ const nativeTitles = {
   'codex-subscription-dsh': 'DSH (Codex Subscription)',
 }
 
-export const webProviderTitle = id => nativeTitles[id] ?? id
+export const webProviderTitle = (id, t) => id === 'deepseek-official' && t ? t('searchDeepSeekLegacy')
+  : Object.hasOwn(nativeTitles, id) ? nativeTitles[id] : id
+
+const options = {
+  search: {
+    'deepseek-official': ['searchDeepSeekLegacy', 'searchLegacyCost'],
+    'deepseek-search-api': ['DeepSeek Search API', 'searchApiCost'],
+    'codex-subscription': ['Codex', 'searchCodexHint'],
+    'codex-subscription-auto': ['searchAuto', 'searchAutoHint'],
+    'codex-subscription-dsh': ['searchDsh', 'searchDshHint'],
+  },
+  fetch: {
+    http: ['HTTP', 'fetchHttpCost'],
+    'deepseek-fetch-api': ['DeepSeek Fetch API', 'fetchDeepSeekCost'],
+    'codex-subscription-fetch': ['Codex', 'fetchCodexCost'],
+  },
+}
+
+function ProviderChoice({ kind, title, current, providers, writable, saving, t, change }) {
+  const [open, setOpen] = useState(false)
+  const names = options[kind]
+  const registered = new Map(providers?.map(provider => [provider.id, provider]))
+  const ids = new Set([...Object.keys(names).filter(id => registered.has(id)), ...registered.keys()])
+  if (current) ids.add(current)
+  const describe = id => {
+    if (!Object.hasOwn(names, id)) return { label: registered.get(id)?.title ?? webProviderTitle(id, t) }
+    const [name, detail] = names[id]
+    return { label: name.startsWith('search') ? t(name) : name, description: t(detail) }
+  }
+  const selected = describe(current)
+  const hasNativeSearch = kind === 'search' && [...registered.keys()].some(id => !Object.hasOwn(names, id) || id === 'deepseek-official' || id === 'deepseek-search-api')
+  const items = [...ids].filter(id => id !== 'codex-subscription-dsh' || id === current || !hasNativeSearch)
+    .map(id => ({ id, disabled: !registered.has(id), ...describe(id) }))
+  return <div className="codexSubscriptionPreference">
+    <div className="codexSubscriptionPreferenceCopy">
+      <SettingsLabel description={selected.description}>{title}</SettingsLabel>
+    </div>
+    <Menu open={open} items={items} selectedId={current} align="end"
+      onClose={() => setOpen(false)}
+      onSelect={id => { setOpen(false); if (id !== current) void change(kind + 'Provider', id) }}
+      anchor={<button className="codexSubscriptionContextTrigger codexSubscriptionWebProviderTrigger" type="button"
+        aria-label={title} aria-expanded={open} aria-busy={saving || undefined}
+        disabled={!writable || !items.some(item => !item.disabled)} onClick={() => setOpen(value => !value)}>
+        <span>{selected.label ?? '—'}</span><IconChevronDownOutline14 />
+      </button>} />
+  </div>
+}
 
 export function useWebProviderForm(ctx) {
   return useProviderSnapshot(ctx?.get('configForms')?.get('web'))
@@ -27,12 +74,9 @@ function useProviderSnapshot(form) {
   )
 }
 
-export function WebProviderSettings({ ctx, t, preference }) {
-  const radioId = useId()
+export function WebProviderSettings({ ctx, t }) {
   const form = ctx?.get('configForms')?.get('web')
   const section = useProviderSnapshot(form)
-  const subscription = useProviderSnapshot(ctx?.get('configForms')?.get('codex-subscription'))
-  const preferences = preference.getSnapshot()
   const [providers, setProviders] = useState()
   const [failed, setFailed] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -69,37 +113,11 @@ export function WebProviderSettings({ ctx, t, preference }) {
       setSaving(false)
     }
   }
-  const row = (capability, label, ids, selected) => {
-    const field = capability + 'Provider'
-    const id = section.value?.[field]
-    const providerName = providers?.[capability]?.find(provider => provider.id === id)?.title ?? webProviderTitle(id)
-    const showProvider = selected === 'dsh' && id && id !== 'codex-subscription-dsh'
-    const hint = capability === 'search' ? `search${{ auto: 'Auto', codex: 'Codex', dsh: 'Dsh' }[selected]}Hint` : selected === 'codex' ? 'fetchCodexHint' : 'fetchDshHint'
-    return <div className="codexSubscriptionPreference">
-      <div className="codexSubscriptionPreferenceCopy">
-        <SettingsLabel description={t(hint)}>{label}</SettingsLabel>
-        {section.status === 'ready' && showProvider ? <Hint>{providerName}</Hint> : null}
-      </div>
-      <div className="codexSubscriptionSearchChoices codexSubscriptionQuotaModes" role="radiogroup" aria-label={label} aria-busy={saving || undefined}>
-        {Object.entries(ids).map(([mode, target]) => <label className="codexSubscriptionQuotaMode" key={mode}>
-          <input type="radio" name={`${radioId}-${field}`} checked={section.status === 'ready' && selected === mode}
-            disabled={section.status !== 'ready' || !section.writable || saving}
-            onChange={() => { void change(field, target) }} />
-          <span>{mode === 'auto' ? t('searchAuto') : mode === 'codex' ? 'Codex' : 'DSH'}</span>
-        </label>)}
-      </div>
-    </div>
-  }
-  const search = section.value?.searchProvider
-  const fetch = section.value?.fetchProvider
-  const baseFetch = section.base?.fetchProvider
-  const nativeSearch = subscription.user?.webSearchFallbackProvider ?? preferences.webSearchFallbackProvider
-  const nativeFetch = subscription.user?.webFetchFallbackProvider ?? preferences.webFetchFallbackProvider
+  const writable = section.status === 'ready' && section.writable && !saving
   return <>
-    {row('search', t('searchTitle'), { auto: 'codex-subscription-auto', dsh: nativeSearch ?? 'codex-subscription-dsh', codex: 'codex-subscription' },
-      search === 'codex-subscription-auto' ? 'auto' : search === 'codex-subscription' ? 'codex' : 'dsh')}
-    {row('fetch', t('fetchTitle'), { dsh: nativeFetch ?? (baseFetch === 'codex-subscription-fetch' ? 'http' : baseFetch), codex: 'codex-subscription-fetch' },
-      fetch === 'codex-subscription-fetch' ? 'codex' : 'dsh')}
+    {['search', 'fetch'].map(kind => <ProviderChoice key={kind}
+      kind={kind} title={t(kind + 'Title')} current={section.value?.[kind + 'Provider']}
+      providers={providers?.[kind]} writable={writable} saving={saving} t={t} change={change} />)}
     {failed ? <p className="codexSubscriptionError" role="alert">{t('preferenceFailed')}</p> : null}
   </>
 }

@@ -154,6 +154,12 @@ function visibleModel(value, displayNames, now) {
 /** Codex's dedicated approval reviewer when the account catalog advertises it. */
 export const CODEX_REVIEW_MODEL = 'codex-auto-review'
 
+/** Newest available Luna generation for lightweight background requests. */
+export function latestCodexLuna(models) {
+  return models.map(model => model.id).filter(id => /^gpt-\d+(?:\.\d+)*-luna$/u.test(id))
+    .sort((left, right) => right.localeCompare(left, 'en', { numeric: true }))[0]
+}
+
 /**
  * Mirror Codex's reviewer selection: a parent model's override, else the
  * default reviewer, used only when the account catalog lists that slug (any

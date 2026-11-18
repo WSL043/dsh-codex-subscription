@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { PROJECT_URL, useAccountStatusSnapshot, usePreferenceSnapshot } from './client-shared.js'
 import { Button } from './client-primitives.jsx'
 import { CreatePage, FeatureOverview, ModelsPage, MorePage, QuotaSettingsCard, ToolsPage } from './client-pages.jsx'
+import { composerPredictionAccountKey } from './composer-prediction-controller.js'
 import { AccountCard, AccountFailureCard } from './client-account.jsx'
 import { UsageCard } from './client-usage.jsx'
 /** The tab bar sticks to the top while the page scrolls under it, so it must paint the dialog's own background (which differs per theme). */
@@ -102,7 +103,8 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
     <QuotaSettingsCard preference={preference} t={t} />
     <FeatureOverview preference={preference} t={t} go={selectTab} webSettingsContext={webSettingsContext} />
     </div>
-    <div className="codexFlat" role="tabpanel" id={`${id}-models`} aria-labelledby={`${id}-models-tab`} hidden={tab !== 'models'}>{visited.has('models') && <ModelsPage preference={preference} t={t} defaultModel={defaultModel} />}</div>
+    <div className="codexFlat" role="tabpanel" id={`${id}-models`} aria-labelledby={`${id}-models-tab`} hidden={tab !== 'models'}>{visited.has('models') && <ModelsPage preference={preference} t={t} defaultModel={defaultModel}
+      rpc={rpc} active={tab === 'models'} accountKey={composerPredictionAccountKey(accountSnapshot)} />}</div>
     <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}>{visited.has('tools') && <ToolsPage preference={preference} rpc={rpc} t={t} active={tab === 'tools'} webSettingsContext={webSettingsContext}
       openSubagentBundle={openSubagentBundle && (() => { openSubagentBundle(); if (!embedded) close?.() })} />}</div>
     <div className="codexFlat" role="tabpanel" id={`${id}-create`} aria-labelledby={`${id}-create-tab`} hidden={tab !== 'create'}>{visited.has('create') && <CreatePage preference={preference} t={t} />}</div>

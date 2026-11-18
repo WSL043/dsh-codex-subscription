@@ -60,7 +60,7 @@ test('prediction context is bounded to 12 messages and 24000 text characters', (
 
 test('disabled, other providers, nonempty drafts, attachments, references and initially hidden inputs do no work', async () => {
   const cases = [
-    { enabled: false }, { accountKey: undefined }, { provider: 'deepseek' }, { model: 'gpt-5.6-terra' }, { visible: false }, { composing: true },
+    { enabled: false }, { accountKey: undefined }, { provider: 'deepseek' }, { model: 'invalid model id' }, { visible: false }, { composing: true },
     { input: { draft: 'mine', draftRev: 1, phase: 'plain' } },
     { input: { draft: '', draftRev: 1, phase: 'plain', attachmentIds: ['file'] } },
     { input: { draft: '', draftRev: 1, phase: 'plain', occurrences: [{}] } },

@@ -1,5 +1,5 @@
 import { CHANNEL, unwrap } from './rpc-contract.js'
-import { supportsComposerPrediction } from './composer-prediction-models.js'
+import { validModelKey } from './capability-settings.js'
 
 const EMPTY = Object.freeze({ prediction: null, status: 'idle' })
 const textOf = (blocks, field) => (Array.isArray(blocks) ? blocks : [])
@@ -47,7 +47,7 @@ export function composerPredictionContext(chat) {
 
 const eligibleDraft = state => state?.enabled === true && state.provider === 'openai-codex'
   && typeof state.accountKey === 'string' && state.accountKey.length > 0
-  && supportsComposerPrediction(state.model) && state.sessionId
+  && validModelKey(state.model) && state.sessionId
   && state.composing !== true
   && state.input?.phase === 'plain' && typeof state.input.draft === 'string' && !state.input.draft.trim()
   && !state.input.attachmentIds?.length && !state.input.occurrences?.length

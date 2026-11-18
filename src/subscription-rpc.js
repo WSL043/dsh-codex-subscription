@@ -27,6 +27,14 @@ export async function settlesLive(preferences, patch, signal, { attempts = 8, de
 
 export function createSubscriptionRpcHandler({ authHandler, usageReader, accountUsageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, desktopVoice, nativeVoice, voicePreview, composerPredictions, diagnosticsReader, modelCatalog, subagentCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
   return async (endpoint, payload, signal) => {
+    if (endpoint === 'predictions/models') {
+      try {
+        return { ok: true, value: await composerPredictions?.modelNames(modelCatalog?.getModels?.() ?? [], signal) ?? [] }
+      } catch (error) {
+        if (signal?.aborted) throw error
+        return publicError('operation-error', 'Could not read supported input prediction models')
+      }
+    }
     if (endpoint === 'predictions/generate') {
       try {
         signal?.throwIfAborted()

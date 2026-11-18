@@ -52,6 +52,8 @@ export const STYLE = `
 .codexSubscriptionAdvancedPreferences{display:flex;flex-direction:column;gap:10px}
 .codexSubscriptionAdvancedPreferences[data-others-off=true]>[data-governed=true]{opacity:.55;transition:opacity .15s}
 .codexSubscriptionSearchChoices.codexSubscriptionQuotaModes{display:flex;flex:0 0 auto;gap:0;grid-template-columns:none}
+.codexSubscriptionWebProviderTrigger{max-width:100%}
+.codexSubscriptionWebProviderTrigger>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .codexSubscriptionSettingsDisclosure>summary{display:flex;align-items:center;gap:10px;min-height:28px;cursor:pointer;list-style:none;font-size:14px;font-weight:500}
 .codexSubscriptionSettingsDisclosure>summary::-webkit-details-marker{display:none}
 .codexSubscriptionSettingsDisclosure>summary>.codexSubscriptionPreferenceHint{margin-left:auto;font-weight:400}

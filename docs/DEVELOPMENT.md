@@ -23,6 +23,7 @@ Use this index to find the current guides, compatibility information and mainten
 - Use [compatibility.json](../compatibility.json) and the peer dependency range in [package.json](../package.json) for host compatibility.
 - The [archive](archive/README.md) records the host versions and conditions used for past tests.
 - Identify the exact commit, release tag, npm package or installed build under review. These can contain different code even when the version number matches.
+- Use the signed-in account's catalog for model availability and the service's own feature configuration for eligibility. For background work, select from the advertised model family. Cover a new model identifier and a server-side refusal in tests so model launches do not require updating a local list.
 
 <a id="documentation-checklist"></a>
 

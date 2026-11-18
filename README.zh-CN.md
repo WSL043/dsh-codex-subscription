@@ -55,7 +55,7 @@ CLI 和 Web 的 Node.js 要求见 [DSH 官方运行说明](https://github.com/de
 2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
 
    ```text
-   dsh-codex-subscription@3.2.23
+   dsh-codex-subscription@3.2.24
    ```
 
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
@@ -72,7 +72,7 @@ CLI 和 Web 的 Node.js 要求见 [DSH 官方运行说明](https://github.com/de
 <summary>终端安装（已能运行 dsh 命令）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.23
+dsh plugin --profile web add dsh-codex-subscription@3.2.24
 ```
 
 安装完成后按提示重启 DSH，再到 **设置 → Codex 订阅** 登录。插件页面和终端均由 DSH 管理安装。
@@ -85,7 +85,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.2.23
 先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.23
+dsh plugin --profile headless add dsh-codex-subscription@3.2.24
 dsh --profile headless "只回复：ok"
 ```
 
@@ -207,8 +207,8 @@ dsh --profile headless "只回复：ok"
 | **速度档位** | 在支持的模型上切换标准 / Fast；账号目录提供时还有 Ultrafast（Beta），输入框显示闪电标识 | 默认标准。Fast 和 Ultrafast 会增加用量；可选档位以当前账号和模型为准。 |
 | **输出详略** | 选择简短、适中或详细的回答偏好 | 默认跟随模型 |
 | **输入图片精度** | 为发送给聊天模型的图片选择低、高、原图或自动精度 | 影响输入 token 用量；默认自动 |
-| **订阅联网搜索** | 自动、DSH、Codex 三种来源 | 在“联网与工具”设置。自动按模型选来源；宿主提供共享 Web 设置时，也可在“插件 → 网页搜索与获取”中切换。页面读取单独设置。 |
-| **网页读取来源** | 选择如何读取已知网址，与搜索来源分开设置。 | 在“联网与工具”中设置，默认使用 DSH。切到 Codex 需要宿主支持，失败会直接提示。 |
+| **订阅联网搜索** | 自动、Codex 或宿主提供的搜索服务 | 在“联网与工具”设置。自动按模型选来源；宿主提供共享 Web 设置时，也可在“插件 → 网页搜索与获取”中切换。页面读取单独设置。 |
+| **网页读取来源** | 选择如何读取已知网址，与搜索来源分开设置。 | 在“联网与工具”中设置，支持共享 Web 设置的宿主可直接选 HTTP、DeepSeek Fetch API 或 Codex。 |
 | **其他模型总开关** | 一键让 DeepSeek 等非 Codex 模型的对话不再使用订阅的联网搜索、图片生成和 ChatGPT 连接器 | 设置 → Codex 订阅 → 联网与工具；默认开启，Codex 订阅模型不受影响；手机远程控制和语音由你主动开启或发起，不受它影响 |
 | **搜索范围** | 选择实时 / 缓存搜索、关闭搜索，或限定域名 | 在“联网与工具”中设置，仅适用于 Codex 订阅搜索 |
 | **流无响应超时** | 设置连续没有收到流式数据时中断请求的时长 | 默认 10 分钟；不是整体回答时限 |
@@ -302,7 +302,7 @@ dsh --profile headless "只回复：ok"
 <summary>终端方式</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.23
+dsh plugin --profile web update dsh-codex-subscription@3.2.24
 ```
 
 仅在需要卸载时运行：

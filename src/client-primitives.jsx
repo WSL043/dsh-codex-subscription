@@ -53,9 +53,15 @@ export function useAnchoredPosition({ open, anchorRef, panelRef, side = 'bottom'
       const maxTop = minTop + (viewport?.height ?? win.innerHeight) - height - margin * 2
       const anchorX = align === 'end' ? right - width : align === 'center' ? (left + right - width) / 2 : left
       const above = top - height - gap, below = bottom + gap
-      const anchorY = side === 'top' ? (above < minTop && below <= maxTop ? below : above)
-        : below > maxTop && above >= minTop ? above : below
-      const next = { left: Math.max(minLeft, Math.min(anchorX, maxLeft)), top: Math.max(minTop, Math.min(anchorY, maxTop)) }
+      const before = left - width - gap, after = right + gap
+      let x = anchorX, y = below > maxTop && above >= minTop ? above : below
+      if (side === 'left' && (before >= minLeft || after <= maxLeft)) {
+        x = before >= minLeft ? before : after
+        y = (top + bottom - height) / 2
+      } else if (side === 'top' || side === 'left') {
+        y = above < minTop && below <= maxTop ? below : above
+      }
+      const next = { left: Math.max(minLeft, Math.min(x, maxLeft)), top: Math.max(minTop, Math.min(y, maxTop)) }
       setPosition(previous => previous?.left === next.left && previous?.top === next.top ? previous : next)
     }
     update()
@@ -97,7 +103,7 @@ export function useDismissOnOutsidePointer(anchor, open, dismiss, panel) {
   }, [anchor, open, dismiss, panel])
 }
 
-export function Tooltip({ label, children, side = 'bottom', delayMs = 0, maxWidth, openOnClick = false }) {
+export function Tooltip({ label, children, side = 'bottom', delayMs = 0, maxWidth, openOnClick = false, keyboardFocusOnly = false }) {
   const anchor = useRef(null), panel = useRef(null), timer = useRef()
   const [open, setOpen] = useState(false), [pinned, setPinned] = useState(false)
   const id = useId()
@@ -133,7 +139,7 @@ export function Tooltip({ label, children, side = 'bottom', delayMs = 0, maxWidt
     'aria-description': children.props['aria-description'] ?? label,
     onPointerEnter: event => { children.props.onPointerEnter?.(event); if (event.pointerType !== 'touch') show(delayMs) },
     onPointerLeave: event => { children.props.onPointerLeave?.(event); hide() },
-    onFocus: event => { children.props.onFocus?.(event); show(0) },
+    onFocus: event => { children.props.onFocus?.(event); if (!keyboardFocusOnly || event.currentTarget.matches(':focus-visible')) show(0) },
     onBlur: event => { children.props.onBlur?.(event); hide() },
     onClick: openOnClick ? event => {
       children.props.onClick?.(event)
@@ -209,8 +215,7 @@ export function Menu({ open, anchor, items, selectedId, onSelect, onClose, align
     if (item.type === 'separator') return <div key={item.id} role="separator" className="dcsMenuSeparator" />
     if (item.type === 'label') return <div key={item.id} className="dcsMenuLabel">{item.text}</div>
     const selected = item.id === selectedId, expanded = submenu === item.id
-    return <div role="none" key={item.id}>
-      <button type="button" role={item.submenu ? 'menuitem' : 'menuitemradio'} tabIndex={-1}
+    const option = <button type="button" role={item.submenu ? 'menuitem' : 'menuitemradio'} tabIndex={-1}
         aria-checked={item.submenu ? undefined : selected} aria-haspopup={item.submenu ? 'menu' : undefined}
         aria-expanded={item.submenu ? expanded : undefined} data-submenu-item={nested || undefined}
         disabled={item.disabled} onClick={() => {
@@ -221,6 +226,8 @@ export function Menu({ open, anchor, items, selectedId, onSelect, onClose, align
         }}>
         <span>{item.label}</span>{item.submenu ? <IconChevronRightOutline14 /> : selected ? <IconCheckOutline16 /> : null}
       </button>
+    return <div role="none" key={item.id}>
+      {item.description && !item.disabled ? <Tooltip label={item.description} side="left" delayMs={350} keyboardFocusOnly>{option}</Tooltip> : option}
       {item.submenu && expanded ? <div role="menu" aria-label={typeof item.label === 'string' ? item.label : undefined} className="dcsMenuChildren">{rows(item.submenu, true)}</div> : null}
     </div>
   })

@@ -43,9 +43,10 @@ async function renderPreference({ locale = en, componentFile = 'composer-predict
   let snapshot = { status: 'ready', writable: true, saving: false }
   const Switch = () => null, Tooltip = () => null, element = (type, props) => typeof type === 'function' && type !== Switch && type !== Tooltip ? type(props) : ({ type, props })
   const dependencies = {
+    react: { useEffect: () => {}, useState: () => [snapshot.availability, () => {}] },
     'react/jsx-runtime': { jsx: element, jsxs: element },
     './client-primitives.jsx': { Switch, Tooltip },
-    './client-shared.js': { usePreferenceSnapshot: () => snapshot },
+    './client-shared.js': { usePreferenceSnapshot: () => snapshot, fill: (text, values) => text.replace('{models}', values.models) },
     './settings-contract.js': await import('../src/settings-contract.js'),
     './image-models.js': await import('../src/image-models.js'),
   }
@@ -53,7 +54,7 @@ async function renderPreference({ locale = en, componentFile = 'composer-predict
   new vm.Script(code).runInNewContext({ module, exports: module.exports, require: id => dependencies[id] ?? new Proxy({}, { get: () => () => null }) })
   const render = patch => {
     snapshot = { ...snapshot, ...patch }
-    const row = module.exports.ComposerPredictionPreference({ preference, t: key => locale[key] })
+    const row = module.exports.ComposerPredictionPreference({ preference, t: key => locale[key], accountKey: 'current-account' })
     const [help, hint] = row.props.children[0].props.children
     return { row, control: row.props.children.find(child => child.type === Switch), help, hint, label: help.props.children }
   }
@@ -69,7 +70,8 @@ test('the compact prediction row separates the switch state from keyboard-access
   assert.equal(control.props.disabled, false)
   assert.equal(hint.props.children, en.state_predictions_off)
   assert.equal(help.props.label, en.composerPredictionsHint)
-  assert.match(help.props.label, /GPT-6 Astra, GPT-6\.1 Sol, GPT-6\.1 Terra/u)
+  assert.match(fixture.render({ availability: { accountKey: 'current-account', names: ['GPT-6.2 Sol', 'GPT Future'] } }).help.props.label, /GPT-6\.2 Sol, GPT Future/u)
+  assert.equal(fixture.render({ availability: { accountKey: 'old-account', names: ['GPT Old'] } }).help.props.label, en.composerPredictionsHint)
   assert.equal(help.props.openOnClick, true)
   assert.equal(label.props.tabIndex, 0)
   assert.equal(label.props.title, undefined, 'avoid duplicate tooltip bubbles')
