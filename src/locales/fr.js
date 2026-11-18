@@ -3,7 +3,7 @@ import { composerPredictionModelNames } from '../composer-prediction-models.js'
 
 export default {
   "speedShortcutTitle": "Raccourci de vitesse dans la zone de saisie",
-  "speedShortcut_off": "Désactivé",
+  "speedShortcut_off": "Comme avant",
   "speedShortcut_icon": "Éclair",
   "speedShortcut_hover": "Au survol",
   "speedShortcut_label": "Nom de la vitesse",

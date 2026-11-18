@@ -428,6 +428,8 @@ a.codexVoiceCall{display:flex;align-items:center;justify-content:center;box-sizi
 .codexFlat .codexSubscriptionPreferenceCopy{gap:0}
 .codexFlat .codexComposerMenuGroup>.codexSubscriptionPreference:not(:last-child){border-bottom:0;padding-bottom:0}
 .codexFlat .codexComposerMenuOption{padding-inline-start:16px;min-height:40px}
+.codexComposerSpeedShortcutSetting>.codexSubscriptionPreferenceCopy{flex:1 1 auto}
+.codexComposerSpeedShortcutSetting>.codexSubscriptionQuotaModes{margin-inline-start:auto}
 .codexFlat .codexSubscriptionDivider{display:none}
 .codexFlat .codexSubscriptionQuotaModes{background:var(--dsw-alias-bg-module-platform);border-radius:10px;padding:2px;gap:2px;min-height:32px;box-sizing:border-box}
 .codexFlat .codexSubscriptionQuotaMode{min-height:28px;border-radius:8px;padding:0 10px;font-size:13px;white-space:nowrap}

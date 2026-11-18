@@ -3,7 +3,7 @@ import { composerPredictionModelNames } from '../composer-prediction-models.js'
 
 export default {
   "speedShortcutTitle": "Переключатель скорости в поле ввода",
-  "speedShortcut_off": "Выкл.",
+  "speedShortcut_off": "Как раньше",
   "speedShortcut_icon": "Молния",
   "speedShortcut_hover": "При наведении",
   "speedShortcut_label": "Название скорости",

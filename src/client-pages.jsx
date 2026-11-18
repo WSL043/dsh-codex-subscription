@@ -147,7 +147,7 @@ export function ModelsPage({ preference, t, defaultModel }) {
             name="codex-model-picker" label={t('legacyModelPicker')} text={value => t(menuLabels[value])} disabled={!loaded || snapshot.saving} />
         </div>
         {loaded ? <SpeedPreference snapshot={snapshot} preference={preference} t={t} /> : null}
-        <div className="codexSubscriptionPreference">
+        <div className="codexSubscriptionPreference codexComposerSpeedShortcutSetting">
           <div className="codexSubscriptionPreferenceCopy"><SettingsLabel>{t('speedShortcutTitle')}</SettingsLabel></div>
           <Radios snapshot={snapshot} preference={preference} field={SPEED_SHORTCUT_FIELD} values={SPEED_SHORTCUT_STYLES}
             name="codex-speed-shortcut" label={t('speedShortcutTitle')} text={value => t(`speedShortcut_${value}`)} />

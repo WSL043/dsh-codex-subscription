@@ -57,13 +57,11 @@ const SPEED_SHORTCUT_CSS = `
 div:has(>[data-slot="conversation.input.right"]>.codexSpeedShortcutSeat:is([data-layout=icon],[data-layout=hover])):has(>[data-slot="conversation.input.model"]){column-gap:0}
 
 @media(hover:hover) and (pointer:fine){
-  /* Keep the hit area in flow so revealing the shortcut cannot overlap the quota button. */
+  /* The composer group stays hovered across the seam between the model and shortcut. */
   [data-slot="conversation.input.right"]:has(+[data-slot="conversation.input.model"])>.codexSpeedShortcutSeat[data-layout=hover][data-speed=standard]>.codexSpeedShortcut{
-    opacity:0;visibility:hidden;
-    transition:opacity 150ms,visibility 0s 150ms
+    opacity:0;pointer-events:none;transition:opacity 150ms
   }
-  [data-slot="conversation.input.right"]:has(+[data-slot="conversation.input.model"]:is(:hover,:focus-within))>.codexSpeedShortcutSeat[data-layout=hover][data-speed=standard]>.codexSpeedShortcut,
-  .codexSpeedShortcutSeat[data-layout=hover][data-speed=standard]:is(:hover,:focus-within)>.codexSpeedShortcut{opacity:1;visibility:visible;transition:none}
+  div:is(:hover,:focus-within)>[data-slot="conversation.input.right"]:has(+[data-slot="conversation.input.model"])>.codexSpeedShortcutSeat[data-layout=hover][data-speed=standard]>.codexSpeedShortcut{opacity:1;pointer-events:auto;transition:none}
 }
 
 /* Keep the labelled shortcut next to the native model trigger. */

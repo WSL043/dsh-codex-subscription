@@ -3,7 +3,7 @@ import { composerPredictionModelNames } from '../composer-prediction-models.js'
 
 export default {
   "speedShortcutTitle": "Tempo-Kürzel im Eingabefeld",
-  "speedShortcut_off": "Aus",
+  "speedShortcut_off": "Wie bisher",
   "speedShortcut_icon": "Blitzsymbol",
   "speedShortcut_hover": "Beim Zeigen",
   "speedShortcut_label": "Temponame",

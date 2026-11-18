@@ -885,7 +885,7 @@ export default {
   "composerMenuHost": "DSH または他のプラグインのメニューを使用",
   "legacyModelPicker": "入力欄のモデルメニュー",
   "speedShortcutTitle": "入力欄の速度切り替え",
-  "speedShortcut_off": "オフ",
+  "speedShortcut_off": "従来どおり",
   "speedShortcut_icon": "稲妻",
   "speedShortcut_hover": "ホバーで表示",
   "speedShortcut_label": "速度名",

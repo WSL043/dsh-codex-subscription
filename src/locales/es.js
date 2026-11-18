@@ -3,7 +3,7 @@ import { composerPredictionModelNames } from '../composer-prediction-models.js'
 
 export default {
   "speedShortcutTitle": "Atajo de velocidad en el cuadro de entrada",
-  "speedShortcut_off": "Desactivado",
+  "speedShortcut_off": "Como antes",
   "speedShortcut_icon": "Rayo",
   "speedShortcut_hover": "Al pasar el puntero",
   "speedShortcut_label": "Nombre de la velocidad",
