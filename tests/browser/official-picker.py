@@ -74,6 +74,9 @@ with log_path.open("w") as log, subprocess.Popen(["node", cli, "web", "--no-open
             return result["value"]
         def trigger(custom):
             return driver.find_elements(By.CSS_SELECTOR, ".codexModelSelectTrigger" if custom else "button[aria-haspopup=menu][aria-busy][class*=trigger]")
+        def selected_and_closed(custom, label):
+            buttons = trigger(custom)
+            return buttons and label in buttons[0].text and buttons[0].get_dom_attribute("aria-expanded") == "false"
         scenarios = [("legacy", "off"), ("dsh", "off")]
         if test_shortcut:
             scenarios += [("legacy", "hover"), ("dsh", "hover")]
@@ -144,12 +147,15 @@ with log_path.open("w") as log, subprocess.Popen(["node", cli, "web", "--no-open
                 step = f"{key}: select model ({repetition + 1})"
                 target.click()
                 try:
-                    WebDriverWait(driver, 5).until(lambda d: label in trigger(custom)[0].text)
+                    # The host can display the new model before the selection closes its menu.
+                    WebDriverWait(driver, 5).until(lambda d: selected_and_closed(custom, label))
                 except TimeoutException:
                     pass
-                record[-1]["after"] = trigger(custom)[0].text
+                selected_trigger = trigger(custom)[0]
+                record[-1]["after"] = selected_trigger.text
+                record[-1]["closed"] = selected_trigger.get_dom_attribute("aria-expanded") == "false"
                 record[-1]["events"] = driver.execute_script("window.stopPickerTrace(); return window.pickerEvents.slice(-25)")
-                if label not in record[-1]["after"]: break
+                if label not in record[-1]["after"] or not record[-1]["closed"]: break
                 if shortcut == "hover":
                     step = f"{key}: find enabled shortcut ({repetition + 1})"
                     wait.until(lambda d: d.find_elements(By.CSS_SELECTOR, ".codexSpeedShortcutSeat[data-layout=hover]"))
@@ -157,7 +163,7 @@ with log_path.open("w") as log, subprocess.Popen(["node", cli, "web", "--no-open
             key = mode if shortcut == "off" else f"{mode}-{shortcut}"
             assert evidence[key]
             if build != "published":
-                assert len(evidence[key]) == 2 and all(row["target"] in row["after"] for row in evidence[key]), key
+                assert len(evidence[key]) == 2 and all(row["target"] in row["after"] and row["closed"] for row in evidence[key]), key
         evidence["passed"] = True
     except Exception as error:
         evidence.update(passed=False, step=step, error=type(error).__name__)
