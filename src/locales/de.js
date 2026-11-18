@@ -2,6 +2,11 @@
 import { composerPredictionModelNames } from '../composer-prediction-models.js'
 
 export default {
+  "speedShortcutTitle": "Tempo-Kürzel im Eingabefeld",
+  "speedShortcut_off": "Aus",
+  "speedShortcut_icon": "Blitzsymbol",
+  "speedShortcut_hover": "Beim Zeigen",
+  "speedShortcut_label": "Temponame",
   "catalogTimeout": "Die Anfrage für den Modellkatalog hat das Zeitlimit überschritten. Netzwerk oder Proxy prüfen und erneut versuchen.",
   "catalogCachedTimeout": "Der vorhandene Modellkatalog bleibt verfügbar. Die Online-Aktualisierung hat das Zeitlimit überschritten. Netzwerk oder Proxy prüfen und erneut versuchen.",
   "openSubscriptionSettings": "Abo-Einstellungen",

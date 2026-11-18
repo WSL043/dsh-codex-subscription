@@ -93,9 +93,23 @@ test('lightweight turns and metadata have no attachment I/O or agent activation'
   assert.equal(f.reads(), 0)
   const page = await f.bridge.methods['thread/turns/list']({ threadId: 's', limit: 3, itemsView: 'summary' }, {})
   assert.equal(page.data.length, 3)
-  assert.ok(page.data.every(t => t.itemsView === 'notLoaded' && t.items.length === 0))
+  assert.ok(page.data.every(t => t.itemsView === 'summary' && t.items.some(item => item.type === 'agentMessage' && item.text)))
   assert.equal(f.files.length, 0)
   assert.equal(f.activations(), 0)
+})
+
+test('a peer numeric cursor stays relative to the first page across appends and rejects a replaced history', async () => {
+  const f = fixture(), list = f.bridge.methods['thread/turns/list']
+  const context = { notify: async () => {} }
+  const params = { threadId: 's', limit: 2, itemsView: 'notLoaded' }
+  const first = await list(params, context)
+  assert.deepEqual(first.data.map(turn => turn.id), ['u59', 'u58'])
+  f.messages.push(user(60), assistant(60), user(61), assistant(61))
+  const next = await list({ ...params, cursor: '2' }, context)
+  assert.deepEqual(next.data.map(turn => turn.id), ['u57', 'u56'])
+  f.bridge.onSessionEvent({ id: 's' }, { type: 'compaction/end' })
+  await assert.rejects(list({ ...params, cursor: '2' }, context), /Resume the thread/)
+  await assert.rejects(list({ ...params, cursor: first.nextCursor }, context), /Resume the thread/)
 })
 
 test('item pages and exclusive item anchors are scoped to the requested turn', async () => {

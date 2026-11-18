@@ -34,27 +34,26 @@ const forecastTrace = points => {
   return estimateQuotaForecast(state, window, start + points.at(-1)[0] * 60_000)
 }
 
-test('observed acceleration recalibrates, then offers only a rough suffix estimate', () => {
+test('observed acceleration recalibrates, then shows a conditional range', () => {
   const points = end => Array.from({ length: end / 3 + 1 }, (_, i) => {
     const minute = i * 3
     return [minute, 100 - Math.round(20 + .04 * Math.min(minute, 60) + .32 * Math.max(0, minute - 60))]
   })
-  for (const minute of [66, 69, 72]) {
+  for (const minute of [66, 69]) {
     const result = forecastTrace(points(minute))
     assert.equal(result.changedIntensity, true)
     assert.equal(result.status, 'calibrating')
     assert.equal(result.runwaySeconds, undefined)
-    assert.notEqual(result.survivesReset, true)
+    assert.notEqual(result.survivesReset, 'yes')
   }
-  for (const minute of [75, 90, 120]) {
+  for (const minute of [72, 75, 90, 120]) {
     const result = forecastTrace(points(minute))
     assert.equal(result.status, 'ready')
     assert.equal(result.changedIntensity, true)
-    assert.equal(result.provisional, true)
+    assert.equal(result.trace, 'burst')
     assert.ok(result.runwaySeconds > 0)
-    assert.equal(result.runwayMinSeconds, undefined)
-    assert.equal(result.runwayMaxSeconds, undefined)
-    assert.equal(result.survivesReset, false)
+    assert.ok(result.runwayMaxSeconds > result.runwayMinSeconds)
+    assert.equal(result.survivesReset, 'unknown')
   }
   // Once the old regime has left the existing two-hour window, normal
   // stable-rate bounds can return without a permanent changed flag.
@@ -69,9 +68,9 @@ test('stopped consumption and a pinched boundary do not retain the old precise c
   for (const end of [75, 90, 120]) {
     const points = Array.from({ length: end / 3 + 1 }, (_, i) => [i * 3, 100 - Math.floor(20 + .17 * Math.min(i * 3, 60))])
     const result = forecastTrace(points)
-    assert.equal(result.status, end === 75 ? 'calibrating' : 'idle')
+    assert.equal(result.status, end === 75 ? 'calibrating' : 'flat')
     assert.equal(result.runwaySeconds, undefined)
-    assert.notEqual(result.survivesReset, true)
+    assert.notEqual(result.survivesReset, 'yes')
   }
   const result = forecastTrace([[0,80],[15,78],[30,75],[45,73],[60,70],[75,70]])
   assert.equal(result.status, 'calibrating')
@@ -82,7 +81,7 @@ test('zero-lower-bound rough estimates never promise to last until reset', () =>
   const result = forecastTrace([[0,42],[19,41],[38,40]])
   assert.equal(result.status, 'ready')
   assert.equal(result.provisional, true)
-  assert.equal(result.survivesReset, false)
+  assert.equal(result.survivesReset, 'unknown')
   assert.equal(result.runwayMaxSeconds, undefined)
 })
 
@@ -326,7 +325,7 @@ test('sustained one and two point drops yield provisional estimates without clai
   assert.equal(result.provisional, true)
   assert.equal(result.runwaySeconds, 40 / 2 * 38 * 60)
   assert.equal(result.runwayMaxSeconds, undefined)
-  assert.equal(result.survivesReset, false)
+  assert.equal(result.survivesReset, 'unknown')
   const stale = estimateQuotaForecast(state, usage(40).rateLimits[0].windows[0], start + 70 * 60000)
   assert.equal(stale.reason, 'stale')
 })
@@ -336,7 +335,9 @@ test('fresh flat readings never create provisional consumption', () => {
   let state
   for (let minute = 0; minute <= 40; minute += 2) state = observeQuotaForecast(state, usage(40).rateLimits[0].windows, start + minute * 60000).state
   const result = estimateQuotaForecast(state, usage(40).rateLimits[0].windows[0], start + 40 * 60000)
-  assert.equal(result.status, 'idle')
+  assert.equal(result.status, 'flat')
+  assert.equal(result.activity, 'unknown')
+  assert.equal(result.upperPacePerHour, 3)
   assert.equal(result.runwaySeconds, undefined)
 })
 
@@ -354,9 +355,21 @@ test('weekly history survives hours offline and offers a rough average until fre
   assert.equal(result.rateMethod, 'historical')
   assert.equal(result.provisional, true)
   assert.equal(result.pacePerHour, .5)
-  assert.equal(result.survivesReset, false)
+  assert.equal(result.survivesReset, 'unknown')
   observe(24.25, 78)
-  assert.equal(observe(24.5, 78).status, 'idle')
+  assert.equal(observe(24.5, 78).status, 'flat')
+})
+
+test('review replay separates rounding, flat observations and a burst', () => {
+  const points = [[0,82],[5,82],[10,81],[25,81],[40,81],[60,81],[65,78],[70,76],[130,76]]
+  const results = points.map((_, index) => forecastTrace(points.slice(0, index + 1)))
+  assert.deepEqual(results.map(value => value.status),
+    ['calibrating', 'calibrating', 'calibrating', 'calibrating', 'flat', 'flat', 'calibrating', 'ready', 'flat'])
+  assert.equal(results[6].reason, 'changing-pace')
+  assert.equal(results[7].trace, 'burst')
+  assert.equal(results[7].survivesReset, 'unknown')
+  assert.equal(results[8].sampleCount, 2)
+  assert.ok(results.slice(0, 7).every(value => value.runwaySeconds === undefined))
 })
 
 test('history retains a thinned month of data through resets within the store limit', () => {

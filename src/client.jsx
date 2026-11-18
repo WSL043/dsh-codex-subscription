@@ -19,6 +19,7 @@ import { createAccountStatusController } from './account-status-controller.js'
 import { NS, CHANNEL, unwrap } from './client-shared.js'
 import { createSubscriptionRpcClient } from './rpc-contract.js'
 import { CodexComposerQuota } from './client-composer-quota.jsx'
+import { CodexSpeedShortcut, SPEED_SHORTCUT_CSS } from './client-speed-shortcut.jsx'
 import { CodexModelOptionsOverlay, CodexModelSelect, CodexNativeModelOptions, CodexModelLabel, createModelOptionsMenu } from './client-model-select.jsx'
 import { registerLegacyModelPicker, watchComposerModelPickerConflict } from './client-model-picker-slot.js'
 import { quotaUsageController } from './client-quota.jsx'
@@ -35,7 +36,7 @@ export const inject = [
 ]
 
 // Keep DSH's model picker and its child label slot together. Subscription-only actions use the additive right slot.
-const ComposerRight = props => <><CodexComposerQuota {...props} /><VoiceCallButton {...props} /></>
+const ComposerRight = props => <><CodexComposerQuota {...props} /><VoiceCallButton {...props} /><CodexSpeedShortcut {...props} /></>
 
 export function apply(ctx) {
   if (new URL(window.location.href).searchParams.has('codexVoiceSession')) ctx.inject(['uiWorkspace', 'sessions'], scope => scope.effect(() => {
@@ -58,7 +59,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = 'dsh-codex-subscription'
-    tag.textContent = STYLE + IMAGE_PREVIEWS_CSS + PREDICTION_CSS
+    tag.textContent = STYLE + IMAGE_PREVIEWS_CSS + PREDICTION_CSS + SPEED_SHORTCUT_CSS
     document.head.append(tag)
     return () => tag.remove()
   }, 'codex-subscription: style')

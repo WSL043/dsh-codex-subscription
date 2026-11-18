@@ -10,13 +10,13 @@ const valid = value => validId(value?.id) && Array.isArray(value.entries)
     && typeof entry.text === 'string' && entry.text.length <= 4096)
 
 /** Temporary recovery data, removed once the native session has durably recorded it. */
-export function createVoiceTranscriptRecovery(directory) {
+export function createVoiceTranscriptRecovery(directory, validate = valid) {
   const pending = new Map()
   const filename = id => join(directory, createHash('sha256').update(id).digest('hex') + '.json')
   const read = async threadId => {
     try {
       const value = JSON.parse(await readFile(filename(threadId), 'utf8'))
-      return valid(value) ? value : undefined
+      return validate(value) ? value : undefined
     } catch (error) {
       if (error.code !== 'ENOENT' && !(error instanceof SyntaxError)) throw error
     }

@@ -18,6 +18,12 @@ const CODEX_SUBSCRIPTION_HOST = 'chatgpt.com'
 const CODEX_MODEL_SSE_PATH = '/backend-api/codex/responses'
 const CODEX_WEBSOCKET_LIMIT_HEADER = 'x-codex-websocket-max-message-bytes'
 export const CODEX_WEBSOCKET_MESSAGE_TOO_LARGE = 'WebSocket request exceeds the advertised message size limit'
+const wireBytes = message => {
+  if (typeof message === 'string') return Buffer.byteLength(message)
+  if (ArrayBuffer.isView(message) || message instanceof ArrayBuffer) return message.byteLength
+  if (Array.isArray(message) && message.every(Buffer.isBuffer)) return message.reduce((total, part) => total + part.byteLength, 0)
+  if (message instanceof Blob) return message.size
+}
 const MODEL_SSE_PROXY_ENV = 'DSH_CODEX_SSE_PROXY'
 const CODEX_HOSTS = new Set([CODEX_AUTH_HOST, CODEX_SUBSCRIPTION_HOST])
 const OAUTH_HOSTS = new Set([CODEX_AUTH_HOST])
@@ -255,6 +261,7 @@ async function fetchInCodexScope(scope, fetchBeforeScope, input, init) {
   let response
   try {
     if (scopedOptions.requestFetch && target.origin === `https://${CODEX_SUBSCRIPTION_HOST}` && target.pathname === CODEX_MODEL_SSE_PATH) {
+      scopedOptions.onModelRequestBytes?.(wireBytes(init?.body))
       const decoded = await uncompressedModelRequest(input, init)
       if (decoded !== init) scopedOptions.onModelRequestCompression?.('zstd-decoded')
       init = decoded
@@ -316,6 +323,7 @@ export async function withCodexNetwork(run, options = {}) {
         observe()
         const Socket = scope.options.WebSocket ?? WebSocket
         const socket = new Socket(args[0], { ...args[1], ...(proxy ? { agent: new HttpsProxyAgent(proxy) } : {}) })
+        socket.once?.('open', () => scope.options.onModelWebSocketConnect?.())
         let maxMessageBytes
         if (url.pathname === CODEX_MODEL_SSE_PATH) {
           socket.once?.('upgrade', response => {
@@ -328,13 +336,19 @@ export async function withCodexNetwork(run, options = {}) {
         const send = socket.send
         socket.send = function (...values) {
           const message = values[0]
+          const bytes = wireBytes(message)
+          const current = networkScope.getStore()?.options
+          current?.onModelRequestBytes?.(bytes)
           // The SDK serializes the final wire message, possibly with a cached-context delta.
           // Its pre-stream error handler submits the full request through the existing SSE route.
-          if (maxMessageBytes !== undefined && typeof message === 'string' && Buffer.byteLength(message) > maxMessageBytes) {
+          if (maxMessageBytes !== undefined && bytes > maxMessageBytes) {
+            current?.onModelOversize?.()
             throw new Error(CODEX_WEBSOCKET_MESSAGE_TOO_LARGE)
           }
           observe()
-          return Reflect.apply(send, this, values)
+          const result = Reflect.apply(send, this, values)
+          current?.onModelWebSocketSend?.()
+          return result
         }
         return socket
       },

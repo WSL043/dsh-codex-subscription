@@ -32,7 +32,7 @@ test('coarse provisional consumption cannot claim survival until reset in either
   let state
   for(const [minute,remainingPercent] of [[0,42],[2,42],[5,41],[15,41],[25,41],[34,40],[38,40]])state=observeQuotaForecast(state,[{...window,remainingPercent}],now+minute*60000).state
   const forecast=estimateQuotaForecast(state,window,current)
-  assert.equal(forecast.provisional,true);assert.equal(forecast.survivesReset,false)
+  assert.equal(forecast.provisional,true);assert.equal(forecast.survivesReset,'unknown')
   assert.equal(quotaForecastView({...forecast,survivesReset:true},{fetchedAt:current,now:current}).kind,'time')
   const label=formatQuotaForecast(forecast,key=>zh[key],{fetchedAt:current,now:current})
   assert.match(label,/粗估/);assert.doesNotMatch(label,/够用/)

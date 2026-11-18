@@ -7,6 +7,10 @@ const routes = new Set(['host', 'direct', 'environment', 'system', 'bypass', 'pr
 const phases = new Set(['prepare', 'request', 'payload', 'stream'])
 const fetchPaths = new Set(['host-fetch', 'dedicated-proxy'])
 const elapsedBuckets = new Set(['under-1s', '1-5s', '5-15s', 'over-15s'])
+const milestones = ['pre-connect', 'connected', 'request-sent', 'headers', 'first-event', 'text', 'tool-args', 'tool-complete']
+const selectionReasons = new Set(['configured-sse', 'forced-sse', 'no-session', 'capacity', 'websocket-preferred', 'probe-busy', 'ws-cooldown', 'ws-probe'])
+const counters = ['textDeltaCount', 'reasoningDeltaCount', 'toolCallsStarted', 'toolCallsArgsComplete', 'msToHeaders', 'msToFirstEvent', 'msSinceLastEvent']
+const terminalStates = new Set(['done', 'error', 'user-abort', 'network', 'timeout'])
 export const MODEL_OUTCOMES = new Set(['ok', 'failed', 'cancelled', 'abandoned'])
 
 /** One bounded, text-free attempt, not one iterator.next() or HTTP header receipt. */
@@ -19,6 +23,13 @@ export function safeAttempt(value = {}) {
     ...(typeof value.attemptId === 'string' && /^[a-f0-9-]{36}$/.test(value.attemptId) ? { attemptId: value.attemptId } : {}),
     ...(choices.has(value.preference) ? { preference: value.preference } : {}),
     ...(choices.has(value.requestedTransport) ? { requestedTransport: value.requestedTransport } : {}),
+    ...(milestones.includes(value.phase) ? { phase: value.phase } : {}),
+    ...(selectionReasons.has(value.selectionReason) ? { selectionReason: value.selectionReason } : {}),
+    ...(terminalStates.has(value.terminal) ? { terminal: value.terminal } : {}),
+    ...(typeof value.oversizeRejected === 'boolean' ? { oversizeRejected: value.oversizeRejected } : {}),
+    ...(Number.isSafeInteger(value.requestBytesBucket) && value.requestBytesBucket > 0 && value.requestBytesBucket <= 2 ** 31
+      && Number.isInteger(Math.log2(value.requestBytesBucket)) ? { requestBytesBucket: value.requestBytesBucket } : {}),
+    ...Object.fromEntries(counters.filter(key => Number.isSafeInteger(value[key]) && value[key] >= 0).map(key => [key, value[key]])),
     ...(typeof value.model === 'string' && /^gpt-[a-z0-9][a-z0-9.-]{0,63}$/u.test(value.model) ? { model: value.model } : {}),
     ...(fetchPaths.has(value.fetchPath) ? { fetchPath: value.fetchPath } : {}),
     ...(value.requestCompression === 'zstd-decoded' ? { requestCompression: value.requestCompression } : {}),
@@ -37,7 +48,12 @@ export function safeAttempt(value = {}) {
 
 export function createModelAttempt({ now = Date.now, publish = () => {} } = {}) {
   const started = now()
-  const data = { attemptId: randomUUID(), route: 'unknown', transports: [], headersReceived: false, eventDelivered: false, contentDelivered: false }
+  const data = { attemptId: randomUUID(), route: 'unknown', transports: [], phase: 'pre-connect',
+    headersReceived: false, eventDelivered: false, contentDelivered: false }
+  let lastEventAt
+  const advance = phase => { if (milestones.indexOf(phase) > milestones.indexOf(data.phase)) data.phase = phase }
+  const elapsed = from => Math.max(0, Math.round(now() - from))
+  const count = key => { data[key] = (data[key] ?? 0) + 1 }
   let finished = false
   return {
     configure(value) { if (!finished) Object.assign(data, safeAttempt(value)) },
@@ -45,18 +61,39 @@ export function createModelAttempt({ now = Date.now, publish = () => {} } = {}) 
     transport(value) {
       if (!finished && transports.has(value) && data.transports.at(-1) !== value && data.transports.length < 8) data.transports.push(value)
     },
-    response(status) { if (!finished) { data.headersReceived = true; if (Number.isInteger(status)) data.httpStatus = status } },
+    connected() { if (!finished) advance('connected') },
+    sent() { if (!finished) advance('request-sent') },
+    response(status) {
+      if (finished) return
+      data.headersReceived = true
+      data.msToHeaders ??= elapsed(started)
+      advance('headers')
+      if (Number.isInteger(status)) data.httpStatus = status
+    },
     fetchFailure(error) { if (!finished) data.networkFailure = safeFetchFailure(error) },
     event(event) {
-      if (finished || !event || ['error', 'done'].includes(event.type)) return
+      if (finished || !event || ['start', 'error', 'done'].includes(event.type)) return
       data.eventDelivered = true
-      if (/_delta$|_end$/.test(event.type)) data.contentDelivered = true
+      data.msToFirstEvent ??= elapsed(started)
+      lastEventAt = now()
+      advance('first-event')
+      switch (event.type) {
+        case 'text_delta': count('textDeltaCount'); advance('text'); data.contentDelivered = true; break
+        case 'text_end': advance('text'); data.contentDelivered = true; break
+        case 'thinking_delta': count('reasoningDeltaCount'); break
+        case 'toolcall_start': count('toolCallsStarted'); advance('tool-args'); break
+        case 'toolcall_delta': advance('tool-args'); break
+        case 'toolcall_end': count('toolCallsArgsComplete'); advance('tool-complete'); data.contentDelivered = true; break
+      }
     },
     finish(status, stage) {
       if (finished || !MODEL_OUTCOMES.has(status)) return
       finished = true
-      const elapsed = Math.max(0, now() - started)
-      Object.assign(data, { status, stage, elapsed: elapsed < 1000 ? 'under-1s' : elapsed < 5000 ? '1-5s' : elapsed < 15000 ? '5-15s' : 'over-15s' })
+      data.terminal ??= status === 'ok' ? 'done' : status === 'cancelled' || status === 'abandoned' ? 'user-abort'
+        : data.networkFailure ? 'network' : 'error'
+      if (lastEventAt !== undefined) data.msSinceLastEvent = elapsed(lastEventAt)
+      const duration = elapsed(started)
+      Object.assign(data, { status, stage, elapsed: duration < 1000 ? 'under-1s' : duration < 5000 ? '1-5s' : duration < 15000 ? '5-15s' : 'over-15s' })
       try { publish({ ...data, transports: [...data.transports] }) } catch { /* evidence observers cannot replace a model result or strand its lease */ }
     },
     snapshot: () => ({ ...data, transports: [...data.transports] }),

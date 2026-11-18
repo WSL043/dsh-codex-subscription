@@ -10,9 +10,9 @@ export function quotaForecastView(forecast, { fetchedAt, now = Date.now(), reset
   if (quotaReadingIsStale({ fetchedAt, now, resetsAt, refreshError })) return { kind: 'stale' }
   if (remainingPercent === 0) return { kind: 'exhausted' }
   if (forecast?.status === 'calibrating') return { kind: forecast.reason ?? 'calibrating' }
-  if (forecast?.status === 'idle') return { kind: 'idle' }
+  if (forecast?.status === 'flat' || forecast?.status === 'idle') return { kind: 'idle', upperPacePerHour: forecast.upperPacePerHour }
   if (!Number.isFinite(fetchedAt)) return { kind: 'calibrating' }
-  if (forecast?.status === 'ready' && !forecast.provisional && Number.isFinite(forecast.runwayMinSeconds)
+  if (forecast?.status === 'ready' && !forecast.provisional && (typeof forecast.survivesReset !== 'string' || forecast.survivesReset === 'yes') && Number.isFinite(forecast.runwayMinSeconds)
     && forecast.runwayMinSeconds > 0 && Number.isFinite(resetsAt) && fetchedAt + forecast.runwayMinSeconds * 1000 >= resetsAt * 1000) return { kind: 'reset' }
   const rawMin = !forecast?.provisional && Number.isFinite(forecast?.runwayMinSeconds) ? forecast.runwayMinSeconds : forecast?.runwaySeconds
   if (Number.isFinite(rawMin) && fetchedAt + rawMin * 1000 <= now) return { kind: 'stale' }

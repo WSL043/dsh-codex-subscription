@@ -7,6 +7,7 @@ import test from 'node:test'
 import { appendChunks, callRecord, callNote, isGoodbye, channelOf, createRealtimeVoice, delegationText, parseEvent, promisesAction } from '../src/remote-control-realtime.js'
 import { createVoiceHangupClassifier } from '../src/voice-hangup.js'
 import { createVoiceTranscriptRecovery } from '../src/voice-transcript-recovery.js'
+import { createVoiceResultStore } from '../src/voice-result-delivery.js'
 
 // A stand-in for the voice service's side channel: what the phone's call would give the host.
 class FakeSocket extends EventEmitter {
@@ -34,6 +35,51 @@ const setup = (overrides = {}) => {
 }
 const start = { threadId: 't1', transport: { type: 'existingCall', callId: 'rtc_abc' }, realtimeSessionId: 'S1', version: 'v3', realtimeStartInstructions: 'Use prefixes.' }
 const settle = () => new Promise(resolve => setTimeout(resolve, 20))
+
+test('a voice result completed after hangup is restored and announced once after a quiet pause', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'dsh-voice-results-test-'))
+  t.after(() => rm(directory, { recursive: true, force: true }))
+  const store = createVoiceResultStore(directory)
+  const audioTurn = socket => {
+    socket.hear({ type: 'session.output_audio.delta', delta: 'fixture-audio' })
+    socket.hear({ type: 'turn.done', turn: { role: 'assistant', transcript: 'The result is ready.' } })
+  }
+  const announcements = socket => socket.sent.filter(event => event.channel === 'speakable'
+    && event.content[0].text.startsWith('[BACKGROUND_RESULT_READY]'))
+  let admitted
+  const first = setup({ options: { resultStore: store, queue: async (thread, text, requestId) => { admitted = requestId } } })
+  await first.voice.start({ ...start, liveFollowups: true }, first.notify, { desktop: true })
+  FakeSocket.instances[0].hear({ type: 'delegation.created', item: { id: 'd1', type: 'delegation', target: 'client', content: [{ type: 'input_text', text: 'check the weather' }] } })
+  await settle()
+  assert.ok(admitted)
+  first.voice.nativeInput('t1', admitted)
+  first.voice.stop('t1')
+  assert.equal(first.voice.tracksNativeWork('t1'), true)
+  first.voice.nativeMessage('t1', 'Result stored by DSH', 'result-id')
+  first.voice.nativeWork('t1', false)
+  const saved = await store.load('t1')
+  assert.equal(saved.entries[0].state, 'pending')
+  assert.doesNotMatch(JSON.stringify(saved), /Result stored|weather/u)
+
+  const second = setup({ options: { resultStore: store, deliveryIdleMs: 15, readResult: async (id, message) => {
+    assert.equal(message, 'result-id'); return 'Result stored by DSH'
+  } } })
+  await second.voice.start({ ...start, liveFollowups: true }, second.notify, { desktop: true })
+  const socket = FakeSocket.instances[0]
+  try {
+    const choice = second.voice.waitForScreenAnswer('t1')
+    await settle()
+    assert.equal(announcements(socket).length, 0, 'wait for screen choice')
+    choice()
+    for (let i = 0; announcements(socket).length === 0 && i < 30; i++) await settle()
+    assert.equal(announcements(socket).length, 1)
+    audioTurn(socket)
+    await settle()
+    assert.equal((await store.load('t1')).entries[0].state, 'heard')
+    await settle()
+    assert.equal(announcements(socket).length, 1)
+  } finally { second.voice.stop('t1'); await store.load('t1') }
+})
 
 test('voice diagnostics correlate background result delivery and playback without saving content', async () => {
   const entries = []

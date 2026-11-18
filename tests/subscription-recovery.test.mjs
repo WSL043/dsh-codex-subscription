@@ -83,15 +83,37 @@ test('repeated WS failures extend cooldown; SSE success and cancellation do not 
   f.policy.dispose()
 })
 
+test('oversize payloads use SSE without opening a new transport cooldown', async () => {
+  const f = fixture()
+  for (let i = 0; i < 3; i++) {
+    const request = await f.prepare()
+    assert.equal(request.diagnostic.selectionReason, 'websocket-preferred')
+    f.states.set(request.options.sessionId, { websocketFailures: 1, sseFallbacks: 1, websocketFallbackActive: true,
+      lastWebSocketError: 'WebSocket request exceeds the advertised message size limit' })
+    request.finish({ status: 'ok', transports: ['websocket', 'sse'], oversizeRejected: true })
+  }
+  assert.equal(f.policy.recoverySnapshot().sessions[0].state, 'preferred')
+  f.policy.dispose()
+})
+
 test('recovery is single-flight across sessions on the same account and route, not across accounts', async () => {
   const f = fixture()
   const second = { ...f.options, sessionId: 'second' }, other = { ...f.options, sessionId: 'other', apiKey: 'OTHER' }
-  await f.fail(); await f.fail(second); await f.fail(other); f.advance(30000)
+  await f.fail()
+  const shared = await f.prepare(second)
+  assert.equal(shared.diagnostic.selectionReason, 'ws-cooldown')
+  shared.finish({ status: 'ok', transports: ['sse'] })
+  await f.fail(other); f.advance(30000)
   const a = await f.prepare(), b = await f.prepare(second), c = await f.prepare(other)
   assert.equal(a.diagnostic.selectionReason, 'ws-probe')
   assert.equal(b.diagnostic.selectionReason, 'probe-busy')
   assert.equal(c.diagnostic.selectionReason, 'ws-probe')
-  for (const request of [a,b,c]) request.finish({ status: 'cancelled' })
+  a.finish({ status: 'ok', transports: ['websocket'] })
+  b.finish({ status: 'ok', transports: ['sse'] })
+  c.finish({ status: 'cancelled' })
+  const restored = await f.prepare(second)
+  assert.equal(restored.diagnostic.selectionReason, 'websocket-preferred')
+  restored.finish({ status: 'ok', transports: ['websocket'] })
   f.policy.dispose()
 })
 

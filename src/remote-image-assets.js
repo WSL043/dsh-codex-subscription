@@ -73,8 +73,11 @@ export function createRemoteImageAssets({ credentials, fetch: request = globalTh
     const finalize = async fileId => {
       for (let attempt = 0; attempt < 8; attempt++) {
         const completed = await api('POST', `files/${encodeURIComponent(fileId)}/uploaded`, {})
-        if (completed.status === 'success') return signedUrl(completed.download_url)
-        if (completed.status !== 'retry') throw new Error('Remote image finalization failed')
+        if (completed.status === 'success') {
+          const value = signedUrl(completed.download_url)
+          const expiry = Date.parse(new URL(value).searchParams.get('se') ?? '')
+          if (!Number.isFinite(expiry) || expiry - Date.now() > 60_000) return value
+        } else if (completed.status !== 'retry') throw new Error('Remote image finalization failed')
         if (attempt < 7) await delay(250, undefined, { signal })
       }
       throw new Error('Remote image finalization did not complete')

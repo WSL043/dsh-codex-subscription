@@ -27,8 +27,12 @@ export function CodexModelLabel({ provider, model, placement, selected, preferen
     supportsUltrafast: snapshot.ultrafastModels?.includes(model.id) ?? false,
   }) : SPEED_MODE_STANDARD
   const badge = model.badge && <span className="codexModelCatalogBadge" data-tone={model.badge.tone}>{resolveText(model.badge.text)}</span>
-  return <span className="codexModelInlineLabel">
-    {placement === 'trigger' && selected && speed !== SPEED_MODE_STANDARD && <BoltIcon className="codexModelSelectBolt"
+  const shortcutShown = snapshot.speedShortcut && snapshot.speedShortcut !== 'off'
+    && (snapshot.fastModels?.includes(model.id) ?? supportsCodexFastMode(model.id))
+  const bolt = placement === 'trigger' && selected && speed !== SPEED_MODE_STANDARD && !shortcutShown
+  if (!badge && !bolt) return model.name
+  return <span className="codexModelInlineLabel" data-placement={placement}>
+    {bolt && <BoltIcon className="codexModelSelectBolt"
       aria-label={t(speed === SPEED_MODE_ULTRAFAST ? 'speedUltrafast' : 'speedFast')} />}
     {placement === 'trigger' && badge}{model.name}{placement !== 'trigger' && badge}
   </span>
@@ -401,7 +405,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
         setPane('root'); setOpen(true); load()
       }}
     >
-      {fast && <BoltIcon className="codexModelSelectBolt" aria-hidden="true" />}
+      {fast && (!preferenceSnapshot.speedShortcut || preferenceSnapshot.speedShortcut === 'off' || !speedSupported) && <BoltIcon className="codexModelSelectBolt" aria-hidden="true" />}
       <span className="codexModelSelectLabel">{modelLabel}</span>
       {effortLabel === undefined ? null : <span className="codexModelSelectEffort">{effortLabel}</span>}
       <IconChevronDownOutline14 className="codexModelSelectChevron" />

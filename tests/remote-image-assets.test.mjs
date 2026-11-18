@@ -33,6 +33,15 @@ async function temporary(t) {
 const moduleFor = (f, extras = {}) => createRemoteImageAssets({ credentials: async () => auth, fetch: f.fetch, ...extras })
 const until = async predicate => { for (let n = 0; n < 50 && !predicate(); n++) await tick(); assert.equal(predicate(), true) }
 
+test('asset delivery asks for a fresh URL if finalization gives one about to expire', async () => {
+  const expiring = new URL(signed)
+  expiring.searchParams.set('se', new Date(Date.now() + 30_000).toISOString())
+  let finalized = 0
+  const f = fixture({ finalize: () => ok({ status: 'success', download_url: ++finalized === 1 ? expiring.href : signed }) })
+  assert.equal((await moduleFor(f).publish(image)).downloadUrl, signed)
+  assert.equal(finalized, 2)
+})
+
 test('official create, unsigned blob PUT and finalize return a genuine HTTPS attachment', async t => {
   const stateFile = await temporary(t), f = fixture(), assets = moduleFor(f, { stateFile })
   assert.deepEqual(await assets.publish(image), { fileId: 'file-1', downloadUrl: signed })

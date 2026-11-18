@@ -2,6 +2,11 @@
 import { composerPredictionModelNames } from '../composer-prediction-models.js'
 
 export default {
+  "speedShortcutTitle": "Atajo de velocidad en el cuadro de entrada",
+  "speedShortcut_off": "Desactivado",
+  "speedShortcut_icon": "Rayo",
+  "speedShortcut_hover": "Al pasar el puntero",
+  "speedShortcut_label": "Nombre de la velocidad",
   "catalogTimeout": "La solicitud del catálogo de modelos agotó el tiempo de espera. Comprueba la red o el proxy y reinténtalo.",
   "catalogCachedTimeout": "Se conserva el catálogo disponible; la actualización en línea agotó el tiempo de espera. Comprueba la red o el proxy y reinténtalo.",
   "openSubscriptionSettings": "Configuración de la suscripción",

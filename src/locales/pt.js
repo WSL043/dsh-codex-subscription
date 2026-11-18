@@ -2,6 +2,11 @@
 import { composerPredictionModelNames } from '../composer-prediction-models.js'
 
 export default {
+  "speedShortcutTitle": "Atalho de velocidade no campo de mensagem",
+  "speedShortcut_off": "Desativado",
+  "speedShortcut_icon": "Raio",
+  "speedShortcut_hover": "Ao passar o cursor",
+  "speedShortcut_label": "Nome da velocidade",
   "catalogTimeout": "A solicitação do catálogo de modelos excedeu o tempo limite. Verifique a rede ou o proxy e tente novamente.",
   "catalogCachedTimeout": "O catálogo disponível foi mantido; a atualização online excedeu o tempo limite. Verifique a rede ou o proxy e tente novamente.",
   "openSubscriptionSettings": "Configurações da assinatura",

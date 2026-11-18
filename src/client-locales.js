@@ -1,6 +1,7 @@
 import { composerPredictionModelNames } from './composer-prediction-models.js'
 
 export const zh = {
+  speedShortcutTitle: '输入栏速度切换', speedShortcut_off: '关闭', speedShortcut_icon: '闪电', speedShortcut_hover: '悬停显示', speedShortcut_label: '速度名称',
   catalogTimeout: "模型目录读取超时。请检查网络或代理后重试。",
   catalogCachedTimeout: "继续使用已读取的模型目录；在线更新超时，请检查网络或代理后重试。",
   openSubscriptionSettings: '订阅设置',
@@ -347,6 +348,7 @@ export const zh = {
 }
 
 export const en = {
+  speedShortcutTitle: 'Composer speed shortcut', speedShortcut_off: 'Off', speedShortcut_icon: 'Lightning', speedShortcut_hover: 'On hover', speedShortcut_label: 'Speed name',
   catalogTimeout: "The model catalog request timed out. Check your network or proxy and retry.",
   catalogCachedTimeout: "Keeping the available model catalog; the online refresh timed out. Check your network or proxy and retry.",
   openSubscriptionSettings: 'Subscription settings',

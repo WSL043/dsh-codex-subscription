@@ -88,6 +88,28 @@ test('attempt outcomes are sticky, bounded and do not expose arbitrary metadata'
   assert.doesNotMatch(JSON.stringify(values), /SECRET/)
 })
 
+test('attempts distinguish accepted sends, reasoning, unfinished tools and completed tool arguments', () => {
+  const attempt = createModelAttempt()
+  attempt.connected()
+  attempt.sent()
+  assert.equal(attempt.snapshot().phase, 'request-sent')
+  attempt.event({ type: 'thinking_delta', delta: 'PRIVATE' })
+  assert.equal(attempt.snapshot().phase, 'first-event')
+  assert.equal(attempt.snapshot().contentDelivered, false)
+  attempt.event({ type: 'toolcall_start' })
+  attempt.event({ type: 'toolcall_delta', delta: 'PRIVATE' })
+  assert.equal(attempt.snapshot().phase, 'tool-args')
+  assert.equal(attempt.snapshot().contentDelivered, false)
+  attempt.event({ type: 'toolcall_end' })
+  attempt.finish('failed', 'stream')
+  const model = attempt.snapshot()
+  assert.equal(model.phase, 'tool-complete')
+  assert.equal(model.terminal, 'error')
+  assert.equal(model.reasoningDeltaCount, 1)
+  assert.equal(model.toolCallsArgsComplete, 1)
+  assert.doesNotMatch(JSON.stringify(model), /PRIVATE/)
+})
+
 test('consumer return before first read does not dispatch and records abandoned once', async () => {
   let prepares = 0
   const network = createCodexNetworkTransport()

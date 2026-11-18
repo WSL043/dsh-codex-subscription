@@ -14,7 +14,7 @@ export function roundRunwaySeconds(seconds) {
 /** @returns {{kind:'reset'}|{kind:'range',min:number,max:number}|{kind:'point',seconds:number}|undefined} rounded seconds. */
 export function forecastRunway(forecast) {
   if (forecast?.status !== 'ready') return undefined
-  if (forecast.survivesReset && !forecast.provisional) return { kind: 'reset' }
+  if ((forecast.survivesReset === 'yes' || forecast.survivesReset === true) && !forecast.provisional) return { kind: 'reset' }
   if (!forecast.provisional && Number.isFinite(forecast.runwayMinSeconds) && Number.isFinite(forecast.runwayMaxSeconds)) {
     const min = roundRunwaySeconds(forecast.runwayMinSeconds), max = roundRunwaySeconds(forecast.runwayMaxSeconds)
     if (min > 0 && max > min) return { kind: 'range', min, max }

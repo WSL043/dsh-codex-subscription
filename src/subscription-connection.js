@@ -26,7 +26,7 @@ export function createSubscriptionConnection({ resolveMode = () => 'sse', resolv
   cooldownMs = 30000, maxCooldownMs = 300000, maxSessions = 256, idleMs = 30 * 60000,
 } = {}) {
   let namespace = randomUUID(), epoch = 0
-  const sessions = new Map(), retired = new Set(), probes = new Set()
+  const sessions = new Map(), retired = new Set(), groups = new Map()
   const totals = zero()
   const recovery = { recoveryAttempts: 0, recoverySuccesses: 0, recoveryDeferrals: 0, cooldownRequests: 0 }
   const delay = streak => Math.min(maxCooldownMs, cooldownMs * 2 ** Math.min(10, Math.max(0, streak - 1)) * (0.8 + 0.4 * random()))
@@ -39,10 +39,11 @@ export function createSubscriptionConnection({ resolveMode = () => 'sse', resolv
       entry.seen[key] = count
     }
     if (!entry.retired && stats.websocketFallbackActive === true
-      && stats.lastWebSocketError !== CODEX_WEBSOCKET_MESSAGE_TOO_LARGE && (!entry.cooling || failures > 0)) {
-      entry.streak = Math.min(20, entry.streak + Math.max(1, failures))
-      entry.cooling = true
-      entry.retryAt = now() + delay(entry.streak)
+      && stats.lastWebSocketError !== CODEX_WEBSOCKET_MESSAGE_TOO_LARGE && (!entry.needsReset || failures > 0)) {
+      entry.needsReset = true
+      const circuit = entry.circuit
+      circuit.streak = Math.min(20, circuit.streak + Math.max(1, failures))
+      circuit.retryAt = now() + delay(circuit.streak)
     }
     return stats
   }
@@ -51,8 +52,13 @@ export function createSubscriptionConnection({ resolveMode = () => 'sse', resolv
     sdk.close(entry.key)
     sdk.reset(entry.key) // public API also clears sticky fallback; preserve totals first
     entry.seen = zero()
+    entry.needsReset = false
   }
-  const evict = entry => { clear(entry); sessions.delete(entry.key) }
+  const evict = entry => {
+    clear(entry)
+    sessions.delete(entry.key)
+    if (--entry.circuit.sessions === 0) groups.delete(entry.group)
+  }
   const sse = (options, preference, selectionReason) => ({ options: { ...options, transport: 'sse' }, diagnostic: { preference, selectionReason } })
   return {
     snapshot() {
@@ -63,8 +69,8 @@ export function createSubscriptionConnection({ resolveMode = () => 'sse', resolv
       const time = now()
       return { scope: 'plugin-process', capacity: maxSessions, sessions: [...sessions.values()].map(entry => {
         observe(entry)
-        return { scope: entry.key, state: entry.probe ? 'probing' : entry.cooling ? 'cooldown' : 'preferred',
-          active: entry.active, cooldownMs: Math.max(0, Math.ceil(entry.retryAt - time)) }
+        return { scope: entry.key, state: entry.circuit.probing ? 'probing' : entry.circuit.streak ? 'cooldown' : 'preferred',
+          active: entry.active, cooldownMs: Math.max(0, Math.ceil(entry.circuit.retryAt - time)) }
       }) }
     },
     async prepare(options = {}, { model, allowWebSocket = true } = {}) {
@@ -88,48 +94,56 @@ export function createSubscriptionConnection({ resolveMode = () => 'sse', resolv
           if (oldest) evict(oldest)
           else return sse(options, preference, 'capacity')
         }
-        entry = { key, group, active: 0, used: time, seen: zero(), streak: 0, retryAt: 0, cooling: false, probe: false, retired: false }
+        let circuit = groups.get(group)
+        if (!circuit) groups.set(group, circuit = { sessions: 0, active: 0, streak: 0, retryAt: 0, probing: false })
+        circuit.sessions++
+        entry = { key, group, circuit, active: 0, used: time, seen: zero(), retired: false, needsReset: false }
         sessions.set(key, entry)
       }
       observe(entry)
+      const circuit = entry.circuit
       let transport = 'websocket-cached', selectionReason = 'websocket-preferred', probe = false
-      if (entry.probe) { transport = 'sse'; selectionReason = 'probe-busy' }
-      else if (entry.cooling) {
-        if (time < entry.retryAt) { transport = 'sse'; selectionReason = 'ws-cooldown'; recovery.cooldownRequests++ }
-        else if (entry.active || probes.has(group)) { transport = 'sse'; selectionReason = 'probe-busy'; recovery.recoveryDeferrals++ }
+      if (circuit.probing) { transport = 'sse'; selectionReason = 'probe-busy'; recovery.recoveryDeferrals++ }
+      else if (circuit.streak) {
+        if (time < circuit.retryAt) { transport = 'sse'; selectionReason = 'ws-cooldown'; recovery.cooldownRequests++ }
+        else if (circuit.active) { transport = 'sse'; selectionReason = 'probe-busy'; recovery.recoveryDeferrals++ }
         else {
           // No await between quiescence check and lease acquisition/reset.
-          probes.add(group); entry.probe = probe = true
-          try { clear(entry) } catch (error) { probes.delete(group); entry.probe = false; throw error }
-          entry.cooling = false
+          clear(entry)
+          circuit.probing = probe = true
           selectionReason = 'ws-probe'
           recovery.recoveryAttempts++
         }
+      } else if (entry.needsReset) {
+        if (entry.active) { transport = 'sse'; selectionReason = 'probe-busy' }
+        else clear(entry)
       }
-      entry.active++; entry.used = time
+      entry.active++; circuit.active++; entry.used = time
+      const streak = circuit.streak
       let finished = false
       return {
         options: { ...options, sessionId: key, transport, websocketConnectTimeoutMs: 10000, env: {} },
         network: { websocket: true, websocketProxy: proxy },
-        diagnostic: { preference, scope: key, selectionReason, cooldownMs: Math.max(0, Math.ceil(entry.retryAt - time)) },
+        diagnostic: { preference, scope: key, selectionReason, cooldownMs: Math.max(0, Math.ceil(circuit.retryAt - time)) },
         finish(outcome = {}) {
           if (finished) return
           finished = true
           const stats = observe(entry)
-          entry.active--; entry.used = now()
-          const skippedForSize = stats.lastWebSocketError === CODEX_WEBSOCKET_MESSAGE_TOO_LARGE
+          entry.active--; circuit.active--; entry.used = now()
+          const skippedForSize = outcome.oversizeRejected || stats.lastWebSocketError === CODEX_WEBSOCKET_MESSAGE_TOO_LARGE
           if (skippedForSize && !entry.active && !entry.retired) {
             // Clear the SDK's sticky SSE preference once this session has no requests in flight.
             sdk.reset(entry.key)
             entry.seen = zero()
+            entry.needsReset = false
           }
           if (probe) {
-            probes.delete(group); entry.probe = false
+            circuit.probing = false
             if (!entry.retired && outcome.status === 'ok' && outcome.transports?.at(-1) === 'websocket' && !outcome.transports.includes('sse') && stats.websocketFallbackActive !== true) {
-              entry.streak = 0; entry.retryAt = 0; entry.cooling = false; recovery.recoverySuccesses++
-            } else if (!skippedForSize && !entry.retired && !entry.cooling) {
+              circuit.streak = 0; circuit.retryAt = 0; recovery.recoverySuccesses++
+            } else if (!entry.retired && circuit.streak === streak) {
               // Cancellation/business failures are not new transport failures.
-              entry.cooling = true; entry.retryAt = now() + delay(entry.streak)
+              circuit.retryAt = now() + delay(streak)
             }
           }
           if (entry.retired && !entry.active) { clear(entry); retired.delete(entry) }
@@ -144,7 +158,7 @@ export function createSubscriptionConnection({ resolveMode = () => 'sse', resolv
         if (entry.active) retired.add(entry)
         else clear(entry)
       }
-      sessions.clear(); probes.clear()
+      sessions.clear(); groups.clear()
     },
   }
 }

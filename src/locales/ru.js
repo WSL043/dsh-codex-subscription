@@ -2,6 +2,11 @@
 import { composerPredictionModelNames } from '../composer-prediction-models.js'
 
 export default {
+  "speedShortcutTitle": "Переключатель скорости в поле ввода",
+  "speedShortcut_off": "Выкл.",
+  "speedShortcut_icon": "Молния",
+  "speedShortcut_hover": "При наведении",
+  "speedShortcut_label": "Название скорости",
   "catalogTimeout": "Время ожидания каталога моделей истекло. Проверьте сеть или прокси и повторите попытку.",
   "catalogCachedTimeout": "Доступный каталог моделей сохранён; время онлайн-обновления истекло. Проверьте сеть или прокси и повторите попытку.",
   "openSubscriptionSettings": "Настройки подписки",

@@ -96,3 +96,14 @@ test('a new reply becomes audible after barge-in even with no silent gap between
   sample(880, 0, 5)
   assert.deepEqual(changes, [true, false])
 })
+
+test('brief gaps do not release a muted reply and a stuck output eventually unblocks', () => {
+  const changes = []
+  const gate = createBargeInGate({ changed: value => changes.push(value), interrupt() {}, drainTimeoutMs: 1000 })
+  const sample = (now, mic, replyEpoch = 1) => gate.sample({ now, mic, output: .5, replyEpoch })
+  sample(0, .5); sample(130, .5)
+  sample(200, 0); sample(350, 0, 2)
+  assert.deepEqual(changes, [true])
+  sample(351, .5); sample(650, 0); sample(1140, 0)
+  assert.deepEqual(changes, [true, false])
+})

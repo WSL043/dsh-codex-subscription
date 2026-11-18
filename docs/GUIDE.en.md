@@ -168,6 +168,8 @@ Choose speed and output verbosity under **Settings → Codex subscription → Mo
 
 On DSH 0.2.2-rc.2, the subscription plugin adds speed and output detail through the model menu's extension slots, preserving DSH's Agent Teams control. Fast mode uses the inline lightning icon when the menu renders DSH's label slot and no other plugin owns that label. Third-party menus decide which host extensions they render; the subscription plugin does not change their settings or inject controls into their private UI. Speed and output detail remain available in subscription settings even when the active menu does not display them.
 
+Under **Settings → Codex subscription → Models → Composer speed shortcut**, choose **Lightning**, **On hover**, or **Speed name** for one-click switching between Standard and Fast. The shortcut appears for supported Codex models and defaults to **Off**.
+
 **Ultrafast (Beta).** The speed setting offers “Ultrafast” only when the current account's catalog lists an `ultrafast` tier for that model (at the developer event: GPT-6 Astra on Pro 500 only). If you chose Ultrafast and switch to a model without it, requests go out on the standard tier; the plugin never substitutes Fast for you. It is the fastest tier and uses allowance and Credits faster. It stays Beta because it has not been run on a Pro 500 account yet.
 
 ### Ultra proactive delegation

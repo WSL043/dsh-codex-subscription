@@ -49,7 +49,7 @@ test('a provisional estimate that outlasts the reset remains rough rather than c
   const forecast = estimateQuotaForecast(state, win(80, 18_000, resetsAt), start + HOUR)
   assert.equal(forecast.status, 'ready')
   assert.equal(forecast.provisional, true)
-  assert.equal(forecast.survivesReset, false)
+  assert.equal(forecast.survivesReset, 'unknown')
   assert.equal(forecastRunway(forecast).kind, 'point')
 })
 

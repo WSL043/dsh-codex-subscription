@@ -61,11 +61,12 @@ import { inheritedOriginalImageRef } from './image-original-contract.js'
 import { createSubscriptionDiagnostics } from './diagnostics.js'
 import { diagnosticLog } from './diagnostic-log.js'
 import { createVoiceTranscriptRecovery } from './voice-transcript-recovery.js'
+import { createVoiceResultStore } from './voice-result-delivery.js'
 import { setAuthFailureLogger } from './http-failure.js'
 import { PACKAGE_VERSION } from './version.js'
 import { hostDshVersion } from './subagent-runtime.js'
 import { createDiagnosticOperations } from './diagnostic-operations.js'
-import { VOICE_CALL_FIELD, VOICE_VOICE_FIELD, VOICE_LANGUAGE_FIELD, normalizeVoiceCall, normalizeVoiceVoice, normalizeVoiceLanguage, AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, normalizeConnectorMode, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, REASONING_SUMMARY_FIELD, normalizeReasoningSummary, RETRY_POLICY_FIELD, normalizeRetryPolicy, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, normalizeComposerModelPicker, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
+import { VOICE_CALL_FIELD, VOICE_VOICE_FIELD, VOICE_LANGUAGE_FIELD, normalizeVoiceCall, normalizeVoiceVoice, normalizeVoiceLanguage, AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, normalizeConnectorMode, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, REASONING_SUMMARY_FIELD, normalizeReasoningSummary, RETRY_POLICY_FIELD, normalizeRetryPolicy, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, SPEED_SHORTCUT_FIELD, normalizeSpeedShortcut, normalizeComposerModelPicker, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 import { createAccountUsageReader } from './account-usage.js'
 import { createPlanHistoryReader } from './plan-history.js'
@@ -308,6 +309,7 @@ export function apply(ctx, config = {}) {
         } : {}),
         fetchRoutingAvailable: fetchRouted,
         [SPEED_MODE_FIELD]: settings.get()[SPEED_MODE_FIELD],
+        [SPEED_SHORTCUT_FIELD]: normalizeSpeedShortcut(settings.get()[SPEED_SHORTCUT_FIELD]),
         [OUTPUT_VERBOSITY_FIELD]: normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
         [INPUT_IMAGE_DETAIL_FIELD]: normalizeInputImageDetail(settings.get()[INPUT_IMAGE_DETAIL_FIELD]),
         [REASONING_SUMMARY_FIELD]: normalizeReasoningSummary(settings.get()[REASONING_SUMMARY_FIELD]),
@@ -712,6 +714,7 @@ export function apply(ctx, config = {}) {
     voice: {
       WebSocket,
       recovery: createVoiceTranscriptRecovery(dshHomePath('state', 'codex-subscription', 'voice-transcript-recovery')),
+      resultStore: createVoiceResultStore(dshHomePath('state', 'codex-subscription', 'voice-results')),
       flushSession: session => ctx.get?.('sessions')?.flush?.(session),
       resolveProxy: resolveCodexOAuthProxy,
       fetch: (input, init) => network.fetch('voice', input, init),

@@ -34,7 +34,40 @@ function historicalForecast(samples, window, common) {
   if (spanHours < 6 || consumedPercent < 3 || new Set(samples.map(sample => sample.remainingPercent)).size < 3) return undefined
   const pacePerHour = consumedPercent / spanHours
   return { ...common, status: 'ready', provisional: true, rateMethod: 'historical', pacePerHour,
-    runwaySeconds: clampPercent(window.remainingPercent) / pacePerHour * 3600, survivesReset: false }
+    runwaySeconds: clampPercent(window.remainingPercent) / pacePerHour * 3600, survivesReset: 'unknown' }
+}
+
+// Past cycles may influence long-horizon estimates only after an expanding
+// replay beats the same-cycle pace, with rounding treated as a dead band.
+function validatedCyclePace(samples, epochStart, windowSeconds) {
+  if (!(windowSeconds >= 86400)) return
+  const cycles = []
+  let cycle
+  for (const sample of samples) {
+    if (sample.at >= epochStart) break
+    if (sample.reset) cycles.push(cycle = [])
+    if (cycle) cycle.push(sample)
+  }
+  const hours = (a, b) => (b.at - a.at) / HOUR_MS
+  const usable = cycles.filter(points => points.length >= 4 && hours(points[0], points.at(-1)) >= windowSeconds / 3600 * 0.75)
+  const paces = usable.map(points => Math.max(0, (points[0].remainingPercent - points.at(-1).remainingPercent) / hours(points[0], points.at(-1))))
+  const mean = values => values.reduce((sum, value) => sum + value, 0) / values.length
+  let currentError = 0, blendedError = 0, comparisons = 0
+  for (let i = 2; i < usable.length; i++) {
+    const points = usable[i], prior = mean(paces.slice(0, i))
+    for (let j = 1; j < points.length - 1; j++) {
+      const start = points[0], known = points[j], future = points.at(-1)
+      const horizon = hours(known, future)
+      if (horizon < 6) continue
+      const recent = Math.max(0, (start.remainingPercent - known.remainingPercent) / hours(start, known))
+      const actual = known.remainingPercent - future.remainingPercent
+      const loss = pace => Math.max(0, Math.abs(Math.min(known.remainingPercent, pace * horizon) - actual) - 1)
+      currentError += loss(recent)
+      blendedError += loss((recent + prior) / 2)
+      comparisons++
+    }
+  }
+  if (comparisons >= 4 && blendedError < currentError) return mean(paces)
 }
 export function observeQuotaForecast(state, windows, now = Date.now(), context = {}) {
   const next = { windows: { ...(state?.windows ?? {}) } }
@@ -50,7 +83,7 @@ export function observeQuotaForecast(state, windows, now = Date.now(), context =
       || (previous.resetsAt !== null && Math.abs(previous.resetsAt - resetsAt) > 300)
     )
     const last = previous?.samples?.at(-1)
-    const quotaIncreased = last !== undefined && remainingPercent > last.remainingPercent + 0.5
+    const quotaIncreased = last !== undefined && remainingPercent >= last.remainingPercent + 2
     if (last !== undefined && now <= last.at) continue
     const epochStart = resetChanged || quotaIncreased ? now : previous?.epochStart ?? previous?.samples?.[0]?.at ?? now
     const sample = { at: now, remainingPercent, ...(resetChanged || quotaIncreased ? { reset: true } : {}) }
@@ -74,12 +107,24 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
   if (newest === undefined) return { status: 'calibrating', sampleCount: 0 }
   if (now - newest.at > 20 * 60_000 || (resetsAt !== null && resetsAt <= now / 1000)) return { status: 'calibrating', reason: 'stale' }
   let samples = history.filter(sample => sample.at >= newest.at - RECENT_MS)
+  const longEstimate = common => {
+    const current = historicalForecast(history, window, common)
+    const prior = current && validatedCyclePace(record.samples, record.epochStart, window.windowSeconds)
+    if (!(prior > 0)) return current
+    const pacePerHour = (current.pacePerHour + prior) / 2
+    return { ...current, rateMethod: 'validated-cycles', pacePerHour,
+      runwaySeconds: clampPercent(window.remainingPercent) / pacePerHour * 3600 }
+  }
   const lastGap = samples.findLastIndex((sample, index) => index > 0 && sample.at - samples[index - 1].at > OBSERVATION_GAP_MS)
   if (lastGap > 0) samples = samples.slice(lastGap)
   const recentChange = samples.findLastIndex(sample => sample.remainingPercent !== newest.remainingPercent)
   const flat = samples.slice(recentChange + 1)
-  if (flat.length >= 3 && newest.at - flat[0].at >= 30 * 60_000) return { status: 'idle' }
-  if (samples.length < 2) return historicalForecast(history, window, { sampleCount: history.length }) ?? { status: 'calibrating', sampleCount: samples.length }
+  if (flat.length >= 2 && newest.at - flat[0].at >= 30 * 60_000) {
+    const observedSpanMs = newest.at - flat[0].at
+    return { status: 'flat', activity: 'unknown', sampleCount: flat.length, observedSpanMs,
+      upperPacePerHour: quotaRateInterval(flat).max * 60 }
+  }
+  if (samples.length < 2) return longEstimate({ sampleCount: history.length }) ?? { status: 'calibrating', sampleCount: samples.length }
   // The endpoint's rounding contract is unknown. A one-point error on either
   // side covers floor, ceiling and nearest; decimals are retained, not invented.
   const rateBounds = readings => refineQuotaRate(readings, quotaRateInterval(readings))
@@ -99,38 +144,43 @@ export function estimateQuotaForecast(state, window, now = Date.now(), context =
     consumedPercent: samples[0].remainingPercent - samples.at(-1).remainingPercent,
     lowerPacePerHour: bounds.min * 60, upperPacePerHour: bounds.max * 60,
     changedIntensity, rateMethod: bounds.method ?? 'conservative' }
+  const drops = samples.filter((sample, i) => i > 0 && sample.remainingPercent < samples[i - 1].remainingPercent).length
+  const recurring = drops >= 2 || common.consumedPercent >= 2
   // After discarding a contradicted segment, establish the new pace before
   // extrapolating it. Integer reports must pass the existing shared-quantizer
   // check; a suffix with too few drops cannot establish that usage continued.
   const integerReports = samples.every(sample => Number.isInteger(sample.remainingPercent))
+  const confirmedBurst = changedIntensity && drops >= 2 && flat.length === 1
+    && common.consumedPercent >= 4 && bounds.min > 1e-9
   if (contradicted(bounds) || (changedIntensity && (samples.length < 4 || spanMs < 20 * 60_000
-    || (integerReports && bounds.steadyHypothesisFailed !== false))))
+    || (integerReports && bounds.steadyHypothesisFailed !== false)) && !confirmedBurst))
     return { ...common, status: 'calibrating', reason: 'changing-pace' }
-  if (resetsAt !== null && resetsAt <= now / 1000) return { ...common, status: 'calibrating', reason: 'stale' }
   // A fitted suffix after a change is only a rough estimate. Its conditional
   // interval must not imply precision or promise to survive the next reset.
   // Quantization bounds may include zero even after several observed drops.
   // Offer a clearly provisional whole-segment estimate, never a finite upper
   // bound or a promise of surviving reset. Do not extrapolate a lone jump.
-  if (spanMs >= 5 * 60_000 && samples.length >= 3 && (changedIntensity || bounds.min <= 1e-9)
-    && common.consumedPercent >= 1) {
+  if (!confirmedBurst && spanMs >= 5 * 60_000 && samples.length >= 3 && (changedIntensity || bounds.min <= 1e-9)
+    && recurring && common.consumedPercent >= 1) {
     const pacePerHour = common.consumedPercent / (spanMs / HOUR_MS)
     const runwaySeconds = clampPercent(window.remainingPercent) / pacePerHour * 3600
     return { ...common, status: 'ready', provisional: true, pacePerHour, runwaySeconds,
-      survivesReset: false }
+      survivesReset: 'unknown' }
   }
   // A flat trace or an isolated boundary crossing still cannot establish pace.
-  if (spanMs < 60_000 || bounds.min <= 1e-9) return historicalForecast(history, window, common) ?? { ...common, status: 'calibrating', reason: 'resolution' }
+  if (spanMs < 60_000 || bounds.min <= 1e-9) return longEstimate(common) ?? { ...common, status: 'calibrating', reason: 'resolution' }
   const pacePerHour = (bounds.min + bounds.max) * 30
   const remaining = clampPercent(window.remainingPercent)
   const runwayMinSeconds = Math.max(0, remaining - 1) / common.upperPacePerHour * 3600
   const runwayMaxSeconds = Math.min(100, remaining + 1) / common.lowerPacePerHour * 3600
-  const resetSeconds = resetsAt === null ? null : resetsAt - now / 1000
-  if (resetSeconds !== null && resetSeconds <= 0) return { ...common, status: 'calibrating', reason: 'stale' }
+  const resetSeconds = resetsAt === null ? null : resetsAt - newest.at / 1000
+  const survivesReset = confirmedBurst || resetSeconds === null ? 'unknown'
+    : runwayMinSeconds >= resetSeconds ? 'yes' : runwayMaxSeconds < resetSeconds ? 'no' : 'unknown'
   return { ...common, status: 'ready', pacePerHour,
     runwaySeconds: remaining / pacePerHour * 3600,
     runwayMinSeconds, runwayMaxSeconds,
-    survivesReset: resetSeconds !== null && runwayMinSeconds >= resetSeconds,
+    ...(confirmedBurst ? { trace: 'burst' } : {}),
+    survivesReset,
   }
 }
 

@@ -292,17 +292,19 @@ export function openaiCodexSubscriptionProvider({
         }
         noteStreamFailure(stage, error, effectiveSource, networkFailure, attempt.snapshot().attemptId)
       }
+      if (signal.reason?.name === 'TimeoutError' || error?.name === 'TimeoutError') attempt.configure({ terminal: 'timeout' })
       attempt.finish(status, stage)
     }
     const finish = () => {
-      const { status, transports } = attempt.snapshot()
-      request?.finish?.({ status, transports })
+      const { status, transports, oversizeRejected } = attempt.snapshot()
+      request?.finish?.({ status, transports, oversizeRejected })
     }
     const initialize = async () => {
       const overrides = direct ? undefined : compaction?.networkOptions(undefined)
       request = await (direct ? undefined : connection?.prepare({ ...options, signal }, { model: source?.model, allowWebSocket: overrides?.websocket !== false })) ?? { options }
       const next = { ...(direct ? { ...request.options, transport: 'sse' } : compaction?.requestOptions(request.options) ?? request.options), signal }
-      attempt.configure({ preference: request.diagnostic?.preference ?? request.options?.transport ?? 'auto', requestedTransport: next.transport ?? 'auto', model: source?.model?.id })
+      attempt.configure({ preference: request.diagnostic?.preference ?? request.options?.transport ?? 'auto', requestedTransport: next.transport ?? 'auto', model: source?.model?.id,
+        selectionReason: request.diagnostic?.selectionReason })
       effectiveSource = { ...source, options: next }
       health = streamHealth.begin({ sessionId: direct ? undefined : options?.sessionId, configured: request.options?.transport, selected: next.transport })
       const scopedNetwork = direct ? request.network : overrides ?? request.network
@@ -312,6 +314,12 @@ export function openaiCodexSubscriptionProvider({
         onRoute(route) { attempt.route(route); scopedNetwork?.onRoute?.(route) },
         onModelFetchPath(fetchPath) { attempt.configure({ fetchPath }) },
         onModelRequestCompression(requestCompression) { attempt.configure({ requestCompression }) },
+        onModelRequestBytes(bytes) {
+          if (bytes >= 0) attempt.configure({ requestBytesBucket: 2 ** Math.ceil(Math.log2(Math.max(1, bytes))) })
+        },
+        onModelWebSocketConnect() { attempt.connected() },
+        onModelWebSocketSend() { attempt.sent() },
+        onModelOversize() { attempt.configure({ oversizeRejected: true }) },
         onModelHttpStatus(status) { attempt.response(status) },
         onTransport(transport) { attempt.transport(transport); scopedNetwork?.onTransport?.(transport) },
         onFetchFailure(error) { networkFailure = safeFetchFailure(error); attempt.fetchFailure(error); scopedNetwork?.onFetchFailure?.(error) },

@@ -6,6 +6,7 @@
 import { HttpsProxyAgent } from 'https-proxy-agent'
 import { createVoiceQuestions } from './voice-questions.js'
 import { VOICE_TRANSCRIPT_LIMIT } from './voice-transcript-recovery.js'
+import { createVoiceResultDelivery } from './voice-result-delivery.js'
 
 const SIDEBAND_BASES = ['wss://api.openai.com/v1/live', 'wss://realtime.chatgpt.com/v1/live']
 const ACTIVATION_RETRY_MS = [100, 300, 800]
@@ -163,6 +164,8 @@ export function createRealtimeVoice(options) {
   const sessions = new Map() // threadId -> session
   const starts = new Map() // pending starts also belong to the lifetime of the call
   const savingNotes = new Map()
+  const delivery = createVoiceResultDelivery({ store: options.resultStore, warn: () => log.warn('voice', 'could not save the voice result state') })
+  const desktopWorkFor = delivery.thread
   const flow = (session, event, detail) => {
     const elapsed = Math.round(performance.now() - session.openedAt)
     log.info('voice-flow', event, `call=${session.flowId} elapsed_ms=${elapsed}${detail ? ` ${detail}` : ''}`)
@@ -288,6 +291,7 @@ export function createRealtimeVoice(options) {
     clearTimeout(session.goodbye)
     clearTimeout(session.unhandledTimer)
     clearTimeout(session.closeTimer)
+    session.stopDelivery?.()
     session.questions?.close()
     flushTail(threadId, session)
     try { session.ws.send(JSON.stringify(outbound.close())) } catch { /* already closed */ }
@@ -319,6 +323,10 @@ export function createRealtimeVoice(options) {
       && options.recovery && options.record
     try {
       lifetime.throwIfAborted()
+      if (desktop) {
+        try { await delivery.restore(threadId) }
+        catch { log.warn('voice', 'could not restore voice result state') }
+      }
       if (recoverable) {
         try {
           const checkpoint = await options.recovery.load(threadId)
@@ -353,7 +361,7 @@ export function createRealtimeVoice(options) {
     session.flowId = crypto.randomUUID().slice(0, 8)
     session.openedAt = performance.now()
     session.desktop = desktop
-    if (desktop) session.queuedDelegations = new Map()
+    if (desktop) session.queuedDelegations = desktopWorkFor(threadId).queued
     sessions.set(threadId, session)
     flow(session, 'call connected', `mode=${desktop ? 'desktop' : 'phone'}`)
     const send = message => {
@@ -374,24 +382,92 @@ export function createRealtimeVoice(options) {
     }
     session.speak = speak
     const prefixes = params.codexResponseHandoffChannelPrefixes ?? CHANNEL_PREFIXES
+    const idleMs = options.deliveryIdleMs ?? 1200
+    let deliveryTimer, announcement, lastUserSpeech = performance.now()
+    const finishAnnouncement = (heard = false) => {
+      if (!announcement) return
+      delivery.update(threadId, announcement.entry, heard ? 'heard' : announcement.entry.attempts >= 2 ? 'screen-only' : 'offered')
+      announcement = undefined
+    }
+    session.stopDelivery = () => {
+      clearTimeout(deliveryTimer)
+      finishAnnouncement()
+    }
+    const planDelivery = () => {
+      if (!desktop || session.ended || session.closing || session.speaking || session.screenQuestions) return
+      clearTimeout(deliveryTimer)
+      deliveryTimer = setTimeout(() => { void deliver().catch(() => log.warn('voice', 'could not offer a voice result')) }, idleMs)
+      deliveryTimer.unref?.()
+    }
+    const canAnnounce = () => !session.ended && !session.closing && !session.speaking && !session.screenQuestions
+      && !session.voiceResponding && (!session.awaitingVoiceReply || performance.now() - lastUserSpeech >= 5000)
+      && performance.now() - Math.max(lastUserSpeech, session.lastOutputAudioAt ?? 0, session.interruptedAt ?? 0) >= idleMs
+    const deliver = async () => {
+      if (session.ended || session.speaking || session.screenQuestions) return
+      if (announcement) {
+        if (announcement.output && announcement.transcriptDone && canAnnounce()) finishAnnouncement(true)
+        else if (performance.now() - announcement.started >= 15000) finishAnnouncement()
+        else { planDelivery(); return }
+      }
+      const entry = [...desktopWorkFor(threadId).entries.values()].find(item => ['pending', 'offered'].includes(item.state))
+      if (!entry) return
+      if (!canAnnounce()) { planDelivery(); return }
+      if (!session.offeredResults?.has(entry.requestId)) {
+        const text = await options.readResult?.(threadId, entry.messageId)
+        if (!canAnnounce() || announcement) { planDelivery(); return }
+        if (!text) { delivery.update(threadId, entry, 'screen-only'); planDelivery(); return }
+        if (!session.offerResult(entry, undefined, text)) {
+          delivery.update(threadId, entry, 'announcing')
+          delivery.update(threadId, entry, entry.attempts >= 2 ? 'screen-only' : 'pending')
+          planDelivery()
+          return
+        }
+      }
+      delivery.update(threadId, entry, 'announcing')
+      announcement = { entry, started: performance.now(), output: false, transcriptDone: false }
+      if (!send(outbound.sessionAppend('[BACKGROUND_RESULT_READY] At this natural pause, briefly tell the user in their current language that the background result is ready. Give at most one sentence about the result. If you already mentioned it, stay silent.', 'speakable'))) finishAnnouncement()
+      planDelivery()
+    }
+    session.offerResult = (entry, delegationId, text) => {
+      if (session.ended) return false
+      const result = text.trim()
+      const [excerpt] = appendChunks(result.slice(0, VOICE_RESULT_CONTEXT_BYTES), VOICE_RESULT_CONTEXT_BYTES)
+      if (!excerpt) return false
+      const header = '[BACKGROUND_RESULT] DSH posted this result in chat. Keep it as context until there is a pause.\n'
+      const tail = excerpt === result ? '' : '\nSee the written answer for remaining details.'
+      const sent = appendChunks(header + excerpt + tail).every(piece => send(delegationId
+        ? outbound.delegationAppend(delegationId, piece, 'commentary')
+        : outbound.sessionAppend(piece, 'commentary')))
+      flow(session, 'background result shared as context', `sent=${sent} truncated=${excerpt !== result} user_speaking=${Boolean(session.speaking)} voice_responding=${Boolean(session.voiceResponding)}`)
+      if (entry && sent) {
+        session.offeredResults ??= new Set()
+        session.offeredResults.add(entry.requestId)
+        if (session.offeredResults.size > 16) session.offeredResults.delete(session.offeredResults.values().next().value)
+        delivery.update(threadId, entry, 'offered')
+      }
+      return sent
+    }
+    session.planDelivery = planDelivery
+    session.interruptDelivery = () => {
+      session.interruptedAt = performance.now()
+      finishAnnouncement()
+      planDelivery()
+    }
     session.reply = (delegationId, text) => {
       if (session.ended) return
       const channel = channelOf(text, prefixes)
-      if (channel !== 'speakable') { speak(delegationId, text); return }
+      if (channel !== 'speakable') {
+        if (channel === 'commentary' && desktop) send(outbound.sessionAppend(text, channel))
+        else speak(delegationId, text)
+        return
+      }
       const result = text.trim()
       if (!session.desktop) {
         session.awaitingAnswer = /[?？]$/u.test(result)
         speak(delegationId, text)
         return
       }
-      const [excerpt] = appendChunks(result.slice(0, VOICE_RESULT_CONTEXT_BYTES), VOICE_RESULT_CONTEXT_BYTES)
-      if (!excerpt) return
-      const header = '[BACKGROUND_RESULT] DSH posted this result in chat. Use it when relevant to what the user says.\n'
-      const tail = excerpt === result ? '' : '\nSee the written answer for remaining details.'
-      const sent = appendChunks(header + excerpt + tail).every(piece => send(delegationId
-        ? outbound.delegationAppend(delegationId, piece, 'commentary')
-        : outbound.sessionAppend(piece, 'commentary')))
-      flow(session, 'background result shared as context', `sent=${sent} truncated=${excerpt !== result} user_speaking=${Boolean(session.speaking)} voice_responding=${Boolean(session.voiceResponding)}`)
+      session.offerResult(undefined, delegationId, result)
     }
     const isCurrent = () => !session.ended
     const classifySpokenHangup = session.desktop && session.hangUp && typeof options.classifyHangUp === 'function'
@@ -442,6 +518,7 @@ export function createRealtimeVoice(options) {
     })
     session.waitForScreenAnswer = () => {
       if (!session.screenQuestions) {
+        session.interruptDelivery()
         clearTimeout(session.unhandledTimer)
         session.unhandled = []
         session.awaitingAnswer = false
@@ -456,6 +533,7 @@ export function createRealtimeVoice(options) {
         flow(session, 'screen answer returned', `outcome=${answer ? (labels.length ? 'selected' : 'no-selection') : 'closed'} selected_count=${labels.length}`)
         const status = labels.length ? `[STATUS] The user chose on screen: ${JSON.stringify(labels)}. The task can continue.` : '[STATUS] The question is no longer waiting for a screen answer.'
         for (const part of appendChunks(status)) questionContext(part, 'commentary')
+        planDelivery()
       }
     }
     const reportFailure = (delegationId, error) => {
@@ -482,7 +560,8 @@ export function createRealtimeVoice(options) {
     const runRequest = (input, delegationId) => {
       const text = delegationText(input)
       if (!text) return
-      const questionPending = Boolean(session.screenQuestions) || session.questions.consume(input, { delegation: true })
+      const screenQuestion = Boolean(session.screenQuestions)
+      const questionPending = screenQuestion || session.questions.consume(input, { delegation: true })
       if (!session.desktop || !options.queue) {
         if (!questionPending) enqueueRequest(text, delegationId)
         return
@@ -492,8 +571,12 @@ export function createRealtimeVoice(options) {
       const requestId = crypto.randomUUID()
       // DSH owns pending work. Serialize only admission so later requests reach its queue in order.
       session.admission = session.admission.then(async () => {
-        if (await decision || questionPending) return
-        if (delegationId && !session.ended) session.queuedDelegations.set(requestId, delegationId)
+        if (await decision) return
+        if (questionPending) {
+          if (screenQuestion && !session.ended) send(outbound.sessionAppend('[SCREEN_CHOICE] The request was not queued because a question is waiting on screen. Let the user know they can continue after answering it.', 'commentary'))
+          return
+        }
+        session.queuedDelegations.set(requestId, { delegation: delegationId, call: session.flowId })
         try { await options.queue(threadId, text, requestId) }
         catch (error) {
           session.queuedDelegations.delete(requestId)
@@ -502,7 +585,7 @@ export function createRealtimeVoice(options) {
         }
         flow(session, 'background request accepted by DSH queue')
         if (!session.ended && session.queuedDelegations.has(requestId)) speak(delegationId, '[STATUS] DSH accepted this request into its task queue.')
-      })
+      }).catch(error => { reportFailure(delegationId, error) })
     }
     // Whatever the person said that the voice model neither handed over nor was a goodbye: if it answers a question the agent just
     // asked, or the voice model promised to go and do something, nothing would ever happen. The host then hands the person's words
@@ -535,6 +618,7 @@ export function createRealtimeVoice(options) {
         const at = performance.now()
         if (session.lastOutputAudioAt === undefined || at - session.lastOutputAudioAt >= 700) flow(session, 'service audio output began', `reply_epoch=${session.replyEpoch}`)
         session.lastOutputAudioAt = at
+        if (announcement) announcement.output = true
       }
       const id = value.client_event_id ?? value.error?.event_id
       if (id && session.controls.delete(id)) {
@@ -552,6 +636,7 @@ export function createRealtimeVoice(options) {
       if (event.kind === 'delta') {
         if (event.role === 'user') {
           if (!session.speaking) {
+            session.interruptDelivery()
             flow(session, 'user transcript started')
             if (classifySpokenHangup) { finalSpeech = undefined; pendingSpeech = Promise.withResolvers() }
           }
@@ -572,6 +657,7 @@ export function createRealtimeVoice(options) {
         flow(session, 'voice transcript finished', `role=${event.role} has_text=${Boolean(event.text.trim())}`)
         if (event.role === 'user') {
           session.speaking = false
+          lastUserSpeech = performance.now()
           if (event.text.trim()) session.awaitingVoiceReply = true
         }
         if (event.text.trim() !== '') {
@@ -581,18 +667,22 @@ export function createRealtimeVoice(options) {
           if (session.tail.length > VOICE_TRANSCRIPT_LIMIT) session.tail.shift()
           session.lines.push({ role: event.role, text: event.text.slice(0, 400) }); if (session.lines.length > 12) session.lines.shift()
         }
-        const complete = () => notify('thread/realtime/transcript/done', { threadId, role: event.role, text: event.text })
-        if (session.checkpointId && event.text.trim() !== '') {
-          const entries = [...(session.recovered?.entries ?? []), ...session.tail].slice(-VOICE_TRANSCRIPT_LIMIT)
-          const save = options.recovery.save(threadId, { id: session.checkpointId, entries })
-          session.transcriptWrite = save.catch(() => { log.warn('voice', 'could not save the voice recovery checkpoint') })
-          void save.then(complete, () => notify('thread/realtime/error', { threadId, message: 'The voice transcript could not be saved.' })).catch(() => {})
-        } else void complete().catch(() => {})
+        const entries = session.checkpointId && event.text.trim() !== ''
+          ? [...(session.recovered?.entries ?? []), ...session.tail].slice(-VOICE_TRANSCRIPT_LIMIT) : undefined
+        session.transcriptWrite = Promise.resolve(session.transcriptWrite).then(async () => {
+          let persisted
+          if (entries) {
+            try { await options.recovery.save(threadId, { id: session.checkpointId, entries }); persisted = true }
+            catch { persisted = false; log.warn('voice', 'could not save the voice recovery checkpoint') }
+          }
+          await notify('thread/realtime/transcript/done', { threadId, role: event.role, text: event.text, ...(persisted === false ? { persisted } : {}) })
+        }).catch(() => {})
         const spoken = event.text.trim()
         const said = Date.now()
         const endsCall = event.role === 'user' && classifySpokenHangup ? checkFinalSpeech(spoken, said) : undefined
         const legacyGoodbye = !session.desktop && session.hangUp && event.role === 'user' && isGoodbye(event.text)
         if (event.role !== 'user') {
+          if (announcement && event.text.trim()) announcement.transcriptDone = true
           session.voiceResponding = false
           session.awaitingVoiceReply = false
           if (event.text.trim()) {
@@ -600,7 +690,8 @@ export function createRealtimeVoice(options) {
             session.questions.heardReply(event.text)
           }
         }
-        else if (spoken && !legacyGoodbye) {
+        planDelivery()
+        if (event.role === 'user' && spoken && !legacyGoodbye) {
           if (session.screenQuestions) return
           if (endsCall && session.questions.active) {
             const answer = session.questions.captureAnswer(spoken)
@@ -641,6 +732,7 @@ export function createRealtimeVoice(options) {
       sessions.delete(threadId)
       session.ended = true
       clearTimeout(session.closeTimer)
+      session.stopDelivery()
       flow(session, 'call closed', 'reason=transport-closed')
       session.questions.close()
       flushTail(threadId, session)
@@ -657,6 +749,7 @@ export function createRealtimeVoice(options) {
       } catch { log.warn('voice', 'could not restore prior conversation context') }
     }
     void notify('thread/realtime/started', { threadId, version: params.version ?? 'v3', realtimeSessionId: params.realtimeSessionId ?? null }).catch(() => {})
+    planDelivery()
     return {}
   }
 
@@ -669,24 +762,37 @@ export function createRealtimeVoice(options) {
 
   return {
     isDesktop: threadId => sessions.get(threadId)?.desktop === true,
-    tracksNativeWork: threadId => sessions.get(threadId)?.liveFollowups === true,
+    tracksNativeWork: threadId => sessions.get(threadId)?.liveFollowups === true || delivery.tracks(threadId),
     nativeInput(threadId, requestId) {
       const session = sessions.get(threadId)
-      const delegation = session?.queuedDelegations?.get(requestId)
-      if (!delegation) return
-      session.queuedDelegations.delete(requestId)
-      session.activeDelegation = delegation
+      if (!delivery.tracks(threadId)) return
+      const work = desktopWorkFor(threadId)
+      if (!work.queued.has(requestId)) return
+      const queued = work.queued.get(requestId)
+      work.queued.delete(requestId)
+      work.running = { requestId, ...queued }
+      if (session) session.activeDelegation = queued.call === session.flowId ? queued.delegation : undefined
     },
     nativeWork(threadId, working) {
       const session = sessions.get(threadId)
+      if (!working && delivery.tracks(threadId)) desktopWorkFor(threadId).running = undefined
       if (!session?.liveFollowups || Boolean(session.nativeWorking) === working) return
       session.nativeWorking = working
       if (!working && session.desktop) session.activeDelegation = undefined
       flow(session, 'DSH turn state changed', `working=${working}`)
-      session.speak(undefined, working ? '[STATUS] DSH is working on the current turn.' : '[STATUS] The current DSH turn is no longer running.')
+      session.reply(undefined, working ? '[STATUS] DSH is working on the current turn.' : '[STATUS] The current DSH turn is no longer running.')
     },
-    nativeMessage(threadId, text) {
+    nativeMessage(threadId, text, messageId) {
       const session = sessions.get(threadId)
+      const work = delivery.tracks(threadId) ? desktopWorkFor(threadId).running : undefined
+      if (work && messageId && channelOf(text) === 'speakable') {
+        const entry = delivery.complete(threadId, work.requestId, messageId)
+        if (entry && session?.desktop && entry.state === 'pending') {
+          session.offerResult(entry, work.call === session.flowId ? work.delegation : undefined, text)
+          session.planDelivery()
+        }
+        return
+      }
       if (session?.liveFollowups) session.reply(session.desktop ? session.activeDelegation : undefined, text)
     },
     askQuestion(threadId, request) {
@@ -697,6 +803,7 @@ export function createRealtimeVoice(options) {
     interrupt(threadId) {
       const session = sessions.get(threadId)
       if (!session) return false
+      session.interruptDelivery()
       const event_id = crypto.randomUUID()
       if (session.controls.size > 20) session.controls.delete(session.controls.values().next().value)
       session.controls.add(event_id)
@@ -711,6 +818,7 @@ export function createRealtimeVoice(options) {
       const session = sessions.get(threadId)
       if (session?.desktop && session.lastPlaybackState !== state && ['playing', 'waiting'].includes(state)) {
         session.lastPlaybackState = state
+        if (state === 'waiting') session.planDelivery()
         flow(session, 'browser playback changed', `state=${state} reply_epoch=${session.replyEpoch}`)
       }
     },

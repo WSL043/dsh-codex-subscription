@@ -16,18 +16,21 @@ const scopeKey = scope => {
   const parts = scopeParts(scope)
   // Native opaque item cursors identify a position in the whole thread.
   // turnId is a query filter, including for cursors issued before this fix.
-  return parts[1] === 'items' ? JSON.stringify(parts.slice(0, 2)) : scope
+  return parts[1] === 'items' && parts.length === 3 ? JSON.stringify(parts.slice(0, 2)) : scope
 }
-const anchorCursor = (id, scope, direction, inclusive) => encode({ v: 2, s: scopeKey(scope), d: direction, a: id, i: inclusive })
+const anchorCursor = (id, scope, direction, inclusive, lineage) => encode({
+  v: lineage ? 3 : 2, s: scopeKey(scope), d: direction, a: id, i: inclusive,
+  ...(lineage ? { l: lineage.current } : {}),
+})
 
-export function initialHistoryCursor(list, scope) {
+export function initialHistoryCursor(list, scope, lineage) {
   const anchor = list.at(-1)?.id
-  return anchor === undefined ? null : anchorCursor(anchor, scope, 'desc', true)
+  return anchor === undefined ? null : anchorCursor(anchor, scope, 'desc', true, lineage)
 }
 
 // Match native history: next excludes the last item, backwards includes the
 // first item and supports opposite sorting. New items remain discoverable.
-export function historyPage(list, params, scope, defaultDirection = 'desc', accept = () => true) {
+export function historyPage(list, params, scope, defaultDirection = 'desc', accept = () => true, { lineage, offsetAnchor } = {}) {
   const cursor = params?.cursor
   const legacyOffset = typeof cursor === 'string' && /^\d+$/u.test(cursor)
   const saved = cursor == null || legacyOffset ? undefined : decode(cursor)
@@ -35,8 +38,8 @@ export function historyPage(list, params, scope, defaultDirection = 'desc', acce
   if (!['asc', 'desc'].includes(direction)) throw invalidParams('Invalid history sort direction')
   const limit = params?.limit ?? 50
   if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw invalidParams('History page limit must be between 1 and 100')
-  if (saved && (![1, 2].includes(saved.v) || scopeKey(saved.s) !== scopeKey(scope) || typeof saved.a !== 'string'
-    || saved.v === 2 && typeof saved.i !== 'boolean')) {
+  if (saved && (![1, 2, 3].includes(saved.v) || scopeKey(saved.s) !== scopeKey(scope) || typeof saved.a !== 'string'
+    || saved.v >= 2 && typeof saved.i !== 'boolean' || saved.v === 3 && typeof saved.l !== 'string')) {
     const currentScope = scopeParts(scope), cursorScope = scopeParts(saved.s)
     const view = value => ['turns', 'items'].includes(value) ? value : 'unknown'
     phoneLog('history cursor rejected', { direction, cursorDirection: ['asc', 'desc'].includes(saved.d) ? saved.d : 'unknown',
@@ -45,27 +48,41 @@ export function historyPage(list, params, scope, defaultDirection = 'desc', acce
       requestedTurnScoped: !!currentScope[2], cursorTurnMatches: currentScope[2] === cursorScope[2] }, 'warn')
     throw invalidParams('History cursor belongs to another view')
   }
+  if (saved?.v === 3 && saved.l !== lineage?.current) {
+    throw invalidParams('History has changed. Resume the thread before requesting more items.')
+  }
   const ordered = direction === 'asc' ? list : list.toReversed()
-  const start = legacyOffset ? Number(cursor) : saved ? ordered.findIndex(item => item.id === saved.a) : 0
+  const filtered = legacyOffset ? ordered.filter(accept) : undefined
+  const relativeTo = legacyOffset && offsetAnchor !== undefined ? filtered.findIndex(item => item.id === offsetAnchor) : 0
+  const start = legacyOffset ? relativeTo + Number(cursor) : saved ? ordered.findIndex(item => item.id === saved.a) : 0
   if (!Number.isSafeInteger(start) || start < 0) throw invalidParams('History cursor is no longer available')
   // Resolve the opaque position before applying turn filters. An anchor from
   // another turn is valid; object item anchors are checked by the caller.
-  const candidates = legacyOffset ? ordered.filter(accept).slice(start)
-    : ordered.slice(start + (saved?.v === 2 && !saved.i ? 1 : 0)).filter(accept)
+  if (relativeTo < 0) throw invalidParams('History has changed. Resume the thread before requesting more items.')
+  const candidates = legacyOffset ? filtered.slice(start)
+    : ordered.slice(start + (saved?.v >= 2 && !saved.i ? 1 : 0)).filter(accept)
   const data = candidates.slice(0, limit)
   return { data,
-    nextCursor: candidates.length > data.length ? anchorCursor(data.at(-1).id, scope, direction, false) : null,
-    backwardsCursor: data.length ? anchorCursor(data[0].id, scope, direction === 'asc' ? 'desc' : 'asc', true) : null,
+    nextCursor: candidates.length > data.length ? anchorCursor(data.at(-1).id, scope, direction, false, lineage) : null,
+    backwardsCursor: data.length ? anchorCursor(data[0].id, scope, direction === 'asc' ? 'desc' : 'asc', true, lineage) : null,
   }
 }
 
 // Build the small reusable page index before reading attachments or publishing
 // image assets. Heavy item contents are generated only for the selected turns.
+export function historySummaryItem(item) {
+  if (item.type === 'userMessage') return {
+    ...item, content: item.content.filter(block => block.type === 'text').map(block => ({ ...block, text: block.text.slice(0, 320) })),
+  }
+  if (item.type === 'agentMessage') return { ...item, text: item.text.slice(0, 320) }
+  return { id: item.id, type: item.type }
+}
+
 export function historyIndex(messages, turns) {
   const positions = new Map(messages.map((message, index) => [message.id, index]))
   const ranges = turns.map(turn => ({
     ...turn,
-    items: turn.items.map(item => item.type === 'userMessage' ? item : { id: item.id, type: item.type }),
+    items: turn.items.map(historySummaryItem),
     from: positions.get(turn.id) ?? 0,
   }))
   for (let i = 0; i < ranges.length; i++) ranges[i].to = ranges[i + 1]?.from ?? messages.length

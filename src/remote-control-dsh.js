@@ -15,7 +15,7 @@ import { needsScreenAnswer } from './voice-questions.js'
 import { diagnosticLog } from './diagnostic-log.js'
 import { phoneLog } from './remote-control-log.js'
 import { phoneModelUpgrade, phoneRateLimits } from './remote-control-capabilities.js'
-import { historyIndex, historyPage, initialHistoryCursor } from './remote-history-page.js'
+import { historyIndex, historyPage, historySummaryItem, initialHistoryCursor } from './remote-history-page.js'
 import { rememberRemoteImage, withRemoteImageOutput } from './remote-control-image-output.js'
 import { createRemoteImageUploads } from './remote-image-uploads.js'
 
@@ -588,6 +588,27 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     return result
   }
   const historyIndexes = new WeakMap()
+  const historyBranches = new Map()
+  const peerOffsets = new WeakMap()
+  const initialBranch = randomUUID()
+  const branchOf = id => historyBranches.get(id) ?? initialBranch
+  const historyLineage = id => ({ current: branchOf(id) })
+  const pageOffsets = (peer, key, params, page, branch) => {
+    if (!peer) return
+    let offsets = peerOffsets.get(peer)
+    if (!offsets) peerOffsets.set(peer, offsets = new Map())
+    if (page) {
+      if (params.cursor == null && page[0]) {
+        offsets.set(key, { id: page[0].id, branch })
+        if (offsets.size > 100) offsets.delete(offsets.keys().next().value)
+      }
+      return
+    }
+    if (!/^\d+$/u.test(params.cursor ?? '')) return
+    const anchor = offsets.get(key)
+    if (anchor && anchor.branch !== branch) throw invalidParams('History has changed. Resume the thread before requesting more items.')
+    return anchor?.id
+  }
   const historySnapshot = async (id, signal) => {
     signal?.throwIfAborted()
     let source
@@ -609,7 +630,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const live = active.get(id)
     if (live?.userItem) for (const message of messages) reconcileUser(id, live, message)
     const outline = withLiveTurn(id, cached.ranges)
-    return { meta, messages, cwd, ranges: cached.ranges, outline }
+    return { meta, messages, cwd, ranges: cached.ranges, outline, lineage: historyLineage(id) }
   }
   const renderHistory = async (id, snapshot, selected, signal) => {
     signal?.throwIfAborted()
@@ -619,21 +640,29 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const { urls, assets } = await imageUrlsOf(messages, signal)
     signal?.throwIfAborted()
     const turns = ranges.flatMap(range => projectTurns(snapshot.messages.slice(range.from, range.to), snapshot.meta?.createdAt, urls, snapshot.cwd, assets, true))
+    if (snapshot.lineage && snapshot.lineage.current !== branchOf(id)) throw invalidParams('History has changed. Resume the thread before requesting more items.')
     const visible = wanted.has(active.get(id)?.turn.id) ? withLiveTurn(id, turns) : withShownIds(id, turns)
     const byId = new Map(visible.map(turn => [turn.id, turn]))
     return selected.map(turn => byId.get(turn.id)).filter(Boolean)
   }
-  const listHistoryTurns = async (params, signal) => {
+  const listHistoryTurns = async (params, signal, peer) => {
     if (params?.itemsView != null && !['full', 'summary', 'notLoaded'].includes(params.itemsView)) throw invalidParams('Invalid turn items view')
-    return renderTurnPage(params, await historySnapshot(params?.threadId, signal), signal)
+    return renderTurnPage(params, await historySnapshot(params?.threadId, signal), signal, peer)
   }
-  const renderTurnPage = async (params, snapshot, signal) => {
+  const renderTurnPage = async (params, snapshot, signal, peer) => {
     const id = params.threadId
-    const result = historyPage(snapshot.outline, params, JSON.stringify([id, 'turns']))
+    const key = JSON.stringify([id, 'turns', params.sortDirection ?? 'desc'])
+    const branch = snapshot.lineage?.current
+    const result = historyPage(snapshot.outline, params, JSON.stringify([id, 'turns']), 'desc', undefined,
+      { lineage: snapshot.lineage, offsetAnchor: pageOffsets(peer, key, params, undefined, branch) })
     // Legacy callers receive full turns. Explicit lightweight reads do not read
     // attachments and say notLoaded so the client can request item pages.
     const full = params?.itemsView == null || params.itemsView === 'full'
-    const turns = full ? await renderHistory(id, snapshot, result.data, signal) : result.data.map(turn => ({ ...turn, items: [], itemsView: 'notLoaded' }))
+    const turns = full ? await renderHistory(id, snapshot, result.data, signal) : result.data.map(turn => ({
+      ...turn, items: params.itemsView === 'summary' ? turn.items.filter(item => item.type === 'userMessage' || item.type === 'agentMessage').map(historySummaryItem) : [],
+      itemsView: params.itemsView,
+    }))
+    pageOffsets(peer, key, params, result.data, branch)
     const data = turns.map(({ from, to, ...turn }) => turn)
     phoneLog('history page completed', { threadId: id, type: full ? 'full' : 'notLoaded', turns: data.length })
     return { ...result, data }
@@ -664,18 +693,19 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     const live = active.get(id)
     if (live?.userItem) for (const message of messages) reconcileUser(id, live, message)
     const ranges = historyIndex(messages, projectTurns(messages, meta?.createdAt, new Map(), cwd, new Map(), true))
-    const outline = withLiveTurn(id, ranges)
-    const last = outline.at(-1)
+    const snapshot = options?.sortDirection === 'asc' ? await historySnapshot(id, signal)
+      : { meta, messages, cwd, ranges, outline: withLiveTurn(id, ranges), lineage: historyLineage(id) }
+    const { outline, lineage } = snapshot
+    const last = outline.findLast(turn => turn.status !== 'inProgress')
     const lastItem = last?.items.at(-1)
     const itemAnchors = lastItem ? [{ id: JSON.stringify([last.id, lastItem.id]) }] : []
-    const initialTurnsPage = options ? await renderTurnPage({ ...options, threadId: id },
-      options.sortDirection === 'asc' ? await historySnapshot(id, signal) : { meta, messages, cwd, ranges, outline }, signal) : null
+    const initialTurnsPage = options ? await renderTurnPage({ ...options, threadId: id }, snapshot, signal, notify) : null
     return { ...settings(agent, cwd), thread: { ...value, cwd }, initialTurnsPage,
-      turnsBackwardsCursor: initialHistoryCursor(outline, JSON.stringify([id, 'turns'])),
-      itemsBackwardsCursor: initialHistoryCursor(itemAnchors, JSON.stringify([id, 'items'])),
+      turnsBackwardsCursor: initialHistoryCursor(last ? [last] : [], JSON.stringify([id, 'turns']), lineage),
+      itemsBackwardsCursor: initialHistoryCursor(itemAnchors, JSON.stringify([id, 'items']), lineage),
     }
   }
-  const listHistoryItems = async (params, signal) => {
+  const listHistoryItems = async (params, signal, peer) => {
     const id = params?.threadId
     if (params?.turnId != null && (typeof params.turnId !== 'string' || params.turnId === '')) throw invalidParams('turnId must be nonempty')
     const snapshot = await historySnapshot(id, signal)
@@ -693,9 +723,13 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     phoneLog('history items page requested', { threadId: id, turnId: params?.turnId,
       direction: ['asc', 'desc'].includes(params?.sortDirection) ? params.sortDirection : 'default',
       type: params?.cursor && typeof params.cursor === 'object' ? 'itemAnchor' : params?.cursor ? 'opaqueCursor' : 'firstPage' })
-    const result = historyPage(items, { ...params, cursor }, JSON.stringify([id, 'items']), 'asc', item => !params?.turnId || item.turnId === params.turnId)
+    const key = JSON.stringify([id, 'items', params.sortDirection ?? 'asc', params.turnId ?? ''])
+    const branch = snapshot.lineage.current
+    const result = historyPage(items, { ...params, cursor }, JSON.stringify([id, 'items']), 'asc', item => !params?.turnId || item.turnId === params.turnId,
+      { lineage: snapshot.lineage, offsetAnchor: pageOffsets(peer, key, params, undefined, branch) })
     const wanted = new Set(result.data.map(item => item.turnId))
     const rendered = await renderHistory(id, snapshot, turns.filter(turn => wanted.has(turn.id)), signal)
+    pageOffsets(peer, key, params, result.data, branch)
     const byTurn = new Map(rendered.map(turn => [turn.id, new Map(turn.items.map(item => [item.id, item]))]))
     return { ...result, data: result.data.flatMap(entry => {
       const item = byTurn.get(entry.turnId)?.get(entry.itemId)
@@ -985,7 +1019,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     if (agent.status === 'running') await agent.whenIdle?.()
     agent.inject({ id: randomUUID(), role: 'user', content: [{ type: 'text', text }], source: { kind: 'user' } })
   }
-  const realtimeVoice = voice ? createRealtimeVoice({ ...voice, userAgent, log: diagnosticLog, delegate: delegateToAgent, queue: queueVoiceWork, record: recordToAgent, recordedIds }) : undefined
+  const readVoiceResult = async (threadId, messageId) => {
+    const { session } = await agentFor(threadId)
+    const message = session.deriveMessages().find(item => item.id === messageId && item.role === 'assistant')
+    return message?.content.filter(block => block.type === 'text').map(block => block.text).join('\n').trim()
+  }
+  const realtimeVoice = voice ? createRealtimeVoice({ ...voice, userAgent, log: diagnosticLog, delegate: delegateToAgent, queue: queueVoiceWork, record: recordToAgent, recordedIds, readResult: readVoiceResult }) : undefined
 
   const phoneConfig = createPhoneConfig(configFile)
 
@@ -1148,8 +1187,8 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     },
     'currentTime/read': () => ({ currentTimeAt: seconds(Date.now()) }),
     'account/rateLimits/read': async () => phoneRateLimits(await usage()?.read?.().catch(() => undefined)),
-    'thread/turns/list': (params, { signal } = {}) => listHistoryTurns(params, signal),
-    'thread/items/list': (params, { signal } = {}) => listHistoryItems(params, signal),
+    'thread/turns/list': (params, { signal, notify } = {}) => listHistoryTurns(params, signal, notify),
+    'thread/items/list': (params, { signal, notify } = {}) => listHistoryItems(params, signal, notify),
     'thread/fork': async (params, { notify }) => {
       const forked = await service().fork({ sessionId: params?.threadId })
       const agent = await agentFor(forked.sessionId)
@@ -1521,6 +1560,9 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
 
   /** Forward committed assistant and tool events of a phone-started turn as items. */
   const onSessionEvent = (session, event) => {
+    if (event.surfaceOp?.op === 'replace' || event.type === 'compaction/end') {
+      historyBranches.set(session.id, randomUUID())
+    }
     if (realtimeVoice?.tracksNativeWork(session.id)) {
       if (event.type === 'turn/start' || event.type === 'turn/end') realtimeVoice.nativeWork(session.id, event.type === 'turn/start')
       if (event.type === 'user/message' && event.data?.source?.kind === 'user') realtimeVoice.nativeInput(session.id, event.data.source.rpcId)
@@ -1528,7 +1570,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
         const message = event.data?.message ?? session.deriveMessages().at(-1)
         if (message?.role === 'assistant') {
           const text = message.content.filter(block => block.type === 'text').map(block => block.text).join('\n').trim()
-          if (text) realtimeVoice.nativeMessage(session.id, message.content.some(block => block.type === 'tool-call') ? `[STATUS] ${text}` : text)
+          if (text) realtimeVoice.nativeMessage(session.id, message.content.some(block => block.type === 'tool-call') ? `[STATUS] ${text}` : text, message.id)
         }
       }
     }
@@ -1559,7 +1601,12 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     if (message?.role === 'tool') {
       const item = running.turn.items.find(entry => entry.id === message.toolCallId && entry.type !== 'agentMessage')
       if (item) {
+        const branch = branchOf(session.id)
+        const revision = (running.imageRevisions ??= new WeakMap()).get(item) ?? 0
+        running.imageRevisions.set(item, revision + 1)
         const finish = ({ urls, assets }) => {
+          if (active.get(session.id) !== running || running.abort.signal.aborted || branch !== branchOf(session.id)
+            || running.imageRevisions.get(item) !== revision + 1) return
           finishTool(item, message, urls, assets)
           emit(session.id, 'item/completed', { threadId: session.id, turnId: running.turn.id, item, completedAtMs: Date.now() })
         }

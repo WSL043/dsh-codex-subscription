@@ -2,6 +2,11 @@
 import { composerPredictionModelNames } from '../composer-prediction-models.js'
 
 export default {
+  "speedShortcutTitle": "Raccourci de vitesse dans la zone de saisie",
+  "speedShortcut_off": "Désactivé",
+  "speedShortcut_icon": "Éclair",
+  "speedShortcut_hover": "Au survol",
+  "speedShortcut_label": "Nom de la vitesse",
   "catalogTimeout": "La demande du catalogue de modèles a expiré. Vérifiez le réseau ou le proxy et réessayez.",
   "catalogCachedTimeout": "Le catalogue disponible est conservé ; la mise à jour en ligne a expiré. Vérifiez le réseau ou le proxy et réessayez.",
   "openSubscriptionSettings": "Paramètres de l’abonnement",

@@ -71,7 +71,7 @@ test('forecast forgets long gaps and does not mistake a missing reset for zero',
   for (const [minute, remaining] of [[0,80],[10,78],[20,76]]) state = observeQuotaForecast(state, [window(remaining)], start + minute * 60000).state
   const result = estimateQuotaForecast(state, window(76), start + 20 * 60000)
   assert.equal(result.status, 'ready')
-  assert.equal(result.survivesReset, false)
+  assert.equal(result.survivesReset, 'unknown')
   assert.ok(result.runwayMaxSeconds > result.runwayMinSeconds)
   state = observeQuotaForecast(state, [window(75)], start + 150 * 60000).state
   assert.equal(estimateQuotaForecast(state, window(75), start + 150 * 60000).status, 'calibrating')

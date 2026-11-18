@@ -16,7 +16,7 @@ import {
   PickerModelsPreference, QuickQuotaPreference, ReasoningCachePreference, ReasoningSummaryPreference, RetryPolicyPreference, SearchProviderPreference,
   StreamIdleTimeoutPreference,
 } from './client-preferences.jsx'
-import { COMPOSER_MODEL_PICKER_MODES, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF, SPEED_MODE_FIELD, SPEED_MODE_FAST, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST } from './settings-contract.js'
+import { COMPOSER_MODEL_PICKER_MODES, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF, SPEED_SHORTCUT_FIELD, SPEED_SHORTCUT_STYLES, SPEED_MODE_FIELD, SPEED_MODE_FAST, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST } from './settings-contract.js'
 import { IMAGE_MODELS, imageModelLabel as modelLabel, isExperimentalImageModel } from './image-models.js'
 import { ImageChoice } from './image-preferences.jsx'
 import { useWebProviderForm, webProviderTitle } from './client-web-provider-settings.jsx'
@@ -147,6 +147,11 @@ export function ModelsPage({ preference, t, defaultModel }) {
             name="codex-model-picker" label={t('legacyModelPicker')} text={value => t(menuLabels[value])} disabled={!loaded || snapshot.saving} />
         </div>
         {loaded ? <SpeedPreference snapshot={snapshot} preference={preference} t={t} /> : null}
+        <div className="codexSubscriptionPreference">
+          <div className="codexSubscriptionPreferenceCopy"><SettingsLabel>{t('speedShortcutTitle')}</SettingsLabel></div>
+          <Radios snapshot={snapshot} preference={preference} field={SPEED_SHORTCUT_FIELD} values={SPEED_SHORTCUT_STYLES}
+            name="codex-speed-shortcut" label={t('speedShortcutTitle')} text={value => t(`speedShortcut_${value}`)} />
+        </div>
       </div>
       <PickerModelsPreference preference={preference} t={t} />
       <ComposerPredictionPreference preference={preference} t={t} />
