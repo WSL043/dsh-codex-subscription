@@ -76,6 +76,9 @@ and any reopen condition for each item. Hold the release for unresolved required
 work unless the owner explicitly agrees to the exception. Keep source/main,
 published tag/npm, local candidate and installed runtime as distinct states.
 
+- When editing a README, compare the rendered candidate with the current GitHub page in each affected language. Check the main banner, screenshots, Star history chart and links. Confirm intentional removals before merging, then open the published README and verify that the retained media and links still load.
+- Before publishing a release, match each release-note bullet in every language against the change since the previous release. Include user-facing plugin changes and fixes. Keep standalone README and asset changes, internal maintenance, CI and release workflow changes out of the change list. Reopen the published notes and confirm they match the reviewed text.
+
 Keep one current procedure per topic. Move superseded plans and versioned
 acceptance into the historical archive after retaining unique failures, decisions
 and validation limits. Run `node --test tests/documentation.test.mjs` after moving
