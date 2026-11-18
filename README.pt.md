@@ -399,6 +399,13 @@ Este projeto da comunidade não é afiliado nem endossado pela DeepSeek ou pela 
 
 Se este projeto for útil, o [botão Star](https://github.com/WSL043/dsh-codex-subscription/stargazers) ajuda mais usuários do DSH a encontrá-lo.
 
+<a href="https://star-history.com/#WSL043/dsh-codex-subscription&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date&theme=dark" />
+    <img alt="Histórico de Stars" src="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date" />
+  </picture>
+</a>
+
 [中文](README.md) · [English](README.en.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · [Русский](README.ru.md) · **Português** · [MIT](LICENSE)
 
 [![powered by dsh](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)

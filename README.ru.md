@@ -399,6 +399,13 @@ CLI требуется только для независимых подзада
 
 Если этот проект вам полезен, [кнопка Star](https://github.com/WSL043/dsh-codex-subscription/stargazers) поможет другим пользователям DSH найти его.
 
+<a href="https://star-history.com/#WSL043/dsh-codex-subscription&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date&theme=dark" />
+    <img alt="История звёзд" src="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date" />
+  </picture>
+</a>
+
 [中文](README.md) · [English](README.en.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · [Deutsch](README.de.md) · **Русский** · [Português](README.pt.md) · [MIT](LICENSE)
 
 [![powered by dsh](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)

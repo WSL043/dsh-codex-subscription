@@ -399,6 +399,13 @@ Dieses Community-Projekt ist weder mit DeepSeek oder OpenAI verbunden noch wird 
 
 Wenn dir dieses Projekt nützlich ist, hilft der [Stern-Button](https://github.com/WSL043/dsh-codex-subscription/stargazers) anderen DSH-Nutzern, es zu finden.
 
+<a href="https://star-history.com/#WSL043/dsh-codex-subscription&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date&theme=dark" />
+    <img alt="Stern-Verlauf" src="https://api.star-history.com/svg?repos=WSL043/dsh-codex-subscription&type=Date" />
+  </picture>
+</a>
+
 [中文](README.md) · [English](README.en.md) · [日本語](README.ja.md) · [Español](README.es.md) · [Français](README.fr.md) · **Deutsch** · [Русский](README.ru.md) · [Português](README.pt.md) · [MIT](LICENSE)
 
 [![powered by dsh](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
