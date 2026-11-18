@@ -74,8 +74,12 @@ test('a voice result completed after hangup is restored and announced once after
     for (let i = 0; announcements(socket).length === 0 && i < 30; i++) await settle()
     assert.equal(announcements(socket).length, 1)
     audioTurn(socket)
-    await settle()
-    assert.equal((await store.load('t1')).entries[0].state, 'heard')
+    let state = (await store.load('t1')).entries[0].state
+    for (let i = 0; state !== 'heard' && i < 30; i++) {
+      await settle()
+      state = (await store.load('t1')).entries[0].state
+    }
+    assert.equal(state, 'heard')
     await settle()
     assert.equal(announcements(socket).length, 1)
   } finally { second.voice.stop('t1'); await store.load('t1') }

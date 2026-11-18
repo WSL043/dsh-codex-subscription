@@ -1,16 +1,24 @@
-import { useSyncExternalStore } from 'react'
+import { useLayoutEffect, useSyncExternalStore } from 'react'
 import { BoltIcon } from '@heroicons/react/16/solid'
 import { usePreferenceSnapshot } from './client-shared.js'
 import { effectiveCodexSpeedMode, SPEED_MODE_FIELD, SPEED_SHORTCUT_FIELD, SPEED_MODE_STANDARD, SPEED_MODE_FAST, supportsCodexFastMode } from './settings-contract.js'
 
 const labels = { standard: 'speedStandard', fast: 'speedFast', ultrafast: 'speedUltrafast' }
 export function CodexSpeedShortcut({ directory, preference, t, locked }) {
-  const { current } = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
+  const { current } = useSyncExternalStore(listener => directory.subscribe(listener), () => directory.getSnapshot())
   const status = usePreferenceSnapshot(preference)
   const mode = status[SPEED_SHORTCUT_FIELD]
   const modelId = current?.model
   const supportsFast = status.fastModels?.includes(modelId) ?? supportsCodexFastMode(modelId)
-  if (mode === 'off' || current?.provider !== 'openai-codex' || !supportsFast || status.status !== 'ready') return null
+  const visible = mode !== 'off' && current?.provider === 'openai-codex' && supportsFast && status.status === 'ready'
+  useLayoutEffect(() => {
+    if (!visible) return
+    const style = document.createElement('style')
+    style.textContent = SPEED_SHORTCUT_CSS
+    document.head.append(style)
+    return () => style.remove()
+  }, [visible])
+  if (!visible) return null
 
   const speed = effectiveCodexSpeedMode(status.speedMode, modelId, {
     supportsFast, supportsUltrafast: status.ultrafastModels?.includes(modelId),
@@ -34,7 +42,7 @@ export function CodexSpeedShortcut({ directory, preference, t, locked }) {
   </span>
 }
 
-export const SPEED_SHORTCUT_CSS = `
+const SPEED_SHORTCUT_CSS = `
 .codexSpeedShortcutSeat{display:inline-flex;align-items:center;flex:none}
 .codexSpeedShortcut{display:inline-flex;align-items:center;justify-content:center;min-width:25px;min-height:27px;padding:2px 5px;border:0;border-radius:6px;background:transparent;color:var(--dsw-alias-label-secondary,CanvasText);font:inherit;font-size:12px;line-height:1.2;white-space:nowrap;cursor:pointer}
 .codexSpeedShortcutBolt{display:grid;place-items:center}
@@ -49,12 +57,12 @@ export const SPEED_SHORTCUT_CSS = `
 div:has(>[data-slot="conversation.input.right"]>.codexSpeedShortcutSeat:is([data-layout=icon],[data-layout=hover])):has(>[data-slot="conversation.input.model"]){column-gap:0}
 
 @media(hover:hover) and (pointer:fine){
-  [data-slot="conversation.input.right"]:has(+[data-slot="conversation.input.model"])>.codexSpeedShortcutSeat[data-layout=hover][data-speed=standard]{position:relative;width:0}
+  /* Keep the hit area in flow so revealing the shortcut cannot overlap the quota button. */
   [data-slot="conversation.input.right"]:has(+[data-slot="conversation.input.model"])>.codexSpeedShortcutSeat[data-layout=hover][data-speed=standard]>.codexSpeedShortcut{
-    position:absolute;inset-inline-end:0;opacity:0;visibility:hidden;background:var(--dsw-alias-bg-layer-1,Canvas);
+    opacity:0;visibility:hidden;
     transition:opacity 150ms,visibility 0s 150ms
   }
-  div:has(>[data-slot="conversation.input.right"]>.codexSpeedShortcutSeat[data-layout=hover][data-speed=standard]):has(>[data-slot="conversation.input.model"]:is(:hover,:focus-within)) .codexSpeedShortcut,
+  [data-slot="conversation.input.right"]:has(+[data-slot="conversation.input.model"]:is(:hover,:focus-within))>.codexSpeedShortcutSeat[data-layout=hover][data-speed=standard]>.codexSpeedShortcut,
   .codexSpeedShortcutSeat[data-layout=hover][data-speed=standard]:is(:hover,:focus-within)>.codexSpeedShortcut{opacity:1;visibility:visible;transition:none}
 }
 

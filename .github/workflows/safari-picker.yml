@@ -9,12 +9,16 @@ on:
   push:
     paths:
       - 'src/client-model-select.jsx'
+      - 'src/client-speed-shortcut.jsx'
+      - 'src/client-styles.js'
       - 'src/client-incident-diagnostics.js'
       - 'tests/browser/*picker*'
       - '.github/workflows/safari-picker.yml'
   pull_request:
     paths:
       - 'src/client-model-select.jsx'
+      - 'src/client-speed-shortcut.jsx'
+      - 'src/client-styles.js'
       - 'src/client-incident-diagnostics.js'
       - 'tests/browser/*picker*'
       - '.github/workflows/safari-picker.yml'
@@ -24,8 +28,14 @@ permissions:
 
 jobs:
   safari:
+    name: Safari model picker (${{ matrix.suite }})
     runs-on: macos-15-intel
     timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      # SafariDriver can hang after a prior automation session quits on the same runner.
+      matrix:
+        suite: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.compare_published && '["fixture","candidate","published"]' || '["fixture","candidate"]') }}
     steps:
       - uses: actions/checkout@v6
       - uses: pnpm/action-setup@v5
@@ -35,30 +45,34 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 24
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - run: node --test tests/client-incidents.test.mjs
-      - run: node tests/browser/build-picker-fixture.mjs
-      - name: Test model selection and injected faults in installed Safari
-        id: fixture
+      - name: Prepare installed Safari
         run: |
           python3 -m venv "$RUNNER_TEMP/picker-venv"
           "$RUNNER_TEMP/picker-venv/bin/pip" install selenium==4.29.0
           sudo safaridriver --enable
+          mkdir -p .artifacts/picker-diagnostics
+      - name: Test model selection and injected faults in installed Safari
+        if: matrix.suite == 'fixture'
+        run: |
+          pnpm install --frozen-lockfile --ignore-scripts
+          node --test tests/client-incidents.test.mjs
+          node tests/browser/build-picker-fixture.mjs
           python3 -m http.server 8126 --bind 127.0.0.1 --directory .artifacts/picker-diagnostics &
           trap 'kill $!' EXIT
           "$RUNNER_TEMP/picker-venv/bin/python" tests/browser/safari-picker.py
       - name: Exercise published 3.2.19 on official DSH 0.2.2-rc.1
-        if: github.event_name == 'workflow_dispatch' && inputs.compare_published
+        if: matrix.suite == 'published'
         run: '"$RUNNER_TEMP/picker-venv/bin/python" tests/browser/official-picker.py'
-      - name: Exercise the candidate on the same host
-        if: "!cancelled() && steps.fixture.outcome == 'success'"
-        shell: bash
+      - name: Exercise the candidate on official DSH 0.2.2-rc.1
+        if: matrix.suite == 'candidate'
+        env:
+          PICKER_TEST_SHORTCUT: "1"
         run: |
           pnpm pack --pack-destination "$RUNNER_TEMP"
           "$RUNNER_TEMP/picker-venv/bin/python" tests/browser/official-picker.py "$RUNNER_TEMP/dsh-codex-subscription-$(node -p "require('./package.json').version").tgz"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
-          name: safari-picker-diagnostics
+          name: safari-picker-diagnostics-${{ matrix.suite }}
           path: .artifacts/picker-diagnostics/*.json
           include-hidden-files: true

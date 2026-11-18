@@ -19,7 +19,7 @@ import { createAccountStatusController } from './account-status-controller.js'
 import { NS, CHANNEL, unwrap } from './client-shared.js'
 import { createSubscriptionRpcClient } from './rpc-contract.js'
 import { CodexComposerQuota } from './client-composer-quota.jsx'
-import { CodexSpeedShortcut, SPEED_SHORTCUT_CSS } from './client-speed-shortcut.jsx'
+import { CodexSpeedShortcut } from './client-speed-shortcut.jsx'
 import { CodexModelOptionsOverlay, CodexModelSelect, CodexNativeModelOptions, CodexModelLabel, createModelOptionsMenu } from './client-model-select.jsx'
 import { registerLegacyModelPicker, watchComposerModelPickerConflict } from './client-model-picker-slot.js'
 import { quotaUsageController } from './client-quota.jsx'
@@ -59,7 +59,7 @@ export function apply(ctx) {
   ctx.effect(() => {
     const tag = document.createElement('style')
     tag.dataset.plugin = 'dsh-codex-subscription'
-    tag.textContent = STYLE + IMAGE_PREVIEWS_CSS + PREDICTION_CSS + SPEED_SHORTCUT_CSS
+    tag.textContent = STYLE + IMAGE_PREVIEWS_CSS + PREDICTION_CSS
     document.head.append(tag)
     return () => tag.remove()
   }, 'codex-subscription: style')
