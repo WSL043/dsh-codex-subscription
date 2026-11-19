@@ -65,7 +65,7 @@ Consulta la [guía oficial de DSH](https://github.com/deepseek-ai/deepseek-harne
 2. Pega el nombre de este paquete, incluida su versión, en el campo **Nombre o dirección del paquete**:
 
    ```text
-   dsh-codex-subscription@3.2.25
+   dsh-codex-subscription@3.3.0
    ```
 
 3. Haz clic en **Instalar** y espera a que termine. Sigue las instrucciones de la página; guarda tu trabajo antes de reiniciar si se te solicita.
@@ -82,7 +82,7 @@ Por qué se incluye la versión: la página de complementos de DSH solo instala 
 <summary>Instalación desde la terminal (con un comando dsh existente)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.25
+dsh plugin --profile web add dsh-codex-subscription@3.3.0
 ```
 
 Sigue las instrucciones para reiniciar y luego inicia sesión en **Configuración → Codex**. Tanto la página Complementos como la terminal usan la administración de instalaciones de DSH.
@@ -95,7 +95,7 @@ Sigue las instrucciones para reiniciar y luego inicia sesión en **Configuració
 Después de iniciar sesión y seleccionar un modelo de Codex en Web, instala el mismo complemento en el perfil Headless:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.25
+dsh plugin --profile headless add dsh-codex-subscription@3.3.0
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -245,6 +245,7 @@ En **Inicio → Cuota de suscripción** puedes ver cuánto queda y cuándo se re
 | Función | Qué puedes hacer | Disponibilidad / configuración |
 | --- | --- | --- |
 | **Varias cuentas** | Añade cuentas, cambia entre ellas, elimínalas o cierra sesión en todas | Settings → Codex → Start |
+| **Cambiar de cuenta al fallar** | Cuando se agota la cuota, continúa esta conversación en la siguiente cuenta iniciada; la capacidad del modelo debe fallar dos veces seguidas en la misma cuenta antes de cambiar | Configuración → Suscripción de Codex; activado de forma predeterminada; solo con dos o más cuentas iniciadas; el turno muestra por qué se reintentó y puede detenerse |
 | **Detalles de la cuota** | Consulta los periodos corto y semanal, las horas de restablecimiento y los grupos de cuota separados | Solo se muestran los periodos y grupos que proporciona el backend |
 | **En qué se ha usado la cuota** | En la tarjeta de cuota, consulta el desglose de la cuota semanal por modelo, superficie, fuente y desencadenante | Procede del informe de uso oficial: es aproximado y puede tener uno o dos días de retraso; se oculta si la cuenta no tiene ningún informe |
 | **Resumen de uso** | En la tarjeta de cuota, consulta los tokens acumulados, el día de mayor actividad, las rachas, el nivel de razonamiento más usado y un mapa de actividad diaria de los últimos seis meses | Procede de las estadísticas de uso oficiales; se oculta si la cuenta no tiene ninguna |
@@ -328,7 +329,7 @@ Busca este plugin en la página **Complementos** de DSH y usa la opción de actu
 <summary>Comandos de terminal</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.25
+dsh plugin --profile web update dsh-codex-subscription@3.3.0
 ```
 
 Ejecuta solo si quieres desinstalarlo:

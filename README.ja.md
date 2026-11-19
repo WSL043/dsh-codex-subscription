@@ -65,7 +65,7 @@ CLI と Web の Node.js 要件は [DSH の公式手順](https://github.com/deeps
 2. バージョンを含めた以下のパッケージ名を、**パッケージ名またはアドレス**欄に貼り付けます。
 
    ```text
-   dsh-codex-subscription@3.2.25
+   dsh-codex-subscription@3.3.0
    ```
 
 3. **インストール**をクリックし、完了するまで待ちます。ページの指示に従ってください。再起動を求められた場合は、その前に作業内容を保存してください。
@@ -82,7 +82,7 @@ CLI と Web の Node.js 要件は [DSH の公式手順](https://github.com/deeps
 <summary>ターミナルからインストール（dsh コマンドがすでにある場合）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.25
+dsh plugin --profile web add dsh-codex-subscription@3.3.0
 ```
 
 再起動の指示に従い、その後 **設定 → Codex** でサインインしてください。プラグインページとターミナルのどちらからインストールしても、DSH のインストール管理機能が使用されます。
@@ -95,7 +95,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.2.25
 Web でサインインし、Codex モデルを選択した後、Headless プロファイルにも同じプラグインをインストールします。
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.25
+dsh plugin --profile headless add dsh-codex-subscription@3.3.0
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -245,6 +245,7 @@ PC で **ペアリングコードを表示** を押し、ChatGPT モバイルア
 | 機能 | できること | 利用条件 / 設定 |
 | --- | --- | --- |
 | **複数アカウント** | アカウントの追加、切り替え、削除、またはすべてのアカウントからのサインアウトができます | 「設定」→「Codex」→「開始」 |
+| **失敗時のアカウント切り替え** | 利用枠を使い切ったら、この会話を次にログインしているアカウントで続行します。モデルの容量不足は同じアカウントで 2 回連続して失敗した場合にのみ切り替えます | 設定 → Codex サブスクリプション。既定でオン。2 つ以上のアカウントでログインしている場合のみ有効。切り替えた場合は再試行の理由が会話に表示され、停止できます |
 | **利用枠の詳細** | 短期 / 週間の利用枠、リセット時刻、個別の利用枠グループを確認できます | バックエンドから提供された利用枠とグループのみ表示されます |
 | **利用枠の内訳** | 利用枠カードで、各週の利用枠をモデル、利用画面、ソース、トリガー別に確認できます | 公式の利用レポートに基づきます。概算であり、1～2日遅れる場合があります。アカウントにレポートがない場合は表示されません |
 | **利用状況の概要** | 利用枠カードで、累計トークン数、最も利用した日、連続利用日数、最もよく使った推論レベル、半年分の日別ヒートマップを確認できます | 公式の利用統計に基づきます。アカウントに統計がない場合は表示されません |
@@ -328,7 +329,7 @@ DSH の **プラグイン** ページでこのプラグインを見つけ、更�
 <summary>ターミナルコマンド</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.25
+dsh plugin --profile web update dsh-codex-subscription@3.3.0
 ```
 
 アンインストールする場合にのみ実行してください：

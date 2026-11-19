@@ -65,7 +65,7 @@ Consultez le [guide officiel de DSH](https://github.com/deepseek-ai/deepseek-har
 2. Collez ce nom de package, avec sa version, dans le champ **Nom ou adresse du package** :
 
    ```text
-   dsh-codex-subscription@3.2.25
+   dsh-codex-subscription@3.3.0
    ```
 
 3. Cliquez sur **Installer** et attendez la fin de l’installation. Suivez les instructions de la page ; enregistrez votre travail avant de redémarrer si cela vous est demandé.
@@ -82,7 +82,7 @@ Pourquoi inclure la version : la page des plugins de DSH n’installe que des ve
 <summary>Installation dans le terminal (avec une commande dsh déjà installée)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.25
+dsh plugin --profile web add dsh-codex-subscription@3.3.0
 ```
 
 Suivez les instructions de redémarrage, puis connectez-vous dans **Paramètres → Codex**. La page Plugins et le terminal utilisent tous deux le système de gestion des installations de DSH.
@@ -95,7 +95,7 @@ Suivez les instructions de redémarrage, puis connectez-vous dans **Paramètres 
 Après vous être connecté et avoir sélectionné un modèle Codex dans Web, installez le même plugin dans le profil Headless :
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.25
+dsh plugin --profile headless add dsh-codex-subscription@3.3.0
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -245,6 +245,7 @@ Consultez **Démarrage → Quota d’abonnement** pour connaître le solde et le
 | Fonctionnalité | Ce que vous pouvez faire | Disponibilité / configuration |
 | --- | --- | --- |
 | **Comptes multiples** | Ajouter, changer, supprimer des comptes ou se déconnecter de tous les comptes | Settings → Codex → Start |
+| **Changer de compte en cas d’échec** | Lorsque le quota est épuisé, cette conversation se poursuit sur le compte connecté suivant ; pour la capacité du modèle, le même compte doit échouer deux fois de suite avant le changement | Paramètres → Abonnement Codex ; activé par défaut ; uniquement avec au moins deux comptes connectés ; le tour indique la raison de la nouvelle tentative et peut être arrêté |
 | **Détails du quota** | Consulter les périodes courtes / hebdomadaires, les heures de réinitialisation et les groupes de quotas distincts | Seules les périodes et les groupes fournis par le backend sont affichés |
 | **Utilisation de votre allocation** | Dans la carte de quota, voir la répartition de l’allocation de chaque semaine par modèle, interface, source et déclencheur | À partir du rapport d’utilisation officiel : données approximatives, susceptibles d’avoir un ou deux jours de retard ; masqué si le compte ne dispose d’aucun rapport |
 | **Aperçu de l’utilisation** | Dans la carte de quota, consulter le nombre total de jetons utilisés, le jour le plus actif, les séries, le niveau de raisonnement le plus utilisé et une carte thermique quotidienne sur six mois | À partir des statistiques d’utilisation officielles ; masqué si le compte n’en dispose pas |
@@ -328,7 +329,7 @@ Trouvez ce plugin sur la page **Plugins** de DSH et utilisez l’action de mise 
 <summary>Commandes de terminal</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.25
+dsh plugin --profile web update dsh-codex-subscription@3.3.0
 ```
 
 À exécuter uniquement si vous souhaitez désinstaller :

@@ -65,7 +65,7 @@ Die Node.js-Anforderungen für CLI und Web findest du in der [offiziellen DSH-An
 2. Füge diesen Paketnamen einschließlich Version in das Feld **Paketname oder Adresse** ein:
 
    ```text
-   dsh-codex-subscription@3.2.25
+   dsh-codex-subscription@3.3.0
    ```
 
 3. Klicke auf **Installieren** und warte, bis der Vorgang abgeschlossen ist. Folge den Anweisungen auf der Seite; speichere deine Arbeit, bevor du neu startest, falls du dazu aufgefordert wirst.
@@ -82,7 +82,7 @@ Warum die Version angegeben ist: Auf der Plugin-Seite von DSH werden nur Version
 <summary>Installation über das Terminal (mit einem vorhandenen dsh-Befehl)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.25
+dsh plugin --profile web add dsh-codex-subscription@3.3.0
 ```
 
 Folge den Anweisungen zum Neustart und melde dich anschließend unter **Einstellungen → Codex** an. Sowohl die Plugins-Seite als auch das Terminal verwenden die Installationsverwaltung von DSH.
@@ -95,7 +95,7 @@ Folge den Anweisungen zum Neustart und melde dich anschließend unter **Einstell
 Melde dich an und wähle in Web ein Codex-Modell aus. Installiere anschließend dasselbe Plugin im Headless-Profil:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.25
+dsh plugin --profile headless add dsh-codex-subscription@3.3.0
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -245,6 +245,7 @@ Unter **Start → Abonnementkontingent** stehen Restkontingent und Rücksetzzeit
 | Funktion | Was du tun kannst | Verfügbarkeit / Einrichtung |
 | --- | --- | --- |
 | **Mehrere Konten** | Konten hinzufügen, wechseln oder entfernen oder dich von allen Konten abmelden | „Einstellungen“ → „Codex“ → „Start“ |
+| **Bei Fehlern das Konto wechseln** | Ist das Kontingent erschöpft, läuft diese Unterhaltung auf dem nächsten angemeldeten Konto weiter; bei fehlender Modellkapazität muss dasselbe Konto erst zweimal hintereinander scheitern | Einstellungen → Codex-Abonnement; standardmäßig aktiviert; nur mit zwei oder mehr angemeldeten Konten; der Zug zeigt den Grund für den neuen Versuch und kann gestoppt werden |
 | **Kontingentdetails** | Kurz- und Wochenzeiträume, Rücksetzzeiten und separate Kontingentgruppen anzeigen | Es werden nur vom Backend bereitgestellte Zeiträume und Gruppen angezeigt |
 | **Wofür das Kontingent verwendet wurde** | Auf der Kontingentkarte die Aufteilung des Wochenkontingents nach Modell, Oberfläche, Quelle und Auslöser anzeigen | Aus dem offiziellen Nutzungsbericht: ungefähr und möglicherweise ein oder zwei Tage verzögert; wird ausgeblendet, wenn für das Konto kein Bericht vorliegt |
 | **Nutzungsübersicht** | Auf der Kontingentkarte Tokens über die gesamte Nutzungsdauer, den aktivsten Tag, Nutzungsserien, die am häufigsten verwendete Überlegungsstufe und eine tägliche Heatmap für ein halbes Jahr anzeigen | Aus der offiziellen Nutzungsstatistik; wird ausgeblendet, wenn keine vorhanden ist |
@@ -328,7 +329,7 @@ Suche dieses Plugin auf der DSH-Seite **Plugins** und verwende dort die Aktion z
 <summary>Terminalbefehle</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.25
+dsh plugin --profile web update dsh-codex-subscription@3.3.0
 ```
 
 Nur ausführen, wenn du deinstallieren möchtest:

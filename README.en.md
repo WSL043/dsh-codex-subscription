@@ -65,7 +65,7 @@ See the [official DSH run guide](https://github.com/deepseek-ai/deepseek-harness
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@3.2.25
+   dsh-codex-subscription@3.3.0
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -82,7 +82,7 @@ Why the version is included: DSH's plugin page only installs versions that are a
 <summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.25
+dsh plugin --profile web add dsh-codex-subscription@3.3.0
 ```
 
 Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
@@ -95,7 +95,7 @@ Follow the restart instructions, then sign in under **Settings → Codex**. Both
 After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.25
+dsh plugin --profile headless add dsh-codex-subscription@3.3.0
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -140,7 +140,7 @@ Voice conversation is off by default. Enable it under **Phone & more**, then sta
 
 **Model-aware context** follows your account's model directory; refreshing preserves your unsaved draft. Settings show the raw window; conversation budgets reserve headroom using the official percentage (5% when omitted), then DSH manages output reservations and compaction. No manual subtraction is needed. Quota groups use backend-provided values, including separate buckets such as Spark.
 
-Subscription failures remain visible: no silent fallback to another paid route.
+Subscription failures remain visible: no silent fallback to another paid route. **Rotate accounts on failure** (on by default) only moves between signed-in accounts of the same subscription; it does not change the provider the request goes to and never switches to an API key. With one account, or when every other account is cooling down after its own quota exhaustion, the failure is reported or waited on as before.
 
 </details>
 
@@ -245,6 +245,7 @@ Start with **Start → Subscription quota** for the remaining allowance and rese
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
 | **Multiple accounts** | Add, switch, remove, or sign out of all accounts | Settings → Codex → Start |
+| **Rotate accounts on failure** | When quota runs out, continue this conversation on the next signed-in account; model capacity has to fail twice in a row on the same account first | Settings → Codex; on by default; only with two or more accounts signed in; the turn shows why it retried and can be stopped |
 | **Quota details** | View short / weekly windows, reset times, and separate quota groups | Only backend-provided windows and groups are shown |
 | **Where the allowance went** | In the quota card, see each week's allowance split by model, surface, source and trigger | From the official usage report: approximate, may lag a day or two; hidden when the account has no report |
 | **Usage overview** | In the quota card, see lifetime tokens, busiest day, streaks, most used reasoning level and a half-year daily heatmap | From the official usage statistics; hidden when the account has none |
@@ -328,7 +329,7 @@ Find this plugin on the DSH **Plugins** page and use its update or uninstall act
 <summary>Terminal commands</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.25
+dsh plugin --profile web update dsh-codex-subscription@3.3.0
 ```
 
 Run only when you want to uninstall:

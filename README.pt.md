@@ -65,7 +65,7 @@ Consulte o [guia oficial do DSH](https://github.com/deepseek-ai/deepseek-harness
 2. Cole o nome deste pacote, com a versão, no campo **Nome ou endereço do pacote**:
 
    ```text
-   dsh-codex-subscription@3.2.25
+   dsh-codex-subscription@3.3.0
    ```
 
 3. Clique em **Instalar** e aguarde a conclusão. Siga as instruções da página; salve seu trabalho antes de reiniciar, se solicitado.
@@ -82,7 +82,7 @@ Por que a versão está incluída: a página de plugins do DSH só instala vers�
 <summary>Instalação pelo terminal (com um comando dsh existente)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.25
+dsh plugin --profile web add dsh-codex-subscription@3.3.0
 ```
 
 Siga as instruções para reiniciar e entre em **Configurações → Codex**. Tanto a página Plugins quanto o terminal usam o gerenciamento de instalações do DSH.
@@ -95,7 +95,7 @@ Siga as instruções para reiniciar e entre em **Configurações → Codex**. Ta
 Depois de entrar e selecionar um modelo Codex na versão Web, instale o mesmo plugin no perfil Headless:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.25
+dsh plugin --profile headless add dsh-codex-subscription@3.3.0
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -245,6 +245,7 @@ Em **Início → Cota da assinatura**, confira o saldo e o horário de redefini�
 | Recurso | O que você pode fazer | Disponibilidade / configuração |
 | --- | --- | --- |
 | **Várias contas** | Adiciona, alterna, remove ou desconecta todas as contas | Configurações → Codex → Iniciar |
+| **Trocar de conta em caso de falha** | Quando a cota se esgota, esta conversa continua na próxima conta conectada; a capacidade do modelo exige que a mesma conta falhe duas vezes seguidas antes da troca | Configurações → Assinatura do Codex; ativado por padrão; apenas com duas ou mais contas conectadas; o turno mostra o motivo da nova tentativa e pode ser interrompido |
 | **Detalhes da cota** | Exibe períodos curtos / semanais, horários de redefinição e grupos de cota separados | São exibidos apenas os períodos e grupos fornecidos pelo backend |
 | **Destino da cota** | No cartão de cota, veja a divisão da cota de cada semana por modelo, interface, fonte e acionador | Com base no relatório oficial de uso: valores aproximados, podem apresentar atraso de um ou dois dias; oculto quando a conta não tem relatório |
 | **Visão geral do uso** | No cartão de cota, veja os tokens acumulados, o dia de maior uso, sequências, o nível de raciocínio mais usado e um mapa de calor diário de seis meses | Com base nas estatísticas oficiais de uso; oculto quando a conta não tem estatísticas |
@@ -328,7 +329,7 @@ Encontre este plugin na página **Plugins** do DSH e use a opção de atualizaç
 <summary>Comandos do terminal</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.25
+dsh plugin --profile web update dsh-codex-subscription@3.3.0
 ```
 
 Execute somente quando quiser desinstalar:

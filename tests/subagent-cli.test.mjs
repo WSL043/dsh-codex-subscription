@@ -1,12 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, writeFile, readFile, rm, realpath } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createSubagentCli, SUBAGENT_CLI_ALIAS, SUBAGENT_CLI_SPEC, SUBAGENT_CODEX_VERSION } from '../src/subagent-cli.js'
 
 test('the optional CLI is profile-owned, exact-versioned and installed by native package operations without touching the host CLI', async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'subtask-cli-'))
+  // macOS resolves /var to /private/var; keep the fixture path canonical so the
+  // comparison against the resolved wrapper does not depend on the platform.
+  const dir = await realpath(await mkdtemp(join(tmpdir(), 'subtask-cli-')))
   const manifestPath = join(dir, 'package.json'), packageDir = join(dir, 'node_modules', SUBAGENT_CLI_ALIAS)
   const hostCli = '@openai/codex'
   let version = SUBAGENT_CODEX_VERSION, calls = 0

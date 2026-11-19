@@ -57,7 +57,7 @@ CLI 和 Web 的 Node.js 要求见 [DSH 官方运行说明](https://github.com/de
 2. 在 **包名或地址** 输入框中粘贴下面的包名（已带版本号）：
 
    ```text
-   dsh-codex-subscription@3.2.25
+   dsh-codex-subscription@3.3.0
    ```
 
 3. 点击 **安装**，等待安装完成；按页面提示操作，需要重启时先保存工作。
@@ -74,7 +74,7 @@ CLI 和 Web 的 Node.js 要求见 [DSH 官方运行说明](https://github.com/de
 <summary>终端安装（已能运行 dsh 命令）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.25
+dsh plugin --profile web add dsh-codex-subscription@3.3.0
 ```
 
 安装完成后按提示重启 DSH，再到 **设置 → Codex 订阅** 登录。插件页面和终端均由 DSH 管理安装。
@@ -87,7 +87,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.2.25
 先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.25
+dsh plugin --profile headless add dsh-codex-subscription@3.3.0
 dsh --profile headless "只回复：ok"
 ```
 
@@ -130,7 +130,7 @@ dsh --profile headless "只回复：ok"
 
 **模型感知上下文**跟随账号模型目录，刷新不会覆盖未保存的草稿。设置显示原始窗口，对话预算按官方系数预留安全空间（目录未提供时为 5%），再由 DSH 管理输出预留和压缩，无需手动扣除。额度分组以服务端实际返回为准，包括 Spark 等独立额度。
 
-订阅请求失败时会明确报错，不会静默切换到其他付费路由。
+订阅请求失败时会明确报错，不会静默切换到其他付费路由。**号池自动轮换**（默认开启）只在同一订阅的已登录账号之间换号，不改变请求使用的提供商，也不会改用 API Key；只有一个账号，或其余账号也在额度冷却中时，仍按原方式报错或等待重置。
 
 </details>
 
@@ -227,6 +227,7 @@ dsh --profile headless "只回复：ok"
 | 功能 | 你可以做什么 | 使用方式 / 条件 |
 | --- | --- | --- |
 | **多账号管理** | 添加、切换、移除账号，或退出全部账号 | 设置 → Codex 订阅 → 开始 |
+| **号池自动轮换** | 额度用完时，把这次对话换到下一个已登录账号继续；模型容量不足则要同一账号连续失败两次才换 | 设置 → Codex 订阅；默认开启；仅在登录两个以上账号时生效；换号后对话显示重试原因，可以停止 |
 | **额度详情** | 查看短周期 / 每周额度、重置时间及独立额度分组 | 仅展示服务端返回的窗口与分组 |
 | **额度去向** | 在额度卡片里按周查看额度花在哪：按模型、入口、来源和触发方式拆分 | 来自官方用量报告，近似值，有一两天延迟；账号没有该报告时不显示 |
 | **使用概览** | 在额度卡片里查看累计 token、单日最高、连续使用天数、最常用推理档，以及最近半年的每日用量热力图 | 来自官方使用统计；账号没有该统计时不显示 |
@@ -304,7 +305,7 @@ dsh --profile headless "只回复：ok"
 <summary>终端方式</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.25
+dsh plugin --profile web update dsh-codex-subscription@3.3.0
 ```
 
 仅在需要卸载时运行：
