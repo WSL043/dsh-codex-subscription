@@ -302,6 +302,35 @@ async function fetchInCodexScope(scope, fetchBeforeScope, input, init) {
   return scopedOptions.transformResponse?.(response, target) ?? response
 }
 
+function guardCodexConnectingClose(socket) {
+  const close = socket.close
+  socket.close = function (...args) {
+    const [code, reason] = args
+    if (this !== socket || socket.readyState !== WebSocket.CONNECTING || code !== 1000 ||
+      (reason !== 'aborted' && reason !== 'connect_timeout')) {
+      return Reflect.apply(close, this, args)
+    }
+    // pi-ai removes its handshake listeners before closing. Node ws can then
+    // emit the intentional pre-open close error asynchronously, before 'close'.
+    const observeCloseError = error => {
+      if (error?.message === 'WebSocket was closed before the connection was established') return
+      if (!socket.listeners('error').some(listener => listener !== observeCloseError)) throw error
+    }
+    const cleanup = () => {
+      socket.removeListener('error', observeCloseError)
+      socket.removeListener('close', cleanup)
+    }
+    socket.prependListener('error', observeCloseError)
+    socket.once('close', cleanup)
+    try {
+      return Reflect.apply(close, this, args)
+    } catch (error) {
+      cleanup()
+      throw error
+    }
+  }
+}
+
 export async function withCodexNetwork(run, options = {}) {
   // Model SSE decorates the host's fetch per request, without installing a
   // global wrapper or bypassing middleware for ordinary proxy settings.
@@ -326,6 +355,7 @@ export async function withCodexNetwork(run, options = {}) {
         socket.once?.('open', () => scope.options.onModelWebSocketConnect?.())
         let maxMessageBytes
         if (url.pathname === CODEX_MODEL_SSE_PATH) {
+          if (socket instanceof WebSocket) guardCodexConnectingClose(socket)
           socket.once?.('upgrade', response => {
             const header = response.headers?.[CODEX_WEBSOCKET_LIMIT_HEADER]
             if (typeof header !== 'string' || !/^\d+$/u.test(header)) return
