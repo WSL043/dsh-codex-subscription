@@ -3,7 +3,8 @@ import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { normalizeSubagentModel } from './subagent-defaults.js'
 import { capabilityPatch } from './capability-settings.js'
 import { ORIGINAL_IMAGE_CHUNK_BYTES, ORIGINAL_IMAGE_ID_PATTERN } from './image-original-contract.js'
-import { AUTO_QUOTA_RETRY_FIELD, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DISABLED_MODELS_FIELD, normalizeCustomContextWindow, normalizeDisabledModels } from './settings-contract.js'
+import { applyAccountTransition } from './account-transition.js'
+import { ACCOUNT_FAILOVER_FIELD, AUTO_QUOTA_RETRY_FIELD, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DISABLED_MODELS_FIELD, normalizeCustomContextWindow, normalizeDisabledModels } from './settings-contract.js'
 const publicError = (code, message) => ({
   ok: false,
   error: { code, message, details: { issues: [] } },
@@ -257,6 +258,12 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
             }
             patch[AUTO_QUOTA_RETRY_FIELD] = payload[AUTO_QUOTA_RETRY_FIELD]
           }
+          if (Object.hasOwn(payload ?? {}, ACCOUNT_FAILOVER_FIELD)) {
+            if (typeof payload[ACCOUNT_FAILOVER_FIELD] !== 'boolean') {
+              return publicError('internal', 'Invalid account failover preference')
+            }
+            patch[ACCOUNT_FAILOVER_FIELD] = payload[ACCOUNT_FAILOVER_FIELD]
+          }
           for (const [field, rule] of Object.entries(PREFERENCE_FIELDS)) {
             if (!Object.hasOwn(payload ?? {}, field)) continue
             if (!rule.choices.includes(payload[field])) return publicError('internal', rule.error)
@@ -385,19 +392,10 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
       || (endpoint === 'login/status' && result.value?.authenticated === true))) {
       // The account transaction has committed. Auxiliary cache failures must not
       // misreport that transaction or prevent the remaining invalidations.
-      const tasks = [() => closeConnections?.(), () => usageReader.clearCache(), () => planHistoryReader?.clear(), () => usageProfileReader?.clear(),
-        () => resetCreditService.clear(), () => modelCatalog?.clear(), () => onAccountChanged?.()]
-      if (endpoint === 'logout') tasks.push(() => usageReader.clear(), () => accountUsageReader?.clear())
-      if (endpoint === 'login/status') tasks.push(() => accountUsageReader?.clear())
-      if (endpoint === 'account/remove' && typeof payload?.id === 'string') tasks.push(() => usageReader.clearScope(payload.id))
-      const outcomes = await Promise.allSettled(tasks.map(task => Promise.resolve().then(task)))
-      const catalogOutcomes = endpoint === 'logout'
-        ? []
-        : await Promise.allSettled([Promise.resolve().then(() => modelCatalog?.initialize())])
-      if ([...outcomes, ...catalogOutcomes].some(value => value.status === 'rejected')) {
-        try { onCleanupFailure?.() } catch { /* Diagnostics must not change account results. */ }
-      }
-      if (endpoint !== 'logout') void Promise.resolve().then(() => modelCatalog?.refresh({ signal: undefined })).catch(() => {})
+      await applyAccountTransition({
+        endpoint, payload, closeConnections, usageReader, accountUsageReader, planHistoryReader,
+        usageProfileReader, resetCreditService, modelCatalog, onAccountChanged, onCleanupFailure,
+      })
     } else if (result.ok === true && result.value?.authenticated === true
       && modelCatalog?.status?.().source === 'unavailable' && modelCatalog.status().refresh === 'idle') {
       // Quota polling also reads sign-in status. Do not refresh the model catalog

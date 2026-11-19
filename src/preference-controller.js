@@ -2,7 +2,9 @@ import { CHANNEL, unwrap } from './rpc-contract.js'
 import { normalizeReasoningCache } from './preference-fields.js'
 import { normalizeSubagentModel, normalizeSubagentEffort } from './subagent-defaults.js'
 import {
+  ACCOUNT_FAILOVER_FIELD,
   AUTO_QUOTA_RETRY_FIELD,
+  normalizeAccountFailover,
   DEFAULT_REASONING_EFFORT_FIELD,
   normalizeDefaultReasoningEffort,
   normalizeComposerModelPicker, normalizeSpeedShortcut, SPEED_SHORTCUT_FIELD,
@@ -87,6 +89,7 @@ export function createPreferenceController(rpc) {
       status: current.status,
       ...capabilities,
       autoQuotaRetry: normalizeAutoQuotaRetry(value?.[AUTO_QUOTA_RETRY_FIELD]),
+      accountFailover: normalizeAccountFailover(value?.[ACCOUNT_FAILOVER_FIELD]),
       connectionMode: value?.connectionMode === 'websocket' ? 'websocket' : 'sse',
       reviewModel: value?.reviewModel === 'official' ? 'official' : 'session',
       remoteControl: value?.remoteControl === 'on' ? 'on' : 'off',
@@ -180,6 +183,7 @@ export function createPreferenceController(rpc) {
       value: {
         [DISABLED_MODELS_FIELD]: normalizeDisabledModels(value?.[DISABLED_MODELS_FIELD]),
         [AUTO_QUOTA_RETRY_FIELD]: normalizeAutoQuotaRetry(value?.[AUTO_QUOTA_RETRY_FIELD]),
+        [ACCOUNT_FAILOVER_FIELD]: normalizeAccountFailover(value?.[ACCOUNT_FAILOVER_FIELD]),
         connectionMode: value?.connectionMode === 'websocket' ? 'websocket' : 'sse',
         reviewModel: value?.reviewModel === 'official' ? 'official' : 'session',
         remoteControl: value?.remoteControl === 'on' ? 'on' : 'off',

@@ -7,7 +7,7 @@ import { RemoteControlCard } from './client-remote-control.jsx'
 import { VoiceCallCard } from './client-voice-call.jsx'
 import { useId, useEffect, useRef, useState } from 'react'
 import { Button, IconChevronDownOutline14, Input, Menu, Switch } from './client-primitives.jsx'
-import { AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, CONNECTOR_MODES, REASONING_SUMMARY_FIELD, REASONING_SUMMARIES, RETRY_POLICY_FIELD, RETRY_POLICIES, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, DISABLED_MODELS_FIELD, clampModelContext, INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
+import { ACCOUNT_FAILOVER_FIELD, AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, CONNECTOR_MODES, REASONING_SUMMARY_FIELD, REASONING_SUMMARIES, RETRY_POLICY_FIELD, RETRY_POLICIES, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, DISABLED_MODELS_FIELD, clampModelContext, INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
 import { reconcileContextDrafts } from './context-draft-state.js'
 import { draftStep, toggleModelId } from './picker-draft.js'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
@@ -34,6 +34,15 @@ export function AutoQuotaRetryPreference({ preference, t }) {
   return <div className="codexSubscriptionPreference">
     <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('autoQuotaRetryHint')}>{t('autoQuotaRetry')}</SettingsLabel>{snapshot.status === 'ready' ? <Hint>{t(`state_autoQuotaRetry_${snapshot.autoQuotaRetry ? 'on' : 'off'}`)}</Hint> : null}</div>
     <Switch checked={snapshot.autoQuotaRetry} label={t('autoQuotaRetry')} disabled={!writable} onChange={next => { void preference.set({ [AUTO_QUOTA_RETRY_FIELD]: next }) }} />
+  </div>
+}
+
+export function AccountFailoverPreference({ preference, t }) {
+  const snapshot = usePreferenceSnapshot(preference)
+  const writable = snapshot.status === 'ready' && snapshot.writable === true
+  return <div className="codexSubscriptionPreference">
+    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('accountFailoverHint')}>{t('accountFailover')}</SettingsLabel>{snapshot.status === 'ready' ? <Hint>{t(`state_accountFailover_${snapshot.accountFailover ? 'on' : 'off'}`)}</Hint> : null}</div>
+    <Switch checked={snapshot.accountFailover} label={t('accountFailover')} disabled={!writable} onChange={next => { void preference.set({ [ACCOUNT_FAILOVER_FIELD]: next }) }} />
   </div>
 }
 
@@ -333,6 +342,8 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
       <CapabilityPreferences preference={preference} t={t} section="quota" />
       <div className="codexSubscriptionDivider" />
       <AutoQuotaRetryPreference preference={preference} t={t} />
+      <div className="codexSubscriptionDivider" />
+      <AccountFailoverPreference preference={preference} t={t} />
     </>}
     {snapshot.error ? <div className="codexSubscriptionRecover" role="alert"><p className="codexSubscriptionError">{t('preferenceFailed')}</p><Button type="button" variant="outline" onClick={() => { void preference.retry() }}>{t('preferenceRetry')}</Button></div> : null}
   </div>

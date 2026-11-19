@@ -66,13 +66,15 @@ import { setAuthFailureLogger } from './http-failure.js'
 import { PACKAGE_VERSION } from './version.js'
 import { hostDshVersion } from './subagent-runtime.js'
 import { createDiagnosticOperations } from './diagnostic-operations.js'
-import { VOICE_CALL_FIELD, VOICE_VOICE_FIELD, VOICE_LANGUAGE_FIELD, normalizeVoiceCall, normalizeVoiceVoice, normalizeVoiceLanguage, AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, normalizeConnectorMode, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, REASONING_SUMMARY_FIELD, normalizeReasoningSummary, RETRY_POLICY_FIELD, normalizeRetryPolicy, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, SPEED_SHORTCUT_FIELD, normalizeSpeedShortcut, normalizeComposerModelPicker, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
+import { VOICE_CALL_FIELD, VOICE_VOICE_FIELD, VOICE_LANGUAGE_FIELD, normalizeVoiceCall, normalizeVoiceVoice, normalizeVoiceLanguage, AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, normalizeConnectorMode, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, REASONING_SUMMARY_FIELD, normalizeReasoningSummary, RETRY_POLICY_FIELD, normalizeRetryPolicy, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, SPEED_SHORTCUT_FIELD, normalizeSpeedShortcut, normalizeComposerModelPicker, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode, ACCOUNT_FAILOVER_FIELD, DEFAULT_ACCOUNT_FAILOVER, normalizeAccountFailover } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
 import { createAccountUsageReader } from './account-usage.js'
 import { createPlanHistoryReader } from './plan-history.js'
 import { createUsageProfileReader } from './usage-profile.js'
 import { createConnectorsClient, createConnectorTools } from './connectors.js'
 import { catalogModelsReady, createCodexQuotaRetryHandler } from './quota-retry.js'
+import { createAccountFailover } from './account-failover.js'
+import { applyAccountTransition } from './account-transition.js'
 import { createQuotaForecastReader } from './quota-forecast.js'
 import { QuotaForecastStateStore } from './quota-forecast-store.js'
 import { createCodexResetCreditService } from './reset-credits.js'
@@ -141,6 +143,7 @@ const settingsFields = {
   webFetchFallbackProvider: z.string(),
   [DISABLED_MODELS_FIELD]: z.transform(z.array(z.string()).max(100), normalizeDisabledModels).default([]),
   [AUTO_QUOTA_RETRY_FIELD]: z.boolean().default(DEFAULT_AUTO_QUOTA_RETRY),
+  [ACCOUNT_FAILOVER_FIELD]: z.boolean().default(DEFAULT_ACCOUNT_FAILOVER),
   subagentDefaultModel: z.transform(z.string().max(80), normalizeSubagentModel).default(''),
   ...Object.fromEntries(Object.entries(PREFERENCE_FIELDS).map(([field, rule]) => [field, rule.default === undefined ? z.union(rule.choices) : z.union(rule.choices).default(rule.default)])),
   imageModel: z.union(Object.keys(IMAGE_MODELS)).default(DEFAULT_IMAGE_MODEL),
@@ -280,6 +283,7 @@ export function apply(ctx, config = {}) {
       return {
         [DISABLED_MODELS_FIELD]: normalizeDisabledModels(settings.get()[DISABLED_MODELS_FIELD]),
         [AUTO_QUOTA_RETRY_FIELD]: normalizeAutoQuotaRetry(settings.get()[AUTO_QUOTA_RETRY_FIELD]),
+        [ACCOUNT_FAILOVER_FIELD]: normalizeAccountFailover(settings.get()[ACCOUNT_FAILOVER_FIELD]),
         compactionMode: settings.get().compactionMode ?? 'dsh',
         reasoningCache: normalizeReasoningCache(settings.get().reasoningCache),
         [DEFAULT_REASONING_EFFORT_FIELD]: normalizeDefaultReasoningEffort(settings.get()[DEFAULT_REASONING_EFFORT_FIELD]),
@@ -874,6 +878,49 @@ export function apply(ctx, config = {}) {
   })
   ctx.effect(() => () => composerPredictions.clear())
   ctx.effect(() => settings.watch(value => { if (value.composerPredictions !== 'on') composerPredictions.clear() }))
+  // Account-pool failover runs ahead of the quota-reset wait: when another account
+  // can serve the turn right now, waiting hours for this one to reset is the wrong
+  // answer. It only owns the decision; the switch and its cache invalidation stay
+  // here, next to the other account transitions.
+  const failoverLifetime = new AbortController()
+  const activeFailovers = new Set()
+  const accountFailover = createAccountFailover({
+    enabled: () => normalizeAccountFailover(settings.get()[ACCOUNT_FAILOVER_FIELD]),
+    listAccounts: () => accountVault.list(),
+    activeAccountId: () => accountVault.activeId(),
+    // The vault serializes the write; everything else an account switch invalidates
+    // is applied exactly as a manual account/select does, including the catalogue reload.
+    switchAccount: async id => {
+      await accountVault.select(id)
+      await applyAccountTransition({ closeConnections: () => connection.dispose(), usageReader, accountUsageReader, planHistoryReader,
+        usageProfileReader, resetCreditService, modelCatalog, onAccountChanged: () => {
+          subagentCatalog.clear(); connectorsClient.clear(); usageProfileReader.clear(); voicePreview.clear(); composerPredictions.clear()
+          // A parked quota wait is over: the turn is on a different account now.
+          quotaRetryHandler.notifyAccountChanged()
+        }, onCleanupFailure: () => diagnosticOperations.record('account/cleanup', 'failed') })
+    },
+    modelsReady: catalogModelsReady(modelCatalog),
+    onSwitched: () => diagnosticLog.info('account-failover', 'the turn continues on another signed-in account'),
+    log: { info: (area, message) => diagnosticLog.info(area, message), warn: (area, message, detail) => diagnosticLog.warn(area, message, detail) },
+  })
+  const disposeFailover = ctx.on('agent/request-error', (payload, next) => {
+    if (failoverLifetime.signal.aborted) return Promise.resolve(undefined)
+    const signal = payload.signal === undefined
+      ? failoverLifetime.signal
+      : AbortSignal.any([payload.signal, failoverLifetime.signal])
+    // Registered after the quota listener with the same prepend flag, so this runs
+    // first: another account that can serve now beats waiting for this one to reset.
+    // The two never both claim a turn, because the one that recovers returns first.
+    const operation = accountFailover({ ...payload, signal }, next)
+    const tracked = operation.finally(() => activeFailovers.delete(tracked))
+    activeFailovers.add(tracked)
+    return tracked
+  }, true)
+  ctx.effect(() => async () => {
+    disposeFailover()
+    failoverLifetime.abort(new Error('codex-subscription account failover disposed'))
+    await Promise.allSettled([...activeFailovers])
+  }, 'codex-subscription: abort and drain account failover')
   const subscriptionHandler = createSubscriptionRpcHandler({
     authHandler: createCodexRpcHandler(coordinator, { openExternal: openCodexAuthUrl }),
     usageReader,
@@ -889,7 +936,7 @@ export function apply(ctx, config = {}) {
     nativeVoice,
     voicePreview,
     composerPredictions,
-    onAccountChanged: () => { remoteBridge.clearUploads(); subagentCatalog.clear(); connectorsClient.clear(); usageProfileReader.clear(); voicePreview.clear(); composerPredictions.clear(); quotaRetryHandler.notifyAccountChanged() },
+    onAccountChanged: () => { remoteBridge.clearUploads(); subagentCatalog.clear(); connectorsClient.clear(); usageProfileReader.clear(); voicePreview.clear(); composerPredictions.clear(); quotaRetryHandler.notifyAccountChanged(); accountFailover.clear() },
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, review: provider, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
     onCleanupFailure: () => diagnosticOperations.record('account/cleanup', 'failed'),
     modelCatalog,

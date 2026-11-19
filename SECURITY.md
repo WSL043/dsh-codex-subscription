@@ -20,7 +20,7 @@ Do not open a public issue containing access tokens, refresh tokens, account ide
 - Login links are restricted to the HTTPS `auth.openai.com` origin before they are returned or opened.
 - Usage requests are host-side, use a bounded timeout, refuse redirects, and return parsed quota projections rather than provider payloads.
 - Cache telemetry stores no prompts, responses, session IDs, tokens, account IDs, or returned fingerprint hashes. Its per-session state is bounded and process-local.
-- The bundle defines no API-key or cross-provider fallback.
+- The bundle defines no API-key or cross-provider fallback. Optional account failover only moves between signed-in accounts of the same ChatGPT subscription; it never changes the provider a request goes to and never selects a paid non-subscription route.
 
 Installing any DSH plugin grants its host code access to the services named in its composition. Review the tag or commit you install. Prefer a tagged version or a full commit hash over a moving branch.
 

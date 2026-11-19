@@ -3,6 +3,8 @@ import { MAX_CONTEXT_BUDGET, validModelKey } from './capability-settings.js'
 export const DISABLED_MODELS_FIELD = 'disabledModels'
 export const AUTO_QUOTA_RETRY_FIELD = 'autoQuotaRetry'
 export const DEFAULT_AUTO_QUOTA_RETRY = false
+export const ACCOUNT_FAILOVER_FIELD = 'accountFailover'
+export const DEFAULT_ACCOUNT_FAILOVER = true
 export const QUICK_QUOTA_MODE_FIELD = 'quickQuotaMode'
 export const LEGACY_QUICK_QUOTA_FIELD = 'quickQuotaVisible'
 export const QUICK_QUOTA_MODE_OFF = 'off'
@@ -103,6 +105,7 @@ export const CUSTOM_CONTEXT_MODEL_DEFAULTS = Object.freeze({
 })
 
 export const normalizeAutoQuotaRetry = value => typeof value === 'boolean' ? value : DEFAULT_AUTO_QUOTA_RETRY
+export const normalizeAccountFailover = value => typeof value === 'boolean' ? value : DEFAULT_ACCOUNT_FAILOVER
 
 export const normalizeDisabledModels = value => Array.isArray(value)
   ? [...new Set(value.filter(id => typeof id === 'string' && /^[a-z][a-z0-9._-]{0,79}$/u.test(id)))].slice(0, 100)

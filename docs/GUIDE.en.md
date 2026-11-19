@@ -120,6 +120,22 @@ decides whether a window needs resetting and may return **nothing to reset** wit
 action requires an acknowledgement checkbox and five-second cooldown. Cancel never consumes a reset, rapid repeated
 clicks are single-flight, and an uncertain network result is never retried automatically.
 
+### Rotate accounts on failure
+
+Turn on **Rotate accounts on failure** under **Settings → Codex subscription**; it is on by default. With two or more ChatGPT accounts signed in on this machine, when one account can no longer serve the request the plugin moves this conversation to another signed-in account and retries the same step; a single account never rotates. The switch only moves between accounts of this subscription, so the request still goes to the same provider and never falls back to an API key.
+
+The two failure kinds are treated differently:
+
+- **Quota exhausted**: when the service reports the ChatGPT usage limit or account quota as spent, the first such failure is enough to move, and that account is parked for quota cooldown.
+- **Capacity / overload**: the model is briefly busy, the account itself is fine, and the same request will often succeed on the next attempt. Moving accounts drops the prompt cache, so the same account must fail this way **twice in a row** within a short window before a switch; a success or a different failure restarts the count. Each conversation counts separately, so parallel turns do not add up to a switch no single turn justified.
+
+One case is exempt. When the service explicitly invites a retry but DSH itself will not retry it — for example `An error occurred while processing your request. You can retry your request… Please include the request ID …` — the turn has already ended by the time the failure arrives, so a second attempt can never happen. That failure is handled immediately: with several accounts signed in it rotates, and with only one account it retries once in place (once per step, so it cannot loop).
+
+The cooldown uses the provider's own “Try again in ~N min” hint when the error contains one, and 10 minutes otherwise. Cooldowns exist only for this run on this machine; after a restart the plugin re-reads the real quota. Rotation walks forward through the account list, skipping accounts still in cooldown, so an attempt only lands on an account that can still serve the request.
+
+After a switch the plugin reloads that account's model catalog and connections, shows the reason for the retry in the conversation using the standard retry notice (it can be stopped), and continues from the same step without replaying partial output to the model. Switching is serialized: two conversations failing at once do not chase each other through the pool. If another turn already moved off the failing account, this turn simply retries on the account that is active now instead of switching again. A step never returns to an account it already left behind and the in-place reattempt is spent once, so a provider that fails every account ends on the original error instead of rotating without end.
+
+When every other account is also in cooldown, or only one account is signed in, the plugin does not switch and the original error stands; with **Retry after quota reset** enabled, the existing wait-for-reset recovery still applies. Turning the switch off restores the previous behavior.
 <a id="images"></a>
 
 ### Image generation and editing
