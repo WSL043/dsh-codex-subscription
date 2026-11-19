@@ -12,6 +12,7 @@
 | 调整速度或按 Tab 填入草稿 | [Codex 速度](#codex-speed) · [输入预测](#predictions) |
 | 编辑图片或使用画板绘图 | [图片](#images) · [草图画板](#sketch) |
 | 配对手机或开启语音对话 | [手机远程控制](#phone) · [语音对话](#voice) |
+| 选择长会话的压缩方式 | [上下文压缩](#context-compaction) |
 
 ## 功能说明
 
@@ -214,6 +215,20 @@ Ultra 是 **DSH 主动分工预设**：使用账号模型目录解析出的实�
 - 上限为 20,000 个 input item、16 MiB 输入与外层字段指纹数据、128 个 update，以及 256 个活动或 pending 会话。历史校验或边界校验失败时停止保缓存，不忽略用户所选强度。
 
 此机制使用 OpenAI [推理指南](https://developers.openai.com/api/docs/guides/reasoning)中的 configuration update；[提示词缓存文档](https://developers.openai.com/api/docs/guides/prompt-caching)解释缓存条件。支持情况以当前账号目录和实际响应为准；服务端拒绝参数时报告错误，不换成旧强度或 API key 重试。
+
+<a id="context-compaction"></a>
+
+### 选择上下文压缩方式
+
+在 **设置 → Codex 订阅 → 模型 → 高级 → 云端压缩** 中选择。默认连接方式为 SSE。
+
+| 使用目的 | 推荐设置 | 会话历史如何变化 |
+| --- | --- | --- |
+| 由 DSH 管理长会话 | 保持**云端压缩**关闭（默认）。 | DSH 将较早的历史替换成文字摘要，并可保留近期轮次。替换范围内的推理项随之退出请求。GPT-6.2 Sol 收到仍随近期历史发送的推理项时，也可能因前缀变化而将其移除。 |
+| 优先沿用 Codex 服务端检查点 | 开启**云端压缩（Beta）**，并让第三方摘要跳过这些会话。 | 插件通过 SSE 重放 Codex 返回的加密检查点。DSH 保留自己的会话历史，也仍可执行本地压缩。如果本地压缩改写了检查点对应的前缀，插件会发送 DSH 摘要，并在服务端下次返回检查点时重新建立压缩状态。 |
+| 由 billion-context 负责压缩 | 关闭**云端压缩**，选择 SSE，按 [billion-context 配置说明](#codex-模型-sse-专用代理)设置。 | 代理在发送前改写历史，可能在转发时移除部分推理项。仍被转发的推理项也可能因前缀变化而被服务端移除。 |
+
+提示词缓存命中、回复能接上前文和推理项重放是不同的观测结果。[#264](https://github.com/WSL043/dsh-codex-subscription/issues/264) 的订阅 SSE 实测中，DSH 和 billion-context 压缩后都出现了 `prefix_mismatch`。空的 `input_transformations` 表示服务端未报告移除项，模型内部实际利用了哪些推理仍不可观测。云端压缩后再执行 DSH 压缩的对照也确认了旧检查点失效、随后成功重放新检查点。
 
 ### Codex 模型 SSE 专用代理
 

@@ -12,6 +12,7 @@
 | Change response speed or use Tab to fill a draft | [Codex speed](#codex-speed) · [Input predictions](#predictions) |
 | Edit an image or draw on the canvas | [Images](#images) · [Sketch canvas](#sketch) |
 | Pair a phone or start a voice conversation | [Phone remote control](#phone) · [Voice conversations](#voice) |
+| Choose how long conversations are compacted | [Context compaction](#context-compaction) |
 
 ## Feature details
 
@@ -221,6 +222,20 @@ The request-level `reasoning.effort` stays at the current context window's initi
 - The feature is bounded to 20,000 input items, 16 MiB of fingerprinted input/envelope data, 128 updates and 256 active/pending sessions. Boundary or history validation failures stop preservation, not your selected reasoning effort.
 
 This uses configuration updates documented in OpenAI's [reasoning guide](https://developers.openai.com/api/docs/guides/reasoning); see [prompt caching](https://developers.openai.com/api/docs/guides/prompt-caching) for cache requirements. Support follows the current account catalog and actual responses. Backend parameter rejections are surfaced, never retried with an old effort or an API key.
+
+<a id="context-compaction"></a>
+
+### Choose a context compaction mode
+
+Choose the mode under **Settings → Codex → Models → Advanced → Cloud compaction**. SSE is the standard connection mode.
+
+| What you want | Recommended setup | What happens to history |
+| --- | --- | --- |
+| Let DSH manage long conversations | Leave **Cloud compaction** off (default). | DSH replaces an older range with a text summary and can retain recent turns. Reasoning items from the replaced range leave the request. On GPT-6.2 Sol, a changed prefix can also cause the server to drop recent reasoning items that DSH still sends. |
+| Prefer Codex server checkpoints | Enable **Cloud compaction (Beta)** and exclude these conversations from third-party summarization. | The plugin uses SSE and replays the encrypted checkpoint returned by Codex. DSH keeps its own history and can still compact it locally. If that rewrites the checkpoint's prefix, the plugin sends the DSH summary and builds a fresh checkpoint when the server next returns one. |
+| Use billion-context for compression | Leave **Cloud compaction** off, select SSE, and follow the [billion-context setup](#dedicated-codex-sse-proxy). | The proxy rewrites history before it reaches the server. This may remove some reasoning items during forwarding, and the server may drop others when their prefix has changed. |
+
+Prompt cache hits and a coherent reply measure different things from reasoning-item replay. The subscription SSE responses in [#264](https://github.com/WSL043/dsh-codex-subscription/issues/264) reported reasoning-item removals as `prefix_mismatch` after DSH and billion-context compression. An empty `input_transformations` array means the server reported no removals. Internal reasoning use is not observable from that field. In the combined cloud and DSH test, the plugin discarded the stale checkpoint, then replayed its replacement on the following turn.
 
 ### Dedicated Codex SSE proxy
 
