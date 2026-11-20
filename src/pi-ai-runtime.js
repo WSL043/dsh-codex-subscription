@@ -5,7 +5,7 @@ import { diagnosticLog } from './diagnostic-log.js'
 import { redactRequest } from './failure-capture.js'
 import { hoistLeadingSystem, runtimeVersions, understandsSystemMessages } from './pi-ai-compat.js'
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
-import { isContextOverflow } from '@earendil-works/pi-ai/utils/overflow'
+import { isContextOverflow } from '@earendil-works/pi-ai'
 import { normalizeTransportEvent, safeFetchFailure } from './transport-failure.js'
 import { createModelRetryBridge } from './model-retry-hint.js'
 import { authFailureMessage } from './http-failure.js'
@@ -429,4 +429,4 @@ export function openaiCodexSubscriptionProvider({
   })
 }
 
-export const PI_AI_RUNTIME_VERSIONS = Object.freeze(['0.85.1', '0.87.1', '1.1.0', '1.2.0', '1.3.0', '1.4.0', '1.5.0', '1.5.1', '1.5.2'])
+export const PI_AI_RUNTIME_VERSIONS = Object.freeze(['0.82.1', '0.85.1', '0.87.1', '1.1.0', '1.2.0', '1.3.0', '1.4.0', '1.5.0', '1.5.1', '1.5.2'])
