@@ -84,6 +84,10 @@ export const STYLE = `
 .codexSubscriptionCard{border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-layer-1);padding:14px 16px;display:flex;flex-direction:column;gap:12px}
 .codexSubscriptionUsageCard{padding:12px 14px;gap:9px}
 .codexSubscriptionPreferencesCard{padding:12px 14px;gap:10px}
+.codexCustomInstructions{display:grid;gap:6px;font-size:13px}
+.codexCustomInstructions textarea{box-sizing:border-box;width:100%;min-height:64px;resize:vertical;border:1px solid var(--dsw-alias-border-l3);border-radius:var(--dsw-radius-sm,8px);background:transparent;color:inherit;font:inherit;padding:6px 8px}
+.codexCustomInstructions textarea:focus-visible{outline:var(--dsw-focus-ring-width,2px) solid var(--dsw-alias-state-business-primary);outline-offset:2px}
+.codexCustomInstructions>.dcsButton{justify-self:end}
 .codexSubscriptionPreference{min-height:32px;box-sizing:border-box;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;color:var(--dsw-alias-label-primary);font-size:13px;line-height:20px}
 .codexSubscriptionPreferenceCopy{display:flex;min-width:0;flex-direction:column;gap:2px}
 .codexSubscriptionPreferenceLabel{display:flex;align-items:center;gap:6px}

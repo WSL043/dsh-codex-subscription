@@ -673,3 +673,52 @@ test('the reasoning summary level goes on the request, and off sends none', asyn
     globalThis.fetch = previousFetch
   }
 })
+
+test('saved custom instructions reach ordinary Codex requests without changing DSH history', async () => {
+  const previousFetch = globalThis.fetch
+  const wires = []
+  globalThis.fetch = async (_url, init) => {
+    wires.push(JSON.parse(zstdDecompressSync(Buffer.from(init.body)).toString('utf8')))
+    return new Response(sse([
+      { type: 'response.created', response: { id: 'resp_instruction' } },
+      { type: 'response.done', response: { id: 'resp_instruction', status: 'completed', output: [],
+        usage: { input_tokens: 4, output_tokens: 1, total_tokens: 5 } } },
+    ]), { headers: { 'content-type': 'text/event-stream' } })
+  }
+  try {
+    let instructions = 'Reply using the test phrase.\nKeep {{literal}}.'
+    const provider = openaiCodexSubscriptionProvider({ resolveCustomInstructions: () => instructions })
+    const profile = { provider: 'openai-codex', displayName: 'ChatGPT subscription', piProvider: provider,
+      configuredMaxTokens: new Map(), modelErrors: new Map(), transport: 'sse', streamIdleTimeoutMs: 10_000 }
+    const adapter = provider.wrapRetryAdapter(new PiAiAdapter({ profiles: () => new Map([[profile.provider, profile]]),
+      resolveApiKey: async () => jwt('account-instructions') }))
+    const request = { provider: profile.provider, model: 'gpt-5.6-sol', sessionId: 'instructions-fixture',
+      messages: [
+        { role: 'system', content: [{ type: 'text', text: 'Existing DSH guidance.' }] },
+        { role: 'user', content: [{ type: 'text', text: 'Hello there' }] },
+      ] }
+    const baseline = structuredClone(request)
+    const run = async (overrides = {}) => {
+      for await (const _ of adapter.stream({ ...request, ...overrides })) {}
+    }
+    await run()
+    await run({ purpose: 'session-title' })
+    await run({ purpose: 'compaction' })
+    await run({ messages: [{ role: 'system', content: [{ type: 'text', text: 'REVIEW_POLICY\nYou are the final authorization reviewer' }] }, request.messages[1]] })
+    instructions = 'Use changed instructions.'
+    await run()
+    instructions = '  '
+    await run()
+    assert.match(wires[0].instructions, /^Existing DSH guidance\./)
+    assert.ok(wires[0].instructions.endsWith('Reply using the test phrase.\nKeep {{literal}}.'))
+    assert.equal(wires[1].instructions, 'Existing DSH guidance.')
+    assert.equal(wires[2].instructions, 'Existing DSH guidance.')
+    assert.equal(wires[3].instructions, 'REVIEW_POLICY\nYou are the final authorization reviewer')
+    assert.ok(wires[4].instructions.endsWith('Use changed instructions.'))
+    assert.equal(wires[5].instructions, 'Existing DSH guidance.')
+    assert.deepEqual(wires[0].input, wires[5].input)
+    assert.deepEqual(request, baseline)
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})

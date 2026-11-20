@@ -92,6 +92,7 @@ const MAX_REQUEST_IMAGE_BYTES = 20 * 1024 * 1024
 const REQUEST_IMAGE_PIXEL_BUDGET = 2048 * 2048
 const REQUEST_IMAGE_MAX_BYTES = 1024 * 1024
 
+import { CUSTOM_INSTRUCTIONS_FIELD, CUSTOM_INSTRUCTIONS_LIMIT } from './settings-contract.js'
 import { createSubscriptionRpcHandler } from './subscription-rpc.js'
 import { createVoicePreview } from './voice-preview.js'
 import { createComposerPredictions } from './composer-predictions.js'
@@ -141,6 +142,7 @@ const settingsFields = {
   webFetchFallbackProvider: z.string(),
   [DISABLED_MODELS_FIELD]: z.transform(z.array(z.string()).max(100), normalizeDisabledModels).default([]),
   [AUTO_QUOTA_RETRY_FIELD]: z.boolean().default(DEFAULT_AUTO_QUOTA_RETRY),
+  [CUSTOM_INSTRUCTIONS_FIELD]: z.string().max(CUSTOM_INSTRUCTIONS_LIMIT).default(''),
   subagentDefaultModel: z.transform(z.string().max(80), normalizeSubagentModel).default(''),
   ...Object.fromEntries(Object.entries(PREFERENCE_FIELDS).map(([field, rule]) => [field, rule.default === undefined ? z.union(rule.choices) : z.union(rule.choices).default(rule.default)])),
   imageModel: z.union(Object.keys(IMAGE_MODELS)).default(DEFAULT_IMAGE_MODEL),
@@ -256,6 +258,7 @@ export function apply(ctx, config = {}) {
     compaction,
     reasoning,
     resolveSpeedMode: () => settings.get()[SPEED_MODE_FIELD],
+    resolveCustomInstructions: () => settings.get()[CUSTOM_INSTRUCTIONS_FIELD],
     resolveOutputVerbosity: () => normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
     resolveInputImageDetail: () => settings.get()[INPUT_IMAGE_DETAIL_FIELD],
     resolveReasoningSummary: () => settings.get()[REASONING_SUMMARY_FIELD],
@@ -310,6 +313,7 @@ export function apply(ctx, config = {}) {
         fetchRoutingAvailable: fetchRouted,
         [SPEED_MODE_FIELD]: settings.get()[SPEED_MODE_FIELD],
         [SPEED_SHORTCUT_FIELD]: normalizeSpeedShortcut(settings.get()[SPEED_SHORTCUT_FIELD]),
+        [CUSTOM_INSTRUCTIONS_FIELD]: settings.get()[CUSTOM_INSTRUCTIONS_FIELD] ?? '',
         [OUTPUT_VERBOSITY_FIELD]: normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
         [INPUT_IMAGE_DETAIL_FIELD]: normalizeInputImageDetail(settings.get()[INPUT_IMAGE_DETAIL_FIELD]),
         [REASONING_SUMMARY_FIELD]: normalizeReasoningSummary(settings.get()[REASONING_SUMMARY_FIELD]),

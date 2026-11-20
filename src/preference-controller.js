@@ -8,6 +8,7 @@ import {
   normalizeComposerModelPicker, normalizeSpeedShortcut, SPEED_SHORTCUT_FIELD,
   clampModelContext,
   CONTEXT_MODE_FIELD,
+  CUSTOM_INSTRUCTIONS_FIELD,
   DISABLED_MODELS_FIELD,
   CUSTOM_CONTEXT_MODEL_CAPS,
   CUSTOM_CONTEXT_MODEL_DEFAULTS,
@@ -116,6 +117,7 @@ export function createPreferenceController(rpc) {
       fetchRoutingAvailable,
       speedMode: normalizeSpeedMode(value?.[SPEED_MODE_FIELD]),
       [SPEED_SHORTCUT_FIELD]: normalizeSpeedShortcut(value?.[SPEED_SHORTCUT_FIELD]),
+      [CUSTOM_INSTRUCTIONS_FIELD]: value?.[CUSTOM_INSTRUCTIONS_FIELD] ?? '',
       outputVerbosity: normalizeOutputVerbosity(value?.[OUTPUT_VERBOSITY_FIELD]),
       inputImageDetail: normalizeInputImageDetail(value?.[INPUT_IMAGE_DETAIL_FIELD]),
       reasoningSummary: normalizeReasoningSummary(value?.[REASONING_SUMMARY_FIELD]),
@@ -205,6 +207,7 @@ export function createPreferenceController(rpc) {
         webFetchFallbackProvider: value?.webFetchFallbackProvider,
         [FETCH_PROVIDER_FIELD]: normalizeFetchProvider(value?.[FETCH_PROVIDER_FIELD]),
         [SPEED_MODE_FIELD]: normalizeSpeedMode(value?.[SPEED_MODE_FIELD]),
+        [CUSTOM_INSTRUCTIONS_FIELD]: typeof value?.[CUSTOM_INSTRUCTIONS_FIELD] === 'string' ? value[CUSTOM_INSTRUCTIONS_FIELD] : '',
         [OUTPUT_VERBOSITY_FIELD]: normalizeOutputVerbosity(value?.[OUTPUT_VERBOSITY_FIELD]),
         [INPUT_IMAGE_DETAIL_FIELD]: normalizeInputImageDetail(value?.[INPUT_IMAGE_DETAIL_FIELD]),
         [REASONING_SUMMARY_FIELD]: normalizeReasoningSummary(value?.[REASONING_SUMMARY_FIELD]),
@@ -307,6 +310,7 @@ export function createPreferenceController(rpc) {
       if (patch.subagentBackend === 'codex' && Array.isArray(value?.subagentModels)) subagentModels = value.subagentModels
       // The Host may normalize or reject a requested value; its response wins.
       pendingPatch = undefined
+      return true
     } catch {
       if (current === generation) {
         pendingPatch = undefined

@@ -104,6 +104,7 @@ export function isDshAutoReview(context) {
  */
 export function openaiCodexSubscriptionProvider({
   resolveSpeedMode = () => undefined,
+  resolveCustomInstructions = () => '',
   resolveOutputVerbosity = () => OUTPUT_VERBOSITY_DEFAULT,
   resolveInputImageDetail = () => undefined,
   resolveReasoningSummary = () => undefined,
@@ -133,7 +134,7 @@ export function openaiCodexSubscriptionProvider({
   })
   const modelMetadata = model => catalog?.metadata?.(model?.id)
   const supportsVerbosity = model => modelMetadata(model)?.supportVerbosity ?? model?.id !== 'gpt-5.3-codex-spark'
-  const withPreferences = (model, options = {}) => {
+  const withPreferences = (model, options = {}, instructions = '') => {
     const metadata = modelMetadata(model)
     const requestedVerbosity = resolveOutputVerbosity()
     const textVerbosity = supportsVerbosity(model)
@@ -161,6 +162,9 @@ export function openaiCodexSubscriptionProvider({
       async onPayload(payload, requestModel) {
         const preferred = {
           ...payload,
+          ...(instructions ? { instructions: [payload.instructions,
+            'User response preferences (apply as defaults when compatible with the current request, workspace instructions, and host policies):\n' + instructions,
+          ].filter(Boolean).join('\n\n') } : {}),
           ...(textVerbosity === undefined ? {} : { text: { ...(payload.text ?? {}), verbosity: textVerbosity } }),
           ...(serviceTier === undefined ? {} : { service_tier: serviceTier }),
         }
@@ -393,12 +397,16 @@ export function openaiCodexSubscriptionProvider({
   const routed = (method, model, transcript, options) => {
     // A pi-ai that predates system messages in the transcript gets them as systemPrompt and tools.
     const context = understandsSystemMessages(runtimeVersions().piAi) ? transcript : hoistLeadingSystem(transcript)
+    const reviewRequest = isDshAutoReview(context)
     const route = reviewRoute(model, context)
+    // Older DSH/pi-ai combinations drop the auxiliary purpose before dispatching the provider.
+    const purpose = options?.purpose ?? retryBridge.currentPurpose()
+    const instructions = !reviewRequest && purpose === undefined ? resolveCustomInstructions()?.trim() : ''
     const source = { method, model, context, options }
     const create = () => route === undefined
-      ? networkIterable(prepared => provider[method](model, context, prepared), withPreferences(model, options), isDshAutoReview(context), source)
+      ? networkIterable(prepared => provider[method](model, context, prepared), withPreferences(model, options, instructions), reviewRequest, source)
       : networkIterable(prepared => provider[method](model, context, prepared), withReview(route, options), true, source)
-    return isDshAutoReview(context) ? reviewIterable(create) : create()
+    return reviewRequest ? reviewIterable(create) : create()
   }
   return Object.freeze({
     ...provider,
