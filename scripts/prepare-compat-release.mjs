@@ -108,7 +108,6 @@ export function planCompatibilityUpdate(state, candidate) {
     for (const name of Object.keys(manifest.devDependencies ?? {})) {
       if (name.startsWith('@deepseek-ai/dsh-') && !UNSYNCED_DEV_PACKAGES.has(name) && !manifest.peerDependenciesMeta?.[name]?.optional) manifest.devDependencies[name] = candidate
     }
-    if (manifest.dependencies?.['@deepseek-ai/dsh-home-paths']) manifest.dependencies['@deepseek-ai/dsh-home-paths'] = candidate
   }
   // The DSH plugin manager also checks the cordis host and the optional Codex subtask runtime.
   widenPeer(manifest, '@deepseek-ai/cordis', state.host?.cordis)

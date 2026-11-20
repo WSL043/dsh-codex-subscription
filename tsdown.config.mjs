@@ -32,6 +32,8 @@ const clientFeatures = [
 // location out of region labels and maps, just as for a local node_modules tree.
 function portableSourcePath(source) {
   const normalized = source.replaceAll('\\', '/')
+  const homePaths = 'node_modules/@deepseek-ai/dsh-home-paths/lib/index.js'
+  if (normalized.endsWith(homePaths)) return homePaths
   const dependency = normalized.indexOf('node_modules/')
   return dependency < 0 ? normalized : normalized.slice(dependency)
 }
@@ -161,7 +163,10 @@ export default defineConfig([
     entry: { index: 'src/index.js' },
     outDir: 'lib', format: ['esm'], platform: 'node', target: 'es2024',
     fixedExtension: false, dts: false, clean: true,
-    deps: { neverBundle: hostExternal },
+    deps: { alwaysBundle: ['@deepseek-ai/dsh-home-paths'], neverBundle: hostExternal },
+    // Use Node's resolver for the build-only package, including pnpm's long paths on Windows.
+    alias: { '@deepseek-ai/dsh-home-paths': fileURLToPath(import.meta.resolve('@deepseek-ai/dsh-home-paths')) },
+    plugins: [portableSourcePaths()],
   },
   clientBundle('src/client.jsx', 'client.js', false),
   ...clientFeatures.map(feature => clientBundle(feature.entry, feature.fileName, true)),

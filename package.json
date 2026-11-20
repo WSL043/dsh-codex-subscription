@@ -1,6 +1,6 @@
 {
   "name": "dsh-codex-subscription",
-  "version": "3.2.25",
+  "version": "3.2.26",
   "packageManager": "pnpm@11.26.0",
   "description": "Use ChatGPT and Codex subscriptions in DeepSeek Harness with OAuth, quota, safe resets, web search, images and Fast mode, and control DSH from the ChatGPT mobile app (Beta)",
   "type": "module",
@@ -119,6 +119,7 @@
     "@deepseek-ai/dsh-client-ui-slots": "0.2.2-rc.1",
     "@deepseek-ai/dsh-client-ui-tool": "0.2.2-rc.1",
     "@deepseek-ai/dsh-credentials": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-home-paths": "0.2.2-rc.1",
     "@deepseek-ai/dsh-invariants": "0.2.0-rc.2",
     "@deepseek-ai/dsh-llm": "0.2.2-rc.1",
     "@deepseek-ai/dsh-llm-pi-ai": "0.2.2-rc.1",
@@ -138,7 +139,6 @@
     "tsdown": "0.22.2"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-home-paths": "0.2.2-rc.1",
     "https-proxy-agent": "7.0.6",
     "undici": "7.30.2",
     "ws": "8.21.3"
