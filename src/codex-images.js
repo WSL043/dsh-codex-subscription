@@ -225,9 +225,50 @@ export async function readSessionImage(attachmentId, attachments, signal, messag
   const id = normalizeAttachmentId(attachmentId)
   if (id === undefined) invalidAttachmentId({ attachmentId })
   const selected = sessionImageReferences(messages).get(id)
-  if (selected === undefined) throw new Error('The selected image attachment cannot be found in the current session. Copy attachmentId from the image block of the user message; never pass a path or filename.')
+  if (selected === undefined) throw new Error('The selected image attachment cannot be found in the current session. Copy attachmentId from an image block or image tool result in this session; never pass a path or filename.')
   const stored = await attachments.readImage(referenceOf(selected, attachments), signal)
   return { data: stored.data, mediaType: stored.ref.mediaType, name: stored.ref.name }
+}
+
+// Resolve paths only through completed DSH read_image calls in the active history.
+// The host owns file access, decoding and the attachment returned by each read.
+function readPathKey(path) {
+  if (typeof path !== 'string') return undefined
+  return /^[A-Za-z]:[\\/]/.test(path) ? path[0].toLowerCase() + path.slice(1).replaceAll('\\', '/') : path
+}
+
+function localReadReferences(messages) {
+  const calls = new Map()
+  const paths = new Map()
+  const aliases = new Map()
+  for (const message of messages ?? []) {
+    if (!Array.isArray(message.content)) continue
+    if (message.role === 'assistant') {
+      for (const block of message.content) {
+        if (block.type !== 'tool-call' || block.name !== 'read_image' || typeof block.id !== 'string') continue
+        let args = block.arguments
+        if (typeof args === 'string') {
+          try { args = JSON.parse(args) } catch { continue }
+        }
+        if (typeof args?.file_path !== 'string') continue
+        const key = readPathKey(args.file_path)
+        const read = { key: aliases.get(key) ?? key }
+        paths.set(read.key, read)
+        calls.set(block.id, read)
+      }
+    } else if (message.role === 'tool' && !message.isError) {
+      const read = calls.get(message.toolCallId)
+      const image = message.content.find(block => block.type === 'image' && block.attachment)
+      if (read && image && paths.get(read.key) === read) {
+        read.image = image.attachment
+        const header = message.content.find(block => block.type === 'text' && block.text?.startsWith('<path>'))
+        const displayPath = /^<path>([^\r\n]+)<\/path>\r?\n<type>image<\/type>/.exec(header?.text)?.[1]
+        if (displayPath) aliases.set(readPathKey(displayPath), read.key)
+      }
+    }
+  }
+  for (const [alias, key] of aliases) paths.set(alias, paths.get(key))
+  return paths
 }
 
 async function editImages(values, attachments, signal, messages) {
@@ -235,7 +276,14 @@ async function editImages(values, attachments, signal, messages) {
     throw new Error(`referenceImages must contain between 1 and ${MAX_REFERENCE_IMAGES} images; omit it to generate a new image`)
   }
   const available = messages === undefined ? undefined : sessionImageReferences(messages)
+  const localReads = values.some(value => value?.filePath !== undefined) ? localReadReferences(messages) : undefined
   const references = values.map(value => {
+    if (value?.filePath !== undefined) {
+      if (value.attachmentId !== undefined) throw new Error('Choose either filePath or attachmentId for each reference image')
+      const image = localReads.get(readPathKey(value.filePath))?.image
+      if (!image) throw new Error('Call read_image on the selected local file first, then pass the exact file_path from that call as filePath')
+      return referenceOf(image, attachments)
+    }
     const id = normalizeAttachmentId(value?.attachmentId)
     if (id === undefined) invalidAttachmentId(value)
     if (available === undefined) return referenceOf(value, attachments)
@@ -394,7 +442,7 @@ export function createCodexImageTool(options) {
   const attachments = options.attachments
   return defineTool({
     name: CODEX_IMAGE_TOOL_NAME,
-    description: 'Generate or edit images only when the user asks for image output, not when merely discussing images. Uses the signed-in Codex subscription. For a new image, omit referenceImages. For edits, copy attachmentId only from the selected session image block; the host supplies its metadata. Never call read_image for an attachmentId or attachment filename. Use read_image only for an actual local file whose reference is not already in the conversation. Never substitute paths, unrelated images, or text-only generation for an edit. For numbered annotations, include the clean source and location-reference image, preserve the requested changes and coordinates in the prompt, and remove guidance markers from the result. If the intended references cannot be identified, ask rather than guessing.',
+    description: 'Generate or edit images when the user asks for image output. Select relevant references from the requested project files, session attachments or earlier tool results. Inspect local candidates with read_image and pass only the chosen images in referenceImages. Use existing attachmentIds directly. Omit references for independent text-to-image generation. For numbered annotations include the clean source and location guide, describe the changes and coordinates, and remove markers from the output. If a required reference is unavailable, ask instead of substituting an unrelated image or a text-only generation.',
     parameters: {
       model: {
         type: 'string',
@@ -404,16 +452,16 @@ export function createCodexImageTool(options) {
       prompt: {
         type: 'string',
         required: true,
-        description: 'A complete, production-ready description of the image to generate.',
+        description: 'Write a self-contained prompt with the intended use, subject, and relevant composition or style. Preserve exact requested text. Label each selected image by position and role (e.g. subject from image 1, palette from image 2). For edits state the change and what must stay, also on follow-ups. Add only details that support the request.',
       },
       size: {
         type: 'string',
-        description: 'Optional GPT Image 2 output size. Use auto unless the user requests an exact valid widthxheight resolution.',
+        description: 'Omit for automatic sizing. For an explicit aspect ratio, use valid pixel dimensions, e.g. 1536x1024 for landscape or 1024x1536 for portrait. Put framing instructions in the prompt.',
       },
       quality: {
         type: 'string',
         enum: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
-        description: 'Optional rendering quality. Use auto unless the user requests draft speed or final quality.',
+        description: 'Omit to use the configured image quality. Set only when the user requests a different quality for this image.',
       },
       background: {
         type: 'string',
@@ -431,16 +479,19 @@ export function createCodexImageTool(options) {
       },
       referenceImages: {
         type: 'array',
-        description: 'Optional references to 1-5 selected images. For session images provide only attachmentId; the host resolves trusted metadata. Omit only for a new image; never drop an invalid reference to bypass editing.',
+        description: 'Select 1-5 images for reference-guided creation or edits. Use attachmentId for a session image. For a local reference, inspect the chosen file with read_image first and use its attachmentId or the exact path from that call. Mix sources in prompt order; never drop an invalid reference.',
         items: {
           type: 'object',
           additionalProperties: false,
           properties: {
             attachmentId: {
               type: 'string',
-              required: true,
+              ...(typeof options.getSessionMessages !== 'function' ? { required: true } : {}),
               description: 'Copy the complete attachmentId from the image block or read_image result: sha256:<64 lowercase hex>. Never pass a workspace path, absolute path, or filename. A bare 64-character hex digest is accepted and normalized to sha256:<64 lowercase hex>.',
             },
+            ...(typeof options.getSessionMessages === 'function' ? { filePath: {
+              type: 'string', description: 'Alternative to attachmentId for a local file. Use file_path from your completed read_image call or the path shown in its image result.',
+            } } : {}),
             mediaType: { type: 'string', ...(typeof options.getSessionMessages !== 'function' ? {required:true} : {}) },
             bytes: { type: 'integer', ...(typeof options.getSessionMessages !== 'function' ? {required:true} : {}) },
             width: { type: 'integer', ...(typeof options.getSessionMessages !== 'function' ? {required:true} : {}) },

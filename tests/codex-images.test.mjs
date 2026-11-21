@@ -542,6 +542,54 @@ test('session image edits accept only attachmentId and resolve canonical metadat
   assert.equal(requests[0].url,CODEX_IMAGE_EDIT_URL)
 })
 
+test('a reference-guided new composition sends only the chosen earlier image and keeps configured quality', async () => {
+  const other = { ...IMAGE_REF, attachmentId: `sha256:${'b'.repeat(64)}` }
+  const { tool, requests } = fixture({
+    getFeatures: () => ({ imageQuality: 'high' }),
+    getSessionMessages: () => [
+      { role: 'assistant', content: [{ type: 'tool-result', content: [{ type: 'image', attachment: IMAGE_REF }] }] },
+      { role: 'user', content: [{ type: 'image', attachment: other }] },
+    ],
+  })
+  const prompt = 'Create a new concert poster using only the palette of image 1. Title: Nightfall.'
+  await tool.execute({ prompt, referenceImages: [{ attachmentId: IMAGE_REF.attachmentId }] }, execContext('poster'))
+  const body = JSON.parse(requests[0].init.body)
+  assert.equal(requests[0].url, CODEX_IMAGE_EDIT_URL)
+  assert.equal(body.prompt, prompt)
+  assert.equal(body.quality, 'high')
+  assert.deepEqual(body.images, [{ image_url: `data:image/png;base64,${ONE_PIXEL_PNG}` }])
+})
+
+test('local references resolve only through successful session read_image calls and mix with uploads in order', async () => {
+  const local = { ...IMAGE_REF, attachmentId: `sha256:${'b'.repeat(64)}`, name: 'palette.png' }
+  const filePath = 'assets/palette.png'
+  const call = id => ({ role: 'assistant', content: [{ type: 'tool-call', id, name: 'read_image', arguments: JSON.stringify({ file_path: filePath }) }] })
+  const result = id => ({ role: 'tool', toolCallId: id, content: [{ type: 'text', text: '<path>D:/workspace/assets/palette.png</path>\n<type>image</type>' }, { type: 'image', attachment: local }] })
+  const messages = [{ role: 'user', content: [{ type: 'image', attachment: IMAGE_REF }] }, call('first'), result('first')]
+  const reads = []
+  const { tool, requests } = fixture({
+    getSessionMessages: () => messages,
+    attachments: { ...fixture().attachments, async readImage(ref) {
+      reads.push(ref.attachmentId)
+      return { ref, data: Buffer.from(ref.name) }
+    } },
+  })
+  const run = referenceImages => tool.execute({ prompt: 'Use image 1 for the palette and image 2 for the subject.', referenceImages }, execContext('mixed'))
+  await run([{ filePath }, { attachmentId: IMAGE_REF.attachmentId }])
+  assert.deepEqual(reads, [local.attachmentId, IMAGE_REF.attachmentId])
+  assert.deepEqual(JSON.parse(requests[0].init.body).images.map(image => image.image_url),
+    [local, IMAGE_REF].map(ref => `data:image/png;base64,${Buffer.from(ref.name).toString('base64')}`))
+  await run([{ filePath: 'd:\\workspace\\assets\\palette.png' }])
+  await assert.rejects(run([{ filePath: 'D:/elsewhere/assets/palette.png' }]), /read_image/)
+  await assert.rejects(run([{ filePath: 'unseen.png' }]), /read_image/)
+  await assert.rejects(run([{ filePath, attachmentId: IMAGE_REF.attachmentId }]), /either/)
+  await assert.rejects(run([{ filePath }, { attachmentId: local.attachmentId }]), /duplicates/)
+  messages.push(call('older'), call('latest'), { role: 'tool', toolCallId: 'latest', isError: true, content: [] }, result('older'))
+  await assert.rejects(run([{ filePath }]), /read_image/)
+  await assert.rejects(run([{ filePath: 'D:/workspace/assets/palette.png' }]), /read_image/)
+  assert.equal(requests.length, 2)
+})
+
 test('an image limit says when it resets, and a failure carries the request id for support', async () => {
   const limited = (error, headers = {}) => fixture({ async fetch() { return new Response(JSON.stringify({ error }), { status: 429, headers }) } }).tool
   const soon = Math.floor(Date.now() / 1000) + 90 * 60
