@@ -11,7 +11,7 @@ test('forecast state store atomically persists bounded non-secret observations',
   t.after(() => rm(root, { recursive: true, force: true }))
   const filename = join(root, 'state', 'quota.json')
   const store = new QuotaForecastStateStore({ filename })
-  const state = { windows: { '["local-a","codex",604800]': { resetsAt: 2_000_000_000, samples: [{ at: 1_900_000_000_000, remainingPercent: 80 }] } } }
+  const state = { windows: { '["local-a","codex",604800]': { resetsAt: 2_000_000_000, samples: [{ at: 1_900_000_000_000, remainingPercent: 80 }], risk: { band: 'possible', pendingBand: 'likely', pendingSince: 1_900_000_000_000 } } } }
   await store.save(state)
   assert.equal((await store.usage()).bytes, Buffer.byteLength(await readFile(filename, 'utf8')))
   assert.equal((await store.usage()).limit, 256 * 1024)

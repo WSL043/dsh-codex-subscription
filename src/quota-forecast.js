@@ -1,4 +1,5 @@
 import { quotaRateInterval, refineQuotaRate } from './quota-rate-interval.js'
+import { exhaustionOutlook, splitPastCycles, riskBand } from './quota-exhaustion.js'
 const HOUR_MS = 60 * 60 * 1000
 const HISTORY_MS = 30 * 24 * HOUR_MS
 const WEEK_MS = 7 * 24 * HOUR_MS
@@ -87,14 +88,31 @@ export function observeQuotaForecast(state, windows, now = Date.now(), context =
     if (last !== undefined && now <= last.at) continue
     const epochStart = resetChanged || quotaIncreased ? now : previous?.epochStart ?? previous?.samples?.[0]?.at ?? now
     const sample = { at: now, remainingPercent, ...(resetChanged || quotaIncreased ? { reset: true } : {}) }
-    const record = { resetsAt, epochStart, samples: retainSamples([...(previous?.samples ?? []), sample], now) }
+    const record = { resetsAt, epochStart, samples: retainSamples([...(previous?.samples ?? []), sample], now),
+      ...(previous?.risk && !resetChanged && !quotaIncreased ? { risk: previous.risk } : {}) }
     next.windows[key] = record
     changed = true
   }
   return { state: next, changed }
 }
 
+// Long-horizon outlook: computed beside the short-horizon status, never instead
+// of it, so that `flat` or `calibrating` cannot hide a cycle-level risk.
 export function estimateQuotaForecast(state, window, now = Date.now(), context = {}) {
+  const forecast = estimateShortHorizon(state, window, now, context)
+  const key = keyFor(window, context)
+  const record = state?.windows?.[key]
+  if (forecast.reason === 'stale' || record === undefined || !finite(window?.remainingPercent) || !finite(window.resetsAt) || !finite(record.resetsAt)
+    || Math.abs(record.resetsAt - Number(window.resetsAt)) > 300 || !(window.windowSeconds >= 86400)) return forecast
+  const history = record.samples.filter(sample => sample.at >= (record.epochStart ?? 0) && sample.at <= now)
+  const windowMs = window.windowSeconds * 1000
+  const exhaustion = exhaustionOutlook(history, { remainingPercent: clampPercent(window.remainingPercent), resetsAt: record.resetsAt,
+    windowSeconds: window.windowSeconds, memoScope: key,
+    pastCycles: splitPastCycles(record.samples, record.resetsAt * 1000 - windowMs, windowMs) })
+  return exhaustion === undefined ? forecast : { ...forecast, exhaustion, risk: riskBand(exhaustion, record.risk, history.at(-1).at) }
+}
+
+function estimateShortHorizon(state, window, now = Date.now(), context = {}) {
   if (!finite(window?.remainingPercent)) return { status: 'calibrating' }
   const record = state?.windows?.[keyFor(window, context)]
   if (record === undefined) return { status: 'calibrating' }
@@ -196,10 +214,17 @@ export function forecastUsage(usage, state = { windows: {} }, now = Date.now(), 
     changed ||= observed.changed
     return {
       ...limit,
-      windows: limit.windows.map(window => ({
-        ...window,
-        forecast: estimateQuotaForecast(nextState, window, now, context),
-      })),
+      windows: limit.windows.map(window => {
+        const forecast = estimateQuotaForecast(nextState, window, now, context)
+        // Persist the display band (hysteresis memory) beside the samples.
+        const key = keyFor(window, context), record = nextState.windows[key]
+        const { shown, ...risk } = forecast.risk ?? {}
+        if (forecast.risk && record && JSON.stringify(record.risk ?? {}) !== JSON.stringify(risk)) {
+          nextState = { windows: { ...nextState.windows, [key]: { ...record, risk } } }
+          changed = true
+        }
+        return { ...window, forecast }
+      }),
     }
   })
   return { state: nextState, changed, usage: { ...usage, rateLimits } }

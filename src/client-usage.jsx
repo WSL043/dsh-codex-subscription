@@ -1,7 +1,7 @@
 import { recoveryCall } from './client-recovery.js'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from './client-primitives.jsx'
-import { CHANNEL, unwrap, accessFailureText, usageFailureText, fill, uiLocale, percent, windowLabel, validDate, formatQuotaForecast, creditAmount, usePreferenceSnapshot } from './client-shared.js'
+import { CHANNEL, unwrap, accessFailureText, usageFailureText, fill, uiLocale, percent, windowLabel, validDate, formatQuotaForecastLines, creditAmount, usePreferenceSnapshot } from './client-shared.js'
 import { creditExpiryStatus, creditExpiryDateText } from './credit-expiry.js'
 import { REQUEST_BLOCKED, isAccessFailureMessage } from './http-failure.js'
 import { useQuotaUsage } from './client-quota.jsx'
@@ -184,7 +184,8 @@ export function UsageCard({ rpc, t, signedIn, resetKey, preference }) {
         <div className="codexSubscriptionLimitTop"><span className="codexSubscriptionLimitLabel">{limit.name ?? limit.id}</span><strong>{percent(window.remainingPercent)}%</strong></div>
         <progress max="100" value={window.remainingPercent} aria-label={`${limit.name ?? limit.id} ${fill(t('remaining'), { value: percent(window.remainingPercent) })}`} />
         <div className="codexSubscriptionLimitMeta"><span className="codexSubscriptionLimitPeriod"><span>{windowLabel(window.windowSeconds, t)}</span></span><ResetTime resetsAt={window.resetsAt} t={t} /></div>
-        {forecastMode ? <p className="codexSubscriptionForecast" role="status">{formatQuotaForecast(window.forecast, t, { ...window, fetchedAt: visibleUsage.fetchedAt, now, refreshError: error !== undefined })}</p> : null}
+        {forecastMode ? <div className="codexSubscriptionForecast" role="status">{formatQuotaForecastLines(window.forecast, t, { ...window, fetchedAt: visibleUsage.fetchedAt, now, refreshError: error !== undefined }).map(({ role, text }) =>
+          <p className={role === 'outlook' ? 'codexQuotaOutlook' : undefined} key={role}>{text}</p>)}</div> : null}
       </div>))}</div>}
     {limits.length === 0 ? null : <UsageOverview rpc={rpc} t={t} signedIn={signedIn} resetKey={resetKey} />}
     {limits.length === 0 ? null : <UsageHistory rpc={rpc} t={t} signedIn={signedIn} resetKey={resetKey} refreshKey={usageRefreshGeneration} forceRefreshKey={historyRefreshKey} />}
