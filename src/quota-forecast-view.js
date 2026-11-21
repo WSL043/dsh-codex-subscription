@@ -80,7 +80,7 @@ export function formatQuotaRunout(view, { t, locale, now = Date.now(), timeZone 
   const render = (key, values) => Object.entries(values).reduce((text, [name, value]) => text.replace(`{${name}}`, value), t(key))
   const weekday = time => {
     const japanese = locale?.toLowerCase().split('-')[0] === 'ja'
-    const day = new Intl.DateTimeFormat(locale, { timeZone, weekday: japanese ? 'short' : 'long' }).format(time)
+    const day = new Intl.DateTimeFormat(locale, { timeZone, weekday: 'short' }).format(time)
     return japanese ? `${day}曜` : day
   }
   if (view.grain === 'day') return weekday(view.earliest)
