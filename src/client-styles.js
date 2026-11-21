@@ -470,6 +470,7 @@ a.codexVoiceCall{display:flex;align-items:center;justify-content:center;box-sizi
 .codexSubscriptionPace{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-state-warning-primary,#b45309)}
 .codexSubscriptionForecast{margin:0;font-size:12px;line-height:18px;color:var(--dsw-alias-label-tertiary)}
 .codexSubscriptionForecast p{margin:0}
+.codexQuotaDetail p,.codexSubscriptionForecast p{white-space:pre-line}
 .codexQuotaDetail p.codexQuotaOutlook,.codexSubscriptionForecast .codexQuotaOutlook{color:var(--dsw-alias-label-secondary)}
 .codexSubscriptionLimit[data-pace=true] progress{accent-color:var(--dsw-alias-state-warning-primary,#f5a300)}
 .codexSubscriptionLimit[data-pace=true] progress::-webkit-progress-value{background:var(--dsw-alias-state-warning-primary,#f5a300)}

@@ -44,7 +44,7 @@ test('flat observations can coexist with reset risk without showing a stale resu
   const lines = formatQuotaForecastLines(forecast, t, options)
   assert.deepEqual(lines.map(row => row.role), ['outlook', 'budget'])
   assert.match(lines[0].text, /^If it runs out: [^(%]+$/)
-  assert.match(lines[1].text, /Budget ≈/)
+  assert.match(lines[1].text, /You have about/)
   assert.equal(formatQuotaForecastLines(forecast, t, { ...options, refreshError: true }).length, 1)
 })
 
@@ -60,7 +60,7 @@ test('quota outlook shows the median weekday when the conditional range is wide'
   }, key => ja[key], { windowSeconds, remainingPercent: 82, now, fetchedAt: now, locale: 'ja-JP', timeZone: 'Asia/Tokyo' })
   assert.deepEqual(render(46).map(row => row.text), [
     '使い切るなら火曜ごろ',
-    '1日平均 約19% · 目安 約14%',
+    'これまでの消費は1日約19%\n残りの日数で使えるのは1日約14%',
   ])
   assert.match(render(12)[0].text, /^使い切るなら火曜の夜ごろ$/)
   assert.match(render(13)[0].text, /火曜.*水曜/)

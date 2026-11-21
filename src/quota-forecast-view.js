@@ -80,7 +80,7 @@ export function formatQuotaRunout(view, { t, locale, now = Date.now(), timeZone 
   const render = (key, values) => Object.entries(values).reduce((text, [name, value]) => text.replace(`{${name}}`, value), t(key))
   const weekday = time => {
     const japanese = locale?.toLowerCase().split('-')[0] === 'ja'
-    const day = new Intl.DateTimeFormat(locale, { timeZone, weekday: 'short' }).format(time)
+    const day = new Intl.DateTimeFormat(locale, { timeZone, weekday: japanese || locale?.startsWith('zh') ? 'short' : 'long' }).format(time)
     return japanese ? `${day}曜` : day
   }
   if (view.grain === 'day') return weekday(view.earliest)
@@ -90,13 +90,15 @@ export function formatQuotaRunout(view, { t, locale, now = Date.now(), timeZone 
       : new Intl.DateTimeFormat(locale, gap > 1 && gap < 7 ? { timeZone, weekday: locale?.startsWith('zh') ? 'short' : 'long' } : { timeZone, month: 'numeric', day: 'numeric' }).format(time)
     const part = date.hour < 5 ? 'early' : date.hour < 12 ? 'morning' : date.hour < 18 ? 'afternoon' : date.hour < 23 ? 'evening' : 'night'
     const partText = t(`pacePart_${part}`)
-    const key = gap === 0 && view.grain === undefined ? part === 'early' ? 'quotaWhenEarlyToday' : part === 'night' ? 'quotaWhenTonight' : 'quotaWhenToday'
+    const key = view.grain === 'part' ? (part === 'early' ? 'quotaOutlookEarly' : 'quotaOutlookPart')
+      : gap === 0 ? part === 'early' ? 'quotaWhenEarlyToday' : part === 'night' ? 'quotaWhenTonight' : 'quotaWhenToday'
       : part === 'early' ? 'quotaWhenEarly' : 'paceWhen'
     return { day: date.day, period: part, part: partText, label: render(key, { day, part: partText }) }
   }
   if (view.kind !== 'time') return undefined
   const from = when(view.earliest), to = when(view.latest)
   if (from.day === to.day && from.label === to.label) return from.label
+  if (view.grain === 'part' && from.day !== to.day) return render('quotaOutlookRange', { from: from.label, to: to.label })
   const end = from.day === to.day ? render('quotaWhenRangeEnd', { part: to.part, label: to.label }) : to.label
   const key = from.day === to.day && from.period === 'early' && to.period === 'morning' ? 'quotaWhenEarlyMorningRange' : 'quotaWhenRange'
   return render(key, { from: from.label, to: end, latest: to.label })
