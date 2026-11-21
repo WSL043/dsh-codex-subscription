@@ -90,6 +90,11 @@ const memoryCredentials = initial => {
   }
 }
 
+function wireGuidance(wire) {
+  const first = wire.input[0]
+  return wire.instructions ?? (['developer', 'system'].includes(first?.role) ? first.content : undefined)
+}
+
 test('pi-ai Codex wire keeps a stable cache key, stateless storage, and server cache usage', async () => {
   const previousFetch = globalThis.fetch
   let wire
@@ -129,7 +134,7 @@ test('pi-ai Codex wire keeps a stable cache key, stateless storage, and server c
     assert.equal(wire.store, false)
     assert.equal(wire.prompt_cache_key, 'session-stable')
     assert.deepEqual(wire.include, ['reasoning.encrypted_content'])
-    assert.equal(wire.instructions, 'Stable prefix')
+    assert.equal(wireGuidance(wire), 'Stable prefix')
     assert.equal(final.usage.cacheRead, 80)
     assert.equal(final.usage.input, 20)
   } finally {
@@ -709,14 +714,15 @@ test('saved custom instructions reach ordinary Codex requests without changing D
     await run()
     instructions = '  '
     await run()
-    assert.match(wires[0].instructions, /^Existing DSH guidance\./)
-    assert.ok(wires[0].instructions.endsWith('Reply using the test phrase.\nKeep {{literal}}.'))
-    assert.equal(wires[1].instructions, 'Existing DSH guidance.')
-    assert.equal(wires[2].instructions, 'Existing DSH guidance.')
-    assert.equal(wires[3].instructions, 'REVIEW_POLICY\nYou are the final authorization reviewer')
-    assert.ok(wires[4].instructions.endsWith('Use changed instructions.'))
-    assert.equal(wires[5].instructions, 'Existing DSH guidance.')
-    assert.deepEqual(wires[0].input, wires[5].input)
+    assert.match(wireGuidance(wires[0]), /^Existing DSH guidance\./)
+    assert.ok(wireGuidance(wires[0]).endsWith('Reply using the test phrase.\nKeep {{literal}}.'))
+    assert.equal(wireGuidance(wires[1]), 'Existing DSH guidance.')
+    assert.equal(wireGuidance(wires[2]), 'Existing DSH guidance.')
+    assert.equal(wireGuidance(wires[3]), 'REVIEW_POLICY\nYou are the final authorization reviewer')
+    assert.ok(wireGuidance(wires[4]).endsWith('Use changed instructions.'))
+    assert.equal(wireGuidance(wires[5]), 'Existing DSH guidance.')
+    const withoutPrefix = wire => wire.instructions === undefined ? wire.input.slice(1) : wire.input
+    assert.deepEqual(withoutPrefix(wires[0]), withoutPrefix(wires[5]))
     assert.deepEqual(request, baseline)
   } finally {
     globalThis.fetch = previousFetch

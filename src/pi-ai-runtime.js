@@ -26,6 +26,17 @@ import {
   clampModelContext,
 } from './settings-contract.js'
 
+// Older providers put the prefix in instructions; newer providers keep it in input for caching.
+function withUserPreferences(payload, preferences) {
+  if (!preferences) return payload
+  const note = 'User response preferences (apply as defaults when compatible with the current request, workspace instructions, and host policies):\n' + preferences
+  const first = payload.input?.[0]
+  if (payload.instructions === undefined && ['developer', 'system'].includes(first?.role) && typeof first.content === 'string') {
+    return { ...payload, input: [{ ...first, content: first.content + '\n\n' + note }, ...payload.input.slice(1)] }
+  }
+  return { ...payload, instructions: [payload.instructions, note].filter(Boolean).join('\n\n') }
+}
+
 const FAST_SERVICE_TIER = 'priority'
 const ULTRAFAST_SERVICE_TIER = 'ultrafast'
 
@@ -161,10 +172,7 @@ export function openaiCodexSubscriptionProvider({
       ...(serviceTier === undefined ? {} : { serviceTier }),
       async onPayload(payload, requestModel) {
         const preferred = {
-          ...payload,
-          ...(instructions ? { instructions: [payload.instructions,
-            'User response preferences (apply as defaults when compatible with the current request, workspace instructions, and host policies):\n' + instructions,
-          ].filter(Boolean).join('\n\n') } : {}),
+          ...withUserPreferences(payload, instructions),
           ...(textVerbosity === undefined ? {} : { text: { ...(payload.text ?? {}), verbosity: textVerbosity } }),
           ...(serviceTier === undefined ? {} : { service_tier: serviceTier }),
         }
@@ -403,9 +411,11 @@ export function openaiCodexSubscriptionProvider({
     const purpose = options?.purpose ?? retryBridge.currentPurpose()
     const instructions = !reviewRequest && purpose === undefined ? resolveCustomInstructions()?.trim() : ''
     const source = { method, model, context, options }
+    // DSH reserves output locally. Its replay bridge owns mid-turn effort changes.
+    const subscriptionModel = { ...model, compat: { ...model.compat, supportsMaxOutputTokens: false, supportsMidConvoEffort: false } }
     const create = () => route === undefined
-      ? networkIterable(prepared => provider[method](model, context, prepared), withPreferences(model, options, instructions), reviewRequest, source)
-      : networkIterable(prepared => provider[method](model, context, prepared), withReview(route, options), true, source)
+      ? networkIterable(prepared => provider[method](subscriptionModel, context, prepared), withPreferences(model, options, instructions), reviewRequest, source)
+      : networkIterable(prepared => provider[method](subscriptionModel, context, prepared), withReview(route, options), true, source)
     return reviewRequest ? reviewIterable(create) : create()
   }
   return Object.freeze({
@@ -429,4 +439,4 @@ export function openaiCodexSubscriptionProvider({
   })
 }
 
-export const PI_AI_RUNTIME_VERSIONS = Object.freeze(['0.82.1', '0.85.1', '0.87.1', '1.1.0', '1.2.0', '1.3.0', '1.4.0', '1.5.0', '1.5.1', '1.5.2'])
+export const PI_AI_RUNTIME_VERSIONS = Object.freeze(['0.82.1', '0.85.1', '0.87.1', '1.1.0', '1.2.0', '1.3.0', '1.4.0', '1.5.0', '1.5.1', '1.5.2', '1.6.0'])
