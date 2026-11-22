@@ -3,6 +3,8 @@ import { runtimeVersions } from '../src/pi-ai-compat.js'
 import { RPC_ENDPOINTS } from '../src/rpc-contract.js'
 import { IMAGE_FEATURE_DEFAULTS } from '../src/image-features.js'
 import test from 'node:test'
+import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
+import { openaiCodexProvider } from '../src/pi-ai-runtime.js'
 
 test('quota sign-in polling does not repeatedly fetch an available catalog, and explicit refresh still works', async () => {
   const { createSubscriptionRpcHandler } = await import('../src/subscription-rpc.js')
@@ -436,6 +438,23 @@ test('the custom picker switch preserves the subscription speed', async () => {
   assert.equal(status.composerModelPicker, 'dsh')
 })
 
+test('the registered image profile produces a finite native request budget', async () => {
+  const host = fakeContext()
+  applyPlugin(host.ctx, host.config)
+  await host.settleEffects()
+  const profile = host.registered[0].adapter.current().profiles.get('openai-codex')
+  const provider = openaiCodexProvider()
+  const model = provider.getModels().find(model => model.input.includes('image'))
+  assert.ok(model)
+  const adapter = new PiAiAdapter({
+    profiles: () => new Map([['openai-codex', { ...profile, piProvider: provider }]]),
+    resolveApiKey: async () => undefined,
+  })
+  const target = adapter.imageRequestTarget('openai-codex', model.id, { width: 8192, height: 4096 })
+  const maxBytes = target.maxImageBytes ?? target.maxBytes
+  assert.ok(Number.isSafeInteger(maxBytes) && maxBytes > 0 && maxBytes <= 1024 * 1024)
+})
+
 test('plugin registers one Codex route, subscription image tool, and DSH-trusted redacted RPC', async () => {
   const host = fakeContext()
   applyPlugin(host.ctx, host.config)
@@ -449,10 +468,14 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
     maxRequestImageBytes: profile.maxRequestImageBytes,
     requestImagePixelBudget: profile.requestImagePixelBudget,
     requestImageMaxBytes: profile.requestImageMaxBytes,
+    maxImageBytes: profile.maxImageBytes,
+    requestImageBudgetCount: profile.requestImageBudgetCount,
   }, {
     maxRequestImageBytes: 20 * 1024 * 1024,
     requestImagePixelBudget: 2048 * 2048,
     requestImageMaxBytes: 1024 * 1024,
+    maxImageBytes: 1024 * 1024,
+    requestImageBudgetCount: 20,
   })
   assert.ok(profile.modelErrors instanceof Map, 'the host adapter reads model diagnostics from the profile on resolution')
   assert.equal(profile.modelErrors.get('gpt-5.5'), undefined, 'a serviceable model records no diagnostic')

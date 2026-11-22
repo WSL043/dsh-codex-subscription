@@ -14,7 +14,7 @@ const plain = value => JSON.parse(JSON.stringify(value))
 
 function loadChatAlgorithms() {
   const source = readFileSync(bundlePath, 'utf8')
-  const factoryReturn = /\breturn\s+module\.exports\s*;?(?=\s*\}\s*\}\s*\)\s*;)/u
+  const factoryReturn = /\breturn\s+module\.exports\s*;?(?=\s*\}(?:\s*,\s*meta\s*:|\s*\}\s*\)\s*;))/u
   assert.match(source, factoryReturn, 'expected the ModuleLoader factory export return')
   // Instrument the loaded string only; leave the installed bundle unchanged.
   const instrumented = source.replace(factoryReturn,

@@ -272,5 +272,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DSH_VERSION: ${{ needs.detect.outputs.dsh_version }}
-          BLOCK_REASON: ${{ needs.detect.outputs.reason || (needs.detect.outputs.stable == 'false' && 'Alpha-channel verification needs separate review; it is not promoted to the stable plugin channel') || '' }}
+          BLOCK_REASON: >-
+            ${{ needs.detect.outputs.reason ||
+              (needs.prepare.result == 'failure' && 'Candidate preparation or tests failed; see the prepare job log') ||
+              (needs.windows-acceptance.result == 'failure' && 'Official DSH acceptance failed; see the windows-acceptance job log') ||
+              (needs.promote.result == 'failure' && 'Publication gate failed; see the promote job log') ||
+              (needs.detect.outputs.stable == 'false' && 'Alpha-channel verification needs separate review; it is not promoted to the stable plugin channel') || '' }}
         run: node scripts/upstream-compatibility.mjs report

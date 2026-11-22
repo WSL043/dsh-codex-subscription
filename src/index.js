@@ -370,6 +370,8 @@ export function apply(ctx, config = {}) {
     maxRequestImageBytes: MAX_REQUEST_IMAGE_BYTES,
     requestImagePixelBudget: REQUEST_IMAGE_PIXEL_BUDGET,
     requestImageMaxBytes: REQUEST_IMAGE_MAX_BYTES,
+    maxImageBytes: REQUEST_IMAGE_MAX_BYTES,
+    requestImageBudgetCount: 20,
     // pi-ai owns prompt_cache_key and encrypted reasoning replay. The explicit
     // profile values make the subscription cache contract auditable.
     cacheRetention: 'short',
