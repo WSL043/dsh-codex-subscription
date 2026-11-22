@@ -37,7 +37,7 @@ test('every place rounds the runway the same way', () => {
   const raw = { status: 'ready', provisional: true, runwaySeconds: 20.4 * 3600 }
   assert.deepEqual(forecastRunway(raw), { kind: 'point', seconds: 20 * 3600 })
   const options = { fetchedAt: 1_900_000_000_000, now: 1_900_000_000_000 }
-  assert.match(formatQuotaForecast(raw, zh, options), /粗估/)
+  assert.match(formatQuotaForecast(raw, zh, options), /预计.+用完/)
   assert.match(formatQuotaForecast({ status: 'ready', runwaySeconds: 20.4 * 3600 }, zh, options), /预计.*用完/u)
 })
 

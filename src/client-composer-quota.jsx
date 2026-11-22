@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
 import { useAnchoredPosition, useDismissOnOutsidePointer, usePopover } from './client-primitives.jsx'
 import { QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_OFF } from './settings-contract.js'
-import { fill, percent, uiLocale, windowLabel, usePreferenceSnapshot, formatQuotaForecastLines } from './client-shared.js'
+import { fill, percent, uiLocale, windowLabel, usePreferenceSnapshot, formatQuotaForecast } from './client-shared.js'
 import { useQuickQuota } from './client-quota.jsx'
 import { quotaWarning } from './capability-settings.js'
 
@@ -59,8 +59,7 @@ export function CodexComposerQuota({ preference, rpc, t, directory, openSettings
       style={{ ...position, visibility: position ? 'visible' : 'hidden' }}>
       {quotas.map((quota, index) => <div className="codexQuotaDetail" key={`${quota.windowSeconds}-${index}`}>
         <div><span>{windowLabel(quota.windowSeconds, t)}</span><strong>{fill(t('remaining'), { value: percent(quota.remainingPercent) })}</strong><span className="codexQuotaReset">{shortReset(quota, t)}</span></div>
-        {forecastMode ? formatQuotaForecastLines(quota.forecast, t, quota).map(({ role, text }) =>
-          <p className={role === 'outlook' ? 'codexQuotaOutlook' : undefined} key={role}>{text}</p>) : null}
+        {forecastMode ? <p>{formatQuotaForecast(quota.forecast, t, quota)}</p> : null}
       </div>)}
       {openSettings ? <button type="button" className="codexQuotaSettingsLink" onClick={() => { dismiss(); openSettings() }}>{t('openSubscriptionSettings')}</button> : null}
     </section> : null}
