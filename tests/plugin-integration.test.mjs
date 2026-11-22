@@ -438,7 +438,7 @@ test('the custom picker switch preserves the subscription speed', async () => {
   assert.equal(status.composerModelPicker, 'dsh')
 })
 
-test('the registered image profile produces a finite native request budget', async () => {
+test('the registered image profile produces a finite native request budget', async t => {
   const host = fakeContext()
   applyPlugin(host.ctx, host.config)
   await host.settleEffects()
@@ -450,6 +450,10 @@ test('the registered image profile produces a finite native request budget', asy
     profiles: () => new Map([['openai-codex', { ...profile, piProvider: provider }]]),
     resolveApiKey: async () => undefined,
   })
+  if (typeof adapter.imageRequestTarget !== 'function') {
+    t.skip('This host predates the request-image budget API')
+    return
+  }
   const target = adapter.imageRequestTarget('openai-codex', model.id, { width: 8192, height: 4096 })
   const maxBytes = target.maxImageBytes ?? target.maxBytes
   assert.ok(Number.isSafeInteger(maxBytes) && maxBytes > 0 && maxBytes <= 1024 * 1024)
