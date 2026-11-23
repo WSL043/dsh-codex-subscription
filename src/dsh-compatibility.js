@@ -37,6 +37,12 @@ export function dshCompatibilityRange(manifest) {
   return typeof range === 'string' ? range : ''
 }
 
+// An accepted preview admits the rest of that release, including its RCs and final.
+export function dshReleaseRange(version) {
+  const { core } = parseVersion(version)
+  return `>=${version} <${core[0]}.${core[1]}.${core[2] + 1}-0`
+}
+
 // Published manifests use exact versions and bounded intervals. Interpret only
 // those forms so unknown declarations cannot silently skip an acceptance run.
 export function declaresDshCompatibility(manifest, version) {

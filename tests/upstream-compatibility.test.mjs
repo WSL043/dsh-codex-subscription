@@ -4,8 +4,20 @@ import { readFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { selectChannelCandidate, closeResolvedReports, registryJson } from '../scripts/upstream-compatibility.mjs'
 import { planCompatibilityRecheck } from '../scripts/prepare-compat-release.mjs'
+import { dshReleaseRange } from '../src/dsh-compatibility.js'
 const published = { version: '3.2.2', peerDependencies: { '@deepseek-ai/dsh-llm': '0.2.1-rc.4 || 0.2.1-rc.5 || 0.2.2-alpha.2' } }
 const compat = { latestTested: '0.2.1-rc.5', supported: ['0.2.1-rc.5'], previews: ['0.2.2-alpha.2'] }
+test('an accepted alpha admits its later previews, RCs and final without another compatibility release', () => {
+  const manifest = { engines: { dsh: dshReleaseRange('0.2.3-alpha.2') } }
+  const compatibility = { latestTested: '0.2.2-rc.1', supported: ['0.2.2-rc.1'], previews: ['0.2.3-alpha.2'] }
+  for (const version of ['0.2.3-alpha.2', '0.2.3-alpha.3', '0.2.3-beta.1', '0.2.3-rc.1', '0.2.3-rc.30', '0.2.3']) {
+    assert.equal(selectChannelCandidate({ next: version }, manifest, compatibility), undefined, version)
+  }
+  assert.equal(selectChannelCandidate({ next: '0.2.4-rc.1' }, manifest, compatibility).version, '0.2.4-rc.1')
+  assert.deepEqual(compatibility.previews, ['0.2.3-alpha.2'])
+  assert.equal(compatibility.latestTested, '0.2.2-rc.1')
+})
+
 test('official RC channels deduplicate and take priority over alpha; known channels do nothing', () => {
   const result = selectChannelCandidate({ latest: '0.2.1-rc.6', next: '0.2.1-rc.6', alpha: '0.2.2-alpha.3' }, published, compat)
   assert.equal(result.version, '0.2.1-rc.6'); assert.equal(result.stable, true)

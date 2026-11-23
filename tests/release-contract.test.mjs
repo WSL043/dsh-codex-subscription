@@ -122,7 +122,12 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   }
   for (const version of supportedDshReleases) assert.ok(declaresDshCompatibility(pkg, version), version)
   assert.ok(declaresDshCompatibility(pkg, '0.2.2-rc.3'))
-  assert.ok(!declaresDshCompatibility(pkg, '0.2.3-rc.1'))
+  for (const version of ['0.2.3-alpha.3', '0.2.3-rc.1', '0.2.3-rc.20', '0.2.3']) {
+    assert.ok(declaresDshCompatibility(pkg, version), version)
+  }
+  for (const version of ['0.2.3-alpha.1', '0.2.4-alpha.1', '0.2.4-rc.1', '0.2.4']) {
+    assert.ok(!declaresDshCompatibility(pkg, version), version)
+  }
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-llm-pi-ai'], compatibility.latestTested)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-home-paths'], compatibility.latestTested)
   assert.deepEqual(Object.keys(pkg.dependencies).filter(name => /^@deepseek-ai\/dsh(?:-|$)/u.test(name)), [], 'Market treats direct DSH dependencies as host version requirements')
@@ -365,7 +370,7 @@ test('beta publishing stays a prerelease and never replaces npm latest or stable
 test('an alpha newer than the declared compatibility list is a notice, never a release blocker', () => {
   for (const file of ['.github/workflows/ci.yml', '.github/workflows/publish.yml']) {
     const workflow = text(file)
-    assert.match(workflow, /matrix\.channel \}\}'\s+-eq 'alpha'[\s\S]*?-notcontains \$version[\s\S]*?::notice title=DSH preview not declared::[\s\S]*?exit 0/u, file)
+    assert.match(workflow, /matrix\.channel \}\}'\s+-eq 'alpha'[\s\S]*?declaresDshCompatibility[\s\S]*?\$declared\.Trim\(\)[\s\S]*?::notice title=DSH preview not declared::[\s\S]*?exit 0/u, file)
   }
 })
 
