@@ -74,5 +74,5 @@ function shortWindow(seconds, t) {
 function shortReset(quota, t) {
   if (!Number.isSafeInteger(quota.resetsAt)) return t('resetUnknown')
   const value = new Date(quota.resetsAt * 1000).toLocaleString(uiLocale(), { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-  return fill(t('resets'), { value })
+  return fill(t('quotaPopoverResetAt'), { value })
 }

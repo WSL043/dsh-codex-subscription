@@ -5,6 +5,15 @@ import { dirname } from 'node:path'
 const DEFAULT_MAX_BYTES = 256 * 1024
 const MAX_WINDOWS = 128
 const MAX_SAMPLES = 280
+const RISK_BANDS = new Set(['low', 'possible', 'likely', 'very-likely'])
+
+function sanitizeRisk(value) {
+  if (!RISK_BANDS.has(value?.band)) return undefined
+  const { band, pendingBand, pendingSince } = value
+  return RISK_BANDS.has(pendingBand) && pendingBand !== band && Number.isSafeInteger(pendingSince) && pendingSince >= 0
+    ? { band, pendingBand, pendingSince }
+    : { band }
+}
 
 function sanitize(value) {
   if (value === null || typeof value !== 'object' || Array.isArray(value)
@@ -27,7 +36,8 @@ function sanitize(value) {
     }
     const epochStart = record.epochStart
     if (epochStart !== undefined && !Number.isFinite(epochStart)) return undefined
-    windows[key] = { resetsAt, ...(epochStart === undefined ? {} : { epochStart }), samples }
+    const risk = sanitizeRisk(record.risk)
+    windows[key] = { resetsAt, ...(epochStart === undefined ? {} : { epochStart }), samples, ...(risk ? { risk } : {}) }
   }
   return { windows }
 }

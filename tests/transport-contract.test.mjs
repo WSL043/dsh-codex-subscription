@@ -90,6 +90,11 @@ const memoryCredentials = initial => {
   }
 }
 
+function wireGuidance(wire) {
+  const first = wire.input[0]
+  return wire.instructions ?? (['developer', 'system'].includes(first?.role) ? first.content : undefined)
+}
+
 test('pi-ai Codex wire keeps a stable cache key, stateless storage, and server cache usage', async () => {
   const previousFetch = globalThis.fetch
   let wire
@@ -129,7 +134,7 @@ test('pi-ai Codex wire keeps a stable cache key, stateless storage, and server c
     assert.equal(wire.store, false)
     assert.equal(wire.prompt_cache_key, 'session-stable')
     assert.deepEqual(wire.include, ['reasoning.encrypted_content'])
-    assert.equal(wire.instructions, 'Stable prefix')
+    assert.equal(wireGuidance(wire), 'Stable prefix')
     assert.equal(final.usage.cacheRead, 80)
     assert.equal(final.usage.input, 20)
   } finally {
@@ -669,6 +674,56 @@ test('the reasoning summary level goes on the request, and off sends none', asyn
     }
     assert.deepEqual(wires.map(wire => wire.reasoning?.summary), ['auto', 'concise', 'detailed', undefined])
     assert.ok(wires.every(wire => typeof wire.reasoning?.effort === 'string'), 'the effort is untouched')
+  } finally {
+    globalThis.fetch = previousFetch
+  }
+})
+
+test('saved custom instructions reach ordinary Codex requests without changing DSH history', async () => {
+  const previousFetch = globalThis.fetch
+  const wires = []
+  globalThis.fetch = async (_url, init) => {
+    wires.push(JSON.parse(zstdDecompressSync(Buffer.from(init.body)).toString('utf8')))
+    return new Response(sse([
+      { type: 'response.created', response: { id: 'resp_instruction' } },
+      { type: 'response.done', response: { id: 'resp_instruction', status: 'completed', output: [],
+        usage: { input_tokens: 4, output_tokens: 1, total_tokens: 5 } } },
+    ]), { headers: { 'content-type': 'text/event-stream' } })
+  }
+  try {
+    let instructions = 'Reply using the test phrase.\nKeep {{literal}}.'
+    const provider = openaiCodexSubscriptionProvider({ resolveCustomInstructions: () => instructions })
+    const profile = { provider: 'openai-codex', displayName: 'ChatGPT subscription', piProvider: provider,
+      configuredMaxTokens: new Map(), modelErrors: new Map(), transport: 'sse', streamIdleTimeoutMs: 10_000 }
+    const adapter = provider.wrapRetryAdapter(new PiAiAdapter({ profiles: () => new Map([[profile.provider, profile]]),
+      resolveApiKey: async () => jwt('account-instructions') }))
+    const request = { provider: profile.provider, model: 'gpt-5.6-sol', sessionId: 'instructions-fixture',
+      messages: [
+        { role: 'system', content: [{ type: 'text', text: 'Existing DSH guidance.' }] },
+        { role: 'user', content: [{ type: 'text', text: 'Hello there' }] },
+      ] }
+    const baseline = structuredClone(request)
+    const run = async (overrides = {}) => {
+      for await (const _ of adapter.stream({ ...request, ...overrides })) {}
+    }
+    await run()
+    await run({ purpose: 'session-title' })
+    await run({ purpose: 'compaction' })
+    await run({ messages: [{ role: 'system', content: [{ type: 'text', text: 'REVIEW_POLICY\nYou are the final authorization reviewer' }] }, request.messages[1]] })
+    instructions = 'Use changed instructions.'
+    await run()
+    instructions = '  '
+    await run()
+    assert.match(wireGuidance(wires[0]), /^Existing DSH guidance\./)
+    assert.ok(wireGuidance(wires[0]).endsWith('Reply using the test phrase.\nKeep {{literal}}.'))
+    assert.equal(wireGuidance(wires[1]), 'Existing DSH guidance.')
+    assert.equal(wireGuidance(wires[2]), 'Existing DSH guidance.')
+    assert.equal(wireGuidance(wires[3]), 'REVIEW_POLICY\nYou are the final authorization reviewer')
+    assert.ok(wireGuidance(wires[4]).endsWith('Use changed instructions.'))
+    assert.equal(wireGuidance(wires[5]), 'Existing DSH guidance.')
+    const withoutPrefix = wire => wire.instructions === undefined ? wire.input.slice(1) : wire.input
+    assert.deepEqual(withoutPrefix(wires[0]), withoutPrefix(wires[5]))
+    assert.deepEqual(request, baseline)
   } finally {
     globalThis.fetch = previousFetch
   }

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, existsSync, mkdtempSync, cpSync, rmSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, mkdtempSync, cpSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -63,10 +63,17 @@ test('all README languages retain navigation, installation commands, media and s
 })
 
 test('compatibility rechecks update every existing language and still work on older two-README tags', () => {
-  for (const readmes of [files.slice(0, 2), files]) {
+  for (const [readmes, preview] of [[files.slice(0, 2), false], [files, false], [files, true]]) {
     const tmp = mkdtempSync(join(tmpdir(), 'dsh-readme-'))
     try {
       for (const name of [...readmes, 'package.json', 'compatibility.json', 'dsh-codex.ps1']) cpSync(resolve(root, name), join(tmp, name))
+      if (preview) {
+        const path = join(tmp, 'package.json')
+        const manifest = JSON.parse(readFileSync(path, 'utf8'))
+        const [major, minor, patch] = manifest.version.split('.').map(Number)
+        manifest.version = `${major}.${minor}.${patch + 1}-beta.0`
+        writeFileSync(path, JSON.stringify(manifest))
+      }
       const compatibility = JSON.parse(read('compatibility.json'))
       const result = spawnSync(process.execPath, [resolve(root, 'scripts/prepare-compat-release.mjs'), '--root', tmp, '--dsh-version', compatibility.latestTested, '--recheck'], { encoding: 'utf8' })
       assert.equal(result.status, 0, result.stderr)

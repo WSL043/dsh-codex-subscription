@@ -4,7 +4,7 @@ import { normalizeSubagentModel } from './subagent-defaults.js'
 import { capabilityPatch } from './capability-settings.js'
 import { ORIGINAL_IMAGE_CHUNK_BYTES, ORIGINAL_IMAGE_ID_PATTERN } from './image-original-contract.js'
 import { applyAccountTransition } from './account-transition.js'
-import { ACCOUNT_FAILOVER_FIELD, AUTO_QUOTA_RETRY_FIELD, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DISABLED_MODELS_FIELD, normalizeCustomContextWindow, normalizeDisabledModels } from './settings-contract.js'
+import { ACCOUNT_FAILOVER_FIELD, AUTO_QUOTA_RETRY_FIELD, CUSTOM_INSTRUCTIONS_FIELD, CUSTOM_INSTRUCTIONS_LIMIT, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DISABLED_MODELS_FIELD, normalizeCustomContextWindow, normalizeDisabledModels } from './settings-contract.js'
 const publicError = (code, message) => ({
   ok: false,
   error: { code, message, details: { issues: [] } },
@@ -245,6 +245,13 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
         let liveSynced = true
         if (endpoint === 'preferences/update') {
           patch = capabilityPatch(payload)
+          if (Object.hasOwn(payload ?? {}, CUSTOM_INSTRUCTIONS_FIELD)) {
+            const instructions = payload[CUSTOM_INSTRUCTIONS_FIELD]
+            if (typeof instructions !== 'string' || instructions.length > CUSTOM_INSTRUCTIONS_LIMIT) {
+              return publicError('internal', 'Invalid custom instructions preference')
+            }
+            patch[CUSTOM_INSTRUCTIONS_FIELD] = instructions
+          }
           if (Object.hasOwn(payload ?? {}, DISABLED_MODELS_FIELD)) {
             const disabled = payload[DISABLED_MODELS_FIELD]
             if (!Array.isArray(disabled) || disabled.length > 100 || disabled.length !== normalizeDisabledModels(disabled).length) {

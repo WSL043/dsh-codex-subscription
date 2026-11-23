@@ -65,6 +65,7 @@ CLI と Web の Node.js 要件は [DSH の公式手順](https://github.com/deeps
 2. バージョンを含めた以下のパッケージ名を、**パッケージ名またはアドレス**欄に貼り付けます。
 
    ```text
+
    dsh-codex-subscription@3.3.0
    ```
 
@@ -82,6 +83,7 @@ CLI と Web の Node.js 要件は [DSH の公式手順](https://github.com/deeps
 <summary>ターミナルからインストール（dsh コマンドがすでにある場合）</summary>
 
 ```sh
+
 dsh plugin --profile web add dsh-codex-subscription@3.3.0
 ```
 
@@ -95,6 +97,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.3.0
 Web でサインインし、Codex モデルを選択した後、Headless プロファイルにも同じプラグインをインストールします。
 
 ```sh
+
 dsh plugin --profile headless add dsh-codex-subscription@3.3.0
 dsh --profile headless "Reply with only the word: ok"
 ```
@@ -329,6 +332,7 @@ DSH の **プラグイン** ページでこのプラグインを見つけ、更�
 <summary>ターミナルコマンド</summary>
 
 ```sh
+
 dsh plugin --profile web update dsh-codex-subscription@3.3.0
 ```
 

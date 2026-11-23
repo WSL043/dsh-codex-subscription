@@ -65,6 +65,7 @@ Consulte o [guia oficial do DSH](https://github.com/deepseek-ai/deepseek-harness
 2. Cole o nome deste pacote, com a versão, no campo **Nome ou endereço do pacote**:
 
    ```text
+
    dsh-codex-subscription@3.3.0
    ```
 
@@ -82,6 +83,7 @@ Por que a versão está incluída: a página de plugins do DSH só instala vers�
 <summary>Instalação pelo terminal (com um comando dsh existente)</summary>
 
 ```sh
+
 dsh plugin --profile web add dsh-codex-subscription@3.3.0
 ```
 
@@ -95,6 +97,7 @@ Siga as instruções para reiniciar e entre em **Configurações → Codex**. Ta
 Depois de entrar e selecionar um modelo Codex na versão Web, instale o mesmo plugin no perfil Headless:
 
 ```sh
+
 dsh plugin --profile headless add dsh-codex-subscription@3.3.0
 dsh --profile headless "Reply with only the word: ok"
 ```
@@ -329,6 +332,7 @@ Encontre este plugin na página **Plugins** do DSH e use a opção de atualizaç
 <summary>Comandos do terminal</summary>
 
 ```sh
+
 dsh plugin --profile web update dsh-codex-subscription@3.3.0
 ```
 

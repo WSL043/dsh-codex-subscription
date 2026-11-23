@@ -107,3 +107,19 @@ test('a write the running settings never pick up is reported instead of looking 
   assert.deepEqual(response.value[DISABLED_MODELS_FIELD], ['a'], 'the receipt still carries what was written')
   assert.equal(response.value.liveSynced, false, 'and says the running settings did not take it')
 })
+
+test('custom instructions default to empty, accept edits and clearing, and reject invalid writes', async () => {
+  let value = { writable: true, customInstructions: '' }
+  const handler = createSubscriptionRpcHandler({ preferences: {
+    status: () => value,
+    update: async patch => { value = { ...value, ...patch } },
+  } })
+  const signal = new AbortController().signal
+  const update = customInstructions => handler('preferences/update', { customInstructions }, signal)
+  assert.equal((await handler('preferences/status', {}, signal)).value.customInstructions, '')
+  const text = 'Use Japanese.\nStart with the result.'
+  assert.equal((await update(text)).value.customInstructions, text)
+  for (const invalid of [null, {}, 'x'.repeat(1501)]) assert.equal((await update(invalid)).ok, false)
+  assert.equal((await handler('preferences/status', {}, signal)).value.customInstructions, text)
+  assert.equal((await update('')).value.customInstructions, '')
+})

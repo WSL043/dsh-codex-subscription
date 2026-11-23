@@ -108,7 +108,6 @@ export function planCompatibilityUpdate(state, candidate) {
     for (const name of Object.keys(manifest.devDependencies ?? {})) {
       if (name.startsWith('@deepseek-ai/dsh-') && !UNSYNCED_DEV_PACKAGES.has(name) && !manifest.peerDependenciesMeta?.[name]?.optional) manifest.devDependencies[name] = candidate
     }
-    if (manifest.dependencies?.['@deepseek-ai/dsh-home-paths']) manifest.dependencies['@deepseek-ai/dsh-home-paths'] = candidate
   }
   // The DSH plugin manager also checks the cordis host and the optional Codex subtask runtime.
   widenPeer(manifest, '@deepseek-ai/cordis', state.host?.cordis)
@@ -242,7 +241,7 @@ export function planCompatibilityRecheck(state, candidate) {
     throw new Error('A recheck cannot declare an untested DSH version')
   }
   return { changed: true, recheck: true, dshVersion: candidate,
-    previousPluginVersion: state.manifest.version, previousDocumentedPluginVersion: state.manifest.version,
+    previousPluginVersion: state.manifest.version, previousDocumentedPluginVersion: state.documentedVersion ?? state.manifest.version,
     pluginVersion: nextStableVersion(state.manifest.version), updateStableReferences: false }
 }
 
@@ -259,7 +258,8 @@ async function prepare(root, candidate, recheck = false) {
   const update = recheck && known ? null : planCompatibilityUpdate({ compatibility, manifest, host: await hostOf(candidate), documentedVersion: (await readFile(resolve(root, 'README.md'), 'utf8')).match(/dsh-codex-subscription@(\d+\.\d+\.\d+)/u)?.[1] }, candidate)
   if (update === null) {
     if (!recheck) return { changed: false, dshVersion: candidate, pluginVersion: manifest.version }
-    const planned = planCompatibilityRecheck({ manifest, compatibility }, candidate)
+    const documentedVersion = (await readFile(resolve(root, 'README.md'), 'utf8')).match(/dsh-codex-subscription@(\d+\.\d+\.\d+)/u)?.[1]
+    const planned = planCompatibilityRecheck({ manifest, compatibility, documentedVersion }, candidate)
     manifest.version = planned.pluginVersion
     await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n')
     for (const file of [...readmes, 'dsh-codex.ps1']) {

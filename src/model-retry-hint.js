@@ -68,20 +68,22 @@ export function createModelRetryBridge() {
   const scope = new AsyncLocalStorage()
   const wrapStream = (factory, options) => (async function* () {
     const hint = createModelRetryHint()
-    const iterator = scope.run(hint, () => factory(options)[Symbol.asyncIterator]())
+    const request = { hint, purpose: options.purpose }
+    const iterator = scope.run(request, () => factory(options)[Symbol.asyncIterator]())
     try {
       while (true) {
-        const result = await scope.run(hint, () => iterator.next())
+        const result = await scope.run(request, () => iterator.next())
         if (result.done) return
         const event = result.value
         if (event.type === 'finish' && event.reason?.kind === 'error') {
           yield { ...event, reason: { ...event.reason, failure: hint.failure(event.reason.failure, options.signal) } }
         } else yield event
       }
-    } finally { await scope.run(hint, () => iterator.return?.()) }
+    } finally { await scope.run(request, () => iterator.return?.()) }
   })()
   return {
-    current: () => scope.getStore(),
+    current: () => scope.getStore()?.hint,
+    currentPurpose: () => scope.getStore()?.purpose,
     wrapAdapter(adapter) {
       return new Proxy(adapter, { get(target, property) {
         if (property === 'stream') return options => wrapStream(o => target.stream(o), options)

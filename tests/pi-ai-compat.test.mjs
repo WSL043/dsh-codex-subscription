@@ -5,7 +5,7 @@ import { hoistLeadingSystem, understandsSystemMessages } from '../src/pi-ai-comp
 import { openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
 
 test('only pi-ai 0.87 and later understand system messages in the transcript', () => {
-  for (const version of ['0.85.1', '0.86.9', undefined, 'x']) assert.equal(understandsSystemMessages(version), false, String(version))
+  for (const version of ['0.82.1', '0.85.1', '0.86.9', undefined, 'x']) assert.equal(understandsSystemMessages(version), false, String(version))
   for (const version of ['0.87.0', '0.87.1', '1.0.2', '1.2.0']) assert.equal(understandsSystemMessages(version), true, version)
 })
 

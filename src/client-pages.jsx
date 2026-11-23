@@ -1,6 +1,6 @@
-import { useId } from 'react'
+import { useId, useState } from 'react'
 import { Hint, SettingsLabel } from './client-hint.jsx'
-import { Switch, IconChevronRightOutline14 } from './client-primitives.jsx'
+import { Button, Switch, IconChevronRightOutline14 } from './client-primitives.jsx'
 import { usePreferenceSnapshot } from './client-shared.js'
 import { CapabilityPreferences } from './capability-preferences.jsx'
 import { DefaultModelPreference } from './default-model-preferences.jsx'
@@ -16,7 +16,7 @@ import {
   PickerModelsPreference, QuickQuotaPreference, ReasoningCachePreference, ReasoningSummaryPreference, RetryPolicyPreference, SearchProviderPreference,
   StreamIdleTimeoutPreference,
 } from './client-preferences.jsx'
-import { COMPOSER_MODEL_PICKER_MODES, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF, SPEED_SHORTCUT_FIELD, SPEED_SHORTCUT_STYLES, SPEED_MODE_FIELD, SPEED_MODE_FAST, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST } from './settings-contract.js'
+import { COMPOSER_MODEL_PICKER_MODES, CUSTOM_INSTRUCTIONS_FIELD, CUSTOM_INSTRUCTIONS_LIMIT, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF, SPEED_SHORTCUT_FIELD, SPEED_SHORTCUT_STYLES, SPEED_MODE_FIELD, SPEED_MODE_FAST, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST } from './settings-contract.js'
 import { IMAGE_MODELS, imageModelLabel as modelLabel, isExperimentalImageModel } from './image-models.js'
 import { ImageChoice } from './image-preferences.jsx'
 import { useWebProviderForm, webProviderTitle } from './client-web-provider-settings.jsx'
@@ -126,6 +126,23 @@ function SpeedPreference({ snapshot, preference, t }) {
   </div>
 }
 
+function CustomInstructionsPreference({ preference, snapshot, t }) {
+  const id = useId()
+  const [draft, setDraft] = useState(null)
+  const saved = snapshot[CUSTOM_INSTRUCTIONS_FIELD]
+  const value = draft ?? saved
+  return <div className="codexCustomInstructions">
+    <SettingsLabel as="label" htmlFor={id}>{t('customInstructionsTitle')}</SettingsLabel>
+    <Hint>{t('customInstructionsHint')}</Hint>
+    <textarea id={id} value={value} rows={3} maxLength={CUSTOM_INSTRUCTIONS_LIMIT}
+      disabled={snapshot.status !== 'ready' || snapshot.hostReadOnly || snapshot.saving} onChange={event => setDraft(event.target.value)} />
+    <Button variant="outline" size="sm" disabled={!ready(snapshot) || value === saved}
+      onClick={async () => { if (await preference.set({ [CUSTOM_INSTRUCTIONS_FIELD]: value })) setDraft(null) }}>
+      {t('customInstructionsSave')}
+    </Button>
+  </div>
+}
+
 export function ModelsPage({ preference, t, defaultModel, rpc, active, accountKey }) {
   const snapshot = usePreferenceSnapshot(preference)
   const loaded = snapshot.status === 'ready'
@@ -165,6 +182,8 @@ export function ModelsPage({ preference, t, defaultModel, rpc, active, accountKe
       <OutputVerbosityPreference preference={preference} t={t} />
       <div className="codexSubscriptionDivider" />
       <InputImageDetailPreference preference={preference} t={t} />
+      <div className="codexSubscriptionDivider" />
+      <CustomInstructionsPreference preference={preference} snapshot={snapshot} t={t} />
     </section>
     <details className="codexSubscriptionCard codexAdvancedFold">
       <summary>{t('advancedTitle')}<span>{t('advancedSummary')}</span></summary>

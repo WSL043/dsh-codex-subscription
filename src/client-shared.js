@@ -64,9 +64,42 @@ export const useAccountStatusSnapshot = accountStatus => useSyncExternalStore(
 
 export const notifyQuickQuota = () => window.dispatchEvent(new Event(QUICK_QUOTA_REFRESH_EVENT))
 
-export const formatQuotaForecast = (forecast, t, options = {}) => {
-  const view = quotaForecastView(forecast, options)
+const formatQuotaForecastView = (view, t, options) => {
   if (view.kind !== 'time') return t(({ resolution: 'forecastResolution', 'changing-pace': 'forecastChanging', stale: 'forecastStale', idle: 'quotaForecastIdle', reset: 'quotaForecastUntilReset', exhausted: 'quotaExhausted' })[view.kind] ?? 'quotaForecastCalibrating')
   const when = formatQuotaRunout(view, { t, locale: options.locale ?? uiLocale(), now: options.now, timeZone: options.timeZone })
   return fill(t(view.provisional ? 'quotaForecastRoughAt' : 'quotaForecastAt'), { when })
+}
+
+export const formatQuotaForecast = (forecast, t, options = {}) => formatQuotaForecastView(quotaForecastView(forecast, options), t, options)
+
+export function formatQuotaForecastLines(forecast, t, options = {}) {
+  const view = quotaForecastView(forecast, options)
+  const locale = options.locale ?? uiLocale()
+  const risk = view.risk
+  if (!risk || risk.level === 'hold') {
+    if (view.kind === 'idle' && view.spanMs >= 60_000) {
+      const minutes = Math.round(view.spanMs / 60_000)
+      const hours = minutes >= 120
+      const duration = new Intl.NumberFormat(locale, { style: 'unit', unit: hours ? 'hour' : 'minute', unitDisplay: 'long' })
+        .format(hours ? Math.round(minutes / 60) : minutes)
+      return [{ role: 'status', text: fill(t('quotaForecastIdleFor'), { duration }) }]
+    }
+    return [{ role: 'status', text: formatQuotaForecastView(view, t, options) }]
+  }
+  const percent = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 })
+  let text = t('quotaResetOutlookUncertain')
+  if (risk.ifRunsOut) {
+    const when = formatQuotaRunout({ kind: 'time', ...risk.ifRunsOut }, { ...options, t, locale })
+    text = fill(t(risk.level === 'very-likely' ? 'quotaResetOutlookExpectedWhen' : 'quotaResetOutlookIfExhausted'), { when })
+  } else if (!risk.uncertain && risk.level === 'low') {
+    text = t(risk.extreme ? 'quotaResetOutlookLastsSure' : 'quotaResetOutlookLasts')
+  }
+  const lines = [{ role: 'outlook', text }]
+  if ((risk.level !== 'low' || risk.uncertain) && Number.isFinite(risk.dailyUsed) && Number.isFinite(risk.dailyBudget)) {
+    lines.push({ role: 'budget', text: fill(t('quotaResetOutlookBudget'), {
+      used: percent.format(risk.dailyUsed / 100), budget: percent.format(risk.dailyBudget / 100),
+    }) })
+  }
+  if (view.kind === 'time') lines.push({ role: 'status', text: formatQuotaForecastView(view, t, options) })
+  return lines
 }
