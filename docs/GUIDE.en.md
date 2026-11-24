@@ -210,6 +210,10 @@ To reconnect an already paired phone, open Codex in the ChatGPT app and select t
 
 ### Reuse cache when changing effort
 
+For GPT-6.2 and later, reusable system instructions are automatically sent as a leading `developer` message in Responses `input`, rather than uncached top-level `instructions`. This also covers saved custom instructions and does not require a switch. Newer pi-ai versions that already use this layout are preserved. Request-scoped instructions supplied by middleware remain separate. After upgrading an existing conversation, the first request can establish a new prefix and lose earlier cache or reasoning reuse; later requests reuse the new layout. Cache hits still depend on the server and an unchanged prefix. See [OpenAI's caching guide](https://developers.openai.com/api/docs/guides/prompt-caching).
+
+Public API cache controls are not necessarily accepted by the ChatGPT subscription endpoint. The plugin does not add `prompt_cache_options` or explicit cache breakpoints; these are separate from moving reusable instructions into the cacheable input.
+
 **Reuse cache when changing effort** is under **Settings → Codex → Models → Advanced**. It is on by default and can be turned off; saved Off choices are preserved. It applies only to standard, single-agent models explicitly supported by the current account catalog; support is never inferred from model names. Ordinary prompt caching is automatic and still works when this switch is off.
 
 The request-level `reasoning.effort` stays at the current context window's initial value. Changes are recorded as `configuration_update` items in new history and replayed in their original positions. This can reduce cache invalidation when switching effort; it does not guarantee cache hits, faster replies or quota savings. The response-level effort can still report the initial value.

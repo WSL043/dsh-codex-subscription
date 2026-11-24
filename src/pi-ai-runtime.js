@@ -1,6 +1,6 @@
 // Keep every dependency on pi-ai's Codex-specific public surface in one place.
-// The exact peer version makes a DSH update fail visibly until this seam is
-// re-audited instead of silently changing authentication or cache semantics.
+// Supported peer cohorts are audited here so upstream updates do not silently
+// change authentication, replay or cache semantics.
 import { diagnosticLog } from './diagnostic-log.js'
 import { redactRequest } from './failure-capture.js'
 import { hoistLeadingSystem, runtimeVersions, understandsSystemMessages } from './pi-ai-compat.js'
@@ -31,10 +31,27 @@ function withUserPreferences(payload, preferences) {
   if (!preferences) return payload
   const note = 'User response preferences (apply as defaults when compatible with the current request, workspace instructions, and host policies):\n' + preferences
   const first = payload.input?.[0]
-  if (payload.instructions === undefined && ['developer', 'system'].includes(first?.role) && typeof first.content === 'string') {
-    return { ...payload, input: [{ ...first, content: first.content + '\n\n' + note }, ...payload.input.slice(1)] }
+  if (!payload.instructions && ['developer', 'system'].includes(first?.role)) {
+    const content = typeof first.content === 'string' ? first.content + '\n\n' + note
+      : Array.isArray(first.content) ? [...first.content, { type: 'input_text', text: note }] : undefined
+    if (content !== undefined) return { ...payload, input: [{ ...first, content }, ...payload.input.slice(1)] }
   }
   return { ...payload, instructions: [payload.instructions, note].filter(Boolean).join('\n\n') }
+}
+
+// GPT-6.2 and later place top-level instructions after the cacheable input.
+// Normalize only the provider's reusable prefix, before caller onPayload hooks:
+// those hooks can still supply request-scoped instructions. Keep the required
+// Codex instructions field, but leave it empty once its text is in input.
+function withCacheableInstructions(payload, model) {
+  const version = /^gpt-(\d+)(?:\.(\d+))?(?:-|$)/u.exec(model?.id ?? '')
+  const tailInstructions = version && (Number(version[1]) > 6 || Number(version[1]) === 6 && Number(version[2] ?? 0) >= 2)
+  if (!tailInstructions ||
+    typeof payload.instructions !== 'string' || payload.instructions.length === 0 || !Array.isArray(payload.input)) return payload
+  return { ...payload, instructions: '', input: [
+    { role: 'developer', content: [{ type: 'input_text', text: payload.instructions }] },
+    ...payload.input,
+  ] }
 }
 
 const FAST_SERVICE_TIER = 'priority'
@@ -172,7 +189,7 @@ export function openaiCodexSubscriptionProvider({
       ...(serviceTier === undefined ? {} : { serviceTier }),
       async onPayload(payload, requestModel) {
         const preferred = {
-          ...withUserPreferences(payload, instructions),
+          ...withCacheableInstructions(withUserPreferences(payload, instructions), model),
           ...(textVerbosity === undefined ? {} : { text: { ...(payload.text ?? {}), verbosity: textVerbosity } }),
           ...(serviceTier === undefined ? {} : { service_tier: serviceTier }),
         }
