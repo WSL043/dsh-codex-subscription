@@ -11,6 +11,7 @@ import { homeFolderAnswer, runGit } from './remote-control-git.js'
 import { phoneGitProbe, runPhoneGitProbe } from './remote-control-git-probes.js'
 import { searchFiles } from './remote-control-files.js'
 import { appendChunks, createRealtimeVoice, createVoiceCall, desktopInstructions, VOICE_NOTE_PREFIX, VOICE_NOTE_SOURCE } from './remote-control-realtime.js'
+import { createVoiceContextRecorder } from './voice-context.js'
 import { needsScreenAnswer } from './voice-questions.js'
 import { diagnosticLog } from './diagnostic-log.js'
 import { phoneLog } from './remote-control-log.js'
@@ -996,29 +997,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     }, AbortSignal.timeout(30_000))
     if (result?.accepted === false) throw new Error('DSH rejected the message')
   }
-  /** Leave text in the conversation's context for its next message, without starting a turn. */
-  const recordedIds = async (threadId, ids) => {
-    if (typeof voice?.flushSession !== 'function') return
-    const { session } = await agentFor(threadId)
-    const found = session.deriveMessages().filter(message => ids.has(message.id) && message.source?.kind === VOICE_NOTE_SOURCE)
-    if (!found.length || !await voice.flushSession(session)) return
-    return new Set(found.map(message => message.id))
-  }
-  const recordToAgent = async (threadId, text, checkpointId) => {
-    const agent = await agentFor(threadId)
-    if (checkpointId && typeof voice?.flushSession === 'function' && typeof agent.session.append === 'function') {
-      // Avoid inserting a model-facing note between a running step's tool calls and results.
-      while (agent.status === 'running' && typeof agent.whenIdle === 'function') await agent.whenIdle()
-      if (agent.status === 'running') return false
-      if (!agent.session.deriveMessages().some(message => message.id === checkpointId && message.source?.kind === VOICE_NOTE_SOURCE)) {
-        agent.session.append('user/message', { id: checkpointId, role: 'user', content: [{ type: 'text', text }], source: { kind: VOICE_NOTE_SOURCE } }, { surfaceOp: 'append' })
-      }
-      return await voice.flushSession(agent.session) === true
-    }
-    if (typeof agent.inject !== 'function') return
-    if (agent.status === 'running') await agent.whenIdle?.()
-    agent.inject({ id: randomUUID(), role: 'user', content: [{ type: 'text', text }], source: { kind: 'user' } })
-  }
+  const { record: recordToAgent, recordedIds } = createVoiceContextRecorder({ resolveAgent: agentFor, flushSession: voice?.flushSession })
   const readVoiceResult = async (threadId, messageId) => {
     const { session } = await agentFor(threadId)
     const message = session.deriveMessages().find(item => item.id === messageId && item.role === 'assistant')
