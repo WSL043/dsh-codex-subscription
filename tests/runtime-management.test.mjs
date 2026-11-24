@@ -18,6 +18,9 @@ function fixture({ runtime = { installed: false, adapterInstalled: true }, avail
 }
 
 test('only prepares the dedicated CLI after DSH supplies the matching official adapter', async () => {
+  const native = fixture({ runtime: {installed:true,adapterInstalled:true,version:'0.173.0'} })
+  assert.equal(native.service.status().installable,false,'no duplicate install when the official CLI is usable')
+  assert.equal(native.service.status().codexVersion,'0.173.0','report the installed version rather than a plugin constant')
   const missing = fixture({ runtime: { installed: false } })
   assert.equal(missing.service.status().adapterInstalled, false)
   assert.equal(missing.service.status().installable, false)

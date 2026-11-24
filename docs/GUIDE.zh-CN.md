@@ -203,7 +203,7 @@ Ultra 是 **DSH 主动分工预设**：使用账号模型目录解析出的实�
 
 ### 切换推理强度时复用缓存
 
-GPT-6.2 及后续模型会自动把可复用的系统指令放到 Responses `input` 开头的 `developer` 消息中，而不是不参与缓存的顶层 `instructions`。已保存的自定义指令也适用，无需额外开关；新版 pi-ai 已采用该布局时不会重复添加。中间件提供的单次请求指令仍保持独立。升级后继续旧会话时，首次请求可能建立新的前缀，失去旧缓存或推理项的复用；后续请求沿用新布局。是否命中仍取决于服务端和前缀是否一致。详见 [OpenAI 缓存文档](https://developers.openai.com/api/docs/guides/prompt-caching)。
+GPT-6.2 及后续模型会自动把可复用的系统指令放到 Responses `input` 开头的 `developer` 消息中，而不是不参与缓存的顶层 `instructions`，无需额外开关；新版 pi-ai 已采用该布局时不会重复添加。可编辑的自定义指令和中间件提供的单次请求指令保持独立，修改偏好不会重写已缓存的系统前缀和重放项。升级后继续旧会话时，首次请求可能建立新的前缀，失去旧缓存或推理项的复用；后续请求沿用新布局。是否命中仍取决于服务端和前缀是否一致。详见 [OpenAI 缓存文档](https://developers.openai.com/api/docs/guides/prompt-caching)。
 
 公开 API 的缓存控制参数不一定适用于 ChatGPT 订阅接口。插件不会额外加入 `prompt_cache_options` 或显式缓存断点；这些参数与把长期指令放入可缓存的输入是不同的能力。
 
@@ -262,20 +262,25 @@ GPT-6.2 及后续模型会自动把可复用的系统指令放到 Responses `inp
 
 在 DSH **插件**页的官方条目中安装 **Codex 子智能体**。如果只通过订阅使用，安装后可以关闭官方条目的开关。已安装的组件会保留，官方独立工具会停用。
 
-进入 **设置 → Codex 订阅 → 联网与工具 → 独立子任务**。如果显示 **准备 CLI**，点击并按提示完成，必要时重启 DSH。然后选择 **Codex（订阅）**。专用 CLI 使用当前 profile 中的依赖别名 `dsh-codex-subtask-cli`，原登录和子任务默认设置会保留。
+在 **设置 → Codex 订阅 → 联网与工具 → 独立子任务** 选择 **Codex（订阅）**。插件复用官方组件自带的 CLI，并随其更新，无需重复安装。如果当前 profile 已有更新的 `dsh-codex-subtask-cli`，则保留使用较新版。订阅登录和子任务默认设置仍由 DSH 管理。
 
-Windows 上，专用 CLI 优先使用设备和策略支持的 Codex MXC 沙箱；否则需要配置 Codex 的旧版 Windows 沙箱。子任务保留 DSH 会话的文件策略，沙箱不可用时不会退回无隔离执行。
+Windows 上，子任务 CLI 优先使用 CLI 版本、设备和策略支持的 Codex MXC 沙箱；否则需要配置 Codex 的旧版 Windows 沙箱。子任务保留 DSH 会话的文件策略，沙箱不可用时不会退回无隔离执行。
 
 ### 手动安装与离线准备
 
-安装到订阅插件所在的同一 profile。以下命令适用于 DSH `0.2.2-rc.1`；使用其他受支持宿主时，只将适配器版本替换为宿主的对应版本，不要改用 `@next`。
+安装到订阅插件所在的同一 profile，官方组件版本必须与 DSH 宿主匹配，不要改用 `@next`。以下以 DSH `0.2.3-alpha.2` 为例：
 
 ```sh
-dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.2-rc.1
-dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@0.167.0 --save-exact --ignore-scripts
+dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.3-alpha.2
 ```
 
-CLI 别名是普通依赖，不需要作为插件启用。完成后重启。离线使用须提前在目标系统与架构上安装并验证完整运行时；只复制订阅插件或 Codex 启动脚本不够。模型请求仍需联网。
+仅在自带 CLI 不可用时，使用页面上显示的 **准备 CLI**，或手动安装最新稳定版：
+
+```sh
+dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@latest --save-exact --ignore-scripts
+```
+
+安装后 profile 保存精确版本，启动不会自动下载更新。CLI 别名是普通依赖，不需要作为插件启用，完成后重启。启动子任务前会校验实际可执行文件版本和 app-server 通信方式。离线使用须提前在目标系统与架构上安装并验证完整运行时；只复制订阅插件或 Codex 启动脚本不够。模型请求仍需联网。
 
 ### 不再使用时
 

@@ -1,5 +1,4 @@
 import { matchingSubagentRuntimeVersion } from './subagent-runtime.js'
-import { SUBAGENT_CODEX_VERSION } from './subagent-cli.js'
 
 /** DSH's Plugins page owns the official bundle. Only the subscription CLI alias is managed here. */
 export function createRuntimeManagement({ inspect, active, selectDsh, cli, componentVersion = matchingSubagentRuntimeVersion }) {
@@ -13,7 +12,7 @@ export function createRuntimeManagement({ inspect, active, selectDsh, cli, compo
       available: cliState.available,
       adapterInstalled: runtime.adapterInstalled === true,
       componentVersion: componentVersion(),
-      codexVersion: SUBAGENT_CODEX_VERSION,
+      codexVersion: runtime.version,
       installed: runtime.installed,
       installable: runtime.adapterInstalled === true && !runtime.installed && cliState.available,
       removable: cliState.owned,

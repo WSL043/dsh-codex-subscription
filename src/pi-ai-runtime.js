@@ -26,12 +26,13 @@ import {
   clampModelContext,
 } from './settings-contract.js'
 
-// Older providers put the prefix in instructions; newer providers keep it in input for caching.
-function withUserPreferences(payload, preferences) {
+// Editable preferences stay turn-scoped on models whose instructions follow
+// the cached input, so preference edits do not rewrite its stable prefix.
+function withUserPreferences(payload, preferences, model) {
   if (!preferences) return payload
   const note = 'User response preferences (apply as defaults when compatible with the current request, workspace instructions, and host policies):\n' + preferences
   const first = payload.input?.[0]
-  if (!payload.instructions && ['developer', 'system'].includes(first?.role)) {
+  if (!hasTailInstructions(model) && !payload.instructions && ['developer', 'system'].includes(first?.role)) {
     const content = typeof first.content === 'string' ? first.content + '\n\n' + note
       : Array.isArray(first.content) ? [...first.content, { type: 'input_text', text: note }] : undefined
     if (content !== undefined) return { ...payload, input: [{ ...first, content }, ...payload.input.slice(1)] }
@@ -39,14 +40,15 @@ function withUserPreferences(payload, preferences) {
   return { ...payload, instructions: [payload.instructions, note].filter(Boolean).join('\n\n') }
 }
 
-// GPT-6.2 and later place top-level instructions after the cacheable input.
-// Normalize only the provider's reusable prefix, before caller onPayload hooks:
-// those hooks can still supply request-scoped instructions. Keep the required
-// Codex instructions field, but leave it empty once its text is in input.
-function withCacheableInstructions(payload, model) {
+function hasTailInstructions(model) {
   const version = /^gpt-(\d+)(?:\.(\d+))?(?:-|$)/u.exec(model?.id ?? '')
-  const tailInstructions = version && (Number(version[1]) > 6 || Number(version[1]) === 6 && Number(version[2] ?? 0) >= 2)
-  if (!tailInstructions ||
+  return version && (Number(version[1]) > 6 || Number(version[1]) === 6 && Number(version[2] ?? 0) >= 2)
+}
+
+// Normalize only the provider's reusable prefix, before preferences and caller
+// hooks supply turn-scoped instructions. Preserve the required Codex field.
+function withCacheableInstructions(payload, model) {
+  if (!hasTailInstructions(model) ||
     typeof payload.instructions !== 'string' || payload.instructions.length === 0 || !Array.isArray(payload.input)) return payload
   return { ...payload, instructions: '', input: [
     { role: 'developer', content: [{ type: 'input_text', text: payload.instructions }] },
@@ -189,7 +191,7 @@ export function openaiCodexSubscriptionProvider({
       ...(serviceTier === undefined ? {} : { serviceTier }),
       async onPayload(payload, requestModel) {
         const preferred = {
-          ...withCacheableInstructions(withUserPreferences(payload, instructions), model),
+          ...withUserPreferences(withCacheableInstructions(payload, model), instructions, model),
           ...(textVerbosity === undefined ? {} : { text: { ...(payload.text ?? {}), verbosity: textVerbosity } }),
           ...(serviceTier === undefined ? {} : { service_tier: serviceTier }),
         }

@@ -30,10 +30,10 @@ test('6.2 and later cache reusable instructions without mutating history or repl
   const before = structuredClone(payload)
   for (const id of ['gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-6.3-luna', 'gpt-7-sol', 'gpt-7.0-sol']) {
     const wire = await capture(payload, { id, preferences: 'Be concise.' })
-    assert.equal(wire.instructions, '')
+    assert.ok(wire.instructions.endsWith('Be concise.'))
     assert.equal(wire.input[0].role, 'developer')
     assert.match(wire.input[0].content[0].text, /^Stable DSH policy/)
-    assert.ok(wire.input[0].content[0].text.endsWith('Be concise.'))
+    assert.equal(wire.input[0].content[0].text, 'Stable DSH policy')
     assert.deepEqual(wire.input.slice(1), before.input)
   }
   assert.deepEqual(payload, before)
@@ -44,17 +44,16 @@ test('6.2 and later cache reusable instructions without mutating history or repl
   }
 })
 
-test('native developer prefixes accept preferences once in either supported content shape', async () => {
+test('editable preferences remain turn-scoped without rewriting the cached prefix or reasoning replay', async () => {
   for (const content of ['Native prefix', [{ type: 'input_text', text: 'Native prefix' }]]) {
-    const payload = { input: [{ role: 'developer', content }, { role: 'user', content: 'Question' }] }
+    const payload = { input: [{ role: 'developer', content }, { role: 'user', content: 'Question' }, { type: 'reasoning', id: 'r1', encrypted_content: 'opaque' }] }
     const before = structuredClone(payload)
     const wire = await capture(payload, { preferences: 'Saved preference' })
-    assert.equal(wire.instructions, undefined)
-    assert.equal(wire.input.length, 2)
-    const text = typeof wire.input[0].content === 'string' ? wire.input[0].content : wire.input[0].content.map(p => p.text).join('\n')
-    assert.ok(text.startsWith('Native prefix'))
-    assert.ok(text.endsWith('Saved preference'))
-    assert.equal(text.match(/Saved preference/gu).length, 1)
+    assert.ok(wire.instructions.endsWith('Saved preference'))
+    assert.deepEqual(wire.input, before.input)
+    const changed = await capture(payload, { preferences: 'Changed preference' })
+    assert.ok(changed.instructions.endsWith('Changed preference'))
+    assert.deepEqual(changed.input, wire.input)
     assert.deepEqual(payload, before)
   }
 })
