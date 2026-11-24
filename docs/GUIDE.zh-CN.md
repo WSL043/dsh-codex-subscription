@@ -262,7 +262,7 @@ GPT-6.2 及后续模型会自动把可复用的系统指令放到 Responses `inp
 
 在 DSH **插件**页的官方条目中安装 **Codex 子智能体**。如果只通过订阅使用，安装后可以关闭官方条目的开关。已安装的组件会保留，官方独立工具会停用。
 
-在 **设置 → Codex 订阅 → 联网与工具 → 独立子任务** 选择 **Codex（订阅）**。插件复用官方组件自带的 CLI，并随其更新，无需重复安装。如果当前 profile 已有更新的 `dsh-codex-subtask-cli`，则保留使用较新版。订阅登录和子任务默认设置仍由 DSH 管理。
+在 **设置 → Codex 订阅 → 联网与工具 → 独立子任务** 选择 **Codex（订阅）**。插件复用官方组件自带且兼容的 CLI，并随其更新，无需重复安装。如果当前 profile 已有更新的 `dsh-codex-subtask-cli`，则保留使用较新版。订阅登录和子任务默认设置仍由 DSH 管理。
 
 Windows 上，子任务 CLI 优先使用 CLI 版本、设备和策略支持的 Codex MXC 沙箱；否则需要配置 Codex 的旧版 Windows 沙箱。子任务保留 DSH 会话的文件策略，沙箱不可用时不会退回无隔离执行。
 
@@ -274,7 +274,7 @@ Windows 上，子任务 CLI 优先使用 CLI 版本、设备和策略支持的 C
 dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.3-alpha.2
 ```
 
-仅在自带 CLI 不可用时，使用页面上显示的 **准备 CLI**，或手动安装最新稳定版：
+如果自带 CLI 不可用，或版本过旧而不支持所需沙箱，使用页面上显示的 **准备 CLI**，或手动安装最新稳定版。Windows 至少需要 `0.167.0`，其他平台的最低版本为 `0.153.4`：
 
 ```sh
 dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@latest --save-exact --ignore-scripts

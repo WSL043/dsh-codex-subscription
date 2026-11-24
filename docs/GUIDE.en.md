@@ -269,7 +269,7 @@ Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only *
 
 Install **Codex Subagent** from the official entries in DSH's **Plugins** page. If you only use it with your subscription, switch the official entry off after installation to leave the package installed and its standalone tool disabled.
 
-Then choose **Codex (subscription)** in **Settings → Codex → Web & tools → Independent subtasks**. The plugin reuses the official component's bundled CLI and follows its updates without requiring a second installation. If an existing profile-owned `dsh-codex-subtask-cli` is newer, it is retained. Subscription login and saved child defaults stay in DSH.
+Then choose **Codex (subscription)** in **Settings → Codex → Web & tools → Independent subtasks**. The plugin reuses a compatible CLI bundled with the official component and follows its updates without requiring a second installation. If an existing profile-owned `dsh-codex-subtask-cli` is newer, it is retained. Subscription login and saved child defaults stay in DSH.
 
 On Windows, the child CLI prefers Codex's MXC sandbox when the CLI, device and policy support it. Otherwise it needs Codex's configured legacy Windows sandbox. Subtasks retain the DSH session's file policy; the plugin does not fall back to unrestricted execution when sandbox setup is unavailable.
 
@@ -281,7 +281,7 @@ Use the same profile as the subscription plugin. Install the official component 
 dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.3-alpha.2
 ```
 
-Only if the bundled CLI is unavailable, use **Prepare CLI** if shown, or install the latest stable CLI explicitly:
+If the bundled CLI is unavailable or too old for the required sandbox, use **Prepare CLI** if shown, or install the latest stable CLI explicitly. Windows requires at least `0.167.0`; the minimum on other platforms is `0.153.4`:
 
 ```sh
 dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@latest --save-exact --ignore-scripts

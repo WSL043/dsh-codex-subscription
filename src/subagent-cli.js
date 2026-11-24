@@ -9,10 +9,13 @@ export const SUBAGENT_CLI_SPEC = `${SUBAGENT_CLI_ALIAS}@npm:@openai/codex@latest
 
 // The external ChatGPT-token protocol was verified with this DSH-bundled CLI.
 // Follow stable package updates rather than pinning each newer CLI in a release.
-export function inspectCodexCli(path) {
+export function inspectCodexCli(path, platform = process.platform) {
   try {
     const cli = JSON.parse(readFileSync(path, 'utf8'))
-    if (cli.name !== '@openai/codex' || !/^\d+\.\d+\.\d+$/u.test(cli.version) || compareVersions(cli.version, '0.153.4') < 0 || cli.bin?.codex !== 'bin/codex.js') return undefined
+    // Retain the Windows sandbox support required by the previous runtime;
+    // an older official bundle can answer text while rejecting all shell work.
+    const minimum = platform === 'win32' ? '0.167.0' : '0.153.4'
+    if (cli.name !== '@openai/codex' || !/^\d+\.\d+\.\d+$/u.test(cli.version) || compareVersions(cli.version, minimum) < 0 || cli.bin?.codex !== 'bin/codex.js') return undefined
     return { version: cli.version, wrapper: resolve(dirname(path), cli.bin.codex) }
   } catch { return undefined }
 }

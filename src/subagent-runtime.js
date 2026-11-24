@@ -37,14 +37,14 @@ export function matchingSubagentRuntimeVersion(resolve = require.resolve) {
 // Resolve the official component's own CLI dependency on each inspection. Keep
 // an existing, newer profile-owned CLI, but never require a duplicate install.
 // Never search PATH or a desktop application's private files.
-export function inspectSubagentRuntime(resolve = require.resolve, cli) {
+export function inspectSubagentRuntime(resolve = require.resolve, cli, platform = process.platform) {
   try {
     const manifestPath = resolve(`${SUBAGENT_RUNTIME_PACKAGE}/package.json`)
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
     const hostVersion = matchingSubagentRuntimeVersion(resolve)
     if (hostVersion === undefined || manifest.version !== hostVersion) return { installed: false, present: true }
     let bundled
-    try { bundled = inspectCodexCli(createRequire(manifestPath).resolve('@openai/codex/package.json')) } catch {}
+    try { bundled = inspectCodexCli(createRequire(manifestPath).resolve('@openai/codex/package.json'), platform) } catch {}
     const dedicated = cli?.inspect()
     const chosen = dedicated?.installed && (!bundled || compareVersions(dedicated.version, bundled.version) > 0)
       ? { version: dedicated.version, wrapper: dedicated.wrapper, source: 'profile' }
@@ -54,7 +54,7 @@ export function inspectSubagentRuntime(resolve = require.resolve, cli) {
 }
 
 export async function loadSubagentRuntime({ resolve = require.resolve, cli, run = execute, importModule = url => import(url), platform = process.platform } = {}) {
-  const runtime = inspectSubagentRuntime(resolve, cli)
+  const runtime = inspectSubagentRuntime(resolve, cli, platform)
   if (!runtime.installed) throw new Error('Codex subtask runtime is not prepared')
   const entry = resolve(SUBAGENT_RUNTIME_PACKAGE)
   const providerRequire = createRequire(entry)

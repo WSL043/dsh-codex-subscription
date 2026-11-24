@@ -73,8 +73,9 @@ test('preparation checks the dedicated CLI without shell or PATH and supports re
       await loadSubagentRuntime({resolve,run,cli,importModule:async()=>({JsonRpcLineTransport:class {}})})
     }
     const bundled = join(root,'node_modules','@openai/codex','package.json')
-    assert.equal(inspectSubagentRuntime(resolve).version,'0.153.4','the official payload works without a duplicate alias')
-    assert.equal(inspectSubagentRuntime(resolve).source,'dsh')
+    assert.equal(inspectSubagentRuntime(resolve,undefined,'linux').version,'0.153.4','a compatible official payload works without a duplicate alias')
+    assert.equal(inspectSubagentRuntime(resolve,undefined,'darwin').source,'dsh')
+    assert.equal(inspectSubagentRuntime(resolve,undefined,'win32').installed,false,'a text-only success on the old Windows payload is not enough for a working subagent')
     await writeFile(bundled,JSON.stringify({name:'@openai/codex',version:'0.173.0',bin:{codex:'bin/codex.js'}}))
     assert.equal(inspectSubagentRuntime(resolve,cli).version,'0.173.0','an official update automatically supersedes an older alias')
     assert.equal(inspectSubagentRuntime(resolve,cli).source,'dsh')
