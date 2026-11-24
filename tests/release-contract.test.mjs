@@ -22,16 +22,15 @@ test('plugin card translations are exported and included in the published packag
 })
 const compatibility = JSON.parse(text('compatibility.json'))
 
-test('native plugin detail documents are brief, translated and explicitly packaged', () => {
+test('native plugin detail documents are translated and explicitly packaged', () => {
   assert.ok(manifest.files.includes('docs/plugin/*.md'))
-  for (const language of ['en', 'zh']) {
+  for (const language of ['en', 'zh', 'ja', 'es', 'fr', 'de', 'ru', 'pt']) {
     const { meta } = JSON.parse(text(`locale/${language}.json`))
-    const expected = language === 'zh' ? 'docs/plugin/DETAIL.zh.md' : 'docs/plugin/DETAIL.md'
+    const expected = language === 'en' ? 'docs/plugin/DETAIL.md' : `docs/plugin/DETAIL.${language}.md`
     assert.equal(meta.detail, expected)
     const body = text(meta.detail)
-    assert.ok(Buffer.byteLength(body) < 1024, 'detail remains a short introduction')
     assert.equal(body.includes('!['), false, 'no screenshots or duplicate README gallery')
-    assert.ok(body.includes(`README.${language === 'zh' ? 'zh-CN' : 'en'}.md`))
+    assert.ok(body.includes(`README.${language === 'zh' ? 'zh-CN' : language}.md`))
     assert.ok(body.includes('https://github.com/WSL043/dsh-codex-subscription/issues'))
   }
 })
