@@ -78,6 +78,60 @@ test('a rejected WebSocket proxy CONNECT falls back through the existing SSE rou
   } finally { globalThis.fetch = originalFetch; connection.dispose(); await new Promise(resolve => server.close(resolve)) }
 })
 
+test('a pending handshake times out and completes via SSE without an unhandled ws error', async () => {
+  const server = http.createServer()
+  const handshakes = new Set()
+  server.on('upgrade', (_request, socket) => {
+    handshakes.add(socket)
+    socket.once('close', () => handshakes.delete(socket))
+    // Deliberately leave the local handshake pending until the client closes.
+  })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  const endpoint = `ws://127.0.0.1:${server.address().port}`
+  let socket, closeReason, fetches = 0
+  class LoopbackSocket extends WebSocket {
+    constructor() { super(endpoint); socket = this }
+    close(code, reason) {
+      closeReason = reason
+      return super.close(code, reason)
+    }
+  }
+  const connection = createSubscriptionConnection({ resolveMode: () => 'websocket', resolveProxy: async () => undefined })
+  const prepare = connection.prepare
+  connection.prepare = async (...args) => {
+    const request = await prepare(...args)
+    request.options.websocketConnectTimeoutMs = 250
+    return request
+  }
+  const network = createCodexNetworkTransport({ WebSocket: LoopbackSocket, env: {}, platform: 'test' })
+  const provider = openaiCodexSubscriptionProvider({ connection, runNetwork: network.run })
+  const apiKey = `e30.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture' } })).toString('base64url')}.fake`
+  const model = provider.getModels().find(candidate => candidate.id === 'gpt-5.6-luna')
+  try {
+    const stream = provider.streamSimple(model, { messages: [{ role: 'user', content: 'test', timestamp: 1 }] }, {
+      apiKey, sessionId: 'handshake-timeout', signal: AbortSignal.timeout(5000),
+      fetch: async () => {
+        fetches++
+        return new Response('data: {"type":"response.done","response":{"id":"fallback","status":"completed","output":[],"usage":{"input_tokens":1,"output_tokens":0,"total_tokens":1}}}\n\n', { headers: { 'content-type': 'text/event-stream' } })
+      },
+    })
+    const events = []
+    for await (const event of stream) events.push(event.type)
+    assert.equal(events.at(-1), 'done', events.join(','))
+    assert.equal(fetches, 1)
+    assert.equal(connection.snapshot().sseFallbacks, 1)
+    assert.ok(socket, 'the SDK must attempt the WebSocket first')
+    assert.equal(closeReason, 'connect_timeout')
+    assert.equal(socket.readyState, WebSocket.CLOSED)
+    assert.equal(socket.listenerCount('error'), 0)
+  } finally {
+    connection.dispose()
+    for (const handshake of handshakes) handshake.destroy()
+    await new Promise(resolve => server.close(resolve))
+  }
+})
+
 test('an advertised WebSocket limit checks the encoded request before send and falls back only for that request', async () => {
   const server = new WebSocketServer({ host: '127.0.0.1', port: 0 })
   await once(server, 'listening')
