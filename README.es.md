@@ -65,7 +65,7 @@ Consulta la [guía oficial de DSH](https://github.com/deepseek-ai/deepseek-harne
 2. Pega el nombre de este paquete, incluida su versión, en el campo **Nombre o dirección del paquete**:
 
    ```text
-   dsh-codex-subscription@3.2.30
+   dsh-codex-subscription@3.2.31
    ```
 
 3. Haz clic en **Instalar** y espera a que termine. Sigue las instrucciones de la página; guarda tu trabajo antes de reiniciar si se te solicita.
@@ -82,7 +82,7 @@ Por qué se incluye la versión: la página de complementos de DSH solo instala 
 <summary>Instalación desde la terminal (con un comando dsh existente)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.30
+dsh plugin --profile web add dsh-codex-subscription@3.2.31
 ```
 
 Sigue las instrucciones para reiniciar y luego inicia sesión en **Configuración → Codex**. Tanto la página Complementos como la terminal usan la administración de instalaciones de DSH.
@@ -95,7 +95,7 @@ Sigue las instrucciones para reiniciar y luego inicia sesión en **Configuració
 Después de iniciar sesión y seleccionar un modelo de Codex en Web, instala el mismo complemento en el perfil Headless:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.30
+dsh plugin --profile headless add dsh-codex-subscription@3.2.31
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -328,7 +328,7 @@ Busca este plugin en la página **Complementos** de DSH y usa la opción de actu
 <summary>Comandos de terminal</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.30
+dsh plugin --profile web update dsh-codex-subscription@3.2.31
 ```
 
 Ejecuta solo si quieres desinstalarlo:
