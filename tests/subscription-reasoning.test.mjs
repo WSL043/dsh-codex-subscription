@@ -236,7 +236,7 @@ test('an ineligible nested request cannot overwrite an outer request checkpoint'
   }
 })
 
-test('titles and native compaction bypass the conversation lock in both directions', async () => {
+test('DSH auxiliary requests bypass the conversation lock in both directions', async () => {
   for (const prepared of [false, true]) {
     const f = fixture()
     f.created()
@@ -260,6 +260,14 @@ test('titles and native compaction bypass the conversation lock in both directio
       assert.equal(summaryFinish.replayState.response[REASONING_STATE_KEY], undefined)
       assert.equal(f.wires.at(-1).reasoning.effort, 'low')
       assert.equal(f.wires.at(-1).input.some(item => item.type === 'configuration_update'), false)
+      // Timeline reuses the session ID and a copy of the conversation prefix.
+      const reportOptions = { ...options, purpose: 'timeline-report', messages: [...options.messages, user('write the interval report')], reasoningEffort: 'high' }
+      let reportFinish
+      for await (const event of call.stream(reportOptions)) reportFinish = event
+      assert.deepEqual(f.bridge.snapshot(), before)
+      assert.equal(reportFinish.replayState.response[REASONING_STATE_KEY], undefined)
+      assert.equal(f.wires.at(-1).reasoning.effort, 'high')
+      assert.equal(f.wires.at(-1).input.some(item => item.type === 'configuration_update'), false)
       const conflicting = call.stream(options)
       await assert.rejects(conflicting.next(), error => error.code === 'UNSUPPORTED_OPTION' && /concurrent/.test(error.message))
       const mainFinish = (await main.next()).value
@@ -280,16 +288,16 @@ test('titles and native compaction bypass the conversation lock in both directio
     // Auxiliary requests that run first must not consume the new-session proof.
     const early = fixture(); early.created()
     await early.run([user('title only')], 'high', 'fixture-session', { purpose: 'session-title' })
-    const earlySummary = early.adapter.stream({ ...options, purpose: 'compaction' })
+    const earlyReport = early.adapter.stream({ ...options, purpose: 'timeline-report' })
     try {
-      await earlySummary.next()
+      await earlyReport.next()
       assert.equal(early.bridge.snapshot().fresh, 1)
       assert.equal(early.bridge.snapshot().active, 0)
       const finish = await early.run([user('actual first')], 'medium')
       assert.equal(finish.replayState.response[REASONING_STATE_KEY].state.baseline, 'medium')
-      const summaryFinish = (await earlySummary.next()).value
-      assert.equal(summaryFinish.replayState.response[REASONING_STATE_KEY], undefined)
-    } finally { await earlySummary.return() }
+      const reportFinish = (await earlyReport.next()).value
+      assert.equal(reportFinish.replayState.response[REASONING_STATE_KEY], undefined)
+    } finally { await earlyReport.return() }
     assert.deepEqual(early.lockEvents, [])
   }
 })
