@@ -1,6 +1,21 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
 
 export default {
+  "connectorSettingsLoading": "Cargando ajustes de conectores…",
+  "connectorSettingsUnavailable": "No se pudieron cargar los ajustes.",
+  "connectorSettingsSaving": "Guardando ajustes…",
+  "connectorAccountTitle": "Cuenta para conectores",
+  "connectorAccountFollow": "Seguir la cuenta actual",
+  "connectorAccountOrdinal": "{label} (cuenta {number})",
+  "connectorAccountActiveOption": "{label} (Codex actual)",
+  "connectorAccountCurrent": "Cuenta de inferencia de Codex: {account}",
+  "connectorAccountUnknown": "Desconocida",
+  "connectorAccountSaved": "Cuenta fija guardada",
+  "connectorAccountMissing": "Cuenta fija no disponible",
+  "connectorAccountMissingHint": "No se encontró la cuenta fija. Se conserva la selección sin usar otra cuenta. Selecciona una cuenta disponible.",
+  "connectorAccountUnknownHint": "No se pudo verificar la cuenta fija. Se conserva la selección; puedes elegir seguir la cuenta actual.",
+  "connectorAccountDisclosure": "La cuenta fija solo afecta a los conectores. Sus datos pueden enviarse al modelo de este chat, incluso de otra cuenta o proveedor, y guardarse en el historial de DSH. Úsala solo si lo permiten las políticas de tratamiento de datos de los espacios de trabajo.",
+  "connectorAccountWriteDestination": "Las escrituras usan las apps de la cuenta elegida para conectores, aunque la cuenta de inferencia sea distinta.",
   "speedShortcutTitle": "Atajo de velocidad en el cuadro de entrada",
   "speedShortcut_off": "Como antes",
   "speedShortcut_icon": "Rayo",

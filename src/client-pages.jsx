@@ -60,7 +60,8 @@ export function FeatureOverview({ preference, t, go, webSettingsContext }) {
     <FeatureRow t={t} title={t('featureSearchTitle')} summary={t('featureSearchSummary')} status={searchStatus} onMore={() => go('tools')} />
     <FeatureRow t={t} title={t('featureImageTitle')} summary={t('featureImageSummary')} checked={imagesOn} disabled={!writable}
       onChange={next => set({ imageGeneration: next, imageEditing: next })} onMore={() => go('create')} />
-    <FeatureRow t={t} title={t('featureConnectorsTitle')} summary={t('featureConnectorsSummary')} checked={snapshot.connectors !== 'off'} disabled={!writable}
+    <FeatureRow t={t} title={t('featureConnectorsTitle')} summary={t('featureConnectorsSummary')}
+      checked={snapshot.status === 'ready' ? snapshot.connectors !== 'off' : undefined} disabled={!writable}
       onChange={next => set({ connectors: next ? 'read' : 'off' })} onMore={() => go('tools')} />
     <FeatureRow t={t} title={t('featureSketchTitle')} summary={t('featureSketchSummary')} beta checked={snapshot.imageSketch} disabled={!writable}
       reason={!imagesOn && !snapshot.imageSketch ? t('featureSketchNeedsImages') : undefined}
@@ -234,7 +235,7 @@ function SubagentDefaultPreferences({ preference, snapshot, t }) {
   </>
 }
 
-export function ToolsPage({ preference, rpc, t, active = true, openSubagentBundle, webSettingsContext }) {
+export function ToolsPage({ preference, rpc, t, active = true, accountSnapshot, retryAccount, openSubagentBundle, webSettingsContext }) {
   const snapshot = usePreferenceSnapshot(preference)
   const writable = ready(snapshot)
   const others = snapshot.otherModels !== 'off'
@@ -249,7 +250,7 @@ export function ToolsPage({ preference, rpc, t, active = true, openSubagentBundl
       <SearchProviderPreference preference={preference} t={t} webSettingsContext={webSettingsContext} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('connectors')}>
-      <ConnectorsPreference preference={preference} t={t} />
+      <ConnectorsPreference preference={preference} t={t} accountSnapshot={accountSnapshot} retryAccount={retryAccount} active={active} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('subagentBackendTitle')}>
       <div className="codexSubscriptionPreference">

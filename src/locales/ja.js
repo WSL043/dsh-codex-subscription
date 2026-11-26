@@ -1,6 +1,21 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
 
 export default {
+  "connectorSettingsLoading": "接続アプリの設定を読込中…",
+  "connectorSettingsUnavailable": "接続アプリの設定を読み込めません。",
+  "connectorSettingsSaving": "設定を保存中…",
+  "connectorAccountTitle": "使用するアカウント",
+  "connectorAccountFollow": "現在のアカウントに従う",
+  "connectorAccountOrdinal": "{label}（アカウント {number}）",
+  "connectorAccountActiveOption": "{label}（現在の Codex）",
+  "connectorAccountCurrent": "Codex の推論アカウント：{account}",
+  "connectorAccountUnknown": "不明",
+  "connectorAccountSaved": "保存済みの固定アカウント",
+  "connectorAccountMissing": "固定アカウントを利用できません",
+  "connectorAccountMissingHint": "固定アカウントが見つかりません。選択は保持し、別のアカウントへ自動では切り替えません。アカウントを選び直してください。",
+  "connectorAccountUnknownHint": "固定アカウントを確認できません。選択は保持しています。必要なら「現在のアカウントに従う」に変更できます。",
+  "connectorAccountDisclosure": "固定の対象は接続アプリだけです。取得したデータは、このチャットのモデル（別アカウント・別サービスを含む）へ渡され、DSH の会話履歴に保存される場合があります。所属組織のデータ取扱方針で許可されている場合のみ使用してください。",
+  "connectorAccountWriteDestination": "書き込み先は、推論アカウントに関係なく、選んだ接続アプリ用アカウントのアプリです。",
   "catalogTimeout": "モデル一覧の取得がタイムアウトしました。ネットワークやプロキシを確認して再試行してください。",
   "catalogCachedTimeout": "取得済みのモデル一覧を使用中です。オンライン更新がタイムアウトしました。ネットワークやプロキシを確認して再試行してください。",
   "openSubscriptionSettings": "サブスクリプション設定",

@@ -1,6 +1,21 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
 
 export default {
+  "connectorSettingsLoading": "Konnektor-Einstellungen werden geladen…",
+  "connectorSettingsUnavailable": "Einstellungen konnten nicht geladen werden.",
+  "connectorSettingsSaving": "Einstellungen werden gespeichert…",
+  "connectorAccountTitle": "Konto für Konnektoren",
+  "connectorAccountFollow": "Aktuellem Konto folgen",
+  "connectorAccountOrdinal": "{label} (Konto {number})",
+  "connectorAccountActiveOption": "{label} (aktuelles Codex-Konto)",
+  "connectorAccountCurrent": "Codex-Inferenzkonto: {account}",
+  "connectorAccountUnknown": "Unbekannt",
+  "connectorAccountSaved": "Gespeichertes festes Konto",
+  "connectorAccountMissing": "Festes Konto nicht verfügbar",
+  "connectorAccountMissingHint": "Das feste Konto wurde nicht gefunden. Die Auswahl bleibt erhalten; es wird kein anderes Konto verwendet. Bitte ein verfügbares Konto auswählen.",
+  "connectorAccountUnknownHint": "Das feste Konto konnte nicht geprüft werden. Die Auswahl bleibt erhalten; alternativ dem aktuellen Konto folgen.",
+  "connectorAccountDisclosure": "Das feste Konto gilt nur für Konnektoren. Deren Daten können an das Modell dieses Chats (auch eines anderen Kontos oder Anbieters) gesendet und im DSH-Verlauf gespeichert werden. Nur verwenden, wenn die Datenrichtlinien der Arbeitsbereiche dies erlauben.",
+  "connectorAccountWriteDestination": "Schreibzugriffe verwenden die Apps des ausgewählten Konnektorkontos, unabhängig vom Inferenzkonto.",
   "speedShortcutTitle": "Tempo-Kürzel im Eingabefeld",
   "speedShortcut_off": "Wie bisher",
   "speedShortcut_icon": "Blitzsymbol",

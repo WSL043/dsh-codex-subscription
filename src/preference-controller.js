@@ -25,6 +25,8 @@ import {
   RETRY_POLICY_FIELD,
   normalizeRetryPolicy,
   CONNECTORS_FIELD,
+  CONNECTOR_ACCOUNT_FIELD,
+  DEFAULT_CONNECTOR_ACCOUNT,
   normalizeConnectorMode,
   normalizeReasoningSummary,
   STREAM_IDLE_TIMEOUT_MINUTES_FIELD,
@@ -53,7 +55,7 @@ import { readCapabilitySettings, CUSTOM_CONTEXT_OVERRIDES_FIELD } from './capabi
 export function createPreferenceController(rpc) {
   let updating = false
   let error = false
-  let fallback
+  let fallback = { status: 'loading' }
   let pendingPatch
   let failedPatch
   let generation = 0
@@ -126,6 +128,7 @@ export function createPreferenceController(rpc) {
       voiceLanguage: normalizeVoiceLanguage(value?.[VOICE_LANGUAGE_FIELD]),
       retryPolicy: normalizeRetryPolicy(value?.[RETRY_POLICY_FIELD]),
       connectors: normalizeConnectorMode(value?.[CONNECTORS_FIELD]),
+      [CONNECTOR_ACCOUNT_FIELD]: value?.[CONNECTOR_ACCOUNT_FIELD] ?? DEFAULT_CONNECTOR_ACCOUNT,
       streamIdleTimeoutMinutes: normalizeStreamIdleTimeoutMinutes(value?.[STREAM_IDLE_TIMEOUT_MINUTES_FIELD]),
       contextMode: normalizeContextMode(value?.[CONTEXT_MODE_FIELD]),
       customContextWindow: normalizeCustomContextWindow(value?.[CUSTOM_CONTEXT_WINDOW_FIELD]),
@@ -216,6 +219,7 @@ export function createPreferenceController(rpc) {
         [VOICE_LANGUAGE_FIELD]: normalizeVoiceLanguage(value?.[VOICE_LANGUAGE_FIELD]),
         [RETRY_POLICY_FIELD]: normalizeRetryPolicy(value?.[RETRY_POLICY_FIELD]),
         [CONNECTORS_FIELD]: normalizeConnectorMode(value?.[CONNECTORS_FIELD]),
+        [CONNECTOR_ACCOUNT_FIELD]: value?.[CONNECTOR_ACCOUNT_FIELD] ?? DEFAULT_CONNECTOR_ACCOUNT,
         [STREAM_IDLE_TIMEOUT_MINUTES_FIELD]: normalizeStreamIdleTimeoutMinutes(value?.[STREAM_IDLE_TIMEOUT_MINUTES_FIELD]),
         [CONTEXT_MODE_FIELD]: normalizeContextMode(value?.[CONTEXT_MODE_FIELD]),
         [CUSTOM_CONTEXT_WINDOW_FIELD]: normalizeCustomContextWindow(value?.[CUSTOM_CONTEXT_WINDOW_FIELD]),
@@ -229,7 +233,8 @@ export function createPreferenceController(rpc) {
     const current = ++generation
     updating = false
     pendingPatch = undefined
-    fallback = undefined
+    fallback = { status: 'loading' }
+    failedPatch = undefined
     error = false
     publish()
     if (disposed || current !== generation) return
@@ -240,6 +245,7 @@ export function createPreferenceController(rpc) {
       publish()
     } catch {
       if (current !== generation || disposed) return
+      fallback = { status: 'unavailable' }
       publish()
     }
   }

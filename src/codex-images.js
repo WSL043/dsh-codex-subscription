@@ -531,7 +531,7 @@ export function createCodexImageTool(options) {
           || (await options.resolveSession?.(sessionId))?.id !== sessionId) {
           throw new Error('Codex image generation requires a session-owned tool call')
         }
-        if (options.allowed?.() === false) throw new Error('Codex image generation is turned off for conversations on other models (Settings → Codex subscription → Web & tools → "DeepSeek and other models can use subscription features")')
+        if (options.allowed?.(sessionId) === false) throw new Error('Codex image generation is turned off for conversations on other models (Settings → Codex subscription → Web & tools → "DeepSeek and other models can use subscription features")')
       }
       // Reject orphaned/direct calls before credentials, reference reads or paid work.
       await assertContext()
