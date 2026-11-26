@@ -117,8 +117,7 @@ export const zh = {
   connectorAccountMissingHint: '找不到固定账号。已保留选择，不会回退到其他账号。可改为跟随当前账号，或另选一个账号。',
   connectorAccountUnknownHint: '暂时无法确认固定账号的状态。已保留选择；也可改为跟随当前账号。',
   connectorAccountDisclosure: '固定账号只影响连接器。该账号返回的数据可能进入当前对话所用模型的上下文（包括其他账号或模型服务商），并写入 DSH 会话记录。仅在相关工作区及数据处理政策均允许时使用。',
-  connectorsMode_fixed: '固定账号模式实际权限：只读。',
-  connectorsMode_fixedSaved: '固定账号模式实际权限：只读。已保留「{mode}」设置；切回跟随当前账号时恢复。',
+  connectorAccountWriteDestination: '写操作只会作用于所选连接器账号已连接的应用，即使 Codex 使用其他账号推理。',
   defaultReasoningEffort: '默认推理等级', defaultReasoningEffortHint: '未手动选档时使用；模型不支持时跟随该模型默认值。',
   composerPredictions: '输入预测', composerPredictionAccept: '接受建议', composerPredictionsShortHint: 'Tab 填入草稿', composerPredictionsHint: `支持的 Codex 模型在一轮对话完成、草稿为空时，基于当前会话建议下一条消息。Tab 填入草稿，不会自动发送。会产生额外预测请求。官方 Codex 生成预测不计额度或 Credits；DSH 第三方接入是否享有相同豁免尚未确认。接受后发送消息仍正常计量。`,
   composerPredictionModels: "此账号可用的模型：{models}",
@@ -382,8 +381,7 @@ export const connectorAccountEnglish = {
   connectorAccountMissingHint: 'The fixed account was not found. Your selection is kept; connectors will not fall back to another account. Choose Follow the current account or select another account.',
   connectorAccountUnknownHint: 'Could not verify the fixed account. Your selection is kept, or you can choose Follow the current account.',
   connectorAccountDisclosure: 'Fixing an account only affects connectors. Data from its apps may be sent to the model used in this chat (even under a different account or provider) and saved in the DSH conversation history. Only use this if the relevant workspace and data-handling policies allow it.',
-  connectorsMode_fixed: 'Effective access for a fixed account: read-only.',
-  connectorsMode_fixedSaved: 'Effective access for a fixed account: read-only. “{mode}” is still saved and will apply again if you switch to Follow the current account.',
+  connectorAccountWriteDestination: 'Writes go only to apps connected to the selected connector account, even if the Codex inference account is different.',
 }
 
 export const en = {

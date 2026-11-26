@@ -76,7 +76,7 @@ test('the connector client reports sign-in and server errors without leaking bod
 function tools(mode, replies, approvals = []) {
   const { client, calls } = fixture(replies)
   const set = createConnectorTools({
-    open: () => ({ client, mode }),
+    open: () => ({ client, mode, describeAccount: async () => 'Test connector account' }),
     getApproval: () => ({ request: async request => { approvals.push(request); return approvals.outcome ?? 'allowed-once' } }),
   })
   const by = Object.fromEntries(set.map(item => [item.name, item]))
@@ -165,7 +165,11 @@ function accountFixture({ mode = 'write', account = '', approval, list, call } =
   const state = { active: 'A', account, mode }
   const calls = []
   const router = createConnectorAccountRouter({
-    vault: { activeId: async () => state.active, readAccount: async id => credentials.get(id) },
+    vault: {
+      activeId: async () => state.active,
+      readAccount: async id => credentials.get(id),
+      list: async () => [...credentials.keys()].map(id => ({ id, label: 'Test account', email: `${id}@example.com` })),
+    },
     getSelection: () => ({ account: state.account, mode: state.mode }),
     createAuth: id => async () => ({ auth: { apiKey: credentials.get(id)?.access } }),
     fetch: async (_url, { headers, body }) => {
@@ -186,21 +190,67 @@ function accountFixture({ mode = 'write', account = '', approval, list, call } =
   return { state, credentials, calls, router, by }
 }
 
-test('fixed account stays read-only and independent of the active model account', async () => {
+test('a fixed account stays independent of the active model account and obeys read-only mode', async () => {
   let approvals = 0
-  const { state, calls, by } = accountFixture({ account: 'A', approval: async () => { approvals++; return 'allowed-once' } })
+  const { state, calls, by } = accountFixture({ account: 'A', mode: 'read', approval: async () => { approvals++; return 'allowed-once' } })
   const found = await by.chatgpt_connectors_search.execute({ query: 'gmail' }, exec)
-  assert.deepEqual(found.tools.map(item => item.name), ['gmail.search_emails'])
+  assert.deepEqual(found.tools.map(item => [item.name, item.readOnly]), [['gmail.search_emails', true], ['gmail.send_email', false]])
   state.active = 'B'
   const description = await by.chatgpt_connectors_describe.execute({ name: 'gmail.search_emails' }, exec)
   assert.equal(description.description, 'Mailbox A')
   const result = await by.chatgpt_connectors_call.execute({ name: 'gmail.search_emails' }, exec)
   assert.equal(result.text, 'Result from A')
-  await assert.rejects(by.chatgpt_connectors_call.execute({ name: 'gmail.send_email' }, exec), /fixed ChatGPT connector account is read-only/)
+  await assert.rejects(by.chatgpt_connectors_call.execute({ name: 'gmail.send_email' }, exec), /connectors are set to read-only/)
   assert.equal(approvals, 0)
   assert.deepEqual(calls.map(({ id, method }) => [id, method]), [['A', 'tools/list'], ['A', 'tools/call']])
   state.mode = 'off'
   await assert.rejects(by.chatgpt_connectors_search.execute({}, exec), /turned off/)
+})
+
+test('write directly discovers and executes a changing tool under the pinned account without approval', async () => {
+  const { state, calls, by } = accountFixture({ account: 'B', mode: 'write', approval: () => assert.fail('direct writes must not ask') })
+  const description = await by.chatgpt_connectors_describe.execute({ name: 'gmail.send_email' }, exec)
+  assert.equal(description.readOnly, false)
+  const result = await by.chatgpt_connectors_call.execute({ name: 'gmail.send_email', arguments: { to: 'test@example.com' } }, exec)
+  assert.equal(result.text, 'Result from B')
+  assert.equal(state.active, 'A')
+  assert.deepEqual(calls.map(({ id, method }) => [id, method]), [['B', 'tools/list'], ['B', 'tools/call']])
+})
+
+test('write after asking identifies the pinned account, requires approval, and does not follow an inference switch', async () => {
+  const approvals = []
+  let outcome = 'rejected'
+  const { state, calls, by } = accountFixture({ account: 'B', mode: 'ask', approval: async request => {
+    approvals.push(request)
+    if (outcome === 'allowed-once') state.active = 'B'
+    return outcome
+  } })
+  await assert.rejects(by.chatgpt_connectors_call.execute({ name: 'gmail.send_email' }, exec), /did not grant approval/)
+  assert.equal(calls.length, 1)
+  outcome = 'allowed-once'
+  const result = await by.chatgpt_connectors_call.execute({ name: 'gmail.send_email' }, exec)
+  assert.equal(result.text, 'Result from B')
+  assert.ok(approvals.every(request => request.reason.startsWith('ChatGPT connector account: Test account (account 2)\n')))
+  assert.ok(approvals.every(request => !request.reason.includes('@example.com')))
+  assert.deepEqual(calls.map(({ id, method }) => [id, method]), [['B', 'tools/list'], ['B', 'tools/call']])
+})
+
+test('a write already sent to the pinned account returns its receipt even if the pin changes', async () => {
+  const sent = Promise.withResolvers()
+  const finish = Promise.withResolvers()
+  const { state, by, calls } = accountFixture({ account: 'B', call: () => { sent.resolve(); return finish.promise } })
+  const pending = by.chatgpt_connectors_call.execute({ name: 'gmail.send_email' }, exec)
+  await sent.promise
+  state.account = 'A'
+  finish.resolve(json({ result: { content: [{ type: 'text', text: 'Written as B' }] } }))
+  assert.equal((await pending).text, 'Written as B')
+  assert.deepEqual(calls.map(({ id, method }) => [id, method]), [['B', 'tools/list'], ['B', 'tools/call']])
+})
+
+test('a direct write rejected for the pinned account is not retried as the active account', async () => {
+  const { calls, by } = accountFixture({ account: 'B', mode: 'write', call: () => new Response('private', { status: 403 }) })
+  await assert.rejects(by.chatgpt_connectors_call.execute({ name: 'gmail.send_email' }, exec), /does not offer connectors to this account/)
+  assert.deepEqual(calls.map(({ id, method }) => [id, method]), [['B', 'tools/list'], ['B', 'tools/call']])
 })
 
 test('follow mode isolates identical tool names across vault accounts in the same workspace', async () => {
@@ -259,18 +309,22 @@ test('a pending read stops returning data when the connector account changes', a
   assert.deepEqual(calls.map(({ id, method }) => [id, method]), [['A', 'tools/list'], ['A', 'tools/call']])
 })
 
-for (const change of ['switch active account', 'change configured account', 'change selection and back']) {
+for (const [change, account, applyChange, error] of [
+  ['switching the active account in follow mode', '', ({ state }) => { state.active = 'B' }, /account.*changed/],
+  ['switching the fixed account', 'A', ({ state }) => { state.account = 'B' }, /account.*changed/],
+  ['switching the fixed account and back', 'A', ({ state, router }) => { state.account = 'B'; router.clear(); state.account = 'A'; router.clear() }, /account.*changed/],
+  ['switching to direct write', 'A', ({ state }) => { state.mode = 'write' }, /permissions changed/],
+  ['removing the fixed account', 'A', ({ credentials }) => { credentials.delete('A') }, /no longer signed in/],
+]) {
   test(`an old approval cannot send a connector write after ${change}`, async () => {
     const started = Promise.withResolvers()
     const finish = Promise.withResolvers()
-    const { state, calls, router, by } = accountFixture({ mode: 'ask', approval: () => { started.resolve(); return finish.promise } })
-    const stale = assert.rejects(by.chatgpt_connectors_call.execute({ name: 'gmail.send_email' }, exec), /account.*changed/)
+    const fixture = accountFixture({ account, mode: 'ask', approval: () => { started.resolve(); return finish.promise } })
+    const stale = assert.rejects(fixture.by.chatgpt_connectors_call.execute({ name: 'gmail.send_email' }, exec), error)
     await started.promise
-    if (change === 'switch active account') state.active = 'B'
-    else if (change === 'change configured account') state.account = 'B'
-    else { state.account = 'B'; router.clear(); state.account = ''; router.clear() }
+    applyChange(fixture)
     finish.resolve('allowed-once')
     await stale
-    assert.deepEqual(calls.map(({ id, method }) => [id, method]), [['A', 'tools/list']])
+    assert.deepEqual(fixture.calls.map(({ id, method }) => [id, method]), [['A', 'tools/list']])
   })
 }

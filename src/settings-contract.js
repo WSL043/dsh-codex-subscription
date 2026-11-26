@@ -68,7 +68,6 @@ export const DEFAULT_CONNECTOR_MODE = 'off'
 export const CONNECTOR_ACCOUNT_FIELD = 'connectorAccount'
 export const DEFAULT_CONNECTOR_ACCOUNT = '' // Follow the active account; otherwise a local vault ID.
 export const MAX_CONNECTOR_ACCOUNT_LENGTH = 128
-export const effectiveConnectorMode = (mode, account) => mode !== 'off' && account !== DEFAULT_CONNECTOR_ACCOUNT ? 'read' : mode
 export const INPUT_IMAGE_DETAIL_FIELD = 'inputImageDetail'
 export const INPUT_IMAGE_DETAILS = Object.freeze(['low', 'high', 'original', 'auto'])
 export const DEFAULT_INPUT_IMAGE_DETAIL = 'auto'

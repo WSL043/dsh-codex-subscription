@@ -195,22 +195,18 @@ export function ConnectorsPreference({ preference, t, accountSnapshot, retryAcco
   }
   const writable = snapshot.writable === true && !snapshot.saving
   const value = snapshot[CONNECTOR_ACCOUNT_FIELD] ?? ''
-  const fixed = value !== ''
-  const storedMode = snapshot.connectors
-  const mode = fixed && storedMode !== 'off' ? 'read' : storedMode
-  const modeNote = fixed && mode === 'read'
-    ? (storedMode === mode ? t('connectorsMode_fixed') : fill(t('connectorsMode_fixedSaved'), { mode: t(`connectors_${storedMode}`) }))
-    : t(`connectorsMode_${mode}`)
+  const mode = snapshot[CONNECTORS_FIELD]
+  const modeNote = t(`connectorsMode_${mode}`)
+  const modeDescription = value !== '' && (mode === 'ask' || mode === 'write')
+    ? `${modeNote} ${t('connectorAccountWriteDestination')}`
+    : modeNote
   return <>
     <div className="codexSubscriptionPreference codexSubscriptionConnectors">
       <div className="codexSubscriptionPreferenceCopy">{label}</div>
       <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('connectors')} aria-describedby={`${radioId}-mode`}>
-        {CONNECTOR_MODES.map(choice => {
-          const disabled = !writable || fixed && (choice === 'ask' || choice === 'write')
-          return <label key={choice} className="codexSubscriptionQuotaMode"><input type="radio" name={`${radioId}-codex-connectors`} checked={mode === choice} disabled={disabled} onChange={() => { if (!disabled && choice !== mode) void preference.set({ [CONNECTORS_FIELD]: choice }) }} /><span>{t(`connectors_${choice}`)}</span></label>
-        })}
+        {CONNECTOR_MODES.map(choice => <label key={choice} className="codexSubscriptionQuotaMode"><input type="radio" name={`${radioId}-codex-connectors`} checked={mode === choice} disabled={!writable} onChange={() => { if (writable && choice !== mode) void preference.set({ [CONNECTORS_FIELD]: choice }) }} /><span>{t(`connectors_${choice}`)}</span></label>)}
       </div>
-      <span id={`${radioId}-mode`} className="codexSubscriptionModeNote" data-danger={mode === 'write' || undefined} role="status">{modeNote}</span>
+      <span id={`${radioId}-mode`} className="codexSubscriptionModeNote" data-danger={mode === 'write' || undefined} role="status">{modeDescription}</span>
       {snapshot.saving ? <span className="codexSubscriptionModeNote" role="status">{t('connectorSettingsSaving')}</span> : null}
     </div>
     {accountSnapshot ? <ConnectorAccountPreference preference={preference} t={t} value={value} accountSnapshot={accountSnapshot} retryAccount={retryAccount} writable={writable} saving={snapshot.saving} active={active} /> : null}
