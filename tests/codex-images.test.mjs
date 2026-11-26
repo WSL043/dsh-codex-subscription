@@ -63,6 +63,7 @@ function fixture(overrides = {}) {
   }
   const tool = createCodexImageTool({
     attachments,
+    resolveSession: id => id === 'session-image' ? { id } : undefined,
     originalImages: {
       originalPath: () => 'C:\\DSH home\\images\\original',
       async save(sessionId, data) {
@@ -88,6 +89,51 @@ function fixture(overrides = {}) {
   })
   return { attachments, requests, saves, tool }
 }
+
+test('orphaned and invalid image calls fail before credentials, storage or upstream requests (refs #273)', async () => {
+  for (const editing of [false, true]) {
+    for (const agent of [undefined, {}, { id: '' }, { id: ' ' }, { id: 7 }, { id: 'x'.repeat(513) }, { id: 'missing' }]) {
+      let auth = 0, reads = 0
+      const { tool, requests, saves } = fixture({
+        getAuth: async () => { auth++; throw new Error('must not authorize') },
+        getSessionMessages: async () => { reads++; return [] },
+      })
+      await assert.rejects(tool.execute({ prompt: 'test', ...(editing ? { referenceImages: [IMAGE_REF] } : {}) }, {
+        ...execContext('invalid-owner'), agent,
+      }), /session-owned/)
+      assert.equal(auth, 0); assert.equal(reads, 0)
+      assert.equal(requests.length, 0); assert.equal(saves.length, 0)
+    }
+  }
+  const { tool, requests } = fixture({ resolveSession: () => ({ id: 'another-session' }) })
+  await assert.rejects(tool.execute({ prompt: 'wrong owner' }, execContext('mismatch')), /session-owned/)
+  assert.equal(requests.length, 0)
+})
+
+test('image permissions and ownership are rechecked after asynchronous preparation (refs #273)', async () => {
+  for (const changed of ['session', 'model', 'feature']) {
+    let valid = true
+    const { tool, requests } = fixture({
+      resolveSession: id => changed === 'session' && !valid ? undefined : { id },
+      allowed: () => changed !== 'model' || valid,
+      getFeatures: () => ({ imageGeneration: changed !== 'feature' || valid }),
+      async getAuth() { valid = false; return { auth: { apiKey: 'oauth-access-token' } } },
+    })
+    await assert.rejects(tool.execute({ prompt: 'no request' }, execContext('changed')), /session-owned|turned off|disabled/)
+    assert.equal(requests.length, 0)
+  }
+})
+
+test('disabled image operations and other-model calls never reach upstream (refs #273)', async () => {
+  for (const editing of [false, true]) {
+    for (const options of [{ getFeatures: () => ({ imageGeneration: false, imageEditing: false }) }, { allowed: () => false }]) {
+      let auth = 0
+      const { tool, requests } = fixture({ ...options, getAuth: async () => { auth++; throw new Error('must not authorize') } })
+      await assert.rejects(tool.execute({ prompt: 'disabled', ...(editing ? { referenceImages: [IMAGE_REF] } : {}) }, execContext('disabled')), /disabled|turned off/)
+      assert.equal(auth, 0); assert.equal(requests.length, 0)
+    }
+  }
+})
 
 test('image tool uses the Codex subscription endpoint and fixed safe defaults', async () => {
   const { requests, saves, tool } = fixture()
@@ -497,7 +543,7 @@ test('malformed and oversized image payloads fail before attachment persistence'
     },
   })
   await assert.rejects(
-    tool.execute({ prompt: 'oversized' }, { callId: 'call-8', signal: new AbortController().signal }),
+    tool.execute({ prompt: 'oversized' }, execContext('call-8')),
     /image size limit/,
   )
   assert.equal(saved, false)
@@ -520,7 +566,7 @@ test('missing subscription auth and provider errors are bounded', async () => {
     async readCredential() { return undefined },
   })
   await assert.rejects(
-    missing.execute({ prompt: 'x' }, { callId: 'call-9', signal: new AbortController().signal }),
+    missing.execute({ prompt: 'x' }, execContext('call-9')),
     { message: 'ChatGPT subscription is not signed in' },
   )
 
@@ -530,7 +576,7 @@ test('missing subscription auth and provider errors are bounded', async () => {
     },
   })
   await assert.rejects(
-    failed.execute({ prompt: 'x' }, { callId: 'call-10', signal: new AbortController().signal }),
+    failed.execute({ prompt: 'x' }, execContext('call-10')),
     { message: 'Codex image generation failed (HTTP 500)' },
   )
 })
