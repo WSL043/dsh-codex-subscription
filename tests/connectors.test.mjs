@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { CODEX_CONNECTORS_URL, createConnectorsClient, createConnectorTools, parseTools, searchTools, summarizeConnectors } from '../src/connectors.js'
+import { CODEX_CONNECTORS_URL, createConnectorAccountRouter, createConnectorsClient, createConnectorTools, parseTools, searchTools, summarizeConnectors } from '../src/connectors.js'
 import { normalizeConnectorMode } from '../src/settings-contract.js'
 
 const tool = (name, connector, description, readOnly) => ({
@@ -76,7 +76,7 @@ test('the connector client reports sign-in and server errors without leaking bod
 function tools(mode, replies, approvals = []) {
   const { client, calls } = fixture(replies)
   const set = createConnectorTools({
-    client, getMode: () => mode,
+    open: () => ({ client, mode }),
     getApproval: () => ({ request: async request => { approvals.push(request); return approvals.outcome ?? 'allowed-once' } }),
   })
   const by = Object.fromEntries(set.map(item => [item.name, item]))
@@ -155,7 +155,122 @@ test('the connectors setting only accepts known modes and defaults to off', () =
 
 test('connectors can be turned off for conversations on other models without any request', async () => {
   const { client, calls } = fixture([listing()])
-  const set = createConnectorTools({ client, getMode: () => 'write', allowed: () => false })
+  const set = createConnectorTools({ open: () => ({ client, mode: 'write' }), allowed: () => false })
   for (const tool of set) await assert.rejects(tool.execute({ name: 'gmail.search_emails', arguments: {}, query: 'x' }, exec), /other models/)
   assert.equal(calls.length, 0)
 })
+
+function accountFixture({ mode = 'write', account = '', approval, list, call } = {}) {
+  const credentials = new Map(['A', 'B'].map(id => [id, { type: 'oauth', access: `token-${id}`, accountId: 'same-workspace' }]))
+  const state = { active: 'A', account, mode }
+  const calls = []
+  const router = createConnectorAccountRouter({
+    vault: { activeId: async () => state.active, readAccount: async id => credentials.get(id) },
+    getSelection: () => ({ account: state.account, mode: state.mode }),
+    createAuth: id => async () => ({ auth: { apiKey: credentials.get(id)?.access } }),
+    fetch: async (_url, { headers, body }) => {
+      const id = headers.authorization.slice(-1)
+      const request = JSON.parse(body)
+      assert.equal(headers['chatgpt-account-id'], 'same-workspace')
+      calls.push({ ...request, id })
+      if (request.method === 'tools/list') {
+        const result = await (list?.(id, request.params) ?? { tools: [
+          tool('gmail.search_emails', 'Gmail', `Mailbox ${id}`, id === 'A'), LIST[1],
+        ] })
+        return result instanceof Response ? result : json({ result })
+      }
+      return await (call?.(id) ?? json({ result: { content: [{ type: 'text', text: `Result from ${id}` }] } }))
+    },
+  })
+  const by = Object.fromEntries(createConnectorTools({ open: router.open, getApproval: () => ({ request: approval }) }).map(item => [item.name, item]))
+  return { state, credentials, calls, router, by }
+}
+
+test('fixed account stays read-only and independent of the active model account', async () => {
+  let approvals = 0
+  const { state, calls, by } = accountFixture({ account: 'A', approval: async () => { approvals++; return 'allowed-once' } })
+  const found = await by.chatgpt_connectors_search.execute({ query: 'gmail' }, exec)
+  assert.deepEqual(found.tools.map(item => item.name), ['gmail.search_emails'])
+  state.active = 'B'
+  const description = await by.chatgpt_connectors_describe.execute({ name: 'gmail.search_emails' }, exec)
+  assert.equal(description.description, 'Mailbox A')
+  const result = await by.chatgpt_connectors_call.execute({ name: 'gmail.search_emails' }, exec)
+  assert.equal(result.text, 'Result from A')
+  await assert.rejects(by.chatgpt_connectors_call.execute({ name: 'gmail.send_email' }, exec), /fixed ChatGPT connector account is read-only/)
+  assert.equal(approvals, 0)
+  assert.deepEqual(calls.map(({ id, method }) => [id, method]), [['A', 'tools/list'], ['A', 'tools/call']])
+  state.mode = 'off'
+  await assert.rejects(by.chatgpt_connectors_search.execute({}, exec), /turned off/)
+})
+
+test('follow mode isolates identical tool names across vault accounts in the same workspace', async () => {
+  const { state, calls, by } = accountFixture({ mode: 'read' })
+  const first = await by.chatgpt_connectors_describe.execute({ name: 'gmail.search_emails' }, exec)
+  assert.equal(first.description, 'Mailbox A')
+  state.active = 'B'
+  await assert.rejects(by.chatgpt_connectors_call.execute({ name: 'gmail.search_emails' }, exec), /read-only/)
+  const second = await by.chatgpt_connectors_describe.execute({ name: 'gmail.search_emails' }, exec)
+  assert.equal(second.description, 'Mailbox B')
+  assert.equal(second.readOnly, false)
+  assert.deepEqual(calls.map(({ id, method }) => [id, method]), [['A', 'tools/list'], ['B', 'tools/list']])
+})
+
+test('missing or rejected fixed accounts do not fall back, even with a populated list cache', async () => {
+  const { state, credentials, calls, by } = accountFixture({ account: 'A' })
+  state.active = 'B'
+  await by.chatgpt_connectors_search.execute({}, exec)
+  credentials.delete('A')
+  for (const method of ['search', 'describe', 'call']) {
+    await assert.rejects(by[`chatgpt_connectors_${method}`].execute({ name: 'gmail.search_emails' }, exec), /fixed ChatGPT connector account is no longer signed in/)
+  }
+  assert.deepEqual(calls.map(({ id }) => id), ['A'])
+  const rejected = accountFixture({ account: 'A', list: () => new Response('private', { status: 401 }) })
+  rejected.state.active = 'B'
+  await assert.rejects(rejected.by.chatgpt_connectors_search.execute({}, exec), /sign-in needs to be renewed/)
+  assert.deepEqual(rejected.calls.map(({ id }) => id), ['A'])
+})
+
+test('a pending list neither seeds a different account cache nor forwards a cursor to that account', async () => {
+  const started = Promise.withResolvers()
+  const finish = Promise.withResolvers()
+  const { state, calls, by } = accountFixture({ account: 'A', list: id => {
+    if (id === 'A') { started.resolve(); return finish.promise }
+    return { tools: [tool('gmail.search_emails', 'Gmail', 'Mailbox B', true)] }
+  } })
+  const stale = assert.rejects(by.chatgpt_connectors_search.execute({ query: 'gmail' }, exec), /account or permissions changed/)
+  await started.promise
+  state.account = 'B'
+  const fresh = await by.chatgpt_connectors_describe.execute({ name: 'gmail.search_emails' }, exec)
+  assert.equal(fresh.description, 'Mailbox B')
+  finish.resolve({ tools: [LIST[0]], nextCursor: 'cursor-owned-by-A' })
+  await stale
+  assert.deepEqual(calls.map(({ id, params }) => [id, params]), [['A', {}], ['B', {}]])
+})
+
+test('a pending read stops returning data when the connector account changes', async () => {
+  const started = Promise.withResolvers()
+  const finish = Promise.withResolvers()
+  const { state, calls, by } = accountFixture({ account: 'A', call: () => { started.resolve(); return finish.promise } })
+  const stale = assert.rejects(by.chatgpt_connectors_call.execute({ name: 'gmail.search_emails' }, exec), /account or permissions changed/)
+  await started.promise
+  state.account = 'B'
+  finish.resolve(json({ result: { content: [{ type: 'text', text: 'Result from A' }] } }))
+  await stale
+  assert.deepEqual(calls.map(({ id, method }) => [id, method]), [['A', 'tools/list'], ['A', 'tools/call']])
+})
+
+for (const change of ['switch active account', 'change configured account', 'change selection and back']) {
+  test(`an old approval cannot send a connector write after ${change}`, async () => {
+    const started = Promise.withResolvers()
+    const finish = Promise.withResolvers()
+    const { state, calls, router, by } = accountFixture({ mode: 'ask', approval: () => { started.resolve(); return finish.promise } })
+    const stale = assert.rejects(by.chatgpt_connectors_call.execute({ name: 'gmail.send_email' }, exec), /account.*changed/)
+    await started.promise
+    if (change === 'switch active account') state.active = 'B'
+    else if (change === 'change configured account') state.account = 'B'
+    else { state.account = 'B'; router.clear(); state.account = ''; router.clear() }
+    finish.resolve('allowed-once')
+    await stale
+    assert.deepEqual(calls.map(({ id, method }) => [id, method]), [['A', 'tools/list']])
+  })
+}

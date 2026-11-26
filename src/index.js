@@ -67,11 +67,12 @@ import { PACKAGE_VERSION } from './version.js'
 import { hostDshVersion } from './subagent-runtime.js'
 import { createDiagnosticOperations } from './diagnostic-operations.js'
 import { VOICE_CALL_FIELD, VOICE_VOICE_FIELD, VOICE_LANGUAGE_FIELD, normalizeVoiceCall, normalizeVoiceVoice, normalizeVoiceLanguage, AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, normalizeConnectorMode, CONTEXT_MODE_FIELD, contextModelGroups, CUSTOM_CONTEXT_MODEL_CAPS, CUSTOM_CONTEXT_MODEL_DEFAULTS, CUSTOM_CONTEXT_MODEL_FIELDS, CUSTOM_CONTEXT_WINDOW_FIELD, DEFAULT_AUTO_QUOTA_RETRY, DEFAULT_CUSTOM_CONTEXT_WINDOW, DISABLED_MODELS_FIELD, INPUT_IMAGE_DETAIL_FIELD, REASONING_SUMMARY_FIELD, normalizeReasoningSummary, RETRY_POLICY_FIELD, normalizeRetryPolicy, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, LEGACY_QUICK_QUOTA_FIELD, normalizeAutoQuotaRetry, normalizeDisabledModels, normalizeInputImageDetail, normalizeQuickQuotaMode, normalizeOutputVerbosity, normalizeStreamIdleTimeoutMinutes, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, OUTPUT_VERBOSITY_FIELD, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD, SPEED_MODE_FIELD, SPEED_SHORTCUT_FIELD, normalizeSpeedShortcut, normalizeComposerModelPicker, normalizeContextMode, normalizeCustomContextWindow, supportsCodexFastMode } from './settings-contract.js'
+import { CONNECTOR_ACCOUNT_FIELD, DEFAULT_CONNECTOR_ACCOUNT, MAX_CONNECTOR_ACCOUNT_LENGTH } from './settings-contract.js'
 import { createCodexUsageReader } from './usage.js'
-import { createAccountUsageReader } from './account-usage.js'
+import { accountCredentialStore, createAccountUsageReader } from './account-usage.js'
 import { createPlanHistoryReader } from './plan-history.js'
 import { createUsageProfileReader } from './usage-profile.js'
-import { createConnectorsClient, createConnectorTools } from './connectors.js'
+import { createConnectorAccountRouter, createConnectorTools } from './connectors.js'
 import { catalogModelsReady, createCodexQuotaRetryHandler } from './quota-retry.js'
 import { createQuotaForecastReader } from './quota-forecast.js'
 import { QuotaForecastStateStore } from './quota-forecast-store.js'
@@ -144,6 +145,7 @@ const settingsFields = {
   [AUTO_QUOTA_RETRY_FIELD]: z.boolean().default(DEFAULT_AUTO_QUOTA_RETRY),
   [CUSTOM_INSTRUCTIONS_FIELD]: z.string().max(CUSTOM_INSTRUCTIONS_LIMIT).default(''),
   subagentDefaultModel: z.transform(z.string().max(80), normalizeSubagentModel).default(''),
+  [CONNECTOR_ACCOUNT_FIELD]: z.string().max(MAX_CONNECTOR_ACCOUNT_LENGTH).default(DEFAULT_CONNECTOR_ACCOUNT),
   ...Object.fromEntries(Object.entries(PREFERENCE_FIELDS).map(([field, rule]) => [field, rule.default === undefined ? z.union(rule.choices) : z.union(rule.choices).default(rule.default)])),
   imageModel: z.union(Object.keys(IMAGE_MODELS)).default(DEFAULT_IMAGE_MODEL),
   imageQuality: z.union(['auto','low','medium','high','xhigh','max']).default('auto'),
@@ -322,6 +324,7 @@ export function apply(ctx, config = {}) {
         [VOICE_LANGUAGE_FIELD]: normalizeVoiceLanguage(settings.get()[VOICE_LANGUAGE_FIELD]),
         [RETRY_POLICY_FIELD]: normalizeRetryPolicy(settings.get()[RETRY_POLICY_FIELD]),
         [CONNECTORS_FIELD]: normalizeConnectorMode(settings.get()[CONNECTORS_FIELD]),
+        [CONNECTOR_ACCOUNT_FIELD]: settings.get()[CONNECTOR_ACCOUNT_FIELD] ?? DEFAULT_CONNECTOR_ACCOUNT,
         [STREAM_IDLE_TIMEOUT_MINUTES_FIELD]: normalizeStreamIdleTimeoutMinutes(settings.get()[STREAM_IDLE_TIMEOUT_MINUTES_FIELD]),
         [CONTEXT_MODE_FIELD]: normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]),
         [CUSTOM_CONTEXT_WINDOW_FIELD]: normalizeCustomContextWindow(settings.get()[CUSTOM_CONTEXT_WINDOW_FIELD]),
@@ -339,6 +342,12 @@ export function apply(ctx, config = {}) {
     update: async patch => {
       if (patch.subagentDefaultModel && !subagentDefaults.list().some(model => model.id === patch.subagentDefaultModel)) {
         throw new Error('Codex subtask model is unavailable or disallowed')
+      }
+      const connectorAccount = patch[CONNECTOR_ACCOUNT_FIELD]
+      if (connectorAccount && (await accountVault.readAccount(connectorAccount)) === undefined) {
+        const error = new Error('The selected ChatGPT connector account is not signed in')
+        error.code = 'connector-account-unavailable'
+        throw error
       }
       if (nativeWebSettings() && (Object.hasOwn(patch, SEARCH_PROVIDER_FIELD) || Object.hasOwn(patch, FETCH_PROVIDER_FIELD))) {
         throw new Error('Select the provider in DSH Web Search and Fetch settings')
@@ -453,31 +462,54 @@ export function apply(ctx, config = {}) {
     originalImages,
     fetch: (input, init) => network.fetch('image', input, init),
   }))), 'codex-subscription: image tool availability')
-  const connectorsClient = createConnectorsClient({
-    getAuth: resolveAuth,
-    readCredential: options => store.read(PROVIDER, options),
+  const connectorSelection = (value = settings.get()) => ({
+    account: value[CONNECTOR_ACCOUNT_FIELD] ?? DEFAULT_CONNECTOR_ACCOUNT,
+    mode: normalizeConnectorMode(value[CONNECTORS_FIELD]),
+  })
+  const createAccountModels = credentials => {
+    const accountModels = createModels({ credentials })
+    accountModels.setProvider(provider)
+    return accountModels
+  }
+  const connectorAccounts = createConnectorAccountRouter({
+    vault: accountVault,
+    getSelection: connectorSelection,
+    createAuth: id => {
+      const accountModels = createAccountModels(accountCredentialStore(accountVault, id, OAUTH_EXPIRY_SKEW_MS))
+      return async ({ signal }) => {
+        try {
+          return await accountModels.getAuth(PROVIDER, { signal })
+        } catch {
+          signal?.throwIfAborted()
+          throw new Error('Could not authorize the selected ChatGPT connector account; check the connection or renew its sign-in')
+        }
+      }
+    },
     fetch: (input, init) => network.fetch('connectors', input, init),
   })
   ctx.effect(() => {
     let disposers = []
-    const sync = () => {
-      const on = normalizeConnectorMode(settings.get()[CONNECTORS_FIELD]) !== 'off'
+    const sync = (value, previous) => {
+      const selection = connectorSelection(value)
+      if (previous !== undefined) {
+        const before = connectorSelection(previous)
+        if (selection.account !== before.account || selection.mode !== before.mode) connectorAccounts.clear()
+      }
+      const on = selection.mode !== 'off'
       if (on && disposers.length === 0) {
         disposers = createConnectorTools({
-          client: connectorsClient,
-          getMode: () => normalizeConnectorMode(settings.get()[CONNECTORS_FIELD]),
+          open: connectorAccounts.open,
           allowed: () => servesCurrentModel(),
           getApproval: () => ctx.get?.('approval'),
         }).map(tool => ctx.tools.register(tool))
       } else if (!on && disposers.length > 0) {
         for (const dispose of disposers) dispose()
         disposers = []
-        connectorsClient.clear()
       }
     }
     sync()
     const unwatch = settings.watch(sync)
-    return () => { unwatch(); for (const dispose of disposers) dispose(); disposers = [] }
+    return () => { unwatch(); connectorAccounts.clear(); for (const dispose of disposers) dispose(); disposers = [] }
   }, 'codex-subscription: ChatGPT connectors')
   const adapter = new PiAiAdapter({
     profiles,
@@ -853,11 +885,7 @@ export function apply(ctx, config = {}) {
   },'codex-subscription: native sketch tool')
   const accountUsageReader = createAccountUsageReader({
     vault: accountVault,
-    createModels: credentials => {
-      const accountModels = createModels({ credentials })
-      accountModels.setProvider(provider)
-      return accountModels
-    },
+    createModels: createAccountModels,
     fetch: (input, init) => network.fetch('quota', input, init),
     expirySkewMs: OAUTH_EXPIRY_SKEW_MS,
     activeReader: baseUsageReader,
@@ -895,7 +923,11 @@ export function apply(ctx, config = {}) {
     nativeVoice,
     voicePreview,
     composerPredictions,
-    onAccountChanged: () => { remoteBridge.clearUploads(); subagentCatalog.clear(); connectorsClient.clear(); usageProfileReader.clear(); voicePreview.clear(); composerPredictions.clear(); quotaRetryHandler.notifyAccountChanged() },
+    onAccountChanged: (endpoint, id) => {
+      remoteBridge.clearUploads(); subagentCatalog.clear(); usageProfileReader.clear(); voicePreview.clear(); composerPredictions.clear(); quotaRetryHandler.notifyAccountChanged()
+      const { account } = connectorSelection()
+      if (account === DEFAULT_CONNECTOR_ACCOUNT || endpoint === 'logout' || endpoint === 'login/status' || (endpoint === 'account/remove' && id === account)) connectorAccounts.clear()
+    },
     diagnosticsReader: () => createSubscriptionDiagnostics({ auth, preferences, login: coordinator.supportState(), network, modelCatalog, connection, compaction, review: provider, operations: diagnosticOperations, runtimeManagement, storage: () => usageReader.storage(), tools: ctx.tools }),
     onCleanupFailure: () => diagnosticOperations.record('account/cleanup', 'failed'),
     modelCatalog,

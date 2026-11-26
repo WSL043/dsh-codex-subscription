@@ -7,10 +7,10 @@ import { RemoteControlCard } from './client-remote-control.jsx'
 import { VoiceCallCard } from './client-voice-call.jsx'
 import { useId, useEffect, useRef, useState } from 'react'
 import { Button, IconChevronDownOutline14, Input, Menu, Switch } from './client-primitives.jsx'
-import { AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, CONNECTOR_MODES, REASONING_SUMMARY_FIELD, REASONING_SUMMARIES, RETRY_POLICY_FIELD, RETRY_POLICIES, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, DISABLED_MODELS_FIELD, clampModelContext, INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
+import { AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, CONNECTOR_ACCOUNT_FIELD, CONNECTOR_MODES, REASONING_SUMMARY_FIELD, REASONING_SUMMARIES, RETRY_POLICY_FIELD, RETRY_POLICIES, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, DISABLED_MODELS_FIELD, clampModelContext, INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
 import { reconcileContextDrafts } from './context-draft-state.js'
 import { draftStep, toggleModelId } from './picker-draft.js'
-import { fill, usePreferenceSnapshot } from './client-shared.js'
+import { accountStatusErrorText, fill, maskEmail, usePreferenceSnapshot } from './client-shared.js'
 import { FETCH_PROVIDER_FIELD, FETCH_PROVIDER_DSH, FETCH_PROVIDER_CODEX } from './settings-contract.js'
 export function QuickQuotaPreference({ preference, t }) {
   const radioId = useId()
@@ -124,17 +124,97 @@ export function RetryPolicyPreference({ preference, t }) {
   </div>
 }
 
-export function ConnectorsPreference({ preference, t }) {
+function ConnectorAccountPreference({ preference, t, value, accountSnapshot, retryAccount, writable, saving, active }) {
+  const [open, setOpen] = useState(false)
+  const id = useId()
+  const account = accountSnapshot.status === 'ready' ? accountSnapshot.account : undefined
+  const hasRoster = Array.isArray(account?.accounts)
+  const accounts = hasRoster ? account.accounts.filter(candidate => typeof candidate?.id === 'string' && candidate.id !== '') : []
+  const labels = accounts.map(candidate => candidate.label || t('connectorAccountUnknown'))
+  const counts = new Map()
+  for (const label of labels) counts.set(label, (counts.get(label) ?? 0) + 1)
+  const choices = accounts.map((candidate, index) => {
+    const label = labels[index]
+    const name = counts.get(label) > 1 ? t('connectorAccountOrdinal').replace('{number}', String(index + 1)).replace('{label}', () => label) : label
+    return { id: candidate.id, active: candidate.active === true, label: candidate.email ? `${name} · ${maskEmail(candidate.email)}` : name }
+  })
+  const activeAccount = choices.find(candidate => candidate.active)
+  const fixedAccount = value === '' ? undefined : choices.find(candidate => candidate.id === value)
+  const missing = value !== '' && !fixedAccount && (hasRoster || account?.authenticated === false)
+  const rosterError = accountSnapshot.status === 'error'
+  const retrying = rosterError && accountSnapshot.retrying === true
+  const pending = accountSnapshot.status === 'loading' || retrying
+  const unknown = value !== '' && !fixedAccount && !missing && !pending && !rosterError
+  const current = activeAccount?.label ?? t(pending ? 'featureLoading' : account?.authenticated === false ? 'disconnected' : 'connectorAccountUnknown')
+  const title = t('connectorAccountTitle')
+  const follow = t('connectorAccountFollow')
+  const selected = value === '' ? follow : fixedAccount?.label ?? t(missing ? 'connectorAccountMissing' : 'connectorAccountSaved')
+  const items = [{ id: '', label: follow }, ...choices.map(candidate => ({
+    id: candidate.id, label: candidate.active ? t('connectorAccountActiveOption').replace('{label}', () => candidate.label) : candidate.label,
+  }))]
+  if (value !== '' && !fixedAccount) items.push({ id: value, label: selected, disabled: true })
+  const status = missing ? t('connectorAccountMissingHint') : unknown ? t('connectorAccountUnknownHint') : undefined
+  useEffect(() => { if (!active || !writable) setOpen(false) }, [active, writable])
+  return <div className="codexSubscriptionPreference codexConnectorAccount">
+    <div className="codexSubscriptionPreferenceCopy">
+      <SettingsLabel>{title}</SettingsLabel>
+      <span id={`${id}-current`} className="codexSubscriptionPreferenceHint">{t('connectorAccountCurrent').replace('{account}', () => current)}</span>
+    </div>
+    <Menu open={open && active && writable} items={items} selectedId={value} onClose={() => setOpen(false)} align="end" onSelect={next => {
+      setOpen(false)
+      if (active && writable && next !== value && (next === '' || choices.some(candidate => candidate.id === next))) {
+        void preference.set({ [CONNECTOR_ACCOUNT_FIELD]: next })
+      }
+    }} anchor={<button type="button" className="codexSubscriptionContextTrigger" aria-label={`${title}: ${selected}`} aria-expanded={open && active && writable}
+      aria-describedby={[`${id}-current`, (status || rosterError) && `${id}-status`, `${id}-disclosure`].filter(Boolean).join(' ')} aria-busy={saving || undefined}
+      aria-disabled={saving || undefined} disabled={!writable && !saving} onClick={event => {
+        if (!active || !writable) { event.preventDefault(); return }
+        setOpen(previous => !previous)
+      }}><span>{selected}</span><IconChevronDownOutline14 /></button>} />
+    {status ? <span id={`${id}-status`} className="codexSubscriptionModeNote" role="status">{status}</span> : null}
+    {rosterError ? <div className="codexConnectorRecovery">
+      <span id={`${id}-status`} role={retrying ? 'status' : 'alert'}>{retrying ? t('accountRetrying') : accountStatusErrorText(accountSnapshot.error, t)}</span>
+      {retryAccount ? <Button type="button" variant="outline" size="sm" aria-busy={retrying || undefined} disabled={retrying} onClick={() => { void retryAccount() }}>{t('accountRetry')}</Button> : null}
+    </div> : null}
+    <span id={`${id}-disclosure`} className="codexSubscriptionPreferenceHint">{t('connectorAccountDisclosure')}</span>
+  </div>
+}
+
+export function ConnectorsPreference({ preference, t, accountSnapshot, retryAccount, active = true }) {
   const radioId = useId()
   const snapshot = usePreferenceSnapshot(preference)
-  const writable = snapshot.status === 'ready' && snapshot.writable === true
-  return <div className="codexSubscriptionPreference codexSubscriptionConnectors">
-    <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t('connectorsHint')}>{t('connectors')}</SettingsLabel></div>
-    <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('connectors')}>
-      {CONNECTOR_MODES.map(value => <label key={value} className="codexSubscriptionQuotaMode"><input type="radio" name={`${radioId}-codex-connectors`} checked={snapshot.connectors === value} disabled={!writable} onChange={() => { void preference.set({ [CONNECTORS_FIELD]: value }) }} /><span>{t(`connectors_${value}`)}</span></label>)}
+  const label = <SettingsLabel description={t('connectorsHint')}>{t('connectors')}</SettingsLabel>
+  if (snapshot.status !== 'ready') {
+    const loading = snapshot.status === 'loading'
+    return <div className="codexSubscriptionPreference codexSubscriptionConnectors" aria-busy={loading || undefined}>
+      <div className="codexSubscriptionPreferenceCopy">{label}
+        <span className="codexSubscriptionPreferenceHint" role={loading ? 'status' : 'alert'}>{t(loading ? 'connectorSettingsLoading' : 'connectorSettingsUnavailable')}</span>
+      </div>
+      {loading ? null : <Button type="button" variant="outline" size="sm" onClick={() => { void preference.retry() }}>{t('preferenceRetry')}</Button>}
     </div>
-    <span className="codexSubscriptionModeNote" data-danger={snapshot.connectors === 'write' || undefined} role="status">{t(`connectorsMode_${snapshot.connectors}`)}</span>
-  </div>
+  }
+  const writable = snapshot.writable === true && !snapshot.saving
+  const value = snapshot[CONNECTOR_ACCOUNT_FIELD] ?? ''
+  const fixed = value !== ''
+  const storedMode = snapshot.connectors
+  const mode = fixed && storedMode !== 'off' ? 'read' : storedMode
+  const modeNote = fixed && mode === 'read'
+    ? (storedMode === mode ? t('connectorsMode_fixed') : fill(t('connectorsMode_fixedSaved'), { mode: t(`connectors_${storedMode}`) }))
+    : t(`connectorsMode_${mode}`)
+  return <>
+    <div className="codexSubscriptionPreference codexSubscriptionConnectors">
+      <div className="codexSubscriptionPreferenceCopy">{label}</div>
+      <div className="codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('connectors')} aria-describedby={`${radioId}-mode`}>
+        {CONNECTOR_MODES.map(choice => {
+          const disabled = !writable || fixed && (choice === 'ask' || choice === 'write')
+          return <label key={choice} className="codexSubscriptionQuotaMode"><input type="radio" name={`${radioId}-codex-connectors`} checked={mode === choice} disabled={disabled} onChange={() => { if (!disabled && choice !== mode) void preference.set({ [CONNECTORS_FIELD]: choice }) }} /><span>{t(`connectors_${choice}`)}</span></label>
+        })}
+      </div>
+      <span id={`${radioId}-mode`} className="codexSubscriptionModeNote" data-danger={mode === 'write' || undefined} role="status">{modeNote}</span>
+      {snapshot.saving ? <span className="codexSubscriptionModeNote" role="status">{t('connectorSettingsSaving')}</span> : null}
+    </div>
+    {accountSnapshot ? <ConnectorAccountPreference preference={preference} t={t} value={value} accountSnapshot={accountSnapshot} retryAccount={retryAccount} writable={writable} saving={snapshot.saving} active={active} /> : null}
+  </>
 }
 
 export function StreamIdleTimeoutPreference({ preference, t }) {
@@ -255,7 +335,7 @@ export function ModelCatalogStatus({ preference, t, title }) {
   </div>
 }
 
-export function PreferencesCard({ preference, rpc, t, defaultModel, section = "display" }) {
+export function PreferencesCard({ preference, rpc, t, defaultModel, accountSnapshot, retryAccount, section = "display" }) {
   const radioId = useId()
   const snapshot = usePreferenceSnapshot(preference)
   return <div className={section === 'advanced' || section === 'interop' ? 'codexSubscriptionAdvancedPreferences' : 'codexSubscriptionCard codexSubscriptionPreferencesCard'} data-others-off={section === 'interop' && snapshot.otherModels === 'off' ? 'true' : undefined}>
@@ -307,7 +387,7 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, section = "d
         <SearchProviderPreference preference={preference} t={t} />
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" data-governed="true" aria-label={t('connectors')}>
-        <ConnectorsPreference preference={preference} t={t} />
+        <ConnectorsPreference preference={preference} t={t} accountSnapshot={accountSnapshot} retryAccount={retryAccount} />
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('reviewModelTitle')}>
         <div className="codexSubscriptionPreference">

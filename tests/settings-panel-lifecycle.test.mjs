@@ -6,10 +6,11 @@ import vm from 'node:vm'
 import test from 'node:test'
 import { SlotCore } from '@deepseek-ai/dsh-client-ui-slots'
 import * as settingsContract from '../src/settings-contract.js'
+import { en, zh } from '../src/client-locales.js'
 import { registerLegacyModelPicker, watchComposerModelPickerConflict } from '../src/client-model-picker-slot.js'
 import { createPreferenceController } from '../src/preference-controller.js'
 import { createSubscriptionRpcHandler } from '../src/subscription-rpc.js'
-import { PROJECT_URL, maskEmail, unwrap, usageFailureText, validDate } from '../src/client-shared.js'
+import { PROJECT_URL, accountStatusErrorText, fill, maskEmail, unwrap, usageFailureText, validDate } from '../src/client-shared.js'
 import { quotaReadingIsStale } from '../src/quota-forecast-view.js'
 import { SIGN_IN_RENEW } from '../src/http-failure.js'
 
@@ -537,11 +538,195 @@ test('both settings entries keep independent HTML radio groups and the same sele
   } finally { first.dispose(); second.dispose() }
 })
 
+const connectorAccountKey = settingsContract.CONNECTOR_ACCOUNT_FIELD
+const connectorAccounts = [
+  { id: 'local-vault-A', label: 'App workspace', email: 'reader@example.com', active: false },
+  { id: 'local-vault-B', label: 'Model workspace', email: 'writer@example.com', active: true },
+]
+const accountRoster = accounts => ({ status: 'ready', account: { authenticated: true, accounts } })
+
+async function connectorPreferenceFixture(connectorMode, locale = en, saved = '') {
+  const snapshot = { status: 'ready', writable: true, connectors: connectorMode, [connectorAccountKey]: saved }
+  const patches = [], retries = []
+  const preference = { set: patch => { patches.push({ ...patch }); Object.assign(snapshot, patch) }, retry: () => retries.push('preferences') }
+  const menuType = named('Menu'), buttonType = named('Button')
+  const t = key => locale[key]
+  const host = await component('client-preferences.jsx', 'ConnectorsPreference', {
+    preference, t, accountSnapshot: accountRoster(connectorAccounts), retryAccount: () => retries.push('account'),
+  }, {
+    './settings-contract.js': settingsContract,
+    './client-shared.js': { usePreferenceSnapshot: () => snapshot, accountStatusErrorText, fill, maskEmail },
+    './client-primitives.jsx': { Menu: menuType, Button: buttonType, IconChevronDownOutline14: named('Chevron') },
+  }, (render, props) => {
+    const modeTree = render(props)
+    const selector = nodes(modeTree, node => typeof node.type === 'function' && node.props.accountSnapshot !== undefined)[0]
+    return selector ? [modeTree, selector.type(selector.props)] : modeTree
+  })
+  return { host, t, snapshot, patches, retries,
+    menu: () => nodes(host.tree, node => node.type === menuType)[0]?.props,
+    button: text => nodes(host.tree, node => node.type === buttonType && node.props.children === text)[0]?.props,
+    mode: value => nodes(host.tree, node => node.type === 'label' && node.props.children[1].props.children === t(`connectors_${value}`))[0]?.props.children[0].props,
+    status: (role = 'status') => nodes(host.tree, node => node.props.role === role).map(node => node.props.children),
+    byId: id => nodes(host.tree, node => node.props.id === id)[0],
+  }
+}
+
+test('connector settings describe both accounts, pin by vault ID and retain the saved mode across account switches', async () => {
+  for (const savedMode of ['ask', 'write']) {
+    const { host, t, patches, menu, mode, status, byId } = await connectorPreferenceFixture(savedMode)
+    try {
+      assert.ok(mode(savedMode).checked)
+      assert.equal(mode('ask').disabled, false)
+      assert.equal(mode('write').disabled, false)
+      assert.deepEqual(status(), [t(`connectorsMode_${savedMode}`)])
+      const trigger = menu().anchor.props
+      assert.ok(trigger['aria-label'].startsWith(t('connectorAccountTitle')))
+      assert.ok(trigger['aria-label'].includes(t('connectorAccountFollow')))
+      const [current, disclosure] = trigger['aria-describedby'].split(' ').map(id => byId(id).props.children)
+      assert.match(current, /Model workspace · w•••r@example.com/u)
+      assert.match(disclosure, /model used in this chat.*DSH conversation history/u)
+      trigger.onClick(); host.render()
+      assert.equal(menu().open, true)
+      assert.equal(menu().selectedId, '')
+      assert.equal(menu().items[1].id, 'local-vault-A')
+      assert.match(menu().items[1].label, /App workspace · r•••r@example.com/u)
+      menu().onSelect(menu().items[1].id); host.render()
+      assert.equal(menu().open, false)
+      assert.deepEqual(patches, [{ [connectorAccountKey]: 'local-vault-A' }])
+      assert.ok(mode('read').checked)
+      assert.equal(mode(savedMode).checked, false)
+      mode('read').onChange()
+      assert.deepEqual(patches, [{ [connectorAccountKey]: 'local-vault-A' }], 'reading the effective choice does not overwrite the saved mode')
+      assert.equal(mode('ask').disabled, true)
+      assert.equal(mode('write').disabled, true)
+      assert.equal(mode('off').disabled, false)
+      assert.deepEqual(status(), [fill(t('connectorsMode_fixedSaved'), { mode: t(`connectors_${savedMode}`) })])
+      host.render({ accountSnapshot: accountRoster(connectorAccounts.map(account => ({ ...account, active: !account.active }))) })
+      assert.equal(menu().selectedId, 'local-vault-A')
+      assert.match(menu().anchor.props['aria-label'], /App workspace/u)
+      assert.match(byId(menu().anchor.props['aria-describedby'].split(' ')[0]).props.children, /App workspace/u)
+      menu().anchor.props.onClick(); host.render()
+      assert.equal(menu().open, true)
+      host.render({ active: false })
+      assert.equal(menu().open, false)
+      host.render({ active: true })
+      assert.equal(menu().open, false)
+      menu().onSelect(''); host.render()
+      assert.deepEqual(patches, [{ [connectorAccountKey]: 'local-vault-A' }, { [connectorAccountKey]: '' }])
+      assert.ok(mode(savedMode).checked)
+      assert.equal(mode(savedMode).disabled, false)
+      assert.deepEqual(status(), [t(`connectorsMode_${savedMode}`)])
+    } finally { host.dispose() }
+  }
+})
+
+test('a missing fixed account stays selected without fallback and can be manually recovered while globally off', async () => {
+  const { host, t, snapshot, patches, menu, mode, status } = await connectorPreferenceFixture('off', zh, 'removed-vault-id')
+  try {
+    host.render({ accountSnapshot: { status: 'loading' } })
+    assert.deepEqual(status(), [t('connectorsMode_off')], 'loading does not claim that a saved account is missing')
+    host.render({ accountSnapshot: accountRoster([connectorAccounts[1]]) })
+    assert.deepEqual(status(), [t('connectorsMode_off'), t('connectorAccountMissingHint')])
+    assert.equal(menu().selectedId, 'removed-vault-id')
+    assert.ok(menu().anchor.props['aria-label'].startsWith('使用账号'))
+    assert.ok(!menu().anchor.props['aria-label'].includes('removed-vault-id'))
+    assert.equal(menu().items.find(item => item.id === menu().selectedId).disabled, true)
+    assert.ok(mode('off').checked)
+    assert.deepEqual(patches, [])
+    snapshot.saving = true; host.render()
+    assert.equal(menu().anchor.props.disabled, false, 'retains keyboard focus while saving')
+    assert.equal(menu().anchor.props['aria-disabled'], true)
+    assert.equal(menu().anchor.props['aria-busy'], true)
+    assert.ok(status().includes(t('connectorSettingsSaving')))
+    let blocked = false
+    menu().anchor.props.onClick({ preventDefault: () => { blocked = true } }); host.render()
+    assert.ok(blocked)
+    assert.equal(menu().open, false)
+    menu().onSelect('local-vault-B')
+    assert.deepEqual(patches, [])
+    snapshot.saving = false; host.render()
+    menu().onSelect('local-vault-B'); host.render()
+    assert.equal(menu().selectedId, 'local-vault-B')
+    assert.deepEqual(status(), [t('connectorsMode_off')])
+    menu().onSelect(''); host.render()
+    assert.ok(mode('off').checked)
+    assert.deepEqual(patches, [{ [connectorAccountKey]: 'local-vault-B' }, { [connectorAccountKey]: '' }])
+  } finally { host.dispose() }
+})
+
+test('connector settings hide provisional defaults and offer separate recovery for preference and account errors', async () => {
+  const { host, t, snapshot, patches, retries, menu, mode, status, button } = await connectorPreferenceFixture('off')
+  try {
+    snapshot.status = 'loading'; host.render()
+    assert.deepEqual(status(), [t('connectorSettingsLoading')])
+    assert.equal(menu(), undefined)
+    assert.equal(mode('off'), undefined)
+    snapshot.status = 'unavailable'; host.render()
+    assert.deepEqual(status('alert'), [t('connectorSettingsUnavailable')])
+    assert.equal(menu(), undefined)
+    button(t('preferenceRetry')).onClick()
+    snapshot.status = 'ready'
+    const accountError = { status: 'error', error: { code: 'timeout' } }
+    host.render({ accountSnapshot: accountError })
+    assert.equal(menu().selectedId, '')
+    assert.deepEqual(status('alert'), [t('accountStatusTimeout')])
+    button(t('accountRetry')).onClick()
+    snapshot[connectorAccountKey] = 'local-vault-A'
+    host.render({ accountSnapshot: { ...accountError, retrying: true } })
+    assert.equal(menu().selectedId, 'local-vault-A')
+    assert.ok(status().includes(t('accountRetrying')))
+    assert.equal(button(t('accountRetry')).disabled, true)
+    host.render({ accountSnapshot: accountError })
+    assert.equal(menu().selectedId, 'local-vault-A')
+    button(t('accountRetry')).onClick()
+    assert.deepEqual(retries, ['preferences', 'account', 'account'])
+    assert.deepEqual(patches, [])
+  } finally { host.dispose() }
+})
+
+test('duplicate account labels get stable roster ordinals and only the current account is marked', async () => {
+  const { host, t, menu } = await connectorPreferenceFixture('read', en, 'local-vault-A')
+  const duplicate = connectorAccounts.map(candidate => ({ ...candidate, label: 'Team $&', email: 'private@example.com' }))
+  try {
+    host.render({ accountSnapshot: accountRoster(duplicate) })
+    const names = menu().items.slice(1).map(item => item.label)
+    assert.match(names[0], /Team \$& \(account 1\)/u)
+    assert.match(names[1], /Team \$& \(account 2\).*current Codex account/u)
+    assert.ok(names.every(name => !name.includes('local-vault') && !name.includes('private@example.com')))
+    host.render({ accountSnapshot: accountRoster(duplicate.map(candidate => ({ ...candidate, active: !candidate.active }))) })
+    const switched = menu().items.slice(1).map(item => item.label)
+    assert.equal(switched[0], t('connectorAccountActiveOption').replace('{label}', () => names[0]))
+    assert.match(switched[1], /Team \$& \(account 2\)/u)
+    assert.doesNotMatch(switched[1], /current Codex account/u)
+    assert.equal(menu().selectedId, 'local-vault-A')
+  } finally { host.dispose() }
+})
+
+test('legacy interop composition keeps connector controls usable without an account status provider', async () => {
+  const snapshot = { status: 'ready', writable: true, connectors: 'read' }
+  const host = await component('client-preferences.jsx', 'PreferencesCard', { preference: {}, section: 'interop', t: key => en[key] }, {
+    './settings-contract.js': settingsContract,
+    './client-shared.js': { usePreferenceSnapshot: () => snapshot, fill, maskEmail },
+  }, (render, props) => {
+    const tree = render(props)
+    const card = nodes(tree, node => node.type === 'section' && node.props['aria-label'] === en.connectors)[0]
+    return card.props.children.type(card.props.children.props)
+  })
+  try {
+    const status = () => nodes(host.tree, node => node.props.role === 'status')[0].props.children
+    assert.equal(status(), en.connectorsMode_read)
+    assert.equal(nodes(host.tree, node => node.type === 'input' && !node.props.disabled).length, 4)
+    snapshot[connectorAccountKey] = 'local-vault-A'; host.render()
+    assert.equal(status(), en.connectorsMode_fixed)
+  } finally { host.dispose() }
+})
+
 test('unused settings panels do not mount; visited panels and accessible targets survive navigation', async () => {
   const pages = Object.fromEntries(['CreatePage','FeatureOverview','ModelsPage','MorePage','QuotaSettingsCard','ToolsPage'].map(name => [name, named(name)]))
+  const roster = accountRoster(connectorAccounts), retry = () => {}
   const h = await component('client-section.jsx', 'CodexSection', {
-    preference: { load() {}, refreshModels() {} }, accountStatus: { load() {} }, t: key => key,
-  }, { './client-pages.jsx': pages })
+    preference: { load() {}, refreshModels() {} }, accountStatus: { load() {}, retry }, t: key => key,
+  }, { './client-pages.jsx': pages, './client-shared.js': { useAccountStatusSnapshot: () => roster } })
   try {
     const panel = name => nodes(h.tree, node => node.props.role === 'tabpanel' && node.props.id.endsWith(`-${name}`))[0]
     const tab = name => nodes(h.tree, node => node.props.role === 'tab' && node.props.id.endsWith(`-${name}-tab`))[0]
@@ -556,6 +741,8 @@ test('unused settings panels do not mount; visited panels and accessible targets
     assert.equal(panel('more').props.children.type, pages.MorePage, 'same component stays mounted')
     assert.equal(panel('more').props.children.props.active, false)
     assert.equal(panel('tools').props.children.props.active, true)
+    assert.equal(panel('tools').props.children.props.accountSnapshot, roster)
+    assert.equal(panel('tools').props.children.props.retryAccount, retry)
     tab('more').props.onKeyDown({ key: 'Home', preventDefault() {} }); h.render()
     assert.equal(tab('start').props['aria-selected'], true)
     assert.equal(panel('tools').props.children.props.active, false)

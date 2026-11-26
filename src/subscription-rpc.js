@@ -1,5 +1,6 @@
 import { REQUEST_BLOCKED, isAccessFailureMessage } from './http-failure.js'
 import { PREFERENCE_FIELDS } from './preference-fields.js'
+import { CONNECTOR_ACCOUNT_FIELD, MAX_CONNECTOR_ACCOUNT_LENGTH } from './settings-contract.js'
 import { normalizeSubagentModel } from './subagent-defaults.js'
 import { capabilityPatch } from './capability-settings.js'
 import { ORIGINAL_IMAGE_CHUNK_BYTES, ORIGINAL_IMAGE_ID_PATTERN } from './image-original-contract.js'
@@ -269,6 +270,11 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
             if (!rule.choices.includes(payload[field])) return publicError('internal', rule.error)
             patch[field] = payload[field]
           }
+          if (Object.hasOwn(payload ?? {}, CONNECTOR_ACCOUNT_FIELD)) {
+            const id = payload[CONNECTOR_ACCOUNT_FIELD]
+            if (typeof id !== 'string' || id.length > MAX_CONNECTOR_ACCOUNT_LENGTH) return publicError('invalid-input', 'Invalid connector account')
+            patch[CONNECTOR_ACCOUNT_FIELD] = id
+          }
           if (Object.hasOwn(payload ?? {}, 'subagentDefaultModel')) {
             if (normalizeSubagentModel(payload.subagentDefaultModel) !== payload.subagentDefaultModel) return publicError('internal', 'Invalid subtask model')
             patch.subagentDefaultModel = payload.subagentDefaultModel
@@ -301,6 +307,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
         return { ok: true, value: patch === undefined ? status : { ...status, ...patch, ...(liveSynced ? {} : { liveSynced: false }) } }
       } catch (error) {
         if (signal.aborted) throw error
+        if (error?.code === 'connector-account-unavailable') return publicError('invalid-input', 'The selected ChatGPT connector account is not signed in')
         return publicError('internal', 'Could not update preferences')
       }
     }
@@ -393,7 +400,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
       // The account transaction has committed. Auxiliary cache failures must not
       // misreport that transaction or prevent the remaining invalidations.
       const tasks = [() => closeConnections?.(), () => usageReader.clearCache(), () => planHistoryReader?.clear(), () => usageProfileReader?.clear(),
-        () => resetCreditService.clear(), () => modelCatalog?.clear(), () => onAccountChanged?.()]
+        () => resetCreditService.clear(), () => modelCatalog?.clear(), () => onAccountChanged?.(endpoint, payload?.id)]
       if (endpoint === 'logout') tasks.push(() => usageReader.clear(), () => accountUsageReader?.clear())
       if (endpoint === 'login/status') tasks.push(() => accountUsageReader?.clear())
       if (endpoint === 'account/remove' && typeof payload?.id === 'string') tasks.push(() => usageReader.clearScope(payload.id))
