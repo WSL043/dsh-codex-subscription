@@ -1,6 +1,7 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
 
 export default {
+  "speedFollowDefault": "Seguir padrão",
   "connectorSettingsLoading": "Carregando ajustes dos conectores…",
   "connectorSettingsUnavailable": "Não foi possível carregar os ajustes.",
   "connectorSettingsSaving": "Salvando ajustes…",

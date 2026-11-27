@@ -11,19 +11,33 @@ async function until(predicate) {
 }
 const input = text => [{ type: 'text', text }]
 function fixture(voice) {
-  const calls = [], notes = [], idle = []
-  let admission = async () => ({ accepted: true }), resolve = async () => {}, tier = 'default', speedGate
+  const calls = [], notes = [], idle = [], speedCalls = []
+  let admission = async () => ({ accepted: true }), resolve = async () => {}
   const messages = []
   const session = { id: 's', meta: {}, deriveMessages: () => messages }
-  const agent = { session, status: 'idle', whenIdle: () => { const next = deferred(); idle.push(next); return next.promise } }
+  const other = { id: 'other', meta: {}, deriveMessages: () => [] }
+  const whenIdle = () => { const next = deferred(); idle.push(next); return next.promise }
+  const agent = { session, status: 'idle', whenIdle }
+  const agents = new Map([[session.id, agent], [other.id, { session: other, whenIdle }]])
+  const sticky = new WeakMap(), temporary = new WeakMap()
+  const current = session => sticky.get(session) ?? 'standard'
+  const tier = (target = session) => temporary.get(target) ?? current(target)
   const bridge = createDshRemoteControl({
     controller: () => ({
-      resolveAgent: async () => { await resolve(); return { agent } },
+      resolveAgent: async id => { await resolve(); return { agent: agents.get(id) } },
       modelCatalog: async () => ({ groups: [] }),
-      prompt: async (request, signal) => { calls.push({ request, signal }); return admission(request, signal) },
+      prompt: async (request, signal) => { calls.push({ request, signal, tier: tier(agents.get(request.sessionId).session) }); return admission(request, signal) },
       cancel: () => { calls.push({ cancel: true }) },
     }), agents: () => ({}), userAgent: 'admission-test/1', voice,
-    speed: { current: () => tier, set: async value => { tier = value; if (speedGate) await speedGate.promise } },
+    workspaces: () => ({ archiveSession: async () => {} }),
+    speed: {
+      current,
+      set: (mode, target) => { speedCalls.push(['set', mode, target]); sticky.set(target, mode) },
+      temporary: (mode, target) => {
+        speedCalls.push(['prepare', mode, target]); temporary.set(target, mode)
+        return () => { speedCalls.push(['release', mode, target]); temporary.delete(target) }
+      },
+    },
   })
   const notify = async (method, params) => { notes.push({ method, params: structuredClone(params) }) }
   const call = (method, params, context = {}) => bridge.methods[method]({ threadId: 's', ...params }, { notify, ...context })
@@ -32,9 +46,8 @@ function fixture(voice) {
   const list = () => call('thread/queue/list').data
   const prompts = () => calls.filter(call => call.request)
   const completed = () => notes.filter(note => note.method === 'turn/completed')
-  return { bridge, session, agent, messages, calls, notes, idle, call, start, add, list, prompts, completed,
-    admit: value => { admission = value }, resolve: value => { resolve = value },
-    speedGate: value => { speedGate = value }, tier: () => tier }
+  return { bridge, session, other, agent, messages, calls, notes, idle, call, start, add, list, prompts, completed, speedCalls, tier,
+    admit: value => { admission = value }, resolve: value => { resolve = value } }
 }
 
 for (const origin of ['voice', 'native', 'reopened voice']) {
@@ -256,18 +269,45 @@ test('late accepted steer holds the target until admission settles and acknowled
   assert.equal(f.notes.filter(note => note.method === 'turn/started').length, 1)
 })
 
-test('interrupt during host admission is cancelled again after a late accepted prompt', async () => {
+test('interrupt during host admission releases the temporary tier and is cancelled again after a late accepted prompt', async () => {
   const f = fixture(), gate = deferred()
   f.admit(() => gate.promise)
-  const starting = f.start()
+  const starting = f.start('fast turn', { serviceTierForTurn: 'priority' })
   await until(() => f.prompts().length === 1)
+  assert.equal(f.tier(), 'fast')
   f.call('turn/interrupt')
   assert.equal(f.prompts()[0].signal.aborted, true)
+  assert.equal(f.tier(), 'standard')
   gate.resolve({ accepted: true })
   await starting
   assert.equal(f.calls.filter(call => call.cancel).length, 2)
   f.idle[0].resolve(); await until(() => f.completed().length === 1)
   assert.equal(f.completed()[0].params.turn.status, 'interrupted')
+  assert.deepEqual(f.speedCalls, [['prepare', 'fast', f.session], ['release', 'fast', f.session]])
+})
+
+test('an admission timeout releases the temporary tier even before a slow host settles', async t => {
+  const f = fixture(), gate = deferred(), timeoutSignal = AbortSignal.timeout
+  let timeout = new AbortController()
+  t.mock.method(AbortSignal, 'timeout', ms => ms === 30_000 ? timeout.signal : timeoutSignal(ms))
+  f.admit(() => gate.promise)
+  const starting = f.start('fast turn', { serviceTierForTurn: 'priority' })
+  await until(() => f.prompts().length === 1)
+  assert.equal(f.tier(), 'fast')
+  timeout.abort()
+  assert.equal(f.tier(), 'standard')
+  gate.resolve({ accepted: false })
+  await assert.rejects(starting, /did not accept/u)
+  assert.deepEqual(f.speedCalls, [['prepare', 'fast', f.session], ['release', 'fast', f.session]])
+
+  timeout = new AbortController()
+  f.admit(async () => ({ accepted: true }))
+  await f.start('accepted fast turn', { serviceTierForTurn: 'priority' })
+  timeout.abort()
+  assert.equal(f.tier(), 'fast', 'an expired admission timer cannot release an already accepted turn')
+  f.idle[0].resolve()
+  await tick()
+  assert.equal(f.tier(), 'standard')
 })
 
 test('a prompt rejecting on interrupt closes the turn as cancelled without an internal error', async () => {
@@ -361,17 +401,65 @@ test('deleting a queued item during preparation prevents its dispatch without lo
   assert.equal(f.prompts().length, 2)
 })
 
-test('temporary speed is restored if an interrupt ends preparation before dispatch', async () => {
-  const f = fixture(), gate = deferred()
-  f.speedGate(gate)
-  const starting = f.start('temporary speed', { serviceTierForTurn: 'priority' })
-  await until(() => f.tier() === 'fast')
-  f.call('turn/interrupt'); f.speedGate(undefined); gate.resolve()
-  await assert.rejects(starting, error => error.code === -32800)
-  assert.equal(f.tier(), 'default')
-  assert.equal(f.prompts().length, 0)
-  assert.equal(f.calls.some(call => call.cancel), false)
+test('a temporary tier is applied before prompt, scoped to its session, and released before the next queued prompt', async () => {
+  const f = fixture()
+  await f.start('one fast turn', { serviceTierForTurn: 'priority', serviceTier: 'ultrafast' })
+  await f.add('next turn')
+  await f.start('unrelated turn', { threadId: f.other.id })
+  assert.deepEqual(f.prompts().map(call => call.tier), ['fast', 'standard'])
+  assert.deepEqual(f.speedCalls, [['prepare', 'fast', f.session]])
+  assert.equal(f.speedCalls[0][2], f.session)
+  await f.call('thread/settings/update', { serviceTier: 'ultrafast' })
+  assert.equal(f.tier(), 'fast', 'a sticky change does not alter the current turn')
+  f.idle[0].resolve()
+  await until(() => f.prompts().length === 3)
+  assert.equal(f.prompts()[2].tier, 'ultrafast', 'release does not undo a concurrent sticky change')
+  assert.equal(f.tier(f.other), 'standard')
+  assert.deepEqual(f.speedCalls, [['prepare', 'fast', f.session], ['set', 'ultrafast', f.session], ['release', 'fast', f.session]])
+  f.idle.slice(1).forEach(wait => wait.resolve())
 })
+
+for (const outcome of ['refusal', 'admission error', 'model error', 'interrupt', 'archive', 'dispose']) {
+  test(`a temporary tier is released exactly once on ${outcome}`, async () => {
+    const f = fixture()
+    const checkReleased = () => {
+      assert.equal(f.tier(), 'standard')
+      assert.deepEqual(f.speedCalls, [['prepare', 'fast', f.session], ['release', 'fast', f.session]])
+    }
+    if (outcome === 'refusal') f.admit(async () => ({ accepted: false }))
+    if (outcome === 'admission error') f.admit(async () => { throw new Error('unavailable') })
+    const starting = f.start('temporary speed', { serviceTierForTurn: 'priority' })
+    if (outcome === 'refusal' || outcome === 'admission error') await assert.rejects(starting, /did not accept/u)
+    else {
+      const { turn } = await starting
+      assert.equal(f.tier(), 'fast')
+      if (outcome === 'model error') f.bridge.onSessionEvent(f.session, { type: 'turn/end', data: { reason: { kind: 'error' } } })
+      if (outcome === 'interrupt') f.call('turn/interrupt', { turnId: turn.id })
+      if (outcome === 'archive') await f.call('thread/archive')
+      if (outcome === 'dispose') f.bridge.close()
+      if (outcome !== 'model error') checkReleased()
+      f.idle[0].resolve()
+      await tick()
+      if (outcome === 'model error') assert.equal(f.completed()[0].params.turn.status, 'failed')
+    }
+    f.bridge.close()
+    checkReleased()
+  })
+}
+
+for (const stop of ['interrupt', 'dispose']) {
+  test(`${stop} before dispatch prevents acquiring a temporary tier`, async () => {
+    const f = fixture(), gate = deferred()
+    f.resolve(() => gate.promise)
+    const starting = f.start('temporary speed', { serviceTierForTurn: 'priority' })
+    if (stop === 'interrupt') f.call('turn/interrupt')
+    else f.bridge.close()
+    gate.resolve()
+    await assert.rejects(starting, error => error.code === -32800)
+    assert.deepEqual(f.speedCalls, [])
+    assert.deepEqual(f.calls, [])
+  })
+}
 
 test('empty or invalid image submissions cannot poison a busy thread queue', async () => {
   const f = fixture()

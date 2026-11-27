@@ -2,34 +2,39 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncEx
 import { BoltIcon } from '@heroicons/react/16/solid'
 import { IconCheckOutline16, IconChevronDownOutline14, IconChevronRightOutline14, Input, useAnchoredPosition, useDismissOnOutsidePointer, usePopover } from './client-primitives.jsx'
 import { effectiveCodexSpeedMode, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, SPEED_MODE_FAST, SPEED_MODE_FIELD, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST, supportsCodexFastMode } from './settings-contract.js'
-import { fill, usePreferenceSnapshot } from './client-shared.js'
+import { fill, usePreferenceSnapshot, useSessionPreferenceSnapshot } from './client-shared.js'
+import { resolveSessionSpeedMode } from './settings-contract.js'
 export function createModelOptionsMenu() {
   const changes = new EventTarget()
   let request
+  const set = value => {
+    if (request === value) return
+    request = value
+    changes.dispatchEvent(new Event('change'))
+  }
   return {
     getSnapshot: () => request,
     subscribe(listener) {
       changes.addEventListener('change', listener)
       return () => changes.removeEventListener('change', listener)
     },
-    set(value) {
-      request = value
-      changes.dispatchEvent(new Event('change'))
-    },
+    set,
+    clearSession(sessionId) { if (request?.sessionId === sessionId) set(undefined) },
   }
 }
 
 // DSH owns the trigger and selection. Only decorate its published inline label.
-export function CodexModelLabel({ provider, model, placement, selected, preference, resolveText, t }) {
-  const snapshot = usePreferenceSnapshot(preference)
-  const speed = provider.id === 'openai-codex' ? effectiveCodexSpeedMode(snapshot.speedMode, model.id, {
-    supportsFast: snapshot.fastModels?.includes(model.id) ?? supportsCodexFastMode(model.id),
-    supportsUltrafast: snapshot.ultrafastModels?.includes(model.id) ?? false,
-  }) : SPEED_MODE_STANDARD
+export function CodexModelLabel({ available, sessionId, sessionPreferences, provider, model, placement, selected, preference, resolveText, t }) {
+  const profile = usePreferenceSnapshot(preference)
+  const tracksSpeed = available && placement === 'trigger' && selected && provider.id === 'openai-codex'
+  const snapshot = useSessionPreferenceSnapshot(sessionPreferences, tracksSpeed ? sessionId : undefined)
+  const supportsFast = profile.fastModels?.includes(model.id) ?? supportsCodexFastMode(model.id)
+  const speed = effectiveCodexSpeedMode(resolveSessionSpeedMode(snapshot.speedMode, profile.speedMode), model.id, {
+    supportsFast, supportsUltrafast: profile.ultrafastModels?.includes(model.id) ?? false,
+  })
   const badge = model.badge && <span className="codexModelCatalogBadge" data-tone={model.badge.tone}>{resolveText(model.badge.text)}</span>
-  const shortcutShown = snapshot.speedShortcut && snapshot.speedShortcut !== 'off'
-    && (snapshot.fastModels?.includes(model.id) ?? supportsCodexFastMode(model.id))
-  const bolt = placement === 'trigger' && selected && speed !== SPEED_MODE_STANDARD && !shortcutShown
+  const shortcutShown = profile.speedShortcut && profile.speedShortcut !== 'off' && supportsFast
+  const bolt = tracksSpeed && speed !== SPEED_MODE_STANDARD && !shortcutShown
   if (!badge && !bolt) return model.name
   return <span className="codexModelInlineLabel" data-placement={placement}>
     {bolt && <BoltIcon className="codexModelSelectBolt"
@@ -38,23 +43,23 @@ export function CodexModelLabel({ provider, model, placement, selected, preferen
   </span>
 }
 
-export function CodexNativeModelOptions({ locked, directory, preference, t, dismiss, reportFailure, optionsMenu }) {
+export function CodexNativeModelOptions({ available, sessionId, sessionPreferences, locked, directory, preference, t, dismiss, reportFailure, optionsMenu }) {
   const { current } = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
-  const snapshot = usePreferenceSnapshot(preference)
-  if (current?.provider !== 'openai-codex') return null
-  const fast = snapshot.fastModels?.includes(current.model) ?? supportsCodexFastMode(current.model)
-  const ultrafast = snapshot.ultrafastModels?.includes(current.model) ?? false
-  const verbosity = snapshot.verbosityModels.includes(current.model)
-  const speed = effectiveCodexSpeedMode(snapshot.speedMode, current.model, { supportsFast: fast, supportsUltrafast: ultrafast })
+  const profile = usePreferenceSnapshot(preference)
+  const enabled = available && current?.provider === 'openai-codex'
+  const snapshot = useSessionPreferenceSnapshot(sessionPreferences, enabled ? sessionId : undefined)
+  if (!enabled) return null
+  const fast = profile.fastModels?.includes(current.model) ?? supportsCodexFastMode(current.model)
+  const ultrafast = profile.ultrafastModels?.includes(current.model) ?? false
+  const verbosity = profile.verbosityModels.includes(current.model)
+  const speed = snapshot.status === 'ready' ? effectiveCodexSpeedMode(resolveSessionSpeedMode(snapshot.speedMode, profile.speedMode), current.model, { supportsFast: fast, supportsUltrafast: ultrafast }) : undefined
   const disabled = locked || snapshot.status !== 'ready' || !snapshot.writable || snapshot.saving
-  const change = async (field, value) => {
+  const matchesModel = () => {
     const model = directory.getSnapshot().current
-    if (model?.provider !== current.provider || model.model !== current.model) return
-    await preference.set({ [field]: value })
-    if (preference.getSnapshot().error) reportFailure(t('preferenceFailed'))
+    return model?.provider === current.provider && model.model === current.model
   }
   const option = (id, label) => ({ id, label: t(label) })
-  const speedItems = [option(SPEED_MODE_STANDARD, 'speedStandard')]
+  const speedItems = [option('default', 'speedFollowDefault'), option(SPEED_MODE_STANDARD, 'speedStandard')]
   if (fast) speedItems.push(option(SPEED_MODE_FAST, 'speedFast'))
   if (ultrafast) speedItems.push(option(SPEED_MODE_ULTRAFAST, 'speedUltrafast'))
   const verbosityItems = [
@@ -69,11 +74,16 @@ export function CodexNativeModelOptions({ locked, directory, preference, t, dism
       if (!menu?.id) return
       const trigger = [...menu.ownerDocument.querySelectorAll('button[aria-controls]')]
         .find(button => button.getAttribute('aria-controls') === menu.id)
-      if (!trigger) return
+      if (!trigger || disabled) return
       const { width, right, bottom } = menu.getBoundingClientRect()
       const { innerWidth, innerHeight } = menu.ownerDocument.defaultView
-      optionsMenu.set({ field, label, items, value, trigger, width, right: innerWidth - right, bottom: innerHeight - bottom,
-        select: next => { if (next !== value) void change(field, next) } })
+      const isCurrent = () => trigger.isConnected && matchesModel() && sessionPreferences.getSnapshot(sessionId) === snapshot
+      optionsMenu.set({ sessionId, field, label, items, value, trigger, isCurrent, width, right: innerWidth - right, bottom: innerHeight - bottom,
+        async select(next) {
+          if (!isCurrent() || next === value) return
+          const accepted = await sessionPreferences.set(sessionId, { [field]: next }, snapshot)
+          if (accepted === false && trigger.isConnected && matchesModel() && sessionPreferences.getSnapshot(sessionId).error) reportFailure(t('preferenceFailed'))
+        } })
       dismiss()
     }
     return <button type="button" role="menuitem" className="codexModelSelectCell" aria-haspopup="menu"
@@ -84,19 +94,19 @@ export function CodexNativeModelOptions({ locked, directory, preference, t, dism
         open(event)
       }}>
       <span className="codexModelSelectCellLabel">{label}</span>
-      <span className="codexModelSelectCellValue">{items.find(item => item.id === value)?.label ?? items[0].label}</span>
+      <span className="codexModelSelectCellValue">{items.find(item => item.id === value)?.label}</span>
       <IconChevronRightOutline14 className="codexModelSelectCellChevron" />
     </button>
   }
   return <>
-    {(fast || ultrafast) && row(SPEED_MODE_FIELD, t('speedTitle'), speedItems, speed)}
+    {(fast || ultrafast) && row(SPEED_MODE_FIELD, t('speedTitle'), speedItems, snapshot.speedMode === 'default' ? 'default' : speed)}
     {verbosity && row(OUTPUT_VERBOSITY_FIELD, t('verbosityTitle'), verbosityItems, snapshot.outputVerbosity)}
   </>
 }
 
 export function CodexModelOptionsOverlay({ optionsMenu }) {
   const request = useSyncExternalStore(optionsMenu.subscribe, optionsMenu.getSnapshot)
-  return request ? <ModelOptionChoices key={request.field} request={request} close={() => optionsMenu.set(undefined)} /> : null
+  return request ? <ModelOptionChoices key={`${request.sessionId}:${request.field}`} request={request} close={() => optionsMenu.set(undefined)} /> : null
 }
 
 function ModelOptionChoices({ request, close }) {
@@ -111,7 +121,7 @@ function ModelOptionChoices({ request, close }) {
   }, [])
   const returnToMenu = () => {
     close()
-    if (!request.trigger.isConnected) return
+    if (!request.isCurrent()) return
     request.trigger.click()
     requestAnimationFrame(() => {
       const menu = request.trigger.ownerDocument.getElementById(request.trigger.getAttribute('aria-controls'))
@@ -120,9 +130,9 @@ function ModelOptionChoices({ request, close }) {
   }
   const select = value => {
     close()
-    if (request.trigger.isConnected) {
+    if (request.isCurrent()) {
       request.trigger.focus()
-      request.select(value)
+      void request.select(value)
     }
   }
   const onKeyDown = event => {
@@ -130,7 +140,7 @@ function ModelOptionChoices({ request, close }) {
     if (!['Escape', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Tab'].includes(key)) return
     if (key === 'Tab' && !event.shiftKey) {
       close()
-      if (request.trigger.isConnected) request.trigger.focus()
+      if (request.isCurrent()) request.trigger.focus()
       return
     }
     event.preventDefault()
@@ -158,9 +168,10 @@ function ModelOptionChoices({ request, close }) {
   </div>
 }
 
-export function CodexModelSelect({ locked, available, directory, load, select, preference, t, openPickerTrace }) {
+export function CodexModelSelect({ locked, available, sessionId, sessionPreferences, directory, load, select, preference, t, openPickerTrace }) {
   const state = useSyncExternalStore(directory.subscribe, directory.getSnapshot)
   const preferenceSnapshot = usePreferenceSnapshot(preference)
+  const local = useSessionPreferenceSnapshot(sessionPreferences, available && state.current?.provider === 'openai-codex' ? sessionId : undefined)
   const [open, setOpen] = useState(false)
   const [pane, setPane] = useState('root')
   const trace = useRef(null)
@@ -210,9 +221,10 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     models: group.models.filter(model => [model.name, model.id, model.description, group.name].some(text => typeof text === 'string' && text.toLocaleLowerCase().includes(needle))),
   })).filter(group => group.models.length > 0)
   const speedSupported = state.current?.provider === 'openai-codex' && (preferenceSnapshot.fastModels?.includes(state.current?.model) ?? supportsCodexFastMode(state.current?.model))
-  const speedWritable = preferenceSnapshot.status === 'ready' && preferenceSnapshot.writable === true && !preferenceSnapshot.saving
+  const sessionReady = local.status === 'ready'
+  const sessionWritable = sessionReady && local.writable && !local.saving && !locked
   const ultrafastSupported = state.current?.provider === 'openai-codex' && (preferenceSnapshot.ultrafastModels ?? []).includes(state.current?.model)
-  const effectiveSpeed = effectiveCodexSpeedMode(preferenceSnapshot.speedMode, state.current?.model, {
+  const effectiveSpeed = effectiveCodexSpeedMode(resolveSessionSpeedMode(local.speedMode, preferenceSnapshot.speedMode), state.current?.model, {
     supportsFast: speedSupported,
     supportsUltrafast: ultrafastSupported,
   })
@@ -220,16 +232,24 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
   const fast = effectiveSpeed !== SPEED_MODE_STANDARD
   const speedKey = ultrafast ? 'speedUltrafast' : fast ? 'speedFast' : 'speedStandard'
   const verbositySupported = state.current?.provider === 'openai-codex' && preferenceSnapshot.verbosityModels.includes(state.current?.model)
-  const verbosityWritable = preferenceSnapshot.status === 'ready' && preferenceSnapshot.writable === true
   const verbosityItems = [
     { id: OUTPUT_VERBOSITY_DEFAULT, label: t('verbosityDefault'), description: t('verbosityDefaultHint') },
     { id: OUTPUT_VERBOSITY_LOW, label: t('verbosityLow'), description: t('verbosityLowHint') },
     { id: OUTPUT_VERBOSITY_MEDIUM, label: t('verbosityMedium'), description: t('verbosityMediumHint') },
     { id: OUTPUT_VERBOSITY_HIGH, label: t('verbosityHigh'), description: t('verbosityHighHint') },
   ]
-  const verbosityLabel = verbosityItems.find(item => item.id === preferenceSnapshot.outputVerbosity)?.label ?? t('verbosityDefault')
+  const verbosityLabel = verbosityItems.find(item => item.id === local.outputVerbosity)?.label
   const busy = state.status === 'selecting'
 
+  useLayoutEffect(() => {
+    setOpen(false)
+    setPane('root')
+    setQuery('')
+    return () => {
+      trace.current?.('closed')
+      trace.current = null
+    }
+  }, [sessionId])
   useEffect(() => {
     if (available) load()
   }, [available, load])
@@ -277,13 +297,11 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
       ...(effort === undefined ? {} : { reasoningEffort: effort }),
     }).then(settleSelection)
   }
-  const chooseSpeed = speedMode => {
+  const choosePreference = (field, value) => {
+    const model = directory.getSnapshot().current
+    if (!sessionWritable || model?.provider !== state.current?.provider || model?.model !== state.current?.model) return
     close(true)
-    void preference.set({ [SPEED_MODE_FIELD]: speedMode })
-  }
-  const chooseVerbosity = outputVerbosity => {
-    close(true)
-    void preference.set({ [OUTPUT_VERBOSITY_FIELD]: outputVerbosity })
+    void sessionPreferences.set(sessionId, { [field]: value }, local)
   }
   const option = ({ key, label, description, selected, disabled, onClick, onPointerDown }) => <button
     key={key}
@@ -318,7 +336,7 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     content = <>
       {cell('model', t('modelLabel'), modelLabel)}
       {reasoning === undefined ? null : cell('effort', t('effortLabel'), effortLabel)}
-      {(speedSupported || ultrafastSupported) && cell('speed', t('speedTitle'), t(speedKey))}
+      {(speedSupported || ultrafastSupported) && cell('speed', t('speedTitle'), sessionReady ? t(local.speedMode === 'default' ? 'speedFollowDefault' : speedKey) : undefined)}
       {verbositySupported && cell('verbosity', t('verbosityTitle'), verbosityLabel)}
     </>
   } else if (pane === 'model') {
@@ -352,12 +370,13 @@ export function CodexModelSelect({ locked, available, directory, load, select, p
     }))
   } else if (pane === 'speed') {
     content = <>
-      {option({ key: SPEED_MODE_STANDARD, label: t('speedStandard'), description: t('speedStandardHint'), selected: !fast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_STANDARD) })}
-      {speedSupported && option({ key: SPEED_MODE_FAST, label: t('speedFast'), description: t(state.current?.model === 'gpt-6-astra' ? 'speedFastAstraHint' : 'speedFastHint'), selected: fast && !ultrafast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_FAST) })}
-      {ultrafastSupported && option({ key: SPEED_MODE_ULTRAFAST, label: t('speedUltrafast'), description: t('speedUltrafastHint'), selected: ultrafast, disabled: !speedWritable, onClick: () => chooseSpeed(SPEED_MODE_ULTRAFAST) })}
+      {option({ key: 'default', label: t('speedFollowDefault'), selected: local.speedMode === 'default', disabled: !sessionWritable, onClick: () => choosePreference(SPEED_MODE_FIELD, 'default') })}
+      {option({ key: SPEED_MODE_STANDARD, label: t('speedStandard'), description: t('speedStandardHint'), selected: sessionReady && local.speedMode !== 'default' && !fast, disabled: !sessionWritable, onClick: () => choosePreference(SPEED_MODE_FIELD, SPEED_MODE_STANDARD) })}
+      {speedSupported && option({ key: SPEED_MODE_FAST, label: t('speedFast'), description: t(state.current?.model === 'gpt-6-astra' ? 'speedFastAstraHint' : 'speedFastHint'), selected: local.speedMode !== 'default' && fast && !ultrafast, disabled: !sessionWritable, onClick: () => choosePreference(SPEED_MODE_FIELD, SPEED_MODE_FAST) })}
+      {ultrafastSupported && option({ key: SPEED_MODE_ULTRAFAST, label: t('speedUltrafast'), description: t('speedUltrafastHint'), selected: local.speedMode !== 'default' && ultrafast, disabled: !sessionWritable, onClick: () => choosePreference(SPEED_MODE_FIELD, SPEED_MODE_ULTRAFAST) })}
     </>
   } else if (pane === 'verbosity') {
-    content = verbosityItems.map(item => option({ key: item.id, label: item.label, description: item.description, selected: preferenceSnapshot.outputVerbosity === item.id, disabled: !verbosityWritable, onClick: () => chooseVerbosity(item.id) }))
+    content = verbosityItems.map(item => option({ key: item.id, label: item.label, description: item.description, selected: local.outputVerbosity === item.id, disabled: !sessionWritable, onClick: () => choosePreference(OUTPUT_VERBOSITY_FIELD, item.id) }))
   }
 
   const menu = open ? <div

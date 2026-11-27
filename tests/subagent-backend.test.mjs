@@ -1,7 +1,11 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createSubagentTokens } from '../src/subagent-auth.js'
-import { createSubagentBackendSwitcher, presetEntries, subagentConfigListener, SUBAGENT_PROVIDER, subagentThreadPolicy } from '../src/subagent-backend.js'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { PassThrough } from 'node:stream'
+import { createSubscriptionSubagent, createSubagentBackendSwitcher, presetEntries, subagentConfigListener, SUBAGENT_PROVIDER, subagentThreadPolicy } from '../src/subagent-backend.js'
 import { Context } from '@deepseek-ai/cordis'
 import { createSubagentDefaults } from '../src/subagent-defaults.js'
 
@@ -101,6 +105,48 @@ test('explicit child route overrides inheritance without silently changing effor
   assert.equal(subagentThreadPolicy(other,policy,{provider:'openai-codex',model:'gpt-5.6-luna'}).model,'gpt-5.6-luna')
   assert.throws(()=>subagentThreadPolicy(parent,policy,{provider:'deepseek',model:'deepseek'}), /require the openai-codex/)
   assert.throws(()=>subagentThreadPolicy(parent,policy,{sandbox:'danger-full-access'}), /Unsupported Codex child option/)
+})
+
+test('native Codex children send the inherited supported tier or an explicit Standard fallback on thread/start', async t => {
+  const nativeHome = await mkdtemp(join(tmpdir(), 'codex-native-child-tier-'))
+  t.after(() => rm(nativeHome, { recursive: true, force: true }))
+  const choices = [ ['fast', 'supported', 'priority'], ['fast', 'unsupported', 'default'],
+    ['ultrafast', 'ultra', 'ultrafast'], ['standard', 'supported', 'default'], [undefined, 'supported', undefined] ]
+  for (const [parentTier, model, wanted] of choices) {
+    const parent = { session: { requestHeader: () => ({ config: { provider: parentTier === undefined ? 'deepseek' : 'openai-codex' } }) } }
+    const transport = []
+    const calls = []
+    class Transport {
+      constructor() { transport.push(this) }
+      onRequest(fn) { this.handle = fn }
+      onNotification() {}
+      start() {}
+      close() {}
+      async request(method, params) { calls.push({ method, params }); return { model } }
+    }
+    const official = {
+      apply(ctx) {
+        ctx.subagents.registerProvider({ async start() {
+          ctx.subprocess.spawn({})
+          await transport[0].handle('initialize', {})
+          await transport[0].handle('thread/start', {})
+          return { result: Promise.resolve(), dispose: async () => {} }
+        } })
+      },
+    }
+    const child = createSubscriptionSubagent({
+      ctx: { sandboxPolicy: { resolve: () => ({ mode: 'read-only' }) }, subprocess: { spawn: () => ({
+        stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), done: new Promise(() => {}),
+      }) } },
+      nativeHome, resolveAuth: async () => {}, store: { read: async () => ({ type: 'oauth', access: 'test-token', accountId: 'test' }) },
+      loadRuntime: async () => ({ official, Transport, argv: [] }), parentSpeed: actual => { assert.equal(actual, parent); return parentTier },
+      modelMetadata: id => ({ supportsFast: id === 'supported', supportsUltrafast: id === 'ultra' }),
+    })
+    const run = await child.provider.start({ parent, agentOptions: { provider: 'openai-codex', model }, signal: new AbortController().signal })
+    await run.result
+    assert.equal(calls.find(call => call.method === 'thread/start').params.serviceTier, wanted)
+    child.dispose()
+  }
 })
 
 test('saved Codex subtask defaults honor explicit requests and both allowlists', () => {

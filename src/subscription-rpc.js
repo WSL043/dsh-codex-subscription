@@ -1,6 +1,6 @@
 import { REQUEST_BLOCKED, isAccessFailureMessage } from './http-failure.js'
 import { PREFERENCE_FIELDS } from './preference-fields.js'
-import { CONNECTOR_ACCOUNT_FIELD, MAX_CONNECTOR_ACCOUNT_LENGTH } from './settings-contract.js'
+import { CONNECTOR_ACCOUNT_FIELD, MAX_CONNECTOR_ACCOUNT_LENGTH, OUTPUT_VERBOSITY_FIELD, SPEED_MODE_FIELD } from './settings-contract.js'
 import { normalizeSubagentModel } from './subagent-defaults.js'
 import { capabilityPatch } from './capability-settings.js'
 import { ORIGINAL_IMAGE_CHUNK_BYTES, ORIGINAL_IMAGE_ID_PATTERN } from './image-original-contract.js'
@@ -26,7 +26,7 @@ export async function settlesLive(preferences, patch, signal, { attempts = 8, de
   return live()
 }
 
-export function createSubscriptionRpcHandler({ authHandler, usageReader, accountUsageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, defaultModel, runtimeManagement, remoteControl, desktopVoice, nativeVoice, voicePreview, composerPredictions, diagnosticsReader, modelCatalog, subagentCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
+export function createSubscriptionRpcHandler({ authHandler, usageReader, accountUsageReader, planHistoryReader, usageProfileReader, resetCreditService, preferences, sessionPreferences, defaultModel, runtimeManagement, remoteControl, desktopVoice, nativeVoice, voicePreview, composerPredictions, diagnosticsReader, modelCatalog, subagentCatalog, originalImages, resolveInheritedOriginal, closeConnections, onAccountChanged, onCleanupFailure }) {
   return async (endpoint, payload, signal) => {
     if (endpoint === 'predictions/models') {
       try {
@@ -241,6 +241,24 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
     if (endpoint === 'preferences/status' || endpoint === 'preferences/update') {
       try {
         signal.throwIfAborted()
+        if (Object.hasOwn(payload ?? {}, 'sessionId')) {
+          const { sessionId, ...changes } = payload
+          const updating = endpoint === 'preferences/update'
+          const entries = Object.entries(changes)
+          if (typeof sessionId !== 'string' || !sessionId || sessionId.length > 512 ||
+              (updating ? entries.length === 0 || entries.some(([field, value]) =>
+                ![SPEED_MODE_FIELD, OUTPUT_VERBOSITY_FIELD].includes(field) ||
+                !(field === SPEED_MODE_FIELD && value === 'default') && !PREFERENCE_FIELDS[field].choices.includes(value)) : entries.length !== 0)) {
+            return publicError('invalid-input', 'Invalid Codex session preference request')
+          }
+          const session = await sessionPreferences?.resolve(sessionId, signal)
+          signal.throwIfAborted()
+          if (!session) return publicError('not-found', 'Session is unavailable')
+          const writable = sessionPreferences.writable
+          if (updating && !writable) return publicError('unavailable', 'Codex session preferences are read-only')
+          const values = updating ? sessionPreferences.update(session, changes) : sessionPreferences.current(session)
+          return { ok: true, value: { ...values, writable } }
+        }
         let patch
         let liveSynced = true
         if (endpoint === 'preferences/update') {

@@ -1,5 +1,6 @@
 
 export const zh = {
+  speedFollowDefault: '跟随默认',
   speedShortcutTitle: '输入栏速度切换', speedShortcut_off: '原有显示', speedShortcut_icon: '闪电', speedShortcut_hover: '悬停显示', speedShortcut_label: '速度名称',
   catalogTimeout: "模型目录读取超时。请检查网络或代理后重试。",
   catalogCachedTimeout: "继续使用已读取的模型目录；在线更新超时，请检查网络或代理后重试。",
@@ -385,6 +386,7 @@ export const connectorAccountEnglish = {
 }
 
 export const en = {
+  speedFollowDefault: 'Follow default',
   speedShortcutTitle: 'Composer speed shortcut', speedShortcut_off: 'Original', speedShortcut_icon: 'Lightning', speedShortcut_hover: 'On hover', speedShortcut_label: 'Speed name',
   catalogTimeout: "The model catalog request timed out. Check your network or proxy and retry.",
   catalogCachedTimeout: "Keeping the available model catalog; the online refresh timed out. Check your network or proxy and retry.",

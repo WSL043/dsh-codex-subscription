@@ -5,17 +5,22 @@ const preferences = {
   speedMode: ['standard', 'fast', 'ultrafast'], outputVerbosity: ['default', 'low', 'medium', 'high'],
 }
 
-function recentOperations(events, key, attemptAlias = () => undefined) {
+function recentOperations(events, key, attemptAlias = () => undefined, keep = () => false) {
   const latest = new Map(), failures = new Map()
   for (const event of events ?? []) {
     latest.set(key(event), event)
     if (event.status === 'failed') failures.set(key(event), event)
   }
-  return [...new Set([...latest.values(), ...failures.values()])].sort((a, b) => a.observedAt - b.observedAt)
+  return [...new Set([...(events ?? []).filter(keep), ...latest.values(), ...failures.values()])].sort((a, b) => a.observedAt - b.observedAt)
     .map(({ observedAt, sequence, attemptId, capability, ...event }) => {
       const attempt = attemptAlias(attemptId)
       return { at: new Date(observedAt).toISOString(), ...event, ...(attempt ? { attempt } : {}) }
     })
+}
+
+function counters(value, keys) {
+  if (!value || typeof value !== 'object') return undefined
+  return Object.fromEntries(keys.filter(key => Number.isSafeInteger(value[key]) && value[key] >= 0).map(key => [key, value[key]]))
 }
 
 // The report that can be pasted into a public issue uses only structured observations.
@@ -25,7 +30,11 @@ export function compactDiagnostic(report) {
     if (typeof id !== 'string' || !/^[a-f0-9-]{36}$/u.test(id)) return undefined
     if (!attempts.has(id)) attempts.set(id, `op${attempts.size + 1}`)
     return attempts.get(id)
-  })
+  }, event => event.area === 'model')
+  const websocket = counters(report.websocket, ['requests', 'connectionsCreated', 'connectionsReused', 'deltaRequests',
+    'websocketFailures', 'sseFallbacks', 'recoveryAttempts', 'recoverySuccesses', 'recoveryDeferrals', 'cooldownRequests'])
+  const compaction = counters(report.compaction, ['requests', 'checkpointsReceived', 'checkpointsSaved', 'checkpointsReused'])
+  const history = counters(report.requestHistory, ['capacity', 'dropped'])
   const failureAttempt = attempts.get(report.streamFailure?.attemptId)
   const configuration = Object.fromEntries(Object.entries(preferences).flatMap(([key, allowed]) =>
     allowed.includes(report.configuration?.[key]) ? [[key, report.configuration[key]]] : []))
@@ -57,8 +66,10 @@ export function compactDiagnostic(report) {
     ...(truncated ? { historyTruncated: true } : {}),
     ...(slots.length ? { uiSlots: slots } : {}),
     ...(report.requestHistory ? { network } : {}),
+    ...(history ? { networkHistory: { scope: 'plugin-process', ...history, retained: report.requestHistory.events?.length ?? 0, exported: network.length } } : {}),
+    ...(websocket ? { websocket: { scope: 'plugin-process', ...websocket } } : {}),
     ...(failureAttempt ? { lastModelStreamFailure: { attempt: failureAttempt } } : {}),
     ...(report.operations ? { operations: recentOperations(report.operations.events, event => `${event.source}:${event.action}`) } : {}),
-    ...(report.compaction?.requests ? { pluginCompaction: report.compaction } : {}),
+    ...(compaction ? { pluginCompaction: compaction } : {}),
   }
 }

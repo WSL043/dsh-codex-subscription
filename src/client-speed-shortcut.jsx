@@ -1,16 +1,23 @@
 import { useLayoutEffect, useSyncExternalStore } from 'react'
 import { BoltIcon } from '@heroicons/react/16/solid'
-import { usePreferenceSnapshot } from './client-shared.js'
+import { usePreferenceSnapshot, useSessionPreferenceSnapshot } from './client-shared.js'
+import { resolveSessionSpeedMode } from './settings-contract.js'
 import { effectiveCodexSpeedMode, SPEED_MODE_FIELD, SPEED_SHORTCUT_FIELD, SPEED_MODE_STANDARD, SPEED_MODE_FAST, supportsCodexFastMode } from './settings-contract.js'
 
 const labels = { standard: 'speedStandard', fast: 'speedFast', ultrafast: 'speedUltrafast' }
-export function CodexSpeedShortcut({ directory, preference, t, locked }) {
+export function CodexSpeedShortcut({ available, sessionId, sessionPreferences, directory, preference, t, locked }) {
   const { current } = useSyncExternalStore(listener => directory.subscribe(listener), () => directory.getSnapshot())
-  const status = usePreferenceSnapshot(preference)
-  const mode = status[SPEED_SHORTCUT_FIELD]
+  const profile = usePreferenceSnapshot(preference)
+  const mode = profile[SPEED_SHORTCUT_FIELD]
   const modelId = current?.model
-  const supportsFast = status.fastModels?.includes(modelId) ?? supportsCodexFastMode(modelId)
-  const visible = mode !== 'off' && current?.provider === 'openai-codex' && supportsFast && status.status === 'ready'
+  const supportsFast = profile.fastModels?.includes(modelId) ?? supportsCodexFastMode(modelId)
+  const codex = available && current?.provider === 'openai-codex' && profile.status === 'ready'
+  const enabled = codex && mode !== 'off' && supportsFast
+  // Keep the composer subscription while a detached submenu is open, even
+  // with the shortcut off and another plugin claiming the model-label slot.
+  const tracksSession = enabled || (codex && profile.composerModelPickerActive)
+  const status = useSessionPreferenceSnapshot(sessionPreferences, tracksSession ? sessionId : undefined)
+  const visible = enabled && status.status === 'ready'
   useLayoutEffect(() => {
     if (!visible) return
     const style = document.createElement('style')
@@ -20,18 +27,16 @@ export function CodexSpeedShortcut({ directory, preference, t, locked }) {
   }, [visible])
   if (!visible) return null
 
-  const speed = effectiveCodexSpeedMode(status.speedMode, modelId, {
-    supportsFast, supportsUltrafast: status.ultrafastModels?.includes(modelId),
+  const speed = effectiveCodexSpeedMode(resolveSessionSpeedMode(status.speedMode, profile.speedMode), modelId, {
+    supportsFast, supportsUltrafast: profile.ultrafastModels?.includes(modelId),
   })
   const next = speed === SPEED_MODE_STANDARD ? SPEED_MODE_FAST : SPEED_MODE_STANDARD
   const label = t(labels[speed])
   const hint = `${t('speedTitle')} · ${label} → ${t(labels[next])}${next === SPEED_MODE_FAST ? ` · ${t('speedFastHint')}` : ''}`
   const toggle = () => {
     const selected = directory.getSnapshot().current
-    const saved = preference.getSnapshot()
-    if (selected?.provider !== current.provider || selected?.model !== modelId ||
-      saved.speedMode !== status.speedMode || saved.saving || !saved.writable) return
-    void preference.set({ [SPEED_MODE_FIELD]: next })
+    if (locked || selected?.provider !== current.provider || selected?.model !== modelId) return
+    void sessionPreferences.set(sessionId, { [SPEED_MODE_FIELD]: next }, status)
   }
   return <span className="codexSpeedShortcutSeat" data-layout={mode} data-speed={speed}>
     <button type="button" className="codexSpeedShortcut" data-speed={speed}

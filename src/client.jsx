@@ -1,3 +1,4 @@
+import { useLayoutEffect } from 'react'
 import { createSketchSessionRegistry, createSketchWorkspaceRegistry } from './sketch-session-state.js'
 import { withComposerSession, openComposerSession, createSessionOpeners } from './client-session-compat.js'
 import { ComposerImagePreviews, MessageImagePreviews, IMAGE_PREVIEWS_CSS } from './client-image-previews.jsx'
@@ -14,6 +15,7 @@ import { createAnnotatedImageReference } from './image-edit-reference.js'
 import { DeferredImageViewer } from './client-deferred-image-viewer.jsx'
 import { SubscriptionImageViewerService } from './subscription-image-viewer.js'
 import { createPreferenceController } from './preference-controller.js'
+import { createSessionPreferenceController } from './client-session-preferences.js'
 import { createDefaultModelController } from './default-model-controller.js'
 import { createAccountStatusController } from './account-status-controller.js'
 import { NS, CHANNEL, unwrap } from './client-shared.js'
@@ -36,7 +38,11 @@ export const inject = [
 ]
 
 // Keep DSH's model picker and its child label slot together. Subscription-only actions use the additive right slot.
-const ComposerRight = props => <><CodexComposerQuota {...props} /><VoiceCallButton {...props} /><CodexSpeedShortcut {...props} /></>
+function ComposerRight(props) {
+  const { sessionId, optionsMenu } = props
+  useLayoutEffect(() => () => optionsMenu.clearSession(sessionId), [optionsMenu, sessionId])
+  return <><CodexComposerQuota {...props} /><VoiceCallButton {...props} /><CodexSpeedShortcut {...props} /></>
+}
 
 export function apply(ctx) {
   if (new URL(window.location.href).searchParams.has('codexVoiceSession')) ctx.inject(['uiWorkspace', 'sessions'], scope => scope.effect(() => {
@@ -65,6 +71,8 @@ export function apply(ctx) {
   }, 'codex-subscription: style')
   const rpc = createSubscriptionRpcClient(ctx.get('connection').rpc, incidents)
   const preference = createPreferenceController(rpc)
+  const sessionPreferences = createSessionPreferenceController(rpc)
+  const optionsMenu = createModelOptionsMenu()
   const quotaUsage = quotaUsageController(rpc)
   ctx.effect(() => {
     let mode = preference.getSnapshot().quickQuotaMode
@@ -86,16 +94,24 @@ export function apply(ctx) {
   ctx.effect(() => {
     void preference.load()
     void accountStatus.load()
-    const disposeReset = ctx.on('connection/reset', () => { quotaUsage.invalidate(); void preference.load(); void preference.refreshModels(); void accountStatus.reload() })
+    const disposeReset = ctx.on('connection/reset', () => {
+      optionsMenu.set(undefined)
+      sessionPreferences.reload()
+      quotaUsage.invalidate()
+      void preference.load()
+      void preference.refreshModels()
+      void accountStatus.reload()
+    })
     return () => {
       disposeReset?.()
+      optionsMenu.set(undefined)
+      sessionPreferences.dispose()
       preference.dispose()
       defaultModel.dispose()
       accountStatus.dispose()
     }
   }, 'codex-subscription: preferences and account status')
   const t = ctx.locale.bind(NS)
-  const optionsMenu = createModelOptionsMenu()
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay', id: 'codex-subscription-model-options', inject: () => ({ optionsMenu }),
   }, CodexModelOptionsOverlay))
@@ -116,6 +132,9 @@ export function apply(ctx) {
     locale: NS,
     inject: sessionId => ({
       sessionId,
+      sessionPreferences,
+      optionsMenu,
+      available: sessions.subagentAddress(sessionId) === undefined,
       preference,
       rpc: rpc,
       t,
@@ -138,7 +157,7 @@ export function apply(ctx) {
       const directory = modelDirectories.directoryFor(sessionId)
       const available = sessions.subagentAddress(sessionId) === undefined
       return {
-        available, directory: directory.store, preference, t, optionsMenu, resolveText: text => ctx.locale.resolveText(text),
+        sessionId, sessionPreferences, available, directory: directory.store, preference, t, optionsMenu, resolveText: text => ctx.locale.resolveText(text),
         load: () => { if (available) void directory.load().catch(() => {}) },
         openPickerTrace: incidents.openPicker,
         select: async (selection, trace) => available && selectWithDiagnostics(directory, selection, trace),

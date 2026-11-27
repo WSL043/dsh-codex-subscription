@@ -213,6 +213,8 @@ Model access and quota depend on your account.
 
 Choose the model for the task, then adjust reasoning for how much analysis you need and speed for how quickly a supported request runs. Response verbosity changes the requested level of detail. In **Web & tools**, use search to find pages and webpage reading to open a URL you already have.
 
+Speed and output detail changes in the composer or model menu are saved to that conversation only. The plugin settings set defaults for new conversations; existing conversations keep their values unless explicitly set to **Follow default**. Conversations created before the upgrade start with the defaults in effect when this feature is first enabled. A Codex subscription subagent inherits the Codex parent’s effective speed, falling back to Standard if the child model does not support that tier.
+
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
 | **Subscription sign-in** | Sign in to ChatGPT and use Codex subscription models without an API key | Normal chat needs no Codex CLI |

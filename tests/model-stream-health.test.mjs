@@ -2,6 +2,21 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createModelStreamHealth, safeStreamHealth } from '../src/model-stream-health.js'
 import { createDiagnosticLog } from '../src/diagnostic-log.js'
+import { openaiCodexProvider, openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
+
+test('cooldown logs keep the saved WebSocket preference distinct from selected SSE (#275)', async () => {
+  const provider = openaiCodexSubscriptionProvider({
+    connection: { async prepare(options) { return { options: { ...options, transport: 'sse' }, diagnostic: { preference: 'websocket', selectionReason: 'websocket-cooldown' } } } },
+    providerFactory: () => ({ ...openaiCodexProvider(), streamSimple: () => ({
+      async *[Symbol.asyncIterator]() { yield { type: 'done' } },
+      result: async () => ({ stopReason: 'stop' }),
+    }) }),
+  })
+  for await (const _ of provider.streamSimple({ id: 'gpt-6-luna' }, { messages: [] }, { sessionId: 'fixture' })) {}
+  const health = provider.streamHealth().at(-1)
+  assert.equal(health.configured, 'websocket')
+  assert.equal(health.selected, 'sse')
+})
 
 test('whole-response timing is not the per-next timer; no body or session identity reaches diagnostics', () => {
   let time = 0

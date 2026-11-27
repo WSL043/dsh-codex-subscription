@@ -35,6 +35,26 @@ test('client-only diagnostics keeps the client version and collection failure', 
   assert.equal(report.network, undefined)
 })
 
+test('transport export retains consecutive model attempts, zero counters and retention boundaries (#275)', () => {
+  const events = createDiagnosticEvents({ limit: 4, now: () => 1000 })
+  for (let index = 0; index < 6; index++) events.record('model', {
+    model: 'gpt-6-luna', status: 'ok', requestedTransport: 'websocket-cached',
+    attemptId: `12345678-abcd-4321-abcd-${String(index).padStart(12, '0')}`,
+  })
+  const report = compactDiagnostic({ requestHistory: events.snapshot(),
+    websocket: { requests: 6, deltaRequests: 5, sseFallbacks: 0, connectionsCreated: 1, secret: 'SECRET', invalid: -1 },
+    compaction: { requests: 0, checkpointsReused: 0, secret: 'SECRET' },
+  })
+  assert.equal(report.network.length, 4)
+  assert.equal(new Set(report.network.map(event => event.attempt)).size, 4)
+  assert.deepEqual(report.networkHistory, { scope: 'plugin-process', capacity: 4, dropped: 2, retained: 4, exported: 4 })
+  assert.deepEqual(report.websocket, { scope: 'plugin-process', requests: 6, connectionsCreated: 1, deltaRequests: 5, sseFallbacks: 0 })
+  assert.deepEqual(report.pluginCompaction, { requests: 0, checkpointsReused: 0 })
+  assert.equal(report.historyTruncated, true)
+  assert.doesNotMatch(JSON.stringify(report), /SECRET|12345678/)
+  assert.equal(compactDiagnostic({}).websocket, undefined)
+})
+
 test('quota polling cannot erase the last stream failure, and its exported alias is report-local', () => {
   const attemptId = '12345678-abcd-4321-abcd-123456789abc'
   const events = createDiagnosticEvents()

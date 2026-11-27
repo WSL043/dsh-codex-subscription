@@ -357,7 +357,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
   const queues = new Map() // threadId -> QueuedSubmission[]
   const starting = new Map() // synchronous admission reservations, before the first await
   const imageUploads = createRemoteImageUploads()
-  let catalog
+  let catalog, closed = false
 
   const service = () => {
     const value = controller()
@@ -455,7 +455,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       initialTurnsPage: null, instructionSources: [], itemsBackwardsCursor: null,
       model: current ? modelKey(current) : 'dsh/default', modelProvider: current?.provider ?? 'dsh',
       multiAgentMode: 'explicitRequestOnly', reasoningEffort: current?.reasoningEffort ?? null, runtimeWorkspaceRoots: cwd ? [cwd] : [],
-      sandbox: sandboxFor(preset, cwd), serviceTier: shownTier(), turnsBackwardsCursor: null,
+      sandbox: sandboxFor(preset, cwd), serviceTier: shownTier(agent?.session), turnsBackwardsCursor: null,
     }
   }
   const searches = new Map() // fuzzy-search session id -> { roots, notify }
@@ -737,19 +737,28 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       return item ? [{ turnId: entry.turnId, item, startedAt: null, completedAt: null }] : []
     }) }
   }
-  /** Apply a model or effort the phone picked; DSH validates it against its own catalog. */
-  // Speed: the plugin keeps one speed setting (standard, fast, ultrafast); the phone's service tier is that setting.
+  // The phone's service tier maps to the Codex speed preference of this DSH session.
   const TIER_OF = { fast: 'priority', ultrafast: 'ultrafast' }
   const MODE_OF = { priority: 'fast', fast: 'fast', ultrafast: 'ultrafast', default: 'standard' }
   const tiersOf = (provider, model) => { try { return speed?.tiers?.(provider, model) ?? [] } catch { return [] } }
-  const shownTier = () => { try { return TIER_OF[speed?.current?.()] ?? null } catch { return null } }
-  /** A tier the phone picked: a string id, "default" or null for standard speed; undefined leaves the setting alone. */
-  const applySpeed = async tier => {
-    if (tier === undefined || !speed?.set) return
-    const mode = tier === null ? 'standard' : MODE_OF[tier]
-    if (mode === undefined || mode === speed.current?.()) return
-    await speed.set(mode)
+  const shownTier = session => {
+    if (!session) return null
+    try { return TIER_OF[speed?.current?.(session)] ?? null } catch { return null }
   }
+  /** Default or null means standard speed; an absent or unknown tier leaves the setting alone. */
+  const modeOfTier = tier => tier === null ? 'standard' : typeof tier === 'string' && Object.hasOwn(MODE_OF, tier) ? MODE_OF[tier] : undefined
+  const applySpeed = async (tier, session) => {
+    const mode = modeOfTier(tier)
+    if (mode === undefined || !speed?.set || mode === speed.current?.(session)) return
+    await speed.set(mode, session)
+  }
+  const releaseTurnSpeed = running => {
+    const release = running?.releaseSpeed
+    if (typeof release !== 'function') return
+    running.releaseSpeed = undefined
+    try { release() } catch { phoneLog('turn speed release failed', { turnId: running.turn.id }, 'warn') }
+  }
+  /** Apply a model or effort the phone picked; DSH validates it against its own catalog. */
   const applySelection = async (agent, sessionId, params) => {
     const picked = parseModelKey(params?.model)
     const effort = typeof params?.effort === 'string' ? params.effort : undefined
@@ -820,6 +829,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
 
   async function startTurn(params, notify, queued) {
     const id = params?.threadId
+    if (closed) throw new RpcError(-32800, 'Turn start cancelled')
     if (active.has(id) || starting.has(id)) throw invalidParams('A turn is already running in this conversation')
     const launch = { queued, submitted: false, abort: new AbortController() }
     starting.set(id, launch)
@@ -839,20 +849,22 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     lastPrompt.text = text
     const id = params?.threadId
     const agent = await agentFor(id)
-    if (active.has(id)) throw new RpcError(-32602, 'A turn is already running in this conversation')
+    const checkCancelled = () => {
+      launch.abort.signal.throwIfAborted()
+      if (closed) throw new RpcError(-32800, 'Turn start cancelled')
+    }
+    checkCancelled()
+    if (active.has(id)) throw invalidParams('A turn is already running in this conversation')
     subscribe(id, notify)
     await applySelection(agent, id, params)
+    checkCancelled()
     applyPermissions(agent, params)
-    // serviceTier sticks like the model; serviceTierForTurn is for this turn only and is put back afterwards.
-    const speedBefore = speed?.current?.()
-    const speedForTurn = typeof params?.serviceTierForTurn === 'string' ? params.serviceTierForTurn : undefined
-    const restoreSpeed = async () => { if (speedForTurn !== undefined && speedBefore !== undefined && speed?.current?.() !== speedBefore) await Promise.resolve(speed.set?.(speedBefore)).catch(() => {}) }
-    try {
-      await applySpeed(speedForTurn ?? (Object.hasOwn(params ?? {}, 'serviceTier') ? params.serviceTier : undefined))
-      launch.abort.signal.throwIfAborted()
-      if (active.has(id)) throw invalidParams('A turn is already running in this conversation')
-      if (launch.queued && !(queues.get(id) ?? []).includes(launch.queued)) throw invalidParams('Queued submission was deleted before starting')
-    } catch (error) { await restoreSpeed(); throw error }
+    // A turn-only tier takes precedence without changing the sticky session preference.
+    const turnTier = typeof params?.serviceTierForTurn === 'string' ? params.serviceTierForTurn : undefined
+    if (turnTier === undefined && Object.hasOwn(params ?? {}, 'serviceTier')) await applySpeed(params.serviceTier, agent.session)
+    checkCancelled()
+    if (active.has(id)) throw invalidParams('A turn is already running in this conversation')
+    if (launch.queued && !(queues.get(id) ?? []).includes(launch.queued)) throw invalidParams('Queued submission was deleted before starting')
     const turn = emptyTurn()
     const userItem = { type: 'userMessage', id: randomUUID(), clientId: params.clientUserMessageId ?? null, content: [...(text === '' ? [] : [{ type: 'text', text, text_elements: [] }]), ...pictures.map(picture => ({ type: 'image', url: picture.url }))] }
     const running = { turn, ended: undefined, userItem, queued: launch.queued, priorMessageIds: new Set(agent.session.deriveMessages().map(message => message.id)), pendingImages: new Set(), pendingSteers: new Set(), abort: launch.abort }
@@ -864,19 +876,29 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     emit(id, 'item/started', { threadId: id, turnId: turn.id, item: userItem, startedAtMs: Date.now() })
     emit(id, 'item/completed', { threadId: id, turnId: turn.id, item: userItem, completedAtMs: Date.now() })
     try {
+      checkCancelled()
+      const mode = modeOfTier(turnTier)
+      if (mode !== undefined) running.releaseSpeed = speed?.temporary?.(mode, agent.session)
+      checkCancelled()
       launch.submitted = true
-      const admitted = await service().prompt({ requestId: launch.queued?.id ?? randomUUID(), sessionId: id, mode: 'queue', content }, AbortSignal.any([running.abort.signal, AbortSignal.timeout(30_000)]))
-      if (admitted?.accepted === false) throw new Error('DSH rejected the message')
+      const signal = AbortSignal.any([running.abort.signal, AbortSignal.timeout(30_000)])
+      const releaseOnAbort = () => releaseTurnSpeed(running)
+      if (running.releaseSpeed) signal.addEventListener('abort', releaseOnAbort, { once: true })
+      try {
+        const admitted = await service().prompt({ requestId: launch.queued?.id ?? randomUUID(), sessionId: id, mode: 'queue', content }, signal)
+        if (admitted?.accepted === false) throw new Error('DSH rejected the message')
+      } finally { signal.removeEventListener('abort', releaseOnAbort) }
     } catch (error) {
-      if (active.get(id) === running) active.delete(id)
-      const cancelled = running.abort.signal.aborted
+      releaseTurnSpeed(running)
+      const current = active.get(id) === running
+      if (current) active.delete(id)
+      const cancelled = closed || !current || running.abort.signal.aborted
       turn.status = cancelled ? 'interrupted' : 'failed'
       turn.completedAt = seconds(Date.now())
       turn.error = cancelled ? null : { message: 'DSH did not accept the message', codexErrorInfo: null, additionalDetails: null }
       running.abort.abort()
       emit(id, 'turn/completed', { threadId: id, turn })
       emit(id, 'thread/status/changed', { threadId: id, status: { type: 'idle' } })
-      await restoreSpeed()
       if (cancelled) throw new RpcError(-32800, 'Turn start cancelled')
       throw new RpcError(-32603, error?.message ? `DSH did not accept the message: ${String(error.message).slice(0, 200)}` : 'DSH did not accept the message')
     }
@@ -890,18 +912,20 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     // RPC signal. Cancel once more after the accepted message actually exists.
     if (running.abort.signal.aborted) {
       running.ended ??= { kind: 'aborted' }
-      await Promise.resolve(service().cancel({ sessionId: id })).catch(() => {})
+      try { await service().cancel({ sessionId: id }) } catch { /* the host may already have stopped */ }
     }
     if (starting.get(id) === launch) starting.delete(id)
-    void Promise.resolve(agent.whenIdle?.()).catch(() => {}).then(async () => {
+    const waitForIdle = async () => { try { await agent.whenIdle?.() } catch {} }
+    void waitForIdle().then(async () => {
       running.finishing = true
       const pendingSteers = [...running.pendingSteers]
       if (pendingSteers.length) {
         await Promise.allSettled(pendingSteers)
         // Late host admission may briefly start a new driver after the first
         // idle observation. Do not drain the next queued turn until it stops.
-        await Promise.resolve(agent.whenIdle?.()).catch(() => {})
+        await waitForIdle()
       }
+      releaseTurnSpeed(running)
       // Tool image reads can outlast the model. Finish them before publishing the final turn.
       if (running.pendingImages.size) phoneLog('waiting for tool images', { threadId: id, turnId: turn.id, pending: running.pendingImages.size })
       await Promise.allSettled([...running.pendingImages])
@@ -916,7 +940,6 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
         emit(id, 'error', { threadId: id, turnId: turn.id, willRetry: false, error: turn.error })
       }
       turn.completedAt = seconds(Date.now())
-      if (speedForTurn !== undefined && speedBefore !== undefined && speed?.current?.() !== speedBefore) void Promise.resolve(speed.set?.(speedBefore)).catch(() => {})
       // The phone was shown this message under its own id; keep that id once DSH has committed it.
       try {
         for (const message of agent.session.deriveMessages()) reconcileUser(id, running, message)
@@ -929,7 +952,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       emit(id, 'turn/completed', { threadId: id, turn })
       phoneLog('turn completed', { threadId: id, turnId: turn.id, status: turn.status, items: turn.items.length })
       emit(id, 'thread/status/changed', { threadId: id, status: { type: 'idle' } })
-      if (queues.get(id)?.length) void startQueuedTurn(id, notify).catch(error => phoneLog('queued turn not accepted', { threadId: id, code: error?.code }, 'warn'))
+      if (!closed && queues.get(id)?.length) void startQueuedTurn(id, notify).catch(error => phoneLog('queued turn not accepted', { threadId: id, code: error?.code }, 'warn'))
     })
     // Match app-server: acknowledge the turn only. The user message arrives through item notifications,
     // linked to the phone's optimistic submission by clientId, rather than inserted a second time here.
@@ -1042,7 +1065,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       const agent = await agentFor(params?.threadId)
       await applySelection(agent, params.threadId, params)
       applyPermissions(agent, params)
-      if (Object.hasOwn(params ?? {}, 'serviceTier')) await applySpeed(params.serviceTier)
+      if (Object.hasOwn(params ?? {}, 'serviceTier')) await applySpeed(params.serviceTier, agent.session)
       return {}
     },
     'thread/attachment/list': () => ({ data: [], nextCursor: null }),
@@ -1206,8 +1229,10 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     'thread/archive': async params => {
       const registry = workspaces()
       if (!registry) throw new RpcError(-32603, 'DSH archive is unavailable in this profile')
-      try { await registry.archiveSession(params?.threadId, { stopActivity: true }) } catch { throw notFound(params?.threadId) }
-      active.delete(params?.threadId)
+      const id = params?.threadId
+      try { await registry.archiveSession(id, { stopActivity: true }) } catch { throw notFound(id) }
+      releaseTurnSpeed(active.get(id))
+      active.delete(id)
       return {}
     },
     'thread/unarchive': async params => {
@@ -1261,6 +1286,7 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
       if (params?.turnId !== undefined && params.turnId !== running?.turn.id) return {}
       if (running?.finishing || running?.ended || (running?.abort ?? launch?.abort)?.signal.aborted) return {}
       if (running) {
+        releaseTurnSpeed(running)
         running.abort.abort()
         service().cancel({ sessionId: id })
       } else {
@@ -1684,5 +1710,11 @@ export function createDshRemoteControl({ controller, agents, permissions = () =>
     end: sessionId => realtimeVoice.requestClose(sessionId),
     status: sessionId => realtimeVoice.status(sessionId),
   })
-  return { methods, desktopVoice, onSessionEvent, onStream, onApproval, onQuestion, adopt, clearUploads: imageUploads.clear, close() { imageUploads.clear(); realtimeVoice?.closeAll() }, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
+  const close = () => {
+    closed = true
+    for (const running of active.values()) releaseTurnSpeed(running)
+    imageUploads.clear()
+    realtimeVoice?.closeAll()
+  }
+  return { methods, desktopVoice, onSessionEvent, onStream, onApproval, onQuestion, adopt, clearUploads: imageUploads.clear, close, forget: notify => { for (const set of subscribers.values()) set.delete(notify) } }
 }
