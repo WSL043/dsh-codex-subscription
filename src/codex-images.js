@@ -524,7 +524,17 @@ export function createCodexImageTool(options) {
     timeoutMs: 5 * 60 * 1000,
     isConcurrencySafe: () => false,
     async execute(args, exec) {
-      if (options.allowed?.() === false) throw new Error('Codex image generation is turned off for conversations on other models (Settings → Codex subscription → Web & tools → "DeepSeek and other models can use subscription features")')
+      const sessionId = exec.agent?.id
+      const assertContext = async () => {
+        exec.signal.throwIfAborted()
+        if (typeof sessionId !== 'string' || sessionId.trim() === '' || sessionId.length > 512
+          || (await options.resolveSession?.(sessionId))?.id !== sessionId) {
+          throw new Error('Codex image generation requires a session-owned tool call')
+        }
+        if (options.allowed?.(sessionId) === false) throw new Error('Codex image generation is turned off for conversations on other models (Settings → Codex subscription → Web & tools → "DeepSeek and other models can use subscription features")')
+      }
+      // Reject orphaned/direct calls before credentials, reference reads or paid work.
+      await assertContext()
       if (Array.isArray(args.referenceImages) && args.referenceImages.length === 0) {
         const { referenceImages: _empty, ...rest } = args
         args = rest
@@ -565,12 +575,13 @@ export function createCodexImageTool(options) {
         attachments.imageLimits.maxMessageImageBytes,
       )
       const sessionMessages = editing && typeof options.getSessionMessages === 'function'
-        ? await options.getSessionMessages(exec.agent?.id)
+        ? await options.getSessionMessages(sessionId)
         : undefined
       const images = editing
         ? await editImages(args.referenceImages, attachments, exec.signal, sessionMessages ?? (options.getSessionMessages ? [] : undefined))
         : undefined
       let response
+      await assertContext()
       assertImageOperation(options.getFeatures?.(), editing)
       try {
         response = await fetchImage(editing ? CODEX_IMAGE_EDIT_URL : CODEX_IMAGE_GENERATION_URL, {
@@ -622,10 +633,8 @@ export function createCodexImageTool(options) {
       )
       const metadata = responseMetadata(value)
       const data = animated ? decodeAnimatedGif(metadata.encoded, maximumBytes) : decodeCodexPng(metadata.encoded, maximumBytes)
-      const sessionId = exec.agent?.id
-      if (sessionId === undefined) throw new Error('Codex image generation requires a session-owned tool call')
       const extension = animated ? 'gif' : 'png'
-      const original = await options.originalImages.save(String(sessionId), data, `codex-generated-original.${extension}`, mediaType)
+      const original = await options.originalImages.save(sessionId, data, `codex-generated-original.${extension}`, mediaType)
       let ref
       try {
         ref = await attachments.saveImage({

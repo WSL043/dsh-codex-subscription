@@ -105,7 +105,7 @@ export function CodexSection({ preference, rpc, accountStatus, t, diagnostics, d
     </div>
     <div className="codexFlat" role="tabpanel" id={`${id}-models`} aria-labelledby={`${id}-models-tab`} hidden={tab !== 'models'}>{visited.has('models') && <ModelsPage preference={preference} t={t} defaultModel={defaultModel}
       rpc={rpc} active={tab === 'models'} accountKey={composerPredictionAccountKey(accountSnapshot)} />}</div>
-    <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}>{visited.has('tools') && <ToolsPage preference={preference} rpc={rpc} t={t} active={tab === 'tools'} webSettingsContext={webSettingsContext}
+    <div className="codexFlat" role="tabpanel" id={`${id}-tools`} aria-labelledby={`${id}-tools-tab`} hidden={tab !== 'tools'}>{visited.has('tools') && <ToolsPage preference={preference} rpc={rpc} t={t} accountSnapshot={accountSnapshot} retryAccount={accountStatus.retry} active={tab === 'tools'} webSettingsContext={webSettingsContext}
       openSubagentBundle={openSubagentBundle && (() => { openSubagentBundle(); if (!embedded) close?.() })} />}</div>
     <div className="codexFlat" role="tabpanel" id={`${id}-create`} aria-labelledby={`${id}-create-tab`} hidden={tab !== 'create'}>{visited.has('create') && <CreatePage preference={preference} t={t} />}</div>
     <div className="codexFlat" role="tabpanel" id={`${id}-more`} aria-labelledby={`${id}-more-tab`} hidden={tab !== 'more'}>{visited.has('more') && <MorePage preference={preference} rpc={rpc} t={t} diagnostics={diagnostics} active={tab === 'more'} />}</div>

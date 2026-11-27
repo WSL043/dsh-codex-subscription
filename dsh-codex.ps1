@@ -37,6 +37,7 @@ $LegacyManagerScriptName = 'dsh-codex.ps1'
 $ManagerShimName = 'dsh-codex.cmd'
 $ManagerStateName = 'install-state.json'
 
+
 $PackageVersion = '3.3.0'
 $PackageSpec = 'dsh-codex-subscription@3.3.0'
 $PnpmVersion = '11.26.0'

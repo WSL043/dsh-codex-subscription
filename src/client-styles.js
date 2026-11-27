@@ -338,6 +338,13 @@ export const STYLE = `
 .codexSubscriptionConnectors .codexSubscriptionQuotaMode{min-height:28px;padding:0 10px;white-space:nowrap}
 .codexSubscriptionConnectors>.codexSubscriptionModeNote{padding:0;background:none;font-size:12px;line-height:18px}
 .codexSubscriptionConnectors>.codexSubscriptionModeNote[data-danger=true]{background:none}
+.codexConnectorAccount>.codexSubscriptionContextTrigger{max-width:100%;min-width:0}
+.codexConnectorAccount>.codexSubscriptionContextTrigger>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.codexConnectorAccount>.codexSubscriptionContextTrigger>svg{flex:none}
+.codexConnectorAccount>.codexSubscriptionPreferenceCopy{overflow-wrap:anywhere}
+.codexConnectorAccount>.codexSubscriptionPreferenceHint{flex-basis:100%}
+.codexConnectorAccount>.codexSubscriptionContextTrigger[aria-disabled=true]{opacity:.65;cursor:progress}
+.codexConnectorRecovery{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:12px;line-height:18px;color:var(--dsw-alias-label-secondary)}
 @container (max-width:520px){.codexSubscriptionConnectors>.codexSubscriptionQuotaModes{flex:1 1 100%;margin-left:0;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}.codexSubscriptionConnectors .codexSubscriptionQuotaMode{padding:0 4px;white-space:normal;text-align:center}}
 .codexVoiceChoice{display:flex;align-items:center;gap:8px}
 .codexVoiceChoice .codexSubscriptionContextTrigger{min-width:150px;justify-content:space-between}

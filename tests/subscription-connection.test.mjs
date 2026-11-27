@@ -78,6 +78,60 @@ test('a rejected WebSocket proxy CONNECT falls back through the existing SSE rou
   } finally { globalThis.fetch = originalFetch; connection.dispose(); await new Promise(resolve => server.close(resolve)) }
 })
 
+test('a pending handshake times out and completes via SSE without an unhandled ws error', async () => {
+  const server = http.createServer()
+  const handshakes = new Set()
+  server.on('upgrade', (_request, socket) => {
+    handshakes.add(socket)
+    socket.once('close', () => handshakes.delete(socket))
+    // Deliberately leave the local handshake pending until the client closes.
+  })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  const endpoint = `ws://127.0.0.1:${server.address().port}`
+  let socket, closeReason, fetches = 0
+  class LoopbackSocket extends WebSocket {
+    constructor() { super(endpoint); socket = this }
+    close(code, reason) {
+      closeReason = reason
+      return super.close(code, reason)
+    }
+  }
+  const connection = createSubscriptionConnection({ resolveMode: () => 'websocket', resolveProxy: async () => undefined })
+  const prepare = connection.prepare
+  connection.prepare = async (...args) => {
+    const request = await prepare(...args)
+    request.options.websocketConnectTimeoutMs = 250
+    return request
+  }
+  const network = createCodexNetworkTransport({ WebSocket: LoopbackSocket, env: {}, platform: 'test' })
+  const provider = openaiCodexSubscriptionProvider({ connection, runNetwork: network.run })
+  const apiKey = `e30.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture' } })).toString('base64url')}.fake`
+  const model = provider.getModels().find(candidate => candidate.id === 'gpt-5.6-luna')
+  try {
+    const stream = provider.streamSimple(model, { messages: [{ role: 'user', content: 'test', timestamp: 1 }] }, {
+      apiKey, sessionId: 'handshake-timeout', signal: AbortSignal.timeout(5000),
+      fetch: async () => {
+        fetches++
+        return new Response('data: {"type":"response.done","response":{"id":"fallback","status":"completed","output":[],"usage":{"input_tokens":1,"output_tokens":0,"total_tokens":1}}}\n\n', { headers: { 'content-type': 'text/event-stream' } })
+      },
+    })
+    const events = []
+    for await (const event of stream) events.push(event.type)
+    assert.equal(events.at(-1), 'done', events.join(','))
+    assert.equal(fetches, 1)
+    assert.equal(connection.snapshot().sseFallbacks, 1)
+    assert.ok(socket, 'the SDK must attempt the WebSocket first')
+    assert.equal(closeReason, 'connect_timeout')
+    assert.equal(socket.readyState, WebSocket.CLOSED)
+    assert.equal(socket.listenerCount('error'), 0)
+  } finally {
+    connection.dispose()
+    for (const handshake of handshakes) handshake.destroy()
+    await new Promise(resolve => server.close(resolve))
+  }
+})
+
 test('an advertised WebSocket limit checks the encoded request before send and falls back only for that request', async () => {
   const server = new WebSocketServer({ host: '127.0.0.1', port: 0 })
   await once(server, 'listening')
@@ -196,4 +250,55 @@ test('a refreshed token for the same account keeps the same socket and cache key
   assert.equal(first.options.sessionId, second.options.sessionId)
   assert.notEqual(first.options.sessionId, other.options.sessionId)
   connection.dispose()
+})
+
+test('cached WebSocket sends only the appended input and replays full input after edits or reconnect (refs #275)', async () => {
+  const server = new WebSocketServer({ port: 0, host: '127.0.0.1' })
+  await once(server, 'listening')
+  const endpoint = `ws://127.0.0.1:${server.address().port}`
+  const wires = []
+  server.on('connection', socket => socket.on('message', bytes => {
+    wires.push({ body: JSON.parse(bytes.toString()), bytes: bytes.length })
+    const id = `resp_${wires.length}`
+    socket.send(JSON.stringify({ type: 'response.created', response: { id } }))
+    socket.send(JSON.stringify({ type: 'response.done', response: { id, status: 'completed', output: [], usage: { input_tokens: 1, output_tokens: 0, total_tokens: 1 } } }))
+  }))
+  class LoopbackSocket extends WebSocket { constructor() { super(endpoint) } }
+  const connection = createSubscriptionConnection({ resolveMode: () => 'websocket', resolveProxy: async () => undefined })
+  const network = createCodexNetworkTransport({ WebSocket: LoopbackSocket, env: {}, platform: 'test' })
+  const provider = openaiCodexSubscriptionProvider({ connection, runNetwork: network.run })
+  const apiKey = `e30.${Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'fixture' } })).toString('base64url')}.fake`
+  const model = provider.getModels().find(candidate => candidate.id === 'gpt-5.6-luna')
+  const user = content => ({ role: 'user', content, timestamp: 1 })
+  const request = async messages => {
+    let answer
+    for await (const event of provider.streamSimple(model, { messages }, { apiKey, sessionId: 'delta-history', signal: AbortSignal.timeout(5000) })) {
+      if (event.type === 'error') assert.fail(event.error?.errorMessage)
+      if (event.type === 'done') answer = event.message
+    }
+    assert.ok(answer)
+    return answer
+  }
+  try {
+    let messages = [user('archived dummy data '.repeat(4000))]
+    messages.push(await request(messages), user('follow-up'))
+    const second = await request(messages)
+    assert.equal(wires[0].body.previous_response_id, undefined)
+    assert.equal(wires[1].body.previous_response_id, 'resp_1')
+    assert.equal(wires[1].body.input.length, 1)
+    assert.ok(wires[1].bytes < wires[0].bytes / 20)
+    messages = [{ ...messages[0], content: messages[0].content + ' edited prefix' }, ...messages.slice(1), second, user('after edit')]
+    messages.push(await request(messages), user('after reconnect'))
+    assert.equal(wires[2].body.previous_response_id, undefined)
+    assert.ok(wires[2].bytes >= wires[0].bytes)
+    await Promise.all([...server.clients].map(socket => { const closed = once(socket, 'close'); socket.close(); return closed }))
+    await request(messages)
+    assert.equal(wires[3].body.previous_response_id, undefined)
+    assert.ok(wires[3].bytes >= wires[0].bytes)
+    assert.equal(connection.snapshot().deltaRequests, 1)
+  } finally {
+    connection.dispose()
+    for (const socket of server.clients) socket.terminate()
+    await new Promise(resolve => server.close(resolve))
+  }
 })

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, mkdir, writeFile, readFile, rm, realpath } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { createSubagentCli, SUBAGENT_CLI_ALIAS, SUBAGENT_CLI_SPEC, SUBAGENT_CODEX_VERSION } from '../src/subagent-cli.js'
+import { createSubagentCli, SUBAGENT_CLI_ALIAS, SUBAGENT_CLI_SPEC } from '../src/subagent-cli.js'
 
 test('the optional CLI is profile-owned, exact-versioned and installed by native package operations without touching the host CLI', async () => {
   // macOS resolves /var to /private/var; keep the fixture path canonical so the
@@ -11,7 +11,7 @@ test('the optional CLI is profile-owned, exact-versioned and installed by native
   const dir = await realpath(await mkdtemp(join(tmpdir(), 'subtask-cli-')))
   const manifestPath = join(dir, 'package.json'), packageDir = join(dir, 'node_modules', SUBAGENT_CLI_ALIAS)
   const hostCli = '@openai/codex'
-  let version = SUBAGENT_CODEX_VERSION, calls = 0
+  let version = '0.172.0', calls = 0
   try {
     await writeFile(manifestPath, JSON.stringify({ dependencies: { [hostCli]: '0.153.4' } }))
     const profile = { name: 'test', dir, installAnchor: manifestPath, cwd: dir, home: dir, packageManager: { command: process.execPath, args: ['bundled-pnpm.cjs'], env: { OWNER: 'DSH' } } }
@@ -22,7 +22,7 @@ test('the optional CLI is profile-owned, exact-versioned and installed by native
       const manifest = JSON.parse(await readFile(manifestPath))
       if (args[0] === 'add') {
         assert.deepEqual(args, ['add', '--save-exact', '--ignore-scripts', SUBAGENT_CLI_SPEC])
-        manifest.dependencies[SUBAGENT_CLI_ALIAS] = `npm:@openai/codex@${SUBAGENT_CODEX_VERSION}`
+        manifest.dependencies[SUBAGENT_CLI_ALIAS] = 'npm:@openai/codex@0.172.0'
         await mkdir(packageDir, { recursive: true })
         await writeFile(join(packageDir, 'package.json'), JSON.stringify({ name: hostCli, version, bin: { codex: 'bin/codex.js' } }))
       } else { assert.deepEqual(args, ['remove', SUBAGENT_CLI_ALIAS]); delete manifest.dependencies[SUBAGENT_CLI_ALIAS] }
@@ -34,9 +34,16 @@ test('the optional CLI is profile-owned, exact-versioned and installed by native
     assert.equal(cli.inspect().installed, true)
     assert.equal(cli.inspect().wrapper, join(packageDir, 'bin', 'codex.js'))
     assert.equal(JSON.parse(await readFile(manifestPath)).dependencies[hostCli], '0.153.4')
-    version = '0.153.4'
+    version = '0.171.0'
     await assert.rejects(cli.change('install', new AbortController().signal), /operation-error/)
-    assert.equal(cli.inspect().installed, false, 'an old CLI cannot masquerade as the prepared component')
+    assert.equal(cli.inspect().installed, false, 'the installed CLI must match the profile lock')
+    await writeFile(manifestPath, JSON.stringify({ dependencies: { [hostCli]: '0.153.4', [SUBAGENT_CLI_ALIAS]: 'npm:@openai/codex@0.173.0' } }))
+    await writeFile(join(packageDir, 'package.json'), JSON.stringify({name:hostCli,version:'0.173.0',bin:{codex:'bin/codex.js'}}))
+    assert.equal(cli.inspect().version, '0.173.0', 'a newer stable CLI needs no plugin version update')
+    for (const [name, version, bin] of [['@openai/codex','0.152.0','bin/codex.js'],['@openai/codex','0.174.0-alpha.1','bin/codex.js'],['other-package','0.173.0','bin/codex.js'],['@openai/codex','0.173.0','../other.js']]) {
+      await writeFile(join(packageDir,'package.json'),JSON.stringify({name,version,bin:{codex:bin}}))
+      assert.equal(cli.inspect().installed,false,'only the supported stable Codex package wrapper can be selected')
+    }
     await cli.change('remove', new AbortController().signal)
     await cli.change('remove', new AbortController().signal)
     assert.equal(calls, 3, 'removal does not touch an unrelated package')

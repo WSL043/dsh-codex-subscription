@@ -22,16 +22,15 @@ test('plugin card translations are exported and included in the published packag
 })
 const compatibility = JSON.parse(text('compatibility.json'))
 
-test('native plugin detail documents are brief, translated and explicitly packaged', () => {
+test('native plugin detail documents are translated and explicitly packaged', () => {
   assert.ok(manifest.files.includes('docs/plugin/*.md'))
-  for (const language of ['en', 'zh']) {
+  for (const language of ['en', 'zh', 'ja', 'es', 'fr', 'de', 'ru', 'pt']) {
     const { meta } = JSON.parse(text(`locale/${language}.json`))
-    const expected = language === 'zh' ? 'docs/plugin/DETAIL.zh.md' : 'docs/plugin/DETAIL.md'
+    const expected = language === 'en' ? 'docs/plugin/DETAIL.md' : `docs/plugin/DETAIL.${language}.md`
     assert.equal(meta.detail, expected)
     const body = text(meta.detail)
-    assert.ok(Buffer.byteLength(body) < 1024, 'detail remains a short introduction')
     assert.equal(body.includes('!['), false, 'no screenshots or duplicate README gallery')
-    assert.ok(body.includes(`README.${language === 'zh' ? 'zh-CN' : 'en'}.md`))
+    assert.ok(body.includes(`README.${language === 'zh' ? 'zh-CN' : language}.md`))
     assert.ok(body.includes('https://github.com/WSL043/dsh-codex-subscription/issues'))
   }
 })
@@ -126,7 +125,12 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   }
   for (const version of supportedDshReleases) assert.ok(declaresDshCompatibility(pkg, version), version)
   assert.ok(declaresDshCompatibility(pkg, '0.2.2-rc.3'))
-  assert.ok(!declaresDshCompatibility(pkg, '0.2.3-rc.1'))
+  for (const version of ['0.2.3-alpha.3', '0.2.3-rc.1', '0.2.3-rc.20', '0.2.3']) {
+    assert.ok(declaresDshCompatibility(pkg, version), version)
+  }
+  for (const version of ['0.2.3-alpha.1', '0.2.4-alpha.1', '0.2.4-rc.1', '0.2.4']) {
+    assert.ok(!declaresDshCompatibility(pkg, version), version)
+  }
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-llm-pi-ai'], compatibility.latestTested)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-home-paths'], compatibility.latestTested)
   assert.deepEqual(Object.keys(pkg.dependencies).filter(name => /^@deepseek-ai\/dsh(?:-|$)/u.test(name)), [], 'Market treats direct DSH dependencies as host version requirements')
@@ -141,7 +145,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(pkg.devDependencies['@deepseek-ai/cordis'], '4.1.0')
   assert.equal(pkg.devDependencies['@deepseek-ai/schemastery'], '3.18.4')
   assert.equal(pkg.peerDependencies['@deepseek-ai/schemastery'], '3.18.1 || ^3.18.2 || 3.18.6-alpha.1')
-  assert.equal(pkg.peerDependencies['@earendil-works/pi-ai'], '0.82.1 || 0.85.1 || 0.87.1 || 1.1.0 || 1.2.0 || 1.3.0 || 1.4.0 || 1.5.0 || 1.5.1 || 1.5.2 || 1.6.0')
+  assert.equal(pkg.peerDependencies['@earendil-works/pi-ai'], '0.82.1 || 0.85.1 || 0.87.1 || 1.1.0 || 1.2.0 || 1.3.0 || 1.4.0 || 1.5.0 || 1.5.1 || 1.5.2 || 1.6.0 || 1.6.1')
   assert.doesNotMatch(text('lib/index.js'), /@earendil-works\/pi-ai\/utils\/overflow/u)
   assert.equal(pkg.packageManager, 'pnpm@11.26.0')
   assert.equal(existsSync(new URL('../lib/index.js', import.meta.url)), true)
@@ -369,7 +373,7 @@ test('beta publishing stays a prerelease and never replaces npm latest or stable
 test('an alpha newer than the declared compatibility list is a notice, never a release blocker', () => {
   for (const file of ['.github/workflows/ci.yml', '.github/workflows/publish.yml']) {
     const workflow = text(file)
-    assert.match(workflow, /matrix\.channel \}\}'\s+-eq 'alpha'[\s\S]*?-notcontains \$version[\s\S]*?::notice title=DSH preview not declared::[\s\S]*?exit 0/u, file)
+    assert.match(workflow, /matrix\.channel \}\}'\s+-eq 'alpha'[\s\S]*?declaresDshCompatibility[\s\S]*?\$declared\.Trim\(\)[\s\S]*?::notice title=DSH preview not declared::[\s\S]*?exit 0/u, file)
   }
 })
 

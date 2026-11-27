@@ -66,6 +66,7 @@ Die Node.js-Anforderungen für CLI und Web findest du in der [offiziellen DSH-An
 
    ```text
 
+
    dsh-codex-subscription@3.3.0
    ```
 
@@ -84,6 +85,7 @@ Warum die Version angegeben ist: Auf der Plugin-Seite von DSH werden nur Version
 
 ```sh
 
+
 dsh plugin --profile web add dsh-codex-subscription@3.3.0
 ```
 
@@ -97,6 +99,7 @@ Folge den Anweisungen zum Neustart und melde dich anschließend unter **Einstell
 Melde dich an und wähle in Web ein Codex-Modell aus. Installiere anschließend dasselbe Plugin im Headless-Profil:
 
 ```sh
+
 
 dsh plugin --profile headless add dsh-codex-subscription@3.3.0
 dsh --profile headless "Reply with only the word: ok"
@@ -332,6 +335,7 @@ Suche dieses Plugin auf der DSH-Seite **Plugins** und verwende dort die Aktion z
 <summary>Terminalbefehle</summary>
 
 ```sh
+
 
 dsh plugin --profile web update dsh-codex-subscription@3.3.0
 ```

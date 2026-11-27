@@ -16,6 +16,7 @@ test('Codex SSE sends identical JSON bytes once through the host chain or explic
   const json = Buffer.from(JSON.stringify({ model: 'fixture', input: [{ type: 'compaction', encrypted_content: 'opaque-checkpoint' }, { role: 'user', content: [{ type: 'input_text', text: '日本語 中文' }, { type: 'input_image', image_url: 'data:image/png;base64,' + 'abcD'.repeat(1_400_000) }] }] }) + ' \n')
   for (const dedicated of [false, true]) {
     let calls = 0
+    const sentBytes = []
     const init = compressed(json), signal = new AbortController().signal
     init.signal = signal
     init.dispatcher = { fixture: true }
@@ -34,11 +35,13 @@ test('Codex SSE sends identical JSON bytes once through the host chain or explic
     }
     const response = await withCodexNetwork(fetch => fetch(endpoint, init), {
       requestFetch: true, env: {}, platform: 'test',
+      onModelRequestBytes: bytes => sentBytes.push(bytes),
       ...(dedicated ? { modelSseProxy: 'http://127.0.0.1:7890', fetchThroughProxy: inspect, fallbackFetch: () => assert.fail('proxy bypassed') } : { fallbackFetch: inspect }),
     })
     assert.equal(response.status, 400)
     assert.equal(await response.text(), 'invalid-parameter')
     assert.equal(calls, 1, 'rejected requests must not be retried')
+    assert.deepEqual(sentBytes, [json.length], 'diagnostics count the final outgoing body, not the smaller SDK zstd buffer (refs #275)')
     assert.equal(init.headers['content-encoding'], 'zstd', 'the caller keeps its original request')
     assert.equal(globalThis.fetch, originalFetch)
   }

@@ -96,6 +96,8 @@ On hosts that expose the shared provider settings, these controls edit the same 
 
 Set **ChatGPT connectors** under Web & tools to Read-only, Write after asking or Write directly, and every DSH model (DeepSeek included) gains three tools: `chatgpt_connectors_search` finds tools in the apps you connected in ChatGPT, `chatgpt_connectors_describe` shows their arguments, and `chatgpt_connectors_call` runs one. Apps such as GitHub, Gmail, Google Drive and Google Calendar work as far as your account has them connected.
 
+Under **Use account**, the default follows the current Codex sign-in. You can instead pin a saved ChatGPT account for connectors without changing the model account. All access modes apply to the selected connector account. Writes use that account's app permissions, and a missing or unauthorized account does not fall back to the active one. Connector results can enter the current model's context and DSH conversation history, including when the model uses a different account. Pin an account only if those data flows are allowed.
+
 - **Read-only** runs only tools the app marks read-only (search mail, read files, look up pull requests).
 - **Write after asking** requires DSH approval before changing data. If no prompt appears, open the current session's permission menu in the composer or run `/permission`. On the standard DSH profile, **Workspace Write** allows prompts and **Full access** disables them. A change runs only after approval.
 - **Write directly** runs the same changing calls immediately with no approval; a mistake cannot be undone. Use it only when you trust the model and the task.
@@ -226,6 +228,10 @@ To reconnect an already paired phone, open Codex in the ChatGPT app and select t
 
 ### Reuse cache when changing effort
 
+For GPT-6.2 and later, reusable system instructions are automatically sent as a leading `developer` message in Responses `input`, rather than uncached top-level `instructions`. No switch is needed. Newer pi-ai versions that already use this layout are preserved. Editable custom preferences and request-scoped instructions supplied by middleware remain separate, so editing preferences does not rewrite the cached system prefix or replay items. After upgrading an existing conversation, the first request can establish a new prefix and lose earlier cache or reasoning reuse; later requests reuse the new layout. Cache hits still depend on the server and an unchanged prefix. See [OpenAI's caching guide](https://developers.openai.com/api/docs/guides/prompt-caching).
+
+Public API cache controls are not necessarily accepted by the ChatGPT subscription endpoint. The plugin does not add `prompt_cache_options` or explicit cache breakpoints; these are separate from moving reusable instructions into the cacheable input.
+
 **Reuse cache when changing effort** is under **Settings → Codex → Models → Advanced**. It is on by default and can be turned off; saved Off choices are preserved. It applies only to standard, single-agent models explicitly supported by the current account catalog; support is never inferred from model names. Ordinary prompt caching is automatic and still works when this switch is off.
 
 The request-level `reasoning.effort` stays at the current context window's initial value. Changes are recorded as `configuration_update` items in new history and replayed in their original positions. This can reduce cache invalidation when switching effort; it does not guarantee cache hits, faster replies or quota savings. The response-level effort can still report the initial value.
@@ -281,11 +287,12 @@ Subscription chat, images, and native DSH subtasks do not need Codex CLI. Only *
 
 Install **Codex Subagent** from the official entries in DSH's **Plugins** page. If you only use it with your subscription, switch the official entry off after installation to leave the package installed and its standalone tool disabled.
 
-In **Settings → Codex → Web & tools → Independent subtasks**, use **Prepare CLI** if shown and restart DSH if prompted. Then choose **Codex (subscription)**. The dedicated CLI uses the profile dependency alias `dsh-codex-subtask-cli` and keeps your subscription login and saved child defaults.
+Then choose **Codex (subscription)** in **Settings → Codex → Web & tools → Independent subtasks**. The plugin reuses a compatible CLI bundled with the official component and follows its updates without requiring a second installation. If an existing profile-owned `dsh-codex-subtask-cli` is newer, it is retained. Subscription login and saved child defaults stay in DSH.
 
-On Windows, the dedicated CLI prefers Codex's MXC sandbox when supported by the device and policy. Otherwise it needs Codex's configured legacy Windows sandbox. Subtasks retain the DSH session's file policy; the plugin does not fall back to unrestricted execution when sandbox setup is unavailable.
+On Windows, the child CLI prefers Codex's MXC sandbox when the CLI, device and policy support it. Otherwise it needs Codex's configured legacy Windows sandbox. Subtasks retain the DSH session's file policy; the plugin does not fall back to unrestricted execution when sandbox setup is unavailable.
 
 ### Manual installation and offline preparation
+
 
 Use the same profile as the subscription plugin. For DSH `0.2.2-rc.5`, the exact-version terminal commands are below. On another supported host, replace only the DSH adapter version with that host's version; do not substitute `@next`.
 
@@ -294,7 +301,13 @@ dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.2-rc.5
 dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@0.167.0 --save-exact --ignore-scripts
 ```
 
-The CLI alias is a plain dependency, not a plugin to enable. Restart afterwards. Offline preparation requires a complete runtime installed and verified on the target OS and architecture; copying only the subscription plugin or Codex launcher is insufficient. Model requests still need connectivity.
+If the bundled CLI is unavailable or too old for the required sandbox, use **Prepare CLI** if shown, or install the latest stable CLI explicitly. Windows requires at least `0.167.0`; the minimum on other platforms is `0.153.4`:
+
+```sh
+dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@latest --save-exact --ignore-scripts
+```
+
+This saves an exact version in the profile; startup never downloads an update. The CLI alias is a plain dependency, not a plugin to enable. Restart afterwards. The actual executable version and app-server transport are checked before a child starts. Offline preparation requires a complete runtime installed and verified on the target OS and architecture; copying only the subscription plugin or Codex launcher is insufficient. Model requests still need connectivity.
 
 ### When you no longer need it
 

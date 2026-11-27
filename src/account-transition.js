@@ -49,7 +49,7 @@ export async function applyAccountTransition({
     () => usageProfileReader?.clear?.(),
     () => resetCreditService?.clear?.(),
     () => modelCatalog?.clear?.(),
-    () => onAccountChanged?.(),
+    () => onAccountChanged?.(endpoint, payload?.id),
   ]
   if (endpoint === 'logout') tasks.push(() => usageReader?.clear?.(), () => accountUsageReader?.clear?.())
   if (endpoint === 'login/status') tasks.push(() => accountUsageReader?.clear?.())

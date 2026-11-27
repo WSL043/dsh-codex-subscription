@@ -1,6 +1,6 @@
 // Keep every dependency on pi-ai's Codex-specific public surface in one place.
-// The exact peer version makes a DSH update fail visibly until this seam is
-// re-audited instead of silently changing authentication or cache semantics.
+// Supported peer cohorts are audited here so upstream updates do not silently
+// change authentication, replay or cache semantics.
 import { diagnosticLog } from './diagnostic-log.js'
 import { redactRequest } from './failure-capture.js'
 import { hoistLeadingSystem, runtimeVersions, understandsSystemMessages } from './pi-ai-compat.js'
@@ -26,15 +26,34 @@ import {
   clampModelContext,
 } from './settings-contract.js'
 
-// Older providers put the prefix in instructions; newer providers keep it in input for caching.
-function withUserPreferences(payload, preferences) {
+// Editable preferences stay turn-scoped on models whose instructions follow
+// the cached input, so preference edits do not rewrite its stable prefix.
+function withUserPreferences(payload, preferences, model) {
   if (!preferences) return payload
   const note = 'User response preferences (apply as defaults when compatible with the current request, workspace instructions, and host policies):\n' + preferences
   const first = payload.input?.[0]
-  if (payload.instructions === undefined && ['developer', 'system'].includes(first?.role) && typeof first.content === 'string') {
-    return { ...payload, input: [{ ...first, content: first.content + '\n\n' + note }, ...payload.input.slice(1)] }
+  if (!hasTailInstructions(model) && !payload.instructions && ['developer', 'system'].includes(first?.role)) {
+    const content = typeof first.content === 'string' ? first.content + '\n\n' + note
+      : Array.isArray(first.content) ? [...first.content, { type: 'input_text', text: note }] : undefined
+    if (content !== undefined) return { ...payload, input: [{ ...first, content }, ...payload.input.slice(1)] }
   }
   return { ...payload, instructions: [payload.instructions, note].filter(Boolean).join('\n\n') }
+}
+
+function hasTailInstructions(model) {
+  const version = /^gpt-(\d+)(?:\.(\d+))?(?:-|$)/u.exec(model?.id ?? '')
+  return version && (Number(version[1]) > 6 || Number(version[1]) === 6 && Number(version[2] ?? 0) >= 2)
+}
+
+// Normalize only the provider's reusable prefix, before preferences and caller
+// hooks supply turn-scoped instructions. Preserve the required Codex field.
+function withCacheableInstructions(payload, model) {
+  if (!hasTailInstructions(model) ||
+    typeof payload.instructions !== 'string' || payload.instructions.length === 0 || !Array.isArray(payload.input)) return payload
+  return { ...payload, instructions: '', input: [
+    { role: 'developer', content: [{ type: 'input_text', text: payload.instructions }] },
+    ...payload.input,
+  ] }
 }
 
 const FAST_SERVICE_TIER = 'priority'
@@ -172,7 +191,7 @@ export function openaiCodexSubscriptionProvider({
       ...(serviceTier === undefined ? {} : { serviceTier }),
       async onPayload(payload, requestModel) {
         const preferred = {
-          ...withUserPreferences(payload, instructions),
+          ...withUserPreferences(withCacheableInstructions(payload, model), instructions, model),
           ...(textVerbosity === undefined ? {} : { text: { ...(payload.text ?? {}), verbosity: textVerbosity } }),
           ...(serviceTier === undefined ? {} : { service_tier: serviceTier }),
         }
@@ -439,4 +458,4 @@ export function openaiCodexSubscriptionProvider({
   })
 }
 
-export const PI_AI_RUNTIME_VERSIONS = Object.freeze(['0.82.1', '0.85.1', '0.87.1', '1.1.0', '1.2.0', '1.3.0', '1.4.0', '1.5.0', '1.5.1', '1.5.2', '1.6.0'])
+export const PI_AI_RUNTIME_VERSIONS = Object.freeze(['0.82.1', '0.85.1', '0.87.1', '1.1.0', '1.2.0', '1.3.0', '1.4.0', '1.5.0', '1.5.1', '1.5.2', '1.6.0', '1.6.1'])

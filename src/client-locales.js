@@ -109,6 +109,15 @@ export const zh = {
   connectorsMode_ask: "当前会话允许审批时，写操作会请求确认。可在输入框的权限菜单或用 /permission 查看和切换会话权限。",
   connectorsMode_write: '写操作直接执行，不再弹出确认，误操作无法撤回，请谨慎使用。',
   connectors_off: '关闭', connectors_read: '只读', connectors_ask: '询问后写入', connectors_write: '直接写入',
+  connectorSettingsLoading: '正在读取连接器设置…', connectorSettingsUnavailable: '无法读取连接器设置。', connectorSettingsSaving: '正在保存设置…',
+  connectorAccountTitle: '使用账号', connectorAccountFollow: '跟随当前账号',
+  connectorAccountOrdinal: '{label}（账号 {number}）', connectorAccountActiveOption: '{label}（当前 Codex 账号）',
+  connectorAccountCurrent: '当前 Codex 推理账号：{account}', connectorAccountUnknown: '未知',
+  connectorAccountSaved: '已保存的固定账号', connectorAccountMissing: '固定账号不可用',
+  connectorAccountMissingHint: '找不到固定账号。已保留选择，不会回退到其他账号。可改为跟随当前账号，或另选一个账号。',
+  connectorAccountUnknownHint: '暂时无法确认固定账号的状态。已保留选择；也可改为跟随当前账号。',
+  connectorAccountDisclosure: '固定账号只影响连接器。该账号返回的数据可能进入当前对话所用模型的上下文（包括其他账号或模型服务商），并写入 DSH 会话记录。仅在相关工作区及数据处理政策均允许时使用。',
+  connectorAccountWriteDestination: '写操作只会作用于所选连接器账号已连接的应用，即使 Codex 使用其他账号推理。',
   defaultReasoningEffort: '默认推理等级', defaultReasoningEffortHint: '未手动选档时使用；模型不支持时跟随该模型默认值。',
   composerPredictions: '输入预测', composerPredictionAccept: '接受建议', composerPredictionsShortHint: 'Tab 填入草稿', composerPredictionsHint: `支持的 Codex 模型在一轮对话完成、草稿为空时，基于当前会话建议下一条消息。Tab 填入草稿，不会自动发送。会产生额外预测请求。官方 Codex 生成预测不计额度或 Credits；DSH 第三方接入是否享有相同豁免尚未确认。接受后发送消息仍正常计量。`,
   composerPredictionModels: "此账号可用的模型：{models}",
@@ -366,6 +375,18 @@ export const zh = {
   imageAnnotate: '标注部位', imageAnnotateCancel: '取消标注', imageAnnotateHint: '点击图片添加编号标注', imageAnnotation: '标注 {value}', imageAnnotationPlaceholder: '描述这个部位要修改什么', imageCopyNotes: '复制备注', imageCopied: '已复制', imagePrevious: '上一张图片', imageNext: '下一张图片', imageZoomHint: '滚轮缩放 · 拖动查看 · 双击切换原始大小', imageActual: '原始大小',  imageEditDefault: '编辑这张图片。', imageEdit: '添加到输入框', imageEditPreparing: '正在添加到输入框…', imageEditFailed: '回填失败：请填写每个标记的备注，并确认输入框可接收图片后重试。', imageRemoveAnnotation: '删除标注',
 }
 
+export const connectorAccountEnglish = {
+  connectorSettingsLoading: 'Loading connector settings…', connectorSettingsUnavailable: 'Could not load connector settings.', connectorSettingsSaving: 'Saving settings…',
+  connectorAccountTitle: 'Account to use', connectorAccountFollow: 'Follow the current account',
+  connectorAccountOrdinal: '{label} (account {number})', connectorAccountActiveOption: '{label} (current Codex account)',
+  connectorAccountCurrent: 'Current Codex inference account: {account}', connectorAccountUnknown: 'Unknown',
+  connectorAccountSaved: 'Saved fixed account', connectorAccountMissing: 'Fixed account unavailable',
+  connectorAccountMissingHint: 'The fixed account was not found. Your selection is kept; connectors will not fall back to another account. Choose Follow the current account or select another account.',
+  connectorAccountUnknownHint: 'Could not verify the fixed account. Your selection is kept, or you can choose Follow the current account.',
+  connectorAccountDisclosure: 'Fixing an account only affects connectors. Data from its apps may be sent to the model used in this chat (even under a different account or provider) and saved in the DSH conversation history. Only use this if the relevant workspace and data-handling policies allow it.',
+  connectorAccountWriteDestination: 'Writes go only to apps connected to the selected connector account, even if the Codex inference account is different.',
+}
+
 export const en = {
   speedShortcutTitle: 'Composer speed shortcut', speedShortcut_off: 'Original', speedShortcut_icon: 'Lightning', speedShortcut_hover: 'On hover', speedShortcut_label: 'Speed name',
   catalogTimeout: "The model catalog request timed out. Check your network or proxy and retry.",
@@ -476,6 +497,7 @@ export const en = {
   connectorsMode_ask: "Write actions ask for approval when the current session allows it. Check or change session permissions in the composer or with /permission.",
   connectorsMode_write: 'Changing actions run immediately without a prompt and cannot be undone, so use this carefully.',
   connectors_off: 'Off', connectors_read: 'Read-only', connectors_ask: 'Write after asking', connectors_write: 'Write directly',
+  ...connectorAccountEnglish,
   defaultReasoningEffort: 'Default reasoning effort', defaultReasoningEffortHint: 'Used when no effort is selected manually. Unsupported levels fall back to the model default.',
   composerPredictions: 'Input predictions', composerPredictionAccept: 'Accept suggestion', composerPredictionsShortHint: 'Tab fills draft', composerPredictionsHint: `Supported Codex models suggest your next message from the current conversation after a completed turn, when the draft is empty. Tab fills the draft without sending. Makes additional prediction requests. Official Codex predictions do not count toward usage limits or credits; the same exemption for this third-party integration is unconfirmed. Sending an accepted draft still counts normally.`,
   composerPredictionModels: "Available models for this account: {models}",

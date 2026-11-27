@@ -58,6 +58,7 @@ CLI 和 Web 的 Node.js 要求见 [DSH 官方运行说明](https://github.com/de
 
    ```text
 
+
    dsh-codex-subscription@3.3.0
    ```
 
@@ -76,6 +77,7 @@ CLI 和 Web 的 Node.js 要求见 [DSH 官方运行说明](https://github.com/de
 
 ```sh
 
+
 dsh plugin --profile web add dsh-codex-subscription@3.3.0
 ```
 
@@ -89,6 +91,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.3.0
 先在 Web 中完成登录并选择一次 Codex 模型，再把同一个插件安装到 Headless profile：
 
 ```sh
+
 
 dsh plugin --profile headless add dsh-codex-subscription@3.3.0
 dsh --profile headless "只回复：ok"
@@ -308,6 +311,7 @@ dsh --profile headless "只回复：ok"
 <summary>终端方式</summary>
 
 ```sh
+
 
 dsh plugin --profile web update dsh-codex-subscription@3.3.0
 ```

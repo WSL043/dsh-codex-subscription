@@ -4,9 +4,8 @@ import { dirname } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { SUBAGENT_CODEX_VERSION } from './subagent-cli.js'
-import { declaresDshCompatibility } from './dsh-compatibility.js'
-export { SUBAGENT_CODEX_VERSION } from './subagent-cli.js'
+import { inspectCodexCli } from './subagent-cli.js'
+import { compareVersions, declaresDshCompatibility } from './dsh-compatibility.js'
 
 export const SUBAGENT_RUNTIME_PACKAGE = '@deepseek-ai/dsh-subagent-codex'
 const require = createRequire(import.meta.url)
@@ -35,26 +34,38 @@ export function matchingSubagentRuntimeVersion(resolve = require.resolve) {
   return declaresDshCompatibility(require('../package.json'), version) ? version : undefined
 }
 
-// Reuse the host-matching official provider and protocol with the dedicated CLI.
+// Resolve the official component's own CLI dependency on each inspection. Keep
+// an existing, newer profile-owned CLI, but never require a duplicate install.
 // Never search PATH or a desktop application's private files.
-export function inspectSubagentRuntime(resolve = require.resolve, cli) {
+export function inspectSubagentRuntime(resolve = require.resolve, cli, platform = process.platform) {
   try {
     const manifestPath = resolve(`${SUBAGENT_RUNTIME_PACKAGE}/package.json`)
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
     const hostVersion = matchingSubagentRuntimeVersion(resolve)
     if (hostVersion === undefined || manifest.version !== hostVersion) return { installed: false, present: true }
-    return { installed: cli?.inspect().installed === true, present: true, adapterInstalled: true }
+    let bundled
+    try { bundled = inspectCodexCli(createRequire(manifestPath).resolve('@openai/codex/package.json'), platform) } catch {}
+    const dedicated = cli?.inspect()
+    const chosen = dedicated?.installed && (!bundled || compareVersions(dedicated.version, bundled.version) > 0)
+      ? { version: dedicated.version, wrapper: dedicated.wrapper, source: 'profile' }
+      : bundled && { ...bundled, source: 'dsh' }
+    return { installed: Boolean(chosen), present: true, adapterInstalled: true, ...chosen }
   } catch { return { installed: false } }
 }
 
 export async function loadSubagentRuntime({ resolve = require.resolve, cli, run = execute, importModule = url => import(url), platform = process.platform } = {}) {
-  if (!inspectSubagentRuntime(resolve, cli).installed) throw new Error('Codex subtask runtime is not prepared')
+  const runtime = inspectSubagentRuntime(resolve, cli, platform)
+  if (!runtime.installed) throw new Error('Codex subtask runtime is not prepared')
   const entry = resolve(SUBAGENT_RUNTIME_PACKAGE)
   const providerRequire = createRequire(entry)
-  const { wrapper } = cli.inspect()
+  const { wrapper, version } = runtime
+  let transport
   try {
     const { stdout } = await run(process.execPath, [wrapper, '--version'], { timeout: 10000, maxBuffer: 4096, windowsHide: true })
-    if (stdout.trim() !== `codex-cli ${SUBAGENT_CODEX_VERSION}`) throw new Error('Unexpected CLI version')
+    if (stdout.trim() !== `codex-cli ${version}`) throw new Error('Unexpected CLI version')
+    const { stdout: help } = await run(process.execPath, [wrapper, 'app-server', '--help'], { timeout: 10000, maxBuffer: 16384, windowsHide: true })
+    transport = help.includes('--listen') ? ['--listen', 'stdio://'] : help.includes('--stdio') ? ['--stdio'] : undefined
+    if (!transport) throw new Error('Unsupported app-server transport')
   } catch { throw new Error('Codex subtask runtime is incomplete; prepare it for this platform') }
   const [official, { JsonRpcLineTransport: Transport }] = await Promise.all([
     importModule(pathToFileURL(entry).href),
@@ -63,6 +74,6 @@ export async function loadSubagentRuntime({ resolve = require.resolve, cli, run 
   // Standalone Codex does not enable a Windows sandbox by default. Prefer the
   // official desktop's MXC isolation; unsupported machines retain Codex's own
   // configured legacy sandbox or fail closed. Never disable confinement.
-  return { official, Transport, argv: [process.execPath, wrapper, 'app-server', '--listen', 'stdio://', '-c', 'features.apps=false', '-c', 'features.plugins=false',
+  return { official, Transport, version, source: runtime.source, argv: [process.execPath, wrapper, 'app-server', ...transport, '-c', 'features.apps=false', '-c', 'features.plugins=false',
     ...(platform === 'win32' ? ['-c', 'features.prefer_mxc=true'] : [])] }
 }

@@ -1,6 +1,21 @@
 // DSH locale dictionary. Keep keys and placeholders aligned with client-locales.js.
 
 export default {
+  "connectorSettingsLoading": "Загрузка настроек коннекторов…",
+  "connectorSettingsUnavailable": "Не удалось загрузить настройки.",
+  "connectorSettingsSaving": "Сохранение настроек…",
+  "connectorAccountTitle": "Аккаунт коннекторов",
+  "connectorAccountFollow": "Следовать текущему аккаунту",
+  "connectorAccountOrdinal": "{label} (аккаунт {number})",
+  "connectorAccountActiveOption": "{label} (текущий Codex)",
+  "connectorAccountCurrent": "Аккаунт модели Codex: {account}",
+  "connectorAccountUnknown": "Неизвестен",
+  "connectorAccountSaved": "Сохранённый аккаунт",
+  "connectorAccountMissing": "Закреплённый аккаунт недоступен",
+  "connectorAccountMissingHint": "Закреплённый аккаунт не найден. Выбор сохранён, другой аккаунт не используется. Выберите доступный аккаунт.",
+  "connectorAccountUnknownHint": "Не удалось проверить закреплённый аккаунт. Выбор сохранён; можно выбрать текущий аккаунт.",
+  "connectorAccountDisclosure": "Закрепление касается только коннекторов. Их данные могут передаваться модели этого чата, включая другой аккаунт или сервис, и сохраняться в истории DSH. Используйте только при разрешении политик обработки данных рабочих пространств.",
+  "connectorAccountWriteDestination": "Запись выполняется в приложения выбранного аккаунта коннекторов независимо от аккаунта модели.",
   "speedShortcutTitle": "Переключатель скорости в поле ввода",
   "speedShortcut_off": "Как раньше",
   "speedShortcut_icon": "Молния",

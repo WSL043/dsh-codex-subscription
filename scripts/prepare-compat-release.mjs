@@ -2,7 +2,7 @@ import { readFile, writeFile, readdir } from 'node:fs/promises'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
-import { compareVersions, declaresDshCompatibility, parseVersion } from '../src/dsh-compatibility.js'
+import { compareVersions, declaresDshCompatibility, dshReleaseRange, parseVersion } from '../src/dsh-compatibility.js'
 export { compareVersions, declaresDshCompatibility, dshCompatibilityRange } from '../src/dsh-compatibility.js'
 
 const RELEASE_AGE_START = '# dsh-compat-release-age-start'
@@ -67,7 +67,7 @@ function previousDocumentedPluginVersion(version, documented) {
 
 const SUBAGENT_RUNTIME = '@deepseek-ai/dsh-subagent-codex'
 
-// Add one exact version to an `a || b || c` peer list, keeping existing entries.
+// Add one compatibility clause to a peer list, keeping existing entries.
 function widenPeer(manifest, name, version) {
   const current = manifest.peerDependencies?.[name]
   if (version === undefined || typeof current !== 'string') return
@@ -110,14 +110,24 @@ export function planCompatibilityUpdate(state, candidate) {
     }
   }
   // The DSH plugin manager also checks the cordis host and the optional Codex subtask runtime.
-  widenPeer(manifest, '@deepseek-ai/cordis', state.host?.cordis)
+  const cordis = state.host?.cordis
+  widenPeer(manifest, '@deepseek-ai/cordis', cordis === undefined ? undefined : `~${cordis}`)
   const subagentRuntime = state.host?.subagentRuntime
   if (manifest.engines?.dsh === undefined) widenPeer(manifest, SUBAGENT_RUNTIME, subagentRuntime)
   if (subagentRuntime !== undefined && !preview && manifest.devDependencies?.[SUBAGENT_RUNTIME]) manifest.devDependencies[SUBAGENT_RUNTIME] = subagentRuntime
   const testedVersions = [...compatibility.supported, ...compatibility.previews].sort(compareVersions)
-  const supportedRange = manifest.engines?.dsh === undefined
-    ? testedVersions.join(' || ')
-    : [manifest.engines.dsh, ...testedVersions.filter(version => !declaresDshCompatibility(manifest, version))].join(' || ')
+  const existingRange = manifest.engines?.dsh ?? Object.entries(manifest.peerDependencies ?? {})
+    .find(([name]) => name.startsWith('@deepseek-ai/dsh-') && !manifest.peerDependenciesMeta?.[name]?.optional)?.[1] ?? ''
+  const previewFloors = new Map()
+  for (const version of testedVersions.filter(isPreviewVersion)) {
+    const release = parseVersion(version).core.join('.')
+    if (!previewFloors.has(release)) previewFloors.set(release, version)
+  }
+  const clauses = existingRange.split('||').map(term => term.trim()).filter(Boolean)
+  const forwardRange = [...new Set([...clauses, ...[...previewFloors.values()].map(dshReleaseRange)])].join(' || ')
+  const declared = { engines: { dsh: forwardRange } }
+  const additions = testedVersions.filter(version => !declaresDshCompatibility(declared, version))
+  const supportedRange = [forwardRange, ...additions].filter(Boolean).join(' || ')
   if (manifest.engines?.dsh !== undefined) manifest.engines.dsh = supportedRange
   for (const name of Object.keys(manifest.peerDependencies ?? {})) {
     if (name.startsWith('@deepseek-ai/dsh-') && (!manifest.peerDependenciesMeta?.[name]?.optional

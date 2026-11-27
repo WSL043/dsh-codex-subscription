@@ -5,6 +5,7 @@ import test from 'node:test'
 import {
   boundedArtifactPaths,
   compareVersions,
+  declaresDshCompatibility,
   cordisHostOf,
   extractDeepSeekReleaseAgeSelectors,
   hostOf,
@@ -78,10 +79,19 @@ test('plans preview DSH support as a plugin beta without moving the stable lane'
   assert.equal(update.manifest.devDependencies['@deepseek-ai/dsh-home-paths'], '0.1.1-rc.2')
   assert.equal(
     update.manifest.peerDependencies['@deepseek-ai/dsh-web'],
-    '0.1.1-rc.2 || 0.1.2-alpha.1 || 0.1.2-alpha.2 || 0.1.2-alpha.3',
+    '0.1.1-rc.2 || 0.1.2-alpha.1 || 0.1.2-alpha.2 || >=0.1.2-alpha.1 <0.1.3-0',
   )
   assert.deepEqual(boundedArtifactPaths(update), [])
   assert.equal(rewriteWorkspaceCohort('stable release-age policy', update), 'stable release-age policy')
+  const admitted = manifest => ({ engines: { dsh: manifest.peerDependencies['@deepseek-ai/dsh-web'] } })
+  for (const version of ['0.1.2-alpha.4', '0.1.2-rc.1', '0.1.2-rc.2', '0.1.2']) {
+    assert.ok(declaresDshCompatibility(admitted(update.manifest), version), version)
+  }
+  const promoted = planCompatibilityUpdate({ manifest: update.manifest, compatibility: update.compatibility }, '0.1.2-rc.1')
+  assert.ok(declaresDshCompatibility(admitted(promoted.manifest), '0.1.2-rc.2'))
+  assert.ok(!declaresDshCompatibility(admitted(promoted.manifest), '0.1.3-rc.1'))
+  const oldAlpha = planCompatibilityUpdate(previewFixture(), '0.1.2-rc.1')
+  assert.ok(declaresDshCompatibility(admitted(oldAlpha.manifest), '0.1.2-rc.2'))
 })
 
 test('increments repeated plugin betas and promotes the same patch when DSH leaves preview', () => {
@@ -208,12 +218,12 @@ test('the cordis host comes from the exact version a DSH release declares', () =
 test('a preview widens the cordis host and the optional subtask runtime peer without touching its dev pin', () => {
   const state = withHostPeers(previewFixture())
   const update = planCompatibilityUpdate({ ...state, host: { cordis: '4.0.5-alpha.1', subagentRuntime: '0.1.2-alpha.3' } }, '0.1.2-alpha.3')
-  assert.equal(update.manifest.peerDependencies['@deepseek-ai/cordis'], '4.0.3 || 4.0.4 || 4.0.5-alpha.1')
+  assert.equal(update.manifest.peerDependencies['@deepseek-ai/cordis'], '4.0.3 || 4.0.4 || ~4.0.5-alpha.1')
   assert.equal(update.manifest.peerDependencies['@deepseek-ai/dsh-subagent-codex'], '0.1.1-rc.2 || 0.1.2-alpha.3')
   assert.equal(update.manifest.devDependencies['@deepseek-ai/dsh-subagent-codex'], '0.1.1-rc.2')
   assert.equal(update.subagentRuntime, '0.1.2-alpha.3')
   const again = planCompatibilityUpdate({ ...state, host: { cordis: '4.0.4' } }, '0.1.2-alpha.3')
-  assert.equal(again.manifest.peerDependencies['@deepseek-ai/cordis'], '4.0.3 || 4.0.4')
+  assert.equal(again.manifest.peerDependencies['@deepseek-ai/cordis'], '4.0.3 || 4.0.4 || ~4.0.4')
   assert.equal(again.subagentRuntime, undefined)
 })
 

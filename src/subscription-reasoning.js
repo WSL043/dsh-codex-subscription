@@ -25,10 +25,10 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
     }
   }
   const wrapStream = (factory, options, path) => (async function* () {
-    // Auxiliary prompts share the session id, but do not own its conversation checkpoint.
-    // A native compaction summary replays history but only its committed replacement
-    // changes the conversation window. Do not let it read or write the live checkpoint.
-    if (isDshAutoReview(options) || options.purpose === 'session-title' || options.purpose === 'compaction') {
+    // DSH reserves purpose for auxiliary calls, which can share a session ID
+    // with the conversation without owning its checkpoint. Keep the prompt
+    // check for older hosts that did not mark automatic reviews.
+    if (options.purpose !== undefined || isDshAutoReview(options)) {
       yield* unscoped(factory, options); return
     }
     const key = keyOf(options.sessionId)
@@ -38,7 +38,7 @@ export function createReasoningBridge({ enabled = () => false, cloud = () => fal
       if (optedIn) report(automatic ? 'cloud-compaction' : alwaysRetry ? 'unlimited-retries' : 'unsupported-request')
       yield* unscoped(factory, options); return
     }
-    const requestInfo = { id: ++requestId, path, purpose: options.purpose === undefined ? 'conversation' : 'other' }
+    const requestInfo = { id: ++requestId, path, purpose: 'conversation' }
     const holder = busy.get(key)
     if (holder) {
       holder.session ??= reasoningHash(diagnosticSalt + ':' + key).slice(0, 12)
