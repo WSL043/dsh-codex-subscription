@@ -220,7 +220,8 @@ async function settleModels(modelsReady, timeoutMs, signal) {
  * @param {object} options
  * @param {() => boolean} options.enabled - the user's switch.
  * @param {() => Promise<{id: string, active?: boolean, label?: string}[]>} options.listAccounts
- * @param {() => Promise<string|undefined>} options.activeAccountId
+ * @param {() => Promise<string|undefined>} options.activeAccountId - fallback for
+ *   callers that do not provide an attempt snapshot.
  * @param {(id: string) => Promise<void>} options.switchAccount - commits the switch and
  *   invalidates this account's caches; must be idempotent per target id.
  * @param {() => Promise<boolean>} options.modelsReady - resolves once the new account's
@@ -316,12 +317,18 @@ export function createAccountFailover({
     return { kind: 'retry' }
   }
 
-  const handler = async ({ agent, turn, step, provider: requestProvider, failure, signal }, next) => {
+  const handler = async ({ agent, turn, step, provider: requestProvider, failure, signal, requestAccountId }, next) => {
     if (!enabled() || requestProvider !== provider || signal?.aborted) return next()
     const family = classifyFailoverFailure(failure)
     if (family === undefined) return next()
     const sessionId = agent?.session?.id
-    const accountId = await activeAccountId().catch(() => undefined)
+    // The request-error event may arrive after another conversation or a manual
+    // account/select changed the vault's active account. Prefer the account
+    // captured at agent/request time; only old callers without that snapshot use
+    // the live active account as a compatibility fallback.
+    const accountId = typeof requestAccountId === 'string' && requestAccountId.length > 0
+      ? requestAccountId
+      : await activeAccountId().catch(() => undefined)
     if (typeof accountId !== 'string' || accountId.length === 0) return next()
     // Some provider refusals arrive with a status DSH's own retry layer does not
     // classify as transient — a 500 carrying "An error occurred while processing

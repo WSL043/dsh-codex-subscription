@@ -287,10 +287,10 @@ On Windows, the dedicated CLI prefers Codex's MXC sandbox when supported by the 
 
 ### Manual installation and offline preparation
 
-Use the same profile as the subscription plugin. For DSH `0.2.2-rc.1`, the exact-version terminal commands are below. On another supported host, replace only the DSH adapter version with that host's version; do not substitute `@next`.
+Use the same profile as the subscription plugin. For DSH `0.2.2-rc.5`, the exact-version terminal commands are below. On another supported host, replace only the DSH adapter version with that host's version; do not substitute `@next`.
 
 ```sh
-dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.2-rc.1
+dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.2-rc.5
 dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@0.167.0 --save-exact --ignore-scripts
 ```
 

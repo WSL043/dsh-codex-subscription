@@ -280,10 +280,10 @@ Windows 上，专用 CLI 优先使用设备和策略支持的 Codex MXC 沙箱�
 
 ### 手动安装与离线准备
 
-安装到订阅插件所在的同一 profile。以下命令适用于 DSH `0.2.2-rc.1`；使用其他受支持宿主时，只将适配器版本替换为宿主的对应版本，不要改用 `@next`。
+安装到订阅插件所在的同一 profile。以下命令适用于 DSH `0.2.2-rc.5`；使用其他受支持宿主时，只将适配器版本替换为宿主的对应版本，不要改用 `@next`。
 
 ```sh
-dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.2-rc.1
+dsh plugin --profile web add @deepseek-ai/dsh-subagent-codex@0.2.2-rc.5
 dsh plugin --profile web add dsh-codex-subtask-cli@npm:@openai/codex@0.167.0 --save-exact --ignore-scripts
 ```
 

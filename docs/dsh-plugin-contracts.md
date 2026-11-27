@@ -1,6 +1,6 @@
 # DSH extension contracts
 
-See the [architecture](ARCHITECTURE.md) and [maintenance practices](maintenance-lessons.md). These contracts were checked against DSH `0.2.2-rc.1`. Recheck them against the host version you target.
+See the [architecture](ARCHITECTURE.md) and [maintenance practices](maintenance-lessons.md). These contracts were checked against DSH `0.2.2-rc.5`; the older version notes below are historical contract observations. The manifest's rolling `0.2.2-rc.*` range is an API-family declaration; the exact release samples exercised for this build are listed in `compatibility.json`.
 
 ## References in DSH
 

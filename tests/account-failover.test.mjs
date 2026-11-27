@@ -38,9 +38,9 @@ function harness({ accountsForTest = accounts, active = 'account-a', failure, en
     now: clock,
     log: { info: (...args) => logged.push(['info', ...args]), warn: (...args) => logged.push(['warn', ...args]) },
   })
-  const run = (failure, { agentForTest = agent, sessionId = 'session-1' } = {}) => {
+  const run = (failure, { agentForTest = agent, sessionId = 'session-1', requestAccountId } = {}) => {
     agentForTest.session.id = sessionId
-    return failover({ agent: agentForTest, turn: 1, step: 1, provider: 'openai-codex', failure, signal: signal() }, async () => ({ kind: 'downstream' }))
+    return failover({ agent: agentForTest, turn: 1, step: 1, provider: 'openai-codex', failure, requestAccountId, signal: signal() }, async () => ({ kind: 'downstream' }))
   }
   return { failover, run, events, switched, logged, agent, current: () => current }
 }
@@ -63,6 +63,16 @@ test('quota and account-quota codes also move the turn', async () => {
     assert.deepEqual(await run({ code, message: 'any' }), { kind: 'retry' })
     assert.deepEqual(switched, ['account-b'])
   }
+})
+
+test('a late error is attributed to the account that sent the request, not the current vault account', async () => {
+  const { run, switched, current } = harness({ active: 'account-b', accountsForTest: accounts.slice(0, 2) })
+  // The request was sent with account-a. Before its response arrived, another
+  // turn/manual switch made account-b active. Reusing the current account here
+  // would incorrectly rotate back to the account that actually failed.
+  assert.deepEqual(await run(payload({ message: USAGE_LIMIT }), { requestAccountId: 'account-a' }), { kind: 'retry' })
+  assert.deepEqual(switched, [], 'the already-active replacement account is reused')
+  assert.equal(current(), 'account-b')
 })
 
 test('a single capacity failure keeps the account; the second in a row moves it', async () => {

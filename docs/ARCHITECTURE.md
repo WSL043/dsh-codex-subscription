@@ -1,6 +1,6 @@
 # Architecture
 
-This overview covers subscription plugin `3.2.10` and DSH `0.2.2-rc.1`. See the [development index](DEVELOPMENT.md), [DSH extension contracts](dsh-plugin-contracts.md) and [Desktop checks](ui-smoke.md).
+This overview covers the subscription plugin architecture; the current validated baseline is plugin `3.3.0` on DSH `0.2.2-rc.5`. See the [development index](DEVELOPMENT.md), [DSH extension contracts](dsh-plugin-contracts.md) and [Desktop checks](ui-smoke.md).
 
 ## Execution paths
 

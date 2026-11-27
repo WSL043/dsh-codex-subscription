@@ -890,6 +890,32 @@ export function apply(ctx, config = {}) {
   // here, next to the other account transitions.
   const failoverLifetime = new AbortController()
   const activeFailovers = new Set()
+  // Bind each model-request attempt to the account that was active before the
+  // request waterfall ran. request-error can arrive after another turn or a
+  // manual account/select changes the vault, so reading the vault only there can
+  // misattribute a late response and rotate back to the account that failed.
+  const requestAccountSnapshots = new WeakMap()
+  const requestAttemptKey = (turn, step) => `${turn}:${step}`
+  const disposeRequestAccount = ctx.on('agent/request', async ({ agent, turn, step }, next) => {
+    if (agent !== null && typeof agent === 'object') {
+      const accountId = await accountVault.activeId().catch(() => undefined)
+      if (typeof accountId === 'string' && accountId.length > 0) {
+        let snapshots = requestAccountSnapshots.get(agent)
+        if (snapshots === undefined) {
+          snapshots = new Map()
+          requestAccountSnapshots.set(agent, snapshots)
+        }
+        snapshots.set(requestAttemptKey(turn, step), accountId)
+        if (snapshots.size > 64) snapshots.delete(snapshots.keys().next().value)
+      }
+    }
+    return next()
+  })
+  const disposeRequestSnapshots = ctx.on('agent/turn-stopping', ({ agent, turn }) => {
+    const snapshots = agent !== null && typeof agent === 'object' ? requestAccountSnapshots.get(agent) : undefined
+    if (snapshots === undefined) return
+    for (const key of snapshots.keys()) if (key.startsWith(`${turn}:`)) snapshots.delete(key)
+  })
   const accountFailover = createAccountFailover({
     enabled: () => normalizeAccountFailover(settings.get()[ACCOUNT_FAILOVER_FIELD]),
     listAccounts: () => accountVault.list(),
@@ -910,6 +936,11 @@ export function apply(ctx, config = {}) {
     log: { info: (area, message) => diagnosticLog.info(area, message), warn: (area, message, detail) => diagnosticLog.warn(area, message, detail) },
   })
   const disposeFailover = ctx.on('agent/request-error', (payload, next) => {
+    const snapshots = payload.agent !== null && typeof payload.agent === 'object'
+      ? requestAccountSnapshots.get(payload.agent)
+      : undefined
+    const requestAccountId = snapshots?.get(requestAttemptKey(payload.turn, payload.step))
+    snapshots?.delete(requestAttemptKey(payload.turn, payload.step))
     if (failoverLifetime.signal.aborted) return Promise.resolve(undefined)
     const signal = payload.signal === undefined
       ? failoverLifetime.signal
@@ -917,12 +948,14 @@ export function apply(ctx, config = {}) {
     // Registered after the quota listener with the same prepend flag, so this runs
     // first: another account that can serve now beats waiting for this one to reset.
     // The two never both claim a turn, because the one that recovers returns first.
-    const operation = accountFailover({ ...payload, signal }, next)
+    const operation = accountFailover({ ...payload, requestAccountId, signal }, next)
     const tracked = operation.finally(() => activeFailovers.delete(tracked))
     activeFailovers.add(tracked)
     return tracked
   }, true)
   ctx.effect(() => async () => {
+    disposeRequestAccount()
+    disposeRequestSnapshots()
     disposeFailover()
     failoverLifetime.abort(new Error('codex-subscription account failover disposed'))
     await Promise.allSettled([...activeFailovers])

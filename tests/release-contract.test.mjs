@@ -118,7 +118,11 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(pkg.dependencies?.['@earendil-works/pi-ai'], undefined)
   const supportedDshReleases = new Set([...compatibility.supported, ...compatibility.previews])
   for (const [name, version] of Object.entries(pkg.peerDependencies)) {
-    if (name.startsWith('@deepseek-ai/dsh-') && !pkg.peerDependenciesMeta?.[name]?.optional) assert.equal(version, pkg.engines.dsh, name)
+    if (!name.startsWith('@deepseek-ai/dsh-') || pkg.peerDependenciesMeta?.[name]?.optional) continue
+    // The runtime-loaded SDK protocol is an exact host-cohort seam; unlike the
+    // ordinary DSH package peers it must not silently float to another schema.
+    if (name === '@deepseek-ai/dsh-sdk-protocol') assert.equal(version, compatibility.latestTested, name)
+    else assert.equal(version, pkg.engines.dsh, name)
   }
   for (const version of supportedDshReleases) assert.ok(declaresDshCompatibility(pkg, version), version)
   assert.ok(declaresDshCompatibility(pkg, '0.2.2-rc.3'))
@@ -134,7 +138,7 @@ test('release is a prebuilt, documented, removable DSH bundle', () => {
   assert.equal(pkg.peerDependencies['@deepseek-ai/dsh-client-runtime'], undefined)
   assert.equal(pkg.devDependencies['@deepseek-ai/dsh-client-runtime'], undefined)
   assert.equal(pkg.dsh.client.inject.includes('@deepseek-ai/dsh-api-remotes'), true)
-  assert.equal(pkg.devDependencies['@deepseek-ai/cordis'], '4.0.4')
+  assert.equal(pkg.devDependencies['@deepseek-ai/cordis'], '4.1.0')
   assert.equal(pkg.devDependencies['@deepseek-ai/schemastery'], '3.18.4')
   assert.equal(pkg.peerDependencies['@deepseek-ai/schemastery'], '3.18.1 || ^3.18.2 || 3.18.6-alpha.1')
   assert.equal(pkg.peerDependencies['@earendil-works/pi-ai'], '0.82.1 || 0.85.1 || 0.87.1 || 1.1.0 || 1.2.0 || 1.3.0 || 1.4.0 || 1.5.0 || 1.5.1 || 1.5.2 || 1.6.0')

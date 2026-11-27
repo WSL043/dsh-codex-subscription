@@ -488,7 +488,9 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.equal(profile.modelErrors.get('gpt-5.5'), undefined, 'a serviceable model records no diagnostic')
   assert.deepEqual(host.searchProviders.map(provider => provider.id), ['codex-subscription', 'codex-subscription-dsh', 'codex-subscription-auto'])
   assert.deepEqual(host.tools.map(tool => tool.name).sort(), ['codex_image_generate', 'codex_subscription_preferences'])
-  // Two recovery listeners: account failover (prepended) and the quota-reset wait.
+  // One request snapshot listener plus two recovery listeners: account failover
+  // (prepended) and the quota-reset wait.
+  assert.equal(host.listeners.filter(listener => listener.event === 'agent/request').length, 1)
   assert.equal(host.listeners.filter(listener => listener.event === 'agent/request-error').length, 2)
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
   const models = await host.registered[0].adapter.listModels('openai-codex')
@@ -980,6 +982,37 @@ test('an exhausted account moves the live turn to the other signed-in account', 
   const accountAfter = await host.request('status', {}, signal)
   const activeAfter = accountAfter.value.accounts.find(account => account.active)
   assert.notEqual(activeAfter.id, activeBefore.id, 'the turn really moved to the other account')
+})
+
+test('late account errors keep the request snapshot through a real host account switch', async () => {
+  const host = fakeContext()
+  host.records.set('codex-subscription/accounts', failoverVault())
+  applyPlugin(host.ctx, host.config)
+  await host.settleEffects()
+  const signal = new AbortController().signal
+  const before = await host.request('status', {}, signal)
+  const activeBefore = before.value.accounts.find(account => account.active)
+  const replacement = before.value.accounts.find(account => !account.active)
+  const agent = { session: { id: 'late-error-session', append() {} } }
+  const requestListener = host.listeners.find(listener => listener.event === 'agent/request').listener
+  await requestListener({ agent, turn: 1, step: 1, signal }, async () => ({ provider: 'openai-codex' }))
+  assert.equal((await host.request('account/select', { id: replacement.id }, signal)).ok, true)
+
+  const listeners = host.listeners.filter(listener => listener.event === 'agent/request-error').map(listener => listener.listener)
+  let index = 0
+  const dispatch = () => {
+    const listener = listeners[index++]
+    return listener === undefined
+      ? Promise.resolve({ kind: 'downstream' })
+      : listener({
+        agent, turn: 1, step: 1, provider: 'openai-codex', signal,
+        failure: { code: 'PI_AI_ERROR', message: 'You have hit your ChatGPT usage limit.' },
+      }, dispatch)
+  }
+  assert.deepEqual(await dispatch(), { kind: 'retry' })
+  const after = await host.request('status', {}, signal)
+  assert.equal(after.value.accounts.find(account => account.active).id, replacement.id)
+  assert.notEqual(replacement.id, activeBefore.id)
 })
 
 test('the account failover switch turns the pool off and back on through the settings RPC', async () => {
