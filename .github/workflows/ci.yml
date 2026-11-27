@@ -5,6 +5,15 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      linux_only:
+        description: Run Linux diagnostics and core checks without repeating the Windows matrix
+        type: boolean
+        default: false
+      live_codex:
+        description: Also use the temporary access-only secret for bounded real GPT-6.2 Sol checks
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -97,10 +106,56 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm run test:delivery
 
+  linux-transport:
+    name: Linux transport (DSH 0.2.2-rc.5, pi-ai 1.5.2)
+    needs: [plan, behavior]
+    if: needs.plan.outputs.runtime == 'true' && needs.behavior.result == 'success'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v5
+        with:
+          version: 11.26.0
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24.22.2
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: dsh-codex-subscription-${{ github.sha }}
+          path: .candidate
+      - name: Install locked test-owned dependencies
+        run: |
+          node .github/scripts/prepare-official-test-dependencies.mjs "$RUNNER_TEMP/linux-test-dependencies"
+          pnpm --dir "$RUNNER_TEMP/linux-test-dependencies" install --frozen-lockfile --ignore-scripts
+      - name: Exercise official Web host and SSE fallback recovery without account secrets
+        run: |
+          artifact="$(find .candidate -name '*.tgz' -print -quit)"
+          test -n "$artifact"
+          node .github/scripts/accept-linux-transport.mjs "$artifact" "$RUNNER_TEMP/linux-test-dependencies" .artifacts/linux-transport
+      - name: Verify real GPT-6.2 Sol with the temporary access-only secret
+        if: github.event_name == 'workflow_dispatch' && inputs.live_codex && github.actor == github.repository_owner
+        env:
+          DSH_LIVE_CODEX_ACCESS_TOKEN: ${{ secrets.DSH_ISSUE275_ACCESS_TOKEN }}
+        run: node .github/scripts/live-linux-transport.mjs
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: linux-transport-${{ github.sha }}
+          path: |
+            .artifacts/linux-transport/*.json
+            .artifacts/linux-transport/*.log
+          if-no-files-found: warn
+          include-hidden-files: true
+
   windows-manager:
     name: Optional Windows manager risk
     needs: plan
-    if: needs.plan.outputs.manager == 'true'
+    if: needs.plan.outputs.manager == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.linux_only)
     runs-on: windows-2025
     timeout-minutes: 10
     steps:
@@ -118,7 +173,7 @@ jobs:
   official-acceptance:
     name: Official DSH acceptance (${{ matrix.channel }})
     needs: [plan, behavior]
-    if: needs.plan.outputs.official == 'true' && needs.behavior.result == 'success'
+    if: needs.plan.outputs.official == 'true' && needs.behavior.result == 'success' && !(github.event_name == 'workflow_dispatch' && inputs.linux_only)
     strategy:
       fail-fast: false
       matrix:

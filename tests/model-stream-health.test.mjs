@@ -4,6 +4,40 @@ import { createModelStreamHealth, safeStreamHealth } from '../src/model-stream-h
 import { createDiagnosticLog } from '../src/diagnostic-log.js'
 import { openaiCodexProvider, openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
+import { createCodexNetworkTransport } from '../src/oauth-network.js'
+import { compactDiagnostic } from '../src/diagnostic-compact.js'
+import { websocketFailureEvidence } from '../src/transport-failure.js'
+
+test('a recovered SDK WebSocket failure survives quota polling without retaining raw diagnostics (#275)', async () => {
+  const message = { stopReason: 'stop', diagnostics: [{ type: 'provider_transport_failure',
+    error: { code: 'ECONNRESET', message: 'PRIVATE Bearer SECRET', stack: 'PRIVATE/path' },
+    details: { configuredTransport: 'websocket-cached', fallbackTransport: 'sse', phase: 'before_message_stream_start', private: 'SECRET' } }] }
+  const network = createCodexNetworkTransport({ env: {}, platform: 'test' })
+  const provider = openaiCodexSubscriptionProvider({ runNetwork: network.run, beginModelAttempt: network.beginModelAttempt,
+    providerFactory: () => ({ ...openaiCodexProvider(), streamSimple: () => ({
+      async *[Symbol.asyncIterator]() { yield { type: 'done', reason: 'stop', message } }, result: async () => message,
+    }) }) })
+  for await (const _ of provider.streamSimple({ id: 'gpt-6.2-sol' }, { messages: [] }, { sessionId: 'PRIVATE-SESSION' })) {}
+  const evidence = network.history().events.at(-1)
+  assert.equal(evidence.status, 'ok')
+  assert.equal(evidence.websocketFailure, 'ECONNRESET')
+  assert.equal(evidence.websocketFailurePhase, 'before-first-event')
+  for (let i = 0; i < 40; i++) await network.run('quota', async () => {})
+  const report = compactDiagnostic({ requestHistory: network.history() })
+  assert.ok(report.network.some(value => value.websocketFailure === 'ECONNRESET'), 'successful SSE must not discard the preceding transport failure')
+  assert.doesNotMatch(JSON.stringify(report), /PRIVATE|SECRET|Bearer|stack/)
+})
+
+test('SDK upgrade rejection, timeout and close diagnostics expose only fixed fields (#275)', () => {
+  const diagnostic = message => ({ diagnostics: [{ type: 'provider_transport_failure', error: { message },
+    details: { configuredTransport: 'websocket-cached', phase: 'before_message_stream_start' } }] })
+  assert.deepEqual(websocketFailureEvidence(diagnostic('Unexpected server response: 502')), { websocketFailure: 'HTTP_REJECTED', websocketFailurePhase: 'before-first-event', websocketHttpStatus: 502 })
+  assert.equal(websocketFailureEvidence(diagnostic('WebSocket connect timeout after 10000ms')).websocketFailure, 'CONNECT_TIMEOUT')
+  assert.equal(websocketFailureEvidence(diagnostic('WebSocket closed 1006 PRIVATE')).websocketCloseCode, 1006)
+  assert.equal(websocketFailureEvidence(diagnostic('PRIVATE token')).websocketFailure, 'OTHER')
+  assert.deepEqual(websocketFailureEvidence({ diagnostics: 'PRIVATE' }), {})
+  assert.deepEqual(websocketFailureEvidence({ diagnostics: [{ type: 'unrelated', error: { message: 'PRIVATE' } }] }), {})
+})
 
 test('auxiliary calls carrying a session id cannot replace the primary request account (#279)', async () => {
   const identities = [], native = openaiCodexProvider(), model = native.getModels()[0]

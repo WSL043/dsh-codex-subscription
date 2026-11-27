@@ -4,8 +4,8 @@ import { openaiCodexSubscriptionProvider } from '../../src/pi-ai-runtime.js'
 import { createCodexNetworkTransport } from '../../src/oauth-network.js'
 
 /** Runs only synthetic streams. Both provider and cache API must be from one SDK instance. */
-export async function recoverySdkContract(providerFactory, api) {
-  let time = 0, mode = 'ok', connects = 0, fetches = 0
+export async function recoverySdkContract(providerFactory, api, { modelId } = {}) {
+  let time = 0, mode = 'ok', connects = 0, fetches = 0, releaseSse
   const sent = [], sockets = []
   const originalFetch = globalThis.fetch, originalSocket = globalThis.WebSocket, originalNow = Date.now
   const originalSetTimeout = globalThis.setTimeout, originalClearTimeout = globalThis.clearTimeout
@@ -23,7 +23,7 @@ export async function recoverySdkContract(providerFactory, api) {
     constructor() {
       super(); connects++; sockets.push(this)
       queueMicrotask(() => {
-        if (mode === 'connect-failure') { this.readyState = 3; this.dispatchEvent(Object.assign(new Event('error'), { error: Error('Synthetic handshake failure') })) }
+        if (mode === 'connect-failure') { this.readyState = 3; this.dispatchEvent(Object.assign(new Event('error'), { error: Object.assign(Error('Synthetic handshake failure'), { code: 'ECONNRESET' }) })) }
         else this.dispatchEvent(new Event('open'))
       })
     }
@@ -52,17 +52,28 @@ export async function recoverySdkContract(providerFactory, api) {
   globalThis.WebSocket = Socket // Fail closed to fixtures even if an SDK changes its URL/constructor path.
   globalThis.fetch = async () => {
     fetches++
-    return new Response('data: ' + JSON.stringify({ type: 'response.created', response: { id: 'sse_' + fetches } }) + '\n\ndata: ' + JSON.stringify({ type: 'response.completed', response: { id: 'sse_' + fetches, status: 'completed', output: [], usage: { input_tokens: 1, output_tokens: 0, total_tokens: 1 } } }) + '\n\n', { headers: { 'content-type': 'text/event-stream' } })
+    const first = 'data: ' + JSON.stringify({ type: 'response.created', response: { id: 'sse_' + fetches } }) + '\n\n'
+    const last = 'data: ' + JSON.stringify({ type: 'response.completed', response: { id: 'sse_' + fetches, status: 'completed', output: [], usage: { input_tokens: 1, output_tokens: 0, total_tokens: 1 } } }) + '\n\n'
+    const body = mode === 'hold-sse' ? new ReadableStream({ start(controller) {
+      const encode = value => new TextEncoder().encode(value)
+      controller.enqueue(encode(first))
+      releaseSse = () => { releaseSse = undefined; controller.enqueue(encode(last)); controller.close() }
+    } }) : first + last
+    return new Response(body, { headers: { 'content-type': 'text/event-stream' } })
   }
   const connection = createSubscriptionConnection({ resolveMode: () => 'websocket', resolveProxy: async () => undefined, now: () => time, random: () => 0.5,
     sdk: { close: api.closeOpenAICodexWebSocketSessions, reset: api.resetOpenAICodexWebSocketDebugStats, stats: api.getOpenAICodexWebSocketDebugStats } })
   const network = createCodexNetworkTransport({ env: {}, platform: 'test', WebSocket: Socket })
   const provider = openaiCodexSubscriptionProvider({ providerFactory, connection, runNetwork: network.run, beginModelAttempt: network.beginModelAttempt })
-  const model = provider.getModels()[0]
+  // Fault streams never contact a model service. An explicit wire model lets CI
+  // exercise 6.2 request preparation without claiming a live model invocation.
+  const baseline = provider.getModels().find(model => model.id === modelId) ?? provider.getModels()[0]
+  const model = modelId ? { ...baseline, id: modelId } : baseline
+  const observations = []
   const apiKey = 'e30.' + Buffer.from(JSON.stringify({ 'https://api.openai.com/auth': { chatgpt_account_id: 'synthetic-only' } })).toString('base64url') + '.fixture'
   const context = { messages: [{ role: 'user', content: 'First synthetic turn', timestamp: 1 }] }
   const options = { apiKey, sessionId: 'synthetic-session', transport: 'sse', maxRetries: 0 }
-  const run = async () => {
+  const run = async (phase) => {
     const before = network.history().events.length
     let result, error
     for await (const event of provider.streamSimple(model, context, { ...options, signal: AbortSignal.timeout(3000) })) {
@@ -73,43 +84,58 @@ export async function recoverySdkContract(providerFactory, api) {
     assert.equal(network.history().events.length, before + 1, 'one terminal diagnostic per SDK attempt, including fallback')
     assert.equal(network.snapshot().model.status, error ? 'failed' : 'ok')
     assert.equal(network.snapshot().model.preference, 'websocket', 'configured preference survives cooldown overrides')
+    const evidence = network.snapshot().model
+    observations.push({ phase, status: evidence.status, preference: evidence.preference, selected: evidence.requestedTransport,
+      selectionReason: evidence.selectionReason, transports: evidence.transports,
+      ...Object.fromEntries(['websocketFailure', 'websocketFailurePhase', 'websocketCloseCode', 'websocketHttpStatus']
+        .filter(key => evidence[key] !== undefined).map(key => [key, evidence[key]])),
+      sentInputItems: sent.at(-1)?.input?.length, previousResponse: Boolean(sent.at(-1)?.previous_response_id) })
     return { result, error }
   }
   const user = text => context.messages.push({ role: 'user', content: text, timestamp: 2 })
   try {
-    assert.ok((await run()).result)
+    assert.ok((await run('baseline')).result)
     sockets.forEach(socket => socket.close())
     mode = 'connect-failure'; user('After lost connection')
-    assert.ok((await run()).result)
+    assert.ok((await run('handshake-failure')).result)
+    assert.equal(network.snapshot().model.websocketFailure, 'ECONNRESET')
+    assert.equal(network.snapshot().model.websocketFailurePhase, 'before-first-event')
     assert.equal(connection.snapshot().websocketFailures, 1)
     const before = connects
-    user('During cooldown'); assert.ok((await run()).result)
+    user('During cooldown'); assert.ok((await run('cooldown')).result)
     assert.equal(connects, before)
     assert.equal(fetches, 2)
+    mode = 'hold-sse'
+    const held = provider.streamSimple(model, { messages: [] }, { ...options, sessionId: 'parallel-sse', signal: AbortSignal.timeout(3000) })
+    await held.next()
+    assert.equal(connection.recoverySnapshot().sessions.find(value => value.active > 0)?.active, 1)
     time += 30000; mode = 'ok'; user('Recover in the same session')
-    assert.ok((await run()).result)
+    assert.ok((await run('recovery-probe')).result)
+    assert.equal(network.snapshot().model.selectionReason, 'ws-probe', 'a different SSE conversation must not starve an idle scope probe')
     const recovered = sent.at(-1), recoveredId = 'resp_' + sent.length
     assert.equal(recovered.previous_response_id, undefined, 'new connection cannot use old continuation')
     assert.ok(recovered.input.length > 1, 'recovery sends full effective history')
     assert.equal(connection.snapshot().recoverySuccesses, 1)
-    user('Incremental after recovery'); assert.ok((await run()).result)
+    releaseSse()
+    for await (const _ of held) { /* settle the other real SDK producer */ }
+    user('Incremental after recovery'); assert.ok((await run('delta-after-recovery')).result)
     assert.equal(sent.at(-1).previous_response_id, recoveredId)
     assert.equal(sent.at(-1).input.length, 1)
-    assert.equal(fetches, 2)
+    assert.equal(fetches, 3)
     // Exercise the SDK's actual 5-minute expiry callback, without sleeping.
     for (const [timer, expire] of idleTimers) { idleTimers.delete(timer); expire() }
-    user('After normal idle expiry'); assert.ok((await run()).result)
+    user('After normal idle expiry'); assert.ok((await run('idle-expiry')).result)
     assert.equal(sent.at(-1).previous_response_id, undefined)
     assert.equal(connection.snapshot().websocketFailures, 1)
     assert.equal(connection.snapshot().recoveryAttempts, 1, 'idle expiry is not a fault probe')
     wall += 55 * 60000
-    user('After normal socket age limit'); assert.ok((await run()).result)
+    user('After normal socket age limit'); assert.ok((await run('age-expiry')).result)
     assert.equal(sent.at(-1).previous_response_id, undefined)
     assert.equal(connection.snapshot().websocketFailures, 1)
     assert.equal(connection.snapshot().recoveryAttempts, 1)
     mode = 'stream-failure'; user('Interrupt after acceptance')
-    assert.ok((await run()).error)
-    assert.equal(fetches, 2, 'no SSE replay after first response event')
+    assert.ok((await run('close-after-acceptance')).error)
+    assert.equal(fetches, 3, 'no SSE replay after first response event')
     assert.equal(provider.streamHealth().at(-1).status, 'failed')
     time += 30000; mode = 'hold'
     const abort = new AbortController()
@@ -121,6 +147,7 @@ export async function recoverySdkContract(providerFactory, api) {
     assert.equal(connection.snapshot().recoverySuccesses, 1, 'cancelled probe is not recovery')
     const stats = connection.snapshot()
     assert.equal(stats.websocketFailures, 2, 'cancellation is not a new WS failure')
-    return { passed: true, connects, fetches, fullAfterRecovery: true, deltaAfterRecovery: true, noReplayAfterAcceptance: true, cancellationReleasedLease: true, idleExpiryReconnected: true, ageLimitReconnected: true, stats }
-  } finally { connection.dispose(); globalThis.fetch = originalFetch; globalThis.WebSocket = originalSocket; Date.now = originalNow; globalThis.setTimeout = originalSetTimeout; globalThis.clearTimeout = originalClearTimeout }
+    if (modelId) assert.ok(sent.every(request => request.model === modelId), 'fault scenarios keep the requested model on the wire')
+    return { passed: true, realAccount: false, syntheticStreams: true, wireModel: model.id, connects, fetches, parallelSseAllowedProbe: true, fullAfterRecovery: true, deltaAfterRecovery: true, noReplayAfterAcceptance: true, cancellationReleasedLease: true, idleExpiryReconnected: true, ageLimitReconnected: true, observations, stats }
+  } finally { releaseSse?.(); connection.dispose(); globalThis.fetch = originalFetch; globalThis.WebSocket = originalSocket; Date.now = originalNow; globalThis.setTimeout = originalSetTimeout; globalThis.clearTimeout = originalClearTimeout }
 }

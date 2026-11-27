@@ -22,11 +22,12 @@ export function createDiagnosticEvents({ limit = NETWORK_HISTORY_LIMIT, now = Da
   return {
     record(area, value) {
       if (!isNetworkDiagnosticArea(area) || !MODEL_OUTCOMES.has(value?.status)) return
-      events.push({ sequence: ++sequence, area, status: value.status, observedAt: now(), ...safeAttempt(value), ...safeNetworkTiming(value),
+      const attempt = safeAttempt(value)
+      events.push({ sequence: ++sequence, area, status: value.status, observedAt: now(), ...attempt, ...safeNetworkTiming(value),
         ...(codes.has(value.code) ? { code: value.code } : {}),
         ...(Number.isInteger(value.httpStatus) && value.httpStatus >= 100 && value.httpStatus <= 599 ? { httpStatus: value.httpStatus } : {}),
       })
-      if (value.status === 'failed') {
+      if (value.status === 'failed' || area === 'model' && attempt.websocketFailure !== undefined) {
         const previous = lastFailure.get(area)
         if (previous && previous.sequence < events[0].sequence) dropped++
         lastFailure.set(area, events.at(-1))

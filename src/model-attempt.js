@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { safeFetchFailure } from './transport-failure.js'
+import { safeFetchFailure, WEBSOCKET_FAILURE_CODES } from './transport-failure.js'
 
 const transports = new Set(['sse', 'websocket'])
 const choices = new Set(['sse', 'websocket', 'websocket-cached', 'auto', 'unknown'])
@@ -25,6 +25,10 @@ export function safeAttempt(value = {}) {
     ...(choices.has(value.requestedTransport) ? { requestedTransport: value.requestedTransport } : {}),
     ...(milestones.includes(value.phase) ? { phase: value.phase } : {}),
     ...(selectionReasons.has(value.selectionReason) ? { selectionReason: value.selectionReason } : {}),
+    ...(WEBSOCKET_FAILURE_CODES.has(value.websocketFailure) ? { websocketFailure: value.websocketFailure } : {}),
+    ...(['before-first-event', 'after-first-event'].includes(value.websocketFailurePhase) ? { websocketFailurePhase: value.websocketFailurePhase } : {}),
+    ...(Number.isInteger(value.websocketCloseCode) && value.websocketCloseCode >= 1000 && value.websocketCloseCode <= 4999 ? { websocketCloseCode: value.websocketCloseCode } : {}),
+    ...(Number.isInteger(value.websocketHttpStatus) && value.websocketHttpStatus >= 100 && value.websocketHttpStatus <= 599 ? { websocketHttpStatus: value.websocketHttpStatus } : {}),
     ...(terminalStates.has(value.terminal) ? { terminal: value.terminal } : {}),
     ...(typeof value.oversizeRejected === 'boolean' ? { oversizeRejected: value.oversizeRejected } : {}),
     ...(Number.isSafeInteger(value.requestBytesBucket) && value.requestBytesBucket > 0 && value.requestBytesBucket <= 2 ** 31

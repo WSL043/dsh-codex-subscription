@@ -6,7 +6,7 @@ import { redactRequest } from './failure-capture.js'
 import { hoistLeadingSystem, runtimeVersions, understandsSystemMessages } from './pi-ai-compat.js'
 import { openaiCodexProvider as createOpenAICodexProvider } from '@earendil-works/pi-ai/providers/openai-codex'
 import { isContextOverflow } from '@earendil-works/pi-ai'
-import { normalizeTransportEvent, safeFetchFailure } from './transport-failure.js'
+import { normalizeTransportEvent, safeFetchFailure, websocketFailureEvidence } from './transport-failure.js'
 import { createModelRetryBridge } from './model-retry-hint.js'
 import { authFailureMessage } from './http-failure.js'
 import { createModelAttempt } from './model-attempt.js'
@@ -319,6 +319,11 @@ export function openaiCodexSubscriptionProvider({
     const cancelled = () => signal.aborted && signal.reason?.name !== 'TimeoutError'
     const settle = (status, error, healthError = error) => {
       if (attempt.snapshot().status) return
+      const transport = websocketFailureEvidence(healthError)
+      attempt.configure(transport)
+      if (status === 'ok' && transport.websocketFailure) {
+        diagnosticLog.warn('model-stream', `WebSocket fallback recovered: failure=${transport.websocketFailure} phase=${transport.websocketFailurePhase ?? 'unknown'}${transport.websocketHttpStatus ? ` http=${transport.websocketHttpStatus}` : ''}${transport.websocketCloseCode ? ` close=${transport.websocketCloseCode}` : ''}`)
+      }
       health?.finish(status === 'ok' ? 'completed' : status === 'abandoned' ? 'cancelled' : status, healthError)
       if (status === 'failed') {
         if (isContextOverflow({ stopReason: 'error', errorMessage: healthError?.errorMessage ?? error?.message ?? '' })) {
@@ -404,7 +409,7 @@ export function openaiCodexSubscriptionProvider({
           attempt.event(result.value)
           retryHint?.observe(result.value, signal)
           if (result.value?.type === 'error') settle(cancelled() ? 'cancelled' : 'failed', undefined, result.value.error)
-          else if (result.value?.type === 'done') settle('ok')
+          else if (result.value?.type === 'done') settle('ok', undefined, result.value.message)
           else if (stage === 'payload' || stage === 'request') stage = 'stream'
         } else settle(cancelled() ? 'cancelled' : 'abandoned')
         return result.done ? result : { ...result, value: normalizeTransportEvent(result.value, signal) }

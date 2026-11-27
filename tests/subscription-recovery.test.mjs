@@ -67,6 +67,19 @@ test('ongoing requests prevent reset even after the cooldown deadline', async ()
   probe.finish({ status: 'cancelled' }); f.policy.dispose()
 })
 
+test('another conversation streaming SSE cannot postpone an idle scope recovery probe (#275)', async () => {
+  const f = fixture(); const key = await f.fail()
+  const held = await f.prepare({ ...f.options, sessionId: 'other-conversation' })
+  assert.equal(held.options.transport, 'sse')
+  f.advance(30000)
+  const probe = await f.prepare()
+  try {
+    assert.equal(probe.diagnostic.selectionReason, 'ws-probe')
+    assert.deepEqual(f.resets, [key], 'only the idle probing scope is reset')
+    assert.equal(f.policy.recoverySnapshot().sessions.find(value => value.scope === held.options.sessionId).active, 1)
+  } finally { held.finish({ status: 'ok', transports: ['sse'] }); probe.finish({ status: 'cancelled' }); f.policy.dispose() }
+})
+
 test('repeated WS failures extend cooldown; SSE success and cancellation do not report recovery', async () => {
   const f = fixture(); const key = await f.fail()
   f.advance(30000)

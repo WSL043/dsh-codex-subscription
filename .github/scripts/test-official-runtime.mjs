@@ -18,6 +18,9 @@ try {
   for (const name of ['src', 'tests', 'scripts', 'locale', 'docs/plugin', 'package.json', 'cordis.patch.yml']) {
     cpSync(join(source, name), join(probe, name), { recursive: true })
   }
+  if (process.env.DSH_TEST_CONNECTION_BASELINE) {
+    cpSync(resolve(process.env.DSH_TEST_CONNECTION_BASELINE), join(probe, 'src/subscription-connection.js'))
+  }
   // Release checkouts intentionally have no node_modules. Test utilities and
   // plugin-owned transports use the frozen checkout graph, just as the package does.
   // DSH packages still resolve from the official runner's own cohort.
@@ -31,7 +34,8 @@ try {
     // Keep transitive resolution adjacent to the actual pnpm package directory.
     symlinkSync(dependency, join(probe, 'node_modules', name), process.platform === 'win32' ? 'junction' : 'dir')
   }
-  const result = spawnSync(process.execPath, ['--test', ...testFiles('behavior')], { cwd: probe, stdio: 'inherit' })
+  const selected = process.argv.slice(4)
+  const result = spawnSync(process.execPath, ['--test', ...(selected.length ? selected : testFiles('behavior'))], { cwd: probe, stdio: 'inherit' })
   if (result.error) throw result.error
   process.exitCode = result.status ?? 1
 } finally {

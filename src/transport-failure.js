@@ -14,6 +14,29 @@ const NETWORK_CODES = new Set(['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTF
   'ENETUNREACH', 'EHOSTUNREACH', 'EPIPE', 'UND_ERR_SOCKET', 'UND_ERR_CONNECT_TIMEOUT',
   'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT', 'CERT_HAS_EXPIRED',
   'UNABLE_TO_VERIFY_LEAF_SIGNATURE', 'DEPTH_ZERO_SELF_SIGNED_CERT'])
+
+export const WEBSOCKET_FAILURE_CODES = new Set([...NETWORK_CODES, 'CONNECT_TIMEOUT', 'HTTP_REJECTED', 'WS_CLOSED', 'MESSAGE_TOO_LARGE', 'OTHER'])
+
+/** Consume the SDK's transport diagnostic, never its message, stack or details wholesale. */
+export function websocketFailureEvidence(message) {
+  const diagnostics = Array.isArray(message?.diagnostics) ? message.diagnostics.slice(-8) : []
+  const diagnostic = diagnostics.findLast(item => item?.type === 'provider_transport_failure'
+    && ['websocket', 'websocket-cached', 'auto'].includes(item.details?.configuredTransport))
+  if (!diagnostic) return {}
+  const text = typeof diagnostic.error?.message === 'string' ? diagnostic.error.message.slice(0, 512) : ''
+  const close = /^WebSocket closed (\d{4})(?:\s|$)/u.exec(text)
+  const status = /^Unexpected server response: (\d{3})(?:\s|$)/u.exec(text)
+  const code = NETWORK_CODES.has(diagnostic.error?.code) ? diagnostic.error.code
+    : /^WebSocket connect timeout after \d+ms$/u.test(text) ? 'CONNECT_TIMEOUT'
+      : status ? 'HTTP_REJECTED' : close || /^WebSocket .*closed/u.test(text) ? 'WS_CLOSED'
+        : text === 'WebSocket request exceeds the advertised message size limit' ? 'MESSAGE_TOO_LARGE' : 'OTHER'
+  return { websocketFailure: code,
+    ...(['before_message_stream_start', 'after_message_stream_start'].includes(diagnostic.details?.phase)
+      ? { websocketFailurePhase: diagnostic.details.phase === 'before_message_stream_start' ? 'before-first-event' : 'after-first-event' } : {}),
+    ...(close && +close[1] >= 1000 && +close[1] <= 4999 ? { websocketCloseCode: +close[1] } : {}),
+    ...(status && +status[1] >= 100 && +status[1] <= 599 ? { websocketHttpStatus: +status[1] } : {}),
+  }
+}
 export function safeFetchFailure(error) {
   const pending = [error], seen = new Set(), codes = new Set()
   for (let i = 0; pending.length && i < 12; i++) {

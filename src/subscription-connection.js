@@ -106,9 +106,11 @@ export function createSubscriptionConnection({ resolveMode = () => 'sse', resolv
       if (circuit.probing) { transport = 'sse'; selectionReason = 'probe-busy'; recovery.recoveryDeferrals++ }
       else if (circuit.streak) {
         if (time < circuit.retryAt) { transport = 'sse'; selectionReason = 'ws-cooldown'; recovery.cooldownRequests++ }
-        else if (circuit.active) { transport = 'sse'; selectionReason = 'probe-busy'; recovery.recoveryDeferrals++ }
+        else if (entry.active) { transport = 'sse'; selectionReason = 'probe-busy'; recovery.recoveryDeferrals++ }
         else {
-          // No await between quiescence check and lease acquisition/reset.
+          // Reset only this idle SDK scope. Other conversations may still be
+          // streaming SSE; account-wide quiescence can starve recovery forever.
+          // The shared probing flag still permits only one recovery at a time.
           clear(entry)
           circuit.probing = probe = true
           selectionReason = 'ws-probe'
