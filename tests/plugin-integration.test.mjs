@@ -3,6 +3,9 @@ import { runtimeVersions } from '../src/pi-ai-compat.js'
 import { RPC_ENDPOINTS } from '../src/rpc-contract.js'
 import { IMAGE_FEATURE_DEFAULTS } from '../src/image-features.js'
 import test from 'node:test'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
 import { credentialKey } from '@deepseek-ai/dsh-credentials'
 import { openaiCodexProvider } from '../src/pi-ai-runtime.js'
@@ -278,6 +281,55 @@ function fakeContext({ connection = true, webServer = true, fetchRouting = true 
     updateSettings,
   }
 }
+
+test('authenticated composer preferences persist by session, including cold sessions and untouched defaults (#276)', async t => {
+  const dir = await mkdtemp(join(tmpdir(), 'codex-session-preferences-'))
+  t.after(() => rm(dir, { recursive: true, force: true }))
+  const active = new Map(), stored = new Map()
+  const boot = defaults => {
+    const host = fakeContext()
+    Object.assign(host.config, defaults)
+    host.provided.set('profileContext', { dir })
+    host.provided.set('sessions', active)
+    host.provided.set('sessionPersistence', { stat: async id => stored.get(id) })
+    applyPlugin(host.ctx, host.config)
+    return host
+  }
+  const publish = (host, id) => {
+    const header = { id, createdAt: Date.now() }
+    const session = { id, header }
+    stored.set(id, { header })
+    active.set(id, session)
+    host.listeners.find(entry => entry.event === 'session/created').listener(session)
+    return session
+  }
+  const start = { speedMode: 'standard', outputVerbosity: 'default' }
+  const next = { speedMode: 'fast', outputVerbosity: 'high' }
+  const custom = { speedMode: 'fast', outputVerbosity: 'low' }
+  const host = boot(start)
+  const a = publish(host, 'session-a'), b = publish(host, 'session-b')
+  stored.set('session-legacy', { header: { id: 'session-legacy', createdAt: 42 } })
+  const assertSession = async (app, id, expected) => {
+    const result = await app.request('preferences/status', { sessionId: id })
+    assert.deepEqual(result, { ok: true, value: { ...expected, writable: true } })
+  }
+  const changeA = await host.request('preferences/update', { sessionId: a.id, ...custom })
+  assert.deepEqual(changeA, { ok: true, value: { ...custom, writable: true } })
+  assert.deepEqual((await host.request('preferences/update', { sessionId: a.id, speedMode: 'standard', reasoningSummary: 'none' })).error.code, 'invalid-input')
+  assert.deepEqual((await host.request('preferences/update', { sessionId: 'missing', ...custom })).error.code, 'not-found')
+  assert.equal((await host.request('preferences/status', {})).value.speedMode, start.speedMode)
+  assert.equal((await host.request('preferences/update', next)).ok, true)
+  const c = publish(host, 'session-c')
+  await Promise.all([assertSession(host, a.id, custom), assertSession(host, b.id, start), assertSession(host, c.id, next)])
+
+  active.clear() // A new Host can read cold headers without resuming them.
+  const restarted = boot(next)
+  await Promise.all([assertSession(restarted, a.id, custom), assertSession(restarted, b.id, start),
+    assertSession(restarted, c.id, next), assertSession(restarted, 'session-legacy', start)])
+  assert.equal(active.size, 0)
+  assert.equal((await restarted.request('preferences/update', { sessionId: b.id, outputVerbosity: 'medium' })).ok, true)
+  await assertSession(restarted, b.id, { ...start, outputVerbosity: 'medium' })
+})
 
 test('image execution uses the owning session provider even without a current initiator (refs #273)', async () => {
   const host = fakeContext()

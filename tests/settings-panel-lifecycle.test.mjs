@@ -245,12 +245,21 @@ test('the subscription extends the rc.2 model menu without shadowing Team or a t
 })
 
 test('the classic picker toggles supported speed inside the model menu and shows its bolt', async () => {
-  const snapshot = { status: 'ready', writable: true, disabledModels: [], fastModels: ['gpt-6.1-sol'], ultrafastModels: [], verbosityModels: [], speedMode: 'standard', composerSpeedBadge: 'off' }
-  const pref = { set: async patch => { Object.assign(snapshot, patch) } }
+  const profile = { status: 'ready', writable: true, disabledModels: [], fastModels: ['gpt-6.1-sol'], ultrafastModels: [], verbosityModels: ['gpt-6.1-sol'], speedMode: 'fast', outputVerbosity: 'high' }
+  const a = { status: 'ready', writable: true, speedMode: 'standard', outputVerbosity: 'default' }
+  const b = { ...a, outputVerbosity: 'medium' }
+  const snapshots = new Map([['a', a], ['b', b]])
   const models = [{ id: 'gpt-6.1-sol', name: 'GPT-6.1-Sol' }]
   const state = { status: 'ready', groups: [{ id: 'openai-codex', models }], current: { provider: 'openai-codex', model: models[0].id }, failures: [], error: null }
-  const props = { available: true, directory: { subscribe: () => () => {}, getSnapshot: () => state }, preference: pref, t: key => key, load() {} }
-  const h = await component('client-model-select.jsx', 'CodexModelSelect', props, { './settings-contract.js': settingsContract, './client-shared.js': { usePreferenceSnapshot: () => snapshot } })
+  const sessionPreferences = { set: async (id, patch, expected) => {
+    assert.equal(snapshots.get(id), expected)
+    Object.assign(expected, patch)
+  } }
+  const props = { available: true, sessionId: 'a', sessionPreferences, directory: { subscribe: () => () => {}, getSnapshot: () => state },
+    preference: { set: () => assert.fail('menu must not write profile defaults') }, t: key => key, load() {} }
+  const h = await component('client-model-select.jsx', 'CodexModelSelect', props, { './settings-contract.js': settingsContract, './client-shared.js': {
+    usePreferenceSnapshot: () => profile, useSessionPreferenceSnapshot: (_controller, id) => snapshots.get(id) ?? {},
+  } })
   const find = (className, label) => nodes(h.tree, node => node.props.className === className && (!label || nodes(node, item => item.props.children === label).length))[0]
   const trigger = () => find('codexModelSelectTrigger')
   const bolt = () => find('codexModelSelectBolt')
@@ -259,24 +268,123 @@ test('the classic picker toggles supported speed inside the model menu and shows
     assert.equal(bolt(), undefined)
     openSpeed()
     find('codexModelSelectOption', 'speedFast').props.onClick(); h.render()
-    assert.equal(snapshot.speedMode, 'fast')
+    assert.equal(a.speedMode, 'fast')
     assert.match(trigger().props['aria-label'], /speedFast/u)
     assert.ok(bolt())
     openSpeed()
     find('codexModelSelectOption', 'speedStandard').props.onClick(); h.render()
-    assert.equal(snapshot.speedMode, 'standard')
+    assert.equal(a.speedMode, 'standard')
     assert.equal(bolt(), undefined)
-    snapshot.ultrafastModels = [models[0].id]
+    profile.ultrafastModels = [models[0].id]
     openSpeed()
     find('codexModelSelectOption', 'speedUltrafast').props.onClick(); h.render()
-    assert.equal(snapshot.speedMode, 'ultrafast')
+    assert.equal(a.speedMode, 'ultrafast')
     assert.ok(bolt())
     assert.match(trigger().props['aria-label'], /speedUltrafast/u)
+
+    openSpeed()
+    h.render({ sessionId: 'b' })
+    assert.equal(trigger().props['aria-expanded'], false, 'the open picker belongs to the previous session')
+    assert.equal(bolt(), undefined, 'global Fast and session A Ultrafast do not leak into B')
+    trigger().props.onClick(); h.render()
+    find('codexModelSelectCell', 'verbosityTitle').props.onClick(); h.render()
+    assert.equal(find('codexModelSelectOption', 'verbosityMedium').props['aria-checked'], true)
+    find('codexModelSelectOption', 'verbosityLow').props.onClick(); h.render()
+    assert.equal(b.outputVerbosity, 'low')
+    assert.equal(a.outputVerbosity, 'default')
+    assert.equal(profile.speedMode, 'fast')
+    assert.equal(profile.outputVerbosity, 'high')
     state.current = { provider: 'deepseek', model: 'v4' }
     h.render()
     assert.equal(bolt(), undefined)
     trigger().props.onClick(); h.render()
     assert.equal(find('codexModelSelectCell', 'speedTitle'), undefined)
+  } finally { h.dispose() }
+})
+
+test('native model choices write their session and reject a stale detached submenu', async () => {
+  const model = 'gpt-6.1-sol'
+  const profile = { fastModels: [model], verbosityModels: [model], speedMode: 'ultrafast', outputVerbosity: 'high' }
+  const snapshots = new Map([['a', { status: 'ready', writable: true, speedMode: 'fast', outputVerbosity: 'low' }],
+    ['b', { status: 'ready', writable: true, speedMode: 'standard', outputVerbosity: 'medium' }]])
+  const changes = []
+  const sessionPreferences = {
+    getSnapshot: id => snapshots.get(id) ?? {},
+    async set(id, patch, expected) {
+      assert.equal(snapshots.get(id), expected)
+      changes.push([id, { ...patch }])
+      snapshots.set(id, { ...expected, ...patch })
+      return true
+    },
+  }
+  const props = { available: true, sessionId: 'a', sessionPreferences,
+    directory: { subscribe: () => () => {}, getSnapshot: () => ({ current: { provider: 'openai-codex', model } }) },
+    preference: { set: () => assert.fail('menu must not write profile defaults') }, t: key => key, dismiss() {}, reportFailure: assert.fail,
+    optionsMenu: { set(value) { this.request = value } },
+  }
+  const h = await component('client-model-select.jsx', 'CodexNativeModelOptions', props, { './settings-contract.js': settingsContract, './client-shared.js': {
+    usePreferenceSnapshot: () => profile, useSessionPreferenceSnapshot: (store, id) => store.getSnapshot(id),
+  } })
+  // Reuse the same provider, model and anchor so only the session identity can
+  // tell the old detached choices from the current selection.
+  const trigger = { isConnected: true, getAttribute: () => 'menu-id' }
+  const menu = { id: 'menu-id', getBoundingClientRect: () => ({ width: 100, right: 100, bottom: 100 }),
+    ownerDocument: { querySelectorAll: () => [trigger], defaultView: { innerWidth: 900, innerHeight: 700 } } }
+  const open = field => {
+    const row = nodes(h.tree, node => node.props['data-codex-model-option'] === field)[0]
+    row.props.onClick({ currentTarget: { closest: () => menu } })
+    return props.optionsMenu.request
+  }
+  try {
+    const old = open('speedMode')
+    assert.equal(old.value, 'fast')
+    snapshots.delete('a')
+    h.render({ sessionId: 'b' })
+    assert.equal(old.isCurrent(), false)
+    await old.select('standard')
+    assert.deepEqual(changes, [])
+    const verbosity = open('outputVerbosity')
+    assert.equal(verbosity.sessionId, 'b')
+    assert.equal(verbosity.value, 'medium')
+    await verbosity.select('low')
+    h.render()
+    const next = open('speedMode')
+    assert.equal(next.value, 'standard')
+    await next.select('fast')
+    assert.deepEqual(changes, [['b', { outputVerbosity: 'low' }], ['b', { speedMode: 'fast' }]])
+  } finally { h.dispose() }
+})
+
+test('speed shortcut reads and toggles its own session rather than the global default', async () => {
+  const model = 'gpt-6.1-sol'
+  const profile = { status: 'ready', speedShortcut: 'label', speedMode: 'ultrafast', fastModels: [model], composerModelPickerActive: true }
+  const a = { status: 'ready', writable: true, speedMode: 'fast' }
+  const b = { status: 'ready', writable: true, speedMode: 'standard' }
+  const snapshots = new Map([['a', a], ['b', b]])
+  const changes = []
+  const props = { available: true, sessionId: 'a',
+    sessionPreferences: { set(id, patch, expected) { assert.equal(snapshots.get(id), expected); changes.push([id, { ...patch }]) } },
+    directory: { subscribe: () => () => {}, getSnapshot: () => ({ current: { provider: 'openai-codex', model } }) },
+    preference: { set: () => assert.fail('shortcut must not write profile defaults') }, t: key => key,
+  }
+  const document = { createElement: () => ({ remove() {} }), head: { append() {} } }
+  let observedSession
+  const h = await component('client-speed-shortcut.jsx', 'CodexSpeedShortcut', props, { './settings-contract.js': settingsContract, './client-shared.js': {
+    usePreferenceSnapshot: () => profile, useSessionPreferenceSnapshot: (_store, id) => { observedSession = id; return snapshots.get(id) ?? {} },
+  } }, undefined, { document })
+  try {
+    assert.equal(h.tree.props['data-speed'], 'fast')
+    h.tree.props.children.props.onClick()
+    h.render({ sessionId: 'b' })
+    assert.equal(h.tree.props['data-speed'], 'standard')
+    h.tree.props.children.props.onClick()
+    assert.deepEqual(changes, [['a', { speedMode: 'standard' }], ['b', { speedMode: 'fast' }]])
+    profile.speedShortcut = 'off'
+    assert.equal(h.render(), null)
+    assert.equal(observedSession, 'b', 'the detached model submenu retains access after its native parent dismisses')
+    profile.composerModelPickerActive = false
+    h.render()
+    assert.equal(observedSession, undefined, 'no session preference subscription is needed with both surfaces off')
   } finally { h.dispose() }
 })
 
@@ -304,7 +412,7 @@ test('a third-party owner can expose standard options; labels yield without repl
     removeOther(); await flush()
     assert.equal(core.entries(label)[0].component, bolt)
     state = { ...state, speedMode: 'standard' }; sync()
-    assert.equal(core.entries(label).length, 0, 'standard speed restores the host fallback label')
+    assert.deepEqual(core.entries(label).map(e => e.component), [bolt], 'global Standard cannot suppress a session-local speed badge')
     state = { ...state, composerModelPicker: 'dsh' }; sync()
     assert.deepEqual(core.entries(options).map(e => e.component), [team])
   } finally { dispose() }
@@ -313,9 +421,12 @@ test('a third-party owner can expose standard options; labels yield without repl
 })
 
 test('inline speed indication preserves model badges and never marks another provider or unselected model', async () => {
-  const snapshot = { speedMode: 'fast', fastModels: ['gpt-6.1-sol'], ultrafastModels: ['gpt-6.1-sol'] }
-  const props = { provider: { id: 'openai-codex' }, model: { id: 'gpt-6.1-sol', name: 'GPT-6.1-Sol', badge: { text: 'Original badge', tone: 'info' } }, placement: 'trigger', selected: true, resolveText: text => text, t: key => key }
-  const h = await component('client-model-select.jsx', 'CodexModelLabel', props, { './settings-contract.js': settingsContract, './client-shared.js': { usePreferenceSnapshot: () => snapshot } })
+  const snapshot = { speedMode: 'fast' }
+  const profile = { speedMode: 'ultrafast', fastModels: ['gpt-6.1-sol'], ultrafastModels: ['gpt-6.1-sol'] }
+  const props = { available: true, sessionId: 'a', provider: { id: 'openai-codex' }, model: { id: 'gpt-6.1-sol', name: 'GPT-6.1-Sol', badge: { text: 'Original badge', tone: 'info' } }, placement: 'trigger', selected: true, resolveText: text => text, t: key => key }
+  const h = await component('client-model-select.jsx', 'CodexModelLabel', props, { './settings-contract.js': settingsContract, './client-shared.js': {
+    usePreferenceSnapshot: () => profile, useSessionPreferenceSnapshot: (_controller, id) => id === 'a' ? snapshot : {},
+  } })
   const bolts = () => nodes(h.tree, n => n.props.className === 'codexModelSelectBolt')
   try {
     assert.equal(bolts()[0].props['aria-label'], 'speedFast')

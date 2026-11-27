@@ -1,4 +1,6 @@
 import { createSettingsAdapter } from './settings-adapter.js'
+import { dirname, isAbsolute, join } from 'node:path'
+import { createSessionPreferences, inheritedCodexSpeed, safeSessionPreferences } from './session-preferences.js'
 import { observeAdapter } from './request-observer.js'
 import { createHiddenModelDirectory } from './hidden-model-directory.js'
 import { createDefaultModelController } from './default-model.js'
@@ -250,8 +252,45 @@ export function apply(ctx, config = {}) {
     diagnostic: reason => diagnosticLog.info('model', `cache-preserving reasoning: ${reason}`),
     lockDiagnostic: event => diagnosticLog[event.event === 'conflict' ? 'warn' : 'info']('model', 'reasoning checkpoint lock', JSON.stringify(event)),
   })
-  ctx.on('session/created', session => reasoning.sessionCreated(session))
-  ctx.on('session/disposed', session => reasoning.sessionDisposed(session))
+  const profileDir = ctx.get?.('profileContext')?.dir
+  const settingsPath = ctx.settings.documentPath
+  const preferencesRoot = typeof profileDir === 'string' && isAbsolute(profileDir) ? profileDir
+    : typeof settingsPath === 'string' && isAbsolute(settingsPath) ? dirname(settingsPath) : undefined
+  const liveSession = id => ctx.get?.('sessions')?.get?.(id)
+  const sessionPreferenceError = error => ctx.logger?.warn?.('Could not access Codex session preferences (%s)', error?.code ?? error?.name ?? 'unknown error')
+  const sessionPrefs = createSessionPreferences({
+    directory: preferencesRoot && join(preferencesRoot, 'state', 'codex-subscription', 'preferences'),
+    defaults: settings.get,
+    parentSpeed: id => parentSpeed(ctx.get?.('agents')?.get?.(id)),
+  })
+  const sessionRequestPreferences = session => {
+    try { return sessionPrefs.forRequest(session) }
+    catch (error) { sessionPreferenceError(error); return safeSessionPreferences }
+  }
+  const parentSpeed = parent => inheritedCodexSpeed(parent, sessionRequestPreferences, id => modelCatalog.metadata(id))
+  try { sessionPrefs.initialize() } catch (error) { sessionPreferenceError(error) }
+  ctx.on('session/created', session => {
+    reasoning.sessionCreated(session)
+    try { sessionPrefs.created(session) } catch (error) { sessionPreferenceError(error) }
+  })
+  ctx.on('session/disposed', session => {
+    reasoning.sessionDisposed(session)
+    sessionPrefs.disposed(session)
+  })
+  const resolveRequestPreferences = options => {
+    if (typeof options?.sessionId !== 'string') return settings.get()
+    const session = liveSession(options.sessionId)
+    return session ? sessionRequestPreferences(session) : safeSessionPreferences
+  }
+  const resolvePreferenceSession = async (id, signal) => {
+    const live = liveSession(id)
+    if (live) return live
+    // A session can be viewed and configured while its agent is dormant. Use
+    // only the stored header; never start an agent or read its log for this RPC.
+    const stored = await ctx.get?.('sessionPersistence')?.stat?.(id, { signal })
+    const header = stored?.header ?? stored?.meta
+    if (header?.id === id) return liveSession(id) ?? { id, header }
+  }
   ctx.on('session/event', (session, event) => reasoning.sessionEvent(session, event))
   ctx.effect(() => () => connection.dispose())
   const provider = openaiCodexSubscriptionProvider({
@@ -259,9 +298,8 @@ export function apply(ctx, config = {}) {
     connection,
     compaction,
     reasoning,
-    resolveSpeedMode: () => settings.get()[SPEED_MODE_FIELD],
+    resolveConversationPreferences: resolveRequestPreferences,
     resolveCustomInstructions: () => settings.get()[CUSTOM_INSTRUCTIONS_FIELD],
-    resolveOutputVerbosity: () => normalizeOutputVerbosity(settings.get()[OUTPUT_VERBOSITY_FIELD]),
     resolveInputImageDetail: () => settings.get()[INPUT_IMAGE_DETAIL_FIELD],
     resolveReasoningSummary: () => settings.get()[REASONING_SUMMARY_FIELD],
     resolveContextMode: () => normalizeContextMode(settings.get()[CONTEXT_MODE_FIELD]),
@@ -414,6 +452,11 @@ export function apply(ctx, config = {}) {
       loadRuntime: () => loadSubagentRuntime({ cli: subagentCli }),
       maintenance: runtimeManagement.blocked,
       defaults: subagentDefaults,
+      parentSpeed,
+      modelMetadata: async (id, signal) => {
+        if (!subagentCatalog.metadata(id)) await subagentCatalog.refresh({ signal }).catch(() => signal.throwIfAborted())
+        return subagentCatalog.metadata(id)
+      },
     })
     scoped.subagents.registerProvider(instance.provider)
     const switcher = createSubagentBackendSwitcher({
@@ -744,8 +787,9 @@ export function apply(ctx, config = {}) {
     historySource: createRemoteHistorySource({ query: () => ctx.get?.('sessionQuery') }),
     speed: {
       tiers: (provider, model) => provider === PROVIDER ? (modelCatalog.metadata(model)?.serviceTiers ?? []) : [],
-      current: () => settings.get()[SPEED_MODE_FIELD],
-      set: mode => settings.update({ [SPEED_MODE_FIELD]: mode }),
+      current: session => sessionPrefs.current(session).speedMode,
+      set: (mode, session) => sessionPrefs.update(session, { [SPEED_MODE_FIELD]: mode }),
+      temporary: sessionPrefs.temporary,
     },
     trace: entry => { try { remoteControl.host.note(entry) } catch { /* diagnostics only */ } },
     userAgent: USER_AGENT,
@@ -918,6 +962,7 @@ export function apply(ctx, config = {}) {
     usageProfileReader,
     resetCreditService,
     preferences,
+    sessionPreferences: { ...sessionPrefs, resolve: resolvePreferenceSession },
     defaultModel,
     runtimeManagement,
     remoteControl,

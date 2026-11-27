@@ -1,5 +1,5 @@
 export { CHANNEL, unwrap } from './rpc-contract.js'
-import { useSyncExternalStore } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 import { quotaForecastView, formatQuotaRunout } from './quota-forecast-view.js'
 import { ACCESS_DENIED, DEVICE_LIMIT, PURCHASE_LIMIT, SIGN_IN_RENEW } from './http-failure.js'
 const ACCESS_FAILURE_KEYS = new Map([[ACCESS_DENIED, 'accessDenied'], [DEVICE_LIMIT, 'deviceLimit'], [PURCHASE_LIMIT, 'purchaseLimit'], [SIGN_IN_RENEW, 'resetRenewLogin']])
@@ -56,6 +56,10 @@ export const validDate = value => {
 export const usePreferenceSnapshot = preference => useSyncExternalStore(
   preference.subscribe,
   preference.getSnapshot,
+)
+export const useSessionPreferenceSnapshot = (preferences, sessionId) => useSyncExternalStore(
+  useCallback(listener => preferences.subscribe(sessionId, listener), [preferences, sessionId]),
+  () => preferences.getSnapshot(sessionId),
 )
 export const useAccountStatusSnapshot = accountStatus => useSyncExternalStore(
   accountStatus.subscribe,

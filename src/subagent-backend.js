@@ -2,6 +2,7 @@ import { mkdir } from 'node:fs/promises'
 import { authenticatedSubagentChild, createSubagentTokens } from './subagent-auth.js'
 import { resolveCodexOAuthProxy } from './oauth-network.js'
 import { compareVersions } from './dsh-compatibility.js'
+import { effectiveCodexSpeedMode } from './settings-contract.js'
 
 export const SUBAGENT_BACKEND_FIELD = 'subagentBackend'
 export const SUBAGENT_PROVIDER = 'codex-subscription-subagent'
@@ -37,7 +38,7 @@ const CHILD_FEATURES_OFF = Object.freeze({
 })
 
 /** Reuse the official DSH process/turn provider; keep only subscription auth here. */
-export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store, refresh, loadRuntime, maintenance = () => false, defaults }) {
+export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store, refresh, loadRuntime, maintenance = () => false, defaults, parentSpeed, modelMetadata }) {
   // Module imports are cached by Node. Recheck the optional executable before
   // each child so a repair, cancelled update or manual removal cannot reuse
   // stale preparation state.
@@ -56,11 +57,19 @@ export function createSubscriptionSubagent({ ctx, nativeHome, resolveAuth, store
       const signal = AbortSignal.any([request.signal, controller.signal])
       let run
       try {
+        const inheritedSpeed = parentSpeed?.(request.parent)
         await defaults?.ready(request.agentOptions, signal)
         signal.throwIfAborted()
         const options = defaults?.resolve(request.parent, request.agentOptions) ?? request.agentOptions
         const thread = subagentThreadPolicy(request.parent, ctx.sandboxPolicy.resolve({ session: request.parent.session }), options)
         const getTokens = await createSubagentTokens({ resolveAuth, store, refresh, signal })
+        if (inheritedSpeed !== undefined) {
+          const metadata = inheritedSpeed !== 'standard' ? await modelMetadata?.(thread.model, signal) : undefined
+          const mode = effectiveCodexSpeedMode(inheritedSpeed, thread.model, metadata)
+          // Explicit default defeats the Codex CLI's own Fast default, including
+          // when the child model cannot use the parent's effective tier.
+          thread.serviceTier = mode === 'fast' ? 'priority' : mode === 'ultrafast' ? 'ultrafast' : 'default'
+        }
         const { official, Transport, argv } = await load()
         const proxy = await resolveCodexOAuthProxy({ target: new URL('https://chatgpt.com/') })
         signal.throwIfAborted()

@@ -1028,34 +1028,34 @@ test('the phone sees the speed tiers a Codex model offers and its choice becomes
   const writes = []
   const speed = {
     tiers: (provider, model) => provider === 'openai-codex' && model === 'gpt-6' ? [{ id: 'priority', name: 'Fast', description: 'Faster' }] : [],
-    current: () => mode,
-    set: async next => { writes.push(next); mode = next },
+    current: actual => { assert.equal(actual, session); return mode },
+    set: async (next, actual) => { assert.equal(actual, session); writes.push(next); mode = next },
   }
-  const { bridge, finish } = fakeControl({ speed })
+  const { bridge, finish, session } = fakeControl({ speed })
   const models = (await bridge.methods['model/list']({}, {})).data
   assert.deepEqual(models[0].serviceTiers, [{ id: 'priority', name: 'Fast', description: 'Faster' }])
   assert.deepEqual(models[0].additionalSpeedTiers, ['priority'])
   assert.deepEqual(models[1].serviceTiers, [], 'a DeepSeek model has no speed tiers')
-  // A tier kept for later turns.
   const notify = async () => {}
+  const resume = params => bridge.methods['thread/resume']({ threadId: session.id, ...params }, { notify })
   await bridge.methods['turn/start']({ ...hello('go'), serviceTier: 'priority' }, { notify })
   assert.deepEqual(writes, ['fast'])
+  assert.equal((await resume()).serviceTier, 'priority')
   finish()
   await new Promise(resolve => setImmediate(resolve))
-  // null means standard speed again.
+  await bridge.methods['thread/settings/update']({ threadId: session.id, serviceTier: 'ultrafast' })
+  assert.equal((await resume({ excludeTurns: true })).serviceTier, 'ultrafast')
+  assert.equal((await bridge.methods['thread/start']({ ephemeral: true }, { notify })).serviceTier, null)
   await bridge.methods['turn/start']({ ...hello('again'), serviceTier: null }, { notify })
-  assert.deepEqual(writes, ['fast', 'standard'])
+  assert.deepEqual(writes, ['fast', 'ultrafast', 'standard'])
+  finish()
 })
 
-test('a speed picked for one turn is put back when the turn ends', async () => {
-  let mode = 'standard'
-  const writes = []
-  const speed = { tiers: () => [], current: () => mode, set: async next => { writes.push(next); mode = next } }
-  const { bridge, finish } = fakeControl({ speed })
-  await bridge.methods['turn/start']({ ...hello('go'), serviceTierForTurn: 'priority' }, { notify: async () => {} })
-  assert.equal(mode, 'fast')
-  finish()
-  await new Promise(resolve => setTimeout(resolve, 20))
-  assert.equal(mode, 'standard')
-  assert.deepEqual(writes, ['fast', 'standard'])
+test('temporary speed does not fall back to changing sticky preferences when temporary support is absent', async () => {
+  for (const speed of [undefined, { set: () => assert.fail('turn-only tiers must never write settings') }]) {
+    const { bridge, finish } = fakeControl({ speed })
+    await bridge.methods['turn/start']({ ...hello('go'), serviceTierForTurn: 'priority' }, { notify: async () => {} })
+    finish()
+    await new Promise(resolve => setImmediate(resolve))
+  }
 })

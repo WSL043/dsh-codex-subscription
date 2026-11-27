@@ -136,6 +136,7 @@ export function openaiCodexSubscriptionProvider({
   resolveSpeedMode = () => undefined,
   resolveCustomInstructions = () => '',
   resolveOutputVerbosity = () => OUTPUT_VERBOSITY_DEFAULT,
+  resolveConversationPreferences,
   resolveInputImageDetail = () => undefined,
   resolveReasoningSummary = () => undefined,
   resolveContextMode = () => undefined,
@@ -166,7 +167,8 @@ export function openaiCodexSubscriptionProvider({
   const supportsVerbosity = model => modelMetadata(model)?.supportVerbosity ?? model?.id !== 'gpt-5.3-codex-spark'
   const withPreferences = (model, options = {}, instructions = '') => {
     const metadata = modelMetadata(model)
-    const requestedVerbosity = resolveOutputVerbosity()
+    const preferences = resolveConversationPreferences?.(options)
+    const requestedVerbosity = preferences?.outputVerbosity ?? resolveOutputVerbosity(options)
     const textVerbosity = supportsVerbosity(model)
       ? requestedVerbosity === OUTPUT_VERBOSITY_DEFAULT
         ? metadata?.defaultVerbosity ?? 'medium'
@@ -174,7 +176,7 @@ export function openaiCodexSubscriptionProvider({
       : undefined
     // A tier is sent only when the account catalog advertises it for this model;
     // otherwise the request stays on the standard tier.
-    const speedMode = effectiveCodexSpeedMode(resolveSpeedMode(), model?.id, metadata)
+    const speedMode = effectiveCodexSpeedMode(preferences?.speedMode ?? resolveSpeedMode(options), model?.id, metadata)
     const serviceTier = speedMode === SPEED_MODE_ULTRAFAST
       ? ULTRAFAST_SERVICE_TIER
       : speedMode === SPEED_MODE_FAST

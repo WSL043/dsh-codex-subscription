@@ -77,7 +77,7 @@ export function registerLegacyModelPicker(slots, preference, props, component, o
         }
         // The label is non-interactive; never replace another contributor's label.
         const otherLabels = slots.entries(nativeLabel).filter(entry => entry.component !== labelComponent)
-        if (disposeOptions && labelComponent && state.speedMode !== 'standard'
+        if (disposeOptions && labelComponent
           && owner.children?.[nativeLabel]?.kind === 'single' && otherLabels.length === 0) {
           disposeLabel ??= slots.register({ name: nativeLabel, priority: 100, inject: props }, labelComponent)
         } else { disposeLabel?.(); disposeLabel = undefined }
