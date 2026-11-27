@@ -150,6 +150,7 @@ export function openaiCodexSubscriptionProvider({
   runNetwork = (_area, operation) => operation(),
   runOAuthRefresh = operation => operation(),
   beginModelAttempt = createModelAttempt,
+  onRequestAccount,
   providerFactory = createOpenAICodexProvider,
 } = {}) {
   const provider = providerFactory()
@@ -333,6 +334,9 @@ export function openaiCodexSubscriptionProvider({
       request?.finish?.({ status, transports, oversizeRejected })
     }
     const initialize = async () => {
+      if (!direct && source?.purpose === undefined) {
+        await onRequestAccount?.({ sessionId: options?.sessionId, apiKey: options?.apiKey })
+      }
       const overrides = direct ? undefined : compaction?.networkOptions(undefined)
       request = await (direct ? undefined : connection?.prepare({ ...options, signal }, { model: source?.model, allowWebSocket: overrides?.websocket !== false })) ?? { options }
       const next = { ...(direct ? { ...request.options, transport: 'sse' } : compaction?.requestOptions(request.options) ?? request.options), signal }
@@ -431,7 +435,7 @@ export function openaiCodexSubscriptionProvider({
     // Older DSH/pi-ai combinations drop the auxiliary purpose before dispatching the provider.
     const purpose = options?.purpose ?? retryBridge.currentPurpose()
     const instructions = !reviewRequest && purpose === undefined ? resolveCustomInstructions()?.trim() : ''
-    const source = { method, model, context, options }
+    const source = { method, model, context, options, purpose }
     // DSH reserves output locally. Its replay bridge owns mid-turn effort changes.
     const subscriptionModel = { ...model, compat: { ...model.compat, supportsMaxOutputTokens: false, supportsMidConvoEffort: false } }
     const create = () => route === undefined

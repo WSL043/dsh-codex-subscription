@@ -215,6 +215,8 @@ Choose the model for the task, then adjust reasoning for how much analysis you n
 
 Speed and output detail changes in the composer or model menu are saved to that conversation only. The plugin settings set defaults for new conversations; existing conversations keep their values unless explicitly set to **Follow default**. Conversations created before the upgrade start with the defaults in effect when this feature is first enabled. A Codex subscription subagent inherits the Codex parent’s effective speed, falling back to Standard if the child model does not support that tier.
 
+Automatic account switching is **off by default**. With multiple ChatGPT accounts saved, enable **Switch accounts on failure** to recover after quota exhaustion or repeated capacity errors. It changes the active account for future requests in all conversations while ongoing requests can finish. Each step has at most three recovery retries, including at most one retry on the same account; exhausted recovery ends with the original error.
+
 | Feature | What you can do | Availability / setup |
 | --- | --- | --- |
 | **Subscription sign-in** | Sign in to ChatGPT and use Codex subscription models without an API key | Normal chat needs no Codex CLI |

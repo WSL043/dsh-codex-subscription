@@ -8,6 +8,24 @@ import { createSubscriptionConnection, tokenScope } from '../src/subscription-co
 import { openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
 import { createCodexNetworkTransport, withCodexNetwork } from '../src/oauth-network.js'
 
+test('automatic account changes drain existing requests without cancelling another conversation (#279)', async () => {
+  const closed = []
+  const policy = createSubscriptionConnection({ resolveMode: () => 'websocket', resolveProxy: async () => undefined,
+    sdk: { stats: () => ({}), reset() {}, close: key => closed.push(key) } })
+  const a = await policy.prepare({ sessionId: 'a', apiKey: 'old-token' })
+  const b = await policy.prepare({ sessionId: 'b', apiKey: 'old-token' })
+  policy.dispose({ drain: true })
+  assert.deepEqual(closed, [])
+  const replacement = await policy.prepare({ sessionId: 'a', apiKey: 'new-token' })
+  assert.notEqual(a.options.sessionId, replacement.options.sessionId)
+  a.finish({ status: 'ok', transports: ['websocket'] })
+  assert.deepEqual(closed, [a.options.sessionId])
+  assert.ok(!closed.includes(b.options.sessionId))
+  b.finish({ status: 'ok', transports: ['websocket'] })
+  replacement.finish({ status: 'ok', transports: ['websocket'] })
+  policy.dispose()
+})
+
 test('SSE leaves the WebSocket constructor untouched; unrelated WebSocket subclasses retain their prototype', async () => {
   const original = globalThis.WebSocket
   class FixtureSocket { constructor(url) { this.url = url } }

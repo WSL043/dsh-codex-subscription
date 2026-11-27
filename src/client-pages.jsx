@@ -12,7 +12,7 @@ import { VoiceCallCard } from './client-voice-call.jsx'
 import { DiagnosticsCard } from './client-diagnostics.jsx'
 import { StorageCard } from './client-storage.jsx'
 import {
-  AutoQuotaRetryPreference, CompactionPreference, ConnectorsPreference, ContextWindowPreference, InputImageDetailPreference, ModelCatalogStatus,
+  AccountFailoverPreference, AutoQuotaRetryPreference, CompactionPreference, ConnectorsPreference, ContextWindowPreference, InputImageDetailPreference, ModelCatalogStatus,
   PickerModelsPreference, QuickQuotaPreference, ReasoningCachePreference, ReasoningSummaryPreference, RetryPolicyPreference, SearchProviderPreference,
   StreamIdleTimeoutPreference,
 } from './client-preferences.jsx'
@@ -87,6 +87,8 @@ export function QuotaSettingsCard({ preference, t }) {
     </div>
     <div className="codexSubscriptionDivider" />
     <AutoQuotaRetryPreference preference={preference} t={t} />
+    <div className="codexSubscriptionDivider" />
+    <AccountFailoverPreference preference={preference} t={t} />
   </section>
 }
 

@@ -56,6 +56,8 @@ Choose **Restore DSH default** in the menu to clear the saved selection in this 
 
 ### Sign-in and quota status
 
+Automatic account switching is **off by default**. With multiple ChatGPT accounts saved, enable **Switch accounts on failure** to recover after quota exhaustion or repeated capacity errors. It changes the active account for future requests in all conversations while ongoing requests can finish. Each step has at most three recovery retries, including at most one retry on the same account; exhausted recovery ends with the original error.
+
 | What you see in **Settings → Codex → Start** | What to do |
 | --- | --- |
 | **Not signed in** | Use the browser or device-code sign-in. |

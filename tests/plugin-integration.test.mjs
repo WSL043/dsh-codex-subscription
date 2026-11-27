@@ -41,6 +41,7 @@ test('settings schema survives the native browser JSON round trip', () => {
   assert.deepEqual(plain(browserSchema(JSON.parse(JSON.stringify(value)))), value)
   assert.equal(Object.hasOwn(browserSchema.dict, 'composerSpeedBadge'), false)
   assert.equal(value.autoQuotaRetry, false)
+  assert.equal(value.accountFailover, false)
   assert.deepEqual(value.disabledModels, ['gpt-5.5'])
   assert.deepEqual(value.searchDomains, ['example.com'])
   assert.throws(() => browserSchema({ searchDomains: ['https://example.com/path'] }), /Invalid search domain/)
@@ -245,9 +246,12 @@ function fakeContext({ connection = true, webServer = true, fetchRouting = true 
     inject(services, callback) {
       if (services.every(service => ctx[service] !== undefined)) callback(ctx)
     },
-    on(event, listener) {
+    on(event, listener, prepend = false) {
+      // The host runs a prepended listener before the ones already registered, so
+      // mirroring that here is what makes the failover ordering assertion real.
       const entry = { event, listener }
-      listeners.push(entry)
+      if (prepend) listeners.unshift(entry)
+      else listeners.push(entry)
       return () => {
         const index = listeners.indexOf(entry)
         if (index >= 0) listeners.splice(index, 1)
@@ -270,7 +274,7 @@ function fakeContext({ connection = true, webServer = true, fetchRouting = true 
   }
   if (!fetchRouting) Object.defineProperty(ctx.web, 'fetchProviders', { get: () => fetchProviderMap })
   return {
-    ctx, config: preference, registered, disposedAdapters, handled, listeners, provided, searchProviders, settings, tools, webUpdates, disposers, fetchProviderMap,
+    ctx, config: preference, registered, disposedAdapters, handled, listeners, provided, searchProviders, settings, tools, webUpdates, disposers, fetchProviderMap, records,
     async settleEffects() { await Promise.all(pendingEffects) },
     async request(endpoint, payload, signal) {
       const method = 'codex-subscription/' + endpoint
@@ -563,7 +567,10 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.equal(profile.modelErrors.get('gpt-5.5'), undefined, 'a serviceable model records no diagnostic')
   assert.deepEqual(host.searchProviders.map(provider => provider.id), ['codex-subscription', 'codex-subscription-dsh', 'codex-subscription-auto'])
   assert.deepEqual(host.tools.map(tool => tool.name).sort(), ['codex_image_generate', 'codex_subscription_preferences'])
-  assert.equal(host.listeners.filter(listener => listener.event === 'agent/request-error').length, 1)
+  // One request snapshot listener plus two recovery listeners: account failover
+  // (prepended) and the quota-reset wait.
+  assert.equal(host.listeners.filter(listener => listener.event === 'agent/request').length, 1)
+  assert.equal(host.listeners.filter(listener => listener.event === 'agent/request-error').length, 2)
   assert.equal(host.registered[0].adapter.providerRetryPolicy(), undefined)
   const models = await host.registered[0].adapter.listModels('openai-codex')
   assert.deepEqual(models, [], 'signed out there is no account catalog to advertise')
@@ -611,6 +618,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
       catalog: diagnostics.value.catalog,
       configuration: {
         autoQuotaRetry: false,
+        accountFailover: false,
         compactionMode: 'dsh',
         composerModelPicker: 'auto',
         connectionMode: 'sse',
@@ -646,7 +654,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   assert.equal(typeof preferenceStatus.value.subagentRuntimeInstalled, 'boolean')
   assert.deepEqual(preferenceStatus, {
     ok: true,
-    value: { disabledModels: [], autoQuotaRetry: false, compactionMode: 'dsh', reasoningCache: 'on', defaultReasoningEffort: 'auto', connectionMode: 'sse', connectors: 'off', connectorAccount: '', reviewModel: 'session', remoteControl: 'off', composerPredictions: 'off', composerModelPicker: 'auto', otherModels: 'on', subagentBackend: 'dsh', subagentDefaultModel: '', subagentDefaultEffort: 'auto', subagentModels: [], subagentBackendAvailable: false, subagentRuntimeInstalled: preferenceStatus.value.subagentRuntimeInstalled, ...IMAGE_FEATURE_DEFAULTS, reasoningSummary: 'auto', voiceCall: 'off', voiceVoice: 'cove', voiceLanguage: 'auto', retryPolicy: 'default', imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', fetchProvider: 'dsh', fetchRoutingAvailable: true, speedMode: SPEED_MODE_STANDARD, speedShortcut: 'off', customInstructions: '', outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, inputImageDetail: 'auto', streamIdleTimeoutMinutes: 10, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 872_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, availableModels: preferenceStatus.value.availableModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, ultrafastModels: preferenceStatus.value.ultrafastModels, ultraModels: preferenceStatus.value.ultraModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', quotaShortThreshold: 20, quotaLongThreshold: 20, writable: true },
+    value: { disabledModels: [], autoQuotaRetry: false, accountFailover: false, compactionMode: 'dsh', reasoningCache: 'on', defaultReasoningEffort: 'auto', connectionMode: 'sse', connectors: 'off', connectorAccount: '', reviewModel: 'session', remoteControl: 'off', composerPredictions: 'off', composerModelPicker: 'auto', otherModels: 'on', subagentBackend: 'dsh', subagentDefaultModel: '', subagentDefaultEffort: 'auto', subagentModels: [], subagentBackendAvailable: false, subagentRuntimeInstalled: preferenceStatus.value.subagentRuntimeInstalled, ...IMAGE_FEATURE_DEFAULTS, reasoningSummary: 'auto', voiceCall: 'off', voiceVoice: 'cove', voiceLanguage: 'auto', retryPolicy: 'default', imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_PERCENT, searchProvider: 'codex', fetchProvider: 'dsh', fetchRoutingAvailable: true, speedMode: SPEED_MODE_STANDARD, speedShortcut: 'off', customInstructions: '', outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, inputImageDetail: 'auto', streamIdleTimeoutMinutes: 10, contextMode: CONTEXT_MODE_STANDARD, customContextWindow: 272_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 872_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, availableModels: preferenceStatus.value.availableModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, ultrafastModels: preferenceStatus.value.ultrafastModels, ultraModels: preferenceStatus.value.ultraModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', quotaShortThreshold: 20, quotaLongThreshold: 20, writable: true },
   })
   const missingConnectorAccount = await host.request('preferences/update', { connectorAccount: 'not-in-the-vault' }, signal)
   assert.equal(missingConnectorAccount.ok, false)
@@ -665,7 +673,7 @@ test('plugin registers one Codex route, subscription image tool, and DSH-trusted
   }, signal)
   assert.deepEqual(preferenceUpdate, {
     ok: true,
-    value: { disabledModels: [], autoQuotaRetry: false, compactionMode: 'dsh', reasoningCache: 'on', defaultReasoningEffort: 'auto', connectionMode: 'sse', connectors: 'off', connectorAccount: '', reviewModel: 'session', remoteControl: 'off', composerPredictions: 'off', composerModelPicker: 'auto', otherModels: 'on', subagentBackend: 'dsh', subagentDefaultModel: '', subagentDefaultEffort: 'auto', subagentModels: [], subagentBackendAvailable: false, subagentRuntimeInstalled: preferenceStatus.value.subagentRuntimeInstalled, ...IMAGE_FEATURE_DEFAULTS, reasoningSummary: 'auto', voiceCall: 'off', voiceVoice: 'cove', voiceLanguage: 'auto', retryPolicy: 'default', imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', fetchProvider: 'dsh', fetchRoutingAvailable: true, speedMode: SPEED_MODE_FAST, speedShortcut: 'off', customInstructions: '', outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, inputImageDetail: 'high', streamIdleTimeoutMinutes: 5, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 872_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, availableModels: preferenceStatus.value.availableModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, ultrafastModels: preferenceStatus.value.ultrafastModels, ultraModels: preferenceStatus.value.ultraModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', quotaShortThreshold: 20, quotaLongThreshold: 20, writable: true },
+    value: { disabledModels: [], autoQuotaRetry: false, accountFailover: false, compactionMode: 'dsh', reasoningCache: 'on', defaultReasoningEffort: 'auto', connectionMode: 'sse', connectors: 'off', connectorAccount: '', reviewModel: 'session', remoteControl: 'off', composerPredictions: 'off', composerModelPicker: 'auto', otherModels: 'on', subagentBackend: 'dsh', subagentDefaultModel: '', subagentDefaultEffort: 'auto', subagentModels: [], subagentBackendAvailable: false, subagentRuntimeInstalled: preferenceStatus.value.subagentRuntimeInstalled, ...IMAGE_FEATURE_DEFAULTS, reasoningSummary: 'auto', voiceCall: 'off', voiceVoice: 'cove', voiceLanguage: 'auto', retryPolicy: 'default', imageModel: 'gpt-image-2', imageQuality: 'auto', quickQuotaMode: QUICK_QUOTA_MODE_BAR, searchProvider: 'dsh', fetchProvider: 'dsh', fetchRoutingAvailable: true, speedMode: SPEED_MODE_FAST, speedShortcut: 'off', customInstructions: '', outputVerbosity: OUTPUT_VERBOSITY_DEFAULT, inputImageDetail: 'high', streamIdleTimeoutMinutes: 5, contextMode: CONTEXT_MODE_EXTENDED, customContextWindow: 500_000, customContextGpt54: 1_000_000, customContextGpt54Mini: 400_000, customContextGpt55: 272_000, customContextGpt56: 872_000, customContextGpt6Astra: 272_000, contextModels: activeContextModels, availableModels: preferenceStatus.value.availableModels, verbosityModels, fastModels: preferenceStatus.value.fastModels, ultrafastModels: preferenceStatus.value.ultrafastModels, ultraModels: preferenceStatus.value.ultraModels, catalogStatus: preferenceStatus.value.catalogStatus, customContextModels: {}, searchMode: 'live', searchDomains: [], quotaAlerts: 'important', quotaShortThreshold: 20, quotaLongThreshold: 20, writable: true },
   })
   assert.equal(host.registered[0].adapter.current().profiles.get('openai-codex').streamIdleTimeoutMs, 5 * 60 * 1000)
   await host.request('preferences/update', { [STREAM_IDLE_TIMEOUT_MINUTES_FIELD]: 10 }, signal)
@@ -1014,4 +1022,155 @@ test('the settings default model writes the DSH default a new conversation start
     error: { code: 'invalid-input', message: 'Invalid default model', details: { issues: [] } },
   })
   assert.equal(writes.length, 1, 'a rejected selection never reaches the host service')
+})
+
+// The account pool is only useful when it works through the real host wiring:
+// one failing turn, two signed-in accounts, and the same durable retry surface
+// the host's own recovery uses.
+const failoverVault = () => {
+  const id = suffix => `0000000${suffix}-0000-4000-8000-00000000000${suffix}`
+  return {
+    kind: 'grant',
+    payload: {
+      version: 1,
+      activeId: id(1),
+      legacyAccountId: id(1),
+      accounts: [1, 2].map(suffix => ({
+        id: id(suffix),
+        label: `Account ${suffix}`,
+        credential: {
+          type: 'oauth',
+          access: `access-${suffix}`,
+          refresh: `refresh-${suffix}`,
+          expires: 1_900_000_000_000,
+          accountId: `account-${suffix}`,
+          email: `account${suffix}@example.com`,
+        },
+      })),
+    },
+  }
+}
+
+test('an exhausted account moves the live turn to the other signed-in account', async () => {
+  const host = fakeContext()
+  host.records.set('codex-subscription/accounts', failoverVault())
+  host.config.accountFailover = true
+  applyPlugin(host.ctx, host.config)
+  await host.settleEffects()
+  const signal = new AbortController().signal
+  const accountBefore = await host.request('status', {}, signal)
+  assert.equal(accountBefore.value.accounts.length, 2)
+  const activeBefore = accountBefore.value.accounts.find(account => account.active)
+
+  const retries = []
+  const agent = { session: { id: 'session-1', append: (type, data) => retries.push({ type, data }) } }
+  // The failover listener is prepended, exactly like the host runs it, so walking
+  // this list in order is walking the production order.
+  const listeners = host.listeners.filter(listener => listener.event === 'agent/request-error').map(listener => listener.listener)
+  const dispatch = async payload => {
+    let index = 0
+    const next = () => {
+      const listener = listeners[index++]
+      return listener === undefined ? Promise.resolve({ kind: 'downstream' }) : listener(payload, next)
+    }
+    return next()
+  }
+  const result = await dispatch({
+    agent, turn: 1, step: 1, provider: 'openai-codex', signal,
+    failure: { code: 'PI_AI_ERROR', message: 'You have hit your ChatGPT usage limit (plus plan). Try again in ~51 min.' },
+  })
+  assert.deepEqual(result, { kind: 'retry' })
+  assert.equal(retries.length, 1)
+  assert.equal(retries[0].type, 'llm/retry')
+  assert.match(retries[0].data.failure.message, /retrying on another signed-in account/u)
+
+  const accountAfter = await host.request('status', {}, signal)
+  const activeAfter = accountAfter.value.accounts.find(account => account.active)
+  assert.notEqual(activeAfter.id, activeBefore.id, 'the turn really moved to the other account')
+})
+
+test('late account errors keep the request snapshot through a real host account switch', async () => {
+  const host = fakeContext()
+  host.records.set('codex-subscription/accounts', failoverVault())
+  host.config.accountFailover = true
+  applyPlugin(host.ctx, host.config)
+  await host.settleEffects()
+  const signal = new AbortController().signal
+  const before = await host.request('status', {}, signal)
+  const activeBefore = before.value.accounts.find(account => account.active)
+  const replacement = before.value.accounts.find(account => !account.active)
+  const agent = { session: { id: 'late-error-session', append() {} } }
+  const requestListener = host.listeners.find(listener => listener.event === 'agent/request').listener
+  await requestListener({ agent, turn: 1, step: 1, signal }, async () => ({ provider: 'openai-codex' }))
+  assert.equal((await host.request('account/select', { id: replacement.id }, signal)).ok, true)
+
+  const listeners = host.listeners.filter(listener => listener.event === 'agent/request-error').map(listener => listener.listener)
+  let index = 0
+  const dispatch = () => {
+    const listener = listeners[index++]
+    return listener === undefined
+      ? Promise.resolve({ kind: 'downstream' })
+      : listener({
+        agent, turn: 1, step: 1, provider: 'openai-codex', signal,
+        failure: { code: 'PI_AI_ERROR', message: 'You have hit your ChatGPT usage limit.' },
+      }, dispatch)
+  }
+  assert.deepEqual(await dispatch(), { kind: 'retry' })
+  const after = await host.request('status', {}, signal)
+  assert.equal(after.value.accounts.find(account => account.active).id, replacement.id)
+  assert.notEqual(replacement.id, activeBefore.id)
+})
+
+test('the account failover switch turns the pool off and back on through the settings RPC', async () => {
+  const host = fakeContext()
+  host.records.set('codex-subscription/accounts', failoverVault())
+  host.config.accountFailover = true
+  applyPlugin(host.ctx, host.config)
+  await host.settleEffects()
+  const signal = new AbortController().signal
+  assert.equal((await host.request('preferences/status', {}, signal)).value.accountFailover, true, 'explicitly enabled for this fixture')
+
+  const failure = { code: 'PI_AI_ERROR', message: 'You have hit your ChatGPT usage limit.' }
+  const dispatch = async payload => {
+    const listeners = host.listeners.filter(listener => listener.event === 'agent/request-error').map(listener => listener.listener)
+    let index = 0
+    const next = () => {
+      const listener = listeners[index++]
+      return listener === undefined ? Promise.resolve({ kind: 'downstream' }) : listener(payload, next)
+    }
+    return next()
+  }
+
+  assert.equal((await host.request('preferences/update', { accountFailover: false }, signal)).ok, true)
+  assert.equal((await dispatch({ agent: { session: { id: 's', append() {} } }, turn: 1, step: 1, provider: 'openai-codex', signal, failure })).kind, 'downstream')
+  assert.deepEqual(await host.request('preferences/update', { accountFailover: 'yes' }, signal), {
+    ok: false,
+    error: { code: 'internal', message: 'Invalid account failover preference', details: { issues: [] } },
+  })
+  assert.equal((await host.request('preferences/update', { accountFailover: true }, signal)).ok, true)
+  assert.equal((await dispatch({ agent: { session: { id: 's', append() {} } }, turn: 1, step: 1, provider: 'openai-codex', signal, failure })).kind, 'retry')
+})
+
+test('committed native assistant success clears the actual account capacity streak (#279)', async () => {
+  const host = fakeContext()
+  host.records.set('codex-subscription/accounts', failoverVault())
+  host.config.accountFailover = true
+  applyPlugin(host.ctx, host.config); await host.settleEffects()
+  const agent = { session: { id: 'capacity-success', append() {} } }
+  const prepare = host.listeners.find(value => value.event === 'agent/request').listener
+  const success = host.listeners.filter(value => value.event === 'session/event').at(-1).listener
+  const errors = host.listeners.filter(value => value.event === 'agent/request-error').map(value => value.listener)
+  let turn = 0
+  const fail = async () => {
+    const payload = { agent, turn: ++turn, step: 1, provider: 'openai-codex', failure: { code: 'PI_AI_ERROR', message: 'Selected model is at capacity.' } }
+    await prepare(payload, async () => ({ provider: 'openai-codex' }))
+    let index = 0
+    const next = () => errors[index++]?.(payload, next) ?? Promise.resolve({ kind: 'downstream' })
+    return next()
+  }
+  assert.equal((await fail()).kind, 'downstream')
+  await prepare({ agent, turn: ++turn, step: 1 }, async () => ({ provider: 'openai-codex' }))
+  success(agent.session, { type: 'assistant/message', data: { turn, step: 1, message: { source: { kind: 'model', provider: 'openai-codex' } } } })
+  assert.equal((await fail()).kind, 'downstream')
+  assert.equal((await fail()).kind, 'retry')
 })

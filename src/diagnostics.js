@@ -148,6 +148,7 @@ export async function createSubscriptionDiagnostics({ auth, preferences, login =
       ? { catalog: { source: catalog.source, refresh: catalog.refresh, ...(gaps.length ? { unsupported: gaps } : {}) } } : {}),
     configuration: {
       ...(typeof preference.autoQuotaRetry === 'boolean' ? { autoQuotaRetry: preference.autoQuotaRetry } : {}),
+      ...(typeof preference.accountFailover === 'boolean' ? { accountFailover: preference.accountFailover } : {}),
       connectionMode: preference.connectionMode,
       compactionMode: preference.compactionMode,
       composerModelPicker: preference.composerModelPicker,

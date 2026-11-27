@@ -3,6 +3,22 @@ import assert from 'node:assert/strict'
 import { createModelStreamHealth, safeStreamHealth } from '../src/model-stream-health.js'
 import { createDiagnosticLog } from '../src/diagnostic-log.js'
 import { openaiCodexProvider, openaiCodexSubscriptionProvider } from '../src/pi-ai-runtime.js'
+import { PiAiAdapter } from '@deepseek-ai/dsh-llm-pi-ai'
+
+test('auxiliary calls carrying a session id cannot replace the primary request account (#279)', async () => {
+  const identities = [], native = openaiCodexProvider(), model = native.getModels()[0]
+  const message = { role: 'assistant', content: [], api: 'openai-codex-responses', provider: 'openai-codex', model: model.id,
+    usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } }, stopReason: 'stop', timestamp: 1 }
+  const factory = () => ({ async *[Symbol.asyncIterator]() { yield { type: 'done', reason: 'stop', message } }, result: async () => message })
+  const provider = openaiCodexSubscriptionProvider({ onRequestAccount: value => identities.push(value), providerFactory: () => ({ ...native, streamSimple: factory, stream: factory }) })
+  const profiles = new Map([['openai-codex', { provider: 'openai-codex', piProvider: provider, configuredMaxTokens: new Map(), modelErrors: new Map(), streamIdleTimeoutMs: 3000 }]])
+  const adapter = provider.wrapRetryAdapter(new PiAiAdapter({ profiles: () => profiles, resolveApiKey: async () => 'synthetic-key' }))
+  const options = { provider: 'openai-codex', model: model.id, sessionId: 'same-session', messages: [], signal: AbortSignal.timeout(2000) }
+  for await (const _ of adapter.stream({ ...options, purpose: 'session-title' })) {}
+  assert.deepEqual(identities, [])
+  for await (const _ of adapter.stream(options)) {}
+  assert.deepEqual(identities, [{ sessionId: 'same-session', apiKey: 'synthetic-key' }])
+})
 
 test('cooldown logs keep the saved WebSocket preference distinct from selected SSE (#275)', async () => {
   const provider = openaiCodexSubscriptionProvider({

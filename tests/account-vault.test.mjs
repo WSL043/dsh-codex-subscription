@@ -32,6 +32,22 @@ function memoryCredentials({ refs = {}, records = {} } = {}) {
   }
 }
 
+test('conditional failover cannot overwrite a queued manual switch or an aborted turn (#279)', async () => {
+  const backend = memoryCredentials({ refs: { CODEX_OAUTH: JSON.stringify(oauth('one')) } })
+  const ids = ['local-1', 'local-2', 'local-3']
+  const vault = new DshOAuthAccountVault(backend, { key: 'accounts', legacyRef: 'CODEX_OAUTH', createId: () => ids.shift() })
+  await vault.list(); await vault.add('Two', oauth('two')); await vault.add('Three', oauth('three')); await vault.select('local-1')
+  const manual = vault.select('local-2')
+  const automatic = vault.select('local-3', { expectedActiveId: 'local-1' })
+  await manual
+  assert.equal(await automatic, false)
+  assert.equal(await vault.activeId(), 'local-2')
+  await assert.rejects(vault.select('local-3', { expectedActiveId: 'local-2', signal: AbortSignal.abort() }))
+  assert.equal(await vault.activeId(), 'local-2')
+  assert.equal(await vault.accountForAccessToken('access-one'), 'local-1', 'identifies the sent credential, independently of active account')
+  assert.equal(await vault.accountForAccessToken('unknown-token'), undefined)
+})
+
 test('corrupt saved credentials can be cleared without reading or parsing them', async () => {
   const backend = memoryCredentials({ refs: { CODEX_OAUTH: '{broken' }, records: { 'dsh-codex-subscription/accounts': { invalid: true } } })
   const vault = new DshOAuthAccountVault(backend, { key: 'dsh-codex-subscription/accounts', legacyRef: 'CODEX_OAUTH' })

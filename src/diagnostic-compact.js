@@ -1,4 +1,5 @@
 const preferences = {
+  accountFailover: [true, false],
   connectionMode: ['sse', 'websocket'], compactionMode: ['dsh', 'cloud'],
   composerModelPicker: ['auto', 'dsh', 'legacy'], contextMode: ['standard', 'extended', 'custom'],
   searchProvider: ['auto', 'dsh', 'codex'],

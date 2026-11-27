@@ -252,6 +252,12 @@ export class DshOAuthAccountVault {
     })
   }
 
+  /** Identify the credential actually captured by a model request, never the later active account. */
+  accountForAccessToken(access) {
+    if (typeof access !== 'string' || !access) return Promise.resolve(undefined)
+    return this.#enqueue(async () => (await this.#ensurePayload())?.accounts.find(account => account.credential.access === access)?.id)
+  }
+
   /** Update one account's credential (a token refresh) without changing which account is active. */
   modifyAccount(id, update) {
     return this.#enqueue(async () => {
@@ -315,12 +321,17 @@ export class DshOAuthAccountVault {
     })
   }
 
-  select(id) {
+  select(id, { expectedActiveId, signal } = {}) {
     return this.#enqueue(async () => {
+      let selected = false
       await this.#modifyPayload(current => {
+        signal?.throwIfAborted()
+        if (expectedActiveId !== undefined && current.activeId !== expectedActiveId) return current
         if (!current.accounts.some(account => account.id === id)) throw new Error('Unknown Codex account')
+        selected = true
         return { ...current, activeId: id }
       })
+      return selected
     })
   }
 

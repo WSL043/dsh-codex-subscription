@@ -150,11 +150,12 @@ export function createSubscriptionConnection({ resolveMode = () => 'sse', resolv
         },
       }
     },
-    dispose() {
-      epoch++; namespace = randomUUID()
+    dispose({ drain = false } = {}) {
+      if (!drain) epoch++
+      namespace = randomUUID()
       for (const entry of sessions.values()) {
         observe(entry); entry.retired = true
-        sdk.close(entry.key)
+        if (!drain || !entry.active) sdk.close(entry.key)
         if (entry.active) retired.add(entry)
         else clear(entry)
       }
