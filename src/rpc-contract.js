@@ -27,6 +27,10 @@ export function createSubscriptionRpcClient(transport, incidents) {
 }
 
 export function unwrap(response) {
-  if (!response?.ok) throw new Error(response?.error?.message ?? 'Codex RPC failed')
+  if (!response?.ok) {
+    const error = new Error(response?.error?.message ?? 'Codex RPC failed')
+    if (typeof response?.error?.code === 'string') error.code = response.error.code
+    throw error
+  }
   return response.value
 }

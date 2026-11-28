@@ -1,6 +1,7 @@
 import { REQUEST_BLOCKED, isAccessFailureMessage } from './http-failure.js'
 import { PREFERENCE_FIELDS } from './preference-fields.js'
 import { CONNECTOR_ACCOUNT_FIELD, MAX_CONNECTOR_ACCOUNT_LENGTH, OUTPUT_VERBOSITY_FIELD, SPEED_MODE_FIELD } from './settings-contract.js'
+import { FETCH_ORDER_FIELD, FETCH_ORDER_RELOAD_REQUIRED, validateFetchOrder } from './fetch-order.js'
 import { normalizeSubagentModel } from './subagent-defaults.js'
 import { capabilityPatch } from './capability-settings.js'
 import { ORIGINAL_IMAGE_CHUNK_BYTES, ORIGINAL_IMAGE_ID_PATTERN } from './image-original-contract.js'
@@ -17,7 +18,9 @@ const sortedIfList = value => JSON.stringify(Array.isArray(value) ? [...value].s
 export async function settlesLive(preferences, patch, signal, { attempts = 8, delayMs = 75 } = {}) {
   const live = () => {
     const current = preferences.status()
-    return Object.entries(patch).every(([field, value]) => sortedIfList(current[field]) === sortedIfList(value))
+    return Object.entries(patch).every(([field, value]) => field === FETCH_ORDER_FIELD
+      ? JSON.stringify(current[field]) === JSON.stringify(value)
+      : sortedIfList(current[field]) === sortedIfList(value))
   }
   for (let attempt = 0; attempt < attempts; attempt += 1) {
     if (live()) return true
@@ -295,6 +298,16 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
             if (!rule.choices.includes(payload[field])) return publicError('internal', rule.error)
             patch[field] = payload[field]
           }
+          if (Object.hasOwn(payload ?? {}, FETCH_ORDER_FIELD)) {
+            if (Object.hasOwn(payload, 'fetchProvider')) return publicError('invalid-input', 'Choose a webpage order or a legacy source, not both')
+            try { patch[FETCH_ORDER_FIELD] = validateFetchOrder(payload[FETCH_ORDER_FIELD]) }
+            catch { return publicError('invalid-input', 'Invalid webpage reading order') }
+          }
+          if (Object.hasOwn(payload ?? {}, 'webFetchFallbackProvider')) {
+            const id = payload.webFetchFallbackProvider
+            if (typeof id !== 'string' || !/^[a-zA-Z0-9._:-]{1,128}$/u.test(id) || ['codex-subscription-fetch', 'codex-subscription-fetch-fallback'].includes(id)) return publicError('invalid-input', 'Invalid DSH fallback fetch provider')
+            patch.webFetchFallbackProvider = id
+          }
           if (Object.hasOwn(payload ?? {}, CONNECTOR_ACCOUNT_FIELD)) {
             const id = payload[CONNECTOR_ACCOUNT_FIELD]
             if (typeof id !== 'string' || id.length > MAX_CONNECTOR_ACCOUNT_LENGTH) return publicError('invalid-input', 'Invalid connector account')
@@ -332,6 +345,7 @@ export function createSubscriptionRpcHandler({ authHandler, usageReader, account
         return { ok: true, value: patch === undefined ? status : { ...status, ...patch, ...(liveSynced ? {} : { liveSynced: false }) } }
       } catch (error) {
         if (signal.aborted) throw error
+        if (error?.code === FETCH_ORDER_RELOAD_REQUIRED) return publicError(FETCH_ORDER_RELOAD_REQUIRED, 'Webpage reading settings may have changed or been partially saved. Reload and verify them before editing again.')
         if (error?.code === 'connector-account-unavailable') return publicError('invalid-input', 'The selected ChatGPT connector account is not signed in')
         return publicError('internal', 'Could not update preferences')
       }

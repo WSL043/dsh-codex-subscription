@@ -14,7 +14,7 @@ import { StorageCard } from './client-storage.jsx'
 import {
   AccountFailoverPreference, AutoQuotaRetryPreference, CompactionPreference, ConnectorsPreference, ContextWindowPreference, InputImageDetailPreference, ModelCatalogStatus,
   PickerModelsPreference, QuickQuotaPreference, ReasoningCachePreference, ReasoningSummaryPreference, RetryPolicyPreference, SearchProviderPreference,
-  StreamIdleTimeoutPreference,
+  StreamIdleTimeoutPreference, FetchOrderPreference,
 } from './client-preferences.jsx'
 import { COMPOSER_MODEL_PICKER_MODES, CUSTOM_INSTRUCTIONS_FIELD, CUSTOM_INSTRUCTIONS_LIMIT, OUTPUT_VERBOSITY_DEFAULT, OUTPUT_VERBOSITY_FIELD, OUTPUT_VERBOSITY_HIGH, OUTPUT_VERBOSITY_LOW, OUTPUT_VERBOSITY_MEDIUM, QUICK_QUOTA_MODE_OFF, SPEED_SHORTCUT_FIELD, SPEED_SHORTCUT_STYLES, SPEED_MODE_FIELD, SPEED_MODE_FAST, SPEED_MODE_STANDARD, SPEED_MODE_ULTRAFAST } from './settings-contract.js'
 import { IMAGE_MODELS, imageModelLabel as modelLabel, isExperimentalImageModel } from './image-models.js'
@@ -250,6 +250,9 @@ export function ToolsPage({ preference, rpc, t, active = true, accountSnapshot, 
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('searchSectionTitle')}>
       <SearchProviderPreference preference={preference} t={t} webSettingsContext={webSettingsContext} />
+    </section>
+    <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('fetchTitle')}>
+      <FetchOrderPreference preference={preference} t={t} webSettingsContext={webSettingsContext} />
     </section>
     <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" aria-label={t('connectors')}>
       <ConnectorsPreference preference={preference} t={t} accountSnapshot={accountSnapshot} retryAccount={retryAccount} active={active} />

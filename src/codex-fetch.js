@@ -2,12 +2,17 @@ import { randomUUID } from 'node:crypto'
 import { WebError } from '@deepseek-ai/dsh-web'
 import { readSubscriptionCredentials, subscriptionCredentialReady } from './subscription-credentials.js'
 import { CODEX_SEARCH_URL } from './codex-search.js'
-import { authFailureMessage, SIGN_IN_RENEW } from './http-failure.js'
+import { authFailureMessage, isRestrictionFailureMessage, SIGN_IN_RENEW } from './http-failure.js'
+import { isKnownNetworkFailure } from './transport-failure.js'
 import { USER_AGENT } from './version.js'
 import { setTimeout as wait } from 'node:timers/promises'
 import { diagnosticLog } from './diagnostic-log.js'
+import { FETCH_CHAIN_PROVIDER_ID } from './fetch-order.js'
+import { canFallbackFetch } from './fetch-chain.js'
 
 export const CODEX_FETCH_PROVIDER_ID = 'codex-subscription-fetch'
+export const CODEX_FETCH_FALLBACK_PROVIDER_ID = 'codex-subscription-fetch-fallback'
+const subscriptionFetchIds = new Set([CODEX_FETCH_PROVIDER_ID, CODEX_FETCH_FALLBACK_PROVIDER_ID, FETCH_CHAIN_PROVIDER_ID])
 const MAX_CONTENT = 64_000
 const RETRYABLE = new Set([500, 502, 503, 504])
 const httpUrl = value => {
@@ -40,9 +45,9 @@ export function createCodexFetchProvider(options) {
       if (url === undefined) throw new WebError('Codex webpage reading requires an HTTP or HTTPS URL without credentials', 'WEB_INVALID_URL')
       let credentials
       try { credentials = await readSubscriptionCredentials(options.getAuth, options.readCredential, signal) }
-      catch {
+      catch (error) {
         if (signal?.aborted) throw new WebError('Codex webpage request aborted', 'WEB_ABORTED')
-        throw new WebError('Could not read ChatGPT subscription sign-in', 'WEB_PROVIDER_CREDENTIAL_MISSING')
+        throw new WebError('Could not read ChatGPT subscription sign-in', isKnownNetworkFailure(error) ? 'WEB_FETCH_NETWORK_ERROR' : 'WEB_FETCH_INTERNAL_ERROR')
       }
       const { access, accountId } = credentials
       if (typeof access !== 'string' || !access || typeof accountId !== 'string' || !accountId) throw new WebError('ChatGPT subscription is not signed in', 'WEB_PROVIDER_CREDENTIAL_MISSING')
@@ -69,7 +74,7 @@ export function createCodexFetchProvider(options) {
               await wait(options.retryDelayMs ?? 250, undefined, { signal: activeSignal })
               continue
             }
-            throw new WebError(authFailure ?? `Codex webpage request failed (HTTP ${response.status})`, authFailure === SIGN_IN_RENEW ? 'WEB_PROVIDER_CREDENTIAL_MISSING' : 'WEB_PROVIDER_ERROR')
+            throw new WebError(authFailure ?? `Codex webpage request failed (HTTP ${response.status})`, authFailure === SIGN_IN_RENEW ? 'WEB_PROVIDER_CREDENTIAL_MISSING' : isRestrictionFailureMessage(authFailure) ? 'WEB_PERMISSION_DENIED' : 'WEB_PROVIDER_ERROR')
           }
           const value = await response.json().catch(() => undefined)
           activeSignal.throwIfAborted()
@@ -100,6 +105,7 @@ export function createCodexFetchProvider(options) {
             const inaccessible = internalError && /^URL(?: https?:\/\/\S+)? is not accessible via this tool\./imu.test(output)
             diagnosticLog.warn('fetch', 'Codex webpage text unavailable', upstreamTimeout ? 'upstream-timeout' : inaccessible ? 'upstream-inaccessible' : internalError ? 'upstream-error' : !output.trim() ? 'empty-output' : headingUrl ? 'invalid-source-metadata' : 'missing-source')
             if (upstreamTimeout) throw new WebError('Codex webpage service timed out fetching this page. Try another page, or change the webpage provider in settings.', 'WEB_FETCH_TIMEOUT')
+            if (/not safe|blocked|robots|forbidden|access denied/iu.test(output)) throw new WebError('Codex webpage access was refused', 'WEB_PERMISSION_DENIED')
             const hint = inaccessible && !/not safe|blocked|robots|forbidden|access denied/iu.test(output) ? markdownFormatHint(url) : undefined
             if (hint) throw new WebError(hint, 'WEB_PROVIDER_ERROR')
             throw new WebError('Codex could not read this webpage. Try another page, or change the webpage provider in settings.', 'WEB_PROVIDER_ERROR')
@@ -119,29 +125,92 @@ export function createCodexFetchProvider(options) {
         if (signal?.aborted || error?.name === 'AbortError') throw new WebError('Codex webpage request aborted', 'WEB_ABORTED')
         if (activeSignal.aborted) throw new WebError('Codex webpage request timed out', 'WEB_FETCH_TIMEOUT')
         if (error instanceof WebError) throw error
-        throw new WebError('Codex webpage request failed', 'WEB_PROVIDER_ERROR')
+        throw new WebError('Codex webpage request failed', isKnownNetworkFailure(error) ? 'WEB_FETCH_NETWORK_ERROR' : 'WEB_FETCH_INTERNAL_ERROR')
       }
     },
   })
 }
 
+/** Resolve only native DSH fetch providers, preserving configured errors and ambiguity. */
+export function resolveDshFetchProvider(registry, configuredId) {
+  if (configuredId !== undefined) {
+    const provider = subscriptionFetchIds.has(configuredId) ? undefined : registry?.get(configuredId)
+    if (!provider) throw new WebError('The configured DSH fallback fetch provider is not registered', 'WEB_PROVIDER_CONFIGURED_MISSING')
+    if (!provider.available()) throw new WebError('The configured DSH fallback fetch provider is unavailable', 'WEB_PROVIDER_CONFIGURED_UNAVAILABLE')
+    return provider
+  }
+  const providers = [...(registry?.values() ?? [])].filter(provider => !subscriptionFetchIds.has(provider.id) && provider.available())
+  if (providers.length === 0) throw new WebError('No DSH fallback fetch provider is available', 'WEB_PROVIDER_UNAVAILABLE')
+  if (providers.length !== 1) throw new WebError('Select a DSH webpage provider before enabling Codex fallback', 'WEB_PROVIDER_AMBIGUOUS')
+  return providers[0]
+}
+
+/** Explicit opt-in: try Codex first, then the selected DSH provider on service failures only. */
+export function createCodexFallbackFetchProvider({ codex, resolveDshProvider, allowed = () => true }) {
+  return Object.freeze({
+    id: CODEX_FETCH_FALLBACK_PROVIDER_ID,
+    title: 'Codex → DSH',
+    available: () => true,
+    async ready(llmProvider) {
+      if (!allowed(llmProvider)) return false
+      if (await (codex.ready?.(llmProvider) ?? true)) return true
+      let provider
+      try { provider = resolveDshProvider() }
+      catch { return true /* fetch reports the native selection error as a structured WebError. */ }
+      return provider.ready?.(llmProvider) ?? true
+    },
+    async fetch(request, signal) {
+      signal?.throwIfAborted()
+      if (!allowed()) throw new WebError('Codex fallback webpage reading is no longer selected', 'WEB_PROVIDER_UNAVAILABLE')
+      let primaryError
+      try {
+        const result = await codex.fetch(request, signal)
+        signal?.throwIfAborted()
+        return result
+      } catch (error) {
+        if (signal?.aborted || !canFallbackFetch(error)) throw error
+        primaryError = error
+      }
+      signal?.throwIfAborted()
+      if (!allowed()) throw new WebError('Codex fallback webpage reading is no longer selected', 'WEB_PROVIDER_UNAVAILABLE')
+      diagnosticLog.warn('fetch', 'Codex webpage reading failed; trying the selected DSH provider', primaryError.code)
+      const provider = resolveDshProvider()
+      signal?.throwIfAborted()
+      diagnosticLog.info('fetch', 'webpage reading: DSH fallback', provider.id)
+      const result = await provider.fetch(request, signal)
+      signal?.throwIfAborted()
+      const notice = `[Reader fallback: Codex failed (${primaryError.code}); used DSH provider ${provider.id}.]`
+      const content = result.body.kind === 'html'
+        ? `<p>${notice.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>\n${result.body.content}`
+        : `${notice}\n\n${result.body.content}`
+      return { ...result, body: { ...result.body, content } }
+    },
+  })
+}
+
 /** Preserve DSH's configured fetch provider; only an explicit plugin choice changes dispatch. */
-export function createCodexFetchRouter({ registry, configuredId, mode, codex }) {
+export function createCodexFetchRouter({ registry, configuredId, mode, codex, allowed = () => true, chain, orderEnabled = () => false }) {
   if (!(registry instanceof Map)) return undefined
+  const fallback = createCodexFallbackFetchProvider({ codex, resolveDshProvider: () => resolveDshFetchProvider(registry, configuredId()), allowed: llmProvider => mode() === 'codex-fallback' && allowed(llmProvider) })
+  const activeMode = () => chain && orderEnabled() ? 'chain' : mode()
+  const usesCodex = () => ['codex', 'codex-fallback', 'chain'].includes(activeMode())
   const wrappers = new Map()
   const wrapper = id => {
-    if (!wrappers.has(id)) wrappers.set(id, Object.freeze({ id, available: () => mode() === 'codex',
-      ready: llmProvider => mode() === 'codex' && (codex.ready?.(llmProvider) ?? true), fetch(request, signal) {
-      if (mode() !== 'codex') throw new WebError('Codex webpage reading is no longer selected', 'WEB_PROVIDER_UNAVAILABLE')
-      return codex.fetch(request, signal)
+    const selected = activeMode()
+    const key = `${selected}:${id}`
+    const provider = selected === 'chain' ? chain : selected === 'codex-fallback' ? fallback : codex
+    if (!wrappers.has(key)) wrappers.set(key, Object.freeze({ id, available: () => activeMode() === selected,
+      ready: llmProvider => activeMode() === selected && (provider.ready?.(llmProvider) ?? true), fetch(request, signal) {
+      if (activeMode() !== selected) throw new WebError('Codex webpage reading is no longer selected', 'WEB_PROVIDER_UNAVAILABLE')
+      return provider.fetch(request, signal)
     } }))
-    return wrappers.get(id)
+    return wrappers.get(key)
   }
   return new Proxy(registry, {
     get(target, property) {
-      if (property === 'get') return id => mode() === 'codex' && id === configuredId() ? wrapper(id) : target.get(id)
+      if (property === 'get') return id => usesCodex() && id === configuredId() ? wrapper(id) : target.get(id)
       // With no configured id, the native runtime requires exactly one usable provider.
-      if (property === 'values' && mode() === 'codex' && configuredId() === undefined) return () => [wrapper(CODEX_FETCH_PROVIDER_ID)].values()
+      if (property === 'values' && usesCodex() && configuredId() === undefined) return () => [wrapper(CODEX_FETCH_PROVIDER_ID)].values()
       const value = Reflect.get(target, property, target)
       return typeof value === 'function' ? value.bind(target) : value
     },

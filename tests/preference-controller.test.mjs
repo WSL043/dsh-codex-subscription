@@ -41,6 +41,9 @@ test('webpage routing capability survives normalized preference reads and writes
   h.settle(); await pending
   assert.equal(h.controller.getSnapshot().fetchRoutingAvailable, true)
   assert.equal(h.controller.getSnapshot().fetchProvider, 'codex')
+  const fallback = h.controller.set({ fetchProvider: 'codex-fallback' })
+  h.settle(); await fallback
+  assert.equal(h.controller.getSnapshot().fetchProvider, 'codex-fallback')
   h.controller.dispose()
 })
 

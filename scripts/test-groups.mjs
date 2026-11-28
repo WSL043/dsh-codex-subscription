@@ -6,6 +6,7 @@ const deliveryTests = new Set([
   'support-intake', 'issue-intake-behavior', 'readme-languages',
   'client-chunks', 'settings-panel-lifecycle', 'subscription-settings-entry', 'sketch-workspace-loading',
   'composer-prediction-preferences', 'account-failover-preference', 'upstream-compatibility',
+  'fetch-order-ui', 'fetch-fallback-ui',
 ])
 
 /** New tests default to behavior, so adding a suite cannot silently skip CI. */

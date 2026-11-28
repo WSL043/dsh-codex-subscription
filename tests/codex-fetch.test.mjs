@@ -74,7 +74,8 @@ test('confirmed Microsoft Learn format rejection offers a targeted hint without 
       calls.push([endpoint, JSON.parse(init.body).commands.open[0].ref_id])
       return Response.json({ output: `Internal Error ()\n${errorText}`, results: [{ title: 'Internal Error', type: 'text_result' }] })
     } })
-    await assert.rejects(provider.fetch({ url }), error => error.code === 'WEB_PROVIDER_ERROR'
+    const expectedCode = /not safe|Blocked/iu.test(errorText) ? 'WEB_PERMISSION_DENIED' : 'WEB_PROVIDER_ERROR'
+    await assert.rejects(provider.fetch({ url }), error => error.code === expectedCode
       && error.message.includes('Remove only the accept=text/markdown parameter') === hinted)
     assert.deepEqual(calls, [[CODEX_SEARCH_URL, url]])
   }
@@ -88,7 +89,7 @@ test('HTTP, malformed JSON, network and timeout failures are sanitized and never
     assert.equal(calls, status === 503 ? 2 : 1)
   }
   await assert.rejects(setup({ fetch: async () => new Response('{private') }).fetch({ url: target }), error => error.code === 'WEB_PROVIDER_ERROR' && !error.message.includes('private'))
-  await assert.rejects(setup({ fetch: async () => { throw Error('private-token') } }).fetch({ url: target }), error => error.code === 'WEB_PROVIDER_ERROR' && !error.message.includes('private'))
+  await assert.rejects(setup({ fetch: async () => { throw Object.assign(Error('private-token'), { code: 'ECONNRESET' }) } }).fetch({ url: target }), error => error.code === 'WEB_FETCH_NETWORK_ERROR' && !error.message.includes('private'))
   const waiting = setup({ timeoutMs: 2, fetch: async (_url, init) => new Promise((resolve, reject) => init.signal.addEventListener('abort', () => reject(init.signal.reason), { once: true })) })
   // Keep the event loop alive while AbortSignal.timeout's unref timer is being exercised.
   const alive = setTimeout(() => {}, 1000)
@@ -139,7 +140,7 @@ test('signed-out, model-disabled and invalid URL calls make no network request',
   let calls = 0
   const fetch = async () => { calls += 1; return Response.json(success) }
   await assert.rejects(setup({ fetch, getAuth: async () => undefined }).fetch({ url: target }), error => error.code === 'WEB_PROVIDER_CREDENTIAL_MISSING')
-  await assert.rejects(setup({ fetch, getAuth: async () => { throw Error('private-vault-details') } }).fetch({ url: target }), error => error.code === 'WEB_PROVIDER_CREDENTIAL_MISSING' && !error.message.includes('private'))
+  await assert.rejects(setup({ fetch, getAuth: async () => { throw Error('private-vault-details') } }).fetch({ url: target }), error => error.code === 'WEB_FETCH_INTERNAL_ERROR' && !error.message.includes('private'))
   await assert.rejects(setup({ fetch, allowed: () => false }).fetch({ url: target }), error => error.code === 'WEB_PROVIDER_UNAVAILABLE')
   for (const url of ['file:///a', 'javascript:alert(1)', 'https://name:password@example.com/', 'bad-url']) {
     await assert.rejects(setup({ fetch }).fetch({ url }), error => error.code === 'WEB_INVALID_URL')

@@ -5,13 +5,14 @@ import { DefaultModelPreference } from './default-model-preferences.jsx'
 import { RuntimeManagement } from './client-runtime-management.jsx'
 import { RemoteControlCard } from './client-remote-control.jsx'
 import { VoiceCallCard } from './client-voice-call.jsx'
+import { FetchOrderPreference } from './client-fetch-order.jsx'
+export { FetchOrderPreference } from './client-fetch-order.jsx'
 import { useId, useEffect, useRef, useState } from 'react'
 import { Button, IconChevronDownOutline14, Input, Menu, Switch } from './client-primitives.jsx'
 import { ACCOUNT_FAILOVER_FIELD, AUTO_QUOTA_RETRY_FIELD, CONNECTORS_FIELD, CONNECTOR_ACCOUNT_FIELD, CONNECTOR_MODES, REASONING_SUMMARY_FIELD, REASONING_SUMMARIES, RETRY_POLICY_FIELD, RETRY_POLICIES, CONTEXT_MODE_CUSTOM, CONTEXT_MODE_EXTENDED, CONTEXT_MODE_FIELD, CONTEXT_MODE_STANDARD, DISABLED_MODELS_FIELD, clampModelContext, INPUT_IMAGE_DETAIL_FIELD, INPUT_IMAGE_DETAILS, STREAM_IDLE_TIMEOUT_MINUTES_FIELD, STREAM_IDLE_TIMEOUT_MINUTES, MIN_CUSTOM_CONTEXT_WINDOW, formatContextWindow, parseContextWindow, QUICK_QUOTA_MODE_BAR, QUICK_QUOTA_MODE_FORECAST, QUICK_QUOTA_MODE_FIELD, QUICK_QUOTA_MODE_OFF, QUICK_QUOTA_MODE_PERCENT, SEARCH_PROVIDER_AUTO, SEARCH_PROVIDER_CODEX, SEARCH_PROVIDER_DSH, SEARCH_PROVIDER_FIELD } from './settings-contract.js'
 import { reconcileContextDrafts } from './context-draft-state.js'
 import { draftStep, toggleModelId } from './picker-draft.js'
 import { accountStatusErrorText, fill, maskEmail, usePreferenceSnapshot } from './client-shared.js'
-import { FETCH_PROVIDER_FIELD, FETCH_PROVIDER_DSH, FETCH_PROVIDER_CODEX } from './settings-contract.js'
 export function QuickQuotaPreference({ preference, t }) {
   const radioId = useId()
   const snapshot = usePreferenceSnapshot(preference)
@@ -66,12 +67,6 @@ export function SearchProviderPreference({ preference, t, webSettingsContext }) 
       {choice(SEARCH_PROVIDER_DSH, 'DSH')}
       {choice(SEARCH_PROVIDER_CODEX, 'Codex')}
     </div>
-    </div>
-    <div className="codexSubscriptionPreference">
-      <div className="codexSubscriptionPreferenceCopy"><SettingsLabel description={t(snapshot.fetchProvider === FETCH_PROVIDER_CODEX ? 'fetchCodexHint' : 'fetchDshHint')}>{t('fetchTitle')}</SettingsLabel>{snapshot.status === 'ready' ? <Hint>{t(!snapshot.fetchRoutingAvailable ? 'fetchUnavailableHint' : `fetchState_${snapshot.fetchProvider}`)}</Hint> : null}</div>
-      <div className="codexSubscriptionSearchChoices codexSubscriptionQuotaModes" data-saving={snapshot.saving || undefined} aria-busy={snapshot.saving || undefined} role="radiogroup" aria-label={t('fetchTitle')}>
-        {[FETCH_PROVIDER_DSH, FETCH_PROVIDER_CODEX].map(value => <label className="codexSubscriptionQuotaMode" key={value}><input type="radio" name={`${radioId}-codex-subscription-fetch-provider`} checked={snapshot.fetchProvider === value} disabled={!writable || value === FETCH_PROVIDER_CODEX && !snapshot.fetchRoutingAvailable} onChange={() => { void preference.set({ [FETCH_PROVIDER_FIELD]: value }) }} /><span>{value === FETCH_PROVIDER_CODEX ? 'Codex' : 'DSH'}</span></label>)}
-      </div>
     </div>
     <CapabilityPreferences preference={preference} t={t} section="search" />
   </div>
@@ -390,6 +385,9 @@ export function PreferencesCard({ preference, rpc, t, defaultModel, accountSnaps
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" data-governed="true" aria-label={t('searchSectionTitle')}>
         <SearchProviderPreference preference={preference} t={t} />
+      </section>
+      <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" data-governed="true" aria-label={t('fetchTitle')}>
+        <FetchOrderPreference preference={preference} t={t} />
       </section>
       <section className="codexSubscriptionCard codexSubscriptionPreferencesCard" data-governed="true" aria-label={t('connectors')}>
         <ConnectorsPreference preference={preference} t={t} accountSnapshot={accountSnapshot} retryAccount={retryAccount} />
