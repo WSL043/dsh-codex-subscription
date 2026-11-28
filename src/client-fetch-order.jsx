@@ -31,8 +31,9 @@ export function FetchOrderPreference({ preference, t, webSettingsContext }) {
       scope.effect(() => {
         const remote = scope.get('remote')
         const off = remote.$on('web/providers-changed', refresh)
+        const offSettings = remote.$on('settings/document-updated', refresh)
         const offReset = scope.on('connection/reset', refresh)
-        return () => { off(); offReset() }
+        return () => { off(); offSettings(); offReset() }
       }, 'codex-subscription: fetch source discovery')
     })
     return () => {

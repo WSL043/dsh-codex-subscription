@@ -219,6 +219,17 @@ test('external shared Web selections refresh the effective order rather than lea
   assert.deepEqual(fixture.calls, [])
 })
 
+test('external reader edits refresh from the host settings event even while its shared selector stays the chain (#280)', () => {
+  const fixture = harness({ state: { webProvidersManagedByDsh: true } })
+  fixture.emit('settings/document-updated')
+  assert.equal(fixture.loads, 1)
+  assert.deepEqual(fixture.calls, [], 'the invalidation reads state instead of replaying a stale row edit')
+  fixture.unmount()
+  fixture.emit('settings/document-updated')
+  assert.equal(fixture.loads, 1)
+  assert.equal(fixture.listeners, 0)
+})
+
 test('catalog additions stay candidates rather than silently extending the saved order', () => {
   const fixture = harness({ order: [codex], catalog: [sources[0]] })
   assert.equal(fixture.menus().length, 1)
@@ -245,7 +256,7 @@ test('in-flight saves block repeated selections and defer provider refresh until
   assert.ok(fixture.menus().every(menu => menu.anchor.props.disabled))
   assert.match(fixture.text(), /Saving settings/u)
   await fixture.change(1, codex)
-  fixture.emit(); fixture.emit('connection/reset')
+  fixture.emit(); fixture.emit('connection/reset'); fixture.emit('settings/document-updated')
   assert.equal(fixture.loads, 0)
   fixture.release(); await pending
   assert.equal(fixture.calls.length, 1)
