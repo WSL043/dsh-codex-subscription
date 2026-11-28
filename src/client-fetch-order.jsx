@@ -50,13 +50,13 @@ export function FetchOrderPreference({ preference, t, webSettingsContext }) {
   }, [web.value?.fetchProvider, snapshot.webProvidersManagedByDsh])
   useEffect(() => {
     if (!snapshot.saving && activity.current.pending) activity.current.refresh?.()
-    if (snapshot.saving || snapshot.status !== 'ready' || !snapshot.writable || !snapshot.fetchOrderAvailable) setOpenIndex(null)
-  }, [snapshot.saving, snapshot.status, snapshot.writable, snapshot.fetchOrderAvailable])
+    if (snapshot.saving || snapshot.status !== 'ready' || !snapshot.writable || snapshot.fetchOrderNeedsReload || !snapshot.fetchOrderAvailable) setOpenIndex(null)
+  }, [snapshot.saving, snapshot.status, snapshot.writable, snapshot.fetchOrderNeedsReload, snapshot.fetchOrderAvailable])
 
   const catalog = sourceCatalog(snapshot.fetchSources)
   const providerIds = [...catalog.keys()]
   const order = Array.isArray(snapshot[FETCH_ORDER_FIELD]) ? snapshot[FETCH_ORDER_FIELD] : []
-  const writable = snapshot.status === 'ready' && snapshot.writable === true && snapshot.fetchOrderAvailable === true && !snapshot.saving
+  const writable = snapshot.status === 'ready' && snapshot.writable === true && !snapshot.fetchOrderNeedsReload && snapshot.fetchOrderAvailable === true && !snapshot.saving
   const rows = order.length ? [...order] : catalog.size ? [undefined] : []
   if (order.length && fetchOrderOptions(order, order.length, providerIds).some(id => id !== FETCH_STOP)) rows.push(FETCH_STOP)
   const title = id => catalog.get(id)?.title || (id === 'codex-subscription-fetch' ? 'Codex' : webProviderTitle(id, t))
@@ -66,14 +66,14 @@ export function FetchOrderPreference({ preference, t, webSettingsContext }) {
     const label = source ? source.available ? title(id) : fill(t('fetchOrderUnavailableSource'), { title: title(id) }) : fill(t('fetchOrderMissingSource'), { title: title(id) })
     const position = order.indexOf(id)
     const description = !source ? t('fetchOrderMissingHint') : !source.available ? t('fetchOrderSourceUnavailableHint')
-      : position >= 0 && position !== index ? fill(t('fetchOrderSwap'), { number: position + 1 })
-        : Object.hasOwn(costKeys, id) ? t(costKeys[id]) : undefined
+      : [position >= 0 && position !== index ? fill(t('fetchOrderSwap'), { number: position + 1 }) : undefined,
+        Object.hasOwn(costKeys, id) ? t(costKeys[id]) : source.description].filter(Boolean).join(' ') || undefined
     return { label, description, disabled: !source?.available }
   }
   const change = async (index, id) => {
     setOpenIndex(null)
     const current = preference.getSnapshot()
-    if (activity.current.saving || current.saving || current.status !== 'ready' || !current.writable || !current.fetchOrderAvailable) return
+    if (activity.current.saving || current.saving || current.status !== 'ready' || !current.writable || current.fetchOrderNeedsReload || !current.fetchOrderAvailable) return
     const sources = sourceCatalog(current.fetchSources)
     const currentOrder = current[FETCH_ORDER_FIELD] ?? []
     if (index > currentOrder.length) return

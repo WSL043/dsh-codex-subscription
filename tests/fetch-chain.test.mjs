@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { WebError } from '@deepseek-ai/dsh-web'
+import { createCodexFetchProvider } from '../src/codex-fetch.js'
 import { createFetchChainProvider } from '../src/fetch-chain.js'
 import { FETCH_CHAIN_PROVIDER_ID } from '../src/fetch-order.js'
 
@@ -114,6 +115,45 @@ for (const code of [
     assert.equal(calls.length, 2)
   })
 }
+
+for (const output of ['Internal Error ()\nURL is not safe to open (non-retryable error)', 'Blocked by site', 'Internal Error ()\nAccess denied by robots.txt']) {
+  test(`a real Codex reader refusal stops the chain: ${output.split('\n').at(-1)} (#280)`, async () => {
+    let fallbackCalls = 0
+    const codex = createCodexFetchProvider({
+      getAuth: async () => ({ auth: { apiKey: 'fixture' } }),
+      readCredential: async () => ({ type: 'oauth', access: 'fixture', accountId: 'fixture' }),
+      fetch: async () => Response.json({ output, results: [] }),
+    })
+    const { provider } = fixture([codex, atom('http', { fetch: async () => { fallbackCalls++; return page() } })])
+    await assert.rejects(provider.fetch(request), error => error.code === 'WEB_PERMISSION_DENIED')
+    assert.equal(fallbackCalls, 0)
+  })
+}
+
+test('a known Codex transport failure can still use the explicitly configured next reader (#280)', async () => {
+  const codex = createCodexFetchProvider({
+    getAuth: async () => ({ auth: { apiKey: 'fixture' } }),
+    readCredential: async () => ({ type: 'oauth', access: 'fixture', accountId: 'fixture' }),
+    fetch: async () => { throw new TypeError('fetch failed', { cause: Object.assign(Error('PRIVATE endpoint'), { code: 'ECONNRESET' }) }) },
+  })
+  const { provider, calls } = fixture([codex, atom('http')])
+  const result = await provider.fetch(request)
+  assert.match(result.body.content, /WEB_FETCH_NETWORK_ERROR/)
+  assert.doesNotMatch(result.body.content, /PRIVATE/)
+  assert.equal(calls.length, 2)
+})
+
+test('an unknown Codex adapter implementation error is sanitized and cannot trigger another paid reader (#280)', async () => {
+  let fallbackCalls = 0
+  const codex = createCodexFetchProvider({
+    getAuth: async () => ({ auth: { apiKey: 'fixture' } }),
+    readCredential: async () => ({ type: 'oauth', access: 'fixture', accountId: 'fixture' }),
+    fetch: async () => { throw new TypeError('PRIVATE implementation bug') },
+  })
+  const { provider } = fixture([codex, atom('paid', { fetch: async () => { fallbackCalls++; return page() } })])
+  await assert.rejects(provider.fetch(request), error => error.code === 'WEB_FETCH_INTERNAL_ERROR' && !error.message.includes('PRIVATE'))
+  assert.equal(fallbackCalls, 0)
+})
 
 for (const error of [
   ...['WEB_ABORTED', 'WEB_INVALID_URL', 'WEB_BLOCKED_URL', 'WEB_REDIRECT_BLOCKED',

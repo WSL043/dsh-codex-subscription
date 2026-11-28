@@ -161,6 +161,15 @@ test('no-ops, Stop in the first row and attempts to swap from the append row nev
   assert.deepEqual(fixture.calls, [])
 })
 
+test('reordering keeps price information and third-party registered descriptions in the tooltip (#280)', () => {
+  const fixture = harness({ order: [codex, deepseek] })
+  const choice = fixture.menus()[0].items.find(item => item.id === deepseek)
+  assert.match(choice.description, /swap/iu)
+  assert.match(choice.description, /CNY 5/)
+  const custom = harness({ order: [http], catalog: [...sources, { id: 'custom-reader', title: 'Custom', available: true, description: 'Uses the host account quota' }] })
+  assert.equal(custom.menus()[1].items.find(item => item.id === 'custom-reader').description, 'Uses the host account quota')
+})
+
 test('empty catalogs have a clear empty state and retain missing selections', () => {
   const empty = harness({ order: [], catalog: [] })
   assert.equal(empty.menus().length, 0)
@@ -183,7 +192,7 @@ test('unavailable selections are retained and disabled, but can be corrected to 
 })
 
 test('an uncertain save clearly requires a reload and provides a refresh action instead of a generic failure', async () => {
-  const fixture = harness({ state: { writable: false, error: true, fetchOrderNeedsReload: true } })
+  const fixture = harness({ state: { writable: true, error: true, fetchOrderNeedsReload: true } })
   assert.match(fixture.text(), /partially completed save/u)
   assert.doesNotMatch(fixture.text(), /Settings were not saved|DSH has not enabled/u)
   assert.ok(fixture.menus().every(menu => menu.anchor.props.disabled))

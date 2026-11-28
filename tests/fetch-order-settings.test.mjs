@@ -45,6 +45,12 @@ function setup({ selected = CODEX_FETCH_PROVIDER_ID, config: initial = {}, manag
   return { controller, config, web, plugin, registry, writes, forms }
 }
 
+test('the host reader description remains available without another per-plugin provider catalog (#280)', () => {
+  const h = setup()
+  h.registry.set('custom', { id: 'custom', title: 'Custom', description: 'Uses the host account quota', available: () => true })
+  assert.deepEqual(h.controller.sources().find(source => source.id === 'custom'), { id: 'custom', title: 'Custom', description: 'Uses the host account quota', available: true })
+})
+
 test('initializing the old Codex-only setting preserves a one-source order without enabling paid fallbacks', async () => {
   const h = setup()
   assert.deepEqual(h.controller.order(), [CODEX_FETCH_PROVIDER_ID])

@@ -35,7 +35,7 @@ function setup({ saved = [CODEX_FETCH_PROVIDER_ID], selected = CODEX_FETCH_PROVI
     async update(patch, revision) {
       assert.equal(revision, plugin.revision)
       writes.push({ entry: plugin.ns, patch: structuredClone(patch) })
-      if (orderWritten && control.failRestore) throw new Error(privateRestore)
+      if (Object.hasOwn(patch, FETCH_ORDER_FIELD) && orderWritten && control.failRestore) throw new Error(privateRestore)
       Object.assign(config, structuredClone(patch))
       plugin.revision += 1
       orderWritten = true
@@ -80,10 +80,13 @@ function setup({ saved = [CODEX_FETCH_PROVIDER_ID], selected = CODEX_FETCH_PROVI
   const preferences = {
     status() {
       if (control.failStatus) throw new Error('private status connection secret')
-      return { ...fetchOrder.status(), writable: true, webProvidersManagedByDsh: true, fetchRoutingAvailable: true }
+      return { ...config, ...fetchOrder.status(), writable: true, webProvidersManagedByDsh: true, fetchRoutingAvailable: true }
     },
     async update(patch) {
-      try { await fetchOrder.update(patch[FETCH_ORDER_FIELD]) }
+      try {
+        if (Object.hasOwn(patch, FETCH_ORDER_FIELD)) await fetchOrder.update(patch[FETCH_ORDER_FIELD])
+        else await settings.update(patch, plugin.revision)
+      }
       catch (error) { failures.push(error); throw error }
     },
   }
@@ -107,10 +110,27 @@ function setup({ saved = [CODEX_FETCH_PROVIDER_ID], selected = CODEX_FETCH_PROVI
 function assertLocked(controller) {
   const snapshot = controller.getSnapshot()
   assert.equal(snapshot.fetchOrderNeedsReload, true)
-  assert.equal(snapshot.writable, false)
+  assert.equal(snapshot.writable, snapshot.status === 'ready', 'only reader order requires a reload')
   assert.equal(snapshot.saving, false)
   return snapshot
 }
+
+test('an uncertain webpage save blocks only reader edits and unrelated saves do not dismiss its reload requirement (#280)', async context => {
+  const { controller, calls, config } = setup({ failActivation: true, failRestore: true })
+  context.after(() => controller.dispose())
+  await controller.load()
+  await controller.set({ [FETCH_ORDER_FIELD]: ['http'] })
+  assert.equal(controller.getSnapshot().fetchOrderNeedsReload, true)
+  assert.equal(controller.getSnapshot().writable, true, 'other plugin preferences must remain editable')
+  assert.equal(await controller.set({ speedMode: 'fast' }), true)
+  assert.equal(config.speedMode, 'fast')
+  assert.equal(controller.getSnapshot().fetchOrderNeedsReload, true, 'only an authoritative refresh releases the reader lock')
+  const count = calls.length
+  await controller.set({ [FETCH_ORDER_FIELD]: ['deepseek-fetch-api'] })
+  assert.equal(calls.length, count, 'the reader lock still prevents another uncertain save')
+  await controller.load()
+  assert.equal(controller.getSnapshot().fetchOrderNeedsReload, false)
+})
 
 for (const saved of [[CODEX_FETCH_PROVIDER_ID], null]) {
   test(`activation and ${saved === null ? 'unset' : 'field'} rollback failure locks the real settings/RPC/controller chain`, async context => {
@@ -135,7 +155,7 @@ for (const saved of [[CODEX_FETCH_PROVIDER_ID], null]) {
     assert.equal(snapshot.error, true, 'the previous Codex value must not look successfully saved')
     assert.equal(snapshot.hostReadOnly, false, 'the lock is distinct from host read-only settings')
     assert.ok(snapshots.some(value => value.saving && value[FETCH_ORDER_FIELD][0] === 'http'))
-    assert.ok(snapshots.filter(value => !value.saving).every(value => value.error && value.fetchOrderNeedsReload && !value.writable))
+    assert.ok(snapshots.filter(value => !value.saving).every(value => value.error && value.fetchOrderNeedsReload && value.writable))
   })
 }
 

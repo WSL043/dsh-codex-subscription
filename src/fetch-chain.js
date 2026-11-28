@@ -17,7 +17,7 @@ const FALLBACK_ERRORS = new Set([
 ])
 
 // Installed plugins can bundle a different copy of WebError than the host providers.
-const canFallback = error => (error instanceof WebError || error instanceof Error && error.name === 'WebError')
+export const canFallbackFetch = error => (error instanceof WebError || error instanceof Error && error.name === 'WebError')
   && error.name !== 'AbortError' && FALLBACK_ERRORS.has(error.code)
 const summarize = attempts => attempts.map(attempt => `${attempt.id} (${attempt.code ?? `HTTP ${attempt.statusCode}`})`).join('; ')
 const escapeHtml = value => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
@@ -60,7 +60,7 @@ export function createFetchChainProvider({ order, resolveProvider, allowed = () 
         try { ready = await provider.ready?.(llmProvider) ?? true }
         catch (error) {
           if (!allowed()) return false
-          if (!canFallback(error)) throw error
+          if (!canFallbackFetch(error)) throw error
           continue
         }
         if (!allowed()) return false
@@ -97,7 +97,7 @@ export function createFetchChainProvider({ order, resolveProvider, allowed = () 
         try { result = await provider.fetch(request, signal) }
         catch (error) {
           assertActive(signal)
-          if (!canFallback(error)) throw error
+          if (!canFallbackFetch(error)) throw error
           fail({ id, outcome: 'failed', code: error.code })
           continue
         }

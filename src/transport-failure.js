@@ -37,7 +37,7 @@ export function websocketFailureEvidence(message) {
     ...(status && +status[1] >= 100 && +status[1] <= 599 ? { websocketHttpStatus: +status[1] } : {}),
   }
 }
-export function safeFetchFailure(error) {
+function networkFailureCodes(error) {
   const pending = [error], seen = new Set(), codes = new Set()
   for (let i = 0; pending.length && i < 12; i++) {
     const value = pending.shift()
@@ -47,6 +47,13 @@ export function safeFetchFailure(error) {
     if (value.cause) pending.push(value.cause)
     if (Array.isArray(value.errors)) pending.push(...value.errors.slice(0, 8))
   }
+  return codes
+}
+export function isKnownNetworkFailure(error) {
+  return networkFailureCodes(error).size > 0
+}
+export function safeFetchFailure(error) {
+  const codes = networkFailureCodes(error)
   return 'fetch failed' + (codes.size ? ' [' + [...codes].join(', ') + ']' : '')
 }
 

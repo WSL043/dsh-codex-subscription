@@ -59,7 +59,7 @@ test('search and webpage fetching stop on a documented restriction, even with HT
     let calls = 0
     const provider = create({ ...auth, fetch: async () => { calls++; return Response.json({ error: { message: device } }, { status, headers: { 'retry-after': '1' } }) } })
     const operation = provider.search ? provider.search({ query: 'fixture' }) : provider.fetch({ url: 'https://example.com/' })
-    await assert.rejects(operation, error => error.message === DEVICE_LIMIT && error.code === 'WEB_PROVIDER_ERROR')
+    await assert.rejects(operation, error => error.message === DEVICE_LIMIT && error.code === (provider.fetch ? 'WEB_PERMISSION_DENIED' : 'WEB_PROVIDER_ERROR'))
     assert.equal(calls, 1)
   }
 })

@@ -14,7 +14,9 @@ export function createFetchOrderSettings({ settings, forms, registry, codex, con
     .filter(provider => !isCompositeFetchProvider(provider.id))
     .map(provider => {
       const actual = providerFor(provider.id)
-      return { id: provider.id, title: actual.title ?? provider.title ?? provider.id, available: actual.available() }
+      const description = actual.description ?? provider.description
+      return { id: provider.id, title: actual.title ?? provider.title ?? provider.id, available: actual.available(),
+        ...(typeof description === 'string' && description.trim() ? { description } : {}) }
     })
   const nativeId = () => {
     const base = webRow()?.base?.fetchProvider

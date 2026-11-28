@@ -2,16 +2,17 @@ import { randomUUID } from 'node:crypto'
 import { WebError } from '@deepseek-ai/dsh-web'
 import { readSubscriptionCredentials, subscriptionCredentialReady } from './subscription-credentials.js'
 import { CODEX_SEARCH_URL } from './codex-search.js'
-import { authFailureMessage, SIGN_IN_RENEW } from './http-failure.js'
+import { authFailureMessage, isRestrictionFailureMessage, SIGN_IN_RENEW } from './http-failure.js'
+import { isKnownNetworkFailure } from './transport-failure.js'
 import { USER_AGENT } from './version.js'
 import { setTimeout as wait } from 'node:timers/promises'
 import { diagnosticLog } from './diagnostic-log.js'
 import { FETCH_CHAIN_PROVIDER_ID } from './fetch-order.js'
+import { canFallbackFetch } from './fetch-chain.js'
 
 export const CODEX_FETCH_PROVIDER_ID = 'codex-subscription-fetch'
 export const CODEX_FETCH_FALLBACK_PROVIDER_ID = 'codex-subscription-fetch-fallback'
 const subscriptionFetchIds = new Set([CODEX_FETCH_PROVIDER_ID, CODEX_FETCH_FALLBACK_PROVIDER_ID, FETCH_CHAIN_PROVIDER_ID])
-const FALLBACK_ERRORS = new Set(['WEB_PROVIDER_ERROR', 'WEB_FETCH_TIMEOUT', 'WEB_PROVIDER_CREDENTIAL_MISSING'])
 const MAX_CONTENT = 64_000
 const RETRYABLE = new Set([500, 502, 503, 504])
 const httpUrl = value => {
@@ -44,9 +45,9 @@ export function createCodexFetchProvider(options) {
       if (url === undefined) throw new WebError('Codex webpage reading requires an HTTP or HTTPS URL without credentials', 'WEB_INVALID_URL')
       let credentials
       try { credentials = await readSubscriptionCredentials(options.getAuth, options.readCredential, signal) }
-      catch {
+      catch (error) {
         if (signal?.aborted) throw new WebError('Codex webpage request aborted', 'WEB_ABORTED')
-        throw new WebError('Could not read ChatGPT subscription sign-in', 'WEB_PROVIDER_CREDENTIAL_MISSING')
+        throw new WebError('Could not read ChatGPT subscription sign-in', isKnownNetworkFailure(error) ? 'WEB_FETCH_NETWORK_ERROR' : 'WEB_FETCH_INTERNAL_ERROR')
       }
       const { access, accountId } = credentials
       if (typeof access !== 'string' || !access || typeof accountId !== 'string' || !accountId) throw new WebError('ChatGPT subscription is not signed in', 'WEB_PROVIDER_CREDENTIAL_MISSING')
@@ -73,7 +74,7 @@ export function createCodexFetchProvider(options) {
               await wait(options.retryDelayMs ?? 250, undefined, { signal: activeSignal })
               continue
             }
-            throw new WebError(authFailure ?? `Codex webpage request failed (HTTP ${response.status})`, authFailure === SIGN_IN_RENEW ? 'WEB_PROVIDER_CREDENTIAL_MISSING' : 'WEB_PROVIDER_ERROR')
+            throw new WebError(authFailure ?? `Codex webpage request failed (HTTP ${response.status})`, authFailure === SIGN_IN_RENEW ? 'WEB_PROVIDER_CREDENTIAL_MISSING' : isRestrictionFailureMessage(authFailure) ? 'WEB_PERMISSION_DENIED' : 'WEB_PROVIDER_ERROR')
           }
           const value = await response.json().catch(() => undefined)
           activeSignal.throwIfAborted()
@@ -104,6 +105,7 @@ export function createCodexFetchProvider(options) {
             const inaccessible = internalError && /^URL(?: https?:\/\/\S+)? is not accessible via this tool\./imu.test(output)
             diagnosticLog.warn('fetch', 'Codex webpage text unavailable', upstreamTimeout ? 'upstream-timeout' : inaccessible ? 'upstream-inaccessible' : internalError ? 'upstream-error' : !output.trim() ? 'empty-output' : headingUrl ? 'invalid-source-metadata' : 'missing-source')
             if (upstreamTimeout) throw new WebError('Codex webpage service timed out fetching this page. Try another page, or change the webpage provider in settings.', 'WEB_FETCH_TIMEOUT')
+            if (/not safe|blocked|robots|forbidden|access denied/iu.test(output)) throw new WebError('Codex webpage access was refused', 'WEB_PERMISSION_DENIED')
             const hint = inaccessible && !/not safe|blocked|robots|forbidden|access denied/iu.test(output) ? markdownFormatHint(url) : undefined
             if (hint) throw new WebError(hint, 'WEB_PROVIDER_ERROR')
             throw new WebError('Codex could not read this webpage. Try another page, or change the webpage provider in settings.', 'WEB_PROVIDER_ERROR')
@@ -123,7 +125,7 @@ export function createCodexFetchProvider(options) {
         if (signal?.aborted || error?.name === 'AbortError') throw new WebError('Codex webpage request aborted', 'WEB_ABORTED')
         if (activeSignal.aborted) throw new WebError('Codex webpage request timed out', 'WEB_FETCH_TIMEOUT')
         if (error instanceof WebError) throw error
-        throw new WebError('Codex webpage request failed', 'WEB_PROVIDER_ERROR')
+        throw new WebError('Codex webpage request failed', isKnownNetworkFailure(error) ? 'WEB_FETCH_NETWORK_ERROR' : 'WEB_FETCH_INTERNAL_ERROR')
       }
     },
   })
@@ -166,7 +168,7 @@ export function createCodexFallbackFetchProvider({ codex, resolveDshProvider, al
         signal?.throwIfAborted()
         return result
       } catch (error) {
-        if (signal?.aborted || !FALLBACK_ERRORS.has(error?.code)) throw error
+        if (signal?.aborted || !canFallbackFetch(error)) throw error
         primaryError = error
       }
       signal?.throwIfAborted()

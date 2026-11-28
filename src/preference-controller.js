@@ -154,7 +154,7 @@ export function createPreferenceController(rpc) {
       catalogStatus,
       modelsLoading,
       modelError,
-      writable: !updating && !fetchOrderNeedsReload && current.status === 'ready' && current.writable === true,
+      writable: !updating && current.status === 'ready' && current.writable === true,
       fetchOrderNeedsReload,
       // The host itself refuses writes (not just a save in flight); the settings page says so once.
       hostReadOnly: current.status === 'ready' && current.writable === false,
@@ -173,8 +173,8 @@ export function createPreferenceController(rpc) {
       listener()
     }
   }
-  const acceptFallback = value => {
-    fetchOrderNeedsReload = false
+  const acceptFallback = (value, refreshed = false) => {
+    if (refreshed) fetchOrderNeedsReload = false
     // Sticky until the page reloads: the host kept the written value on disk but not in the running settings.
     if (value?.liveSynced === false) restartRequired = true
     subagentBackendAvailable = value?.subagentBackendAvailable === true
@@ -255,7 +255,7 @@ export function createPreferenceController(rpc) {
     try {
       const value = unwrap(await rpc.call(CHANNEL, 'preferences/status', {}))
       if (current !== generation || disposed) return
-      acceptFallback(value)
+      acceptFallback(value, true)
       publish()
     } catch {
       if (current !== generation || disposed) return
@@ -314,6 +314,7 @@ export function createPreferenceController(rpc) {
   }
   const set = async patch => {
     if (disposed || snapshot.status !== 'ready' || snapshot.writable !== true) return
+    if (fetchOrderNeedsReload && [FETCH_ORDER_FIELD, FETCH_PROVIDER_FIELD, 'webFetchFallbackProvider'].some(field => Object.hasOwn(patch, field))) return
     const current = ++generation
     updating = true
     pendingPatch = patch
@@ -336,7 +337,7 @@ export function createPreferenceController(rpc) {
         pendingPatch = undefined
         error = true
         if (failure?.code === FETCH_ORDER_RELOAD_REQUIRED) fetchOrderNeedsReload = true
-        failedPatch = fetchOrderNeedsReload ? undefined : patch
+        failedPatch = failure?.code === FETCH_ORDER_RELOAD_REQUIRED ? undefined : patch
       }
     } finally {
       if (current === generation) {
