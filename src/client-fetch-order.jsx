@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Hint } from './client-hint.jsx'
+import { Hint, SettingsLabel } from './client-hint.jsx'
 import { Button, IconChevronDownOutline14, Menu } from './client-primitives.jsx'
 import { fill, usePreferenceSnapshot } from './client-shared.js'
 import { useWebProviderForm, webProviderTitle } from './client-web-provider-settings.jsx'
@@ -59,7 +59,8 @@ export function FetchOrderPreference({ preference, t, webSettingsContext }) {
   const writable = snapshot.status === 'ready' && snapshot.writable === true && !snapshot.fetchOrderNeedsReload && snapshot.fetchOrderAvailable === true && !snapshot.saving
   const rows = order.length ? [...order] : catalog.size ? [undefined] : []
   if (order.length && fetchOrderOptions(order, order.length, providerIds).some(id => id !== FETCH_STOP)) rows.push(FETCH_STOP)
-  const title = id => catalog.get(id)?.title || (id === 'codex-subscription-fetch' ? 'Codex' : webProviderTitle(id, t))
+  const title = id => id === 'codex-subscription-fetch' ? 'Codex'
+    : catalog.get(id)?.title && catalog.get(id).title !== id ? catalog.get(id).title : webProviderTitle(id, t)
   const describe = (id, index) => {
     if (id === FETCH_STOP) return { label: t('fetchOrderStop'), description: t(index === order.length ? 'fetchOrderAppendHint' : 'fetchOrderStopHint') }
     const source = catalog.get(id)
@@ -91,9 +92,8 @@ export function FetchOrderPreference({ preference, t, webSettingsContext }) {
   }
 
   return <div className="codexSubscriptionSearch" aria-busy={snapshot.saving || undefined} data-saving={snapshot.saving || undefined}>
-    <h3>{t('fetchTitle')}</h3>
+    <SettingsLabel as="h3" className="" description={t('fetchOrderEditHint')}>{t('fetchTitle')}</SettingsLabel>
     <Hint>{t('fetchOrderHint')}</Hint>
-    <Hint>{t('fetchOrderEditHint')}</Hint>
     {snapshot.status !== 'ready' ? <Hint>{t(snapshot.status === 'unavailable' ? 'fetchOrderLoadFailed' : 'fetchOrderLoading')}</Hint> : !snapshot.fetchOrderAvailable ? <Hint>{t('fetchOrderUnsupported')}</Hint> : null}
     {snapshot.status === 'ready' && !catalog.size ? <Hint>{t('fetchOrderEmpty')}</Hint> : null}
     {snapshot.status === 'ready' && !snapshot.writable && !snapshot.fetchOrderNeedsReload ? <Hint>{t('settingsReadonly')}</Hint> : null}

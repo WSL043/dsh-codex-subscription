@@ -33,6 +33,7 @@ function loadChatAlgorithms() {
     'react/jsx-runtime': { jsx, jsxs: jsx, Fragment: 'Fragment' },
     'react-dom': {},
     '@deepseek-ai/dsh-client-ui-primitives': {},
+    '@deepseek-ai/dsh-client-ui-primitives/client': {},
     '@deepseek-ai/dsh-client-store': {},
     // Virtualised message list (DSH 0.2.1-alpha.3 and later); only used while rendering.
     '@tanstack/react-virtual': {},

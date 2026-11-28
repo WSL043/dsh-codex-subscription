@@ -84,10 +84,10 @@ function harness({ order = [codex, http], catalog = sources, state = {}, deferre
       },
     },
     'react/jsx-runtime': { jsx: (type, props) => ({ type, props }), jsxs: (type, props) => ({ type, props }) },
-    './client-hint.jsx': { Hint() {} },
+    './client-hint.jsx': { Hint() {}, SettingsLabel() {} },
     './client-primitives.jsx': primitives,
     './client-shared.js': { fill, usePreferenceSnapshot: () => snapshot },
-    './client-web-provider-settings.jsx': { webProviderTitle: id => id, useWebProviderForm: () => ({ value: { fetchProvider: sharedProvider } }) },
+    './client-web-provider-settings.jsx': { webProviderTitle: id => sources.find(source => source.id === id)?.title ?? id, useWebProviderForm: () => ({ value: { fetchProvider: sharedProvider } }) },
     './fetch-order.js': fetchOrder,
   }
   const module = { exports: {} }
@@ -159,6 +159,11 @@ test('no-ops, Stop in the first row and attempts to swap from the append row nev
   await fixture.change(2, fetchOrder.FETCH_STOP)
   await fixture.change(2, http)
   assert.deepEqual(fixture.calls, [])
+})
+
+test('native providers without custom titles keep readable reader names (#280)', () => {
+  const fixture = harness({ order: [http, deepseek, codex], catalog: sources.map(source => ({ ...source, title: source.id })) })
+  assert.deepEqual(fixture.menus().map(menu => menu.anchor.props.children[0].props.children), ['HTTP', 'DeepSeek Fetch API', 'Codex'])
 })
 
 test('reordering keeps price information and third-party registered descriptions in the tooltip (#280)', () => {
