@@ -65,7 +65,7 @@ See the [official DSH run guide](https://github.com/deepseek-ai/deepseek-harness
 2. Paste this package name, with its version, into the **Package name or address** field:
 
    ```text
-   dsh-codex-subscription@3.2.35
+   dsh-codex-subscription@3.2.36
    ```
 
 3. Click **Install** and wait for completion. Follow the page instructions; save your work before restarting if requested.
@@ -82,7 +82,7 @@ Why the version is included: DSH's plugin page only installs versions that are a
 <summary>Terminal installation (with an existing dsh command)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.35
+dsh plugin --profile web add dsh-codex-subscription@3.2.36
 ```
 
 Follow the restart instructions, then sign in under **Settings → Codex**. Both the Plugins page and the terminal use DSH's installation management.
@@ -95,7 +95,7 @@ Follow the restart instructions, then sign in under **Settings → Codex**. Both
 After signing in and selecting a Codex model in Web, install the same plugin in the Headless profile:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.35
+dsh plugin --profile headless add dsh-codex-subscription@3.2.36
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -232,7 +232,7 @@ Automatic account switching is **off by default**. With multiple ChatGPT account
 | **Response verbosity** | Request short, medium, or detailed responses | Follows the model default unless changed |
 | **Input image detail** | Choose Low, High, Original, or Auto detail for images sent to the chat model | Affects input tokens; Auto by default |
 | **Subscription web search** | Auto, Codex, and search providers registered in DSH | Set under Web & tools. Auto chooses a source based on the model. On hosts with shared Web settings, Plugins → Web search and fetch shows the same selection. Webpage reading is separate. |
-| **Webpage reading source** | Read a known URL in your chosen order, independently of search. **The ordered source chain is currently available only in unreleased source builds; npm 3.2.35 does not include it. A later release must include this feature before it is available from npm.** | In its own Web & tools section, choose atomic sources such as Codex, HTTP and DeepSeek Fetch API row by row; the composite providers themselves are excluded. Sources are tried in order until one succeeds; unlisted sources are never used. On existing rows, choosing a used source swaps positions; choosing an unused source replaces that row. The first row never offers Stop; Stop on a later row removes it and all following sources. The final Stop row only appends unused sources and disappears once all sources are used. Some sources may charge fees; cancellation or permission denial ends the entire chain. New sources are never added automatically. Missing or unavailable sources are retained and flagged. |
+| **Webpage reading source** | Read a known URL in your chosen order, independently of search. | In its own Web & tools section, choose atomic sources such as Codex, HTTP and DeepSeek Fetch API row by row; the composite providers themselves are excluded. Sources are tried in order until one succeeds; unlisted sources are never used. On existing rows, choosing a used source swaps positions; choosing an unused source replaces that row. The first row never offers Stop; Stop on a later row removes it and all following sources. The final Stop row only appends unused sources and disappears once all sources are used. Some sources may charge fees; cancellation or permission denial ends the entire chain. New sources are never added automatically. Missing or unavailable sources are retained and flagged. |
 | **Other-models switch** | One switch that stops conversations on DeepSeek and other non-Codex models from using subscription web search, image generation and ChatGPT connectors | Settings → Codex → Web & tools; on by default, Codex subscription models are not affected; phone remote control and voice are started by you and are not affected |
 | **Search scope** | Choose live / cached search, disable search, or restrict domains | Set under Web & tools. Applies to Codex subscription searches only. |
 | **Stream inactivity timeout** | Set how long a request can receive no streamed data before it is aborted | 10 minutes by default; not an overall response deadline |
@@ -332,7 +332,7 @@ Find this plugin on the DSH **Plugins** page and use its update or uninstall act
 <summary>Terminal commands</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.35
+dsh plugin --profile web update dsh-codex-subscription@3.2.36
 ```
 
 Run only when you want to uninstall:

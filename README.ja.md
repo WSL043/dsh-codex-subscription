@@ -65,7 +65,7 @@ CLI と Web の Node.js 要件は [DSH の公式手順](https://github.com/deeps
 2. バージョンを含めた以下のパッケージ名を、**パッケージ名またはアドレス**欄に貼り付けます。
 
    ```text
-   dsh-codex-subscription@3.2.35
+   dsh-codex-subscription@3.2.36
    ```
 
 3. **インストール**をクリックし、完了するまで待ちます。ページの指示に従ってください。再起動を求められた場合は、その前に作業内容を保存してください。
@@ -82,7 +82,7 @@ CLI と Web の Node.js 要件は [DSH の公式手順](https://github.com/deeps
 <summary>ターミナルからインストール（dsh コマンドがすでにある場合）</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.35
+dsh plugin --profile web add dsh-codex-subscription@3.2.36
 ```
 
 再起動の指示に従い、その後 **設定 → Codex** でサインインしてください。プラグインページとターミナルのどちらからインストールしても、DSH のインストール管理機能が使用されます。
@@ -95,7 +95,7 @@ dsh plugin --profile web add dsh-codex-subscription@3.2.35
 Web でサインインし、Codex モデルを選択した後、Headless プロファイルにも同じプラグインをインストールします。
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.35
+dsh plugin --profile headless add dsh-codex-subscription@3.2.36
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -228,7 +228,7 @@ PC で **ペアリングコードを表示** を押し、ChatGPT モバイルア
 | **応答の詳しさ** | 短い、標準、または詳しい応答をリクエストします | 変更しない限り、モデルのデフォルトに従います |
 | **入力画像の詳細度** | チャットモデルに送信する画像の詳細度として、「低」「高」「オリジナル」「自動」を選択します | 入力トークン数に影響します。デフォルトは「自動」です |
 | **サブスクリプションのウェブ検索** | 自動、Codex、DSH に登録された検索先から選びます | 「Web とツール」で設定します。「自動」はモデルに応じて検索先を選びます。共有 Web 設定に対応する DSH では、プラグインの Web 検索・取得ページとも連動します。ページ取得は別に選べます。 |
-| **ウェブページの読み取り元** | URL が分かっているページをどの経路で読むか、検索元とは別に選びます。 | 「Web とツール」で設定します。共有 Web 設定に対応するホストでは HTTP、DeepSeek Fetch API、Codex を選べます。 |
+| **ウェブページの読み取り元** | 検索元とは別に、URL の読み取り元と試す順番を選べます。 | 「Web とツール」で HTTP、DeepSeek Fetch API、Codex などを行ごとに指定します。成功したら停止します。後続行の「停止」で、その行以降を削除できます。一部の取得元は有料です。キャンセルや権限拒否では別の取得元へ進みません。 |
 | **その他のモデルの切り替え** | DeepSeek およびその他の Codex 以外のモデルを使う会話で、サブスクリプションのウェブ検索、画像生成、ChatGPT コネクターを使わないようにするスイッチです | 「設定」→「Codex サブスクリプション」→「ウェブとツール」で設定します。デフォルトでオンです。Codex サブスクリプションモデルには影響しません。スマートフォンのリモート操作と音声機能はユーザー自身が開始するものであり、影響を受けません |
 | **検索範囲** | ライブ検索 / キャッシュ検索を選ぶ、検索を無効にする、または検索対象ドメインを制限します | 「ウェブとツール」で設定します。Codex 購読の検索にのみ適用されます |
 | **ストリーム無応答タイムアウト** | リクエストのストリームデータが受信されない状態が続き、リクエストを中止するまでの時間を設定します | デフォルトは10分です。応答全体の期限ではありません |
@@ -328,7 +328,7 @@ DSH の **プラグイン** ページでこのプラグインを見つけ、更�
 <summary>ターミナルコマンド</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.35
+dsh plugin --profile web update dsh-codex-subscription@3.2.36
 ```
 
 アンインストールする場合にのみ実行してください：

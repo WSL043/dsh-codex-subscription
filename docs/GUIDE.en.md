@@ -90,9 +90,9 @@ On hosts that expose the shared provider settings, the search control edits the 
 - **DeepSeek (Legacy)** uses DeepSeek's model-side search. Only DeepSeek model tokens are billed. **DeepSeek Search API** costs CNY 5 per 1,000 successful searches. Older hosts show **DSH** and use its configured provider. [DeepSeek pricing](https://api-docs.deepseek.com/zh-cn/guides/search/#计费)
 - **Codex** uses subscription search. With subscription features for other models turned off, non-Codex conversations use native DSH search.
 
-#### Ordered webpage reading (unreleased)
+#### Ordered webpage reading
 
-**The source-chain feature below is currently available only in unreleased source builds; npm 3.2.35 does not include it. A later release must include this feature before it is available from npm.** The Node.js and DSH compatibility ranges for source builds are defined by `engines.node` and `engines.dsh` in the [plugin manifest](../package.json); the package version alone does not mean this feature has been released.
+Available from plugin **3.2.36**. The supported Node.js and DSH versions are defined by `engines.node` and `engines.dsh` in the [plugin manifest](../package.json).
 
 - **Webpage reading source** is a separate section. Its numbered rows select atomic sources registered by the host, such as **HTTP**, **DeepSeek Fetch API** and **Codex**; the composite providers themselves are excluded. Sources are tried in order until one succeeds; unlisted sources are never used. Some sources may charge fees; menu details explain known sources. Missing or unavailable sources, recoverable service or network errors, non-success HTTP responses and empty bodies move on to the next source; cancellation, permission denial or other non-recoverable errors end the entire chain.
 - The first row must select a source and never offers Stop. On existing rows, choosing a source already used swaps positions; choosing an unused source replaces that row. Stop on any later row removes it and the entire old tail. The final Stop row only offers unused sources to append. Once all sources are used, there is no append row. Each edit saves the whole order; ordinary save failures roll back. If partial writes cannot be restored or the saved state is uncertain, editing pauses until you refresh settings as prompted and try again.

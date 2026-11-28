@@ -65,7 +65,7 @@ Die Node.js-Anforderungen für CLI und Web findest du in der [offiziellen DSH-An
 2. Füge diesen Paketnamen einschließlich Version in das Feld **Paketname oder Adresse** ein:
 
    ```text
-   dsh-codex-subscription@3.2.35
+   dsh-codex-subscription@3.2.36
    ```
 
 3. Klicke auf **Installieren** und warte, bis der Vorgang abgeschlossen ist. Folge den Anweisungen auf der Seite; speichere deine Arbeit, bevor du neu startest, falls du dazu aufgefordert wirst.
@@ -82,7 +82,7 @@ Warum die Version angegeben ist: Auf der Plugin-Seite von DSH werden nur Version
 <summary>Installation über das Terminal (mit einem vorhandenen dsh-Befehl)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.35
+dsh plugin --profile web add dsh-codex-subscription@3.2.36
 ```
 
 Folge den Anweisungen zum Neustart und melde dich anschließend unter **Einstellungen → Codex** an. Sowohl die Plugins-Seite als auch das Terminal verwenden die Installationsverwaltung von DSH.
@@ -95,7 +95,7 @@ Folge den Anweisungen zum Neustart und melde dich anschließend unter **Einstell
 Melde dich an und wähle in Web ein Codex-Modell aus. Installiere anschließend dasselbe Plugin im Headless-Profil:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.35
+dsh plugin --profile headless add dsh-codex-subscription@3.2.36
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -228,7 +228,7 @@ Wähle das Modell passend zur Aufgabe, die Denkstufe nach dem Analysebedarf und 
 | **Antwortausführlichkeit** | Kurze, mittellange oder ausführliche Antworten anfordern | Folgt dem Modellstandard, sofern nicht geändert |
 | **Bilddetail für Eingaben** | Für Bilder, die an das Chatmodell gesendet werden, „Niedrig“, „Hoch“, „Original“ oder „Auto“ auswählen | Wirkt sich auf Eingabetokens aus; standardmäßig „Auto“ |
 | **Websuche mit Abo** | Automatisch, Codex oder in DSH registrierte Suchanbieter | Unter Web & Tools einstellbar. Automatisch wählt die Quelle nach Modell. Wenn DSH die Web-Einstellungen teilt, erscheint dieselbe Auswahl im DSH-Plugin für Websuche und Abruf. Das Lesen von Seiten bleibt separat. |
-| **Quelle für das Lesen von Webseiten** | Lege unabhängig von der Suche fest, wie eine bekannte URL gelesen wird. | Unter Web & Tools. DSH ist voreingestellt. Codex benötigt einen kompatiblen Host und zeigt Lesefehler an. |
+| **Quelle für das Lesen von Webseiten** | Wähle die Quellen und ihre Reihenfolge für bekannte URLs unabhängig von der Suche. | Unter Web & Tools lassen sich HTTP, DeepSeek Fetch API, Codex und weitere registrierte Quellen zeilenweise auswählen. Nach dem ersten Erfolg wird gestoppt. Stop entfernt die gewählte und alle folgenden Zeilen. Manche Quellen sind kostenpflichtig. Abbruch oder verweigerte Berechtigungen beenden die gesamte Kette. |
 | **Umschalter für andere Modelle** | Ein Umschalter verhindert, dass Unterhaltungen mit DeepSeek und anderen Modellen, die nicht von Codex stammen, die Websuche mit Abo, Bildgenerierung und ChatGPT-Konnektoren verwenden | „Einstellungen“ → „Codex-Abonnement“ → „Web & Tools“; standardmäßig aktiviert; Codex-Abo-Modelle sind nicht betroffen; die Fernsteuerung per Smartphone und Sprache werden von dir gestartet und sind nicht betroffen |
 | **Suchumfang** | Live- oder Cache-Suche auswählen, die Suche deaktivieren oder Domains einschränken | Unter „Web & Tools“ einstellbar. Gilt nur für die Suche über das Codex-Abo. |
 | **Zeitlimit bei Inaktivität des Streams** | Festlegen, wie lange bei einer Anfrage keine gestreamten Daten eingehen dürfen, bevor sie abgebrochen wird | Standardmäßig 10 Minuten; keine Gesamtfrist für die Antwort |
@@ -328,7 +328,7 @@ Suche dieses Plugin auf der DSH-Seite **Plugins** und verwende dort die Aktion z
 <summary>Terminalbefehle</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.35
+dsh plugin --profile web update dsh-codex-subscription@3.2.36
 ```
 
 Nur ausführen, wenn du deinstallieren möchtest:

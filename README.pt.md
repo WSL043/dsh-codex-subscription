@@ -65,7 +65,7 @@ Consulte o [guia oficial do DSH](https://github.com/deepseek-ai/deepseek-harness
 2. Cole o nome deste pacote, com a versão, no campo **Nome ou endereço do pacote**:
 
    ```text
-   dsh-codex-subscription@3.2.35
+   dsh-codex-subscription@3.2.36
    ```
 
 3. Clique em **Instalar** e aguarde a conclusão. Siga as instruções da página; salve seu trabalho antes de reiniciar, se solicitado.
@@ -82,7 +82,7 @@ Por que a versão está incluída: a página de plugins do DSH só instala vers�
 <summary>Instalação pelo terminal (com um comando dsh existente)</summary>
 
 ```sh
-dsh plugin --profile web add dsh-codex-subscription@3.2.35
+dsh plugin --profile web add dsh-codex-subscription@3.2.36
 ```
 
 Siga as instruções para reiniciar e entre em **Configurações → Codex**. Tanto a página Plugins quanto o terminal usam o gerenciamento de instalações do DSH.
@@ -95,7 +95,7 @@ Siga as instruções para reiniciar e entre em **Configurações → Codex**. Ta
 Depois de entrar e selecionar um modelo Codex na versão Web, instale o mesmo plugin no perfil Headless:
 
 ```sh
-dsh plugin --profile headless add dsh-codex-subscription@3.2.35
+dsh plugin --profile headless add dsh-codex-subscription@3.2.36
 dsh --profile headless "Reply with only the word: ok"
 ```
 
@@ -228,7 +228,7 @@ Escolha o modelo conforme a tarefa, o raciocínio conforme a análise necessári
 | **Detalhamento das respostas** | Solicita respostas curtas, médias ou detalhadas | Segue o padrão do modelo, a menos que seja alterado |
 | **Detalhe das imagens de entrada** | Escolhe o nível de detalhe Baixo, Alto, Original ou Automático para imagens enviadas ao modelo de chat | Afeta os tokens de entrada; Automático por padrão |
 | **Pesquisa na web por assinatura** | Automático, Codex ou provedores de pesquisa cadastrados no DSH | Configure em Web e ferramentas. Automático escolhe a origem conforme o modelo. Com configurações web compartilhadas, o plugin do DSH de busca e leitura mostra a mesma seleção. A leitura de páginas tem um ajuste separado. |
-| **Fonte de leitura de páginas da web** | Escolha como ler uma URL conhecida, independentemente da fonte de pesquisa. | Em Web e ferramentas. DSH é o padrão. Codex requer um host compatível e informa falhas de leitura. |
+| **Fonte de leitura de páginas da web** | Escolha as fontes e a ordem para ler URLs conhecidas, independentemente da pesquisa. | Em Web e ferramentas, selecione HTTP, DeepSeek Fetch API, Codex ou outras fontes registradas por linha. O primeiro sucesso encerra a sequência. Parar remove essa linha e as seguintes. Algumas fontes podem cobrar. O cancelamento ou a recusa de permissão encerra toda a sequência. |
 | **Alternância para outros modelos** | Uma única opção impede que conversas em DeepSeek e outros modelos que não sejam Codex usem a pesquisa na web por assinatura, a geração de imagens e os conectores do ChatGPT | Configurações → Assinatura Codex → Web e ferramentas; ativada por padrão; não afeta os modelos da assinatura Codex; o controle remoto pelo celular e a voz são iniciados por você e não são afetados |
 | **Escopo da pesquisa** | Escolhe pesquisa ao vivo / em cache, desativa a pesquisa ou restringe os domínios | Configure em Web e ferramentas. Aplica-se somente às pesquisas da assinatura do Codex. |
 | **Tempo limite de inatividade do fluxo** | Define por quanto tempo uma solicitação pode ficar sem receber dados transmitidos antes de ser cancelada | 10 minutos por padrão; não é um prazo limite para a resposta inteira |
@@ -328,7 +328,7 @@ Encontre este plugin na página **Plugins** do DSH e use a opção de atualizaç
 <summary>Comandos do terminal</summary>
 
 ```sh
-dsh plugin --profile web update dsh-codex-subscription@3.2.35
+dsh plugin --profile web update dsh-codex-subscription@3.2.36
 ```
 
 Execute somente quando quiser desinstalar:
