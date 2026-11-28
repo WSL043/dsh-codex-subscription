@@ -26,11 +26,6 @@ const options = {
     'codex-subscription-auto': ['searchAuto', 'searchAutoHint'],
     'codex-subscription-dsh': ['searchDsh', 'searchDshHint'],
   },
-  fetch: {
-    http: ['HTTP', 'fetchHttpCost'],
-    'deepseek-fetch-api': ['DeepSeek Fetch API', 'fetchDeepSeekCost'],
-    'codex-subscription-fetch': ['Codex', 'fetchCodexCost'],
-  },
 }
 
 function ProviderChoice({ kind, title, current, providers, writable, saving, hostAutomatic, t, change }) {
@@ -46,7 +41,7 @@ function ProviderChoice({ kind, title, current, providers, writable, saving, hos
     if (id === '') return { label: t('searchAuto') }
     if (!Object.hasOwn(names, id)) return { label: registered.get(id)?.title ?? webProviderTitle(id, t) }
     const [name, detail] = names[id]
-    const label = name.startsWith('search') ? t(name) : name
+    const label = name.startsWith('search') || name.startsWith('fetch') ? t(name) : name
     return { label: hostAutomatic && id === 'codex-subscription-auto' ? 'Codex · ' + label : label, description: t(detail) }
   }
   const selected = describe(selectedId)
@@ -109,9 +104,10 @@ export function WebProviderSettings({ ctx, t }) {
     setSaving(true)
     setFailed(false)
     try {
+      const current = form.getSnapshot()
       const path = [field]
-      const op = !value || value === section.base?.[field] ? { op: 'unset', path } : { op: 'set', path, value }
-      setFailed(!await form.mutate([op], section.revision))
+      const op = !value || value === current.base?.[field] ? { op: 'unset', path } : { op: 'set', path, value }
+      setFailed(!await form.mutate([op], current.revision))
     } catch {
       setFailed(true)
     } finally {
@@ -120,10 +116,9 @@ export function WebProviderSettings({ ctx, t }) {
   }
   const writable = section.status === 'ready' && section.writable && !saving
   return <>
-    {['search', 'fetch'].map(kind => <ProviderChoice key={kind}
-      kind={kind} title={t(kind + 'Title')} current={section.value?.[kind + 'Provider']}
-      hostAutomatic={section.status === 'ready' && section.base?.[kind + 'Provider'] === undefined}
-      providers={providers?.[kind]} writable={writable} saving={saving} t={t} change={change} />)}
+    <ProviderChoice kind="search" title={t('searchTitle')} current={section.value?.searchProvider}
+      hostAutomatic={section.status === 'ready' && section.base?.searchProvider === undefined}
+      providers={providers?.search} writable={writable} saving={saving} t={t} change={change} />
     {failed ? <p className="codexSubscriptionError" role="alert">{t('preferenceFailed')}</p> : null}
   </>
 }

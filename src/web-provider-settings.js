@@ -1,11 +1,12 @@
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID } from './codex-search.js'
 import { DSH_SEARCH_PROVIDER_ID } from './dsh-search.js'
-import { CODEX_FETCH_PROVIDER_ID } from './codex-fetch.js'
+import { CODEX_FETCH_PROVIDER_ID, CODEX_FETCH_FALLBACK_PROVIDER_ID } from './codex-fetch.js'
+import { FETCH_CHAIN_PROVIDER_ID, FETCH_ORDER_FIELD, isCompositeFetchProvider, validateFetchOrder } from './fetch-order.js'
 
 const WEB = 'web'
 const subscriptionSearchIds = new Set([CODEX_SEARCH_PROVIDER_ID, CODEX_AUTO_SEARCH_PROVIDER_ID, DSH_SEARCH_PROVIDER_ID])
 const isNativeSearch = id => typeof id === 'string' && id !== '' && !subscriptionSearchIds.has(id)
-const isNativeFetch = id => typeof id === 'string' && id !== '' && id !== CODEX_FETCH_PROVIDER_ID
+const isNativeFetch = id => typeof id === 'string' && id !== '' && id !== CODEX_FETCH_PROVIDER_ID && !isCompositeFetchProvider(id)
 
 function nativeDefaults(row, legacy) {
   const values = {}
@@ -27,6 +28,11 @@ export function createWebProviderSettings(ctx, settings) {
     return [value?.searchProvider, settings.get().webSearchFallbackProvider, base?.searchProvider]
       .find(isNativeSearch)
   }
+  const nativeFetch = () => {
+    const { value, base } = web() ?? {}
+    return [value?.fetchProvider, settings.get().webFetchFallbackProvider, base?.fetchProvider]
+      .find(isNativeFetch)
+  }
   const managed = () => settings.get().webProvidersManagedByDsh === true
 
   async function remember() {
@@ -39,7 +45,12 @@ export function createWebProviderSettings(ctx, settings) {
     if (Object.keys(patch).length) await settings.update(patch, plugin.revision)
   }
 
-  async function migrate() {
+  let migrating
+  const migrate = () => {
+    if (!migrating) migrating = migrateOnce().finally(() => { migrating = undefined })
+    return migrating
+  }
+  async function migrateOnce() {
     if (managed() || forms.writable !== true) return
     const rows = describe()
     const web = rows.find(row => row.ns === WEB)
@@ -55,7 +66,13 @@ export function createWebProviderSettings(ctx, settings) {
       if (legacy.searchProvider === 'codex') patch.searchProvider = CODEX_SEARCH_PROVIDER_ID
       if (legacy.searchProvider === 'auto') patch.searchProvider = CODEX_AUTO_SEARCH_PROVIDER_ID
     }
-    if (legacy.fetchProvider === 'codex' && currentFetch !== CODEX_FETCH_PROVIDER_ID) patch.fetchProvider = CODEX_FETCH_PROVIDER_ID
+    let fetchId
+    if (legacy[FETCH_ORDER_FIELD] !== undefined) {
+      validateFetchOrder(legacy[FETCH_ORDER_FIELD])
+      fetchId = FETCH_CHAIN_PROVIDER_ID
+    } else fetchId = legacy.fetchProvider === 'codex-fallback' ? CODEX_FETCH_FALLBACK_PROVIDER_ID
+      : legacy.fetchProvider === 'codex' ? CODEX_FETCH_PROVIDER_ID : undefined
+    if (fetchId && currentFetch !== fetchId) patch.fetchProvider = fetchId
     const previous = nativeDefaults(web, legacy)
     if (Object.keys(previous).length) await settings.update(previous, plugin.revision)
     if (Object.keys(patch).length) await forms.update(WEB, patch, web.revision)
@@ -64,5 +81,5 @@ export function createWebProviderSettings(ctx, settings) {
     if (currentPlugin) await settings.update({ webProvidersManagedByDsh: true }, currentPlugin.revision)
   }
 
-  return { managed, migrate, nativeSearch, remember }
+  return { managed, migrate, nativeSearch, nativeFetch, remember }
 }

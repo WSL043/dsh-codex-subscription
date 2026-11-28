@@ -52,8 +52,12 @@ import { DSH_SEARCH_PROVIDER_ID, createDshSearchProvider } from './dsh-search.js
 import { createSearchRouter, gateSearchProvider } from './search-router.js'
 import { createWebProviderSettings } from './web-provider-settings.js'
 import { CODEX_AUTO_SEARCH_PROVIDER_ID, CODEX_SEARCH_PROVIDER_ID, createCodexAutoSearchProvider, createCodexSearchProvider } from './codex-search.js'
-import { createCodexFetchProvider, createCodexFetchRouter, configuredFetchProviderId } from './codex-fetch.js'
-import { FETCH_PROVIDER_FIELD, FETCH_PROVIDER_CODEX, normalizeFetchProvider } from './settings-contract.js'
+import { CODEX_FETCH_PROVIDER_ID, CODEX_FETCH_FALLBACK_PROVIDER_ID, createCodexFetchProvider, createCodexFallbackFetchProvider, createCodexFetchRouter, configuredFetchProviderId, resolveDshFetchProvider } from './codex-fetch.js'
+import { WebError } from '@deepseek-ai/dsh-web'
+import { FETCH_CHAIN_PROVIDER_ID, FETCH_ORDER_FIELD, validateFetchOrder } from './fetch-order.js'
+import { createFetchChainProvider } from './fetch-chain.js'
+import { createFetchOrderSettings } from './fetch-order-settings.js'
+import { FETCH_PROVIDER_FIELD, FETCH_PROVIDER_CODEX, FETCH_PROVIDER_CODEX_FALLBACK, normalizeFetchProvider } from './settings-contract.js'
 import { createCodexImageTool } from './codex-images.js'
 import { IMAGE_FEATURE_DEFAULTS } from './image-features.js'
 import { watchImageTool } from './image-tool-registration.js'
@@ -145,6 +149,7 @@ const settingsFields = {
   webProvidersManagedByDsh: z.boolean().default(false),
   webSearchFallbackProvider: z.string(),
   webFetchFallbackProvider: z.string(),
+  [FETCH_ORDER_FIELD]: z.transform(z.array(z.string()).min(1).max(100), validateFetchOrder),
   [DISABLED_MODELS_FIELD]: z.transform(z.array(z.string()).max(100), normalizeDisabledModels).default([]),
   [AUTO_QUOTA_RETRY_FIELD]: z.boolean().default(DEFAULT_AUTO_QUOTA_RETRY),
   [ACCOUNT_FAILOVER_FIELD]: z.boolean().default(DEFAULT_ACCOUNT_FAILOVER),
@@ -330,6 +335,7 @@ export function apply(ctx, config = {}) {
     },
   })
   let fetchRouted = false
+  let fetchOrderSettings
   const preferences = {
     status: () => {
       const models = modelCatalog.getModels()
@@ -365,6 +371,7 @@ export function apply(ctx, config = {}) {
           webFetchFallbackProvider: settings.get().webFetchFallbackProvider,
         } : {}),
         fetchRoutingAvailable: fetchRouted,
+        ...fetchOrderSettings?.status(),
         [SPEED_MODE_FIELD]: settings.get()[SPEED_MODE_FIELD],
         [SPEED_SHORTCUT_FIELD]: normalizeSpeedShortcut(settings.get()[SPEED_SHORTCUT_FIELD]),
         [CUSTOM_INSTRUCTIONS_FIELD]: settings.get()[CUSTOM_INSTRUCTIONS_FIELD] ?? '',
@@ -404,7 +411,7 @@ export function apply(ctx, config = {}) {
       if (nativeWebSettings() && (Object.hasOwn(patch, SEARCH_PROVIDER_FIELD) || Object.hasOwn(patch, FETCH_PROVIDER_FIELD))) {
         throw new Error('Select the provider in DSH Web Search and Fetch settings')
       }
-      if (patch[FETCH_PROVIDER_FIELD] === FETCH_PROVIDER_CODEX && !fetchRouted) throw new Error('This DSH version does not support Codex webpage reading')
+      if ([FETCH_PROVIDER_CODEX, FETCH_PROVIDER_CODEX_FALLBACK].includes(patch[FETCH_PROVIDER_FIELD]) && !fetchRouted) throw new Error('This DSH version does not support Codex webpage reading')
       if (Object.hasOwn(patch, 'subagentBackend')) {
         if (!subagentBackend) throw new Error('DSH subagent services are unavailable')
         await subagentBackend.select(patch.subagentBackend)
@@ -412,6 +419,13 @@ export function apply(ctx, config = {}) {
       }
       const rest = { ...patch }
       delete rest.subagentBackend
+      if (Object.hasOwn(rest, FETCH_ORDER_FIELD)) {
+        await webSettings?.migrate()
+        await fetchOrderSettings.update(rest[FETCH_ORDER_FIELD])
+        delete rest[FETCH_ORDER_FIELD]
+      } else if (Object.hasOwn(rest, FETCH_PROVIDER_FIELD) && settings.get()[FETCH_ORDER_FIELD] !== undefined) {
+        await fetchOrderSettings.update(fetchOrderSettings.legacyOrder(rest[FETCH_PROVIDER_FIELD]))
+      }
       if (Object.keys(rest).length) await settings.update(rest)
     },
   }
@@ -636,8 +650,11 @@ export function apply(ctx, config = {}) {
     const request = currentAgent()?.session.requestContext?.()
     return (request?.provider === PROVIDER ? request.model : undefined) || latestLuna()
   }
+  let fetchActive = true
+  ctx.effect(() => () => { fetchActive = false }, 'codex-subscription: fetch lifetime')
+  const fetchAllowed = llmProvider => fetchActive && (nativeWebSettings() || fetchRouted) && (settings.get().otherModels !== 'off' || (llmProvider ?? currentAgent()?.session.requestContext?.()?.provider) === PROVIDER)
   const codexFetch = createCodexFetchProvider({
-    allowed: llmProvider => (nativeWebSettings() || fetchRouted) && (settings.get().otherModels !== 'off' || (llmProvider ?? currentAgent()?.session.requestContext?.()?.provider) === PROVIDER),
+    allowed: fetchAllowed,
     getAuth: resolveAuth,
     readCredential: options => store.read(PROVIDER, options),
     resolveModel: resolveWebModel,
@@ -645,21 +662,49 @@ export function apply(ctx, config = {}) {
     fetch: (input, init) => network.fetch('search', input, init),
   })
   const realFetchProviders = ctx.web.fetchProviders
-  ctx.web.registerFetchProvider?.({ ...codexFetch, available: () => nativeWebSettings()
-    ? configuredFetchProviderId(ctx.web, ctx.loader.entries()) === codexFetch.id
-    : fetchRouted && normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) === FETCH_PROVIDER_CODEX })
+  const fetchConfiguredId = () => configuredFetchProviderId(ctx.web, ctx.loader.entries())
+  fetchOrderSettings = createFetchOrderSettings({
+    settings, forms: ctx.settings, registry: realFetchProviders, codex: codexFetch,
+    configuredId: fetchConfiguredId, managed: nativeWebSettings,
+    available: () => fetchActive && realFetchProviders instanceof Map && (nativeWebSettings() || fetchRouted),
+  })
+  const chainFetch = createFetchChainProvider({
+    order: () => fetchOrderSettings.order(),
+    resolveProvider: id => id === CODEX_FETCH_PROVIDER_ID ? codexFetch : realFetchProviders?.get(id),
+    allowed: () => fetchActive && (nativeWebSettings() || fetchRouted),
+    authorize: (id, llmProvider) => {
+      if (id === CODEX_FETCH_PROVIDER_ID && !fetchAllowed(llmProvider)) throw new WebError('Codex webpage reading is disabled for this model', 'WEB_PROVIDER_UNAVAILABLE')
+    },
+    report: record => diagnosticLog.info('fetch', 'webpage reading order', JSON.stringify(record)),
+  })
+  const fallbackFetch = createCodexFallbackFetchProvider({
+    codex: codexFetch,
+    resolveDshProvider: () => resolveDshFetchProvider(realFetchProviders, webSettings?.nativeFetch()),
+    allowed: llmProvider => fetchAllowed(llmProvider) && (nativeWebSettings()
+      ? configuredFetchProviderId(ctx.web, ctx.loader.entries()) === CODEX_FETCH_FALLBACK_PROVIDER_ID
+      : fetchRouted && normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) === FETCH_PROVIDER_CODEX_FALLBACK),
+  })
+  for (const [provider, selection] of [[codexFetch, FETCH_PROVIDER_CODEX], [fallbackFetch, FETCH_PROVIDER_CODEX_FALLBACK]]) {
+    ctx.web.registerFetchProvider?.({ ...provider, available: () => nativeWebSettings()
+      ? configuredFetchProviderId(ctx.web, ctx.loader.entries()) === provider.id
+      : fetchRouted && normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) === selection })
+  }
+  ctx.web.registerFetchProvider?.({ ...chainFetch, available: () => fetchActive && (nativeWebSettings()
+    ? fetchConfiguredId() === FETCH_CHAIN_PROVIDER_ID
+    : fetchRouted && settings.get()[FETCH_ORDER_FIELD] !== undefined) })
   ctx.effect(() => {
     if (nativeWebSettings()) return undefined
     const web = ctx.web
     const configuredId = () => configuredFetchProviderId(web, ctx.loader.entries())
-    const router = createCodexFetchRouter({ registry: realFetchProviders, configuredId, mode: () => fetchRouted && !nativeWebSettings() ? normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) : 'dsh', codex: codexFetch })
+    const router = createCodexFetchRouter({ registry: realFetchProviders, configuredId, mode: () => fetchRouted && !nativeWebSettings() ? normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) : 'dsh', codex: codexFetch, allowed: fetchAllowed,
+      chain: chainFetch, orderEnabled: () => fetchActive && fetchRouted && !nativeWebSettings() && settings.get()[FETCH_ORDER_FIELD] !== undefined })
     if (router !== undefined) {
       try { web.fetchProviders = router } catch { /* A host without a writable registry cannot opt in. */ }
       fetchRouted = web.fetchProviders === router
     }
     if (!fetchRouted) {
       diagnosticLog.warn('fetch', 'Codex webpage reading is unavailable: DSH does not support fetch routing')
-      if (normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]) === FETCH_PROVIDER_CODEX) {
+      if (settings.get()[FETCH_ORDER_FIELD] !== undefined || [FETCH_PROVIDER_CODEX, FETCH_PROVIDER_CODEX_FALLBACK].includes(normalizeFetchProvider(settings.get()[FETCH_PROVIDER_FIELD]))) {
         diagnosticLog.error('fetch', 'Configured Codex webpage reading could not be activated; select DSH or update the host')
         throw new Error('Configured Codex webpage reading could not be activated; select DSH or update the host')
       }
@@ -668,6 +713,16 @@ export function apply(ctx, config = {}) {
     diagnosticLog.info('fetch', 'webpage reading is routed without replacing the configured DSH provider')
     return () => { fetchRouted = false; if (web.fetchProviders === router) web.fetchProviders = realFetchProviders }
   }, 'codex-subscription: fetch router')
+  ctx.effect(() => {
+    let active = true
+    void Promise.resolve().then(async () => {
+      if (!active) return
+      await webSettings?.migrate()
+      if (active) await fetchOrderSettings.initialize()
+    })
+      .catch(error => ctx.logger?.warn?.('could not migrate webpage reading order: %s', error.message))
+    return () => { active = false }
+  }, 'codex-subscription: fetch order migration')
   // With "other models" switched off, subscription search, images and connectors serve conversations on this plugin's own models only.
   const servesCurrentModel = () => {
     if (settings.get().otherModels !== 'off') return true

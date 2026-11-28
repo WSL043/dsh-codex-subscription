@@ -1,5 +1,6 @@
 import { CHANNEL, unwrap } from './rpc-contract.js'
 import { normalizeReasoningCache } from './preference-fields.js'
+import { FETCH_ORDER_FIELD, FETCH_ORDER_RELOAD_REQUIRED } from './fetch-order.js'
 import { normalizeSubagentModel, normalizeSubagentEffort } from './subagent-defaults.js'
 import {
   ACCOUNT_FAILOVER_FIELD,
@@ -77,6 +78,7 @@ export function createPreferenceController(rpc) {
   let subagentRuntimeInstalled = false
   let subagentModels = []
   let fetchRoutingAvailable = false
+  let fetchOrderNeedsReload = false
   let restartRequired = false
   let composerModelPickerActive = false
   let composerModelPickerConflict = false
@@ -119,6 +121,9 @@ export function createPreferenceController(rpc) {
       webSearchFallbackProvider: value?.webSearchFallbackProvider,
       webFetchFallbackProvider: value?.webFetchFallbackProvider,
       fetchProvider: normalizeFetchProvider(value?.[FETCH_PROVIDER_FIELD]),
+      [FETCH_ORDER_FIELD]: Array.isArray(value?.[FETCH_ORDER_FIELD]) ? [...value[FETCH_ORDER_FIELD]] : [],
+      fetchSources: Array.isArray(value?.fetchSources) ? value.fetchSources : [],
+      fetchOrderAvailable: value?.fetchOrderAvailable === true,
       fetchRoutingAvailable,
       speedMode: normalizeSpeedMode(value?.[SPEED_MODE_FIELD]),
       [SPEED_SHORTCUT_FIELD]: normalizeSpeedShortcut(value?.[SPEED_SHORTCUT_FIELD]),
@@ -149,7 +154,8 @@ export function createPreferenceController(rpc) {
       catalogStatus,
       modelsLoading,
       modelError,
-      writable: !updating && current.status === 'ready' && current.writable === true,
+      writable: !updating && !fetchOrderNeedsReload && current.status === 'ready' && current.writable === true,
+      fetchOrderNeedsReload,
       // The host itself refuses writes (not just a save in flight); the settings page says so once.
       hostReadOnly: current.status === 'ready' && current.writable === false,
       saving: updating,
@@ -168,6 +174,7 @@ export function createPreferenceController(rpc) {
     }
   }
   const acceptFallback = value => {
+    fetchOrderNeedsReload = false
     // Sticky until the page reloads: the host kept the written value on disk but not in the running settings.
     if (value?.liveSynced === false) restartRequired = true
     subagentBackendAvailable = value?.subagentBackendAvailable === true
@@ -213,6 +220,9 @@ export function createPreferenceController(rpc) {
         webSearchFallbackProvider: value?.webSearchFallbackProvider,
         webFetchFallbackProvider: value?.webFetchFallbackProvider,
         [FETCH_PROVIDER_FIELD]: normalizeFetchProvider(value?.[FETCH_PROVIDER_FIELD]),
+        [FETCH_ORDER_FIELD]: Array.isArray(value?.[FETCH_ORDER_FIELD]) ? [...value[FETCH_ORDER_FIELD]] : [],
+        fetchSources: Array.isArray(value?.fetchSources) ? value.fetchSources : [],
+        fetchOrderAvailable: value?.fetchOrderAvailable === true,
         [SPEED_MODE_FIELD]: normalizeSpeedMode(value?.[SPEED_MODE_FIELD]),
         [CUSTOM_INSTRUCTIONS_FIELD]: typeof value?.[CUSTOM_INSTRUCTIONS_FIELD] === 'string' ? value[CUSTOM_INSTRUCTIONS_FIELD] : '',
         [OUTPUT_VERBOSITY_FIELD]: normalizeOutputVerbosity(value?.[OUTPUT_VERBOSITY_FIELD]),
@@ -321,11 +331,12 @@ export function createPreferenceController(rpc) {
       // The Host may normalize or reject a requested value; its response wins.
       pendingPatch = undefined
       return true
-    } catch {
+    } catch (failure) {
       if (current === generation) {
         pendingPatch = undefined
         error = true
-        failedPatch = patch
+        if (failure?.code === FETCH_ORDER_RELOAD_REQUIRED) fetchOrderNeedsReload = true
+        failedPatch = fetchOrderNeedsReload ? undefined : patch
       }
     } finally {
       if (current === generation) {

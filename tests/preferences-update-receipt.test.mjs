@@ -108,6 +108,31 @@ test('a write the running settings never pick up is reported instead of looking 
   assert.equal(response.value.liveSynced, false, 'and says the running settings did not take it')
 })
 
+test('webpage order receipts compare sequence, not merely set membership', async () => {
+  const { settlesLive } = await import('../src/subscription-rpc.js')
+  const field = 'fetchProviderOrder'
+  const stale = { status: () => ({ [field]: ['http', 'codex-subscription-fetch'] }) }
+  assert.equal(await settlesLive(stale, { [field]: ['codex-subscription-fetch', 'http'] }, undefined, { attempts: 1, delayMs: 0 }), false)
+  assert.equal(await settlesLive(stale, { [field]: ['http', 'codex-subscription-fetch'] }, undefined, { attempts: 1, delayMs: 0 }), true)
+})
+
+test('webpage order RPC validates the whole sequence before writing and never accepts nested chains', async () => {
+  let value = { writable: true, fetchProviderOrder: ['http'] }
+  const writes = []
+  const handler = createSubscriptionRpcHandler({ preferences: { status: () => value, update: async patch => { writes.push(patch); value = { ...value, ...patch } } } })
+  const signal = new AbortController().signal
+  for (const order of [[], ['http', 'http'], ['__stop__'], ['codex-subscription-fetch-chain'], ['codex-subscription-fetch-fallback'], null]) {
+    assert.equal((await handler('preferences/update', { fetchProviderOrder: order }, signal)).ok, false)
+  }
+  assert.equal((await handler('preferences/update', { fetchProviderOrder: ['http'], fetchProvider: 'codex' }, signal)).ok, false)
+  assert.deepEqual(writes, [])
+  const next = ['codex-subscription-fetch', 'http']
+  const response = await handler('preferences/update', { fetchProviderOrder: next }, signal)
+  assert.equal(response.ok, true)
+  assert.deepEqual(response.value.fetchProviderOrder, next)
+  assert.deepEqual(writes, [{ fetchProviderOrder: next }])
+})
+
 test('custom instructions default to empty, accept edits and clearing, and reject invalid writes', async () => {
   let value = { writable: true, customInstructions: '' }
   const handler = createSubscriptionRpcHandler({ preferences: {

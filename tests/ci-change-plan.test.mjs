@@ -45,7 +45,7 @@ test('previously omitted suites and future behavior tests reach their CI gate', 
     assert.equal(JSON.parse(result.stdout).plan.behavior, true, file)
     if (file !== 'future-behavior') assert.ok(testFiles('behavior').includes(`tests/${file}.test.mjs`), file)
   }
-  for (const file of ['documentation', 'subscription-settings-entry', 'composer-prediction-preferences', 'settings-panel-lifecycle']) {
+  for (const file of ['documentation', 'subscription-settings-entry', 'composer-prediction-preferences', 'settings-panel-lifecycle', 'fetch-order-ui', 'fetch-fallback-ui']) {
     const path = `tests/${file}.test.mjs`
     assert.equal(JSON.parse(plan([path]).stdout).plan.delivery, true)
     assert.ok(testFiles('delivery').includes(path))

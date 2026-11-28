@@ -20,8 +20,9 @@ export const DEFAULT_SEARCH_PROVIDER = SEARCH_PROVIDER_AUTO
 export const FETCH_PROVIDER_FIELD = 'fetchProvider'
 export const FETCH_PROVIDER_DSH = 'dsh'
 export const FETCH_PROVIDER_CODEX = 'codex'
+export const FETCH_PROVIDER_CODEX_FALLBACK = 'codex-fallback'
 export const DEFAULT_FETCH_PROVIDER = FETCH_PROVIDER_DSH
-export const normalizeFetchProvider = value => value === FETCH_PROVIDER_CODEX ? FETCH_PROVIDER_CODEX : FETCH_PROVIDER_DSH
+export const normalizeFetchProvider = value => [FETCH_PROVIDER_CODEX, FETCH_PROVIDER_CODEX_FALLBACK].includes(value) ? value : FETCH_PROVIDER_DSH
 export const COMPOSER_MODEL_PICKER_MODES = Object.freeze(['auto', 'dsh', 'legacy'])
 export const normalizeComposerModelPicker = value => COMPOSER_MODEL_PICKER_MODES.includes(value) ? value : 'auto'
 

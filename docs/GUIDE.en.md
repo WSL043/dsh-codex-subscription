@@ -84,13 +84,20 @@ Spark keeps its independent quota. The plugin does not invent five-hour limits, 
 
 Under **Settings → Codex → Web & tools**, **Search source** finds pages and **Webpage reading source** opens a URL to retrieve its content. The two settings are independent.
 
-On hosts that expose the shared provider settings, these controls edit the same selections as **Plugins → Web search and fetch**. Save changes on the official page to see them in the Codex settings. Search mode and domain filters apply to Codex subscription searches.
+On hosts that expose the shared provider settings, the search control edits the same search selection as **Plugins → Web search and fetch**. Webpage reading is independent of search. Search mode and domain filters apply to Codex subscription searches.
 
 - **Auto** prefers subscription search for Codex models and DSH search for other models. It tries the other source only when sign-in or a key is missing, or the preferred service is unavailable.
 - **DeepSeek (Legacy)** uses DeepSeek's model-side search. Only DeepSeek model tokens are billed. **DeepSeek Search API** costs CNY 5 per 1,000 successful searches. Older hosts show **DSH** and use its configured provider. [DeepSeek pricing](https://api-docs.deepseek.com/zh-cn/guides/search/#计费)
 - **Codex** uses subscription search. With subscription features for other models turned off, non-Codex conversations use native DSH search.
-- For webpage reading, **HTTP** accesses the target site directly without a per-fetch fee, **DeepSeek Fetch API** costs CNY 5 per 1,000 successful fetches, and **Codex** uses your subscription. Hover or focus a provider in either menu to see its details.
-- If search returns links but the page text is missing, check the webpage reader and whether it can access that URL. The Codex reader reports its own failures directly.
+
+#### Ordered webpage reading (unreleased)
+
+**The source-chain feature below is currently available only in unreleased source builds; npm 3.2.35 does not include it. A later release must include this feature before it is available from npm.** The Node.js and DSH compatibility ranges for source builds are defined by `engines.node` and `engines.dsh` in the [plugin manifest](../package.json); the package version alone does not mean this feature has been released.
+
+- **Webpage reading source** is a separate section. Its numbered rows select atomic sources registered by the host, such as **HTTP**, **DeepSeek Fetch API** and **Codex**; the composite providers themselves are excluded. Sources are tried in order until one succeeds; unlisted sources are never used. Some sources may charge fees; menu details explain known sources. Missing or unavailable sources, recoverable service or network errors, non-success HTTP responses and empty bodies move on to the next source; cancellation, permission denial or other non-recoverable errors end the entire chain.
+- The first row must select a source and never offers Stop. On existing rows, choosing a source already used swaps positions; choosing an unused source replaces that row. Stop on any later row removes it and the entire old tail. The final Stop row only offers unused sources to append. Once all sources are used, there is no append row. Each edit saves the whole order; ordinary save failures roll back. If partial writes cannot be restored or the saved state is uncertain, editing pauses until you refresh settings as prompted and try again.
+- Newly registered sources only become candidates; they are never added automatically. Missing or unavailable selections retain their positions with a warning so you can correct them. An empty catalog has an explicit empty state. Unsupported or read-only hosts show a notice and cannot edit the order.
+- Search stays independent. The chain's source order is configured in its own Codex settings section, not through the old shared reader dropdown or fixed Codex → DSH combination. To use only one source, keep the first row; if further sources are already selected, choose Stop on the second row to remove them. If search returns links without page text, check whether the sources in your order can access the URL. An error is reported if all sources fail.
 
 <a id="connectors"></a>
 
@@ -308,4 +315,3 @@ Subscription chat, image generation and native DSH subtasks work without these o
 Uninstalling does not clear shared package caches or guarantee a fixed amount of reclaimed space. DSH or Portable manages those caches centrally; this plugin does not delete shared directories. Sketches, conversation history, generated originals and sign-in data are not package caches. Use their respective management controls when you want to remove them.
 
 **Phone & more → Storage and cache** displays the quota forecast cache size and lets you confirm clearing its local history. New samples are required afterwards. After reproducing a problem, use **Phone & more → Support diagnostics → Create report** to copy or download a JSON report with recent operation outcomes, available connection evidence and host extension slots. For a startup failure, include the startup error in the bug report. The recorded fetch path describes where the subscription plugin handed off the request. Check any third-party middleware's own diagnostics to verify what it did after handoff.
-
